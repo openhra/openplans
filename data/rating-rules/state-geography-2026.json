@@ -1,0 +1,395 @@
+{
+  "schema_version": "state-rating-geography-v1",
+  "plan_year": 2026,
+  "reviewed_on": "2026-11-07",
+  "NY": {
+    "citation": "DFS standardized rating regions map, page 1 (March 21, 2013), linked by DFS QHP PY2026 filing instructions section Rates Template, item 15.",
+    "references": [
+      "https://www.dfs.ny.gov/apps_and_licensing/health_insurers/nysoh_nys_standardized_rating_regions_map",
+      "https://www.dfs.ny.gov/system/files/documents/2025/05/qhp-2026-filing-instructions-20250505.pdf",
+      "https://info.nystateofhealth.ny.gov/sites/default/files/Attachment%20C%20-%20Rating%20Regions_1.pdf"
+    ],
+    "source_sha256": "ef2703b034d8900cbd5133a3e61cb99ddd76efd895defba5f67793bc626d5be1",
+    "counties": [
+      {
+        "county_fips": "36001",
+        "county": "Albany",
+        "rating_area_id": "Rating Area 1",
+        "region": "Albany Area"
+      },
+      {
+        "county_fips": "36021",
+        "county": "Columbia",
+        "rating_area_id": "Rating Area 1",
+        "region": "Albany Area"
+      },
+      {
+        "county_fips": "36035",
+        "county": "Fulton",
+        "rating_area_id": "Rating Area 1",
+        "region": "Albany Area"
+      },
+      {
+        "county_fips": "36039",
+        "county": "Greene",
+        "rating_area_id": "Rating Area 1",
+        "region": "Albany Area"
+      },
+      {
+        "county_fips": "36057",
+        "county": "Montgomery",
+        "rating_area_id": "Rating Area 1",
+        "region": "Albany Area"
+      },
+      {
+        "county_fips": "36083",
+        "county": "Rensselaer",
+        "rating_area_id": "Rating Area 1",
+        "region": "Albany Area"
+      },
+      {
+        "county_fips": "36091",
+        "county": "Saratoga",
+        "rating_area_id": "Rating Area 1",
+        "region": "Albany Area"
+      },
+      {
+        "county_fips": "36093",
+        "county": "Schenectady",
+        "rating_area_id": "Rating Area 1",
+        "region": "Albany Area"
+      },
+      {
+        "county_fips": "36095",
+        "county": "Schoharie",
+        "rating_area_id": "Rating Area 1",
+        "region": "Albany Area"
+      },
+      {
+        "county_fips": "36113",
+        "county": "Warren",
+        "rating_area_id": "Rating Area 1",
+        "region": "Albany Area"
+      },
+      {
+        "county_fips": "36115",
+        "county": "Washington",
+        "rating_area_id": "Rating Area 1",
+        "region": "Albany Area"
+      },
+      {
+        "county_fips": "36003",
+        "county": "Allegany",
+        "rating_area_id": "Rating Area 2",
+        "region": "Buffalo Area"
+      },
+      {
+        "county_fips": "36009",
+        "county": "Cattaraugus",
+        "rating_area_id": "Rating Area 2",
+        "region": "Buffalo Area"
+      },
+      {
+        "county_fips": "36013",
+        "county": "Chautauqua",
+        "rating_area_id": "Rating Area 2",
+        "region": "Buffalo Area"
+      },
+      {
+        "county_fips": "36029",
+        "county": "Erie",
+        "rating_area_id": "Rating Area 2",
+        "region": "Buffalo Area"
+      },
+      {
+        "county_fips": "36037",
+        "county": "Genesee",
+        "rating_area_id": "Rating Area 2",
+        "region": "Buffalo Area"
+      },
+      {
+        "county_fips": "36063",
+        "county": "Niagara",
+        "rating_area_id": "Rating Area 2",
+        "region": "Buffalo Area"
+      },
+      {
+        "county_fips": "36073",
+        "county": "Orleans",
+        "rating_area_id": "Rating Area 2",
+        "region": "Buffalo Area"
+      },
+      {
+        "county_fips": "36121",
+        "county": "Wyoming",
+        "rating_area_id": "Rating Area 2",
+        "region": "Buffalo Area"
+      },
+      {
+        "county_fips": "36025",
+        "county": "Delaware",
+        "rating_area_id": "Rating Area 3",
+        "region": "Mid-Hudson Area"
+      },
+      {
+        "county_fips": "36027",
+        "county": "Dutchess",
+        "rating_area_id": "Rating Area 3",
+        "region": "Mid-Hudson Area"
+      },
+      {
+        "county_fips": "36071",
+        "county": "Orange",
+        "rating_area_id": "Rating Area 3",
+        "region": "Mid-Hudson Area"
+      },
+      {
+        "county_fips": "36079",
+        "county": "Putnam",
+        "rating_area_id": "Rating Area 3",
+        "region": "Mid-Hudson Area"
+      },
+      {
+        "county_fips": "36105",
+        "county": "Sullivan",
+        "rating_area_id": "Rating Area 3",
+        "region": "Mid-Hudson Area"
+      },
+      {
+        "county_fips": "36111",
+        "county": "Ulster",
+        "rating_area_id": "Rating Area 3",
+        "region": "Mid-Hudson Area"
+      },
+      {
+        "county_fips": "36005",
+        "county": "Bronx",
+        "rating_area_id": "Rating Area 4",
+        "region": "New York City Area"
+      },
+      {
+        "county_fips": "36047",
+        "county": "Kings",
+        "rating_area_id": "Rating Area 4",
+        "region": "New York City Area"
+      },
+      {
+        "county_fips": "36061",
+        "county": "New York",
+        "rating_area_id": "Rating Area 4",
+        "region": "New York City Area"
+      },
+      {
+        "county_fips": "36081",
+        "county": "Queens",
+        "rating_area_id": "Rating Area 4",
+        "region": "New York City Area"
+      },
+      {
+        "county_fips": "36085",
+        "county": "Richmond",
+        "rating_area_id": "Rating Area 4",
+        "region": "New York City Area"
+      },
+      {
+        "county_fips": "36087",
+        "county": "Rockland",
+        "rating_area_id": "Rating Area 4",
+        "region": "New York City Area"
+      },
+      {
+        "county_fips": "36119",
+        "county": "Westchester",
+        "rating_area_id": "Rating Area 4",
+        "region": "New York City Area"
+      },
+      {
+        "county_fips": "36051",
+        "county": "Livingston",
+        "rating_area_id": "Rating Area 5",
+        "region": "Rochester Area"
+      },
+      {
+        "county_fips": "36055",
+        "county": "Monroe",
+        "rating_area_id": "Rating Area 5",
+        "region": "Rochester Area"
+      },
+      {
+        "county_fips": "36069",
+        "county": "Ontario",
+        "rating_area_id": "Rating Area 5",
+        "region": "Rochester Area"
+      },
+      {
+        "county_fips": "36099",
+        "county": "Seneca",
+        "rating_area_id": "Rating Area 5",
+        "region": "Rochester Area"
+      },
+      {
+        "county_fips": "36117",
+        "county": "Wayne",
+        "rating_area_id": "Rating Area 5",
+        "region": "Rochester Area"
+      },
+      {
+        "county_fips": "36123",
+        "county": "Yates",
+        "rating_area_id": "Rating Area 5",
+        "region": "Rochester Area"
+      },
+      {
+        "county_fips": "36007",
+        "county": "Broome",
+        "rating_area_id": "Rating Area 6",
+        "region": "Syracuse Area"
+      },
+      {
+        "county_fips": "36011",
+        "county": "Cayuga",
+        "rating_area_id": "Rating Area 6",
+        "region": "Syracuse Area"
+      },
+      {
+        "county_fips": "36015",
+        "county": "Chemung",
+        "rating_area_id": "Rating Area 6",
+        "region": "Syracuse Area"
+      },
+      {
+        "county_fips": "36023",
+        "county": "Cortland",
+        "rating_area_id": "Rating Area 6",
+        "region": "Syracuse Area"
+      },
+      {
+        "county_fips": "36067",
+        "county": "Onondaga",
+        "rating_area_id": "Rating Area 6",
+        "region": "Syracuse Area"
+      },
+      {
+        "county_fips": "36097",
+        "county": "Schuyler",
+        "rating_area_id": "Rating Area 6",
+        "region": "Syracuse Area"
+      },
+      {
+        "county_fips": "36101",
+        "county": "Steuben",
+        "rating_area_id": "Rating Area 6",
+        "region": "Syracuse Area"
+      },
+      {
+        "county_fips": "36107",
+        "county": "Tioga",
+        "rating_area_id": "Rating Area 6",
+        "region": "Syracuse Area"
+      },
+      {
+        "county_fips": "36109",
+        "county": "Tompkins",
+        "rating_area_id": "Rating Area 6",
+        "region": "Syracuse Area"
+      },
+      {
+        "county_fips": "36017",
+        "county": "Chenango",
+        "rating_area_id": "Rating Area 7",
+        "region": "Utica/Watertown Area"
+      },
+      {
+        "county_fips": "36019",
+        "county": "Clinton",
+        "rating_area_id": "Rating Area 7",
+        "region": "Utica/Watertown Area"
+      },
+      {
+        "county_fips": "36031",
+        "county": "Essex",
+        "rating_area_id": "Rating Area 7",
+        "region": "Utica/Watertown Area"
+      },
+      {
+        "county_fips": "36033",
+        "county": "Franklin",
+        "rating_area_id": "Rating Area 7",
+        "region": "Utica/Watertown Area"
+      },
+      {
+        "county_fips": "36041",
+        "county": "Hamilton",
+        "rating_area_id": "Rating Area 7",
+        "region": "Utica/Watertown Area"
+      },
+      {
+        "county_fips": "36043",
+        "county": "Herkimer",
+        "rating_area_id": "Rating Area 7",
+        "region": "Utica/Watertown Area"
+      },
+      {
+        "county_fips": "36045",
+        "county": "Jefferson",
+        "rating_area_id": "Rating Area 7",
+        "region": "Utica/Watertown Area"
+      },
+      {
+        "county_fips": "36049",
+        "county": "Lewis",
+        "rating_area_id": "Rating Area 7",
+        "region": "Utica/Watertown Area"
+      },
+      {
+        "county_fips": "36053",
+        "county": "Madison",
+        "rating_area_id": "Rating Area 7",
+        "region": "Utica/Watertown Area"
+      },
+      {
+        "county_fips": "36065",
+        "county": "Oneida",
+        "rating_area_id": "Rating Area 7",
+        "region": "Utica/Watertown Area"
+      },
+      {
+        "county_fips": "36075",
+        "county": "Oswego",
+        "rating_area_id": "Rating Area 7",
+        "region": "Utica/Watertown Area"
+      },
+      {
+        "county_fips": "36077",
+        "county": "Otsego",
+        "rating_area_id": "Rating Area 7",
+        "region": "Utica/Watertown Area"
+      },
+      {
+        "county_fips": "36089",
+        "county": "St. Lawrence",
+        "rating_area_id": "Rating Area 7",
+        "region": "Utica/Watertown Area"
+      },
+      {
+        "county_fips": "36059",
+        "county": "Nassau",
+        "rating_area_id": "Rating Area 8",
+        "region": "Long Island Area"
+      },
+      {
+        "county_fips": "36103",
+        "county": "Suffolk",
+        "rating_area_id": "Rating Area 8",
+        "region": "Long Island Area"
+      }
+    ]
+  },
+  "VT": {
+    "region": "Vermont",
+    "citation": "DVHA Issuer Guidance for Participation 2026, updated October 2025, section 2.3 p.11: plan Service Area shall encompass every ZIP code in the State of Vermont.",
+    "references": [
+      "https://dvha.vermont.gov/sites/dvha/files/documents/IssuerGuidanceForParticipation2026.pdf"
+    ]
+  }
+}

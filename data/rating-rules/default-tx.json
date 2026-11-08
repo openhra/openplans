@@ -1,0 +1,26 @@
+{
+  "schema_version": "rating-rules-v1",
+  "plan_year": 2026,
+  "reviewed_on": "2026-11-07",
+  "rules": [
+    {
+      "state": "TX",
+      "market": "individual",
+      "method": "per_member",
+      "citation": "Texas: CMS Market Rating Reforms, individual-market Texas row (current table updated 2021-12-10); State Specific Age Curve Variations effective 2018 (federal default age curve); 45 CFR 147.102(c)(1), (d), (e), current through 2026-11-05; reviewed for PY2026 on 2026-11-07; retrieved 2026-11-07.",
+      "references": [
+        "https://www.cms.gov/cciio/programs-and-initiatives/health-insurance-market-reforms/state-rating",
+        "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-B/part-147/section-147.102",
+        "https://www.cms.gov/CCIIO/Programs-and-Initiatives/Health-Insurance-Market-Reforms/Downloads/StateSpecAgeCrv053117.pdf"
+      ],
+      "member_rate_basis": "filed_rate_rows",
+      "child_rule": "three_oldest_covered_children_under_21",
+      "note": "Use the filed per-age/area/date/tobacco cents directly; never synthesize a rate from a curve. Family Option and populated family tiers remain unsupported. Individual medical only; no authorization for dental or SHOP."
+    }
+  ],
+  "notes": [
+    "Compatibility bootstrap for the existing no-file command: TX individual medical PY2026 only.",
+    "For publication-wide rules explicitly ingest data/rating-rules/2026.json or 2027.json. Loading this bootstrap replaces the active 2026 rule set with TX only.",
+    "NY/VT and every absent state remain unsupported; never infer support from rate-row shape."
+  ]
+}
