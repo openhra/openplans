@@ -11,6 +11,10 @@
     "openplans-mcp": "./dist/mcp/stdio.js"
   },
   "scripts": {
+    "format": "prettier --ignore-path .prettierignore --write .",
+    "format:check": "prettier --ignore-path .prettierignore --check .",
+    "lint": "eslint . --max-warnings 0",
+    "check:lint-setup": "node scripts/lint-setup-selftest.mjs",
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
@@ -33,10 +37,16 @@
   },
   "devDependencies": {
     "@electric-sql/pglite": "0.5.15",
+    "@eslint/js": "9.39.5",
     "@modelcontextprotocol/client": "2.4.0",
     "@types/node": "22.19.15",
     "@types/pg": "8.23.1",
+    "eslint": "9.39.5",
+    "eslint-config-prettier": "10.1.8",
+    "globals": "17.14.0",
+    "prettier": "3.9.10",
     "typescript": "5.9.3",
+    "typescript-eslint": "8.72.1",
     "vitest": "2.1.9"
   }
 }

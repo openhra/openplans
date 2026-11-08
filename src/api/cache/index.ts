@@ -155,6 +155,9 @@ export function createResponseCache(db: SqlSession, premiumToken?: string, optio
       stats.bypasses++; c.header('X-Cache', 'bypass'); return;
     }
     try {
+      // Hono's c.header() replaces a finalized Response while reusing its stream.
+      // After clone(), Node 22 can cancel that stream when the old Response is collected.
+      // Keep the Response alive by mutating its headers directly on every path below.
       const text = await boundedText(c.res.clone());
       const credentials = [...allowedCredentials].map(name => c.req.header(name)).filter((value): value is string => !!value);
       if (personalized && premiumToken) credentials.push(premiumToken);
@@ -162,16 +165,16 @@ export function createResponseCache(db: SqlSession, premiumToken?: string, optio
       const professionalCredentials = ['/v1/providers', '/compat/v1/providers/search'].includes(c.req.path);
       if (text === undefined || hasCredentials(json, professionalCredentials) || json && typeof json === 'object' && 'error' in json
         || credentials.some(value => text.includes(value))) {
-        stats.bypasses++; c.header('X-Cache', 'bypass'); return;
+        stats.bypasses++; c.res.headers.set('X-Cache', 'bypass'); return;
       }
       const entry: Entry = { body: text, headers: responseHeaders.flatMap(name => {
         const value = c.res.headers.get(name); return value === null ? [] : [[name, value] as [string, string]];
       }) };
       const value = JSON.stringify(entry);
-      if (Buffer.byteLength(value) > MAX_ENTRY_BYTES) { stats.bypasses++; c.header('X-Cache', 'bypass'); return; }
+      if (Buffer.byteLength(value) > MAX_ENTRY_BYTES) { stats.bypasses++; c.res.headers.set('X-Cache', 'bypass'); return; }
       await store.set(key, value, seconds);
-      stats.misses++; c.header('X-Cache', 'miss');
-    } catch { stats.bypasses++; c.header('X-Cache', 'bypass'); }
+      stats.misses++; c.res.headers.set('X-Cache', 'miss');
+    } catch { stats.bypasses++; c.res.headers.set('X-Cache', 'bypass'); }
   };
   async function catalog<T>(request: { namespace: string; version: string; generation: string; query: unknown;
     authorized: () => boolean; accept: (value: unknown) => value is T; ttlSeconds: number;

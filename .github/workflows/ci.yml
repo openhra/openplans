@@ -1,21 +1,152 @@
-name: CI
-
-on:
-  push:
-  pull_request:
-  workflow_dispatch:
-
-permissions:
-  contents: read
-
-jobs:
-  ci:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: npm
-      - run: npm ci --no-audit --no-fund
-      - run: scripts/ci.sh
+{
+  "name": "OpenPlans CI",
+  "on": {
+    "push": null,
+    "pull_request": null,
+    "workflow_dispatch": null
+  },
+  "permissions": {
+    "contents": "read"
+  },
+  "defaults": {
+    "run": {
+      "shell": "bash"
+    }
+  },
+  "jobs": {
+    "linux": {
+      "name": "OpenPlans / Linux",
+      "runs-on": "ubuntu-24.04",
+      "timeout-minutes": 20,
+      "steps": [
+        {
+          "uses": "actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5",
+          "with": {
+            "persist-credentials": false
+          }
+        },
+        {
+          "uses": "actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020",
+          "with": {
+            "node-version-file": ".node-version"
+          }
+        },
+        {
+          "name": "Pin npm",
+          "run": "npm install --global \"npm@$(cat .github/npm-version)\" --no-audit --no-fund"
+        },
+        {
+          "name": "Verify toolchain",
+          "run": "test \"$(node --version)\" = \"v$(cat .node-version)\"\ntest \"$(npm --version)\" = \"$(cat .github/npm-version)\""
+        },
+        {
+          "name": "Clean locked install",
+          "run": "npm ci --no-audit --no-fund"
+        },
+        {
+          "name": "Offline project checks",
+          "run": "scripts/ci.sh",
+          "env": {
+            "npm_config_offline": "true"
+          }
+        }
+      ]
+    },
+    "macos": {
+      "name": "OpenPlans / macOS",
+      "runs-on": "macos-14",
+      "timeout-minutes": 20,
+      "steps": [
+        {
+          "uses": "actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5",
+          "with": {
+            "persist-credentials": false
+          }
+        },
+        {
+          "uses": "actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020",
+          "with": {
+            "node-version-file": ".node-version"
+          }
+        },
+        {
+          "name": "Pin npm",
+          "run": "npm install --global \"npm@$(cat .github/npm-version)\" --no-audit --no-fund"
+        },
+        {
+          "name": "Verify toolchain",
+          "run": "test \"$(node --version)\" = \"v$(cat .node-version)\"\ntest \"$(npm --version)\" = \"$(cat .github/npm-version)\""
+        },
+        {
+          "name": "Clean locked install",
+          "run": "npm ci --no-audit --no-fund"
+        },
+        {
+          "name": "Offline project checks",
+          "run": "scripts/ci.sh",
+          "env": {
+            "npm_config_offline": "true"
+          }
+        }
+      ]
+    },
+    "docker": {
+      "name": "OpenPlans / Docker Linux",
+      "runs-on": "ubuntu-24.04",
+      "timeout-minutes": 20,
+      "steps": [
+        {
+          "uses": "actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5",
+          "with": {
+            "persist-credentials": false
+          }
+        },
+        {
+          "name": "Build candidate image",
+          "run": "docker build --pull --tag openplans-ci:${{ github.sha }} ."
+        },
+        {
+          "name": "Check compiled entry point",
+          "run": "docker run --rm --network none openplans-ci:${{ github.sha }} node --check dist/api/server.js"
+        },
+        {
+          "name": "Remove candidate image",
+          "if": "${{ always() }}",
+          "run": "if docker image inspect openplans-ci:${{ github.sha }} >/dev/null 2>&1; then\n  docker image rm openplans-ci:${{ github.sha }}\nfi"
+        }
+      ]
+    },
+    "required": {
+      "name": "OpenPlans / required",
+      "runs-on": "ubuntu-24.04",
+      "timeout-minutes": 5,
+      "if": "${{ always() }}",
+      "needs": [
+        "linux",
+        "macos",
+        "docker"
+      ],
+      "steps": [
+        {
+          "uses": "actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5",
+          "with": {
+            "persist-credentials": false
+          }
+        },
+        {
+          "uses": "actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020",
+          "with": {
+            "node-version-file": ".node-version"
+          }
+        },
+        {
+          "name": "Require every job to succeed",
+          "env": {
+            "NEEDS_RESULTS": "${{ toJSON(needs) }}"
+          },
+          "run": "node .github/check-required.mjs"
+        }
+      ]
+    }
+  }
+}

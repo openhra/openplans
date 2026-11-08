@@ -8,22 +8,58 @@
       "sha256": "bee9d1b1662613021a3f0ac6537e271fb59d3d8b770de158dc4e440cd0ddd159"
     },
     {
+      "path": ".editorconfig",
+      "mode": "100644",
+      "size": 212,
+      "sha256": "8e1c9a78d4dedcde12bb3cd6279ce83942819d1cd178f1d9d731ef3a62606ac7"
+    },
+    {
       "path": ".env.example",
       "mode": "100644",
       "size": 3097,
       "sha256": "d33647f730f46aeeb00122d7d070fbd45496b7222bfff01be365ff8d564de383"
     },
     {
+      "path": ".github/check-required.mjs",
+      "mode": "100644",
+      "size": 921,
+      "sha256": "816fd84601958ce6f4a30ed38c33f5f03e12d453ae32bb08a25c9741f4d3848c"
+    },
+    {
+      "path": ".github/npm-version",
+      "mode": "100644",
+      "size": 8,
+      "sha256": "b256114ed85ba7639cd562f2a5c58f74f2e29fdfc0f2d0fcacf30974f882fec9"
+    },
+    {
       "path": ".github/workflows/ci.yml",
       "mode": "100644",
-      "size": 343,
-      "sha256": "2a7ddff6440bbcde9656414ca1bc230c9dd7eded15c3a40053bca11be823a529"
+      "size": 4193,
+      "sha256": "6a1367c776d9ca11ef7c328107edff3282cacc1a9e4731f97eb3c101b96d9be3"
     },
     {
       "path": ".gitignore",
       "mode": "100644",
       "size": 70,
       "sha256": "0eee69d3d4d02ee6dc59c0e125b5f35c4fa53ad95f19c3d7b153709daa9a737f"
+    },
+    {
+      "path": ".node-version",
+      "mode": "100644",
+      "size": 8,
+      "sha256": "0c4bf84f9bedd485b2c4eac05f59e35addc86ce7dbf0d90435528e04384c6314"
+    },
+    {
+      "path": ".prettierignore",
+      "mode": "100644",
+      "size": 988,
+      "sha256": "25ae0cdae9f03167aac593b1e1cd5166bb5463d09f28983b93dfbbc17e8d6463"
+    },
+    {
+      "path": ".prettierrc.json",
+      "mode": "100644",
+      "size": 3,
+      "sha256": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356"
     },
     {
       "path": "AGENTS.md",
@@ -46,8 +82,8 @@
     {
       "path": "Dockerfile",
       "mode": "100644",
-      "size": 819,
-      "sha256": "0e6ebe96fd08759f2f512830f670231f8b6054c23eb4aa899e0f1bdd12b35ddb"
+      "size": 958,
+      "sha256": "69bfb849f68599965af3d3d02f784abf5cf19390c83dfe283a900e7878e7497f"
     },
     {
       "path": "Dockerfile.db",
@@ -164,6 +200,18 @@
       "sha256": "d4d8fa95afdfb4af69d873ce22e30ae506462d11f1929fb5ed9c1c5af475cfcc"
     },
     {
+      "path": "docs/ci.md",
+      "mode": "100644",
+      "size": 2228,
+      "sha256": "93e7edc5113fde9ad1ece22c80e7b32a780b9c51ecff65687cc95d4c922740fc"
+    },
+    {
+      "path": "docs/development-tools.md",
+      "mode": "100644",
+      "size": 5480,
+      "sha256": "b8a3493c2c7a03a5780fe1cf252caf48667d94be216e5bdef5319e8d60b632ac"
+    },
+    {
       "path": "docs/self-host.md",
       "mode": "100644",
       "size": 21496,
@@ -172,8 +220,14 @@
     {
       "path": "docs/usage.md",
       "mode": "100644",
-      "size": 18326,
-      "sha256": "a37122244c8ded24b9561f9f4c7991ff33361e232f341d62a761a68709d15548"
+      "size": 18197,
+      "sha256": "c294c96e39230c8d0c22d1d92a41e4c1985bda93600d806c6ba2966b3dd542e2"
+    },
+    {
+      "path": "eslint.config.mjs",
+      "mode": "100644",
+      "size": 1305,
+      "sha256": "4d9e39bf7043aa798e31b41b01e9a8a87875b100022d15ac045c59710b833b5b"
     },
     {
       "path": "migrations/001_provenance.sql",
@@ -466,14 +520,14 @@
     {
       "path": "package-lock.json",
       "mode": "100644",
-      "size": 61698,
-      "sha256": "2ac2840d6df026d7d1311e93f6d61c65481fa484925b9859046b0da4eca61250"
+      "size": 111804,
+      "sha256": "052a0237e1a426a4ff6d36615136d10a5d0b08d6a183ece547f6e86ba55341c9"
     },
     {
       "path": "package.json",
       "mode": "100644",
-      "size": 1252,
-      "sha256": "e6841f403655485ee93a27ecf3beaf66443fa2c49271164b175231aee8929a99"
+      "size": 1674,
+      "sha256": "aa16960ab80767cdcd95d94a1c6971e174ed9e15b7551f3769b00109caf6ecd8"
     },
     {
       "path": "scripts/check-extraction.mjs",
@@ -490,14 +544,26 @@
     {
       "path": "scripts/ci.sh",
       "mode": "100755",
-      "size": 361,
-      "sha256": "2c8f14d62fc3bea74f872899105d6de671fcb61642de2531703d4a18a1860fb3"
+      "size": 513,
+      "sha256": "23e8c353bb26215fdd4a31349339e189071b7a06b272828306fe085b3b5ff9fe"
     },
     {
       "path": "scripts/denylist.mjs",
       "mode": "100644",
       "size": 1892,
       "sha256": "b2109a10e65734844b0997ca7648ca8c4cc0116fd5831077b8f34c695598c103"
+    },
+    {
+      "path": "scripts/format-inventory.mjs",
+      "mode": "100644",
+      "size": 3085,
+      "sha256": "b0f3396053807c568d478ee8a4ffa072227a3b9b0d7e56906a40e5b0ab64a620"
+    },
+    {
+      "path": "scripts/lint-setup-selftest.mjs",
+      "mode": "100644",
+      "size": 4358,
+      "sha256": "1cb027a3aa6eb81f519c09dde41557aaeca3d611fa3d84fdd9edcb51d6e701be"
     },
     {
       "path": "scripts/name-prose-check.mjs",
@@ -676,8 +742,8 @@
     {
       "path": "src/api/cache/index.ts",
       "mode": "100644",
-      "size": 11322,
-      "sha256": "4775a062fee037f6bf199b34ae90c296767343444a1f256c6cd16a67645e01ca"
+      "size": 11619,
+      "sha256": "d67467311c4cee8989144afc12577b1ab952aa503ef60d4059f313a8c72b2b0b"
     },
     {
       "path": "src/api/cache/resp.ts",
@@ -1876,8 +1942,8 @@
     {
       "path": "tests/api/cache/middleware.test.ts",
       "mode": "100644",
-      "size": 8906,
-      "sha256": "0a741999b8739c9822d5c6be3ca5bf11b947e59827ecd41d8d7423054f968969"
+      "size": 10682,
+      "sha256": "39bd0cbbca37924b9af9efd1ab590ef2499e03905544d5095818a2b302542ff5"
     },
     {
       "path": "tests/api/cache/postgres-memory.test.ts",
@@ -2046,6 +2112,12 @@
       "mode": "100644",
       "size": 7762,
       "sha256": "fe0fd2c4584880074737a3c8dd35c972182cc9f452f3862f0163e44f19032cb1"
+    },
+    {
+      "path": "tests/ci-contract.test.mjs",
+      "mode": "100644",
+      "size": 8114,
+      "sha256": "791595b003ea27e432f133eee23e4e4f280b1b090aa4e5167bfa31789c18f35e"
     },
     {
       "path": "tests/compat/v1/auth.test.ts",

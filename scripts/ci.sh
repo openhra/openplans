@@ -6,6 +6,10 @@ cd "$(dirname "$0")/.."
 if [ ! -x node_modules/.bin/tsc ] || [ ! -x node_modules/.bin/vitest ]; then
   npm ci --offline --no-audit --no-fund
 fi
+# All dependency setup after cache priming must stay offline.
+export npm_config_offline=true
+export npm_config_audit=false
+export npm_config_fund=false
 npm run typecheck
 node scripts/check-neutral.mjs
 npm run check:extraction

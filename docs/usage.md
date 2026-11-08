@@ -265,9 +265,7 @@ verify CI rejects a deliberately failing test in a disposable package copy:
 ./scripts/negative-controls.sh
 ```
 
-Public releases use committed trees. Maintainers can run
-`scripts/export-public.mjs <ref> <dest>` from the source checkout; see
-[the export guide](public-export.md). Local development and data-provenance
+Public releases use committed trees. Local development and data-provenance
 rules are in [CONTRIBUTING.md](../CONTRIBUTING.md). The
 [standalone CI workflow](../.github/workflows/ci.yml) runs the same offline checks.
 

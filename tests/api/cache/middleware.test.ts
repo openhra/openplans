@@ -1,4 +1,7 @@
 import { Hono } from 'hono';
+import { setImmediate } from 'node:timers/promises';
+import { setFlagsFromString } from 'node:v8';
+import { runInNewContext } from 'node:vm';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createResponseCache, canonical } from '../../../src/api/cache/index.js';
 import { MemoryCache } from '../../../src/api/cache/store.js';
@@ -27,6 +30,32 @@ function harness(store: CacheStore = new MemoryCache(1024 * 1024), premiumToken 
 afterEach(() => vi.unstubAllEnvs());
 
 describe('response middleware policy and canonical keys', () => {
+  it('keeps response bodies readable after garbage collection on cache misses and bypasses', async () => {
+    // Obtain a collector for this test without requiring flags on the test runner.
+    let collect: () => void;
+    setFlagsFromString('--expose_gc');
+    try { collect = runInNewContext('gc'); }
+    finally { setFlagsFromString('--no-expose_gc'); }
+    const responses: { response: Response; body: unknown; outcome: string }[] = [];
+    for (const mode of ['miss', 'credential', 'oversized', 'oversized-entry', 'write-error']) {
+      const body = mode === 'credential' ? { api_key: 'synthetic-secret' }
+        : mode === 'oversized' ? { padding: 'x'.repeat(2 * 1024 * 1024) }
+        : mode === 'oversized-entry' ? { padding: '\n'.repeat(700_000) } : { synthetic: true };
+      const store: CacheStore = { bytes: () => 0, get: async () => null,
+        set: async () => { if (mode === 'write-error') throw new Error('synthetic write failure'); } };
+      const app = new Hono(), cache = createResponseCache(fakeDb, undefined, { store });
+      app.use('*', cache.middleware); app.get('/v1/plans', c => c.json(body));
+      responses.push({ response: await app.request('/v1/plans'), body, outcome: mode === 'miss' ? 'miss' : 'bypass' });
+    }
+    // Let finalizers run after the middleware's original response leaves scope.
+    for (let i = 0; i < 10; i++) { collect(); await setImmediate(); }
+    for (const { response, body, outcome } of responses) {
+      expect(response.headers.get('X-Cache')).toBe(outcome);
+      expect(response.bodyUsed).toBe(false);
+      expect(await response.json()).toEqual(body);
+    }
+  });
+
   it('canonicalizes object/query keys but preserves array and repeated query-value order', async () => {
     expect(canonical({ b: 2, a: [2, 1] })).toBe(canonical({ a: [2, 1], b: 2 }));
     expect(canonical([1, 2])).not.toBe(canonical([2, 1]));

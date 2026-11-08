@@ -1,0 +1,51 @@
+# Dependencies, build output and local state.
+**/node_modules/
+**/dist/
+**/coverage/
+**/.git/
+**/.venv/
+**/venv/
+**/__pycache__/
+**/.vercel/
+**/.claude-plan/
+**/.env
+**/.env.*
+**/package-lock.json
+release-manifest.json
+
+# Payloads stay byte-identical. Keep generator/helper code selected.
+**/fixtures/**/*
+!**/fixtures/**/
+!**/fixtures/**/*.js
+!**/fixtures/**/*.mjs
+!**/fixtures/**/*.cjs
+!**/fixtures/**/*.ts
+!**/fixtures/**/*.mts
+!**/fixtures/**/*.cts
+!**/fixtures/**/*.py
+**/__snapshots__/**
+**/*.snap
+tests/**/*.json
+src/domain/subsidy/generated.ts
+
+# Imported scaffold hashes and research/history are outside the migration.
+public-scaffold/**
+brand/**
+docs/PLAN.md
+docs/lanes/**
+docs/kit/**
+
+# Legal documents and mixed pages with publisher terms stay untouched.
+**/LICENSE*
+**/NOTICE*
+**/COPYING*
+**/privacy*
+**/terms*
+**/legal/**
+README.md
+docs/usage.md
+docs/self-host.md
+src/ingest/geo/README.md
+src/ingest/rxnorm/README.md
+src/ingest/taxonomy/README.md
+src/ingest/state/README.md

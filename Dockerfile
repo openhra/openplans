@@ -1,12 +1,14 @@
-FROM node:22 AS build
+FROM node:22.23.4 AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci --no-audit --no-fund
+COPY .github/npm-version .github/npm-version
+RUN npm install --global "npm@$(cat .github/npm-version)" --no-audit --no-fund \
+    && npm ci --no-audit --no-fund
 COPY tsconfig*.json ./
 COPY src ./src
 RUN npm run build && npm prune --omit=dev --no-audit --no-fund
 
-FROM node:22-slim AS runtime
+FROM node:22.23.4-slim AS runtime
 ENV NODE_ENV=production
 WORKDIR /app
 COPY --from=build --chown=node:node /app/package.json /app/package-lock.json ./
