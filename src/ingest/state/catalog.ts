@@ -33,11 +33,13 @@ export interface StateCatalogRow extends Record<string, unknown> {
   hios_id: string | null; hios_match: 'matched' | 'ambiguous' | 'none' | null;
   hios_match_reason: string | null; hios_candidates: Record<string, unknown>[] | null;
   hios_match_rule: string | null; hios_match_provenance: Record<string, unknown> | null;
+  sbe_exchange?: { on_exchange: boolean; off_exchange: boolean;
+    snapshot_id: string; source_rows: number[] } | null;
 }
 export async function stateCatalog(db: SqlSession, year: number, state?: string, key?: string, region?: string) {
   return (await db.query<StateCatalogRow>(`SELECT a.state,a.plan_year,r.*,i.rules_document,
     h.hios_id,h.hios_match,h.reason AS hios_match_reason,h.candidates AS hios_candidates,
-    h.rule_version AS hios_match_rule,
+    h.rule_version AS hios_match_rule,e.sbe_exchange,
     CASE WHEN h.state_import_id IS NOT NULL THEN jsonb_build_object(
       'state_import_id',h.state_import_id,'publication_snapshot_id',h.publication_snapshot_id,
       'filed',h.filed_provenance,'sbe_import_id',h.sbe_import_id) END AS hios_match_provenance
@@ -47,6 +49,16 @@ export async function stateCatalog(db: SqlSession, year: number, state?: string,
     JOIN state_community_rate r ON r.import_id=i.import_id
     LEFT JOIN state_vt_hios_current h ON h.state_import_id=r.import_id
       AND h.source_index=r.source_index AND h.record_index=r.record_index
+    LEFT JOIN LATERAL (
+      SELECT jsonb_build_object('on_exchange',bool_or(pa.on_exchange),
+        'off_exchange',bool_or(pa.off_exchange),'snapshot_id',f.snapshot_id,
+        'source_rows',jsonb_agg(pa.source_row ORDER BY pa.source_row)) AS sbe_exchange
+      FROM puf_import_file f JOIN plan_attribute pa ON pa.snapshot_id=f.snapshot_id
+      WHERE f.import_id=h.sbe_import_id AND f.kind='plan-attributes'
+        AND h.hios_match='matched' AND pa.base_plan_id=h.hios_id
+        AND pa.state='VT' AND pa.plan_year=a.plan_year AND pa.market='Individual' AND NOT pa.dental_only
+      GROUP BY f.snapshot_id
+    ) e ON true
     WHERE a.plan_year=$1 AND ($2::text IS NULL OR a.state=$2)
       AND ($3::text IS NULL OR r.plan_key=$3 OR h.hios_id=$3) AND ($4::text IS NULL OR r.region=$4)
     ORDER BY r.plan_key,r.region,r.source_index,r.record_index`, [year, state ?? null, key ?? null, region ?? null])).rows;

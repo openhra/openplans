@@ -69,7 +69,10 @@ function statePlan(rows: StateCatalogRow[]): Plan & CountyPlan {
       hios_match_provenance: identityEvidence ? row.hios_match_provenance : null } : {}),
     plan_year: row.plan_year, state: row.state, issuer_id: row.hios_id?.slice(0, 5) ?? raw.issuer, market: 'Individual',
     metal: raw.metal ?? 'unknown', dental_only: false, plan_name: raw.plan_name ?? 'unknown',
-    network_id: '', service_area_id: '', on_exchange: row.state === 'VT' && raw.exchange === 'On', off_exchange: false,
+    network_id: '', service_area_id: '',
+    on_exchange: row.sbe_exchange?.on_exchange ?? (row.state === 'VT' && raw.exchange === 'On'),
+    off_exchange: row.sbe_exchange?.off_exchange ?? false,
+    ...(row.sbe_exchange ? { exchange_provenance: row.sbe_exchange } : {}),
     snapshot_id: row.import_id, source_row: row.record_index + 1, state_catalog: true,
     zip_restricted: false, zip_codes: [], raw_zip_codes: [], rating_method: 'community_family_tier' };
 }
@@ -154,10 +157,11 @@ export async function planView(db: SqlSession, plan: Plan, options: CostSharingO
     ...sharing, plan_year: plan.plan_year, state: plan.state, market: 'individual',
     plan_name: plan.plan_name, metal: plan.metal, issuer: { issuer_id: plan.issuer_id, marketing_names: [] },
     network: { status: 'unknown', records: [] }, on_exchange: plan.state === 'NY' ? 'unknown' : plan.on_exchange,
-    off_exchange: 'unknown', enrollment_eligibility: 'unknown',
+    off_exchange: plan.exchange_provenance ? plan.off_exchange : 'unknown', enrollment_eligibility: 'unknown',
     availability_basis: plan.state === 'NY' ? 'filed_rating_area' : 'DVHA_2026_section_2.3_statewide',
     ...(plan.premium_availability ? { premium_availability: plan.premium_availability } : {}),
-    provenance: { snapshot_ids: { 'state-rates': plan.snapshot_id } } };
+    provenance: { snapshot_ids: { 'state-rates': plan.snapshot_id },
+      ...(plan.exchange_provenance ? { exchange: plan.exchange_provenance } : {}) } };
 
   const files = await snapshots(db, plan);
   const [issuer, networks] = await Promise.all([

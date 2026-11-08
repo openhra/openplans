@@ -85,7 +85,7 @@ describe('Cigna providers — real cuts, labelled synthetic mutants', () => {
       JOIN provider_shard s USING(snapshot_id) WHERE s.source_set_id=$1`,[result.snapshot_id])).rows[0])
       .toEqual({ edges: 0 });
   });
-  it.each([['FL','TX'],['GA','FL']])(
+  it.each([['FL','TX'],['GA','FL'],['NC','FL']])(
     'negative: a %s source record naming a %s plan creates zero edges and a state-scoped issue', async (state, otherState) => {
     const requested = { ...scope,state };
     const mutant = structuredClone(providers[0]);

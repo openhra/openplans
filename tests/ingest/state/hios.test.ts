@@ -73,6 +73,7 @@ afterAll(async () => { await db.close(); await core.cleanup(); await rm(director
 it('has no HIOS ID without supplemental evidence; joins automatically when a complete SBE set activates', async () => {
   expect(await planView(db, (await findPlan(db, key, 2026))!)).toMatchObject({
     hios_id: null, hios_match: 'none', hios_match_reason: 'no_verified_hios_match', hios_candidates: [],
+    off_exchange: 'unknown',
   });
   const before = JSON.stringify((await db.query('SELECT * FROM state_community_rate ORDER BY source_index,record_index')).rows);
   await attributes(db, 'real-facts');
@@ -82,11 +83,18 @@ it('has no HIOS ID without supplemental evidence; joins automatically when a com
     hios_candidates: [{ hios_id: id, bundle_url: fixture.url, bundle_sha256: fixture.sha256,
       attribute_member: fixture.member }],
     hios_match_provenance: { filed: { plan_name: 'Gold Plan', source_record: 'page=1;issuer=BCBSVT;column=2' } },
+    on_exchange: true, off_exchange: true,
+    provenance: { exchange: { snapshot_id: 'synthetic-vt-hios:real-facts:plan-attributes', source_rows: [13, 14, 15] } },
   });
   expect(view.hios_candidates).toHaveLength(1); // CSR rows collapse to a base design.
   expect(view.hios_candidates![0]!.attribute_rows).toHaveLength(3);
   expect((await stateCatalog(db, 2026, 'VT')).every(row => row.hios_match === 'matched')).toBe(true);
   expect(JSON.stringify((await db.query('SELECT * FROM state_community_rate ORDER BY source_index,record_index')).rows)).toBe(before);
+  const listed = await createApp(db).request('/v1/plans?county=50007&year=2026');
+  expect(listed.status).toBe(200);
+  expect((await listed.json() as any).plans).toEqual(expect.arrayContaining([
+    expect.objectContaining({ hios_id: id, on_exchange: true, off_exchange: true }),
+  ]));
 });
 
 it('native HIOS and plan_keys requests select byte-identical premium evidence in every family tier', async () => {
@@ -127,7 +135,8 @@ it('compatibility key searches and key/HIOS details publish only the evidenced H
       body: JSON.stringify({ fips_code: '50007', ids: [key], applicants: [{ age: 40 }], enrollment_date: '2026-01-01' }) });
     expect(response.status).toBe(200);
     expect((await response.json() as any).plans).toMatchObject([{ id: key, hios_id: id, hios_issuer_id: '13627',
-      identifiers: [{ type: 'hios_id', value: id }], premium: 1345.45 }]);
+      identifiers: [{ type: 'hios_id', value: id }], premium: 1345.45,
+      on_market: true, off_market: true, plan_market: 'both' }]);
     expect(response.headers.get('x-openplans-gaps')).not.toContain('hios_ids_unavailable');
     for (const lookup of [key, id]) {
       const detail = await app.request(`/compat/v1/plans/medical/${encodeURIComponent(lookup)}?year=2026`, { headers });
@@ -138,6 +147,17 @@ it('compatibility key searches and key/HIOS details publish only the evidenced H
   } finally {
     if (old === undefined) delete process.env.OPENPLANS_COMPAT_API_KEY; else process.env.OPENPLANS_COMPAT_API_KEY = old;
   }
+});
+
+it('rejects a synthetic stored federal age-rating authorization for VT at the HTTP boundary', async () => {
+  await rollback(async tx => {
+    await tx.query(`UPDATE state_rate_import SET rules_document=jsonb_set(rules_document,
+      '{rules,1,method}', '"per_member"'::jsonb) WHERE state='VT'`);
+    const result = await quote(tx, { plan_ids: [id] }, [{ age: 40, tobacco: true, relationship: 'subscriber' }]);
+    expect(result).toMatchObject({ status: 'unsupported_rating_method', reason: 'NO_APPLICABLE_COMMUNITY_RULE' });
+    expect(result).not.toHaveProperty('total_cents');
+    expect(() => assert.equal(result.status, 'rated', 'federal age math must not rate Vermont')).toThrow();
+  });
 });
 
 it('negative controls: a renamed design is none and a duplicate normalized name is ambiguous; both reject HIOS lookup', async () => {
