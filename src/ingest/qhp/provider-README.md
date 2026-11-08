@@ -255,3 +255,32 @@ immutable reference counts, GA NPPES results, FL preservation checks and HTTP ti
 Operational scripts and logs are under `$OPENPLANS_DATA_DIR/work/p6i/`. The offline
 GA-source/FL-plan control requires zero edges and a `plan_outside_state_scope` issue;
 a temporary copy with the state guard removed fails that assertion.
+
+## North Carolina PY2026 (P6j)
+
+North Carolina is present in both federal PY2026 inputs: the hash-verified Plan Attributes
+PUF contains 1,102 variant rows and 239 base plans for 13 issuers, and the MR URL PUF lists
+those same 13 issuers. The validated state catalog can therefore feed the existing native
+discovery and `--all-readable` batch implementation without a new state adapter.
+
+The P6j operation adds NC alongside the retained FL/GA evidence and TX/FL/GA NPPES
+memberships. Its external report is `$OPENPLANS_DATA_DIR/reports/p6j-nc.md`; acquisition,
+per-issuer outcomes, source hashes, first/repeat HTTP measurements, immutable reference
+counts and preservation checks remain in that external cache. An HTTP access failure is
+recorded as missing evidence; it does not authorize a different client identity or URL.
+The issuer-boundary disk guard stops further work below 40 GiB free in `/var/lib/docker`.
+
+The labelled synthetic NC-source/FL-plan regression control requires zero associations
+and `plan_outside_state_scope` with the requested NC scope and excluded FL plan. Removing
+the state guard in a temporary source copy makes that assertion fail. NC NPPES membership
+uses the normal state-scoped importer and does not establish plan participation.
+
+On the four-core validation database, issuer 77264's saved provider-name query times out
+with the default parallel-query setting. API connections using PostgreSQL's
+`options=-c max_parallel_workers_per_gather=0` retain the five-second query limit and
+use a serial plan. The external report keeps both the default-setting failures and
+the same-request serial measurements. This is an explicit connection setting; the
+database's global defaults are restored after ingestion.
+The serial API replay also times out for this saved request; the five-second
+provider-name performance acceptance remains open. No API implementation change
+was authored by this ingestion lane.
