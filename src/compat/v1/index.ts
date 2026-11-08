@@ -4,6 +4,7 @@ import { compatKeyHeader, credentialMatches } from './auth.js';
 import { providerCompatRoutes } from './providers.js';
 import { mapDentalPlan } from './dental.js';
 import { stateName } from './geography.js';
+import { orderPlans, pageWindow } from './search.js';
 import type { SqlSession } from '../../db/database.js';
 import type { ApiOptions } from '../../api/routes.js';
 import { nativeRoutes } from '../../api/routes.js';
@@ -27,10 +28,10 @@ function integer(value: unknown, fallback: number, field: string, max = Number.M
   if (typeof number !== 'number' || !Number.isSafeInteger(number) || number < 1 || number > max) return v.fail(field);
   return number;
 }
-function pagination(body: Record<string, unknown>, defaultSize: number) {
+function pagination(body: Record<string, unknown>, defaultSize: number, maximumSize = 1000) {
   const page = integer(body.page, 1, 'page'), size = integer(body.per_page, defaultSize, 'per_page', 1000);
   if (!Number.isSafeInteger(page * size)) return v.fail('page');
-  return { start: (page - 1) * size, size };
+  return pageWindow(page, size, maximumSize);
 }
 export function matchesMedicalSearchId(plan: { base_plan_id: string; hios_id?: string | null }, id: string) {
   return plan.base_plan_id === id || plan.hios_id === id;
@@ -96,9 +97,18 @@ export function compatRoutes(db: SqlSession, options: ApiOptions = {}) {
     }
     if (!results.length) { gaps(c, [...missing, 'zip_not_in_loaded_geography', 'zip_not_in_loaded_zcta_data']); return c.json(empty); }
     const countyMap = new Map(results.flatMap(result => result.counties.map(county => [county.county_fips, county] as const)));
-    const counties = [...countyMap.values()].map(county => ({ id: Number(county.county_fips), fips_code: county.county_fips,
-      name: county.county_name, state_code: countyState(county.county_fips),
-      state_id: Number(county.county_fips.slice(0, 2)), state_live: null, state_live_for_business: null }));
+    // Postal sources can omit a county's legal suffix. Resolve the display label from an active
+    // Census relationship for the same FIPS, independently of which ZIP resolved the request.
+    const { rows: labels } = await db.query<{ county_fips: string; county_name: string }>(`SELECT DISTINCT z.county_fips,z.county_name
+      FROM zcta_county z JOIN (SELECT DISTINCT ON (state) relationship_snapshot_id FROM geo_import
+        ORDER BY state,imported_at DESC,plan_year DESC) g ON g.relationship_snapshot_id=z.snapshot_id
+      WHERE z.county_fips=ANY($1::text[])`, [[...countyMap.keys()]]);
+    const counties = [...countyMap.values()].map(county => {
+      const names = [...new Set(labels.filter(label => label.county_fips === county.county_fips).map(label => label.county_name))];
+      return { id: Number(county.county_fips), fips_code: county.county_fips,
+        name: names.length === 1 ? names[0]! : county.county_name, state_code: countyState(county.county_fips),
+        state_id: Number(county.county_fips.slice(0, 2)), state_live: null, state_live_for_business: null };
+    });
     gaps(c, missing);
     const stateFips = [...new Set([...countyMap.keys()].map(county => county.slice(0, 2)))];
     return c.json({ counties, states: stateFips.map(fips => ({ id: Number(fips), fips_number: fips,
@@ -114,7 +124,9 @@ export function compatRoutes(db: SqlSession, options: ApiOptions = {}) {
     onError: c => c.json({ error: 'Request too large' }, 400) }), async c => {
     let json: unknown;
     try { json = await c.req.json(); } catch { return c.json({ error: 'Invalid JSON body' }, 400); }
-    const body = object(json), reasons = new Set(PLAN_GAPS), { start, size } = pagination(body, 10);
+    const body = object(json), reasons = new Set(PLAN_GAPS), { start, size } = pagination(body, 10, product === 'medical' ? 50 : 1000);
+    if (body.sort !== undefined && (typeof body.sort !== 'string' || !/^-?(premium|premium_subsidized|level|name|id)$/.test(body.sort))) return v.fail('sort');
+    if (product === 'medical' && body.sort === undefined) reasons.add('default_plan_order_unverified');
     if (!body.fips_code || !Array.isArray(body.applicants) || !body.applicants.length) {
       return c.json({ error: 'fips_code and applicants[] required' }, 400);
     }
@@ -188,18 +200,7 @@ export function compatRoutes(db: SqlSession, options: ApiOptions = {}) {
         : { ...mapPlan(view, id, plan.service_area_id || null), ...mapVariantAccumulators(view.cost_sharing),
           ...mapVariantBenefits(view.cost_sharing.benefits, view.cost_sharing.selected_variant_id ?? ''), ...mapQuote(quote) });
     }
-    if (body.sort !== undefined) {
-      if (typeof body.sort !== 'string' || !/^-?(premium|premium_subsidized|level|name|id)$/.test(body.sort)) return v.fail('sort');
-      const descending = body.sort.startsWith('-'), field = body.sort.replace(/^-/, '');
-      const metals = ['catastrophic', 'expanded_bronze', 'bronze', 'silver', 'gold', 'platinum'];
-      plans.sort((a, b) => {
-        let x = a[field], y = b[field];
-        if (field === 'level') { x = metals.indexOf(String(x)); y = metals.indexOf(String(y)); }
-        if (x === null || y === null) return x === y ? 0 : x === null ? 1 : -1;
-        const result = typeof x === 'number' && typeof y === 'number' ? x - y : String(x).localeCompare(String(y));
-        return descending ? -result : result;
-      });
-    }
+    orderPlans(plans, body.sort as string | undefined);
     gaps(c, reasons);
     return c.json(product === 'medical'
       ? { ...emptySearch(), meta: { ...emptySearch().meta, total: plans.length,
@@ -242,6 +243,12 @@ export function compatRoutes(db: SqlSession, options: ApiOptions = {}) {
     const term = c.req.query('search_term');
     if (!term || term.trim().length < 2 || term.length > 200) return c.json({ error: 'search_term required (min 2 chars, max 200)' }, 400);
     const { start, size } = pagination(c.req.query(), 25), rx = createRxnormRepository(db);
+    const reasons = ['drug_total_counts_rxnorm_concepts_not_ndc_products', 'drug_ids_are_rxnorm_concepts',
+      'ndc_package_descriptions_and_med_ids_unavailable', 'drug_strength_not_separately_resolved'];
+    if (!await rx.activeRelease()) {
+      gaps(c, [...reasons, 'rxnorm_terminology_unavailable']);
+      return c.json({ meta: { total: 0 }, drugs: [], drug_packages: [] });
+    }
     // The repository counts candidates by concept/name/TTY. Deduplicate RxCUIs,
     // then paginate concepts; NDC associations are packages, not product counts.
     const concepts = new Map<string, Awaited<ReturnType<typeof rx.searchDrugs>>[number]>();
@@ -258,8 +265,7 @@ export function compatRoutes(db: SqlSession, options: ApiOptions = {}) {
         non_proprietary_name: ['SBD', 'BN', 'BPCK'].includes(concept.tty) ? null : concept.name, drug_package_ids: packageIds });
       packages.push(...packageIds.map(id => ({ id, description: null, med_id: null, rx_cui_id: concept.rxcui })));
     }
-    gaps(c, ['drug_total_counts_rxnorm_concepts_not_ndc_products', 'drug_ids_are_rxnorm_concepts',
-      'ndc_package_descriptions_and_med_ids_unavailable', 'drug_strength_not_separately_resolved']);
+    gaps(c, reasons);
     return c.json({ meta: { total: concepts.size }, drugs, drug_packages: packages });
   });
 

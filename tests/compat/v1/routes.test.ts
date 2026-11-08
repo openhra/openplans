@@ -28,13 +28,14 @@ describe('public catalog facade, native repository integration', () => {
     expect(result.response.headers.get('x-openplans-gaps')).toContain('off_exchange_catalog_incomplete');
   });
 
-  it('maps native geography and keeps Census identifiers referentially consistent', async () => {
+  it('maps public geography codes and keeps public numeric joins consistent', async () => {
     const { response, body } = await get('/zip_counties?zip_prefix=77002');
     expect(response.status).toBe(200);
-    expect(body.counties[0]).toMatchObject({ fips_code: '48201', state_code: 'TX', state_live: null });
-    expect(body.zip_counties[0].county_id).toBe(body.counties[0].id);
-    expect(body.zip_counties[0].zip_code_id).toBe(body.zip_codes[0].id);
-    expect(body.states[0]).toMatchObject({ name: 'Texas', code: 'TX' });
+    expect(body.counties[0]).toMatchObject({ id: 48201, fips_code: '48201', name: 'Harris County',
+      state_id: 48, state_code: 'TX', state_live: null });
+    expect(body.zip_counties[0]).toMatchObject({ id: null, county_id: 48201, zip_code_id: 77002 });
+    expect(body.zip_codes[0]).toEqual({ id: 77002, code: '77002' });
+    expect(body.states[0]).toMatchObject({ id: 48, name: 'Texas', code: 'TX', fips_number: '48' });
   });
 
   it('supports three/four-digit prefixes using only loaded exact ZCTAs', async () => {

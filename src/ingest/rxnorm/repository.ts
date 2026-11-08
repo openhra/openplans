@@ -16,6 +16,10 @@ function pagination(options: SearchOptions) {
 }
 export function createRxnormRepository(db: SqlSession) {
   return {
+    async activeRelease(): Promise<{ snapshot_id: string; source_version: string } | null> {
+      return (await db.query<{ snapshot_id: string; source_version: string }>(`SELECT
+        snapshot_id,source_version::text FROM rx_release WHERE snapshot_id=${current}`)).rows[0] ?? null;
+    },
     /** Literal substring candidates with TTY; selection of a candidate is always explicit. */
     async searchDrugs(text: string, options: SearchOptions = {}): Promise<DrugConcept[]> {
       const { limit, offset } = pagination(options);
