@@ -1,4 +1,4 @@
-# openplans: agent rules
+# OpenPlans: agent rules
 
 Agent-neutral rules for Claude Code, Codex or a person working in this repository. Claude reads this
 through `CLAUDE.md`; Codex reads it directly. Put every rule here, never in an agent-specific file.
@@ -25,5 +25,8 @@ through `CLAUDE.md`; Codex reads it directly. Put every rule here, never in an a
 - **No contact email addresses** anywhere. Point people to <https://www.openhra.com/#contact>.
 - **Docker.** Containers bind to `127.0.0.1`; Compose project names start with `openplans-`; tear
   down what you start.
+- **Name.** Write the project's name as **OpenPlans** in prose, headings and alt text. Technical
+  identifiers stay lowercase: the repository `openhra/openplans`, package and CLI names,
+  `OPENPLANS_*` variables, the `openplans-` Compose prefix and the `openplans/<version>` User-Agent.
 - **Report honestly:** what works, what was written but not run, the gate output, and what still
   has to be tried by hand.

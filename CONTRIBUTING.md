@@ -1,6 +1,6 @@
-# Contributing to openplans
+# Contributing to OpenPlans
 
-Thanks for helping. openplans is in development and the code is still arriving from its incubator,
+Thanks for helping. OpenPlans is in development and the code is still arriving from its incubator,
 so expect larger changes on `develop` until the first release.
 
 ## How work flows
