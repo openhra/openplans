@@ -1,10 +1,10 @@
-<img src="brand/repo/readme-header-light.svg" alt="openplans by OpenHRA: US health plan data. On your server." width="960" height="280">
+<img src="brand/repo/readme-header-light.svg" alt="OpenPlans by OpenHRA: US health plan data. On your server." width="960" height="280">
 
-# openplans
+# OpenPlans
 
 US health plan data you can host yourself.
 
-openplans turns public CMS, Census, NPPES, NLM RxNorm and insurer files into an HTTP API for ACA
+OpenPlans turns public CMS, Census, NPPES, NLM RxNorm and insurer files into an HTTP API for ACA
 marketplace plans, household premiums, subsidy estimates, drug coverage and provider networks. It
 runs in Docker on your own server, and every answer can be traced to the public file it came from.
 
@@ -40,4 +40,4 @@ Questions: use the contact section of <https://www.openhra.com/#contact>.
 ## License
 
 Apache License 2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE). Public datasets keep their
-publishers' terms; openplans downloads them at install time and does not redistribute them.
+publishers' terms; OpenPlans downloads them at install time and does not redistribute them.
