@@ -1,8 +1,4 @@
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="brand/repo/readme-header-dark.svg">
-  <source media="(prefers-color-scheme: light)" srcset="brand/repo/readme-header-light.svg">
-  <img src="brand/repo/readme-header-light.svg" alt="openplans by OpenHRA: US health plan data. On your server." width="960" height="280">
-</picture>
+<img src="brand/repo/readme-header-light.svg" alt="openplans by OpenHRA: US health plan data. On your server." width="960" height="280">
 
 # openplans
 
