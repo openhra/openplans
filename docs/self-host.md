@@ -242,37 +242,48 @@ when sizing the connection limit. Autovacuum workers also consume memory.
 values; measure your query mix and concurrency before increasing them. See the
 [PostgreSQL memory documentation](https://www.postgresql.org/docs/16/runtime-config-resource.html).
 
-Search responses use a 64 MiB local LRU by default. To opt into the shared Valkey
-service, set `OPENPLANS_CACHE_URL=redis://cache:6379` in the local environment and:
+REST searches and MCP catalog tools share a 64 MiB local LRU by default. To use
+the shared Valkey service, set `OPENPLANS_CACHE_URL=redis://cache:6379` in the local
+environment. Start both services:
 
 ~~~sh
 OPENPLANS_CACHE_URL=redis://cache:6379 docker compose --profile cache up -d api cache
 ~~~
 
-Both the URL and the profile are required; a profile alone starts the service but
-leaves the API in local LRU mode. `OPENPLANS_CACHE_MEMORY=256mb` controls Valkey's
+Set both the URL and the profile. The profile alone starts Valkey while the API
+continues to use its local LRU. `OPENPLANS_CACHE_MEMORY=256mb` controls Valkey's
 memory limit with `allkeys-lru` eviction and no persistence. It has no published
 host port. Set `OPENPLANS_API_CACHE_MB` for the local cap or
 `OPENPLANS_API_CACHE=off` to disable either backend. When an explicitly selected
 Valkey is down, requests bypass it and continue against Postgres; they do not fail
-or switch back to local storage. `/v1/cache-stats` reports cache counters and byte scope;
-`X-Cache` identifies each request's result. Imported data invalidates both backends
-at transaction commit, independently of endpoint TTLs.
+or switch back to local storage. `/v1/cache-stats` reports shared cache counters and
+byte scope. REST responses carry `X-Cache`; MCP logs report hit, miss or bypass.
+Publication and failed or denied source observations invalidate entries when their
+database transaction commits, even if their TTL has not expired.
+
+MCP caches successful public DTOs for 60 seconds, or 300 seconds for geography
+lookups. Keys include the tool, normalized filters, page offset, output-size budget,
+data generation and application version from `package.json`. Entries share the
+existing 2 MiB cap and backend memory limit. Requests check authorization and cursor
+validity before a lookup. Household estimates bypass cache reads and writes.
+Credentials, household fields, errors and signed cursors never enter MCP entries.
+The server signs a new cursor and computes the access label for each caller.
+Old-generation cursors return `CURSOR_EXPIRED`; restart the search.
 
 See the [cache contract](../src/api/cache/README.md) for eligible endpoints,
 credentials, invalidation, metrics, bounds, and operator inspection commands.
 
 ## MCP endpoint
 
-The API accepts stateless Streamable HTTP at `POST /mcp`. GET and DELETE return 405.
+Send Streamable HTTP requests to `POST /mcp`. GET and DELETE return 405.
 Catalog tools need no credential. To enable `estimate_premiums`, set a private
 `OPENPLANS_MCP_TOKEN` and send it as a bearer token. REST and compatibility credentials
 do not grant MCP access. Set `OPENPLANS_MCP=off` to remove the endpoint.
 
 Clients can use 2026-07-28 or the legacy 2025-11-25 and 2025-06-18 protocols on the same
 endpoint. Send `Accept: application/json, text/event-stream`. Modern clients must supply
-protocol, method and applicable name headers that match the request body. The server stores
-no sessions or replay state.
+`MCP-Protocol-Version`, `Mcp-Method` and, for named operations, `Mcp-Name` headers.
+Their values must match the request body. The server stores no sessions or replay state.
 
 Direct Node launches bind to 127.0.0.1 by default. `HOST` overrides the listener. Compose
 listens inside the container and publishes only to 127.0.0.1. For a TLS proxy, set
@@ -290,8 +301,8 @@ and four concurrent database-heavy requests. Input is limited to 64 KiB and outp
 deadline. Rate and concurrency failures return 429 with Retry-After. Disconnects cancel
 active SQL. Retry reads with a new RPC ID.
 
-Logs contain only the recognized tool name, HTTP status, elapsed time, byte count and cache
-outcome. MCP currently bypasses the REST response cache. Share a private random
+Logs contain the recognized tool name, HTTP status, elapsed time, byte count and cache
+outcome. They exclude arguments, addresses and credentials. Share a private random
 `OPENPLANS_MCP_CURSOR_SECRET` across replicas to keep cursors valid between processes.
 Without it, each process generates its own secret.
 

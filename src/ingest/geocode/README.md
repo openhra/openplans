@@ -150,7 +150,7 @@ ID, which reuses completed entries in the statewide result ledger and publishes 
 onto the new source rows. NPPES text is frozen as each staging page commits. Do not refresh NPPES
 while a staging pass is in progress. Once both staging flags are true, its input census is fixed.
 An advisory lock permits one statewide CLI writer per database. The bulk CLI applies only the
-hash-checked migrations 520–521 and 600, so concurrent lanes' independent migration journals need not yet be
+hash-checked migrations 520–521, 600 and 870–872, so concurrent lanes' independent migration journals need not yet be
 available in its checkout. Its staging tables deliberately avoid new foreign-key locks on live
 ingest tables; the ordinary published attempt/point tables continue enforcing snapshot provenance.
 
@@ -244,3 +244,75 @@ the independent county-bounds/publication audit. Additional controls cover locat
 a wrong claimed TX county, a mismatched returned state with an in-TX coordinate, rejection without
 a usable centroid, and adding that centroid later without a request. Structural CSV failures and
 missing geography claims still retain the exact pending batch. Prior P3e reports remain intact.
+
+
+## FL and NC statewide runs
+
+The same queue now supports `TX`, `FL` and `NC`. Historical `geocode_tx_*` table names and
+`tx-cli.js` remain compatible with existing TX runs; a run now freezes its state as well as its
+request profile. Reusing a run ID with another state fails before submission. County snapshots
+are separate by state (254 TX, 67 FL, 100 NC counties), and every query, centroid fallback and
+publication audit uses the selected state. Migration 870 extends the bounds; 871 adds state
+keyset indexes for the larger shared address cache. Neither changes existing TX observations.
+
+```sh
+# First import NPPES, ACTIVE issuer sets and geography for the selected state.
+node dist/worker/cli.js ingest geo --state FL --year 2026
+node dist/worker/cli.js ingest geo --state NC --year 2026
+node dist/ingest/geocode/tx-cli.js --state FL --run-id fl-20261108 --budget-minutes 100
+node dist/ingest/geocode/tx-cli.js --state NC --run-id nc-20261108 --budget-minutes 100
+# Resume with the same state/run ID. Report-only never changes the frozen selection.
+node dist/ingest/geocode/tx-cli.js --state NC --run-id nc-20261108 --report-only --http-check
+# Bootstrap uses this bulk queue, including its row rejection and labelled fallback rules:
+node dist/worker/cli.js bootstrap --states FL,NC --years 2026 --with-geocode
+```
+
+The scoped single-county `worker ingest geocode` command and Harris developer runner retain
+their TX-only interface. Use the statewide CLI or bootstrap for FL/NC. Bootstrap holds the bulk
+writer lock on a reserved connection while each queue operation commits independently; an
+interrupted bootstrap run resumes its frozen input census. A completed bootstrap invocation reuses its queue when the ACTIVE shard list and immutable
+NPPES import pointers are unchanged (migration 872). New pointers capture current source rows
+in a new run, reusing existing normalized results without Census requests. The bulk CLI likewise permits one writer per database and applies migrations 520,
+521, 600 and 870–872 through the hash-checked journal.
+
+FL/NC per-state reports are `reports/p3l-geocode-fl.{md,json}` and
+`reports/p3l-geocode-nc.{md,json}` under `OPENPLANS_DATA_DIR`; existing TX report paths stay
+unchanged. The operational combined report is `reports/p3l-geocode.md`. Resolved includes
+terminal no-point observations. Fallback is a labelled subset of ties, unmatched and rejected
+rows, never another matched address. Source-row and distinct-address counts are separate.
+Offline multistate tests use explicitly synthetic coordinates/rectangles and check mixed-state
+selection, immutable run state, TX match rejection with a separately labelled local fallback,
+publication corruption, wrong-state database bounds and network-forbidden reuse.
+
+
+Batch publication first materializes the requested address keys and seeks their source rows
+through the run/address-hash index. Full reuse starts from completed results using the same
+indexed lookup. This prevents a merge join from scanning the entire multi-million-row input
+ledger for each batch. Attempts and points still commit together with the batch completion
+marker. Duplicate publication keys are deduplicated before the lookup.
+
+To run the multistate controls against PostGIS, create empty disposable databases named
+`openplans_p3l_controls_fl` and `openplans_p3l_controls_nc`, then set
+`GEOCODE_MULTISTATE_POSTGIS_URL` to their server URL with database path
+`/openplans_p3l_controls` while running `tests/ingest/geocode/multistate.test.ts`. The harness
+adds the state suffix, requires that explicit disposable prefix, and runs normal migrations.
+Drop both test databases afterward. Offline CI uses PGlite and requires no server or network.
+
+## Completed FL and NC runs
+
+The 2026-11-08 runs resolved every staged address. Counts are distinct normalized addresses;
+fallbacks are a subset of ties, no-match and rejected results.
+
+| State | Resolved | Matched | Ties | No match | Rejected | Labelled fallbacks | No point |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| FL | 392249 | 359362 | 2837 | 30037 | 13 | 32120 | 767 |
+| NC | 137240 | 123865 | 818 | 12533 | 24 | 11801 | 1574 |
+
+All 40 FL and 14 NC batch manifests completed. The publication audits reconciled 5,200,800 FL
+and 2,539,541 NC source rows with zero errors. Both spatial indexes stayed enabled. Scope follows
+the address state, so an ACTIVE issuer feed from another state can contribute addresses.
+Per-state JSON reports retain county counts, rejections and snapshot provenance under
+`OPENPLANS_DATA_DIR/reports/`. The final HTTP checks and closeout extend `p3l-geocode-fl.md`.
+
+NPPES radius queries validate current address keys and snapshots before paging. They fetch
+street-address fields for the final page, preserving exact totals and missing-point counts.

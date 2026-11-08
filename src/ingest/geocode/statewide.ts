@@ -7,27 +7,30 @@ import { acquireBatch } from './census.js';
 import type { BatchFile, CensusOptions } from './census.js';
 import { parseBatch } from './parse.js';
 import { saveSnapshot, snapshotId } from './repository.js';
-import { countyAt, checkCountyPoint, insideBounds } from './counties.js';
+import { countyAt, checkCountyPoint, insideBounds, geocodeState, geocodeStates } from './counties.js';
 import type { County } from './counties.js';
 
-interface Run extends Record<string,unknown> { source_shards:string[]; npi_cursor:string[]; issuer_cursor:string[]; npi_staged:boolean; issuer_staged:boolean }
+interface Run extends Record<string,unknown> { state:string; source_shards:string[]; npi_cursor:string[]; issuer_cursor:string[]; npi_staged:boolean; issuer_staged:boolean }
 interface Work extends Record<string,unknown> { address_hash:string; address:Address; selection_county:string|null }
 interface Batch extends Record<string,unknown> { run_id:string; batch_id:string; address_hashes:string[]; request_csv:string }
 export interface StatewideOptions extends CensusOptions {
-  runId: string; batchSize?:number; maxBatches?:number; deadline?:number;
+  state?: string; runId: string; batchSize?:number; maxBatches?:number; deadline?:number;
   acquire?: (csv:string)=>Promise<{file:BatchFile;requests:number}>;
   progress?: (message:string)=>void;
   /** Test/fault injection inside the transaction, after results but before its completion marker. */
   beforeCommit?:()=>Promise<void>;
 }
-export async function createRun(db:SqlSession, runId:string,geographies=false):Promise<void> {
+export async function createRun(db:SqlSession, runId:string,geographies=false,state='TX'):Promise<void> {
+  geocodeState(state);
   if(!/^[a-zA-Z0-9_-]{1,80}$/.test(runId)) throw new TypeError('Invalid geocode run ID');
   const profile=geographies?'geographies':'locations';
-  await db.query(`INSERT INTO geocode_tx_run(run_id,source_shards,return_type)
-    SELECT $1,coalesce(array_agg(s.snapshot_id ORDER BY s.snapshot_id),'{}'),$2 FROM provider_shard s
+  await db.query(`INSERT INTO geocode_tx_run(run_id,source_shards,return_type,state)
+    SELECT $1,coalesce(array_agg(s.snapshot_id ORDER BY s.snapshot_id),'{}'),$2,$3 FROM provider_shard s
     JOIN provider_active_set a ON a.snapshot_id=s.source_set_id
     JOIN snapshot snap ON snap.snapshot_id=s.snapshot_id AND snap.validation_state='ACTIVE'
-    ON CONFLICT DO NOTHING`,[runId,profile]);
+    ON CONFLICT DO NOTHING`,[runId,profile,state]);
+  if((await db.query('SELECT state FROM geocode_tx_run WHERE run_id=$1',[runId])).rows[0]?.state!==state)
+    throw new Error('Statewide run state differs; use a new run ID');
   // Staging can precede the first submission. Once a manifest exists its endpoint/vintage cannot change.
   await db.query(`UPDATE geocode_tx_run r SET return_type=$2 WHERE run_id=$1 AND return_type<>$2
     AND NOT EXISTS(SELECT 1 FROM geocode_tx_batch b WHERE b.run_id=r.run_id)`,[runId,profile]);
@@ -41,13 +44,13 @@ export async function stagePage(db:Database,runId:string,source:'npi_address'|'q
   if(run[done]) return 0;
   let cursor=run[cursorColumn];
   if(!npi) {
-    // Page one indexed issuer shard at a time. Sorting all nationwide shards for each TX page
+    // Page one indexed issuer shard at a time. Sorting all nationwide shards for each state page
     // repeatedly scans millions of irrelevant addresses on the real multi-issuer database.
     const shards=run.source_shards.filter(s=>s>=(cursor[0]??''));
     for(const shard of shards) {
       const previous=shard===cursor[0]?cursor:[shard,'','-1'];
-      const found=(await db.query(`SELECT 1 FROM qhp_provider_address WHERE snapshot_id=$1 AND state='TX'
-        AND (record_id,address_index)>($2,$3) ORDER BY record_id,address_index LIMIT 1`,[shard,previous[1]??'',Number(previous[2]??-1)])).rows.length;
+      const found=(await db.query(`SELECT 1 FROM qhp_provider_address WHERE snapshot_id=$1 AND state=$4 AND state IN ('TX','FL','NC')
+        AND (record_id,address_index)>($2,$3) ORDER BY record_id,address_index LIMIT 1`,[shard,previous[1]??'',Number(previous[2]??-1),run.state])).rows.length;
       if(found){cursor=previous;break;}
       cursor=[shard,'','-1'];
       if(shard===shards[shards.length-1]) {
@@ -57,14 +60,14 @@ export async function stagePage(db:Database,runId:string,source:'npi_address'|'q
     if(!shards.length){await db.query('UPDATE geocode_tx_run SET issuer_staged=true WHERE run_id=$1',[runId]);return 0;}
   }
   const rows=(await db.query<Address>(npi ? `SELECT 'npi_address'::text AS source_table,a.npi,a.kind,a.ordinal,a.line_1,a.line_2,a.city,a.state,a.zip5,a.snapshot_id
-    FROM npi_address a JOIN npi_provider p USING(npi) WHERE a.kind='practice' AND a.state='TX' AND p.in_scope
+    FROM npi_address a JOIN npi_provider p USING(npi) WHERE a.kind='practice' AND a.state=$5 AND p.in_scope
     AND (a.npi,a.kind,a.ordinal)>($1,$2,$3) ORDER BY a.npi,a.kind,a.ordinal LIMIT $4`
     : `SELECT 'qhp_provider_address'::text AS source_table,a.snapshot_id||':'||a.record_id||':'||a.address_index::text AS source_row,
     NULL::text AS npi,'issuer'::text AS kind,a.address_index AS ordinal,a.address AS line_1,a.address_2 AS line_2,a.city,a.state,
     CASE WHEN btrim(a.zip) ~ '^[0-9]{5}([- ]?[0-9]{4})?$' THEN substring(btrim(a.zip),1,5) END AS zip5,a.snapshot_id,a.record_id
-    FROM qhp_provider_address a WHERE a.snapshot_id=$5 AND a.state='TX'
+    FROM qhp_provider_address a WHERE a.snapshot_id=$5 AND a.state=$6 AND a.state IN ('TX','FL','NC')
     AND (a.snapshot_id,a.record_id,a.address_index)>($1,$2,$3) ORDER BY a.snapshot_id,a.record_id,a.address_index LIMIT $4`,
-    npi ? [cursor[0]??'',cursor[1]??'',Number(cursor[2]??-1),size] : [cursor[0]??'',cursor[1]??'',Number(cursor[2]??-1),size,cursor[0]])).rows;
+    npi ? [cursor[0]??'',cursor[1]??'',Number(cursor[2]??-1),size,run.state] : [cursor[0]??'',cursor[1]??'',Number(cursor[2]??-1),size,cursor[0],run.state])).rows;
   const items=rows.map(a=>{const key=addressIdentity(a);return {run_id:runId,source_table:source,source_row:key.row,source_snapshot_id:a.snapshot_id,address_hash:key.hash,normalized_address:key.normalized,address:a};});
   await db.transaction(async tx=>{
     if(items.length) {
@@ -83,7 +86,7 @@ export async function stagePage(db:Database,runId:string,source:'npi_address'|'q
   return items.length;
 }
 export async function stageStatewide(db:Database,options:StatewideOptions):Promise<boolean> {
-  await createRun(db,options.runId,options.geographies);
+  await createRun(db,options.runId,options.geographies,options.state);
   for(const source of ['npi_address','qhp_provider_address'] as const) {
     for(;;) {
       if(options.deadline && Date.now()>=options.deadline)return false;
@@ -94,10 +97,10 @@ export async function stageStatewide(db:Database,options:StatewideOptions):Promi
   }
   // Candidate scheduling county: greatest published ZCTA overlap, not an address county claim.
   await db.query(`WITH ranked AS (SELECT DISTINCT ON(z.zcta) z.zcta,z.county_fips FROM zcta_county z
-    JOIN geo_import g ON g.relationship_snapshot_id=z.snapshot_id AND g.state='TX'
-    WHERE z.county_fips LIKE '48%' ORDER BY z.zcta,z.arealand_part DESC,z.areawater_part DESC,z.county_fips)
+    JOIN geo_import g ON g.relationship_snapshot_id=z.snapshot_id AND g.state=$2
+    WHERE z.county_fips LIKE $3 ORDER BY z.zcta,z.arealand_part DESC,z.areawater_part DESC,z.county_fips)
     UPDATE geocode_tx_address a SET selection_county=z.county_fips FROM ranked z
-    WHERE a.run_id=$1 AND a.address->>'zip5'=z.zcta AND a.selection_county IS NULL`,[options.runId]);
+    WHERE a.run_id=$1 AND a.address->>'zip5'=z.zcta AND a.selection_county IS NULL`,[options.runId,options.state??'TX',geocodeStates[geocodeState(options.state??'TX')].fips+'%']);
   await db.exec('ANALYZE geocode_tx_address; ANALYZE geocode_tx_input');
   return true;
 }
@@ -124,21 +127,31 @@ async function nextBatch(db:Database,options:StatewideOptions,schedule:Schedule)
     VALUES($1,$2,$3,$4) RETURNING *`,[options.runId,batchId,work.map(w=>w.address_hash),csv])).rows[0];
 }
 export async function publishStatewide(db:SqlSession,runId:string,hashes?:string[]):Promise<void> {
-  const filter=hashes?'AND i.address_hash=ANY($2::text[])':'',params=hashes?[runId,hashes]:[runId];
-  await db.query(`INSERT INTO geocode_attempt(address_hash,source_table,source_row,normalized_address,source_snapshot_id,
+  const params=hashes?[runId,hashes]:[runId];
+  const inputs=hashes?'batch_input i JOIN geocode_tx_result r USING(address_hash)':`geocode_tx_result r
+    JOIN LATERAL (SELECT * FROM geocode_tx_input i WHERE i.run_id=$1 AND i.address_hash=r.address_hash OFFSET 0) i ON true`;
+  // Freeze this batch's indexed input keys before joining the growing result ledger.
+  // A merge join can otherwise scan every source row in hash order on every batch.
+  const batchInput=hashes?`WITH batch_input AS MATERIALIZED (
+    SELECT i.* FROM (SELECT DISTINCT unnest($2::text[]) address_hash ORDER BY address_hash) keys
+    JOIN LATERAL (SELECT * FROM geocode_tx_input i WHERE i.run_id=$1 AND i.address_hash=keys.address_hash OFFSET 0) i ON true
+  ) `:'';
+  await db.query(`${batchInput}INSERT INTO geocode_attempt(address_hash,source_table,source_row,normalized_address,source_snapshot_id,
     snapshot_id,match_status,match_quality,outcome,geocoded_at)
     SELECT i.address_hash,i.source_table,i.source_row,i.normalized_address,i.source_snapshot_id,r.snapshot_id,r.match_status,r.match_quality,
-    CASE WHEN r.method IS NULL THEN 'no_point' ELSE 'point' END,r.geocoded_at FROM geocode_tx_input i
-    JOIN geocode_tx_result r USING(address_hash) WHERE i.run_id=$1 ${filter}
+    CASE WHEN r.method IS NULL THEN 'no_point' ELSE 'point' END,r.geocoded_at FROM ${inputs}
     ON CONFLICT(address_hash,source_table,source_row) DO UPDATE SET source_snapshot_id=excluded.source_snapshot_id,
     snapshot_id=excluded.snapshot_id,match_status=excluded.match_status,match_quality=excluded.match_quality,outcome=excluded.outcome,geocoded_at=excluded.geocoded_at
     WHERE (geocode_attempt.source_snapshot_id,geocode_attempt.snapshot_id,geocode_attempt.match_status,geocode_attempt.match_quality,geocode_attempt.outcome,geocode_attempt.geocoded_at)
       IS DISTINCT FROM (excluded.source_snapshot_id,excluded.snapshot_id,excluded.match_status,excluded.match_quality,excluded.outcome,excluded.geocoded_at)`,params);
-  await db.query(`INSERT INTO address_point(address_hash,source_table,source_row,source_snapshot_id,latitude,longitude,method,match_status,match_quality,
+  // Keep each source's nearby batch points together while maintaining the live spatial indexes.
+  // Full reconciliation retains its existing order: unchanged rows do not update those indexes.
+  await db.query(`${batchInput}INSERT INTO address_point(address_hash,source_table,source_row,source_snapshot_id,latitude,longitude,method,match_status,match_quality,
     snapshot_id,centroid_snapshot_id,geocoded_at)
     SELECT i.address_hash,i.source_table,i.source_row,i.source_snapshot_id,r.latitude,r.longitude,r.method,r.match_status,r.match_quality,
-    r.snapshot_id,r.centroid_snapshot_id,r.geocoded_at FROM geocode_tx_input i JOIN geocode_tx_result r USING(address_hash)
-    WHERE i.run_id=$1 AND r.method IS NOT NULL ${filter}
+    r.snapshot_id,r.centroid_snapshot_id,r.geocoded_at FROM ${inputs}
+    WHERE r.method IS NOT NULL
+    ${hashes?'ORDER BY i.source_table,r.latitude,r.longitude,i.address_hash,i.source_row':''}
     ON CONFLICT(address_hash,source_table,source_row) DO UPDATE SET source_snapshot_id=excluded.source_snapshot_id,
     latitude=excluded.latitude,longitude=excluded.longitude,method=excluded.method,match_status=excluded.match_status,match_quality=excluded.match_quality,
     snapshot_id=excluded.snapshot_id,centroid_snapshot_id=excluded.centroid_snapshot_id,geocoded_at=excluded.geocoded_at
@@ -152,7 +165,7 @@ export async function refreshStatewideFallbacks(db:Database,counties:County[],ru
   const candidates=(await db.query<{address_hash:string;latitude:number;longitude:number;snapshot_id:string}>(`SELECT DISTINCT ON(r.address_hash)
     r.address_hash,c.latitude::float8,c.longitude::float8,c.snapshot_id FROM geocode_tx_result r
     JOIN geocode_tx_address a ON a.address_hash=r.address_hash AND a.run_id=$1
-    JOIN zcta_centroid c ON c.zcta=a.address->>'zip5' JOIN geo_import g ON g.centroid_snapshot_id=c.snapshot_id AND g.state='TX'
+    JOIN zcta_centroid c ON c.zcta=a.address->>'zip5' JOIN geo_import g ON g.centroid_snapshot_id=c.snapshot_id AND g.state=(SELECT state FROM geocode_tx_run WHERE run_id=$1)
     WHERE r.method IS NULL AND r.match_status IN ('Tie','No_Match','rejected_out_of_bounds') ORDER BY r.address_hash,g.plan_year DESC`,[runId])).rows;
   const updates=candidates.flatMap(c=>{
     const county=countyAt(c.latitude,c.longitude,counties);
@@ -171,14 +184,19 @@ export async function geocodeStatewide(db:Database,counties:County[],options:Sta
   const size=options.batchSize??10_000;
   if(!Number.isInteger(size)||size<1||size>10_000) throw new TypeError('Batch size must be 1–10000');
   const report={batches:0,requests:0,addressesSent:0,stopped:false};
-  const profile=(await db.query('SELECT return_type FROM geocode_tx_run WHERE run_id=$1',[options.runId])).rows[0]?.return_type;
+  const run=(await db.query('SELECT state,return_type FROM geocode_tx_run WHERE run_id=$1',[options.runId])).rows[0];
+  if(!run)throw new Error('Missing statewide run');
+  const profile=run.return_type;
+  const state=geocodeState(String(run.state));
+  if(options.state!==undefined && options.state!==state)throw new Error('Statewide run state differs; use a new run ID');
+  if(!counties.length || counties.some(c=>!c.county_fips.startsWith(geocodeStates[state].fips)))throw new Error('County geometry state differs from run');
   if(!profile)throw new Error('Missing statewide run');
   const geographies=profile==='geographies';
   if(options.geographies!==undefined && options.geographies!==geographies)throw new Error('Census request profile differs; use the original --geographies setting or a new run ID');
   const centroids=(await db.query<{zcta:string;latitude:number;longitude:number;snapshot_id:string}>(`SELECT DISTINCT ON(c.zcta) c.zcta,
     c.latitude::float8,c.longitude::float8,c.snapshot_id FROM zcta_centroid c JOIN geo_import g ON g.centroid_snapshot_id=c.snapshot_id
-    WHERE g.state='TX' ORDER BY c.zcta,g.plan_year DESC`)).rows;
-  if(!centroids.length)throw new Error('TX geography import required before statewide geocoding');
+    WHERE g.state=$1 ORDER BY c.zcta,g.plan_year DESC`,[state])).rows;
+  if(!centroids.length)throw new Error(`${state} geography import required before statewide geocoding`);
   const byZip=new Map(centroids.map(c=>[c.zcta,c]));
   const schedule:Schedule={index:0,counties:(await db.query<{selection_county:string|null}>(`SELECT selection_county
     FROM geocode_tx_address WHERE run_id=$1 GROUP BY selection_county
@@ -205,7 +223,7 @@ export async function geocodeStatewide(db:Database,counties:County[],options:Sta
       const claimedCounty=row.countyFips?counties.find(c=>c.county_fips===row.countyFips):undefined;
       const containingCounty=row.status==='Match'?countyAt(row.latitude!,row.longitude!,counties):undefined;
       const matchedCounty=row.countyFips?claimedCounty:containingCounty;
-      // Census matched-address state is evidence too: reject even an in-TX coordinate with another state label.
+      // Census matched-address state is evidence too: reject even an in-state coordinate with another state label.
       const returnedState=row.matchedAddress?.split(',').at(-2)?.trim().toUpperCase();
       const wrongState=Boolean(returnedState && returnedState!==work.address.state.trim().toUpperCase());
       const rejected=row.status==='Match' && (wrongState || !containingCounty || !matchedCounty || !insideBounds(row.latitude!,row.longitude!,matchedCounty));

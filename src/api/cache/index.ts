@@ -7,6 +7,15 @@ import { MemoryCache } from './store.js';
 import type { CacheStats, CacheStore } from './store.js';
 import { MAX_ENTRY_BYTES, RespCache } from './resp.js';
 
+export type CacheOutcome = 'hit' | 'miss' | 'bypass';
+export type ResponseCache = ReturnType<typeof createResponseCache>;
+const caches = new WeakMap<SqlSession, ResponseCache>();
+
+/** Share the API backend with transport adapters, including request-scoped MCP factories. */
+export function sharedResponseCache(db: SqlSession): ResponseCache {
+  return caches.get(db) ?? createResponseCache(db, process.env.OPENPLANS_API_TOKEN);
+}
+
 export interface ResponseCacheOptions {
   store?: CacheStore;
 }
@@ -22,20 +31,31 @@ export function canonical(value: unknown): string {
     .map(([key, item]) => `${JSON.stringify(key)}:${canonical(item)}`).join(',')}}`;
   return JSON.stringify(value);
 }
-function hasCredentials(value: unknown, professionalCredentials = false): boolean {
+function hasCredentials(value: unknown, publicEvidence = false): boolean {
   const pending = [value];
   while (pending.length) {
     const item = pending.pop();
     if (Array.isArray(item)) { for (const child of item) pending.push(child); }
     else if (item && typeof item === 'object') {
       for (const [key, child] of Object.entries(item)) {
-        // These public provider fields mean degrees such as MD, not API credentials.
-        if (secretField.test(key) && !(professionalCredentials && ['credential', 'credentials'].includes(key))) return true;
+        // Degrees and boolean formulary restrictions are published evidence.
+        const published = publicEvidence && (['credential', 'credentials'].includes(key)
+          || key === 'prior_authorization' && (child === null || typeof child === 'boolean'));
+        if (secretField.test(key) && !published) return true;
         pending.push(child);
       }
     }
   }
   return false;
+}
+// Public DTOs never contain household inputs, request credentials or error payloads.
+function publicDto(value: unknown): boolean {
+  if (hasCredentials(value, true)) return false;
+  if (Array.isArray(value)) return value.every(publicDto);
+  if (value && typeof value === 'object') return Object.entries(value).every(([key, child]) =>
+    !/^(household.*|members|applicants|dependents|age|tobacco|relationship|income.*|tax_filing|coverage_start)$/i.test(key)
+    && !(key === 'error' && child !== null) && !(key === 'status' && child === 'error') && publicDto(child));
+  return true;
 }
 function ttl(method: string, path: string): number | undefined {
   if (method === 'GET') {
@@ -153,6 +173,37 @@ export function createResponseCache(db: SqlSession, premiumToken?: string, optio
       stats.misses++; c.header('X-Cache', 'miss');
     } catch { stats.bypasses++; c.header('X-Cache', 'bypass'); }
   };
-  return { middleware, stats: () => ({ ...stats, bytes: store.bytes(), backend: disabled ? 'off' : store instanceof MemoryCache ? 'memory' : 'external',
+  async function catalog<T>(request: { namespace: string; version: string; generation: string; query: unknown;
+    authorized: () => boolean; accept: (value: unknown) => value is T; ttlSeconds: number;
+    outcome?: (value: CacheOutcome) => void }, load: () => Promise<T>): Promise<T> {
+    const report = (outcome: CacheOutcome) => {
+      stats[outcome === 'hit' ? 'hits' : outcome === 'miss' ? 'misses' : 'bypasses']++;
+      request.outcome?.(outcome);
+    };
+    if (disabled || !request.authorized() || !publicDto(request.query)) { report('bypass'); return load(); }
+    const identity = canonical([request.namespace, request.version, request.generation, request.query]);
+    const key = `openplans:catalog:v1:${createHash('sha256').update(identity).digest('hex')}`;
+    try {
+      const cached = await store.get(key);
+      if (cached !== null) {
+        if (Buffer.byteLength(cached) > MAX_ENTRY_BYTES) throw new Error('Cache entry too large');
+        const dto: unknown = JSON.parse(cached);
+        if (!publicDto(dto) || !request.accept(dto)) throw new Error('Invalid public DTO');
+        report('hit'); return dto;
+      }
+    } catch { report('bypass'); return load(); }
+    let dto: T;
+    try { dto = await load(); } catch (error) { report('bypass'); throw error; }
+    if (!publicDto(dto) || !request.accept(dto)) { report('bypass'); return dto; }
+    try {
+      const serialized = JSON.stringify(dto);
+      if (Buffer.byteLength(serialized) > MAX_ENTRY_BYTES) { report('bypass'); return dto; }
+      await store.set(key, serialized, request.ttlSeconds); report('miss');
+    } catch { report('bypass'); }
+    return dto;
+  }
+  const cache = { middleware, catalog, stats: () => ({ ...stats, bytes: store.bytes(), backend: disabled ? 'off' : store instanceof MemoryCache ? 'memory' : 'external',
     bytes_scope: store instanceof MemoryCache ? 'resident_keys_and_values' : 'payload_bytes_transferred' }) };
+  caches.set(db, cache);
+  return cache;
 }

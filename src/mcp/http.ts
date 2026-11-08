@@ -1,3 +1,5 @@
+import { sharedResponseCache } from '../api/cache/index.js';
+import type { CacheOutcome } from '../api/cache/index.js';
 import { Hono } from 'hono';
 import { getConnInfo } from '@hono/node-server/conninfo';
 import { hostHeaderValidation } from '@modelcontextprotocol/hono';
@@ -9,7 +11,7 @@ import { MAX_OUTPUT_BYTES, limits } from './tools.js';
 import { authenticated, boundedDatabase, dependencies, DEADLINE_MS } from './policy.js';
 import type { McpEnvironment } from './policy.js';
 
-export interface McpLog { tool: string | null; status: number; timing_ms: number; bytes: number; cache: 'bypass' }
+export interface McpLog { tool: string | null; status: number; timing_ms: number; bytes: number; cache: CacheOutcome }
 export interface HttpOptions {
   env?: McpEnvironment;
   now?: () => number;
@@ -24,6 +26,7 @@ function failure(status: number, code: number, message: string, headers?: Header
 }
 
 export function createMcpHttp(db: SqlSession, options: HttpOptions = {}) {
+  const cache = sharedResponseCache(db);
   const env = options.env ?? process.env, now = options.now ?? Date.now;
   const port = env.PORT ?? '3000';
   const locals = ['127.0.0.1', 'localhost', '[::1]'];
@@ -61,7 +64,7 @@ export function createMcpHttp(db: SqlSession, options: HttpOptions = {}) {
     const started = now(), controller = new AbortController();
     const signal = AbortSignal.any([c.req.raw.signal, controller.signal]);
     let done = false, acquired = false, bytes = 0, tool: string | null = null;
-    let status = 500;
+    let status = 500, cacheOutcome: CacheOutcome = 'bypass';
     let handler: ReturnType<typeof createMcpHandler> | undefined;
     const finish = () => {
       if (done) return;
@@ -69,7 +72,7 @@ export function createMcpHttp(db: SqlSession, options: HttpOptions = {}) {
       signal.removeEventListener('abort', onAbort);
       if (acquired) active--;
       void handler?.close().catch(() => {});
-      log({ tool, status, timing_ms: Math.max(0, now() - started), bytes, cache: 'bypass' });
+      log({ tool, status, timing_ms: Math.max(0, now() - started), bytes, cache: cacheOutcome });
     };
     let rejectAbort: (reason: Error) => void;
     const aborted = new Promise<never>((_, reject) => { rejectAbort = reject; });
@@ -109,7 +112,8 @@ export function createMcpHttp(db: SqlSession, options: HttpOptions = {}) {
       const heavy = parsed.method === 'tools/call' || parsed.method === 'resources/read';
       if (heavy && active >= 4) { status = 429; return failure(status, -32000, 'Concurrency limit exceeded', { 'Retry-After': '1' }); }
       if (heavy) { active++; acquired = true; }
-      handler = createMcpHandler(() => buildServer(dependencies(boundedDatabase(db, signal), env, granted)), {
+      handler = createMcpHandler(() => buildServer({ ...dependencies(boundedDatabase(db, signal), env, granted), cache,
+        onCache: outcome => { cacheOutcome = outcome; } }), {
         legacy: 'stateless', responseMode: 'auto', keepAliveMs: 15000, maxRequestBodySize: limits.input_bytes,
         maxSubscriptions: 0,
       });

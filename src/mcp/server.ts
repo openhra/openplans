@@ -1,3 +1,5 @@
+import { applicationVersion } from './version.js';
+import { sharedResponseCache } from '../api/cache/index.js';
 import { requestDependencies } from './policy.js';
 import { McpServer, ResourceTemplate, fromJsonSchema, ProtocolError, ProtocolErrorCode } from '@modelcontextprotocol/server';
 import type { Tool } from '@modelcontextprotocol/server';
@@ -38,7 +40,8 @@ const immutable = { ttlMs: 3_600_000, cacheScope: 'public' as const };
 
 /** In-process factory only. Transport/authentication, request cancellation and HTTP limits belong to the host. */
 export function buildServer(deps: McpDependencies): McpServer {
-  const server = new McpServer({ name: 'openplans', version: '0.1.0' }, { instructions, maxToolInputElements: MAX_INPUT_ELEMENTS,
+  deps = { ...deps, cache: deps.cache ?? sharedResponseCache(deps.db) };
+  const server = new McpServer({ name: 'openplans', version: applicationVersion }, { instructions, maxToolInputElements: MAX_INPUT_ELEMENTS,
     capabilities: { tools: { listChanged: false }, resources: { listChanged: false } },
     supportedProtocolVersions: ['2026-07-28','2025-11-25','2025-06-18'],
     cacheHints: { 'tools/list': mutable, 'prompts/list': definition, 'resources/list': definition,

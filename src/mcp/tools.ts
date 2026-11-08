@@ -1,3 +1,6 @@
+import { applicationVersion } from './version.js';
+import { sharedResponseCache } from '../api/cache/index.js';
+import type { ResponseCache, CacheOutcome } from '../api/cache/index.js';
 import type { SqlSession } from '../db/database.js';
 import { dataGeneration } from '../api/cache/generation.js';
 import { countyState } from '../api/repository.js';
@@ -21,6 +24,8 @@ export interface McpPrincipal { id: string }
 export interface McpPolicy { canEstimate(principal: McpPrincipal | undefined): boolean }
 export interface McpDependencies {
   db: SqlSession;
+  cache?: ResponseCache;
+  onCache?: (outcome: CacheOutcome) => void;
   principal?: McpPrincipal;
   policy?: McpPolicy;
   /** Share across processes if cursors must survive load balancing/restarts. Never log this value. */
@@ -33,6 +38,13 @@ export const MAX_INPUT_ELEMENTS = 512;
 export const limits = { input_bytes: 64 * 1024, output_bytes: MAX_OUTPUT_BYTES, default_page: 10, max_page: 25,
   max_plans: 10, max_members: 20, max_coverage_pairs: 100, max_tool_input_elements: MAX_INPUT_ELEMENTS,
   cursor_ttl_ms: 15 * 60_000 } as const;
+
+interface CatalogResult {
+  output: Row;
+  drugs: readonly Row[];
+  snapshotIds: string[];
+}
+const honestyContext = (dto: CatalogResult): HonestyContext => ({ drugs: dto.drugs, snapshotIds: new Set(dto.snapshotIds) });
 
 interface Answer {
   data: Row;
@@ -302,7 +314,7 @@ export function toolResult(output: ToolOutput<ToolName>) {
 /** Include both representations, modern metadata, framing and a bounded request-id reserve. */
 export function messageBytes(output: ToolOutput<ToolName>, requestId: string | number = 0) {
   return Buffer.byteLength(JSON.stringify({ jsonrpc: '2.0', id: requestId, result: { ...toolResult(output), resultType: 'complete',
-    _meta: { 'io.modelcontextprotocol/serverInfo': { name: 'openplans', version: '0.1.0' } } } })) + 512;
+    _meta: { 'io.modelcontextprotocol/serverInfo': { name: 'openplans', version: applicationVersion } } } })) + 512;
 }
 function pruneSources(output: Row, available: Map<string, Row>) {
   const refs = new Set<string>();
@@ -328,35 +340,68 @@ export function errorResult(tool: ToolName, error: unknown, generation: string, 
 
 export async function callTool(deps: McpDependencies, tool: ToolName, value: unknown, requestId: string | number = 0) {
   const now = deps.now ?? Date.now, checkedAt = new Date(now()).toISOString(); let generation = 'unknown';
+  deps.onCache?.('bypass');
   try {
     if (tool === 'estimate_premiums' && !mayEstimate(deps)) throw new ToolError('AUTH_REQUIRED');
     const input = parseToolInput(tool, value), { cursor, ...filters } = input as Row;
     generation = await dataGeneration(deps.db);
     const codec = cursorCodec(deps.cursorSecret, now), binding: CursorBinding = { tool, filters, generation,
       scope: deps.principal?.id ?? 'anonymous' };
-    const offset = codec.read(cursor as string | undefined, binding), answer = await dispatch(deps, tool, input, offset);
-    if (await dataGeneration(deps.db) !== generation) throw new ToolError('DATA_CHANGED');
-    const data = answer.data, list = answer.list ? data[answer.list] as unknown[] : undefined;
-    const output: Row = { schema_version: '1', status: answer.status ?? 'ok', data_generation: generation, data,
-      provenance: [], notes: answer.notes ?? [], truncated: false,
-      freshness: { checked_at: checkedAt, status: 'unknown' }, page: null, error: null };
-    function complete() {
-      pruneSources(output, answer.p.sources);
-      const provenance = rows(output.provenance);
-      output.freshness = { checked_at: checkedAt, status: provenance.length && provenance.every(s => s.retrieved_at) ? 'current_local' : 'unknown' };
-      if (list) {
-        const more = Boolean(answer.more) || output.truncated === true;
-        output.page = { next_cursor: more ? codec.issue(binding, offset + list.length) : null,
-          returned: list.length, total: answer.total ?? null };
-        output.truncated = more;
+    const offset = codec.read(cursor as string | undefined, binding);
+    let context: HonestyContext = {};
+    const load = async (): Promise<CatalogResult> => {
+      const answer = await dispatch(deps, tool, input, offset);
+      if (await dataGeneration(deps.db) !== generation) throw new ToolError('DATA_CHANGED');
+      const data = answer.data, list = answer.list ? data[answer.list] as unknown[] : undefined;
+      if (tool === 'get_data_status') data.personalized_access = 'authentication_required';
+      const output: Row = { schema_version: '1', status: answer.status ?? 'ok', data_generation: generation, data,
+        provenance: [], notes: answer.notes ?? [], truncated: false,
+        freshness: { checked_at: checkedAt, status: 'unknown' }, page: null, error: null };
+      function complete() {
+        pruneSources(output, answer.p.sources);
+        const provenance = rows(output.provenance);
+        output.freshness = { checked_at: checkedAt, status: provenance.length && provenance.every(s => s.retrieved_at) ? 'current_local' : 'unknown' };
+        if (list) {
+          const more = Boolean(answer.more) || output.truncated === true;
+          output.page = { next_cursor: more ? codec.issue(binding, offset + list.length) : null,
+            returned: list.length, total: answer.total ?? null };
+          output.truncated = more;
+        }
       }
-    }
-    complete();
-    while (rows(output.provenance).length > 100 || messageBytes(output as ToolOutput<ToolName>, requestId) > MAX_OUTPUT_BYTES) {
-      if (!list || list.length <= 1) throw new ToolError('RESULT_TOO_LARGE');
-      list.pop(); output.truncated = true; complete();
-    }
-    assertHonest(tool, output, answer.context ?? answer.p.context);
+      complete();
+      while (rows(output.provenance).length > 100 || messageBytes(output as ToolOutput<ToolName>, requestId) > MAX_OUTPUT_BYTES) {
+        if (!list || list.length <= 1) throw new ToolError('RESULT_TOO_LARGE');
+        list.pop(); output.truncated = true; complete();
+      }
+      context = answer.context ?? answer.p.context;
+      assertHonest(tool, output, context);
+      // Cursor signatures and caller access are request data, never shared cache data.
+      if (output.page) row(output.page).next_cursor = null;
+      return { output, snapshotIds: [...context.snapshotIds ?? []],
+        drugs: (context.drugs ?? []).map(({ rxcui, name, tty, suppress }) => ({ rxcui, name, tty, suppress })) };
+    };
+    const cacheable = tool !== 'estimate_premiums';
+    const dto = cacheable ? await (deps.cache ?? sharedResponseCache(deps.db)).catalog({
+      namespace: `mcp:${tool}`, version: `${applicationVersion}:mcp-dto-v1`, generation,
+      query: { filters, offset, request_id_bytes: Buffer.byteLength(JSON.stringify(requestId)) },
+      authorized: () => cacheable, ttlSeconds: tool === 'lookup_geography' ? 300 : 60,
+      accept: (value): value is CatalogResult => {
+        try {
+          const dto = value as CatalogResult;
+          assertHonest(tool, dto.output, honestyContext(dto));
+          return dto.output.status !== 'error' && dto.output.data_generation === generation
+            && (!dto.output.page || row(dto.output.page).next_cursor === null);
+        } catch { return false; }
+      }, outcome: deps.onCache,
+    }, load) : await load();
+    const output = dto.output;
+    // Recheck publication even on a hit; never return a page straddling two generations.
+    if (await dataGeneration(deps.db) !== generation) throw new ToolError('DATA_CHANGED');
+    row(output.freshness).checked_at = checkedAt;
+    if (tool === 'get_data_status') row(output.data).personalized_access = mayEstimate(deps) ? 'authorized' : 'authentication_required';
+    if (output.page && output.truncated) row(output.page).next_cursor = codec.issue(binding, offset + Number(row(output.page).returned));
+    assertHonest(tool, output, { ...context, ...honestyContext(dto) });
+    if (messageBytes(output, requestId) > MAX_OUTPUT_BYTES) throw new ToolError('RESULT_TOO_LARGE');
     return toolResult(output);
   } catch (error) { return errorResult(tool, error, generation, checkedAt); }
 }

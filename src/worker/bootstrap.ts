@@ -3,7 +3,7 @@ import { ingestSbeGeography } from '../ingest/sbe/geography.js';
 import { acquireSbe, sbePublications, SBE_INDIVIDUAL_STATES } from '../ingest/sbe/source.js';
 import { importSbe } from '../ingest/sbe/import.js';
 import { sbeRulesFile } from '../ingest/sbe/rules.js';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { createReadStream } from 'node:fs';
 import { readFile, readdir, writeFile, rename } from 'node:fs/promises';
 import { isAbsolute, join } from 'node:path';
@@ -32,8 +32,8 @@ import { importTaxonomy } from '../ingest/taxonomy/import.js';
 import { cachedRegistry, verifyRegistry, readRegistry, registryWorkbook } from '../ingest/qhp/discover-registry.js';
 import { discoverQhp } from '../ingest/qhp/discover.js';
 import { ingestQhpBatch } from '../ingest/qhp/formulary-batch.js';
-import { ingestGeocode } from '../ingest/geocode/index.js';
-import { addresses, addressCursor, reused } from '../ingest/geocode/repository.js';
+import { acquireCounties, geocodeState } from '../ingest/geocode/counties.js';
+import { createRun, stageStatewide, geocodeStatewide, publishStatewide, refreshStatewideFallbacks } from '../ingest/geocode/statewide.js';
 
 interface Output { out(message: string): void; error(message: string): void }
 export interface BootstrapOptions { states: string[]; years: number[]; drugs: boolean; providers: boolean; nuccTaxonomy: boolean; geocode: boolean; dryRun: boolean }
@@ -339,19 +339,44 @@ export async function bootstrapPlan(options: BootstrapOptions, database: () => D
   }
   if (options.geocode) for (const state of options.states) {
     add(`geocode-${state}`, [`nppes-${state}-full`, ...options.years.map(year => `geo-${state}-${year}`)], async () => {
-      if (state !== 'TX') fail('geocode_currently_supports_TX_only');
-      let after = '', pending = false;
-      for (;;) {
-        const page = await addresses(database(), {}, after, 1000);
-        if (!page.length) break;
-        after = addressCursor(page[page.length - 1]!);
-        for (const address of page) if (!await reused(database(), address)) { pending = true; break; }
-        if (pending) break;
-      }
-      if (!pending) return { skipped: true, reason: 'all_selected_addresses_have_terminal_attempts' };
-      const report = await ingestGeocode(database(), { dataDir });
-      if (report.issues) fail('geocode_has_retriable_issues');
-      return { evidence: report };
+      // Preserve the existing unsupported-state reason for callers that key on it.
+      if (!['TX','FL','NC'].includes(state)) fail('geocode_currently_supports_TX_only');
+      const selectedState=geocodeState(state), db=database();
+      // Hold the same global writer lock as the bulk CLI on a reserved connection.
+      // Queue writes retain their own short atomic transactions on the other connections.
+      return db.transaction(async lock => {
+        if (!(await lock.query<{locked:boolean}>('SELECT pg_try_advisory_xact_lock(1869636988) locked')).rows[0]?.locked)
+          fail('another_statewide_geocoder_owns_lock');
+        const interrupted=(await db.query<{run_id:string}>(`SELECT r.run_id FROM geocode_tx_run r WHERE r.state=$1
+          AND r.run_id LIKE 'bootstrap-%' AND (NOT r.npi_staged OR NOT r.issuer_staged OR EXISTS (
+            SELECT 1 FROM geocode_tx_address a WHERE a.run_id=r.run_id AND NOT EXISTS (
+              SELECT 1 FROM geocode_tx_result result WHERE result.address_hash=a.address_hash)))
+          ORDER BY r.created_at LIMIT 1`,[state])).rows[0];
+        const scope=(await db.query(`SELECT ARRAY(SELECT s.snapshot_id FROM provider_shard s
+          JOIN provider_active_set a ON a.snapshot_id=s.source_set_id JOIN snapshot snap ON snap.snapshot_id=s.snapshot_id
+          WHERE snap.validation_state='ACTIVE' ORDER BY s.snapshot_id) AS shards,
+          ARRAY(SELECT snapshot_id FROM npi_import_run ORDER BY snapshot_id) AS nppes`)).rows[0];
+        const signature=createHash('sha256').update(JSON.stringify(scope)).digest('hex');
+        const complete=!interrupted && (await db.query<{run_id:string}>(`SELECT r.run_id FROM geocode_tx_run r
+          WHERE r.state=$1 AND r.run_id LIKE 'bootstrap-%' AND r.scope_signature=$2 AND r.return_type='locations'
+            AND r.npi_staged AND r.issuer_staged AND NOT EXISTS (SELECT 1 FROM geocode_tx_address a
+              WHERE a.run_id=r.run_id AND NOT EXISTS (SELECT 1 FROM geocode_tx_result result WHERE result.address_hash=a.address_hash))
+          ORDER BY r.created_at DESC LIMIT 1`,[state,signature])).rows[0];
+        const runId=interrupted?.run_id||(complete?complete.run_id:undefined)||`bootstrap-${state}-${randomUUID()}`;
+        const options={state,runId,dataDir}, counties=await acquireCounties(db,dataDir,selectedState);
+        if(complete) {
+          const added=await refreshStatewideFallbacks(db,counties,runId);
+          return added?{evidence:{fallbacks_added:added,requests:0}}:{skipped:true,reason:'all_selected_addresses_have_terminal_attempts'};
+        }
+        if(!interrupted) {
+          await createRun(db,runId,false,state);
+          await db.query('UPDATE geocode_tx_run SET scope_signature=$2 WHERE run_id=$1',[runId,signature]);
+        }
+        await stageStatewide(db,options);
+        await refreshStatewideFallbacks(db,counties,runId);
+        await db.transaction(tx=>publishStatewide(tx,runId));
+        return { evidence: await geocodeStatewide(db,counties,options) };
+      });
     }, 'unknown');
   }
   return steps;

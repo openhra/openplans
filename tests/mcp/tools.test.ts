@@ -1,3 +1,4 @@
+import { sharedResponseCache } from '../../src/api/cache/index.js';
 import { PGlite } from '@electric-sql/pglite';
 import { createMcpHandler } from '@modelcontextprotocol/server';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -231,6 +232,22 @@ describe('in-process MCP RxNorm/formulary evidence', () => {
     h = await connect({ db: fixture.db });
   });
   afterAll(async () => { await h?.close(); await fixture?.close(); });
+  it('serves cached terminology and coverage with the original canonical concept checks', async () => {
+    const deps = { db: fixture.db, now: () => 1_800_000_000_000 };
+    const cache = sharedResponseCache(fixture.db), before = cache.stats().hits;
+    for (const [tool, input] of [
+      ['search_drugs', { query: 'metformin', limit: 1 }],
+      ['search', { query: 'metformin', entity: 'drug', limit: 1 }],
+      ['fetch', { id: `drug:${rxcui}` }],
+      ['check_drug_coverage', { plan_ids: [plan], rxcuis: [rxcui], year: 2026 }],
+    ] as const) {
+      const hits = cache.stats().hits;
+      const cold = await callTool(deps, tool, input), warm = await callTool(deps, tool, input);
+      expect(cold.isError, tool).toBeUndefined(); expect(warm).toEqual(cold);
+      expect(cache.stats().hits - hits, tool).toBe(1);
+    }
+    expect(cache.stats().hits - before).toBe(4);
+  });
   it('searches canonical unique concepts and refuses a schema-valid fabricated RxCUI', async () => {
     const output = await h.call('search_drugs', { query: 'metformin', limit: 1 });
     expect(output.data?.candidates).toHaveLength(1); const candidate = output.data!.candidates[0]!;
@@ -267,6 +284,20 @@ describe('in-process MCP issuer provider evidence', () => {
     h = await connect({ db: fixture.db });
   });
   afterAll(async () => { await h?.close(); await fixture?.close(); });
+  it('serves cached identities and participation without changing issuer evidence', async () => {
+    const deps = { db: fixture.db, now: () => 1_800_000_000_000 };
+    const cache = sharedResponseCache(fixture.db), before = cache.stats().hits;
+    for (const [tool, input] of [
+      ['search_providers', { npi, year: 2026 }],
+      ['check_provider_network', { plan_ids: [plan], npis: [npi], year: 2026 }],
+    ] as const) {
+      const hits = cache.stats().hits;
+      const cold = await callTool(deps, tool, input), warm = await callTool(deps, tool, input);
+      expect(cold.isError, tool).toBeUndefined(); expect(warm).toEqual(cold);
+      expect(cache.stats().hits - hits, tool).toBe(1);
+    }
+    expect(cache.stats().hits - before).toBe(2);
+  });
   it('calls provider tools without deriving address membership and refuses exact-NPI filter intersections', async () => {
     const found = await h.call('search_providers', { npi, year: 2026 }); expect(found.data?.providers.length).toBeGreaterThan(0);
     expect(found.data?.providers[0]).toMatchObject({ participation: 'not_evaluated', participation_scope: 'identity' });

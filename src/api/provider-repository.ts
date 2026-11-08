@@ -157,16 +157,16 @@ export async function searchProviders(db: SqlSession, q: ProviderSearch) {
       p.centroid_snapshot_id,p.geocoded_at`;
   // Keep the spatial scan behind a materialization boundary. Match the full source
   // key AND its snapshot, so obsolete geocodes cannot lend a current address a point.
+  // Validate identity keys here; fetch address text only for the final page.
   const radiusLocations = spatialRadius ? `radius_points AS MATERIALIZED (
     SELECT p.* FROM address_point p WHERE p.source_table='${source}'
       ${issuer ? 'AND p.source_snapshot_id IN (SELECT snapshot_id FROM active_shards)' : ''}
       AND ST_DWithin(p.point,ST_SetSRID(ST_MakePoint($8,$7),4326)::geography,$9*1609.344,false)
   ), radius_locations AS MATERIALIZED (
-    SELECT ${issuer ? 'a.record_id,a.snapshot_id,a.address_index' : `a.npi AS record_id,a.snapshot_id,a.ordinal AS address_index,
-      a.line_1,a.line_2,a.city,a.state,a.zip5 AS zip,a.phone`},p.source_row,${pointFields}
+    SELECT ${issuer ? 'a.record_id,a.snapshot_id,a.address_index' : 'a.npi AS record_id,a.snapshot_id,a.ordinal AS address_index'},p.source_row,${pointFields}
     FROM radius_points p ${issuer ? `JOIN selected r ON r.snapshot_id=p.source_snapshot_id
       AND r.record_id=regexp_replace(substring(p.source_row FROM length(p.source_snapshot_id)+2),':[^:]*$','')` : ''}
-    JOIN LATERAL (SELECT * FROM ${source} a WHERE
+    JOIN LATERAL (SELECT ${issuer ? '*' : 'a.npi,a.snapshot_id,a.ordinal'} FROM ${source} a WHERE
       ${issuer ? `a.snapshot_id=p.source_snapshot_id
         AND a.record_id=regexp_replace(substring(p.source_row FROM length(p.source_snapshot_id)+2),':[^:]*$','')
         AND a.address_index=CASE WHEN substring(p.source_row FROM '[^:]*$') ~ '^[0-9]{1,10}$'
@@ -257,10 +257,12 @@ export async function searchProviders(db: SqlSession, q: ProviderSearch) {
       FROM qhp_provider_plan e WHERE e.snapshot_id=p.snapshot_id AND e.record_id=p.record_id
         AND e.base_hios_id=$1 AND e.plan_year=$2),` : ''}
     'addresses',coalesce((SELECT jsonb_agg(to_jsonb(a)${issuer ? `||jsonb_build_object(
-      'line_1',addr.address,'line_2',addr.address_2,'city',addr.city,'state',addr.state,'zip',addr.zip,'phone',addr.phone)` : ''}
+      'line_1',addr.address,'line_2',addr.address_2,'city',addr.city,'state',addr.state,'zip',addr.zip,'phone',addr.phone)` : spatialRadius ? `||jsonb_build_object(
+      'line_1',addr.line_1,'line_2',addr.line_2,'city',addr.city,'state',addr.state,'zip',addr.zip5,'phone',addr.phone)` : ''}
       ORDER BY a.distance_miles NULLS LAST,a.address_index)
       FROM distances a ${issuer ? `JOIN qhp_provider_address addr ON addr.snapshot_id=a.snapshot_id
-        AND addr.record_id=a.record_id AND addr.address_index=a.address_index` : ''}
+        AND addr.record_id=a.record_id AND addr.address_index=a.address_index` : spatialRadius ? `JOIN npi_address addr ON addr.npi=a.record_id
+        AND addr.kind='practice' AND addr.ordinal=a.address_index AND addr.snapshot_id=a.snapshot_id` : ''}
       WHERE a.record_id=p.record_id ${issuer ? 'AND a.snapshot_id=p.snapshot_id' : ''}),'[]'::jsonb),
     'distance_miles',p.distance_miles,
     'taxonomy',coalesce((SELECT jsonb_agg(jsonb_build_object('code',t.code,'is_primary',t.is_primary,'snapshot_id',t.snapshot_id,
