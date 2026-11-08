@@ -1,0 +1,292 @@
+import type { SqlSession } from '../db/database.js';
+import { classifyProviderEvidence, providerSpecialties } from '../domain/providers/index.js';
+import type { ProviderEvidence } from '../domain/providers/index.js';
+import { providerAvailability } from '../domain/providers/availability.js';
+
+export interface ProviderSearch {
+  plan?: string; year?: number; taxonomy?: string; specialty?: string; name?: string;
+  type?: 'INDIVIDUAL' | 'FACILITY' | 'GROUP'; page: number;
+  origin?: { latitude: number; longitude: number; method: string; snapshot_id?: string };
+  radius?: number;
+}
+interface SearchRow extends Record<string, unknown> {
+  record_id: string; snapshot_id: string; npi: string | null; type: string;
+  addresses: Record<string, unknown>[]; evidence: ProviderEvidence[];
+  distance_miles: number | null;
+}
+// The optional name dataset may be empty or absent on a code-only installation.
+export async function taxonomyRelation(db: SqlSession): Promise<string> {
+  const exists = (await db.query(`SELECT to_regclass('provider_taxonomy') IS NOT NULL AS present`)).rows[0]?.present;
+  return exists ? 'provider_taxonomy' : `(SELECT NULL::text AS code,NULL::text AS display_name,
+    NULL::text AS classification,NULL::text AS specialization WHERE false)`;
+}
+
+export async function taxonomyLoaded(db: SqlSession): Promise<boolean> {
+  const relation = await taxonomyRelation(db);
+  return (await db.query(`SELECT 1 FROM ${relation} taxonomy LIMIT 1`)).rows.length > 0;
+}
+
+/** Plan searches are issuer records; identity searches never infer plan membership from an NPI location. */
+export async function searchProviders(db: SqlSession, q: ProviderSearch) {
+  const taxonomy = await taxonomyRelation(db);
+  const issuer = Boolean(q.plan), source = issuer ? 'qhp_provider_address' : 'npi_address';
+  const postgis = q.origin && (await db.query(`SELECT 1 FROM information_schema.columns WHERE table_schema=current_schema()
+      AND table_name='address_point' AND column_name='point'`)).rows.length > 0;
+  const spatialRadius = Boolean(postgis && q.radius !== undefined);
+  const parameters: unknown[] = [q.plan ?? null,q.year ?? null,q.taxonomy ?? null,q.specialty ?? null,q.name ?? null,q.type ?? null];
+  // A literal word cannot cross concat_ws's space separator. Use it as a coarse
+  // name filter before fetching NPPES identities, then retain the exact full filter.
+  const recordFilter = Boolean(q.taxonomy || q.specialty || q.name || q.type);
+  const namePrefilter = issuer && q.name && !/[%_\\]/.test(q.name);
+  const nameWord = (offset: number) => `(SELECT term FROM regexp_split_to_table($5::text,'[[:space:]]+')
+    WITH ORDINALITY words(term,ordinal) ORDER BY length(term) DESC,ordinal LIMIT 1 OFFSET ${offset})`;
+  const nameTerm = nameWord(0),otherTerm = nameWord(1);
+  const recordLookup = `FROM (SELECT snapshot_id,array_agg(record_id) AS record_ids
+    FROM plan_records GROUP BY snapshot_id) keys JOIN LATERAL (SELECT * FROM qhp_provider_record r
+    WHERE r.snapshot_id=keys.snapshot_id AND r.record_id=ANY(keys.record_ids) OFFSET 0) r ON true`;
+  // A single trigram is too broad for common three-letter names; scan the plan keys instead.
+  const indexedName = namePrefilter && Math.max(...q.name!.split(/\s+/).map(word => [...word].length)) >= 4;
+  const recordNameTokens = `(ARRAY['snapshot:'||r.snapshot_id] || provider_search_trigrams(
+    coalesce(r.name::text,'')||' '||coalesce(r.facility_name,'')||' '||coalesce(r.group_name,'')))`;
+  const refineName = indexedName && q.name!.trim().split(/\s+/).length > 1;
+  const recordNames = (term: string) => `SELECT r.snapshot_id,r.record_id,r.npi FROM qhp_provider_record r
+    WHERE ${recordNameTokens} @> provider_search_trigrams(${term})
+      AND ${recordNameTokens} && ARRAY(SELECT 'snapshot:'||snapshot_id FROM active_shards)`;
+  const identityNames = (term: string,withIndex: boolean) => `SELECT npi FROM npi_provider WHERE
+    ${withIndex ? `provider_search_trigrams(coalesce(organization_name,'')||' '||coalesce(first_name,'')||' '||coalesce(last_name,''))
+      @> provider_search_trigrams(${term}) AND` : ''}
+    concat_ws(' ',organization_name,first_name,last_name) ILIKE '%'||${term}||'%'`;
+  // Materialize name keys before checking plan scope. Selective names should not
+  // require reading every plan key or probing identities outside current shards.
+  // A single shard uses batched shard-first keys; multiple shards use NPI-first
+  // probes to avoid a shard x name product. Above 2,000 coarse keys, another
+  // literal word narrows issuer-or-identity matches; remaining broad sets use a
+  // hashed plan intersection. These cutoffs choose work, never limit results.
+  // Resolve indexed plan keys before expanding record data; evidence JSON is page-only.
+  const membership = issuer ? `active_shards AS MATERIALIZED (
+    SELECT s.*,snap.final_url AS source_url,snap.retrieved_at,snap.publisher_updated_at FROM provider_active_set a JOIN provider_shard s ON s.source_set_id=a.snapshot_id
+    JOIN snapshot snap ON snap.snapshot_id=s.snapshot_id AND snap.validation_state='ACTIVE'
+    WHERE a.issuer_id=left($1,5) AND a.state=substring($1,6,2) AND a.plan_year=$2
+  ), plan_groups AS MATERIALIZED (
+    SELECT * FROM provider_plan_group_edge WHERE base_hios_id=$1 AND plan_year=$2
+      ${recordFilter ? '' : `AND evidence_status='listed_participating'`}
+  ), plan_records AS MATERIALIZED (
+    SELECT e.snapshot_id,e.record_id FROM qhp_provider_plan_legacy e JOIN active_shards s USING(snapshot_id)
+    WHERE e.base_hios_id=$1 AND e.plan_year=$2 ${recordFilter ? '' : `AND e.evidence_status='listed_participating'`}
+    UNION ALL
+    SELECT l.snapshot_id,l.record_id FROM plan_groups e JOIN provider_record_plan_group l USING(group_id)
+    JOIN active_shards s ON s.snapshot_id=l.snapshot_id
+    WHERE NOT EXISTS (SELECT 1 FROM provider_plan_override x WHERE x.snapshot_id=l.snapshot_id
+      AND x.record_id=l.record_id AND x.source_plan_index=e.source_plan_index)
+      AND NOT EXISTS (SELECT 1 FROM provider_plan_suppressed x WHERE x.snapshot_id=l.snapshot_id
+        AND x.record_id=l.record_id AND x.source_plan_index=e.source_plan_index)
+  ), ${namePrefilter ? `matching_names AS MATERIALIZED (
+    ${identityNames(nameTerm,Boolean(indexedName))}
+  ), ${indexedName ? `record_names AS MATERIALIZED (
+    ${recordNames(nameTerm)}
+  ), identity_record_names AS MATERIALIZED (
+    SELECT r.snapshot_id,r.record_id,r.npi FROM active_shards s JOIN LATERAL (
+      SELECT r.snapshot_id,r.record_id,r.npi FROM qhp_provider_record r WHERE r.snapshot_id=s.snapshot_id
+        AND r.npi=ANY(ARRAY(SELECT npi FROM matching_names ORDER BY npi)) OFFSET 0) r ON true
+    WHERE (SELECT count(*) FROM active_shards)=1
+    UNION ALL
+    SELECT r.snapshot_id,r.record_id,r.npi FROM matching_names n JOIN LATERAL (
+      SELECT r.snapshot_id,r.record_id,r.npi FROM qhp_provider_record r WHERE r.npi=n.npi OFFSET 0) r ON true
+    WHERE (SELECT count(*) FROM active_shards)>1
+      AND r.snapshot_id=ANY(ARRAY(SELECT snapshot_id FROM active_shards))
+  ), coarse_names AS MATERIALIZED (
+    SELECT * FROM record_names UNION SELECT * FROM identity_record_names
+  ), ${refineName ? `other_record_names AS MATERIALIZED (${recordNames(otherTerm)}),
+    other_identity_names AS MATERIALIZED (${identityNames(otherTerm,true)}), ` : ''}qualified_names AS MATERIALIZED (
+    SELECT r.* FROM coarse_names r ${refineName ? `WHERE CASE WHEN (SELECT count(*) FROM coarse_names)>2000
+      AND length(${otherTerm})>=4 THEN
+        (r.snapshot_id,r.record_id) IN (SELECT snapshot_id,record_id FROM other_record_names)
+        OR r.npi IN (SELECT npi FROM other_identity_names) ELSE true END` : ''}
+  ), ` : ''}name_candidates AS MATERIALIZED (
+    ${indexedName ? `SELECT r.snapshot_id,r.record_id FROM qualified_names r
+      WHERE CASE WHEN (SELECT count(*) FROM qualified_names)<=2000 THEN
+        EXISTS (SELECT 1 FROM qhp_provider_plan e WHERE e.snapshot_id=r.snapshot_id AND e.record_id=r.record_id
+          AND e.base_hios_id=$1 AND e.plan_year=$2 OFFSET 0)
+      ELSE (r.snapshot_id,r.record_id) IN (SELECT snapshot_id,record_id FROM plan_records) END`
+      : `SELECT r.snapshot_id,r.record_id ${recordLookup}
+        WHERE concat_ws(' ',r.name::text,r.facility_name,r.group_name) ILIKE '%'||${nameTerm}||'%'
+          OR r.npi IN (SELECT npi FROM matching_names)`}
+  ), ` : ''}` : '';
+  const identityPredicate = `n.in_scope
+      AND $1::text IS NULL AND $2::integer IS NULL
+      AND ($3::text IS NULL OR EXISTS (SELECT 1 FROM npi_taxonomy t WHERE t.npi=n.npi AND t.code=$3))
+      AND ($4::text IS NULL OR EXISTS (SELECT 1 FROM npi_taxonomy t LEFT JOIN ${taxonomy} nt ON nt.code=t.code
+        WHERE t.npi=n.npi AND (t.code ILIKE '%'||$4||'%' OR nt.display_name ILIKE '%'||$4||'%'
+          OR nt.classification ILIKE '%'||$4||'%' OR nt.specialization ILIKE '%'||$4||'%')))
+      AND ($5::text IS NULL OR concat_ws(' ',n.organization_name,n.first_name,n.last_name) ILIKE '%'||$5||'%')
+      AND ($6::text IS NULL OR CASE WHEN n.entity_type='1' THEN 'INDIVIDUAL' ELSE 'GROUP' END=$6)`;
+  const selected = issuer ? (recordFilter ? `SELECT r.snapshot_id,r.record_id
+    ${namePrefilter ? `FROM name_candidates keys JOIN LATERAL (SELECT * FROM qhp_provider_record r
+      WHERE r.snapshot_id=keys.snapshot_id AND r.record_id=keys.record_id OFFSET 0) r ON true` : recordLookup}
+    ${q.name ? 'LEFT JOIN LATERAL (SELECT n.* FROM npi_provider n WHERE n.npi=r.npi OFFSET 0) n ON true' : ''}
+    WHERE ($3::text IS NULL OR EXISTS (SELECT 1 FROM npi_taxonomy t WHERE t.npi=r.npi AND t.code=$3))
+      AND ($4::text IS NULL OR coalesce(r.speciality,r.specialty)::text ILIKE '%'||$4||'%'
+        OR EXISTS (SELECT 1 FROM npi_taxonomy t LEFT JOIN ${taxonomy} nt ON nt.code=t.code
+          WHERE t.npi=r.npi AND (nt.display_name ILIKE '%'||$4||'%' OR nt.classification ILIKE '%'||$4||'%'
+            OR nt.specialization ILIKE '%'||$4||'%')))
+      ${q.name ? `AND concat_ws(' ',r.name::text,r.facility_name,r.group_name,n.organization_name,n.first_name,n.last_name) ILIKE '%'||$5||'%'` : 'AND $5::text IS NULL'}
+      AND ($6::text IS NULL OR r.type=$6)
+      AND EXISTS (SELECT 1 FROM qhp_provider_plan e WHERE e.snapshot_id=r.snapshot_id AND e.record_id=r.record_id
+        AND e.base_hios_id=$1 AND e.plan_year=$2 AND e.evidence_status='listed_participating' OFFSET 0)` : 'SELECT DISTINCT snapshot_id,record_id FROM plan_records WHERE $3::text IS NULL AND $4::text IS NULL AND $5::text IS NULL AND $6::text IS NULL')
+    : `SELECT n.npi AS record_id,n.snapshot_id FROM ${spatialRadius ? `(SELECT DISTINCT record_id FROM radius_locations) keys
+      JOIN LATERAL (SELECT * FROM npi_provider n WHERE n.npi=keys.record_id OFFSET 0) n ON true` : 'npi_provider n'}
+      WHERE ${identityPredicate}`;
+  const location = issuer ? `SELECT a.record_id,a.snapshot_id,a.address_index,
+      a.snapshot_id||':'||a.record_id||':'||a.address_index::text AS source_row
+    FROM qhp_provider_address a JOIN selected r USING(record_id,snapshot_id)`
+    : `SELECT a.npi AS record_id,a.snapshot_id,a.ordinal AS address_index,a.line_1,a.line_2,a.city,a.state,a.zip5 AS zip,
+      a.phone,a.npi||':'||a.kind||':'||a.ordinal::text AS source_row
+    FROM npi_address a JOIN selected r ON r.record_id=a.npi WHERE a.kind='practice'`;
+  const pointFields = `p.latitude,p.longitude,p.method,p.match_status,p.match_quality,p.snapshot_id AS point_snapshot_id,
+      p.centroid_snapshot_id,p.geocoded_at`;
+  // Keep the spatial scan behind a materialization boundary. Match the full source
+  // key AND its snapshot, so obsolete geocodes cannot lend a current address a point.
+  const radiusLocations = spatialRadius ? `radius_points AS MATERIALIZED (
+    SELECT p.* FROM address_point p WHERE p.source_table='${source}'
+      ${issuer ? 'AND p.source_snapshot_id IN (SELECT snapshot_id FROM active_shards)' : ''}
+      AND ST_DWithin(p.point,ST_SetSRID(ST_MakePoint($8,$7),4326)::geography,$9*1609.344,false)
+  ), radius_locations AS MATERIALIZED (
+    SELECT ${issuer ? 'a.record_id,a.snapshot_id,a.address_index' : `a.npi AS record_id,a.snapshot_id,a.ordinal AS address_index,
+      a.line_1,a.line_2,a.city,a.state,a.zip5 AS zip,a.phone`},p.source_row,${pointFields}
+    FROM radius_points p ${issuer ? `JOIN selected r ON r.snapshot_id=p.source_snapshot_id
+      AND r.record_id=regexp_replace(substring(p.source_row FROM length(p.source_snapshot_id)+2),':[^:]*$','')` : ''}
+    JOIN LATERAL (SELECT * FROM ${source} a WHERE
+      ${issuer ? `a.snapshot_id=p.source_snapshot_id
+        AND a.record_id=regexp_replace(substring(p.source_row FROM length(p.source_snapshot_id)+2),':[^:]*$','')
+        AND a.address_index=CASE WHEN substring(p.source_row FROM '[^:]*$') ~ '^[0-9]{1,10}$'
+          THEN substring(p.source_row FROM '[^:]*$')::bigint END
+        AND a.snapshot_id||':'||a.record_id||':'||a.address_index::text=p.source_row`
+        : `a.kind='practice' AND a.npi||':'||a.kind||':'||a.ordinal::text=p.source_row
+        AND a.snapshot_id=p.source_snapshot_id`} OFFSET 0) a ON true
+  ), ` : '';
+  const selectedCte = `selected AS MATERIALIZED (${selected}), `;
+  const ctes = `WITH ${membership}${issuer ? selectedCte+radiusLocations : radiusLocations+selectedCte}locations AS (${location}), located AS (
+    ${spatialRadius ? `SELECT a.* FROM radius_locations a JOIN selected r ON a.record_id=r.record_id
+      ${issuer ? 'AND a.snapshot_id=r.snapshot_id' : ''}`
+      : `SELECT a.*,${pointFields} FROM locations a LEFT JOIN address_point p
+      ON p.source_table='${source}' AND p.source_row=a.source_row AND p.source_snapshot_id=a.snapshot_id`})`;
+  // Missing-point counts do not need coordinate heaps or the radius. Use an anti
+  // join independently of the spatial candidates; the count remains exact.
+  const unlocated = spatialRadius ? issuer ? `(SELECT count(*)::int FROM locations a WHERE NOT EXISTS (
+    SELECT 1 FROM address_point p WHERE p.source_table='${source}'
+      AND p.source_row=a.source_row AND p.source_snapshot_id=a.snapshot_id))`
+    : `(SELECT count(*)::int FROM npi_address a JOIN npi_provider n ON n.npi=a.npi
+      WHERE a.kind='practice' AND ${identityPredicate} AND NOT EXISTS (
+        SELECT 1 FROM address_point p WHERE p.source_table='npi_address'
+          AND p.source_row=a.npi||':'||a.kind||':'||a.ordinal::text AND p.source_snapshot_id=a.snapshot_id))`
+    : '(SELECT count(*)::int FROM located WHERE latitude IS NULL)';
+  let distance = 'NULL::float8',radiusFilter = '';
+  if (q.origin) {
+    parameters.push(q.origin.latitude,q.origin.longitude);
+    if (postgis) {
+      distance = `ST_Distance(ST_SetSRID(ST_MakePoint(longitude,latitude),4326)::geography,
+        ST_SetSRID(ST_MakePoint($8,$7),4326)::geography,false)/1609.344`;
+      if (q.radius !== undefined) {
+        parameters.push(q.radius);
+      }
+    } else {
+      // Same WGS84 sphere and miles as the existing geo domain's haversine fallback.
+      distance = `CASE WHEN latitude IS NOT NULL THEN 2*6371008.771415059/1609.344*asin(sqrt(least(1.0,greatest(0.0,
+        power(sin(radians(latitude-$7)/2),2)+cos(radians($7))*cos(radians(latitude))*power(sin(radians(longitude-$8)/2),2))))) END`;
+      if (q.radius !== undefined) {
+        parameters.push(q.radius); radiusFilter = 'WHERE distance_miles <= $9';
+      }
+    }
+  }
+  const result = await db.query<{ total: number; unlocated: number; providers: SearchRow[] }>(`${ctes}, measured AS (
+    SELECT located.*,${distance} AS distance_miles FROM located
+  ), distances AS (SELECT * FROM measured ${radiusFilter}), grouped AS (
+    ${!q.origin ? 'SELECT record_id,snapshot_id,NULL::float8 AS distance_miles FROM selected' : `SELECT r.record_id,r.snapshot_id,min(a.distance_miles) AS distance_miles
+    FROM selected r ${q.radius !== undefined ? 'JOIN' : 'LEFT JOIN'} distances a ON a.record_id=r.record_id
+      ${issuer ? 'AND a.snapshot_id=r.snapshot_id' : ''}
+    GROUP BY r.record_id,r.snapshot_id`}
+  ), paged AS (SELECT * FROM grouped ORDER BY distance_miles NULLS LAST,record_id,snapshot_id LIMIT 50 OFFSET ${(q.page-1)*50})
+  SELECT (SELECT count(*)::int FROM grouped) AS total,
+    ${unlocated} AS unlocated,
+    coalesce((SELECT jsonb_agg(to_jsonb(r)||jsonb_build_object(
+    ${!issuer ? `'record_id',r.npi,'type',CASE WHEN r.entity_type='1' THEN 'INDIVIDUAL' ELSE 'GROUP' END,'evidence','[]'::jsonb,` : ''}
+    ${issuer ? `'entity_type',n.entity_type,'deactivated',n.deactivated,'organization_name',n.organization_name,
+    'first_name',n.first_name,'last_name',n.last_name,'nppes_snapshot_id',n.snapshot_id,
+    'source_set_id',s.source_set_id,'raw_snapshot_id',s.raw_snapshot_id,'source_url',s.source_url,
+    'retrieved_at',s.retrieved_at,'publisher_updated_at',s.publisher_updated_at,
+    'evidence',(SELECT jsonb_agg(to_jsonb(e) ORDER BY e.source_plan_index)
+      FROM qhp_provider_plan e WHERE e.snapshot_id=p.snapshot_id AND e.record_id=p.record_id
+        AND e.base_hios_id=$1 AND e.plan_year=$2),` : ''}
+    'addresses',coalesce((SELECT jsonb_agg(to_jsonb(a)${issuer ? `||jsonb_build_object(
+      'line_1',addr.address,'line_2',addr.address_2,'city',addr.city,'state',addr.state,'zip',addr.zip,'phone',addr.phone)` : ''}
+      ORDER BY a.distance_miles NULLS LAST,a.address_index)
+      FROM distances a ${issuer ? `JOIN qhp_provider_address addr ON addr.snapshot_id=a.snapshot_id
+        AND addr.record_id=a.record_id AND addr.address_index=a.address_index` : ''}
+      WHERE a.record_id=p.record_id ${issuer ? 'AND a.snapshot_id=p.snapshot_id' : ''}),'[]'::jsonb),
+    'distance_miles',p.distance_miles,
+    'taxonomy',coalesce((SELECT jsonb_agg(jsonb_build_object('code',t.code,'is_primary',t.is_primary,'snapshot_id',t.snapshot_id,
+      'display_name',nt.display_name,'taxonomy_display_name',nt.display_name,
+      'taxonomy_source',CASE WHEN nt.code IS NULL THEN 'nppes_code_only' ELSE 'nucc' END,
+      'classification',nt.classification,'specialization',nt.specialization,
+      'taxonomy_status',CASE WHEN nt.code IS NULL THEN 'unknown_code' ELSE 'known' END)
+      ORDER BY t.ordinal) FROM npi_taxonomy t LEFT JOIN ${taxonomy} nt ON nt.code=t.code WHERE t.npi=r.npi),'[]'::jsonb))
+    ORDER BY p.distance_miles NULLS LAST,p.record_id,p.snapshot_id)
+    FROM paged p JOIN ${issuer ? 'qhp_provider_record' : 'npi_provider'} r ON r.${issuer ? 'record_id' : 'npi'}=p.record_id AND r.snapshot_id=p.snapshot_id
+      ${issuer ? 'LEFT JOIN npi_provider n ON n.npi=r.npi JOIN active_shards s ON s.snapshot_id=p.snapshot_id' : ''}),'[]'::jsonb) AS providers`,parameters);
+  const row = result.rows[0]!;
+  const providers = row.providers.map(provider => ({ ...provider,
+    participation: issuer ? classifyProviderEvidence(provider.evidence,true) : 'not_evaluated',
+    participation_scope: issuer ? 'provider_record' : null,
+    warnings: issuer && provider.evidence.some(e => e.tier_status === 'unresolved') ? ['UNRESOLVED_NETWORK_TIER'] : [],
+    specialties: issuer ? providerSpecialties({ speciality: provider.speciality,specialty: provider.specialty }) : [],
+    addresses: provider.addresses.map(a => ({ ...a,source: source,
+      participation: 'not_evaluated',participation_scope: issuer ? 'provider_record' : null,
+      precision: a.method === 'zcta_centroid' ? 'approximate' : a.method === 'census_geocoder' ? a.match_quality === 'Exact' ? 'exact' : 'non_exact' : null })),
+  }));
+  return { providers,total: row.total,page: q.page,page_size: 50,next_page: q.page*50 < row.total ? q.page+1 : null,
+    meta: { unlocated: Number(row.unlocated),unlocated_scope: 'candidate_addresses',origin: q.origin ?? null,
+      radius_miles: q.radius ?? null,participation_scope: issuer ? 'provider_record' : null } };
+}
+
+export async function providerDetail(db: SqlSession, npi: string, year: number | undefined) {
+  const taxonomy = await taxonomyRelation(db);
+  const identity = (await db.query(`SELECT n.*,coalesce((SELECT jsonb_agg(to_jsonb(t)||jsonb_build_object(
+      'display_name',nt.display_name,'taxonomy_display_name',nt.display_name,
+      'taxonomy_source',CASE WHEN nt.code IS NULL THEN 'nppes_code_only' ELSE 'nucc' END,
+      'classification',nt.classification,'specialization',nt.specialization,
+      'taxonomy_status',CASE WHEN nt.code IS NULL THEN 'unknown_code' ELSE 'known' END) ORDER BY t.ordinal)
+      FROM npi_taxonomy t LEFT JOIN ${taxonomy} nt ON nt.code=t.code WHERE t.npi=n.npi),'[]') AS taxonomy,
+    coalesce((SELECT jsonb_agg(to_jsonb(a)||jsonb_build_object('source','npi_address','participation','not_evaluated')
+      ORDER BY a.kind,a.ordinal) FROM npi_address a WHERE a.npi=n.npi),'[]') AS addresses
+    FROM npi_provider n WHERE n.npi=$1`,[npi])).rows[0] ?? null;
+  const records = (await db.query(`SELECT r.*,active.issuer_id,active.plan_year,active.state,s.source_set_id,s.raw_snapshot_id,snap.final_url AS source_url,
+      snap.retrieved_at,snap.publisher_updated_at,
+    coalesce((SELECT jsonb_agg(to_jsonb(a)||jsonb_build_object('source','qhp_provider_address','participation','not_evaluated')
+      ORDER BY a.address_index) FROM qhp_provider_address a WHERE a.record_id=r.record_id AND a.snapshot_id=r.snapshot_id),'[]') AS addresses,
+    coalesce((SELECT jsonb_agg(to_jsonb(e) ORDER BY e.plan_year,e.base_hios_id,e.source_plan_index) FROM qhp_provider_plan e
+      WHERE e.record_id=r.record_id AND e.snapshot_id=r.snapshot_id AND ($2::integer IS NULL OR e.plan_year=$2)),'[]') AS plan_participations
+    FROM qhp_provider_record r JOIN provider_shard s USING(snapshot_id)
+    JOIN provider_active_set active ON active.snapshot_id=s.source_set_id
+    JOIN snapshot snap ON snap.snapshot_id=r.snapshot_id AND snap.validation_state='ACTIVE'
+    WHERE r.npi=$1 AND ($2::integer IS NULL OR active.plan_year=$2) ORDER BY r.snapshot_id,r.source_record`,[npi,year ?? null])).rows;
+  if (!identity && !records.length) return null;
+  const coverage = (await providerAvailability(db)).filter(p => records.some(r => r.issuer_id === p.issuer_id && r.plan_year === p.plan_year && r.state === p.state));
+  const pairs = new Map<string,{ base_hios_id: string; plan_year: number; evidence: ProviderEvidence[] }>();
+  for (const record of records) for (const edge of record.plan_participations as (ProviderEvidence & { base_hios_id: string; plan_year: number })[]) {
+    const key = `${edge.base_hios_id}:${edge.plan_year}`, pair = pairs.get(key)
+      ?? { base_hios_id: edge.base_hios_id,plan_year: edge.plan_year,evidence: [] };
+    pair.evidence.push({ ...edge,npi,source_updated_at: record.source_updated_at as string | null,
+      source_set_id: record.source_set_id as string,raw_snapshot_id: record.raw_snapshot_id as string,
+      source_url: record.source_url as string | null });
+    pairs.set(key,pair);
+  }
+  const participations = [...pairs.values()].map(pair => {
+    const source = coverage.find(p => p.issuer_id === pair.base_hios_id.slice(0,5) && p.state === pair.base_hios_id.slice(5,7) && p.plan_year === pair.plan_year);
+    return { ...pair,status: source?.status === 'access_denied' ? 'unknown' : classifyProviderEvidence(pair.evidence,source?.status === 'complete'),
+      participation_scope: 'provider_record',warnings: [
+        ...(source?.status !== 'complete' ? ['SOURCE_INCOMPLETE'] : []),
+        ...(pair.evidence.some(e => e.tier_status === 'unresolved') ? ['UNRESOLVED_NETWORK_TIER'] : []),
+      ] };
+  });
+  return { npi,identity,issuer_records: records,plan_participations: participations,participation_scope: 'provider_record',provider_coverage: coverage };
+}

@@ -1,0 +1,144 @@
+import type { planView } from '../../api/repository.js';
+import type { withSubsidy } from '../../api/subsidies.js';
+
+type View = Awaited<ReturnType<typeof planView>>;
+type Estimate = ReturnType<typeof withSubsidy>;
+
+// Field names observed in the captured medical search/detail responses. Unknown
+// evidence stays null; these are a wire vocabulary, never copied plan data.
+const unknownPlanFields = `plan_type sbc_name adult_dental age29_rider benefits_summary_url buy_link
+carrier_disclaimers customer_service_phone_number dp_rider drug_formulary_url effective_date expiration_date
+fp_rider hsa_eligible imaging logo_url out_of_network_coverage preferred_brand_drugs prenatal_postnatal_care
+ambulance child_eyewear child_eye_exam durable_medical_equipment diagnostic_test emergency_room
+family_drug_deductible family_drug_moop family_medical_deductible family_medical_moop generic_drugs
+habilitation_services home_health_care hospice_service individual_drug_deductible individual_drug_moop
+individual_medical_deductible individual_medical_moop inpatient_birth inpatient_facility inpatient_mental_health
+inpatient_physician inpatient_substance non_preferred_brand_drugs outpatient_facility outpatient_mental_health
+outpatient_physician outpatient_substance preventative_care primary_care_physician rehabilitation_services
+skilled_nursing specialist specialty_drugs urgent_care actuarial_value chiropractic_services coinsurance
+embedded_deductible gated mail_order_rx plan_calendar skilled_nursing_facility_365 child_dental imaging_center
+imaging_physician lab_test nonpreferred_generic_drug_share nonpreferred_specialty_drug_share
+outpatient_ambulatory_care_center prenatal_care postnatal_care estimated_actuarial_value
+essential_health_benefits_percentage abortion_rider plan_coinsurance inpatient_birth_physician
+infertility_treatment_rider telemedicine standardized_plan quoted_via_carrier_api network_size updated_at type`;
+
+export function mapPlan(view: View, requestedId: string, serviceAreaId: string | null = null): Record<string, unknown> {
+  const names = view.issuer.marketing_names;
+  const name = Array.isArray(names) ? names.find(n => typeof n === 'string' && n.length > 0) ?? null : null;
+  const stateFiled = 'plan_key' in view;
+  const on = typeof view.on_exchange === 'boolean' ? view.on_exchange : null;
+  const off = typeof view.off_exchange === 'boolean' ? view.off_exchange : null;
+  return { ...Object.fromEntries(unknownPlanFields.split(/\s+/).map(key => [key, null])),
+    id: requestedId, name: view.plan_name, display_name: view.plan_name, source: stateFiled ? 'state_filed_tier' : 'cms_puf',
+    hios_issuer_id: view.issuer.issuer_id, carrier_name: name,
+    carrier: { id: view.issuer.issuer_id, issuer_id: view.issuer.issuer_id, name, logo_url: null },
+    level: view.metal.toLowerCase().replaceAll(' ', '_'), on_market: on, off_market: off,
+    plan_market: on === null || off === null ? null : on && off ? 'both' : on ? 'on_market' : off ? 'off_market' : null,
+    service_area_id: serviceAreaId === null ? null : `${view.issuer.issuer_id}-${view.plan_year}-${serviceAreaId}-${view.market}`,
+    identifiers: view.base_plan_id === null ? [] : [{ type: 'hios_id', value: requestedId }], plan_documents: [],
+    networks: view.network.records.map(n => ({ id: null, name: n.network_name, provider_directory_url: n.network_url ?? null })), network_ids: [],
+    plan_ancestors: [], ratings: [], providers: [],
+  };
+}
+
+export function mapQuote(estimate: Estimate): Record<string, unknown> {
+  return { premium: 'total_cents' in estimate ? Number(estimate.total_cents) / 100 : null,
+    premium_subsidized: 'estimated_net_monthly_cents' in estimate && estimate.estimated_net_monthly_cents !== null
+      ? estimate.estimated_net_monthly_cents / 100 : null,
+    premium_source: 'quote_method' in estimate && estimate.quote_method === 'state_filed_tier' ? 'state_filed_tier' : 'cms_puf',
+    premiums_by_applicant: estimate.members.map(member => ({ age: member.age,
+      child: member.relationship === 'child', smoker: member.tobacco,
+      premium: member.premium_cents === null ? null : member.premium_cents / 100,
+      composite_rated: false, waived_for_total: !member.charged })),
+  };
+}
+
+export const emptySearch = () => ({ meta: { total: 0, eligible_for_chip_medicaid: null,
+  premium_tax_credit: null, state_subsidy: null }, coverages: [], plans: [] });
+
+export const PLAN_GAPS = ['off_exchange_catalog_incomplete', 'subsidies_unavailable',
+  'plan_metadata_and_benefit_summaries_unmapped', 'vendor_network_ids_unavailable',
+  'carrier_ids_are_cms_issuer_ids'];
+
+export interface NativeBenefit {
+  published_plan_id: string;
+  benefit_name: string;
+  cost_sharing_raw: Record<string, string>;
+  raw: Record<string, string>;
+}
+const benefitFields: Record<string, string> = {
+  primary_care_physician: 'Primary Care Visit to Treat an Injury or Illness', specialist: 'Specialist Visit',
+  emergency_room: 'Emergency Room Services', urgent_care: 'Urgent Care Centers or Facilities',
+  preventative_care: 'Preventive Care/Screening/Immunization', generic_drugs: 'Generic Drugs',
+  preferred_brand_drugs: 'Preferred Brand Drugs', non_preferred_brand_drugs: 'Non-Preferred Brand Drugs',
+  specialty_drugs: 'Specialty Drugs', ambulance: 'Emergency Transportation/Ambulance',
+  imaging: 'Imaging (CT/PET Scans, MRIs)', lab_test: 'Laboratory Outpatient and Professional Services',
+  diagnostic_test: 'X-rays and Diagnostic Imaging', inpatient_facility: 'Inpatient Hospital Services (e.g., Hospital Stay)',
+  inpatient_physician: 'Inpatient Physician and Surgical Services', inpatient_birth: 'Delivery and All Inpatient Services for Maternity Care',
+  inpatient_mental_health: 'Mental/Behavioral Health Inpatient Services', inpatient_substance: 'Substance Abuse Disorder Inpatient Services',
+  outpatient_facility: 'Outpatient Facility Fee (e.g., Ambulatory Surgery Center)',
+  outpatient_physician: 'Outpatient Surgery Physician/Surgical Services', outpatient_mental_health: 'Mental/Behavioral Health Outpatient Services',
+  outpatient_substance: 'Substance Abuse Disorder Outpatient Services', rehabilitation_services: 'Outpatient Rehabilitation Services',
+  habilitation_services: 'Habilitation Services', skilled_nursing: 'Skilled Nursing Facility',
+  home_health_care: 'Home Health Care Services', hospice_service: 'Hospice Services',
+  durable_medical_equipment: 'Durable Medical Equipment', prenatal_postnatal_care: 'Prenatal and Postnatal Care',
+  child_eye_exam: 'Routine Eye Exam for Children', child_eyewear: 'Eye Glasses for Children',
+  child_dental: 'Dental Check-Up for Children',
+};
+function benefitText(benefit: NativeBenefit): string | null {
+  if (benefit.raw.IsCovered === 'Not Covered') return 'In-Network: Not Covered / Out-of-Network: Not Covered';
+  // Retain publisher conditions verbatim. Never infer zero cost from a blank,
+  // Not Applicable, or a missing coinsurance cell. Tier 2 is labelled separately.
+  const tier = (copay: string, coins: string) => [
+    benefit.cost_sharing_raw[copay]?.trim() ? `Copay: ${benefit.cost_sharing_raw[copay]!.trim()}` : null,
+    benefit.cost_sharing_raw[coins]?.trim() ? `Coinsurance: ${benefit.cost_sharing_raw[coins]!.trim()}` : null,
+  ].filter(Boolean).join('; ');
+  const inside = tier('CopayInnTier1', 'CoinsInnTier1'), outside = tier('CopayOutofNet', 'CoinsOutofNet');
+  if (!inside && !outside) return null;
+  const tier2 = tier('CopayInnTier2', 'CoinsInnTier2');
+  const limit = benefit.raw.QuantLimitOnSvc === 'Yes' && benefit.raw.LimitQty && benefit.raw.LimitUnit
+    ? ` | limit: ${benefit.raw.LimitQty} ${benefit.raw.LimitUnit}` : '';
+  return `In-Network: ${inside || 'unknown'} / Out-of-Network: ${outside || 'unknown'}`
+    + (tier2 ? ` / In-Network Tier 2: ${tier2}` : '') + limit;
+}
+/** Map only the selected variant's published service rows. */
+export function mapVariantBenefits(benefits: NativeBenefit[], variant: string): Record<string, unknown> {
+  const rows = benefits.filter(row => row.published_plan_id === variant), mapped: Record<string, unknown> = {};
+  for (const [field, name] of Object.entries(benefitFields)) {
+    const values = rows.filter(row => row.benefit_name === name).map(benefitText);
+    if (values.length && new Set(values).size === 1) mapped[field] = values[0];
+  }
+  const chiro = rows.filter(row => row.benefit_name === 'Chiropractic Care').map(row => row.raw.IsCovered);
+  if (chiro.length && new Set(chiro).size === 1) mapped.chiropractic_services = chiro[0] === 'Covered' ? true : chiro[0] === 'Not Covered' ? false : null;
+  return mapped;
+}
+
+/** Existing wire summary fields retain publisher text, including accumulator scope. */
+export function mapVariantAccumulators(sharing: View['cost_sharing']): Record<string, unknown> {
+  if (sharing.status !== 'available') return {};
+  const text = (group: 'deductibles' | 'moop', key: string) => sharing[group][key]?.raw.trim() || null;
+  const summary = (group: 'deductibles' | 'moop', prefix: string, network: string, family: boolean) => {
+    const suffix = group === 'moop' ? 'MOOP' : '';
+    const key = `${prefix}${group === 'deductibles' ? 'Ded' : ''}${network}`;
+    if (!family) return text(group, `${key}Individual${suffix}`);
+    const person = text(group, `${key}FamilyPerPerson${suffix}`), total = text(group, `${key}FamilyPerGroup${suffix}`);
+    return person || total ? `Per person: ${person ?? 'unknown'}; per group: ${total ?? 'unknown'}` : null;
+  };
+  const result: Record<string, unknown> = {};
+  for (const group of ['deductibles', 'moop'] as const) {
+    const integrated = (group === 'deductibles' ? sharing.medical_drug_deductibles_integrated : sharing.medical_drug_moop_integrated) === 'Yes';
+    for (const [scope, prefix] of [['medical', integrated ? 'TEHB' : 'MEHB'], ['drug', integrated ? 'TEHB' : 'DEHB']] as const) {
+      for (const family of [false, true]) {
+        const values = ([['In-Network Tier 1', 'InnTier1'], ['Out-of-Network', 'OutOfNet'],
+          ['In-Network Tier 2', 'InnTier2'], ['Combined in/out of network', 'CombInnOon']] as const)
+          .map(([label, network]) => {
+            const value = summary(group, prefix, network, family);
+            return value ? `${label}: ${value}` : null;
+          }).filter(Boolean);
+        result[`${family ? 'family' : 'individual'}_${scope}_${group === 'deductibles' ? 'deductible' : 'moop'}`] =
+          values.length ? (integrated ? 'Medical and drug combined | ' : '') + values.join(' / ') : null;
+      }
+    }
+  }
+  return result;
+}
