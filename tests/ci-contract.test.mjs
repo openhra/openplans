@@ -10,6 +10,7 @@ const root = fileURLToPath(new URL('..', import.meta.url));
 const workflow = JSON.parse(await readFile(join(root, '.github/workflows/ci.yml'), 'utf8'));
 const installNpm = 'npm install --global "npm@$(cat .github/npm-version)" --no-audit --no-fund';
 const verifyVersions = 'test "$(node --version)" = "v$(cat .node-version)"\ntest "$(npm --version)" = "$(cat .github/npm-version)"';
+const retiredRunnerLabels = ['macos-13', 'macos-14'];
 
 function commandContract(value) {
   expect(value.on).toEqual({ push: null, pull_request: null, workflow_dispatch: null });
@@ -19,7 +20,8 @@ function commandContract(value) {
   for (const [id, name] of Object.entries(requiredJobs)) {
     const job = value.jobs[id];
     expect(job.name).toBe(name);
-    expect(job['runs-on']).toBe(id === 'macos' ? 'macos-14' : 'ubuntu-24.04');
+    expect(job['runs-on']).toBe(id === 'macos' ? 'macos-15' : 'ubuntu-24.04');
+    expect(retiredRunnerLabels).not.toContain(job['runs-on']);
     expect(job.if).toBeUndefined();
     expect(job.needs).toBeUndefined();
     expect(job.strategy).toBeUndefined();
@@ -66,6 +68,12 @@ function commandContract(value) {
 
 it('runs clean extracted-root checks on both platforms and builds the Linux artifact', () => {
   commandContract(workflow);
+});
+
+it.each(retiredRunnerLabels)('negative control: rejects retired runner label %s', label => {
+  const copy = structuredClone(workflow);
+  copy.jobs.macos['runs-on'] = label;
+  expect(() => commandContract(copy)).toThrow();
 });
 
 it('pins the same Node and npm versions for project and Docker checks', async () => {
