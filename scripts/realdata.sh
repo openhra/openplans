@@ -36,3 +36,8 @@ if [[ " ${years[*]} " == *" 2026 "* ]]; then
   node scripts/oracle/csr.mjs
 fi
 echo 'PASS'
+# CMS SBE: independent CSV/Decimal counts, exact filed rates and households.
+for year in "${years[@]}"; do
+  node scripts/oracle/sbe.mjs --year "$year"
+done
+echo 'PASS'

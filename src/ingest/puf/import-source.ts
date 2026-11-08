@@ -5,6 +5,9 @@ import { open, readFile, readdir } from 'node:fs/promises';
 import { isAbsolute, join } from 'node:path';
 import { createInflateRaw } from 'node:zlib';
 import { createInterface } from 'node:readline';
+import { streamZipMember } from '../../fetch/index.js';
+import { normalizeSbeRow } from '../sbe/normalize.js';
+import { Readable } from 'node:stream';
 import { readCsv } from '../csv/index.js';
 import type { CsvRow } from '../csv/index.js';
 import { inspectPufArchive } from './acquire-archive.js';
@@ -15,6 +18,8 @@ export const IMPORT_KINDS = ['plan-attributes', 'service-area', 'network', 'busi
 export type ImportKind = typeof IMPORT_KINDS[number];
 export interface ImportFile {
   kind: ImportKind;
+  source?: 'cms_sbe_puf';
+  member?: string;
   path: string;
   format: 'csv' | 'zip';
   sha256: string;
@@ -71,6 +76,11 @@ export async function* importRows(file: ImportFile): AsyncGenerator<CsvRow> {
     const lines = createInterface({ input, crlfDelay: Infinity });
     try { for await (const line of lines) yield JSON.parse(line) as CsvRow; }
     finally { lines.close(); input.destroy(); }
+    return;
+  }
+  if (file.source === 'cms_sbe_puf') {
+    const stream = file.format === 'csv' ? createReadStream(file.path) : Readable.from(streamZipMember(file.path, file.member!));
+    try { for await (const row of readCsv(stream)) yield normalizeSbeRow(file.kind, row); } finally { stream.destroy(); }
     return;
   }
   if (file.format === 'csv') { yield* readCsv(createReadStream(file.path)); return; }

@@ -12,15 +12,15 @@ export async function insertImportRows(tx: SqlSession, kind: ImportKind, rows: u
 export async function saveImportSnapshot(tx: SqlSession, id: string, source: string, file?: ImportFile): Promise<void> {
   const m = file?.metadata;
   await tx.query(`INSERT INTO source(source_id,publisher,source_kind,registry_evidence)
-    VALUES ($1,'Centers for Medicare & Medicaid Services','exchange-puf',$2) ON CONFLICT DO NOTHING`,
-  [source, JSON.stringify(file ? [file.url] : [])]);
+    VALUES ($1,'Centers for Medicare & Medicaid Services',$3,$2) ON CONFLICT DO NOTHING`,
+  [source, JSON.stringify(file ? file.source === 'cms_sbe_puf' ? { url: file.url, member: file.member, sha256: file.sha256 } : [file.url] : []), file?.source ?? 'exchange-puf']);
   await tx.query(`INSERT INTO snapshot(snapshot_id,source_id,requested_url,final_url,redirect_chain,retrieved_at,
     http_status,etag,last_modified,content_type,compressed_bytes,sha256,raw_path,schema_version,parser_version,
     expected_children,fetched_children,validation_state)
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'cms-puf-2026-2027-observed','puf-import-v1',$14,0,'PARSED')`,
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$15,$16,$14,0,'PARSED')`,
   [id, source, file?.url ?? null, m?.final_url ?? file?.url ?? null, JSON.stringify(m?.redirect_chain ?? []), file?.retrievedAt ?? null,
     m?.status ?? null, m?.etag ?? null, m?.last_modified ?? null, m?.content_type ?? null, file?.bytes ?? null,
-    file?.sha256 ?? null, file?.path ?? null, file ? 0 : 6]);
+    file?.sha256 ?? null, file?.path ?? null, file ? 0 : 6, file?.source === 'cms_sbe_puf' ? 'cms-sbe-puf-2026-observed' : 'cms-puf-2026-2027-observed', file?.source === 'cms_sbe_puf' ? 'sbe-import-v1' : 'puf-import-v1']);
 }
 export async function importIssue(tx: SqlSession, snapshot: string, code: string, explanation: string, row?: number, severity = 'error'): Promise<void> {
   await tx.query(`INSERT INTO quality_issue(snapshot_id,severity,issue_code,explanation,source_record) VALUES ($1,$2,$3,$4,$5)`,
@@ -29,7 +29,7 @@ export async function importIssue(tx: SqlSession, snapshot: string, code: string
 export async function deriveCatalogRows(tx: SqlSession, kind: ImportKind, snapshot: string): Promise<void> {
   if (kind === 'plan-attributes') {
     await tx.query(`INSERT INTO issuer(snapshot_id,source_row,issuer_id,state,plan_year,marketing_names)
-      SELECT snapshot_id,min(source_row),issuer_id,state,plan_year,jsonb_agg(DISTINCT raw->>'IssuerMarketPlaceMarketingName')
+      SELECT snapshot_id,min(source_row),issuer_id,state,plan_year,COALESCE(jsonb_agg(DISTINCT raw->>'IssuerMarketPlaceMarketingName') FILTER (WHERE COALESCE(raw->>'IssuerMarketPlaceMarketingName','')<>''),'[]'::jsonb)
       FROM plan_attribute WHERE snapshot_id=$1 GROUP BY snapshot_id,issuer_id,state,plan_year`, [snapshot]);
     await tx.query(`INSERT INTO plan
       SELECT snapshot_id,min(source_row),plan_year,state,issuer_id,base_plan_id,market,metal,dental_only,network_id,service_area_id,plan_name,

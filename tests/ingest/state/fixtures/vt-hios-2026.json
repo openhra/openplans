@@ -1,0 +1,2369 @@
+{
+  "kind": "real-public-fact-cut",
+  "description": "Identity fields only; all VT attribute rows, no invented plan facts.",
+  "url": "https://www.cms.gov/files/zip/vermontsbepuf2026.zip",
+  "sha256": "a16f28e7d50ecf93c1d92335f116dd272cffbfc5c261088459bb866cc4aa6342",
+  "bytes": 56148,
+  "retrieved_at": "2026-11-08T03:16:33.846Z",
+  "member": "VTPlans05052026.csv",
+  "rows": [
+    {
+      "source_row": 2,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "13627",
+        "StandardComponentId": "13627VT0320001",
+        "PlanId": "13627VT0320001-01",
+        "MarketCoverage": "SHOP (Small Group)",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Platinum",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS002",
+        "PlanMarketingName": "BCBSVT Platinum Plan",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 3,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "13627",
+        "StandardComponentId": "13627VT0320002",
+        "PlanId": "13627VT0320002-01",
+        "MarketCoverage": "SHOP (Small Group)",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Gold",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS002",
+        "PlanMarketingName": "BCBSVT Gold Plan",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 4,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "13627",
+        "StandardComponentId": "13627VT0320003",
+        "PlanId": "13627VT0320003-01",
+        "MarketCoverage": "SHOP (Small Group)",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Silver",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS002",
+        "PlanMarketingName": "BCBSVT Silver Plan",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 5,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "13627",
+        "StandardComponentId": "13627VT0320004",
+        "PlanId": "13627VT0320004-01",
+        "MarketCoverage": "SHOP (Small Group)",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Expanded Bronze",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS002",
+        "PlanMarketingName": "BCBSVT Bronze Plan",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 6,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "13627",
+        "StandardComponentId": "13627VT0320005",
+        "PlanId": "13627VT0320005-01",
+        "MarketCoverage": "SHOP (Small Group)",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Expanded Bronze",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS002",
+        "PlanMarketingName": "BCBSVT Bronze Integrated Plan",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 7,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "13627",
+        "StandardComponentId": "13627VT0330001",
+        "PlanId": "13627VT0330001-01",
+        "MarketCoverage": "SHOP (Small Group)",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Silver",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS002",
+        "PlanMarketingName": "BCBSVT Silver CDHP Plan",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 8,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "13627",
+        "StandardComponentId": "13627VT0330002",
+        "PlanId": "13627VT0330002-01",
+        "MarketCoverage": "SHOP (Small Group)",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Expanded Bronze",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS002",
+        "PlanMarketingName": "BCBSVT Bronze CDHP Plan",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 9,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "13627",
+        "StandardComponentId": "13627VT0340001",
+        "PlanId": "13627VT0340001-01",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Catastrophic",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "BCBSVT Catastrophic Plan",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 10,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "13627",
+        "StandardComponentId": "13627VT0340002",
+        "PlanId": "13627VT0340002-01",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Platinum",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "BCBSVT Platinum Plan",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 11,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "13627",
+        "StandardComponentId": "13627VT0340002",
+        "PlanId": "13627VT0340002-02",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Platinum",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "BCBSVT Platinum Plan",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 12,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "13627",
+        "StandardComponentId": "13627VT0340002",
+        "PlanId": "13627VT0340002-03",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Platinum",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "BCBSVT Platinum Plan",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 13,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "13627",
+        "StandardComponentId": "13627VT0340003",
+        "PlanId": "13627VT0340003-01",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Gold",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "BCBSVT Gold Plan",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 14,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "13627",
+        "StandardComponentId": "13627VT0340003",
+        "PlanId": "13627VT0340003-02",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Gold",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "BCBSVT Gold Plan",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 15,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "13627",
+        "StandardComponentId": "13627VT0340003",
+        "PlanId": "13627VT0340003-03",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Gold",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "BCBSVT Gold Plan",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 16,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "13627",
+        "StandardComponentId": "13627VT0340004",
+        "PlanId": "13627VT0340004-01",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Silver",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "BCBSVT Silver Plan",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 17,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "13627",
+        "StandardComponentId": "13627VT0340004",
+        "PlanId": "13627VT0340004-02",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Silver",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "BCBSVT Silver Plan",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 18,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "13627",
+        "StandardComponentId": "13627VT0340004",
+        "PlanId": "13627VT0340004-03",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Silver",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "BCBSVT Silver Plan",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 19,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "13627",
+        "StandardComponentId": "13627VT0340004",
+        "PlanId": "13627VT0340004-04",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Silver",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "BCBSVT Silver Plan",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 20,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "13627",
+        "StandardComponentId": "13627VT0340004",
+        "PlanId": "13627VT0340004-05",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Silver",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "BCBSVT Silver Plan",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 21,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "13627",
+        "StandardComponentId": "13627VT0340004",
+        "PlanId": "13627VT0340004-06",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Silver",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "BCBSVT Silver Plan",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 22,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "13627",
+        "StandardComponentId": "13627VT0340005",
+        "PlanId": "13627VT0340005-01",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Expanded Bronze",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "BCBSVT Bronze Plan",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 23,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "13627",
+        "StandardComponentId": "13627VT0340005",
+        "PlanId": "13627VT0340005-02",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Expanded Bronze",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "BCBSVT Bronze Plan",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 24,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "13627",
+        "StandardComponentId": "13627VT0340005",
+        "PlanId": "13627VT0340005-03",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Expanded Bronze",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "BCBSVT Bronze Plan",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 25,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "13627",
+        "StandardComponentId": "13627VT0340006",
+        "PlanId": "13627VT0340006-01",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Expanded Bronze",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "BCBSVT Bronze Integrated Plan",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 26,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "13627",
+        "StandardComponentId": "13627VT0340006",
+        "PlanId": "13627VT0340006-02",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Expanded Bronze",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "BCBSVT Bronze Integrated Plan",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 27,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "13627",
+        "StandardComponentId": "13627VT0340006",
+        "PlanId": "13627VT0340006-03",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Expanded Bronze",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "BCBSVT Bronze Integrated Plan",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 28,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "13627",
+        "StandardComponentId": "13627VT0350001",
+        "PlanId": "13627VT0350001-01",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Silver",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "BCBSVT Silver CDHP Plan",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 29,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "13627",
+        "StandardComponentId": "13627VT0350001",
+        "PlanId": "13627VT0350001-02",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Silver",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "BCBSVT Silver CDHP Plan",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 30,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "13627",
+        "StandardComponentId": "13627VT0350001",
+        "PlanId": "13627VT0350001-03",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Silver",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "BCBSVT Silver CDHP Plan",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 31,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "13627",
+        "StandardComponentId": "13627VT0350001",
+        "PlanId": "13627VT0350001-04",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Silver",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "BCBSVT Silver CDHP Plan",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 32,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "13627",
+        "StandardComponentId": "13627VT0350001",
+        "PlanId": "13627VT0350001-05",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Silver",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "BCBSVT Silver CDHP Plan",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 33,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "13627",
+        "StandardComponentId": "13627VT0350001",
+        "PlanId": "13627VT0350001-06",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Silver",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "BCBSVT Silver CDHP Plan",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 34,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "13627",
+        "StandardComponentId": "13627VT0350002",
+        "PlanId": "13627VT0350002-01",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Expanded Bronze",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "BCBSVT Bronze CDHP Plan",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 35,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "13627",
+        "StandardComponentId": "13627VT0350002",
+        "PlanId": "13627VT0350002-02",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Expanded Bronze",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "BCBSVT Bronze CDHP Plan",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 36,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "13627",
+        "StandardComponentId": "13627VT0350002",
+        "PlanId": "13627VT0350002-03",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Expanded Bronze",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "BCBSVT Bronze CDHP Plan",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 37,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "13627",
+        "StandardComponentId": "13627VT0360005",
+        "PlanId": "13627VT0360005-01",
+        "MarketCoverage": "SHOP (Small Group)",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Gold",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS002",
+        "PlanMarketingName": "BCBSVT Vermont Preferred Gold Plan",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 38,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "13627",
+        "StandardComponentId": "13627VT0360006",
+        "PlanId": "13627VT0360006-01",
+        "MarketCoverage": "SHOP (Small Group)",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Silver",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS002",
+        "PlanMarketingName": "BCBSVT Vermont Preferred Silver Plan",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 39,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "13627",
+        "StandardComponentId": "13627VT0360007",
+        "PlanId": "13627VT0360007-01",
+        "MarketCoverage": "SHOP (Small Group)",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Expanded Bronze",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS002",
+        "PlanMarketingName": "BCBSVT Vermont Preferred Bronze Plan",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 40,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "13627",
+        "StandardComponentId": "13627VT0370001",
+        "PlanId": "13627VT0370001-01",
+        "MarketCoverage": "SHOP (Small Group)",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Gold",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS002",
+        "PlanMarketingName": "BCBSVT Vermont Select Gold CDHP Plan",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 41,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "13627",
+        "StandardComponentId": "13627VT0370002",
+        "PlanId": "13627VT0370002-01",
+        "MarketCoverage": "SHOP (Small Group)",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Silver",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS002",
+        "PlanMarketingName": "BCBSVT Vermont Select Silver CDHP Plan",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 42,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "13627",
+        "StandardComponentId": "13627VT0370003",
+        "PlanId": "13627VT0370003-01",
+        "MarketCoverage": "SHOP (Small Group)",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Expanded Bronze",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS002",
+        "PlanMarketingName": "BCBSVT Vermont Select Bronze CDHP Plan",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 43,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "13627",
+        "StandardComponentId": "13627VT0380005",
+        "PlanId": "13627VT0380005-01",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Gold",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "BCBSVT Vermont Preferred Gold Plan",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 44,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "13627",
+        "StandardComponentId": "13627VT0380005",
+        "PlanId": "13627VT0380005-02",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Gold",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "BCBSVT Vermont Preferred Gold Plan",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 45,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "13627",
+        "StandardComponentId": "13627VT0380005",
+        "PlanId": "13627VT0380005-03",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Gold",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "BCBSVT Vermont Preferred Gold Plan",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 46,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "13627",
+        "StandardComponentId": "13627VT0380006",
+        "PlanId": "13627VT0380006-01",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Silver",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "BCBSVT Vermont Preferred Silver Plan",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 47,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "13627",
+        "StandardComponentId": "13627VT0380006",
+        "PlanId": "13627VT0380006-02",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Silver",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "BCBSVT Vermont Preferred Silver Plan",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 48,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "13627",
+        "StandardComponentId": "13627VT0380006",
+        "PlanId": "13627VT0380006-03",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Silver",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "BCBSVT Vermont Preferred Silver Plan",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 49,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "13627",
+        "StandardComponentId": "13627VT0380006",
+        "PlanId": "13627VT0380006-04",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Silver",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "BCBSVT Vermont Preferred Silver Plan",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 50,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "13627",
+        "StandardComponentId": "13627VT0380006",
+        "PlanId": "13627VT0380006-05",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Silver",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "BCBSVT Vermont Preferred Silver Plan",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 51,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "13627",
+        "StandardComponentId": "13627VT0380006",
+        "PlanId": "13627VT0380006-06",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Silver",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "BCBSVT Vermont Preferred Silver Plan",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 52,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "13627",
+        "StandardComponentId": "13627VT0380007",
+        "PlanId": "13627VT0380007-01",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Expanded Bronze",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "BCBSVT Vermont Preferred Bronze Plan",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 53,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "13627",
+        "StandardComponentId": "13627VT0380007",
+        "PlanId": "13627VT0380007-02",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Expanded Bronze",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "BCBSVT Vermont Preferred Bronze Plan",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 54,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "13627",
+        "StandardComponentId": "13627VT0380007",
+        "PlanId": "13627VT0380007-03",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Expanded Bronze",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "BCBSVT Vermont Preferred Bronze Plan",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 55,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "13627",
+        "StandardComponentId": "13627VT0390001",
+        "PlanId": "13627VT0390001-01",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Gold",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "BCBSVT Vermont Select Gold CDHP Plan",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 56,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "13627",
+        "StandardComponentId": "13627VT0390001",
+        "PlanId": "13627VT0390001-02",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Gold",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "BCBSVT Vermont Select Gold CDHP Plan",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 57,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "13627",
+        "StandardComponentId": "13627VT0390001",
+        "PlanId": "13627VT0390001-03",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Gold",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "BCBSVT Vermont Select Gold CDHP Plan",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 58,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "13627",
+        "StandardComponentId": "13627VT0390002",
+        "PlanId": "13627VT0390002-01",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Silver",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "BCBSVT Vermont Select Silver CDHP Plan",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 59,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "13627",
+        "StandardComponentId": "13627VT0390002",
+        "PlanId": "13627VT0390002-02",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Silver",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "BCBSVT Vermont Select Silver CDHP Plan",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 60,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "13627",
+        "StandardComponentId": "13627VT0390002",
+        "PlanId": "13627VT0390002-03",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Silver",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "BCBSVT Vermont Select Silver CDHP Plan",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 61,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "13627",
+        "StandardComponentId": "13627VT0390002",
+        "PlanId": "13627VT0390002-04",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Silver",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "BCBSVT Vermont Select Silver CDHP Plan",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 62,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "13627",
+        "StandardComponentId": "13627VT0390002",
+        "PlanId": "13627VT0390002-05",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Silver",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "BCBSVT Vermont Select Silver CDHP Plan",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 63,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "13627",
+        "StandardComponentId": "13627VT0390002",
+        "PlanId": "13627VT0390002-06",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Silver",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "BCBSVT Vermont Select Silver CDHP Plan",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 64,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "13627",
+        "StandardComponentId": "13627VT0390003",
+        "PlanId": "13627VT0390003-01",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Expanded Bronze",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "BCBSVT Vermont Select Bronze CDHP Plan",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 65,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "13627",
+        "StandardComponentId": "13627VT0390003",
+        "PlanId": "13627VT0390003-02",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Expanded Bronze",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "BCBSVT Vermont Select Bronze CDHP Plan",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 66,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "13627",
+        "StandardComponentId": "13627VT0390003",
+        "PlanId": "13627VT0390003-03",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Expanded Bronze",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "BCBSVT Vermont Select Bronze CDHP Plan",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 67,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "67380",
+        "StandardComponentId": "67380VT0070001",
+        "PlanId": "67380VT0070001-01",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "Yes",
+        "MetalLevel": "High",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "Northeast Delta Dental",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "On the Exchange"
+      }
+    },
+    {
+      "source_row": 68,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "77566",
+        "StandardComponentId": "77566VT0040001",
+        "PlanId": "77566VT0040001-01",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Platinum",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "[MVP VT] Platinum 1",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 69,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "77566",
+        "StandardComponentId": "77566VT0040001",
+        "PlanId": "77566VT0040001-02",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Platinum",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "[MVP VT] Platinum 1",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 70,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "77566",
+        "StandardComponentId": "77566VT0040001",
+        "PlanId": "77566VT0040001-03",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Platinum",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "[MVP VT] Platinum 1",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 71,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "77566",
+        "StandardComponentId": "77566VT0040002",
+        "PlanId": "77566VT0040002-01",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Gold",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "[MVP VT] Gold 1",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 72,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "77566",
+        "StandardComponentId": "77566VT0040002",
+        "PlanId": "77566VT0040002-02",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Gold",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "[MVP VT] Gold 1",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 73,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "77566",
+        "StandardComponentId": "77566VT0040002",
+        "PlanId": "77566VT0040002-03",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Gold",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "[MVP VT] Gold 1",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 74,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "77566",
+        "StandardComponentId": "77566VT0040005",
+        "PlanId": "77566VT0040005-01",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Silver",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "[MVP VT] Silver 3",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 75,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "77566",
+        "StandardComponentId": "77566VT0040005",
+        "PlanId": "77566VT0040005-02",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Silver",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "[MVP VT] Silver 3",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 76,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "77566",
+        "StandardComponentId": "77566VT0040005",
+        "PlanId": "77566VT0040005-03",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Silver",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "[MVP VT] Silver 3",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 77,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "77566",
+        "StandardComponentId": "77566VT0040005",
+        "PlanId": "77566VT0040005-04",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Silver",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "[MVP VT] Silver 3",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 78,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "77566",
+        "StandardComponentId": "77566VT0040005",
+        "PlanId": "77566VT0040005-05",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Silver",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "[MVP VT] Silver 3",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 79,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "77566",
+        "StandardComponentId": "77566VT0040005",
+        "PlanId": "77566VT0040005-06",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Silver",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "[MVP VT] Silver 3",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 80,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "77566",
+        "StandardComponentId": "77566VT0040006",
+        "PlanId": "77566VT0040006-01",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Silver",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "[MVP VT HDHP] Silver 4",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 81,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "77566",
+        "StandardComponentId": "77566VT0040006",
+        "PlanId": "77566VT0040006-02",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Silver",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "[MVP VT HDHP] Silver 4",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 82,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "77566",
+        "StandardComponentId": "77566VT0040006",
+        "PlanId": "77566VT0040006-03",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Silver",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "[MVP VT HDHP] Silver 4",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 83,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "77566",
+        "StandardComponentId": "77566VT0040006",
+        "PlanId": "77566VT0040006-04",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Silver",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "[MVP VT HDHP] Silver 4",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 84,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "77566",
+        "StandardComponentId": "77566VT0040006",
+        "PlanId": "77566VT0040006-05",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Silver",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "[MVP VT HDHP] Silver 4",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 85,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "77566",
+        "StandardComponentId": "77566VT0040006",
+        "PlanId": "77566VT0040006-06",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Silver",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "[MVP VT HDHP] Silver 4",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 86,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "77566",
+        "StandardComponentId": "77566VT0040007",
+        "PlanId": "77566VT0040007-01",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Silver",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": " [MVP VT Plus] Silver 1",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 87,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "77566",
+        "StandardComponentId": "77566VT0040007",
+        "PlanId": "77566VT0040007-02",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Silver",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": " [MVP VT Plus] Silver 1",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 88,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "77566",
+        "StandardComponentId": "77566VT0040007",
+        "PlanId": "77566VT0040007-03",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Silver",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": " [MVP VT Plus] Silver 1",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 89,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "77566",
+        "StandardComponentId": "77566VT0040007",
+        "PlanId": "77566VT0040007-04",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Silver",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": " [MVP VT Plus] Silver 1",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 90,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "77566",
+        "StandardComponentId": "77566VT0040007",
+        "PlanId": "77566VT0040007-05",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Silver",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": " [MVP VT Plus] Silver 1",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 91,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "77566",
+        "StandardComponentId": "77566VT0040007",
+        "PlanId": "77566VT0040007-06",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Silver",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": " [MVP VT Plus] Silver 1",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 92,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "77566",
+        "StandardComponentId": "77566VT0040009",
+        "PlanId": "77566VT0040009-01",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Expanded Bronze",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "[MVP VT] Bronze 2",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 93,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "77566",
+        "StandardComponentId": "77566VT0040009",
+        "PlanId": "77566VT0040009-02",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Expanded Bronze",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "[MVP VT] Bronze 2",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 94,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "77566",
+        "StandardComponentId": "77566VT0040009",
+        "PlanId": "77566VT0040009-03",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Expanded Bronze",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "[MVP VT] Bronze 2",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 95,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "77566",
+        "StandardComponentId": "77566VT0040010",
+        "PlanId": "77566VT0040010-01",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Expanded Bronze",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "[MVP VT HDHP] Bronze 3",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 96,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "77566",
+        "StandardComponentId": "77566VT0040010",
+        "PlanId": "77566VT0040010-02",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Expanded Bronze",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "[MVP VT HDHP] Bronze 3",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 97,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "77566",
+        "StandardComponentId": "77566VT0040010",
+        "PlanId": "77566VT0040010-03",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Expanded Bronze",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "[MVP VT HDHP] Bronze 3",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 98,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "77566",
+        "StandardComponentId": "77566VT0040011",
+        "PlanId": "77566VT0040011-01",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Expanded Bronze",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "[MVP VT Plus] Bronze 1",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 99,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "77566",
+        "StandardComponentId": "77566VT0040011",
+        "PlanId": "77566VT0040011-02",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Expanded Bronze",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "[MVP VT Plus] Bronze 1",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 100,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "77566",
+        "StandardComponentId": "77566VT0040011",
+        "PlanId": "77566VT0040011-03",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Expanded Bronze",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "[MVP VT Plus] Bronze 1",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 101,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "77566",
+        "StandardComponentId": "77566VT0040013",
+        "PlanId": "77566VT0040013-01",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Catastrophic",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "[MVP Secure]",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 102,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "77566",
+        "StandardComponentId": "77566VT0040023",
+        "PlanId": "77566VT0040023-01",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Gold",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "[MVP VT Plus HDHP] Gold 3",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 103,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "77566",
+        "StandardComponentId": "77566VT0040023",
+        "PlanId": "77566VT0040023-02",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Gold",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "[MVP VT Plus HDHP] Gold 3",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 104,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "77566",
+        "StandardComponentId": "77566VT0040023",
+        "PlanId": "77566VT0040023-03",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Gold",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "[MVP VT Plus HDHP] Gold 3",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 105,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "77566",
+        "StandardComponentId": "77566VT0040024",
+        "PlanId": "77566VT0040024-01",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Silver",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "[MVP VT Plus HDHP] Silver 2",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 106,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "77566",
+        "StandardComponentId": "77566VT0040024",
+        "PlanId": "77566VT0040024-02",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Silver",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "[MVP VT Plus HDHP] Silver 2",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 107,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "77566",
+        "StandardComponentId": "77566VT0040024",
+        "PlanId": "77566VT0040024-03",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Silver",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "[MVP VT Plus HDHP] Silver 2",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 108,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "77566",
+        "StandardComponentId": "77566VT0040024",
+        "PlanId": "77566VT0040024-04",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Silver",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "[MVP VT Plus HDHP] Silver 2",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 109,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "77566",
+        "StandardComponentId": "77566VT0040024",
+        "PlanId": "77566VT0040024-05",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Silver",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "[MVP VT Plus HDHP] Silver 2",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 110,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "77566",
+        "StandardComponentId": "77566VT0040024",
+        "PlanId": "77566VT0040024-06",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Silver",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "[MVP VT Plus HDHP] Silver 2",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 111,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "77566",
+        "StandardComponentId": "77566VT0040025",
+        "PlanId": "77566VT0040025-01",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Expanded Bronze",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "[MVP VT] Bronze 4",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 112,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "77566",
+        "StandardComponentId": "77566VT0040025",
+        "PlanId": "77566VT0040025-02",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Expanded Bronze",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "[MVP VT] Bronze 4",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 113,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "77566",
+        "StandardComponentId": "77566VT0040025",
+        "PlanId": "77566VT0040025-03",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Expanded Bronze",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "[MVP VT] Bronze 4",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 114,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "77566",
+        "StandardComponentId": "77566VT0040026",
+        "PlanId": "77566VT0040026-01",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Expanded Bronze",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "[MVP VT Plus] Bronze 5",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 115,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "77566",
+        "StandardComponentId": "77566VT0040026",
+        "PlanId": "77566VT0040026-02",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Expanded Bronze",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "[MVP VT Plus] Bronze 5",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 116,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "77566",
+        "StandardComponentId": "77566VT0040026",
+        "PlanId": "77566VT0040026-03",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Expanded Bronze",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "[MVP VT Plus] Bronze 5",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 117,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "77566",
+        "StandardComponentId": "77566VT0040032",
+        "PlanId": "77566VT0040032-01",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Gold",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "[MVP VT Plus] Gold 4",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 118,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "77566",
+        "StandardComponentId": "77566VT0040032",
+        "PlanId": "77566VT0040032-02",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Gold",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "[MVP VT Plus] Gold 4",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 119,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "77566",
+        "StandardComponentId": "77566VT0040032",
+        "PlanId": "77566VT0040032-03",
+        "MarketCoverage": "Individual",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Gold",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "[MVP VT Plus] Gold 4",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 120,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "77566",
+        "StandardComponentId": "77566VT0050001",
+        "PlanId": "77566VT0050001-01",
+        "MarketCoverage": "SHOP (Small Group)",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Platinum",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "[MVP VT] Platinum 1",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 121,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "77566",
+        "StandardComponentId": "77566VT0050002",
+        "PlanId": "77566VT0050002-01",
+        "MarketCoverage": "SHOP (Small Group)",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Gold",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "[MVP VT] Gold 1",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 122,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "77566",
+        "StandardComponentId": "77566VT0050005",
+        "PlanId": "77566VT0050005-01",
+        "MarketCoverage": "SHOP (Small Group)",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Silver",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "[MVP VT] Silver 3",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 123,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "77566",
+        "StandardComponentId": "77566VT0050006",
+        "PlanId": "77566VT0050006-01",
+        "MarketCoverage": "SHOP (Small Group)",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Silver",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "[MVP VT HDHP] Silver 4",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 124,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "77566",
+        "StandardComponentId": "77566VT0050007",
+        "PlanId": "77566VT0050007-01",
+        "MarketCoverage": "SHOP (Small Group)",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Silver",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": " [MVP VT Plus] Silver 1",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 125,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "77566",
+        "StandardComponentId": "77566VT0050009",
+        "PlanId": "77566VT0050009-01",
+        "MarketCoverage": "SHOP (Small Group)",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Expanded Bronze",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "[MVP VT] Bronze 2",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 126,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "77566",
+        "StandardComponentId": "77566VT0050010",
+        "PlanId": "77566VT0050010-01",
+        "MarketCoverage": "SHOP (Small Group)",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Expanded Bronze",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "[MVP VT HDHP] Bronze 3",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 127,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "77566",
+        "StandardComponentId": "77566VT0050011",
+        "PlanId": "77566VT0050011-01",
+        "MarketCoverage": "SHOP (Small Group)",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Expanded Bronze",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "[MVP VT Plus] Bronze 1",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 128,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "77566",
+        "StandardComponentId": "77566VT0050023",
+        "PlanId": "77566VT0050023-01",
+        "MarketCoverage": "SHOP (Small Group)",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Gold",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "[MVP VT Plus HDHP] Gold 3",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 129,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "77566",
+        "StandardComponentId": "77566VT0050024",
+        "PlanId": "77566VT0050024-01",
+        "MarketCoverage": "SHOP (Small Group)",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Silver",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "[MVP VT Plus HDHP] Silver 2",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 130,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "77566",
+        "StandardComponentId": "77566VT0050025",
+        "PlanId": "77566VT0050025-01",
+        "MarketCoverage": "SHOP (Small Group)",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Expanded Bronze",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "[MVP VT] Bronze 4",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 131,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "77566",
+        "StandardComponentId": "77566VT0050026",
+        "PlanId": "77566VT0050026-01",
+        "MarketCoverage": "SHOP (Small Group)",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Expanded Bronze",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "[MVP VT Plus] Bronze 5",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    },
+    {
+      "source_row": 132,
+      "values": {
+        "BusinessYear": "2026",
+        "StateCode": "VT",
+        "IssuerId": "77566",
+        "StandardComponentId": "77566VT0050032",
+        "PlanId": "77566VT0050032-01",
+        "MarketCoverage": "SHOP (Small Group)",
+        "DentalOnlyPlan": "No",
+        "MetalLevel": "Gold",
+        "NetworkId": "VTN001",
+        "ServiceAreaId": "VTS001",
+        "PlanMarketingName": "[MVP VT Plus] Gold 4",
+        "IssuerMarketPlaceMarketingName": "",
+        "QHPNonQHPTypeId": "Both"
+      }
+    }
+  ]
+}

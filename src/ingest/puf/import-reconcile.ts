@@ -3,7 +3,7 @@ import type { ImportKind } from './import-source.js';
 import { importTables } from './import-parse.js';
 
 export interface FileReconciliation {
-  error?: string; expected_rows?: number;
+  error?: string; expected_rows?: number; source?: 'cms_sbe_puf'; member?: string; bundle_url?: string;
   kind: ImportKind; snapshot_id: string; sha256: string; input_rows: number; stored_rows: number; rejected_rows: number;
 }
 export interface ReconciliationCheck { code: string; severity: 'error' | 'warning'; count: number; sample: Record<string, unknown>[] }
@@ -13,7 +13,7 @@ export interface Reconciliation {
   identifiers: { attribute_14: number; attribute_17: number; base_plans: number; variants: number; rate_14: number; rate_17: number };
   passed: boolean;
 }
-export async function reconcileImport(db: SqlSession, files: FileReconciliation[]): Promise<Reconciliation> {
+export async function reconcileImport(db: SqlSession, files: FileReconciliation[], options: { sbe?: boolean } = {}): Promise<Reconciliation> {
   const snapshots = Object.fromEntries(files.map(f => [f.kind, f.snapshot_id]));
   const p = snapshots['plan-attributes'], s = snapshots['service-area'], r = snapshots.rate,
     n = snapshots.network, b = snapshots['benefits-and-cost-sharing'];
@@ -21,7 +21,7 @@ export async function reconcileImport(db: SqlSession, files: FileReconciliation[
   for (const file of files) {
     file.stored_rows = Number((await db.query(`SELECT count(*) AS n FROM ${importTables[file.kind]} WHERE snapshot_id=$1`, [file.snapshot_id])).rows[0]!.n);
     if (file.expected_rows !== undefined && file.expected_rows !== file.stored_rows) checks.push({ code: 'state_source_row_count', severity: 'error', count: Math.max(1, Math.abs(file.expected_rows - file.stored_rows)), sample: [{ kind: file.kind, expected: file.expected_rows, stored: file.stored_rows }] });
-    if (file.input_rows !== file.stored_rows || file.input_rows === 0) checks.push({ code: 'file_row_count', severity: 'error', count: Math.max(1, file.input_rows - file.stored_rows), sample: [{ kind: file.kind, input: file.input_rows, stored: file.stored_rows }] });
+    if (file.input_rows !== file.stored_rows || (file.input_rows === 0 && !(options.sbe && file.kind === 'business-rules'))) checks.push({ code: 'file_row_count', severity: 'error', count: Math.max(1, file.input_rows - file.stored_rows), sample: [{ kind: file.kind, input: file.input_rows, stored: file.stored_rows }] });
   }
   async function check(code: string, sql: string, parameters: unknown[], severity: 'error' | 'warning' = 'error') {
     const { rows } = await db.query(`SELECT count(*) OVER() AS total, x.* FROM (${sql}) x LIMIT 20`, parameters);
@@ -40,7 +40,9 @@ export async function reconcileImport(db: SqlSession, files: FileReconciliation[
   await check('plans_without_network', `SELECT p.base_plan_id FROM plan p WHERE p.snapshot_id=$1 AND NOT EXISTS
     (SELECT 1 FROM network n WHERE n.snapshot_id=$2 AND n.issuer_id=p.issuer_id AND n.network_id=p.network_id AND n.market=p.market AND n.dental_only=p.dental_only)`, [p, n]);
   await check('benefits_without_plan', `SELECT DISTINCT b.published_plan_id FROM plan_benefit b WHERE b.snapshot_id=$1 AND NOT EXISTS
-    (SELECT 1 FROM plan_attribute p WHERE p.snapshot_id=$2 AND p.published_plan_id=b.published_plan_id)`, [b, p]);
+    (SELECT 1 FROM plan_attribute p WHERE p.snapshot_id=$2 AND ${options.sbe ? 'p.base_plan_id=b.base_plan_id' : 'p.published_plan_id=b.published_plan_id'})`, [b, p]);
+  if (options.sbe) await check('benefit_variant_attributes_missing', `SELECT DISTINCT b.published_plan_id FROM plan_benefit b WHERE b.snapshot_id=$1 AND NOT EXISTS
+    (SELECT 1 FROM plan_attribute p WHERE p.snapshot_id=$2 AND p.published_plan_id=b.published_plan_id)`, [b, p], 'warning');
   // Per-member PUF rows explicitly enumerate these 51 bands; never manufacture missing prices.
   await check('incomplete_rate_age_bands', `SELECT base_plan_id,rating_area_id,tobacco,effective_date,expiration_date,count(*) AS rows,count(DISTINCT age_band) AS bands
     FROM rate WHERE snapshot_id=$1 AND rating_method='per_member'

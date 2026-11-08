@@ -30,14 +30,25 @@ export interface StateCatalogRow extends Record<string, unknown> {
   raw_record: { plan_id: string | null; issuer: string; plan_name?: string; metal: string | null;
     exchange: string; prices: Record<string, string>; raw: Record<string, string> };
   rules_document: unknown;
+  hios_id: string | null; hios_match: 'matched' | 'ambiguous' | 'none' | null;
+  hios_match_reason: string | null; hios_candidates: Record<string, unknown>[] | null;
+  hios_match_rule: string | null; hios_match_provenance: Record<string, unknown> | null;
 }
 export async function stateCatalog(db: SqlSession, year: number, state?: string, key?: string, region?: string) {
-  return (await db.query<StateCatalogRow>(`SELECT a.state,a.plan_year,r.*,i.rules_document FROM state_rate_active a
+  return (await db.query<StateCatalogRow>(`SELECT a.state,a.plan_year,r.*,i.rules_document,
+    h.hios_id,h.hios_match,h.reason AS hios_match_reason,h.candidates AS hios_candidates,
+    h.rule_version AS hios_match_rule,
+    CASE WHEN h.state_import_id IS NOT NULL THEN jsonb_build_object(
+      'state_import_id',h.state_import_id,'publication_snapshot_id',h.publication_snapshot_id,
+      'filed',h.filed_provenance,'sbe_import_id',h.sbe_import_id) END AS hios_match_provenance
+    FROM state_rate_active a
     JOIN state_rate_import i ON i.import_id=a.import_id
     JOIN snapshot s ON s.snapshot_id=i.import_id AND s.validation_state='ACTIVE'
     JOIN state_community_rate r ON r.import_id=i.import_id
+    LEFT JOIN state_vt_hios_current h ON h.state_import_id=r.import_id
+      AND h.source_index=r.source_index AND h.record_index=r.record_index
     WHERE a.plan_year=$1 AND ($2::text IS NULL OR a.state=$2)
-      AND ($3::text IS NULL OR r.plan_key=$3) AND ($4::text IS NULL OR r.region=$4)
+      AND ($3::text IS NULL OR r.plan_key=$3 OR h.hios_id=$3) AND ($4::text IS NULL OR r.region=$4)
     ORDER BY r.plan_key,r.region,r.source_index,r.record_index`, [year, state ?? null, key ?? null, region ?? null])).rows;
 }
 export function catalogRule(row: StateCatalogRow): CommunityFamilyRule | null {
