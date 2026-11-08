@@ -30,7 +30,7 @@ export async function reused(db: SqlSession,a: Address): Promise<boolean> {
   const key = addressIdentity(a), table = a.source_table ?? 'npi_address';
   const found = (await db.query<{ source_table: string; source_row: string; source_snapshot_id: string }>(`SELECT source_table,source_row,source_snapshot_id
     FROM geocode_attempt WHERE address_hash=$1 AND outcome<>'issue'
-    ORDER BY (source_table=$2 AND source_row=$3) DESC,geocoded_at DESC LIMIT 1`,[key.hash,table,key.row])).rows[0];
+    ORDER BY (match_status='Match') DESC,(source_table=$2 AND source_row=$3) DESC,geocoded_at DESC LIMIT 1`,[key.hash,table,key.row])).rows[0];
   if (!found) return false;
   if (found.source_table === table && found.source_row === key.row && found.source_snapshot_id === a.snapshot_id) return true;
   // Reuse the point (or terminal no-point) across rows and publishers without changing geocode provenance.
@@ -42,13 +42,13 @@ export async function reused(db: SqlSession,a: Address): Promise<boolean> {
       snapshot_id=excluded.snapshot_id,match_status=excluded.match_status,match_quality=excluded.match_quality,
       outcome=excluded.outcome,geocoded_at=excluded.geocoded_at`,[key.hash,table,key.row,a.snapshot_id,found.source_table,found.source_row]);
   await db.query(`INSERT INTO address_point(address_hash,source_table,source_row,source_snapshot_id,latitude,longitude,
-    method,match_status,match_quality,snapshot_id,centroid_snapshot_id,geocoded_at)
-    SELECT address_hash,$2,$3,$4,latitude,longitude,method,match_status,match_quality,snapshot_id,centroid_snapshot_id,geocoded_at
+    method,match_status,match_quality,snapshot_id,centroid_snapshot_id,geocoded_at,normalization)
+    SELECT address_hash,$2,$3,$4,latitude,longitude,method,match_status,match_quality,snapshot_id,centroid_snapshot_id,geocoded_at,normalization
     FROM address_point WHERE address_hash=$1 AND source_table=$5 AND source_row=$6
     ON CONFLICT(address_hash,source_table,source_row) DO UPDATE SET source_snapshot_id=excluded.source_snapshot_id,
       latitude=excluded.latitude,longitude=excluded.longitude,method=excluded.method,match_status=excluded.match_status,
       match_quality=excluded.match_quality,snapshot_id=excluded.snapshot_id,centroid_snapshot_id=excluded.centroid_snapshot_id,
-      geocoded_at=excluded.geocoded_at`,[key.hash,table,key.row,a.snapshot_id,found.source_table,found.source_row]);
+      geocoded_at=excluded.geocoded_at,normalization=excluded.normalization`,[key.hash,table,key.row,a.snapshot_id,found.source_table,found.source_row]);
   return true;
 }
 export const snapshotId = (f: BatchFile) => `census-geocoder-batch:${f.metadata.sha256}`;

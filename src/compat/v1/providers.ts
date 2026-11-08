@@ -1,8 +1,9 @@
 import { Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 import type { SqlSession } from '../../db/database.js';
-import { taxonomyRelation } from '../../api/provider-repository.js';
+import { searchProviderLocations, taxonomyLoaded, taxonomyRelation } from '../../api/provider-repository.js';
 import * as v from '../../api/validation.js';
+import { zipCentroid } from '../../domain/geo/index.js';
 
 type Row = Record<string, any>;
 const PROVIDER_GAPS = ['vendor_provider_and_specialty_ids_unavailable', 'provider_metadata_limited_to_native_evidence',
@@ -100,6 +101,32 @@ export function providerCompatRoutes(db: SqlSession, native: Hono) {
     if (body.type === 'individual') params.set('type', 'individual');
     if (body.sort !== undefined && !['distance', 'name', '-distance', '-name'].includes(body.sort)) return v.fail('sort');
     if (body.network_ids !== undefined && (!Array.isArray(body.network_ids) || body.network_ids.some((id: unknown) => !Number.isSafeInteger(id)))) return v.fail('network_ids');
+    // Identity searches can count and page normalized locations in one SQL read.
+    // Keep plan records and name collation on the native mapping path.
+    if (!body.plan_id && body.type !== 'organization' && !body.sort?.endsWith('name')
+      && body.carrier_id === undefined && !body.network_ids?.length) {
+      const taxonomy = params.get('taxonomy') ?? undefined, specialty = params.get('specialty') ?? undefined;
+      if (taxonomy && !/^[A-Z0-9]{10}$/.test(taxonomy)) return v.fail('taxonomy');
+      if (!specialty || await taxonomyLoaded(db)) {
+        const origin = await zipCentroid(db,zip);
+        if (origin) {
+          const result = await searchProviderLocations(db,{ page: 1,radius,
+            origin: { latitude: origin.latitude,longitude: origin.longitude,method: origin.method,snapshot_id: origin.snapshot_id },
+            taxonomy,specialty,name: params.get('name') ?? undefined,
+            type: body.type === 'individual' ? 'INDIVIDUAL' : undefined },
+          { offset: start,size,reverse: body.sort === '-distance' });
+          if (origin.method === 'zcta_centroid') reasons.add('provider_origin_zip_centroid_approximate');
+          if (result.unlocated) reasons.add('provider_unlocated_addresses_excluded');
+          if (result.approximate) reasons.add('provider_location_zip_centroid_approximate');
+          if (result.taxonomy_unknown) reasons.add('specialty_descriptions_unavailable');
+          const providers = mapProviders(result.providers);
+          providers.sort((a,b) => (a.distance_miles ?? Infinity)-(b.distance_miles ?? Infinity));
+          if (body.sort === '-distance') providers.reverse();
+          header(c,reasons);
+          return c.json({ meta: { total: result.total },providers,states: [] });
+        }
+      }
+    }
     const rows: Row[] = [];
     let origin: Row | null = null;
     for (let page = 1; ; page++) {

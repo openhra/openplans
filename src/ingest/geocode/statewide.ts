@@ -147,18 +147,18 @@ export async function publishStatewide(db:SqlSession,runId:string,hashes?:string
   // Keep each source's nearby batch points together while maintaining the live spatial indexes.
   // Full reconciliation retains its existing order: unchanged rows do not update those indexes.
   await db.query(`${batchInput}INSERT INTO address_point(address_hash,source_table,source_row,source_snapshot_id,latitude,longitude,method,match_status,match_quality,
-    snapshot_id,centroid_snapshot_id,geocoded_at)
+    snapshot_id,centroid_snapshot_id,geocoded_at,normalization)
     SELECT i.address_hash,i.source_table,i.source_row,i.source_snapshot_id,r.latitude,r.longitude,r.method,r.match_status,r.match_quality,
-    r.snapshot_id,r.centroid_snapshot_id,r.geocoded_at FROM ${inputs}
+    r.snapshot_id,r.centroid_snapshot_id,r.geocoded_at,r.normalization FROM ${inputs}
     WHERE r.method IS NOT NULL
     ${hashes?'ORDER BY i.source_table,r.latitude,r.longitude,i.address_hash,i.source_row':''}
     ON CONFLICT(address_hash,source_table,source_row) DO UPDATE SET source_snapshot_id=excluded.source_snapshot_id,
     latitude=excluded.latitude,longitude=excluded.longitude,method=excluded.method,match_status=excluded.match_status,match_quality=excluded.match_quality,
-    snapshot_id=excluded.snapshot_id,centroid_snapshot_id=excluded.centroid_snapshot_id,geocoded_at=excluded.geocoded_at
+    snapshot_id=excluded.snapshot_id,centroid_snapshot_id=excluded.centroid_snapshot_id,geocoded_at=excluded.geocoded_at,normalization=excluded.normalization
     WHERE (address_point.source_snapshot_id,address_point.latitude,address_point.longitude,address_point.method,address_point.match_status,
-      address_point.match_quality,address_point.snapshot_id,address_point.centroid_snapshot_id,address_point.geocoded_at)
+      address_point.match_quality,address_point.snapshot_id,address_point.centroid_snapshot_id,address_point.geocoded_at,address_point.normalization)
       IS DISTINCT FROM (excluded.source_snapshot_id,excluded.latitude,excluded.longitude,excluded.method,excluded.match_status,
-        excluded.match_quality,excluded.snapshot_id,excluded.centroid_snapshot_id,excluded.geocoded_at)`,params);
+        excluded.match_quality,excluded.snapshot_id,excluded.centroid_snapshot_id,excluded.geocoded_at,excluded.normalization)`,params);
 }
 /** New geography can add an approximation to an existing unmatched Census observation; never invent a new match. */
 export async function refreshStatewideFallbacks(db:Database,counties:County[],runId:string):Promise<number> {

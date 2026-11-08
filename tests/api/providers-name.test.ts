@@ -89,7 +89,9 @@ describe('plan-scoped identity name candidates',() => {
       sql = query; args = parameters;
       return h.db.query(query,parameters);
     } },{ plan,year: 2026,name,page: 1 });
-    // Execute the production candidate CTEs before record filtering and paging.
+    // Execute the generated candidate SQL before record filtering and paging.
+    if (sql.includes('$provider_query$')) sql = sql.split('$provider_query$')[1]!;
+    args = args?.slice(0,6);
     const prefix = sql.slice(0,sql.indexOf('selected AS MATERIALIZED')).replace(/,\s*$/,'');
     const candidates = `${prefix} SELECT record_id FROM name_candidates
       WHERE $3::text IS NULL AND $4::text IS NULL AND $6::text IS NULL ORDER BY record_id`;

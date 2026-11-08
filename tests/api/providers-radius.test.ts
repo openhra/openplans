@@ -89,11 +89,14 @@ describe('statewide identity radius: source keys, exact counts and pagination',(
   it('negative control: executed SQL paging before radius loses near providers behind far ones',async () => {
     const mutant = createApp({ ...h.db,query: (sql,args) => {
       if (sql.includes('AS total')) {
-        sql = sql.replace('), locations AS (',' ORDER BY record_id,snapshot_id LIMIT 50), locations AS (');
         if (sql.includes('radius_points AS MATERIALIZED')) {
-          sql = sql.replace(/AND ST_DWithin\(p\.point,[^\n]+\)/,'AND true')
-            .replace('distances AS (SELECT * FROM measured )','distances AS (SELECT * FROM measured WHERE distance_miles <= $9)');
-        }
+          sql = sql.replace('AND ST_DWithin(p.point,ST_SetSRID(ST_MakePoint($8,$7),4326)::geography,$9*1609.344,false)','AND true')
+            .replace('distances AS (SELECT * FROM measured )','distances AS (SELECT * FROM measured WHERE distance_miles <= $9)')
+            .replace('SELECT a.* FROM radius_locations a ',`SELECT a.* FROM radius_locations a
+              JOIN (SELECT DISTINCT record_id FROM radius_locations ORDER BY record_id LIMIT 50) early
+                ON early.record_id=a.record_id `);
+        } else sql = sql.replace('), locations AS MATERIALIZED (',
+          ' ORDER BY record_id,snapshot_id LIMIT 50), locations AS MATERIALIZED (');
       }
       return h.db.query(sql,args);
     } },{});

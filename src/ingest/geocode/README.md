@@ -150,7 +150,7 @@ ID, which reuses completed entries in the statewide result ledger and publishes 
 onto the new source rows. NPPES text is frozen as each staging page commits. Do not refresh NPPES
 while a staging pass is in progress. Once both staging flags are true, its input census is fixed.
 An advisory lock permits one statewide CLI writer per database. The bulk CLI applies only the
-hash-checked migrations 520–521, 600 and 870–872, so concurrent lanes' independent migration journals need not yet be
+hash-checked migrations 520–521, 600, 870–872 and 900, so concurrent lanes' independent migration journals need not yet be
 available in its checkout. Its staging tables deliberately avoid new foreign-key locks on live
 ingest tables; the ordinary published attempt/point tables continue enforcing snapshot provenance.
 
@@ -273,7 +273,7 @@ writer lock on a reserved connection while each queue operation commits independ
 interrupted bootstrap run resumes its frozen input census. A completed bootstrap invocation reuses its queue when the ACTIVE shard list and immutable
 NPPES import pointers are unchanged (migration 872). New pointers capture current source rows
 in a new run, reusing existing normalized results without Census requests. The bulk CLI likewise permits one writer per database and applies migrations 520,
-521, 600 and 870–872 through the hash-checked journal.
+521, 600, 870–872 and 900 through the hash-checked journal.
 
 FL/NC per-state reports are `reports/p3l-geocode-fl.{md,json}` and
 `reports/p3l-geocode-nc.{md,json}` under `OPENPLANS_DATA_DIR`; existing TX report paths stay
@@ -316,3 +316,65 @@ Per-state JSON reports retain county counts, rejections and snapshot provenance 
 
 NPPES radius queries validate current address keys and snapshots before paging. They fetch
 street-address fields for the final page, preserving exact totals and missing-point counts.
+
+## Cleanup retries
+
+Run cleanup against a fully staged statewide run. The source run ID and cleanup run ID must differ.
+
+```sh
+node dist/ingest/geocode/cleanup-cli.js --state TX \
+  --source-run tx-20261107-p3e-active14 --run-id cleanup-tx-v1 --budget-minutes 60
+```
+
+Only changed No_Match and Tie addresses qualify for another Census submission. Completed request
+hashes reuse the existing cache. PO boxes keep their labelled fallback and are never submitted.
+The cleanup ledger retains the original address, original Census observation, normalized address,
+request address and rule IDs. A suite stays in the normalized address and original identity;
+the street-only retry omits recognized secondary units. Unknown line-two text stays in the request.
+A successful retry publishes against the original source key. Unsuccessful or rejected replies
+leave its prior fallback intact. Resuming the same cleanup run reuses its ledger and pending batches.
+
+The rules use [USPS Publication 28 secondary units](https://pe.usps.com/text/pub28/28c2_003.htm),
+[directionals](https://pe.usps.com/text/pub28/pub28c2_014.htm) and
+[street suffixes](https://pe.usps.com/text/pub28/28apc_002.htm).
+The suffix table covers common forms. Directionals change only at the start or end of a street
+name; a directional that is the whole name stays spelled out. Adjacent repeated nonnumeric
+words are removed. House numbers, hyphens and fractions must survive. ZIP+4 is trimmed when
+present; previously staged statewide inputs already have ZIP5. These rules are retry candidates,
+not postal address verification.
+
+Per-state results go to `reports/p3m-geocode-{tx,fl,nc}.json` under `OPENPLANS_DATA_DIR`.
+Counts use distinct original addresses. A recovered address can have several rule IDs, so per-rule
+recoveries overlap and must not be summed. Network submissions count distinct cleaned requests.
+The combined measurement and validation report is `reports/p3m-geocode-quality.md`.
+
+## Optional operator geocoder
+
+An unset `OPENPLANS_GEOCODER_URL` disables the adapter. Configuration is described in `.env.example`.
+The URL template accepts URL-encoded address fields and `{key}`; the key comes only from
+`OPENPLANS_GEOCODER_KEY`. Dot-separated JSON paths select numeric latitude and longitude and a
+five-digit county FIPS, including array indexes. Replies lacking these fields are discarded.
+Requests run sequentially with at least one second between starts. HTTPS is required; plain HTTP
+is accepted only on a loopback IP for tests. Redirects, oversized replies, timeouts and HTTP failures
+retain the fallback. Logs use fixed messages and never include a URL, raw response or exception text.
+
+The adapter runs only after the Census cleanup attempt completes for an address. PO boxes and
+out-of-bounds points are excluded. County validation checks both the claimed county extent and
+polygon. Without `OPENPLANS_GEOCODER_STORE=1`, the adapter contributes only counts to the run report;
+it writes no coordinates to disk or SQL.
+
+Setting `OPENPLANS_GEOCODER_STORE=1` attests that the operator's provider permits coordinate storage.
+Stored points carry `source: operator_geocoder`, the observation date, original address hash,
+county and county-bounds snapshot. They live only in the private external file
+`OPENPLANS_DATA_DIR/operator-geocoder/points.json`, with directory mode 0700 and file mode 0600.
+The writer rejects a data directory inside a checkout. Do not distribute this private directory.
+The source export and SQL dumps contain no operator points. No public fixture uses a provider reply.
+
+To serve stored operator points, set both `OPENPLANS_GEOCODER_STORE=1` and
+`OPENPLANS_API_CACHE=off` in the API process. The latter keeps private responses out of shared cache
+dumps. With either setting absent, searches use public Census/ZCTA evidence. Provider search reads
+and validates the private points, then overlays them for the current source keys in a query-local
+CTE. It never writes them into Postgres or replaces a successful Census match. API addresses expose
+`geocode_label` as `census_match`, `census_match_after_normalisation`, `operator_geocoder` or
+`zcta_fallback`. Operator coordinates have `precision: operator_reported` and `geocode_as_of`;
+a Census Exact match remains a street-range interpolation.

@@ -47,7 +47,7 @@ try {
   // Apply only this lane's migration; concurrent lanes can already have newer independent migrations.
   await db.transaction(async tx=>{
     await tx.query('SELECT pg_advisory_xact_lock(1869636974)');
-    for(const name of ['520_tx_geocode.sql','521_geocode_batch_profile.sql','600_geocode_row_rejection.sql','870_multistate_geocode.sql','871_geocode_state_cursors.sql','872_geocode_bootstrap_scope.sql']) {
+    for(const name of ['520_tx_geocode.sql','521_geocode_batch_profile.sql','600_geocode_row_rejection.sql','870_multistate_geocode.sql','871_geocode_state_cursors.sql','872_geocode_bootstrap_scope.sql','900_geocode_cleanup.sql']) {
       const text=await readFile(join(migrationsDirectory,name),'utf8'),sha=createHash('sha256').update(text).digest('hex');
       const applied=(await tx.query<{sha256:string}>('SELECT sha256 FROM schema_migrations WHERE name=$1',[name])).rows[0];
       if(applied&&applied.sha256!==sha)throw new Error('Statewide migration changed after application');

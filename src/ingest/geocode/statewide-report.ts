@@ -22,6 +22,7 @@ export async function radiusHttpChecks(db:SqlSession,state:GeocodeState='TX') {
       const passed=elapsed<5000 && response.status===200 && body.status==='available' && (body.total??0)>0 && providers.length>0
         && providers.every(p=>Number.isFinite(p.distance_miles)&&p.distance_miles<=10&&p.addresses.length>0&&p.addresses.every(a=>
           Number.isFinite(a.latitude)&&Number.isFinite(a.longitude)&&(a.method==='census_geocoder'&&a.match_status==='Match'
+            || a.method==='operator_geocoder'&&a.precision==='operator_reported'
             || a.method==='zcta_centroid'&&a.precision==='approximate'&&['Tie','No_Match','rejected_out_of_bounds'].includes(a.match_status)&&a.centroid_snapshot_id)));
       results.push({city,zip,path,attempt,checked_at:new Date().toISOString(),http_status:response.status,total:body.total??null,returned:providers.length,passed,elapsed_ms:elapsed,
         sample:providers[0]??null});
@@ -37,7 +38,8 @@ export async function statewideReport(db:SqlSession,runId:string,root:string,cou
   const stateFips=geocodeStates[state].fips;
   const reportName=state==='TX'?'p3h-geocode-finish':`p3l-geocode-${state.toLowerCase()}`;
   const rows=(await db.query(`SELECT coalesce(r.county_fips,a.selection_county,'unknown') county_fips,count(*)::int addresses,
-    count(*) FILTER(WHERE r.match_status='Match')::int matched,count(*) FILTER(WHERE r.match_status='Tie')::int tie,
+    count(*) FILTER(WHERE r.match_status='Match')::int matched,
+    count(*) FILTER(WHERE r.match_status='Match' AND r.normalization IS NOT NULL)::int matched_after_normalization,count(*) FILTER(WHERE r.match_status='Tie')::int tie,
     count(*) FILTER(WHERE r.match_status='No_Match')::int no_match,
     count(*) FILTER(WHERE r.match_status='rejected_out_of_bounds')::int rejected,count(*) FILTER(WHERE r.method='zcta_centroid')::int fallback,
     count(*) FILTER(WHERE r.address_hash IS NULL)::int pending,count(*) FILTER(WHERE r.address_hash IS NOT NULL AND r.method IS NULL)::int no_point,
@@ -47,10 +49,10 @@ export async function statewideReport(db:SqlSession,runId:string,root:string,cou
     FROM geocode_tx_address a LEFT JOIN geocode_tx_result r USING(address_hash) LEFT JOIN geocode_tx_county c ON c.county_fips=r.county_fips
     WHERE a.run_id=$1 GROUP BY coalesce(r.county_fips,a.selection_county,'unknown') ORDER BY county_fips`,[runId,stateFips])).rows;
   const byCounty=new Map(rows.map(r=>[r.county_fips,r]));
-  const countyRows:Record<string,unknown>[]=[...counties.map(c=>({county_fips:c.county_fips,name:c.name,addresses:0,matched:0,tie:0,no_match:0,rejected:0,fallback:0,pending:0,no_point:0,points:0,bounds_errors:0,
+  const countyRows:Record<string,unknown>[]=[...counties.map(c=>({county_fips:c.county_fips,name:c.name,addresses:0,matched:0,matched_after_normalization:0,tie:0,no_match:0,rejected:0,fallback:0,pending:0,no_point:0,points:0,bounds_errors:0,
     ...byCounty.get(c.county_fips)})),...rows.filter(r=>r.county_fips==='unknown').map(r=>({name:'Unknown (no county evidence)',...r}))];
   const totals:Record<string,number>={};
-  for(const key of ['addresses','matched','tie','no_match','rejected','fallback','pending','no_point','points','bounds_errors']) totals[key]=rows.reduce((n,r)=>n+Number(r[key]),0);
+  for(const key of ['addresses','matched','matched_after_normalization','tie','no_match','rejected','fallback','pending','no_point','points','bounds_errors']) totals[key]=rows.reduce((n,r)=>n+Number(r[key]),0);
   totals.resolved=totals.addresses!-totals.pending!;
   const rejectedRows=(await db.query(`SELECT a.address_hash,
     concat_ws(', ',nullif(btrim(a.address->>'line_1'),''),nullif(btrim(a.address->>'line_2'),''),
@@ -84,7 +86,7 @@ export async function statewideReport(db:SqlSession,runId:string,root:string,cou
       OR g.geocoded_at IS DISTINCT FROM r.geocoded_at OR g.outcome<>CASE WHEN r.method IS NULL THEN 'no_point' ELSE 'point' END
       OR (r.method IS NULL AND p.address_hash IS NOT NULL)
       OR (r.method IS NOT NULL AND (p.address_hash IS NULL OR p.latitude IS DISTINCT FROM r.latitude OR p.longitude IS DISTINCT FROM r.longitude
-        OR p.method IS DISTINCT FROM r.method OR p.snapshot_id<>r.snapshot_id OR p.centroid_snapshot_id IS DISTINCT FROM r.centroid_snapshot_id
+        OR p.method IS DISTINCT FROM r.method OR p.normalization IS DISTINCT FROM r.normalization OR p.snapshot_id<>r.snapshot_id OR p.centroid_snapshot_id IS DISTINCT FROM r.centroid_snapshot_id
         OR p.match_status IS DISTINCT FROM r.match_status OR p.match_quality IS DISTINCT FROM r.match_quality OR p.geocoded_at IS DISTINCT FROM r.geocoded_at
         OR c.county_fips IS NULL OR left(c.county_fips,2)<>$2 OR p.latitude<c.south OR p.latitude>c.north OR p.longitude<c.west OR p.longitude>c.east
         OR (p.method='census_geocoder' AND p.match_status<>'Match')
@@ -111,6 +113,7 @@ export async function statewideReport(db:SqlSession,runId:string,root:string,cou
     `${reusedObservations} distinct addresses had completed Census observations before this run was created; their original evidence is reused rather than submitted again. The batch ledger counts this run's own submissions.`, '',
     'Tie and No_Match are preserved. Out-of-state/out-of-county matches are stored as rejected_out_of_bounds with raw response evidence retained. Fallback is a subset of Tie, No_Match and rejected_out_of_bounds and is never counted as matched. No-point outcomes are terminal evidence; malformed/network failures retain a pending batch for retry.', '',
     `Bounds: ${totals.bounds_errors===0?'PASS':'FAIL'} (${totals.points} stored points checked). Ohio mutant: ${ohioRejected?'rejected':'FAILED'}. (0,0): ${zeroRejected?'rejected':'FAILED'}.`, '',
+    `Census matches after normalization: ${totals.matched_after_normalization}. These are included in matched. Operator points stay in the private external store and are excluded from this public-ledger report. See reports/p3m-geocode-quality.md for run-only operator counts.`, '',
     `Published API point/attempt reconciliation: ${JSON.stringify(publication)}. This independently checks every source attribution and its actual published coordinates against its claimed county bounds.`, '',
     `Real Postgres SIGKILL/transaction-resume control: ${crashControl?JSON.stringify(crashControl):'not run (see scripts/oracle/geocode-statewide-controls.mjs)'}.`, '',
     '## Real HTTP radius checks','',...(http?http.map(h=>`${h.passed?'PASS':'FAIL'} ${h.city} ${h.attempt}: GET ${h.path} → HTTP ${h.http_status}, ${h.total} providers, ${h.returned} returned (${h.elapsed_ms} ms).`):['Not run.']), '',
