@@ -1,0 +1,6 @@
+"1","901 Bagby St, Houston, TX, 77002","Match","Exact","901 BAGBY ST, HOUSTON, TX, 77002","-95.369483289562,29.760724420884","96067360","L","48","201","980700","1080"
+"2","6621 Fannin St, Houston, TX, 77030","Match","Exact","6621 FANNIN ST, HOUSTON, TX, 77030","-95.40141348495,29.708926381281","637941969","L","48","201","313102","1033"
+"3","102 S Main St, Grapeland, TX, 75844","Match","Exact","102 S MAIN ST, GRAPELAND, TX, 75844","-95.479489267751,31.491145986373","21987576","L","48","225","950101","1034"
+"4","PO BOX 1, Houston, TX, 77001","No_Match"
+"5","100 Main St, , TX, ","Tie"
+"6","PO Box 448, Montgomery, TX, 77356","No_Match"

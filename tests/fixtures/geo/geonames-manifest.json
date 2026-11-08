@@ -1,0 +1,32 @@
+{
+  "description": "Unmodified real GeoNames US postal-code rows, selected by exact ZIP; no coordinates used.",
+  "filename": "geonames-us-cut.tsv",
+  "source_rows": [
+    1910,
+    15485,
+    34247,
+    34968,
+    34969
+  ],
+  "original_snapshot": {
+    "snapshot_id": "3002b58e9a094133485e73723faf7a5fb9e397290a113daf5d1c2cd79ce86950",
+    "source": "geonames-us-postal",
+    "url": "https://download.geonames.org/export/zip/US.zip",
+    "final_url": "https://download.geonames.org/export/zip/US.zip",
+    "redirect_chain": [],
+    "status": 200,
+    "content_type": "application/zip",
+    "etag": "\"9add8-65fa6f16a5bf9\"",
+    "last_modified": "Sat, 07 Nov 2026 03:01:19 GMT",
+    "sha256": "3002b58e9a094133485e73723faf7a5fb9e397290a113daf5d1c2cd79ce86950",
+    "bytes": 634328,
+    "fetched_at": "2026-11-07T23:40:03.198Z"
+  },
+  "fixture_sha256": "a6170e09b3da0ea4a62f67812dbebf0ac44872efcb3b1c573007760f5a6a6ede",
+  "attribution": {
+    "publisher": "GeoNames",
+    "url": "https://www.geonames.org/",
+    "license": "CC BY 4.0",
+    "license_url": "https://creativecommons.org/licenses/by/4.0/"
+  }
+}

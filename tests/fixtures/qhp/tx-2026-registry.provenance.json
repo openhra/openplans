@@ -1,0 +1,17 @@
+{
+  "publisher": "Centers for Medicare & Medicaid Services",
+  "url": "https://download.cms.gov/marketplace-puf/2026/machine-readable-url-puf.zip",
+  "source_archive_sha256": "0e4defdf96866d41e9ddb76221ac726bb80dff95750754302271338548ec3dad",
+  "source_workbook_sha256": "53846c6b519066c74d6a77f276193788f1b300d038d838dcdef85e01bdd2c003",
+  "fixture_sha256": "9cc61c31bd2e97714a7ba750808ede81c52de689de68930a03dffdbcc5cb92e0",
+  "year": 2026,
+  "state": "TX",
+  "issuer_rows": 31,
+  "columns": [
+    "State",
+    "Issuer ID",
+    "URL Submitted"
+  ],
+  "omitted": "all columns after URL Submitted",
+  "regenerate": "python3 tests/fixtures/qhp/regenerate.py"
+}

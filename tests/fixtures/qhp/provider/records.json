@@ -1,0 +1,2262 @@
+[
+  {
+    "npi": "1760234835",
+    "type": "INDIVIDUAL",
+    "plans": [
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010044",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010040",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010018",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010031",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010036",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010024",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010048",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010021",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010016",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010037",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010025",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010038",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010026",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010015",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010041",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010050",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010035",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010029",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010045",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010047",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010043",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010030",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      }
+    ],
+    "name": {
+      "first": "Amie",
+      "last": "Moore"
+    },
+    "addresses": [
+      {
+        "address": "5700 Schertz Parkway",
+        "city": "Schertz",
+        "phone": "(210) 366-3700",
+        "state": "TX",
+        "zip": "78154",
+        "address_2": "150"
+      },
+      {
+        "address": "17115 San Pedro Avenue",
+        "city": "San Antonio",
+        "phone": "(210) 366-3700",
+        "state": "TX",
+        "zip": "78232",
+        "address_2": "Suite 370"
+      },
+      {
+        "address": "3340 State Highway 71",
+        "city": "Horseshoe Bay",
+        "phone": "(830) 637-7848",
+        "state": "TX",
+        "zip": "78657"
+      }
+    ],
+    "specialty": [
+      "Child Adolescent Issues",
+      "Grief/Loss",
+      "Substance Use Day Treatment Program",
+      "Anxiety Issues",
+      "Substance Use Assessment Program",
+      "Substance Use Detoxification Outpatient Program",
+      "Social Work",
+      "Mental Health Intensive Outpatient Program (Iop)",
+      "Depression Issues"
+    ],
+    "accepting": "accepting",
+    "last_updated_on": "2026-11-03"
+  },
+  {
+    "npi": "1770163602",
+    "type": "INDIVIDUAL",
+    "plans": [
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010044",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010040",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010018",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010031",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010036",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010024",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010048",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010021",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010016",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010037",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010025",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010038",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010026",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010015",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010041",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010050",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010035",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010029",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010045",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010047",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010043",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010030",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      }
+    ],
+    "name": {
+      "first": "Laura",
+      "last": "Hutcherson",
+      "middle": "E"
+    },
+    "addresses": [
+      {
+        "address": "6124 W Parker Rd",
+        "city": "Plano",
+        "phone": "9729817777",
+        "state": "TX",
+        "zip": "75093",
+        "address_2": "Ste 134"
+      }
+    ],
+    "specialty": [
+      "Obstetrics and Gynecology"
+    ],
+    "accepting": "accepting",
+    "last_updated_on": "2026-11-03"
+  },
+  {
+    "npi": "1770165425",
+    "type": "INDIVIDUAL",
+    "plans": [
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010044",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010040",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010018",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010031",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010036",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010024",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010048",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010021",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010016",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010037",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010025",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010038",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010026",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010015",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010041",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010050",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010035",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010029",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010045",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010047",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010043",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010030",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      }
+    ],
+    "name": {
+      "first": "Edward",
+      "last": "Visnaw"
+    },
+    "addresses": [
+      {
+        "address": "1050 central expressway",
+        "city": "Allen",
+        "phone": "(469) 225-0245",
+        "state": "TX",
+        "zip": "75013",
+        "address_2": "1200"
+      },
+      {
+        "address": "7300 Eldorado Parkway",
+        "city": "McKinney",
+        "phone": "(972) 893-3376",
+        "state": "TX",
+        "zip": "75070",
+        "address_2": "#225"
+      },
+      {
+        "address": "4100 Fairway Dr",
+        "city": "Carrollton",
+        "phone": "(469) 225-0245",
+        "state": "TX",
+        "zip": "75010",
+        "address_2": "Ste 200"
+      },
+      {
+        "address": "12850 Dallas Parkway",
+        "city": "Frisco",
+        "phone": "(972) 954-5728",
+        "state": "TX",
+        "zip": "75033",
+        "address_2": "200"
+      },
+      {
+        "address": "6839 Communications Pkwy",
+        "city": "Plano",
+        "phone": "(469) 379-8222",
+        "state": "TX",
+        "zip": "75024"
+      },
+      {
+        "address": "8604 Greenville Ave",
+        "city": "Dallas",
+        "phone": "(469) 225-0245",
+        "state": "TX",
+        "zip": "75243",
+        "address_2": "Ste 201"
+      },
+      {
+        "address": "4245 North Central Expressway",
+        "city": "Dallas",
+        "phone": "(972) 532-9968",
+        "state": "TX",
+        "zip": "75205",
+        "address_2": "#300"
+      },
+      {
+        "address": "5300 W Plano Pkwy",
+        "city": "Plano",
+        "phone": "(972) 403-1463",
+        "state": "TX",
+        "zip": "75093",
+        "address_2": "Ste 100"
+      },
+      {
+        "address": "1050 East State Highway 114",
+        "city": "Southlake",
+        "phone": "(972) 573-3855",
+        "state": "TX",
+        "zip": "76092",
+        "address_2": "250"
+      }
+    ],
+    "specialty": [
+      "Child Adolescent Issues",
+      "Medication Management",
+      "Anxiety Issues",
+      "Substance Use Assessment Program",
+      "Substance Use Detoxification Outpatient Program",
+      "Mental Health Intensive Outpatient Program (Iop)",
+      "Depression Issues",
+      "Psychiatry"
+    ],
+    "accepting": "accepting",
+    "last_updated_on": "2026-11-03"
+  },
+  {
+    "npi": "1770575177",
+    "type": "INDIVIDUAL",
+    "plans": [
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010044",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "73943NC0070052",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010018",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010024",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "73943NC0070027",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010038",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "73943NC0070029",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "73943NC0070059",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010041",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "73943NC0070030",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010050",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "73943NC0070028",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "73943NC0070055",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010035",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "73943NC0070057",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010029",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "73943NC0070058",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010030",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010040",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010031",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "73943NC0070050",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010036",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010048",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010021",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010016",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010037",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010025",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "73943NC0070046",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "73943NC0070051",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "73943NC0070054",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010026",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010015",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "73943NC0070049",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010045",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010047",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010043",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "73943NC0070061",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "73943NC0070053",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "73943NC0070056",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      }
+    ],
+    "name": {
+      "first": "Lloyd",
+      "last": "Bellah",
+      "middle": "D"
+    },
+    "addresses": [
+      {
+        "address": "1650 W Virginia St",
+        "city": "McKinney",
+        "phone": "(616) 336-3909",
+        "state": "TX",
+        "zip": "75069",
+        "address_2": "Ste 202"
+      },
+      {
+        "address": "1011 N Cooper St",
+        "city": "Arlington",
+        "phone": "(972) 542-5980",
+        "state": "TX",
+        "zip": "76011"
+      },
+      {
+        "address": "Virtual Counseling Only",
+        "city": "Richardson",
+        "phone": "(972) 542-5980",
+        "state": "TX",
+        "zip": "75082"
+      },
+      {
+        "address": "2831 E President George Bush Hwy",
+        "city": "Richardson",
+        "phone": "(972) 542-5980",
+        "state": "TX",
+        "zip": "75082"
+      },
+      {
+        "address": "1240 Huffman Mill Rd",
+        "city": "Burlington",
+        "phone": "(336) 538-7000",
+        "state": "NC",
+        "zip": "27215"
+      },
+      {
+        "address": "700 Walter Reed Dr",
+        "city": "Greensboro",
+        "phone": "(336) 832-9600",
+        "state": "NC",
+        "zip": "27403"
+      }
+    ],
+    "specialty": [
+      "Medication Management",
+      "Substance Use Detoxification Outpatient Program",
+      "Depression Issues",
+      "Psychiatry"
+    ],
+    "accepting": "accepting",
+    "last_updated_on": "2026-11-03"
+  },
+  {
+    "npi": "1417915653",
+    "type": "FACILITY",
+    "plans": [
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "48121FL0070108",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "94419IN0010020",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010024",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "48121FL0070131",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "97667AZ0110037",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010041",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "97667AZ0110035",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "73943NC0070058",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "97667AZ0110032",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "97667AZ0110014",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "48121FL0070141",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "73943NC0070050",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010021",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "94419IN0010012",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "97667AZ0110042",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "48121FL0070147",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "48121FL0070138",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "73943NC0070046",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010026",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010015",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "48121FL0070136",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010043",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "73943NC0070061",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "94419IN0010023",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "48121FL0070029",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "94419IN0010001",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "94419IN0010008",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "73943NC0070056",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010044",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "99248TN0060044",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "97667AZ0110018",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "73943NC0070027",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "79850FL0020006",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "94419IN0010013",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "73943NC0070030",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "94419IN0010025",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "48121FL0070105",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "73943NC0070055",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "94419IN0010024",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "94419IN0010011",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "48121FL0070135",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010031",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010048",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "48121FL0070122",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "48121FL0070137",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "97667AZ0110016",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "73943NC0070051",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "99248TN0060112",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "97667AZ0110039",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "48121FL0070146",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "97667AZ0110019",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "99248TN0060005",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010045",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "73943NC0070053",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "94419IN0010027",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "73943NC0070052",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "94419IN0010009",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "48121FL0070030",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "48121FL0070129",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "48121FL0070051",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "73943NC0070059",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "99248TN0060117",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "73943NC0070057",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010029",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "94419IN0010021",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010030",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "94419IN0010035",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "94419IN0010022",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "97667AZ0110038",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010040",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "48121FL0070057",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010036",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "48121FL0070130",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010037",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010025",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "79850FL0020005",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "48121FL0070128",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "73943NC0070054",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "73943NC0070049",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010047",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "97667AZ0110034",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "97667AZ0110040",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "94419IN0010026",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "48121FL0070142",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "99248TN0060102",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010018",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010038",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "73943NC0070029",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "94419IN0010002",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "99248TN0060101",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "79850FL0020003",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010050",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "73943NC0070028",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010035",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "97667AZ0110041",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "48121FL0070145",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "48121FL0070107",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "94419IN0010034",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "48121FL0070139",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "94419IN0010004",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "48121FL0070127",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "97667AZ0110013",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "79850FL0020001",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "99248TN0060110",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010016",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "48121FL0070104",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "97667AZ0110044",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "99248TN0060033",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "48121FL0070140",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "97667AZ0110043",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "99248TN0060111",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "48121FL0070033",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "79850FL0020002",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "99248TN0060093",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      }
+    ],
+    "facility_name": "Accredo Health Group Inc",
+    "facility_type": [
+      "Pharmacy Services",
+      "Home Infusion Services"
+    ],
+    "addresses": [
+      {
+        "address": "9307 Kirby Dr",
+        "city": "Houston",
+        "phone": "8008787690",
+        "state": "TX",
+        "zip": "77054"
+      },
+      {
+        "address": "5249 NW 33rd Ave",
+        "city": "Fort Lauderdale",
+        "phone": "8009555905",
+        "state": "FL",
+        "zip": "33309",
+        "address_2": "Bldg 6"
+      },
+      {
+        "address": "4343 W Royal Ln",
+        "city": "Irving",
+        "phone": "8008781254",
+        "state": "TX",
+        "zip": "75063",
+        "address_2": "Ste 124"
+      },
+      {
+        "address": "6272 Lee Vista Blvd",
+        "city": "Orlando",
+        "phone": "8887737376",
+        "state": "FL",
+        "zip": "32822",
+        "address_2": "# 100"
+      },
+      {
+        "address": "1620 Century Center Pkwy",
+        "city": "Memphis",
+        "phone": "8002358498",
+        "state": "TN",
+        "zip": "38134",
+        "address_2": "# 109"
+      },
+      {
+        "address": "422 Gallimore Dairy Rd",
+        "city": "Greensboro",
+        "phone": "8008660566",
+        "state": "NC",
+        "zip": "27409",
+        "address_2": "# A"
+      },
+      {
+        "address": "2040 W Rio Salado Pkwy",
+        "city": "Tempe",
+        "phone": "8002321199",
+        "state": "AZ",
+        "zip": "85281",
+        "address_2": "Ste 101B"
+      },
+      {
+        "address": "2825 West Perimeter Road",
+        "city": "Indianapolis",
+        "phone": "8008706419",
+        "state": "IN",
+        "zip": "46241",
+        "address_2": "112"
+      }
+    ],
+    "last_updated_on": "2026-11-03"
+  },
+  {
+    "npi": "1548742349",
+    "type": "GROUP",
+    "plans": [
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010044",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010040",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010018",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010031",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010036",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010024",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010048",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010021",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010016",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010037",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010025",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010038",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010026",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010015",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010041",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010050",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010035",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010029",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010045",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010047",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010043",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      },
+      {
+        "network_tier": "PREFERRED",
+        "plan_id": "76589TX0010030",
+        "plan_id_type": "HIOS-PLAN-ID",
+        "years": [
+          2026
+        ]
+      }
+    ],
+    "group_name": "Texas Arthritis Center PA",
+    "addresses": [
+      {
+        "address": "2600 North Oregon Street",
+        "city": "El Paso",
+        "phone": "9153171660",
+        "state": "TX",
+        "zip": "79902"
+      }
+    ],
+    "specialty": [
+      "Rheumatology",
+      "Physician Assistant"
+    ],
+    "accepting": "accepting",
+    "last_updated_on": "2026-11-03"
+  }
+]

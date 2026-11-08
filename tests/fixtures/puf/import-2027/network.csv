@@ -1,0 +1,5 @@
+BusinessYear,StateCode,IssuerId,SourceName,ImportDate,NetworkName,NetworkId,NetworkURL,MarketCoverage,DentalOnlyPlan
+2027,AK,21989,HIOS,2026-10-12,Delta Dental Premier,AKN001,,SHOP (Small Group),Yes
+2027,TX,11718,HIOS,2026-10-07,Community Health Choice Ultra Select Network,TXN001,https://memberaccount.communityhealthchoice.org/s/find-a-provider?language=en_US,Individual,No
+2027,TX,12846,HIOS,2026-10-07,DentalGuard Preferred - Individual,TXN002,https://dentalexchange.guardiandirect.com/find-a-dentist,Individual,Yes
+2027,TX,66252,HIOS,2026-10-07,CHRISTUS Health Plan Texas,TXN001,https://doctors.christushealthplan.org/physicians/find,Individual,No

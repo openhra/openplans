@@ -1,0 +1,4 @@
+{
+  "_fixture": { "synthetic": true, "purpose": "Offline CMS geography contract; not a live recording" },
+  "counties": [{ "fips": "48201", "name": "Harris County", "state": "TX", "zipcode": "77001" }]
+}

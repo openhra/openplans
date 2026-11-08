@@ -1,0 +1,36 @@
+{
+  "source": {
+    "snapshot_id": "d6a68825d6028a2293971296076d9ed2fba63ab4182c5f9b353c8bb77e6e63db",
+    "source": "census-zcta-gazetteer-2021",
+    "url": "https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2021_Gazetteer/2021_Gaz_zcta_national.zip",
+    "final_url": "https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2021_Gazetteer/2021_Gaz_zcta_national.zip",
+    "redirect_chain": [],
+    "status": 200,
+    "content_type": "application/zip",
+    "etag": null,
+    "last_modified": "Tue, 10 Aug 2021 18:20:27 GMT",
+    "sha256": "d6a68825d6028a2293971296076d9ed2fba63ab4182c5f9b353c8bb77e6e63db",
+    "bytes": 1013957,
+    "fetched_at": "2026-11-07T07:37:30.654Z"
+  },
+  "points": [
+    {
+      "zcta": "77002",
+      "latitude": "29.756845",
+      "longitude": "-95.365652",
+      "rowNumber": 27184
+    },
+    {
+      "zcta": "77030",
+      "latitude": "29.705557",
+      "longitude": "-95.401754",
+      "rowNumber": 27212
+    },
+    {
+      "zcta": "77356",
+      "latitude": "30.465662",
+      "longitude": "-95.729888",
+      "rowNumber": 27307
+    }
+  ]
+}

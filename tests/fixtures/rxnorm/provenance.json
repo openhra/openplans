@@ -1,0 +1,66 @@
+{
+  "publisher": "National Library of Medicine",
+  "source": "RxNorm Current Prescribable Content",
+  "source_url": "https://download.nlm.nih.gov/rxnorm/RxNorm_full_prescribe_11022026.zip",
+  "release_version": "2026-11-02",
+  "archive_sha256": "c742a6c4b2995194aa3479400e08a7c1ad707178bfc80fe9c8cd7afa693ae987",
+  "selection": "RXNORM IN/BN exact names plus first two single-drug SCD/SBD names per drug; three forward relation hops; up to three NDC attributes per concept/source, plus 00071015523 if present",
+  "rxcuis": [
+    "104375",
+    "104376",
+    "1297766",
+    "151827",
+    "153165",
+    "196472",
+    "197884",
+    "205326",
+    "235743",
+    "259255",
+    "262095",
+    "29046",
+    "311353",
+    "311354",
+    "316152",
+    "316154",
+    "316155",
+    "316156",
+    "317541",
+    "329299",
+    "563609",
+    "563610",
+    "574676",
+    "597966",
+    "597970",
+    "617310",
+    "617312",
+    "617313",
+    "617314",
+    "6809",
+    "83366",
+    "83367",
+    "860974",
+    "860995",
+    "861004",
+    "861005",
+    "861006",
+    "861007",
+    "861009",
+    "861010",
+    "861011",
+    "861012"
+  ],
+  "files": {
+    "RXNCONSO.RRF": {
+      "sha256": "3940a3b362de496d34b6ac42c5d338e8d8240e2cd23ad870e002c7b93b2b2f7a",
+      "bytes": 96125
+    },
+    "RXNREL.RRF": {
+      "sha256": "389bd5e821258c9b76660cb233a89532af0bcc1d8d3957789268f09982d216ab",
+      "bytes": 11190
+    },
+    "RXNSAT.RRF": {
+      "sha256": "0c809d2faccda23a9903a0470d6300434a39d1ba6d5cb0552cbdb9a341a24780",
+      "bytes": 4803
+    }
+  }
+}
