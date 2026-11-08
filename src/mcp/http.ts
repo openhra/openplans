@@ -38,17 +38,21 @@ export function createMcpHttp(db: SqlSession, options: HttpOptions = {}) {
   let active = 0;
   const app = new Hono();
   app.use('/mcp', async (c, next) => {
-    if (env.OPENPLANS_MCP === 'off') return c.notFound();
-    const host = c.req.header('host') ?? new URL(c.req.url).host;
-    if (!hosts.includes(host)) return failure(403, -32000, 'Host forbidden');
     // Exact scheme/host/port comparison; SDK hostname checks alone are insufficient.
     const origin = c.req.header('origin');
     if (origin !== undefined && !origins.includes(origin)) return failure(403, -32000, 'Origin forbidden');
+    await next();
+    // Apply to the finalized response, including SDK streams and early error responses.
     if (origin) {
       c.header('Access-Control-Allow-Origin', origin);
-      c.header('Vary', 'Origin');
-      c.header('Access-Control-Expose-Headers', 'WWW-Authenticate, Retry-After');
+      c.header('Vary', 'Origin', { append: true });
+      c.header('Access-Control-Expose-Headers', 'Mcp-Session-Id, MCP-Protocol-Version, WWW-Authenticate, Retry-After');
     }
+  });
+  app.use('/mcp', async (c, next) => {
+    if (env.OPENPLANS_MCP === 'off') return c.notFound();
+    const host = c.req.header('host') ?? new URL(c.req.url).host;
+    if (!hosts.includes(host)) return failure(403, -32000, 'Host forbidden');
     await next();
   });
   // The official adapter additionally checks a supplied Host's hostname.

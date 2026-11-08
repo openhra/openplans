@@ -1798,8 +1798,8 @@
     {
       "path": "src/mcp/http.ts",
       "mode": "100644",
-      "size": 9683,
-      "sha256": "6fce51da125560281673b6d85f7dcb7a488e45ac602b31879efdf3ab2fa1c83e"
+      "size": 9891,
+      "sha256": "62f2f0fbf2b3bab23b50b123b19915fbed6556089e636c6b37ed3df205d481b5"
     },
     {
       "path": "src/mcp/policy.ts",
@@ -3344,6 +3344,18 @@
       "sha256": "97cbf7828154309907d853424db74a8c9ae9aed92b574caa897ddf4f4fdbc2ac"
     },
     {
+      "path": "tests/mcp/cors-helpers.ts",
+      "mode": "100644",
+      "size": 1319,
+      "sha256": "cb415de793b794f1865dfd1a1ffa62a61fe17d5c8af2fee65bbb732522be492a"
+    },
+    {
+      "path": "tests/mcp/cors.test.ts",
+      "mode": "100644",
+      "size": 6138,
+      "sha256": "18fc3e997c39601432529752de22014b31fc5a6b96631baf26f316a8ec463f76"
+    },
+    {
       "path": "tests/mcp/database-cancellation.test.ts",
       "mode": "100644",
       "size": 2462,
@@ -3370,8 +3382,8 @@
     {
       "path": "tests/mcp/security.test.ts",
       "mode": "100644",
-      "size": 10848,
-      "sha256": "eaa3fae9834a23a12ff025858a8111acfc55fb01ad828a7ea543a68551fa09f7"
+      "size": 11143,
+      "sha256": "35610273cb0e86f9bb145c5b75bc60546f22ce5eefabbd196144da35773dfa2a"
     },
     {
       "path": "tests/mcp/tools.test.ts",
@@ -3388,14 +3400,14 @@
     {
       "path": "tests/mcp/transport-mutants.test.ts",
       "mode": "100644",
-      "size": 2541,
-      "sha256": "02db1933a2d3daa4b46153ef763b7ecf27f3df18769b7ca5694f8c0fd83df129"
+      "size": 3830,
+      "sha256": "92c0b49edd74daa28d5c2548b2eddb28c4d9655c6134cfc1f8a2daa7d7c28857"
     },
     {
       "path": "tests/mcp/transports.test.ts",
       "mode": "100644",
-      "size": 5028,
-      "sha256": "0b41ae9ba29dc98e31a35573b69ace832e1746812da2475d42f494cd41eb93f2"
+      "size": 5973,
+      "sha256": "3245de3eaed5aa5513f70373c5cc87d7034f12882007d8dff310c012ca9ad351"
     },
     {
       "path": "tests/migrate.test.ts",

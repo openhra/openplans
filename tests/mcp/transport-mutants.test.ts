@@ -2,6 +2,7 @@ import { readFile, writeFile, rm } from 'node:fs/promises';
 import { expect, it } from 'vitest';
 import type { createMcpHttp as Factory } from '../../src/mcp/http.js';
 import { post, runStdio } from './transport-helpers.js';
+import { allowedOrigin, corsRequest, expectCorsHeaders } from './cors-helpers.js';
 
 // Mutate disposable copies, never the real sources. The same assertions must reject each copy.
 it.each([
@@ -23,6 +24,25 @@ it.each([
       : post('server/discover', { padding: 'x'.repeat(64 * 1024) });
     const response = await app.fetch(request); await response.text();
     await expect(async () => { expect(response.status).toBe(expected); }).rejects.toThrow();
+  } finally { await rm(temporary, { force: true }); }
+});
+it.each(['JSON', 'SSE', 'error'] as const)('negative control: removing CORS headers fails the %s regression assertion', async kind => {
+  const source = new URL('../../src/mcp/http.ts', import.meta.url);
+  const temporary = new URL(`../../src/mcp/.http-mutant-cors-${kind}.ts`, import.meta.url);
+  const original = await readFile(source, 'utf8');
+  const block = /    if \(origin\) \{[\s\S]*?\n    \}/;
+  expect(original).toMatch(block);
+  await writeFile(temporary, original.replace(block, ''));
+  try {
+    const module = await import(/* @vite-ignore */ temporary.href) as { createMcpHttp: typeof Factory };
+    const app = module.createMcpHttp({ query: async () => { throw new Error('Unexpected SQL'); }, exec: async () => {} }, {
+      env: { OPENPLANS_MCP_ALLOWED_ORIGINS: allowedOrigin }, log: () => {},
+    });
+    const response = await app.fetch(await corsRequest(kind));
+    expect(response.status).toBe(kind === 'error' ? 415 : 200);
+    expect(response.headers.get('content-type')).toContain(kind === 'SSE' ? 'text/event-stream' : 'application/json');
+    await response.text();
+    expect(() => expectCorsHeaders(response)).toThrow();
   } finally { await rm(temporary, { force: true }); }
 });
 it('negative control: a stdout banner fails the protocol-only assertion', async () => {

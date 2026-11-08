@@ -5,6 +5,7 @@ import { boundedDatabase, dependencies } from '../../src/mcp/policy.js';
 import type { SqlSession } from '../../src/db/database.js';
 import { cursorCodec } from '../../src/mcp/cursor.js';
 import { metadata, post } from './transport-helpers.js';
+import { expectCorsHeaders } from './cors-helpers.js';
 
 const quiet = () => {};
 const unused: SqlSession = { query: async () => { throw new Error('Unexpected SQL'); }, exec: async () => {} };
@@ -130,10 +131,11 @@ it('disconnect stops SQL and releases concurrency; a fifth heavy call receives 4
 });
 it('closing a request-scoped SSE stream cancels its SQL', async () => {
   const pending = pendingDatabase(), app = createMcpHttp(pending.db, { env: {}, log: quiet });
-  const request = post('tools/call', { name: 'get_data_status', arguments: {} });
+  const request = post('tools/call', { name: 'get_data_status', arguments: {} }, { origin: 'http://localhost:3000' });
   const body = JSON.parse(await request.text()); body.params._meta = { ...metadata, progressToken: 'synthetic-progress' };
   const response = await app.fetch(new Request(request.url, { method: 'POST', headers: request.headers, body: JSON.stringify(body) }));
   expect(response.headers.get('content-type')).toContain('text/event-stream');
+  expectCorsHeaders(response, 'http://localhost:3000');
   expect(response.headers.get('x-accel-buffering')).toBe('no');
   while (!pending.started()) await setImmediate();
   await response.body!.cancel();
@@ -143,10 +145,12 @@ it('15-second overall deadline cancels SQL and forbids subsequent queries', asyn
   vi.useFakeTimers();
   try {
     const pending = pendingDatabase(), app = createMcpHttp(pending.db, { env: {}, log: quiet });
-    const response = app.fetch(post('tools/call', { name: 'get_data_status', arguments: {} }));
+    const response = app.fetch(post('tools/call', { name: 'get_data_status', arguments: {} }, { origin: 'http://localhost:3000' }));
     while (!pending.started()) await setImmediate();
     await vi.advanceTimersByTimeAsync(15_001);
-    expect((await response).status).toBe(504); expect(pending.cancelled()).toBe(1);
+    const timedOut = await response;
+    expect(timedOut.status).toBe(504); expectCorsHeaders(timedOut, 'http://localhost:3000');
+    await timedOut.text(); expect(pending.cancelled()).toBe(1);
     const controller = new AbortController(); controller.abort();
     await expect(boundedDatabase(unused, controller.signal).query('SELECT 1')).rejects.toThrow();
   } finally { vi.useRealTimers(); }

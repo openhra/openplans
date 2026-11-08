@@ -9,6 +9,7 @@ import { migrate } from '../../src/db/migrate.js';
 import { testDatabase, coreMigrations } from '../pglite.js';
 
 import { post, runStdio } from './transport-helpers.js';
+import { allowedOrigin, corsRequest, expectCorsHeaders } from './cors-helpers.js';
 const quiet = () => {};
 
 describe('HTTP transport official clients', () => {
@@ -42,6 +43,19 @@ describe('HTTP transport official clients', () => {
     const message = JSON.parse(await request.text()); delete message.id;
     const response = await app.fetch(new Request(request.url, { method: 'POST', headers: request.headers, body: JSON.stringify(message) }));
     expect(response.status).toBe(202); expect(await response.text()).toBe(''); expect(response.headers.has('Mcp-Session-Id')).toBe(false);
+  });
+  it('returns CORS headers on a successful request-scoped SSE exchange', async () => {
+    const app = createMcpHttp(db, { env: { OPENPLANS_MCP_ALLOWED_ORIGINS: allowedOrigin }, log: quiet });
+    const response = await app.fetch(await corsRequest('SSE'));
+    expect(response.status).toBe(200);
+    expect(response.headers.get('content-type')).toContain('text/event-stream');
+    expectCorsHeaders(response);
+    const messages = (await response.text()).split('\n').filter(line => line.startsWith('data: '))
+      .map(line => JSON.parse(line.slice(6)));
+    expect(messages.some(message => message.method === 'notifications/progress')).toBe(true);
+    const result = messages.find(message => message.id === 1)?.result;
+    expect(result).toBeDefined(); expect(result.isError).not.toBe(true);
+    expect(result.structuredContent.data.loaded).toBe(false);
   });
 });
 
