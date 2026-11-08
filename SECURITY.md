@@ -11,5 +11,5 @@ acknowledge the report, keep you informed, and credit you in the fix unless you 
 
 ## Scope
 
-OpenPlans is self-hosted. Each installation's operator is responsible for its own deployment,
-credentials and network exposure. By default the services bind to `127.0.0.1` only.
+OpenPlans is self-hosted. The operator of each installation is responsible for its deployment,
+credentials and network exposure. Services bind to `127.0.0.1` only by default.
