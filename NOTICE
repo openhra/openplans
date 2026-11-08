@@ -1,0 +1,7 @@
+openplans
+Copyright 2026 OpenHRA contributors
+
+This product includes data-handling code for public datasets published by the
+U.S. Centers for Medicare & Medicaid Services, the U.S. Census Bureau and the
+U.S. National Library of Medicine. Those datasets are not included in this
+repository; they are downloaded by each installation from their publishers.
