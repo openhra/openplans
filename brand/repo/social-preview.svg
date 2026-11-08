@@ -1,13 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640" role="img" aria-labelledby="title desc">
-<title id="title">openplans by OpenHRA</title>
-<desc id="desc">US health plan data. On your server. Open source, self-hosted. The OpenHRA openplans repository.</desc>
+<!-- Fixed export of ../tokens.css: bg, ink, accent, muted and line. -->
+<title id="title">OpenPlans by OpenHRA</title>
+<desc id="desc">US health plan data. On your server. Open source, self-hosted. The OpenHRA OpenPlans repository.</desc>
 <defs>
-  <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse"><path d="M32 0H0V32" fill="none" stroke="#cdd9d1"/></pattern>
+  <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse"><path d="M32 0H0V32" fill="none" stroke="#d9e3df"/></pattern>
 </defs>
-<rect width="1280" height="640" fill="#f6f7f2"/>
+<rect width="1280" height="640" fill="#ffffff"/>
 <g transform="translate(64 56) scale(1.25)" color="#0b6258">
 <g transform="translate(0 7)"><g fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="square" stroke-linejoin="round"><path d="M12 4H4v24h8M20 4h8v24h-8"/><path d="M12 22V10h8v6h-8"/></g></g>
-<g fill="none" stroke="currentColor" stroke-width="2.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 10c-5 0-7 3-7 9s2 8 7 8 7-2 7-8-2-9-7-9Z" transform="translate(51 5) scale(1)"/><path d="M2 11v25M2 18c0-5 3-8 7-8s7 3 7 9-3 8-7 8-7-3-7-8" transform="translate(71 5) scale(1)"/><path d="M2 18h14c0-5-2-8-7-8s-7 3-7 9 3 8 8 8c3 0 5-1 6-2" transform="translate(91 5) scale(1)"/><path d="M2 27V11M2 18c0-5 3-8 7-8s7 3 7 8v9" transform="translate(111 5) scale(1)"/><path d="M2 11v25M2 18c0-5 3-8 7-8s7 3 7 9-3 8-7 8-7-3-7-8" transform="translate(131 5) scale(1)"/><path d="M3 3v21c0 2 1 3 4 3" transform="translate(151 5) scale(1)"/><path d="M16 11v16M16 19c0-6-2-9-7-9s-7 3-7 9 2 8 7 8 7-2 7-8" transform="translate(163 5) scale(1)"/><path d="M2 27V11M2 18c0-5 3-8 7-8s7 3 7 8v9" transform="translate(183 5) scale(1)"/><path d="M15 12c-2-1-4-2-7-2-4 0-6 2-6 4 0 6 14 3 14 9 0 3-3 4-7 4-3 0-5-1-7-2" transform="translate(203 5) scale(1)"/></g>
+<g fill="none" stroke="currentColor" stroke-width="2.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3C4 3 2 7 2 15s2 12 8 12 8-4 8-12S16 3 10 3Z" transform="translate(51 5) scale(1)"/><path d="M2 11v25M2 18c0-5 3-8 7-8s7 3 7 9-3 8-7 8-7-3-7-8" transform="translate(73 5) scale(1)"/><path d="M2 18h14c0-5-2-8-7-8s-7 3-7 9 3 8 8 8c3 0 5-1 6-2" transform="translate(93 5) scale(1)"/><path d="M2 27V11M2 18c0-5 3-8 7-8s7 3 7 8v9" transform="translate(113 5) scale(1)"/><path d="M2 27V3h8c6 0 8 3 8 7s-2 7-8 7H2" transform="translate(133 5) scale(1)"/><path d="M3 3v21c0 2 1 3 4 3" transform="translate(155 5) scale(1)"/><path d="M16 11v16M16 19c0-6-2-9-7-9s-7 3-7 9 2 8 7 8 7-2 7-8" transform="translate(167 5) scale(1)"/><path d="M2 27V11M2 18c0-5 3-8 7-8s7 3 7 8v9" transform="translate(187 5) scale(1)"/><path d="M15 12c-2-1-4-2-7-2-4 0-6 2-6 4 0 6 14 3 14 9 0 3-3 4-7 4-3 0-5-1-7-2" transform="translate(207 5) scale(1)"/></g>
 <path d="M249 13v22" stroke="currentColor" stroke-width=".8"/>
 <text x="267" y="28" fill="currentColor" font-family="system-ui, sans-serif" font-size="13">by OpenHRA</text>
 </g>
@@ -15,7 +16,7 @@
 <text x="64" y="350" fill="#0b6258" font-family="system-ui, sans-serif" font-size="72" font-weight="550" letter-spacing="-3.5">On your server.</text>
 <rect x="928" y="184" width="288" height="256" fill="url(#grid)"/>
 <g transform="translate(976 216) scale(6)" color="#0b6258"><g fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="square" stroke-linejoin="round"><path d="M12 4H4v24h8M20 4h8v24h-8"/><path d="M12 22V10h8v6h-8"/></g></g>
-<path d="M64 528H1216" stroke="#cdd9d1"/>
+<path d="M64 528H1216" stroke="#d9e3df"/>
 <text x="64" y="580" fill="#53665f" font-family="ui-monospace, monospace" font-size="18" letter-spacing="1">OPEN SOURCE · SELF-HOSTED</text>
 <text x="1216" y="580" text-anchor="end" fill="#0b6258" font-family="ui-monospace, monospace" font-size="18">openhra / openplans</text>
 </svg>
