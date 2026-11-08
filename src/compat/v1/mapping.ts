@@ -35,7 +35,11 @@ export function mapPlan(view: View, requestedId: string, serviceAreaId: string |
     level: view.metal.toLowerCase().replaceAll(' ', '_'), on_market: on, off_market: off,
     plan_market: on === null || off === null ? null : on && off ? 'both' : on ? 'on_market' : off ? 'off_market' : null,
     service_area_id: serviceAreaId === null ? null : `${view.issuer.issuer_id}-${view.plan_year}-${serviceAreaId}-${view.market}`,
-    identifiers: view.base_plan_id === null ? [] : [{ type: 'hios_id', value: requestedId }], plan_documents: [],
+    identifiers: view.base_plan_id === null ? [] : [{ type: 'hios_id', value: stateFiled ? view.base_plan_id : requestedId }], plan_documents: [],
+    ...(stateFiled ? { plan_key: view.plan_key, hios_id: view.hios_id,
+      ...(view.state === 'VT' ? { hios_match: view.hios_match, hios_match_reason: view.hios_match_reason,
+        hios_candidates: view.hios_candidates, hios_match_rule: view.hios_match_rule,
+        hios_match_provenance: view.hios_match_provenance } : {}) } : {}),
     networks: view.network.records.map(n => ({ id: null, name: n.network_name, provider_directory_url: n.network_url ?? null })), network_ids: [],
     plan_ancestors: [], ratings: [], providers: [],
   };

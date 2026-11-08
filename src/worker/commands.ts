@@ -1,3 +1,4 @@
+import { runSbe } from '../ingest/sbe/command.js';
 import { runState } from '../ingest/state/command.js';
 import { runBootstrap } from './bootstrap.js';
 import { runQhpProviders } from '../ingest/qhp/provider-command.js';
@@ -29,6 +30,7 @@ export async function runWorker(
   output: WorkerOutput,
   directory = migrationsDirectory,
 ): Promise<number> {
+  if (args[0] === 'ingest' && args[1] === 'sbe') return runSbe(args.slice(2), () => openWithQueryTimeout(openDatabase, 300_000), output, directory);
   if (args[0] === 'bootstrap') return runBootstrap(args.slice(1), openDatabase, output, directory);
   if (args[0] === 'ingest' && args[1] === 'state') {
     return runState(args.slice(2), openDatabase, output, directory);

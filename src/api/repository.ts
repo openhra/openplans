@@ -19,6 +19,9 @@ export interface Plan extends Record<string, unknown> {
   metal: string; dental_only: boolean; plan_name: string; network_id: string; service_area_id: string;
   on_exchange: boolean; off_exchange: boolean; snapshot_id: string; source_row: number;
   state_catalog?: boolean; plan_key?: string; hios_id?: string | null;
+  hios_match?: StateCatalogRow['hios_match']; hios_match_reason?: string;
+  hios_candidates?: Record<string, unknown>[]; hios_match_rule?: string | null;
+  hios_match_provenance?: Record<string, unknown> | null;
 }
 export async function resolveLocation(db: SqlSession, input: LocationInput) {
   if (!input.zip) return { status: 'available' as const, ...input, counties: [], county: input.county! };
@@ -56,8 +59,15 @@ export async function countyPlans(db: SqlSession, county: string, year: number, 
 }
 function statePlan(rows: StateCatalogRow[]): Plan & CountyPlan {
   const row = rows[0]!, raw = row.raw_record;
-  return { base_plan_id: row.plan_key, plan_key: row.plan_key, hios_id: raw.plan_id,
-    plan_year: row.plan_year, state: row.state, issuer_id: raw.issuer, market: 'Individual',
+  const identityEvidence = Boolean(row.hios_candidates?.length);
+  return { base_plan_id: row.plan_key, plan_key: row.plan_key, hios_id: raw.plan_id ?? row.hios_id,
+    ...(row.state === 'VT' ? { hios_match: row.hios_match ?? 'none',
+      // An unrelated supplemental catalog must not change an absence response.
+      // The audit table retains precise no-candidate reasons and both sources.
+      hios_match_reason: identityEvidence ? row.hios_match_reason! : 'no_verified_hios_match',
+      hios_candidates: row.hios_candidates ?? [], hios_match_rule: identityEvidence ? row.hios_match_rule : null,
+      hios_match_provenance: identityEvidence ? row.hios_match_provenance : null } : {}),
+    plan_year: row.plan_year, state: row.state, issuer_id: row.hios_id?.slice(0, 5) ?? raw.issuer, market: 'Individual',
     metal: raw.metal ?? 'unknown', dental_only: false, plan_name: raw.plan_name ?? 'unknown',
     network_id: '', service_area_id: '', on_exchange: row.state === 'VT' && raw.exchange === 'On', off_exchange: false,
     snapshot_id: row.import_id, source_row: row.record_index + 1, state_catalog: true,
@@ -118,7 +128,16 @@ export async function planCostSharing(db: SqlSession, plan: Plan, options: CostS
   const amounts = attributeCostSharing(attributes.rows.find(row => row.variant_plan_id === selected)?.raw ?? {});
   // Orphan benefit rows never authorize substitution for missing variant attributes.
   const rows = attribute ? benefits.rows.filter(row => row.published_plan_id === selected) : [];
-  return { variant_ids: variants.map(row => row.variant_plan_id), variants,
+  return {
+    // Shared identity metadata accompanies both plan views and premium estimates.
+    // The internal key continues to select the unchanged filed tier cells.
+    ...(plan.state_catalog && plan.state === 'VT' ? {
+      base_plan_id: plan.hios_id ?? null, hios_id: plan.hios_id ?? null, plan_key: plan.plan_key,
+      hios_match: plan.hios_match, hios_match_reason: plan.hios_match_reason,
+      hios_candidates: plan.hios_candidates, hios_match_rule: plan.hios_match_rule,
+      hios_match_provenance: plan.hios_match_provenance,
+    } : {}),
+    variant_ids: variants.map(row => row.variant_plan_id), variants,
     csr_eligibility_status: 'not_evaluated' as const,
     premium_basis: plan.state_catalog ? 'state_filed_tier' : 'base_plan_rate_puf',
     premium_varies_by_csr: plan.state_catalog ? null : false,

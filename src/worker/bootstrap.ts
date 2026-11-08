@@ -1,3 +1,8 @@
+import { ingestStateRates } from '../ingest/state/index.js';
+import { ingestSbeGeography } from '../ingest/sbe/geography.js';
+import { acquireSbe, sbePublications, SBE_INDIVIDUAL_STATES } from '../ingest/sbe/source.js';
+import { importSbe } from '../ingest/sbe/import.js';
+import { sbeRulesFile } from '../ingest/sbe/rules.js';
 import { createHash } from 'node:crypto';
 import { createReadStream } from 'node:fs';
 import { readFile, readdir, writeFile, rename } from 'node:fs/promises';
@@ -127,7 +132,8 @@ async function verifiedCached(dataDir: string, source: string, url?: string) {
 }
 
 /** Build without DB access, downloads or writes, so --dry-run works on an empty installation. */
-export async function bootstrapPlan(options: BootstrapOptions, database: () => Database, dataDir: string, directory = migrationsDirectory): Promise<BootstrapStep[]> {
+export async function bootstrapPlan(options: BootstrapOptions, database: () => Database, dataDir: string, directory = migrationsDirectory,
+  sbeScopes: readonly { state: string; year: number }[] = []): Promise<BootstrapStep[]> {
   if (!isAbsolute(dataDir)) fail('absolute_data_directory_required');
   const steps: BootstrapStep[] = [];
   const add = (id: string, depends_on: string[], run: BootstrapStep['run'], bytes: number | 'unknown' = 0, skip_reason?: string) => steps.push({ id, depends_on, run, estimated_download_bytes: bytes, skip_reason });
@@ -136,13 +142,16 @@ export async function bootstrapPlan(options: BootstrapOptions, database: () => D
   const current = { skipped: true, reason: 'current_active_snapshot' };
   const estimateMetadata = (source: string, url?: string | RegExp) => metadata(dataDir, source, url).catch(() => undefined);
   const publicationStates = new Map<number, string[]>();
+  // Publication selection belongs to the command. Programmatic federal-only
+  // plans keep their explicit acquired-manifest semantics.
+  const isSbe = (state: string, year: number) => sbeScopes.some(scope => scope.state === state && scope.year === year);
   add('migrate', [], async () => {
     const applied = await migrate(database(), directory);
     return { skipped: !applied.length, reason: applied.length ? 'migrations_applied' : 'schema_current', evidence: { applied } };
   });
   for (const year of options.years) {
     add(`rating-rules-${year}`, ['migrate'], async () => {
-      const file = dataFile(`rating-rules/${year}.json`), sha = digest(await readFile(file));
+      const file = sbeScopes.some(scope => scope.year === year) ? await sbeRulesFile(dataDir, year) : dataFile(`rating-rules/${year}.json`), sha = digest(await readFile(file));
       if (await exists(`SELECT 1 FROM rating_rule_set r JOIN snapshot s USING(snapshot_id)
         WHERE r.plan_year=$1 AND s.sha256=$2 AND s.validation_state='ACTIVE'`, [year, sha])) return current;
       return { evidence: await ingestRatingRules(database(), file) };
@@ -176,9 +185,26 @@ export async function bootstrapPlan(options: BootstrapOptions, database: () => D
       await rename(`${path}.part`, path);
       if (wanted.some(kind => combined.files.find(file => file.year === year && file.kind === kind)?.status !== 'ok')) fail('required_puf_files_unavailable');
       return { reason: 'publication_acquired' };
-    }, estimate);
+    }, estimate, options.states.every(state => isSbe(state, year)) ? 'sbe_publications_selected' : undefined);
     for (const state of options.states) {
-      add(`puf-${state}-${year}`, [`puf-acquire-${year}`], async () => {
+      if (isSbe(state, year)) {
+        add(`sbe-acquire-${state}-${year}`, ['migrate'], async () => {
+          const link = (await sbePublications(dataDir)).find(link => link.state === state && link.year === year);
+          if (!link) fail('sbe_state_year_not_published');
+          const files = await acquireSbe(link!, dataDir);
+          return { evidence: { source: 'cms_sbe_puf', url: link!.url, sha256: files[0]!.sha256 } };
+        }, 'unknown');
+        add(`puf-${state}-${year}`, [`sbe-acquire-${state}-${year}`, `rating-rules-${year}`], async () => {
+          const link = (await sbePublications(dataDir)).find(link => link.state === state && link.year === year)!;
+          const files = await acquireSbe(link, dataDir);
+          if (await exists(`SELECT 1 FROM sbe_catalog c JOIN puf_import p USING(import_id) JOIN snapshot s ON s.snapshot_id=p.import_id
+            WHERE p.state=$1 AND p.plan_year=$2 AND c.bundle_sha256=$3 AND s.validation_state='ACTIVE'
+            AND (NOT c.serving OR EXISTS(SELECT 1 FROM puf_active_catalog a WHERE a.import_id=c.import_id))`, [state, year, files[0]!.sha256])) return current;
+          const report = await importSbe(database(), { year, state, dataDir, files });
+          if (!report.passed) fail('sbe_reconciliation_failed_previous_active_preserved');
+          return { evidence: report };
+        });
+      } else add(`puf-${state}-${year}`, [`puf-acquire-${year}`], async () => {
         const { files } = await cachedImportFiles(dataDir, year);
         const rows = (await database().query<{ kind: string; sha256: string; validation_state: string }>(`SELECT f.kind,s.sha256,s.validation_state
           FROM puf_active_catalog a JOIN puf_import_file f ON f.import_id=a.import_id JOIN snapshot s ON s.snapshot_id=f.snapshot_id
@@ -191,6 +217,15 @@ export async function bootstrapPlan(options: BootstrapOptions, database: () => D
         if (!report.identifiers.base_plans) fail('state_not_in_publication');
         return { evidence: { import_id: report.import_id, base_plans: report.identifiers.base_plans, report_json: report.report_json } };
       });
+      if (isSbe(state, year) && ['NY', 'VT'].includes(state)) {
+        add(`state-filed-${state}-${year}`, [`puf-${state}-${year}`], async () => {
+          if (await exists(`SELECT 1 FROM state_rate_active a JOIN snapshot s ON s.snapshot_id=a.import_id
+            WHERE a.state=$1 AND a.plan_year=$2 AND s.validation_state='ACTIVE'`, [state, year])) return current;
+          const file = join(dataDir, 'derived', 'state-rating', `${state.toLowerCase()}-${year}.json`);
+          if (!await readFile(file).then(() => true, () => false)) fail('state_filed_tier_publications_not_prepared');
+          return { evidence: await ingestStateRates(database(), file, state as 'NY' | 'VT') };
+        });
+      }
       const sources = geoSources(state), sizes = await Promise.all(Object.values(sources).map(source => estimateMetadata(source.source, source.url)));
       add(`geo-${state}-${year}`, ['migrate'], async () => {
         const files = await acquireGeo({ dataDir, state });
@@ -199,7 +234,7 @@ export async function bootstrapPlan(options: BootstrapOptions, database: () => D
           WHERE g.state=$1 AND g.plan_year=$2 AND r.sha256=$3 AND c.sha256=$4 AND a.sha256=$5
           AND r.validation_state='ACTIVE' AND c.validation_state='ACTIVE' AND a.validation_state='ACTIVE'`,
         [state, year, files.relationship.metadata.sha256, files.centroids.metadata.sha256, files.ratingAreas.metadata.sha256])) return current;
-        return { evidence: await ingestGeo(database(), { state, planYear: year, dataDir, files }) };
+        return { evidence: await (isSbe(state, year) ? ingestSbeGeography : ingestGeo)(database(), { state, planYear: year, dataDir, files }) };
       }, sizes.every(Boolean) ? sizes.reduce((sum, value) => sum + value!.bytes, 0) : 'unknown');
     }
   }
@@ -255,6 +290,10 @@ export async function bootstrapPlan(options: BootstrapOptions, database: () => D
   }
   if (options.drugs || options.providers) for (const year of options.years) for (const state of options.states) {
     const scope = `${state}-${year}`;
+    if (isSbe(state, year)) {
+      add(`qhp-sbe-${scope}`, [`puf-${scope}`], async () => ({ skipped: true, reason: 'sbe_no_index_registry' }));
+      continue;
+    }
     add(`qhp-discover-${scope}`, [`puf-acquire-${year}`], async () => {
       const registry = await cachedRegistry(dataDir, year);
       await verifyRegistry(registry);
@@ -320,6 +359,11 @@ export async function bootstrapPlan(options: BootstrapOptions, database: () => D
 
 export async function runBootstrap(args: string[], openDatabase: (connectionString?: string) => Database, output: Output, directory = migrationsDirectory): Promise<number> {
   let options: BootstrapOptions;
+  const stateFlag = args.indexOf('--states');
+  const selectedStates = stateFlag < 0 ? [] : (args[stateFlag + 1] ?? '').split(',');
+  // The reviewed SBE publication currently provides PY2026 only. Preserve the
+  // existing explicit-year contract for federal or mixed-publication requests.
+  if (!args.includes('--years') && selectedStates.length && selectedStates.every(state => SBE_INDIVIDUAL_STATES.includes(state))) args = [...args, '--years', '2026'];
   try { options = parseBootstrapOptions(args); } catch { output.error(usage); return 1; }
   let db: Database | undefined, code = 0;
   const database = () => {
@@ -333,7 +377,10 @@ export async function runBootstrap(args: string[], openDatabase: (connectionStri
     return db;
   };
   try {
-    const steps = await bootstrapPlan(options, database, importDataDirectory(), directory);
+    const dataDir = importDataDirectory();
+    const cached = await sbePublications(dataDir, false).catch(() => []);
+    const scopes = [...SBE_INDIVIDUAL_STATES.map(state => ({ state, year: 2026 })), ...cached.filter(link => link.year !== 2026 && link.state !== 'OR')];
+    const steps = await bootstrapPlan(options, database, dataDir, directory, scopes);
     const summary = await executeBootstrap(steps, output, options.dryRun);
     code = summary.passed ? 0 : 1;
   } catch { output.error('worker bootstrap failed; check data cache metadata, options and database'); code = 1; }

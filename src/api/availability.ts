@@ -10,6 +10,7 @@ export async function dataAvailability(db: SqlSession): Promise<Record<string, u
   const manifest = await coverageManifest(db);
   const drugs = await drugAvailability(db);
   const providers = await providerAvailability(db);
+  const sbe = (await db.query<{ state: string; plan_year: number; import_id: string; bundle_url: string; bundle_sha256: string }>(`SELECT p.state,p.plan_year,c.import_id,c.bundle_url,c.bundle_sha256 FROM sbe_catalog c JOIN puf_import p USING(import_id) JOIN puf_active_catalog a USING(import_id) JOIN snapshot s ON s.snapshot_id=c.import_id AND s.validation_state='ACTIVE'`)).rows;
   const geography = (await db.query<{ state: string; plan_year: number; county_areas: number; zip3_areas: number }>(`
     SELECT g.state,g.plan_year,
       (SELECT count(*)::int FROM rating_area r WHERE r.snapshot_id=g.rating_snapshot_id AND r.state=g.state AND r.plan_year=g.plan_year) AS county_areas,
@@ -94,5 +95,14 @@ export async function dataAvailability(db: SqlSession): Promise<Record<string, u
         provenance: { publication_snapshot_ids: [...new Set(rates.map(r => r.publication_snapshot_id))] } });
     }
   }
-  return combined;
+  return combined.map(entry => {
+    const source = sbe.find(s => s.import_id === entry.snapshot_id);
+    if (!source) return entry;
+    const gap = { status: 'unknown', reason: 'sbe_no_index_registry' };
+    return { ...entry, source: 'cms_sbe_puf', source_provenance: { bundle_url: source.bundle_url, sha256: source.bundle_sha256 },
+      ...(entry.drug_status === 'complete' ? {} : { drug_coverage: gap, drug_status: 'unknown', formulary_status: 'unknown' }),
+      ...(entry.provider_status === 'available' ? {} : { provider_coverage: gap, provider_status: 'unknown' }),
+      ...(entry.state === 'CA' && entry.premium_status === 'available' ? { premium_status: 'partial', premium_reason: 'COUNTY_SCOPED_ZIP3_CROSS_COUNTY_PREFIXES_AMBIGUOUS' } : {}),
+      ...(entry.premium_status === 'unsupported' ? { premium_reason: 'STATE_OR_FILED_RATING_METHOD_UNSUPPORTED' } : {}) };
+  });
 }

@@ -13,6 +13,7 @@ import type { SqlSession } from '../../../src/db/database.js';
 import { migrate } from '../../../src/db/migrate.js';
 import { findPlan, planView } from '../../../src/api/repository.js';
 import { mapPlan } from '../../../src/compat/v1/mapping.js';
+import { matchesMedicalSearchId } from '../../../src/compat/v1/index.js';
 import { mapProviders } from '../../../src/compat/v1/providers.js';
 import { ingestGeo } from '../../../src/ingest/geo/index.js';
 import { importPufs } from '../../../src/ingest/puf/import.js';
@@ -149,6 +150,17 @@ it('VT plan_key is an opaque plan.id, never a HIOS identifier; aliases and ids f
   }
   const absent = await search(db, 'medical', { fips_code: '50007', ids: ['BCBSVT:Not a published plan'] });
   expect(absent.body.plans).toEqual([]); expect(absent.gaps).toContain('public_plan_unavailable:BCBSVT:Not a published plan');
+  expect(matchesMedicalSearchId({ base_plan_id: vt, hios_id: '13627VT0340003' }, '13627VT0340003')).toBe(true);
+  expect(matchesMedicalSearchId({ base_plan_id: vt, hios_id: '13627VT0340003' }, vt)).toBe(true);
+  expect(matchesMedicalSearchId({ base_plan_id: 'BCBSVT:Unmatched', hios_id: null }, '99999VT9999999')).toBe(false);
+  expect(matchesMedicalSearchId({ base_plan_id: '87226TX0100013' }, '87226TX0100013')).toBe(true);
+});
+
+it('negative control: dropping HIOS matching rejects an available Vermont HIOS id', () => {
+  const mutant = matchesMedicalSearchId.toString().replace(' || plan.hios_id === id', '');
+  const broken = new Function(`return (${mutant})`)() as typeof matchesMedicalSearchId;
+  expect(broken({ base_plan_id: vt, hios_id: '13627VT0340003' }, '13627VT0340003')).toBe(false);
+  expect(matchesMedicalSearchId({ base_plan_id: vt, hios_id: '13627VT0340003' }, '13627VT0340003')).toBe(true);
 });
 
 it('negative control: compiled VT mapper mutant filling a HIOS-shaped id fails the same identity contract', async () => {

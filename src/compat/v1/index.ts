@@ -32,6 +32,9 @@ function pagination(body: Record<string, unknown>, defaultSize: number) {
   if (!Number.isSafeInteger(page * size)) return v.fail('page');
   return { start: (page - 1) * size, size };
 }
+export function matchesMedicalSearchId(plan: { base_plan_id: string; hios_id?: string | null }, id: string) {
+  return plan.base_plan_id === id || plan.hios_id === id;
+}
 const BASE = '/compat/v1';
 
 // Captured ids[] and plan.id are opaque strings (reference routes/plans.ts), whereas
@@ -150,7 +153,7 @@ export function compatRoutes(db: SqlSession, options: ApiOptions = {}) {
     const targets: { plan: typeof offered[number]; id: string }[] = [];
     if (ids.length > 0) {
       for (const id of new Map(ids.map(id => [id.full, id])).values()) {
-        const plan = offered.find(p => p.base_plan_id === id.base);
+        const plan = offered.find(p => matchesMedicalSearchId(p, id.base));
         if (!plan || (id.variant !== null && !await variantExists(db, plan, id.full))) reasons.add(`public_plan_unavailable:${id.full}`);
         else targets.push({ plan, id: id.full });
       }
