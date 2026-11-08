@@ -17,7 +17,7 @@ Each invocation creates an immutable parent snapshot plus six file snapshots.
 Each file has one transaction and batches of at most 250 rows. Source row numbers
 are physical starting CSV lines, including the header. Other states are skipped
 before row conversion. Invalid selected rows create row-addressed quality issues;
-file-level failures roll back that file. All original fields are retained as raw
+file-level failures roll back that file. The importer retains all original fields as raw
 JSON or in the immutable acquired input.
 
 `plan_attribute` preserves input rows independently of the canonical `plan` and
@@ -41,7 +41,7 @@ Only a passing set advances `PARSED -> VALIDATED -> RECONCILED -> ACTIVE` and
 atomically updates `puf_active_catalog`. Failed sets become `QUARANTINED`; the
 previous pointer and its ACTIVE snapshots remain unchanged. Earlier successful
 snapshots remain immutable historical ACTIVE evidence; the pointer defines which
-set is currently served. JSON and Markdown reports are written under
+set is currently served. The importer writes JSON and Markdown reports under
 `OPENPLANS_DATA_DIR/reports/`.
 
 PUF imports alone create `unsupported` state/year/market rules, including NY and VT.
@@ -110,12 +110,12 @@ comparison, see [tx-2027-README.md](tx-2027-README.md).
 `worker ingest puf import --year 2026 --all-states` (also PY2027) discovers states
 from on-exchange individual medical Plan Attributes rows. It reads each archive
 once into bounded temporary partitions under the external data cache, preserving
-original physical row numbers, acquired hashes and URLs. Each partition is hashed
-and counted before import. The state count is checked independently of inserted
+original physical row numbers, acquired hashes and URLs. The importer hashes
+and counts each partition before import. The state count is checked independently of inserted
 rows. Partitions are removed when the batch completes.
 
 Each state has its own immutable six-file import, reconciliation and ACTIVE pointer.
-A quarantine or state exception is recorded and the next state runs. The command
+The importer records a quarantine or state exception and continues with the next state. The command
 returns nonzero if any state failed. `reports/puf-<year>-all-states.json` is updated
 after each state, with exactly one result per attempted state. Per-state reports
 retain the original acquired manifest path. NY/VT cannot gain per-member support.

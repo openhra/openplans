@@ -12,7 +12,7 @@ Harris County geocoding. Cached discovery records missing issuer snapshots as
 must be complete. The cached official weekly NPPES link was unavailable (404), so
 weekly acquisition is excluded from this reproducible baseline.
 
-`cached-worker.mjs` is supplied on stdin to the existing production image. It uses
+The script supplies `cached-worker.mjs` on stdin to the existing production image. It uses
 public dependency injection points and the production fetcher's hash verification
 to reuse cached publisher bytes. It refuses uncached downloads and Census requests.
 Geocoding replays complete original cached Census batches through the production
@@ -20,9 +20,8 @@ parser/persistence code, then requires the current deduplicating ingester to reu
 all Harris NPPES observations (`source=npi_address`) with zero requests. Issuer
 address geocoding is covered by the provider lane, not this cache baseline.
 
-This proves that cached source ingestion works on Postgres without recontacting
-publishers; it does not test current publisher availability. No synthetic records
-are loaded. Compose also mounts `work/` writable for the NPPES temporary XLSX; smoke creates
+The check verifies cached source ingestion on Postgres without contacting
+publishers again. It does not test current publisher availability or load synthetic records. Compose also mounts `work/` writable for the NPPES temporary XLSX; smoke creates
 `reports/` and `work/` and probes both as the image user before ingestion.
 Full smoke makes `/data/raw` writable for request-index/cache metadata;
 normal Compose and plain smoke retain the read-only default. Raw payloads remain
@@ -32,8 +31,8 @@ HTTP checks cover 121 Harris catalog plans across all pages, an authenticated
 52928-cent monthly premium, RxCUIs 311354/860975/259255 on 76589TX0010015, and a
 nonempty `/v1/data-availability`. Missing/wrong bearer and wrong-database controls
 must fail. Each completed worker step saves wall seconds, exact table row counts
-and `pg_database_size` under `reports/h2-smoke-<UTC>/`; summary marks PASS only
-once resource teardown is verified. Row totals in the printed table are cumulative
+and `pg_database_size` under `reports/h2-smoke-<UTC>/`; the summary marks PASS only
+after verifying resource teardown. Row totals in the printed table are cumulative
 across the explicitly named tables; JSON retains each individual count.
 
 On macOS the default Colima VM may not see the host data volume. The preflight

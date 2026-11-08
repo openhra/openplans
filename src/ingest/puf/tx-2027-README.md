@@ -1,8 +1,8 @@
 # TX PY2027 catalog, rates and rules
 
-The cached CMS 2027 inputs acquired on 2026-11-07 imported as ACTIVE. No source
-archives were downloaded again or placed in the repository. Validation uses portable
-PGlite SQL; this lane did not run the production PostgreSQL/PostGIS worker.
+The cached CMS 2027 inputs acquired on 2026-11-07 imported as ACTIVE. The import reused cached source
+archives and kept them outside the repository. Validation uses portable
+PGlite SQL. This lane did not run the production PostgreSQL/PostGIS worker.
 
 ## Header audit
 
@@ -16,7 +16,7 @@ as a benefit assertion. The remaining five catalog CSV schemas are unchanged.
 The crosswalk rolls its prior/current year suffixes forward (12 additions and 12
 removals), explicitly outside the six-file catalog import. The MR URL XLSX header is
 unchanged and belongs to the separate QHP ingestion lane. The audit reads only its
-header; no MR contact values enter the artifact. Fixtures are unmodified small real
+header. No MR contact values enter the artifact. Fixtures are unmodified small real
 cuts with hashes and source line provenance; regenerate them with
 `python3 tests/fixtures/puf/import/regenerate.py --year 2027`.
 
@@ -67,7 +67,7 @@ legacy 2026 validation DB. Reports are under `OPENPLANS_DATA_DIR/reports/`:
 | Harris County plan set vs raw | PASS | 140 on-exchange individual medical plans |
 | Disposable real-data controls | PASS | +1 cent 2027 rate, statewide flag loss, truncated JSON all detected |
 
-Offline controls additionally rename `IndividualRate` in a 2027 fixture and observe
+Offline controls also rename `IndividualRate` in a 2027 fixture and observe
 a named-column quarantine, and request a 2027 premium while its temporary rule file
 is absent. The latter returns `unsupported_rating_method` even after 2026 support
 has been loaded; adding the cited 2027 document enables a filed-rate estimate.
@@ -83,7 +83,7 @@ JSON includes full-catalog counts and source hashes. Regenerate with
 
 Medical issuer 11819 (Antidote Health of TX) enters; 17933 (Moda), 40788 (Baylor Scott
 and White) and 76589 (Cigna) leave. The full catalog also gains 55409 (Cigna), which
-is dental; saying the entire Cigna brand is absent from 2027 would be incorrect.
+is dental; the Cigna brand is therefore still present in 2027.
 
 | Metal | 2026 medical plans | 2027 medical plans |
 | --- | ---: | ---: |

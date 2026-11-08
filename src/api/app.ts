@@ -6,14 +6,20 @@ import type { ApiOptions } from './routes.js';
 import { InputError, state, year } from './validation.js';
 import { dataAvailability } from './availability.js';
 import { compatRoutes } from '../compat/v1/index.js';
+import { createResponseCache } from './cache/index.js';
+import type { ResponseCacheOptions } from './cache/index.js';
 
-export function createApp(db: SqlSession, options: ApiOptions = { premiumToken: process.env.OPENPLANS_API_TOKEN }) {
+export function createApp(db: SqlSession, options: ApiOptions = { premiumToken: process.env.OPENPLANS_API_TOKEN }, cacheOptions?: ResponseCacheOptions) {
   const app = new Hono();
+  const cache = createResponseCache(db, options.premiumToken, cacheOptions);
+  app.use('*', cache.middleware);
 
   app.get('/healthz', async (c) => {
     const healthy = await checkDatabase(db);
     return c.json({ status: 'ok', db: healthy ? 'ok' : 'down' }, healthy ? 200 : 503);
   });
+
+  app.get('/v1/cache-stats', c => c.json(cache.stats()));
 
   app.get('/v1/data-availability', async (c) => {
     try {

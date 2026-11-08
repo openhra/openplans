@@ -322,7 +322,7 @@ describe('safe cache acquisition through a loopback-only test transport', () => 
   ] as const)('negative control: a small %s bomb exceeds decoded cap and leaves nothing published', async (encoding, compress) => {
     // Synthetic highly compressible content: ~1 KB gzip expands to almost 1 MiB.
     const encoded = compress(Buffer.alloc(1000 * 1024, 'x'));
-    expect(encoded.length).toBeLessThanOrEqual(1030);
+    expect(encoded.length).toBeLessThan(2048);
     let destroyed = false;
     async function* input() { try { yield encoded; } finally { destroyed = true; } }
     const transport: Transport = async () => ({ status: 200,

@@ -6,8 +6,7 @@ from the [CMS SBE publication page](https://www.cms.gov/marketplace/resources/da
 any failure. `worker bootstrap --states GA --years 2026` selects this adapter
 automatically. For SBE-only requests, omitting `--years` selects the reviewed
 PY2026 publication, so `worker bootstrap --states GA` also works. Explicit years
-remain authoritative; federal or mixed requests keep their existing explicit-year
-requirement. Bootstrap's programmatic graph builder accepts explicit SBE scopes;
+take precedence. Federal or mixed requests still require an explicit year. Bootstrap's programmatic graph builder accepts explicit SBE scopes;
 its original no-scope acquired-federal-manifest contract remains available.
 
 The reviewed CMS page lists 22 PY2026 bundles and no PY2027 SBE release. Discovery
@@ -21,8 +20,8 @@ headers map to their canonical spellings; original fields remain in `raw`.
 `RATE EXPIRATION` maps to `RateExpirationDate`; ISO and M/D/YYYY dates are parsed
 strictly. Boolean TRUE/FALSE and true/false map to Yes/No. County labels supply
 their explicit five-digit FIPS suffix. Blank age with filed family amounts maps to
-Family Option; every published cent is retained. No age or tobacco prices are
-filled, extrapolated or calculated from an age curve.
+Family Option; every published cent is retained. The importer never fills missing age or tobacco prices,
+extrapolates them or calculates them from an age curve.
 
 SBE Benefits CSVs contain coverage/limit evidence but omit the federal copay and
 coinsurance columns. These values remain empty/null, never zero. Colorado's 192
@@ -85,7 +84,7 @@ After `npm run build`, `node scripts/oracle/sbe.mjs --year 2026` independently r
 all cached ZIPs with Python csv/Decimal, compares every stored rate field/count and
 base ID, prices every member band and supported household, and checks the immutable
 249-plan Georgia reference when available. Per-state PGlite databases are isolated
-under the external cache. No Docker or other lane database is touched. A missing
+under the external cache. The check does not use Docker or touch another lane's database. A missing
 2027 publication is explicitly reported. The oracle is appended to `realdata.sh`.
 `--states GA` restricts development checks. `--mutate-rate` changes one raw expected
 price by one cent and must exit nonzero, with separate synthetic-mutant reports.

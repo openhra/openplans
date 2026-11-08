@@ -1,7 +1,7 @@
 # NPPES V2 identity import
 
 NPPES supplies public identity, taxonomy and address evidence. It establishes neither licensing
-nor carrier/network participation. No coordinates or plan/address joins are manufactured.
+nor carrier/network participation. The importer never invents coordinates or plan/address joins.
 
 ```sh
 npm run build
@@ -22,7 +22,7 @@ it still refuses anything that would overwrite another state's rows.
 
 Discovery reads the [official CMS files page](https://download.cms.gov/nppes/NPI_Files.html).
 Only official HTTPS `_V2.zip` links qualify. Every download uses `fetchToCache` under
-`raw/cms-nppes/`, reusing the cached SHA256 for the same published URL. Import rehashes bytes.
+`raw/cms-nppes/`, reusing the cached SHA256 for the same published URL. The importer rehashes the bytes.
 Both compressed and actual inflated bytes are bounded (2 GiB / 25 GiB, ratio 200). Primary
 and secondary CSVs stream from the ZIP with CRC verification; they are never extracted.
 The deactivation ZIP currently contains XLSX, which is streamed to a temporary file in the
@@ -44,7 +44,7 @@ and `zip4` are additional nullable parsed fields. A foreign/unparseable ZIP rema
 A bounded SQL staging table holds secondary locations; only the target-state secondary NPI set
 and previously observed NPI set are held in memory.
 
-Monthly files and weekly updates are applied atomically in batches of 500. A newer observed
+The importer applies monthly files and weekly updates atomically in batches of 500. A newer observed
 record replaces the provider's taxonomies and addresses; older bundles cannot overwrite it. Weekly bundles preceding the most recent full monthly cutoff
 are reported as superseded without modifying identities.
 Known providers moving out of a selected state retain that state's membership with
@@ -58,8 +58,8 @@ can update a shared identity, while other states' membership observations retain
 and provenance; those observations are not claims about the latest national location.
 Weekly cutoffs are selected per state. Equal-date national deactivation events retain their
 first status provenance rather than changing on each state import.
-Omitted/redacted records are retained as last-observed evidence,
-not treated as proof of deletion, current practice, or non-participation. A redacted deactivation
+The importer retains omitted/redacted records as last-observed evidence.
+They do not prove deletion, current practice, or non-participation. A redacted deactivation
 row updates status without erasing prior identity/locations. A previously unseen redacted NPI is kept only when a published secondary practice location
 establishes the state; identity fields remain null. Without that location evidence no state is inferred. An explicit deactivation report is stored and applied to observed identities;
 a same-day or later reactivation takes precedence. `snapshot_id` traces identity/address/taxonomy
@@ -113,5 +113,5 @@ identical; the largest fixture is 19,270 bytes. Both offline CI and the reposito
 The official linked weekly ZIP returned HTTP 404. The `all` runner therefore exited 1 while
 preserving the successful monthly/deactivation imports; weekly application is verified offline.
 The linked weekly cutoff precedes the monthly cutoff, so it would be superseded if restored.
-Complete machine-readable import evidence is saved under
+The runner saves complete machine-readable import evidence under
 `OPENPLANS_DATA_DIR/reports/p3a-nppes-validation.json`.

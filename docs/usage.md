@@ -5,13 +5,13 @@
 OpenPlans is the project name in prose. Package, CLI, path, environment-variable
 and other technical identifiers keep their defined forms.
 
-Self-hosted, open-source health-plan data service built from CMS plan files,
+OpenPlans is a self-hosted, open-source health-plan data service built from CMS plan files,
 Census geography, NPPES provider identities, NLM RxNorm and issuer QHP files.
-It serves a native HTTP API for plan search, premium estimates, drugs, providers
-and data availability, backed by PostgreSQL 16 and PostGIS. Texas PY2026 and
-PY2027 catalogs and per-member medical premiums are implemented; issuer feed
+Its native HTTP API supports plan search, premium estimates, drugs, providers
+and data availability. It uses PostgreSQL 16 and PostGIS. Texas PY2026 and
+PY2027 catalogs and per-member medical premiums work; issuer feed
 completeness varies. Read `/v1/data-availability` before relying on an answer.
-A fresh database is empty: load public-source snapshots before searching.
+A fresh database is empty. Load public-source snapshots before searching.
 
 Every result keeps its source evidence. Missing evidence stays `unknown`, not
 "not covered". Optional [compatibility API routes](#optional-compatibility-api)
@@ -21,8 +21,8 @@ not a dependency of the current service.
 
 ## Run with Docker
 
-Requires Docker with Compose v2 and a cache directory visible to Docker. From this
-folder, do the one-time setup:
+You need Docker with Compose v2 and a cache directory visible to Docker. Run this
+one-time setup from this folder:
 
 ```sh
 cp .env.example .env
@@ -31,8 +31,7 @@ export OPENPLANS_DATA_DIR="$HOME/.local/share/openplans"
 mkdir -p "$OPENPLANS_DATA_DIR/raw" "$OPENPLANS_DATA_DIR/reports" "$OPENPLANS_DATA_DIR/work"
 ```
 
-Then one command builds the image, starts Postgres and the API, and loads your
-chosen states and years:
+Build the image, start Postgres and the API, and load your chosen states and years:
 
 ```sh
 OPENPLANS_RAW_READ_ONLY=false docker compose run --build --rm worker bootstrap --states TX,FL --years 2026,2027
@@ -44,7 +43,7 @@ For a small first run use `--states DE --years 2026`. Check the instance with
 `/v1/data-availability` for actual coverage. The API and DB keep running after the
 worker exits. The same bootstrap command resumes interrupted imports and skips
 current ACTIVE snapshots. Its last JSON line lists completed, skipped, failed
-and dependency-blocked steps; a failure returns exit 1 while independent work
+and dependency-blocked steps. A failure returns exit 1; independent work
 continues. Downloads use public sources; no CMS API key is needed.
 
 Append `--with-drugs` for RxNorm and issuer formularies, `--with-providers` for
@@ -68,9 +67,9 @@ Preview the dependency plan without opening a database, downloading or writing:
 docker compose run --build --rm --no-deps worker bootstrap --states TX,FL --years 2026,2027 --dry-run
 ```
 
-The plan shows observed artifact sizes from cache metadata, or `unknown`; shared
-national files may appear in several steps and these are not incremental network
-byte estimates. An empty cache therefore reports unknown sizes.
+The plan shows artifact sizes recorded in cache metadata, or `unknown`. Shared
+national files may appear in several steps, so the sizes do not show how many
+additional bytes each step will download. An empty cache reports unknown sizes.
 
 Export the cache path again in later shells or save it in `.env`. Acquisition
 needs writable `raw/`; `OPENPLANS_RAW_READ_ONLY=false` applies only to the bootstrap
@@ -209,7 +208,7 @@ npm run worker -- status
 The server reads `DATABASE_URL` and `PORT` (default `3000`); it does not load `.env`
 itself. Compose loads `.env`. On connection failure `/healthz` responds HTTP 503
 with `{"status":"ok","db":"down"}` and stays alive. Manifest queries return HTTP
-503 on DB failure; failures never become an apparently empty coverage manifest.
+503 on DB failure. A failed query never appears as an empty coverage manifest.
 Database errors and connection URLs are not exposed in responses or CLI errors.
 
 ## Checks
@@ -233,7 +232,7 @@ database test uses a nonexistent Unix socket, without TCP or external requests.
 Plain smoke builds the images, starts PostGIS and the API, checks health, migrates
 twice, and checks API/worker empty manifests, PostGIS and refusal of personalized
 requests when the server token is unconfigured. It needs no real-data cache.
-`--full` additionally imports cached rating rules, TX geography and TX PY2026 PUFs,
+`--full` also imports cached rating rules, TX geography and TX PY2026 PUFs,
 checks exact row counts and all three plan-search pages, and verifies the 52928-cent
 premium. Missing/incorrect request bearer tokens must return 401; the configured
 placeholder must succeed. A deliberately wrong database must fail import without
@@ -250,7 +249,7 @@ populated cache and writable `reports/`; it is opt-in and never runs in `ci.sh`.
 Full smoke defaults to the same shared machine cache as the native ingesters;
 export `OPENPLANS_DATA_DIR` to select another cache (it does not read `.env`).
 Native tools default to `$HOME/.local/share/openplans`;
-set `OPENPLANS_DATA_DIR` to override it: export the variable to your own
+set `OPENPLANS_DATA_DIR` to override it. Export the variable with your own
 absolute cache directory before acquisition, fixture regeneration or real-data checks.
 Image pulls and package downloads during the Docker build need network access.
 `realdata.sh` compares cached public raw files with imported catalogs and filed
@@ -279,12 +278,12 @@ The schema records sources, immutable snapshot provenance, snapshot states
 `QUARANTINED`), quality issues and explicit coverage entries. An `ACTIVE` snapshot
 must have a hash, retrieval/activation times and a complete declared child set.
 PUF ingestion validates and reconciles before publishing the active catalog pointer;
-a failed set cannot replace it. Coverage rows contain state, plan
+a failed set cannot replace it. Each coverage row records state, plan
 year, market, optional issuer, four evidence statuses and a source snapshot ID.
 Missing evidence defaults to `not_yet_verified`; ingestion must preserve `unknown`
 for incomplete provider or formulary evidence. No coverage is inferred or seeded.
 
-Add immutable numbered plain SQL files to `migrations/`. A migration run locks the
+Add immutable numbered plain SQL files to `migrations/`. The migration runner locks the
 journal and applies the entire pending batch and its records in one transaction.
 A failure rolls back the batch. Repeated runs are no-ops. Changed or missing
 applied SQL and duplicate numbers are rejected. Previously unapplied lower-numbered

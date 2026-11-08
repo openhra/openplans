@@ -13,7 +13,7 @@ before accumulating record fragments or calling `JSON.parse`.
 | `maxStringBytes` | 64 KiB (65,536) | Raw UTF-8 bytes of one quoted string token, including keys, quotes and escapes |
 | `maxElements` | 20,000,000 | Yielded array records; also bounds envelope key count |
 
-Limits are positive safe integers; exact limits are accepted. A decoded string written as
+Limits must be positive safe integers. Inputs exactly at a limit are accepted. A decoded string written as
 `"\u0041"` occupies eight source bytes for these guards, even though its decoded value is one
 character. A string limit is independent of the aggregate record limit. Envelope keys and
 ancillary values also use these guards. `readJsonValue` accepts the first three limits; its
@@ -26,7 +26,7 @@ or records use `code: 'json_record_too_large'`. These replace the previous gener
 `array_not_found`) retain their meaning. The provider/formulary ingesters already catch this
 error class and retain its code in shard reasons/quality issues; failures prevent complete
 publication and take their existing partial/quarantine path. Exhaust the iterator before
-publishing: completed records may precede a failure. Failure or early cancellation closes
+publishing. The reader may yield complete records before a later failure. Failure or early cancellation closes
 the input iterator. No JSON record content is included in error messages.
 
 ## Measured TX cache and default headroom
@@ -43,11 +43,10 @@ were root arrays, so none were skipped.
 
 Depth counts containers from the root, matching the reader. Record sizes exclude separators
 and surrounding whitespace; string sizes include quotes/escapes, matching the reader's byte
-limits. This is a structural census, not a replacement for ingestion's JSON syntax or record
-validation. Two provider payloads ended with incomplete tails; their complete preceding
+limits. This scan measures structure. Ingestion must still validate JSON syntax and records. Two provider payloads ended with incomplete tails; their complete preceding
 records and observed depths/complete strings contribute to the table, while unfinished
 records/strings do not contribute length maxima. No formulary tail was incomplete. The
-census never repairs or activates these snapshots.
+scan never repairs or activates these snapshots.
 
 The retained depth-64 and 8 MiB record defaults provide 12.8× and about 3.06× headroom over
 the observed maxima. The new 64 KiB string default provides about 27.2× headroom over the
@@ -55,8 +54,8 @@ largest observed string. These are finite per-record guards independent of whole
 limits; larger reviewed feeds can override them explicitly. The existing 20-million-record
 limit is unchanged.
 
-Largest-record payload fingerprints (the scanner prints source namespaces and SHA-256s for
-all three maxima, without URLs or record contents):
+The table lists the largest-record payload fingerprints. The scanner prints source namespaces
+and SHA-256s for all three maxima, without URLs or record contents:
 
 | Kind | Payload SHA-256 |
 |---|---|

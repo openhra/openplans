@@ -7,6 +7,7 @@ import { checkedCents, dateParts } from '../../domain/rating/rate-row.js';
 import type { Database, SqlSession } from '../../db/database.js';
 import { COMMUNITY_TIERS, communityFamilyPremium, parseCents } from '../../domain/rating/index.js';
 import type { CommunityFamilyRule, CommunityRate, CommunityTier, HouseholdMember } from '../../domain/rating/index.js';
+import { reflectivePublications, validateReflectiveRecord } from './reflective.js';
 
 export const communityRulesFile = fileURLToPath(new URL('../../../data/rating-rules/community-family-2026.json', import.meta.url));
 interface RecordData {
@@ -54,7 +55,8 @@ function cachedCellCents(value: unknown) {
 function sourceAllowed(state: string, url: unknown): url is string {
   if (typeof url !== 'string') return false;
   return state === 'NY' ? /^https:\/\/myportal\.dfs\.ny\.gov\/documents\/538523\/45010883\/[A-Za-z_]+_IND_(?:BOTHX|ONX)_[A-Z]{4}-\d{9}_ApprRatesTemplate$/.test(url)
-    : url === 'https://info.healthconnect.vermont.gov/sites/vhc/files/documents/2026_PlanDesigns_FinalRates.pdf';
+    : url === 'https://info.healthconnect.vermont.gov/sites/vhc/files/documents/2026_PlanDesigns_FinalRates.pdf'
+      || reflectivePublications.some(source => source.url === url);
 }
 
 export function parseStateArtifact(bytes: string): StateArtifact {
@@ -99,6 +101,9 @@ export function parseStateArtifact(bytes: string): StateArtifact {
       } else if (COMMUNITY_TIERS.some(tier => record.raw[tier] !== record.prices[tier])) {
         throw new Error('Filed tier differs from raw price cells');
       }
+      if (document.state === 'VT' && reflectivePublications.some(publication => publication.url === source.url)) {
+        validateReflectiveRecord(source, record);
+      }
     }
   }
   return document;
@@ -108,7 +113,7 @@ export function communityRate(document: StateArtifact, source: SourceData, recor
   const prices = Object.fromEntries(COMMUNITY_TIERS.map(tier => [tier, parseCents(record.prices[tier])])) as Record<CommunityTier, ReturnType<typeof parseCents>>;
   return {
     state: document.state, planYear: document.plan_year,
-    // VHC publishes names, not HIOS IDs. This is explicitly an internal key.
+    // VT publications supply names/design labels rather than verified HIOS IDs.
     planKey: record.plan_id ?? `${record.issuer}:${record.plan_name}`, region: record.region, prices,
     childOnly: record.child_only === 'Yes',
     provenance: { sourceUrl: source.url, sourceSha256: source.sha256, sourceRecord: record.source_record },
@@ -141,7 +146,8 @@ export async function ingestStateRates(db: Database, path: string, state: 'NY' |
     await tx.query('SELECT pg_advisory_xact_lock(1869636978)');
     const sourceId = `state-rates:${state}:2026`;
     await tx.query(`INSERT INTO source(source_id,publisher,source_kind,registry_evidence) VALUES($1,$2,'state-rates',$3)
-      ON CONFLICT DO NOTHING`, [sourceId, state === 'NY' ? 'New York DFS' : 'Vermont Health Connect', JSON.stringify(document.sources.map(s => s.url))]);
+      ON CONFLICT(source_id) DO UPDATE SET publisher=EXCLUDED.publisher,registry_evidence=EXCLUDED.registry_evidence`,
+    [sourceId, state === 'NY' ? 'New York DFS' : 'Vermont public community-rate publications', JSON.stringify(document.sources.map(s => s.url))]);
     await tx.query(`INSERT INTO snapshot(snapshot_id,source_id,retrieved_at,content_type,compressed_bytes,sha256,raw_path,
       schema_version,parser_version,expected_children,fetched_children,validation_state,activated_at)
       VALUES($1,$2,now(),'application/json',$3,$4,$5,'state-rates-v1','state-rates-v1',$6,$6,'ACTIVE',now()) ON CONFLICT DO NOTHING`,

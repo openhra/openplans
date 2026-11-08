@@ -6,7 +6,7 @@ is about parameter evidence, not a person's eligibility. No year in this release
 An unknown year, an explicitly unconfirmed file, a mismatched year, or invalid citation/schema data
 produces `parameters_unconfirmed` with all numerical fields null.
 
-Every policy value in each JSON file has a `value` and `citations` wrapper. A citation on a table
+Each JSON policy value has a `value` and `citations` wrapper. A citation on a table
 covers every cell in that table; its section identifies the region or Revenue Procedure table.
 All citations have retrieval date **2026-11-07**. `schemaVersion: 1` is the file format version,
 not a tax parameter. No network is required to validate or use these files.
@@ -116,8 +116,8 @@ if (estimate.status === 'estimated') {
 }
 ```
 
-The optional second `estimateAptc(input, parameters)` argument accepts an audited parameter object;
-the default is the generated immutable-by-type registry. Domain modules perform no file/network I/O.
+The optional second `estimateAptc(input, parameters)` argument accepts an audited parameter object.
+By default, it uses the generated registry, whose types prevent mutation. Domain modules perform no file/network I/O.
 Family size is the **tax family** size; SLCSP uses the **coverage family**, which can be smaller.
 `expectedContributionCents` is monthly; the annual trace is separately named.
 
@@ -161,12 +161,12 @@ node scripts/subsidy/check.mjs        # citation/schema/year checks + generated 
 npx vitest run tests/domain/subsidy
 ```
 
-The checker is exercised by `tests/domain/subsidy/parameters.test.ts`, so the unchanged
-`scripts/ci.sh` and repository gate both include it after building. It accepts an optional
+`tests/domain/subsidy/parameters.test.ts` exercises the checker, so the unchanged
+`scripts/ci.sh` and repository gate both run it after building. It accepts an optional
 quarantine directory containing year JSON files. It rejects missing citations, non-primary
 URLs, invalid dates, malformed tables, inconsistent increments/bands, mismatched year filenames,
-and stale generated output. Citation validation establishes traceability, not ongoing legislative
-currency: reviewing a future change still requires retrieving its primary sources and dates.
+and stale generated output. Citation validation checks that values have sources. It does not check whether legislation
+has changed. To review a future change, retrieve its primary sources and dates again.
 
 Negative controls use temporary files/source copies only: remove citations and observe the CLI
 exit 1; mark an otherwise valid year unconfirmed and observe all-null `parameters_unconfirmed`;
@@ -175,8 +175,8 @@ assertion fail (wrong 249% versus correct 200% FPL).
 
 The test households and invented ordering-test premiums are labelled **synthetic**. A separate
 integration test passes the real, committed rating fixture through our household rating engine
-before SLCSP selection. No live CMS comparison or enrollment eligibility determination was run;
-those need the later shopping/eligibility adapters and a matched household benchmark.
+before SLCSP selection. The checks did not compare live CMS results or determine enrollment eligibility.
+Those checks need the later shopping/eligibility adapters and a matched household benchmark.
 
 ## P5c audit: ZIP 77002, PY2026, single age 40, annual income $31,300
 
@@ -231,7 +231,7 @@ changing the established rounding algorithm solely to force $419.61 would contra
 The retrieved Form instructions are the 2025 edition; year-specific percentages still come from
 the 2026 Revenue Procedure, never that form's 2025 percentage table.
 
-A regression test now asserts **every** contribution intermediate and 41,976¢ against this real
+A regression test checks every contribution intermediate and 41,976¢ against this real
 benchmark. A disposable compiled source mutant calculates monthly cents directly; it produces
 41,961¢ and fails the same trace assertion. Monthly whole-dollar rounding without annual rounding
 happens to give the same $172 here, so that mutation alone cannot distinguish this household;
@@ -290,8 +290,8 @@ combined enrollment would need the separate allocation specified in (k).
 
 Run `npm run build`, then `OPENPLANS_PGLITE_DIR=/absolute/private/prepared/pglite
 node tests/api/subsidy-realdata.mjs` from `openplans/`. The server binds only 127.0.0.1,
-uses an in-memory, unlogged token and is shut down after the checks. No downloads or source
-mutations occur. On 2026-11-07 this ran against
+uses an in-memory, unlogged token and shuts down after the checks. It does not download files
+or change source data. On 2026-11-07 this ran against
 `$OPENPLANS_DATA_DIR/puf-pglite-p5c-subsidy-api`, a private filesystem clone of
 the prepared real P5b DB. Full output: `$OPENPLANS_DATA_DIR/reports/p5c-subsidy-http.json`.
 Enrollment rate rows at age 40: `11718TX0140016` **1847763**, `20069TX0100006`

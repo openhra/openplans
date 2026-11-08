@@ -30,8 +30,8 @@ NY/VT can never be assigned `per_member` by this importer; absent evidence retur
 
 The existing no-file `worker ingest rating-rules` command remains the TX PY2026
 bootstrap in `default-tx.json`. Use `worker ingest rating-rules --file
-data/rating-rules/2026.json` (or 2027) to activate the complete year set. The rule
-set is replaced atomically, so rerunning the TX bootstrap after an all-state load
+data/rating-rules/2026.json` (or 2027) to activate the complete year set. The importer
+replaces the rule set atomically. Rerunning the TX bootstrap after an all-state load
 revokes other 2026 states. This compatibility behavior preserves the original
 no-file scope; all-state ingestion and validation always select the year file.
 
@@ -40,5 +40,4 @@ community adapter. It records state-source tiers, nominal multipliers and the
 supported household mapping. Do not pass it to `ingest rating-rules`, whose v1
 schema still authorizes only the existing per-member API. Public state rates now
 exist in the staging adapter; the unsupported NY/VT entries in `2026.json` explain
-that the missing piece is native catalog/API integration, rather than public rate
-availability. No 2027 authorization is inferred. See `src/ingest/state/README.md`.
+that native catalog/API integration is still missing. Public rates are available. No 2027 authorization is inferred. See `src/ingest/state/README.md`.

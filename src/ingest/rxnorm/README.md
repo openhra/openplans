@@ -14,7 +14,7 @@ retains its snapshot, SHA-256, URL, retrieval date and local archive path in the
 schema. Every terminology row carries its snapshot and the original RRF line number.
 
 The three RRF members stream directly from the ZIP, with inspected paths/expansion limits
-and actual decompressed byte bounds and member CRC checks. No full feed is buffered or extracted. A bounded RRF
+and actual decompressed byte bounds and member CRC checks. The importer never buffers or extracts a full feed. A bounded RRF
 adapter escapes literal quotes before feeding `src/ingest/csv/readRecords` with `delimiter: '|'`;
 RRF quotes are data, not CSV quoting. Fixed column counts and the final pipe are mandatory.
 All inserts use bounded 500-row batches. The full import is one transaction, protected by a
@@ -62,8 +62,8 @@ and hash is a no-op on repetition; changed bytes under an already imported date 
   inverse edges into other products. UNION bounds cycles. Returned ingredient concepts carry
   the same snapshot ID as the source graph. Missing concepts or mappings return empty lists.
 
-Name search proposes candidates; a caller must select and verify an exact RxCUI before
-querying coverage (spec 10.1). No search result silently resolves a name, infers equivalence,
+Name search proposes candidates. Select and verify an exact RxCUI before
+querying coverage, as required by spec 10.1. No search result silently resolves a name, infers equivalence,
 or implies formulary coverage. The absence of terminology is not a coverage determination.
 
 ## Bootstrap a shopping database
@@ -112,7 +112,7 @@ These NDC attributes contain identifiers, not package/container descriptions.
 `RXNCONSO` clinical names are not container descriptions either: NLM explains this
 distinction in its [technical documentation, section 1](https://www.nlm.nih.gov/research/umls/rxnorm/docs/techdoc.html).
 Even a GPCK/BPCK name describes a clinical pack, not the bottle/carton presentation
-of each associated NDC. Therefore package `description` and `med_id` remain null,
+of each associated NDC. Package `description` and `med_id` therefore remain null,
 with `ndc_package_descriptions_and_med_ids_unavailable`. No clinical name is passed
 off as a container quantity and no other vocabulary's identifiers are copied.
 An FDA package-directory adapter could supply descriptions later; it is not part
@@ -132,7 +132,7 @@ python3 tests/fixtures/rxnorm/regenerate.py "$OPENPLANS_DATA_DIR/rxnorm-acquired
 No real downloads belong in the repository. The suppression test modifies a real fixture
 concept in its isolated test database: CPC itself has no suppressed RXNORM atoms. Other
 negative controls deliberately corrupt ZIP member bytes, coerce NDCs to numbers and remove `tradename_of`, then assert
-that the corresponding invariants fail. A malformed later release must quarantine without
+that the corresponding invariants fail. The importer must quarantine a malformed later release without
 replacing the prior terminology.
 
 With dev dependencies installed, run the full public release in a persistent PGlite database:

@@ -1,8 +1,8 @@
 # SADP filed rates, method sadp-filed-v1
 
 Reviewed 2026-11-07 for PY2026/PY2027 individual-market dental in the explicitly
-listed federal PUF state/year scopes in `src/domain/rating/dental.ts`. This is
-separate policy from the medical `rating-rules-v1` documents and does not activate
+listed federal PUF state/year scopes in `src/domain/rating/dental.ts`. This
+policy is separate from the medical `rating-rules-v1` documents. It does not activate
 medical rules for dental. There is no database migration or new ingestion command.
 A complete active PUF catalog, geography, plan attributes and business rules are
 required. SHOP and states outside this scope, including NY/VT dental, remain
@@ -47,8 +47,8 @@ The dictionary does not prove how `other`, multiple primary subscribers or
 child-only Family Option contracts map. Those cases return
 `unsupported_rating_method` with a reason. Minor Family Option subscribers also
 remain unsupported. Dependent ages must fit the filed maximum (inclusive).
-Required cohabitation cannot be established by this API's input and is unsupported;
-missing, conflicting or absent relationship entries cannot establish membership.
+The API's input cannot establish required cohabitation, so that case is unsupported.
+Missing, conflicting or absent relationship entries cannot establish membership.
 
 | Household | Filed Rate PUF column |
 |---|---|
@@ -61,15 +61,15 @@ missing, conflicting or absent relationship entries cannot establish membership.
 | Primary subscriber, spouse, two child dependents | CoupleAndTwoDependents |
 | Primary subscriber, spouse, at least three child dependents | CoupleAndThreeOrMoreDependents |
 
-Family columns are used only when Age is Family Option. Populated family columns
+The adapter uses family columns only when Age is Family Option. Populated family columns
 on an age row, mixed methods and unsupported composite methods fail closed.
 A missing filed price is unknown; conflicting rows are ambiguous. Nothing
 multiplies a single price to invent a family premium. Family Option rows may use
 No Preference or leave Tobacco blank, as NH does: these columns define contract
 totals and IndividualTobaccoRate applies only to age rows. Dual-tobacco family
 rows or separate tobacco prices are unsupported because no household tobacco
-mapping is defined in these columns. Source row/date/area evidence is
-retained; family totals have no invented per-member breakdown.
+mapping is defined in these columns. The adapter retains source row/date/area evidence.
+Family totals have no invented per-member breakdown.
 
 Age rows reuse the per-member selector and household sum, with the dental filed
 child limit and dictionary-defined No Preference semantics. The API also checks
@@ -102,14 +102,14 @@ node scripts/oracle/dental.mjs
 ```
 
 This uses only SHA/byte-verified acquired CMS archives in OPENPLANS_DATA_DIR. It
-owns `puf-pglite-p5e-dental`, not another lane's database. Python's CSV reader and
+uses its own `puf-pglite-p5e-dental` database and leaves other lanes' databases alone. Python's CSV reader and
 Decimal generate expectations without importing application code; the Node runner
-compares the persisted cents through the production dental adapter. Every TX SADP
-row is checked, including explicit unsupported SHOP rows. All age-band equivalence
-classes, both tobacco flags and both interval boundaries are covered. Five
+compares the persisted cents through the production dental adapter. The check covers every TX SADP
+row, including explicit unsupported SHOP rows. It covers all age-band equivalence
+classes, both tobacco flags and both interval boundaries. Five
 mixed-age households per group exercise the sum, child cap and EHB arithmetic.
-Arbitrarily many households cannot be literally enumerated: this is a finite
-basis of the supported member-selection, addition and cap rules, not that claim.
+The check uses a finite set of cases for the supported member-selection, addition
+and cap rules. It does not enumerate every possible household.
 
 TX2026 has no Family Option rows. The same check covers every non-TX SADP Family
 Option row, independently checking all eight columns with three and four children.

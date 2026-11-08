@@ -1,5 +1,5 @@
 `parseRateRow(raw, provenance, method?)` converts the published CMS CSV fields to
-integer cents while retaining the raw record, its interval, all family columns,
+integer cents. It retains the raw record, its interval, all family columns,
 and source identity. Blank prices become `null`; malformed decimals/dates/age
 bands throw. Supply `method` when business rules identify composite rating.
 Family Option or populated family-tier columns always require a separate adapter.
@@ -29,12 +29,12 @@ DOB when both are known, then input order. A Feb 29 birthday advances on March 1
 in non-leap years. Invalid input (including an empty household) throws; valid
 inputs with unavailable rates produce typed failure results. Results retain
 member calculations and the rate rows used, including provenance. Uncharged
-children need no rate row. Inputs are never mutated; this module performs no I/O.
+children need no rate row. The module never mutates inputs and performs no I/O.
 
 `communityFamilyPremium(rule, rate, members, coverageStart)` is the separate
 NY/VT PY2026 `community_family_tier` adapter. It selects four explicit filed-tier
-prices using the cited state's household mapping; age and tobacco do not price
-members. Nominal multipliers remain in the trace. It uses filed prices to retain
+prices using the cited state's household mapping; age and tobacco do not affect
+the price. Nominal multipliers remain in the trace. It uses filed prices to retain
 issuer rounding, and returns unsupported for child-only policies, unproved adult
 dependent extensions, absent rules and unsupported relationships. The existing
 per-member engine now also rejects NY/VT state rows even if a caller labels them

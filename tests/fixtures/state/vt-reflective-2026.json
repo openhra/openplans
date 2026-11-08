@@ -1,0 +1,251 @@
+{
+  "schema_version": "state-rates-v1",
+  "state": "VT",
+  "plan_year": 2026,
+  "sources": [
+    {
+      "url": "https://ratereview.vermont.gov/sites/dfr/files/documents/BCBSVT-Ind-Actuarial%20Memo-COMBINED.pdf",
+      "final_url": "https://ratereview.vermont.gov/sites/dfr/files/documents/BCBSVT-Ind-Actuarial%20Memo-COMBINED.pdf",
+      "status": 200,
+      "sha256": "0c6e85368bf739e620eb84bc3ddae4e7b111d1e18ae5de217067d69a781192a9",
+      "bytes": 2948068,
+      "content_type": "application/pdf",
+      "etag": null,
+      "last_modified": "Tue, 12 May 2026 15:22:17 GMT",
+      "retrieved_at": "2026-11-08T11:27:29.957448+00:00",
+      "user_agent": "openplans/0.1 (public health-plan source discovery; +https://plans.openhra.com/)",
+      "records": [
+        {
+          "plan_id": null,
+          "issuer": "BCBSVT",
+          "plan_name": "Vermont Preferred Silver - Reflective",
+          "region": "Vermont",
+          "prices": {
+            "single": "1080.37",
+            "couple": "2160.74",
+            "adult_children": "2085.11",
+            "family": "3035.84"
+          },
+          "child_only": "No",
+          "metal": "Silver",
+          "exchange": "Off",
+          "source_record": "page=82;exhibit=9-IND;table=2;year=2026;row=Vermont Preferred Silver - Reflective",
+          "raw": {
+            "single": "1080.37",
+            "couple": "2160.74",
+            "adult_children": "2085.11",
+            "family": "3035.84",
+            "rate_year": "2026",
+            "rate_status": "Approved",
+            "source_line": "Vermont Preferred Silver - Reflective       1.0746       $1,159.63       $2,319.26      $2,238.09         $3,258.56      $1,080.37         $2,160.74        $2,085.11        $3,035.84        7.3%           7.3%            7.3%            7.3%",
+            "name_kind": "published_plan_name"
+          }
+        },
+        {
+          "plan_id": null,
+          "issuer": "BCBSVT",
+          "plan_name": "Vermont Select Silver CDHP - Reflective",
+          "region": "Vermont",
+          "prices": {
+            "single": "1084.88",
+            "couple": "2169.76",
+            "adult_children": "2093.82",
+            "family": "3048.51"
+          },
+          "child_only": "No",
+          "metal": "Silver",
+          "exchange": "Off",
+          "source_record": "page=82;exhibit=9-IND;table=2;year=2026;row=Vermont Select Silver CDHP - Reflective",
+          "raw": {
+            "single": "1084.88",
+            "couple": "2169.76",
+            "adult_children": "2093.82",
+            "family": "3048.51",
+            "rate_year": "2026",
+            "rate_status": "Approved",
+            "source_line": "Vermont Select Silver CDHP - Reflective     1.0746       $1,139.27       $2,278.54      $2,198.79         $3,201.35      $1,084.88         $2,169.76        $2,093.82        $3,048.51        5.0%           5.0%            5.0%            5.0%",
+            "name_kind": "published_plan_name"
+          }
+        },
+        {
+          "plan_id": null,
+          "issuer": "BCBSVT",
+          "plan_name": "Standard Silver - Reflective",
+          "region": "Vermont",
+          "prices": {
+            "single": "1104.14",
+            "couple": "2208.28",
+            "adult_children": "2130.99",
+            "family": "3102.63"
+          },
+          "child_only": "No",
+          "metal": "Silver",
+          "exchange": "Off",
+          "source_record": "page=82;exhibit=9-IND;table=2;year=2026;row=Standard Silver - Reflective",
+          "raw": {
+            "single": "1104.14",
+            "couple": "2208.28",
+            "adult_children": "2130.99",
+            "family": "3102.63",
+            "rate_year": "2026",
+            "rate_status": "Approved",
+            "source_line": "Standard Silver - Reflective                1.0746       $1,174.53       $2,349.06      $2,266.84         $3,300.43      $1,104.14         $2,208.28        $2,130.99        $3,102.63        6.4%           6.4%            6.4%            6.4%",
+            "name_kind": "published_plan_name"
+          }
+        },
+        {
+          "plan_id": null,
+          "issuer": "BCBSVT",
+          "plan_name": "Standard Silver CDHP - Reflective",
+          "region": "Vermont",
+          "prices": {
+            "single": "1149.39",
+            "couple": "2298.78",
+            "adult_children": "2218.32",
+            "family": "3229.79"
+          },
+          "child_only": "No",
+          "metal": "Silver",
+          "exchange": "Off",
+          "source_record": "page=82;exhibit=9-IND;table=2;year=2026;row=Standard Silver CDHP - Reflective",
+          "raw": {
+            "single": "1149.39",
+            "couple": "2298.78",
+            "adult_children": "2218.32",
+            "family": "3229.79",
+            "rate_year": "2026",
+            "rate_status": "Approved",
+            "source_line": "Standard Silver CDHP - Reflective           1.0746       $1,218.34       $2,436.68      $2,351.40         $3,423.54      $1,149.39         $2,298.78        $2,218.32        $3,229.79        6.0%           6.0%            6.0%            6.0%",
+            "name_kind": "published_plan_name"
+          }
+        }
+      ]
+    },
+    {
+      "url": "https://ratereview.vermont.gov/sites/dfr/files/documents/MVP%20Ind%20Actuarial%20Memo-COMBINED.pdf",
+      "final_url": "https://ratereview.vermont.gov/sites/dfr/files/documents/MVP%20Ind%20Actuarial%20Memo-COMBINED.pdf",
+      "status": 200,
+      "sha256": "b0eefb0470e5e84519ea14ad2a2d38680eaa6f8a01467b59c2b50fe74faec595",
+      "bytes": 5280083,
+      "content_type": "application/pdf",
+      "etag": null,
+      "last_modified": "Tue, 12 May 2026 15:46:42 GMT",
+      "retrieved_at": "2026-11-08T11:27:49.741216+00:00",
+      "user_agent": "openplans/0.1 (public health-plan source discovery; +https://plans.openhra.com/)",
+      "records": [
+        {
+          "plan_id": null,
+          "issuer": "MVP",
+          "plan_name": "Non-Standard Silver Reflective Non-HDHP",
+          "region": "Vermont",
+          "prices": {
+            "single": "935.34",
+            "couple": "1870.68",
+            "adult_children": "1805.21",
+            "family": "2628.31"
+          },
+          "child_only": "No",
+          "metal": "Silver",
+          "exchange": "Off",
+          "source_record": "page=51;table=contract-rate-increases;year=2026;column=4",
+          "raw": {
+            "single": "935.34",
+            "couple": "1870.68",
+            "adult_children": "1805.21",
+            "family": "2628.31",
+            "rate_year": "2026",
+            "rate_status": "Approved",
+            "source_lines": "Single Rate                    $1,205.15          $1,135.39      $1,298.94             $935.34         $1,357.13      $975.71       $862.23          $824.14         $1,365.59      $1,144.62       $1,288.59       $928.05        $1,303.40       $938.36      $847.83      $830.73      $841.60         $399.78\nCouple Rate                    $2,410.30          $2,270.78      $2,597.88            $1,870.68        $2,714.26     $1,951.42     $1,724.46        $1,648.28        $2,731.18      $2,289.24       $2,577.18      $1,856.10       $2,606.80      $1,876.72    $1,695.66    $1,661.46    $1,683.20        $799.56\nAdult and Child(ren) Rate      $2,325.94          $2,191.30      $2,506.95            $1,805.21        $2,619.26     $1,883.12     $1,664.10        $1,590.59        $2,635.59      $2,209.12       $2,486.98      $1,791.14       $2,515.56      $1,811.03    $1,636.31    $1,603.31    $1,624.29        $771.58\nFamily Rate                    $3,386.47          $3,190.45      $3,650.02            $2,628.31        $3,813.54     $2,741.75     $2,422.87        $2,315.83        $3,837.31      $3,216.38       $3,620.94      $2,607.82       $3,662.55      $2,636.79    $2,382.40    $2,334.35    $2,364.90       $1,123.38      $203,057,099   $1,022.94     $12,275.24",
+            "name_kind": "published_column_labels",
+            "column": "4",
+            "design_label": "Non-Standard Silver Reflective Non-HDHP"
+          }
+        },
+        {
+          "plan_id": null,
+          "issuer": "MVP",
+          "plan_name": "Non-Standard Silver Reflective HDHP",
+          "region": "Vermont",
+          "prices": {
+            "single": "975.71",
+            "couple": "1951.42",
+            "adult_children": "1883.12",
+            "family": "2741.75"
+          },
+          "child_only": "No",
+          "metal": "Silver",
+          "exchange": "Off",
+          "source_record": "page=51;table=contract-rate-increases;year=2026;column=6",
+          "raw": {
+            "single": "975.71",
+            "couple": "1951.42",
+            "adult_children": "1883.12",
+            "family": "2741.75",
+            "rate_year": "2026",
+            "rate_status": "Approved",
+            "source_lines": "Single Rate                    $1,205.15          $1,135.39      $1,298.94             $935.34         $1,357.13      $975.71       $862.23          $824.14         $1,365.59      $1,144.62       $1,288.59       $928.05        $1,303.40       $938.36      $847.83      $830.73      $841.60         $399.78\nCouple Rate                    $2,410.30          $2,270.78      $2,597.88            $1,870.68        $2,714.26     $1,951.42     $1,724.46        $1,648.28        $2,731.18      $2,289.24       $2,577.18      $1,856.10       $2,606.80      $1,876.72    $1,695.66    $1,661.46    $1,683.20        $799.56\nAdult and Child(ren) Rate      $2,325.94          $2,191.30      $2,506.95            $1,805.21        $2,619.26     $1,883.12     $1,664.10        $1,590.59        $2,635.59      $2,209.12       $2,486.98      $1,791.14       $2,515.56      $1,811.03    $1,636.31    $1,603.31    $1,624.29        $771.58\nFamily Rate                    $3,386.47          $3,190.45      $3,650.02            $2,628.31        $3,813.54     $2,741.75     $2,422.87        $2,315.83        $3,837.31      $3,216.38       $3,620.94      $2,607.82       $3,662.55      $2,636.79    $2,382.40    $2,334.35    $2,364.90       $1,123.38      $203,057,099   $1,022.94     $12,275.24",
+            "name_kind": "published_column_labels",
+            "column": "6",
+            "design_label": "Non-Standard Silver Reflective HDHP"
+          }
+        },
+        {
+          "plan_id": null,
+          "issuer": "MVP",
+          "plan_name": "Standard Silver Reflective Non-HDHP",
+          "region": "Vermont",
+          "prices": {
+            "single": "928.05",
+            "couple": "1856.10",
+            "adult_children": "1791.14",
+            "family": "2607.82"
+          },
+          "child_only": "No",
+          "metal": "Silver",
+          "exchange": "Off",
+          "source_record": "page=51;table=contract-rate-increases;year=2026;column=12",
+          "raw": {
+            "single": "928.05",
+            "couple": "1856.10",
+            "adult_children": "1791.14",
+            "family": "2607.82",
+            "rate_year": "2026",
+            "rate_status": "Approved",
+            "source_lines": "Single Rate                    $1,205.15          $1,135.39      $1,298.94             $935.34         $1,357.13      $975.71       $862.23          $824.14         $1,365.59      $1,144.62       $1,288.59       $928.05        $1,303.40       $938.36      $847.83      $830.73      $841.60         $399.78\nCouple Rate                    $2,410.30          $2,270.78      $2,597.88            $1,870.68        $2,714.26     $1,951.42     $1,724.46        $1,648.28        $2,731.18      $2,289.24       $2,577.18      $1,856.10       $2,606.80      $1,876.72    $1,695.66    $1,661.46    $1,683.20        $799.56\nAdult and Child(ren) Rate      $2,325.94          $2,191.30      $2,506.95            $1,805.21        $2,619.26     $1,883.12     $1,664.10        $1,590.59        $2,635.59      $2,209.12       $2,486.98      $1,791.14       $2,515.56      $1,811.03    $1,636.31    $1,603.31    $1,624.29        $771.58\nFamily Rate                    $3,386.47          $3,190.45      $3,650.02            $2,628.31        $3,813.54     $2,741.75     $2,422.87        $2,315.83        $3,837.31      $3,216.38       $3,620.94      $2,607.82       $3,662.55      $2,636.79    $2,382.40    $2,334.35    $2,364.90       $1,123.38      $203,057,099   $1,022.94     $12,275.24",
+            "name_kind": "published_column_labels",
+            "column": "12",
+            "design_label": "Standard Silver Reflective Non-HDHP"
+          }
+        },
+        {
+          "plan_id": null,
+          "issuer": "MVP",
+          "plan_name": "Standard Silver Reflective HDHP",
+          "region": "Vermont",
+          "prices": {
+            "single": "938.36",
+            "couple": "1876.72",
+            "adult_children": "1811.03",
+            "family": "2636.79"
+          },
+          "child_only": "No",
+          "metal": "Silver",
+          "exchange": "Off",
+          "source_record": "page=51;table=contract-rate-increases;year=2026;column=14",
+          "raw": {
+            "single": "938.36",
+            "couple": "1876.72",
+            "adult_children": "1811.03",
+            "family": "2636.79",
+            "rate_year": "2026",
+            "rate_status": "Approved",
+            "source_lines": "Single Rate                    $1,205.15          $1,135.39      $1,298.94             $935.34         $1,357.13      $975.71       $862.23          $824.14         $1,365.59      $1,144.62       $1,288.59       $928.05        $1,303.40       $938.36      $847.83      $830.73      $841.60         $399.78\nCouple Rate                    $2,410.30          $2,270.78      $2,597.88            $1,870.68        $2,714.26     $1,951.42     $1,724.46        $1,648.28        $2,731.18      $2,289.24       $2,577.18      $1,856.10       $2,606.80      $1,876.72    $1,695.66    $1,661.46    $1,683.20        $799.56\nAdult and Child(ren) Rate      $2,325.94          $2,191.30      $2,506.95            $1,805.21        $2,619.26     $1,883.12     $1,664.10        $1,590.59        $2,635.59      $2,209.12       $2,486.98      $1,791.14       $2,515.56      $1,811.03    $1,636.31    $1,603.31    $1,624.29        $771.58\nFamily Rate                    $3,386.47          $3,190.45      $3,650.02            $2,628.31        $3,813.54     $2,741.75     $2,422.87        $2,315.83        $3,837.31      $3,216.38       $3,620.94      $2,607.82       $3,662.55      $2,636.79    $2,382.40    $2,334.35    $2,364.90       $1,123.38      $203,057,099   $1,022.94     $12,275.24",
+            "name_kind": "published_column_labels",
+            "column": "14",
+            "design_label": "Standard Silver Reflective HDHP"
+          }
+        }
+      ]
+    }
+  ]
+}

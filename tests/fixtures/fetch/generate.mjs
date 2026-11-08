@@ -11,20 +11,20 @@ function crc32(bytes) {
   }
   return (crc ^ 0xffffffff) >>> 0;
 }
-export function syntheticZip(entries, { zip64 = false } = {}) {
+export function syntheticZip(entries, { zip64 = false, stored = false } = {}) {
   const locals = [];
   const central = [];
   let offset = 0;
   for (const { name, body = 'synthetic fixture\n', symlink = false } of entries) {
     const filename = Buffer.from(name);
     const bytes = Buffer.from(body);
-    const compressed = deflateRawSync(bytes);
+    const compressed = stored ? bytes : deflateRawSync(bytes);
     const crc = crc32(bytes);
     const local = Buffer.alloc(30);
     local.writeUInt32LE(0x04034b50);
     local.writeUInt16LE(20, 4);
     local.writeUInt16LE(0x800, 6);
-    local.writeUInt16LE(8, 8);
+    local.writeUInt16LE(stored ? 0 : 8, 8);
     local.writeUInt32LE(crc, 14);
     local.writeUInt32LE(compressed.length, 18);
     local.writeUInt32LE(bytes.length, 22);
@@ -35,7 +35,7 @@ export function syntheticZip(entries, { zip64 = false } = {}) {
     header.writeUInt16LE(0x314, 4);
     header.writeUInt16LE(20, 6);
     header.writeUInt16LE(0x800, 8);
-    header.writeUInt16LE(8, 10);
+    header.writeUInt16LE(stored ? 0 : 8, 10);
     header.writeUInt32LE(crc, 16);
     header.writeUInt32LE(compressed.length, 20);
     header.writeUInt32LE(bytes.length, 24);

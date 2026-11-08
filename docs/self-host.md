@@ -209,3 +209,55 @@ under /data/raw. Re-establish UID 1000 write permissions on Linux.
 Inspect availability and repeat a known raw-row premium check before use.
 These are documented operator procedures; the P8b run validates bootstrap,
 not a disaster-recovery drill.
+
+## Memory budgets and runtime caching
+
+`OPENPLANS_DB_MEMORY` is a Postgres memory **budget**, default `1g`, accepting
+whole MiB/GiB (`512m` through `256g`). Set it before recreating the db service:
+
+~~~sh
+OPENPLANS_DB_MEMORY=4g docker compose up -d --force-recreate db
+~~~
+
+Allow memory for the API, optional Valkey, operating-system file cache and other
+services; do not assign all host RAM to this setting. The following starting
+profiles reserve half of each host for those uses:
+
+| Host RAM | DB budget | shared_buffers | effective_cache_size | work_mem | maintenance/autovacuum_work_mem | max_connections |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 4 GiB | 2g | 512 MiB | 1433 MiB | 2 MiB | 204 MiB | 64 |
+| 8 GiB | 4g | 1024 MiB | 2867 MiB | 2 MiB | 409 MiB | 100 |
+| 16 GiB | 8g | 2048 MiB | 5734 MiB | 5 MiB | 819 MiB | 100 |
+| 32 GiB | 16g | 4096 MiB | 11468 MiB | 10 MiB | 1024 MiB | 100 |
+
+The conservative `1g` default uses 256/716/2/102 MiB and 32 connections.
+The db service command calculates buffers at 25%, planner cache estimate at 70%,
+connections as budget MiB / 32 (20–100), maintenance memory as 10% (max 1024 MiB),
+and work memory as budget MiB / (connections × 16), clamped to 1–32 MiB.
+Parallel workers per gather are capped at two. The work-memory divisor leaves
+room for multiple sort/hash nodes and workers; it is not a hard RSS bound. The
+API pool uses five connections per process; include workers and every API replica
+when sizing the connection limit. Autovacuum workers also consume memory.
+`effective_cache_size` is a planner estimate, not an allocation. These are starting
+values; measure your query mix and concurrency before increasing them. See the
+[PostgreSQL memory documentation](https://www.postgresql.org/docs/16/runtime-config-resource.html).
+
+Search responses use a 64 MiB local LRU by default. To opt into the shared Valkey
+service, set `OPENPLANS_CACHE_URL=redis://cache:6379` in the local environment and:
+
+~~~sh
+OPENPLANS_CACHE_URL=redis://cache:6379 docker compose --profile cache up -d api cache
+~~~
+
+Both the URL and the profile are required; a profile alone starts the service but
+leaves the API in local LRU mode. `OPENPLANS_CACHE_MEMORY=256mb` controls Valkey's
+memory limit with `allkeys-lru` eviction and no persistence. It has no published
+host port. Set `OPENPLANS_API_CACHE_MB` for the local cap or
+`OPENPLANS_API_CACHE=off` to disable either backend. When an explicitly selected
+Valkey is down, requests bypass it and continue against Postgres; they do not fail
+or switch back to local storage. `/v1/cache-stats` reports cache counters and byte scope;
+`X-Cache` identifies each request's result. Imported data invalidates both backends
+at transaction commit, independently of endpoint TTLs.
+
+See the [cache contract](../src/api/cache/README.md) for eligible endpoints,
+credentials, invalidation, metrics, bounds, and operator inspection commands.

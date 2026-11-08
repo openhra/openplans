@@ -1,7 +1,7 @@
 # Native v1 API
 
-Read-only catalog, gross monthly premiums and conditional subsidy estimates from
-ACTIVE imported CMS and Census snapshots. Estimates do not establish eligibility
+The native API serves a read-only catalog, gross monthly premiums and conditional
+subsidy estimates from ACTIVE imported CMS and Census snapshots. Estimates do not establish eligibility
 or guarantee enrollment.
 
 ```text
@@ -42,7 +42,7 @@ Run `worker ingest rating-rules` after migration. The default committed source i
 data/rating-rules/2026.json; `--file path` selects another document. Importing a
 replacement selects the whole year's rule set atomically, including empty sets.
 Only TX/2026/individual is currently supported. NY/VT per-member rules are rejected.
-The cited method is looked up for each plan's state, year and market, independently
+The API looks up the cited method for each plan's state, year and market, independently
 of PUF catalog snapshots. Unsupported methods never return total_cents.
 
 Personalized requests require `Authorization: Bearer <configured token>` with
@@ -96,7 +96,7 @@ Gross-only requests retain their existing shape. With subsidy inputs, each plan 
 
 The existing gross `status` and `total_cents` retain their meanings. The nested
 `subsidy.estimated_monthly_tax_credit_cents` is the household credit before the
-per-plan cap. Unresolved credit/net are null, never zero. The domain's
+per-plan cap. Unresolved credit/net stay null, never zero. The domain's
 `above_income_cliff` is mapped to API `over_income_limit`; a confirmed above-limit
 household with a calculated benchmark receives zero credit. Other states include
 `parameters_unconfirmed`, `requires_state_rules`, `requires_tax_filing_review`,
@@ -114,8 +114,8 @@ This convenience route rates January 1; use premium-estimates for an explicit da
 DOB and relationship. All members are requesting one policy at the supplied location.
 The response lists `lowest_silver_plans` (up to two distinct base plans) with gross,
 EHB monthly cents, `pediatric_dental_adjustment_cents`, `benchmark_monthly_cents`
-(EHB plus dental), the published EHB fraction, and source provenance. One eligible
-silver plan is its own benchmark, following P5a. Tied distinct offers count separately.
+(EHB plus dental), the published EHB fraction, and source provenance. If there is only one eligible
+silver plan, its premium is the benchmark, following P5a. Tied distinct offers count separately.
 
 Benchmark selection scans the complete loaded on-exchange silver offer set for
 the county/ZIP, independently of requested plan IDs. A missing, ambiguous or
@@ -243,12 +243,12 @@ next_page refer to records, so one NPI may appear in several issuer records.
 
 Search resolves the requested plan and current source shards to indexed record keys before
 building response evidence. Participation and all ordinary/radius filters run before paging;
-evidence, full address objects and identity enrichment are built for the returned page only.
+the API builds evidence, full address objects and identity enrichment only for the returned page.
 `total` is an exact record count, including on empty or out-of-range pages; no estimate is used.
 Migrations 580–582 add a shard-scoped GIN index over literal name trigrams using PostgreSQL's
 built-in array operators (no extension), positive membership keys and covering identity keys.
-This is a candidate prefilter; the original case-insensitive substring
-predicate remains authoritative, including matches across issuer and NPPES name fields. Terms
+This index selects candidates. The original case-insensitive substring
+predicate still decides matches, including those across issuer and NPPES name fields. Terms
 shorter than four characters and wildcard patterns retain the ordinary record-key path. Grouped evidence still
 honors per-record overrides and suppressed ordinals, preserving duplicate publisher associations.
 
@@ -259,7 +259,7 @@ snapshot through the indexed address expression. Identity filters then select re
 keys, followed by exact grouping/counting and pagination; full identities are fetched
 for the page. Issuer radius search intersects spatial hits with current participating
 record keys before indexed address validation. Record IDs may contain colons; the
-last source-key component is the address ordinal, and the full key is rechecked.
+last source-key component is the address ordinal, and the API rechecks the full key.
 
 `total` and `meta.unlocated` remain exact, including empty and out-of-range pages.
 The unlocated count is an independent anti join over **all** identity/plan-filtered
@@ -351,7 +351,7 @@ A gross estimate can be rated even when the requested variant's cost sharing is
 unknown. State-filed catalogs without PUF variants return unknown variant evidence
 and null `premium_varies_by_csr`.
 
-The caller must already know which variant to request. Income, subsidy results,
+Choose the variant before making the request. Income, subsidy results,
 tribal status, network and formulary evidence never select a CSR variant.
 `csr_eligibility_status` remains `not_evaluated`. The standard default is a display
 choice, not a finding that a household has no CSR eligibility.

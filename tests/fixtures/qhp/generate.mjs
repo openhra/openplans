@@ -2,7 +2,7 @@
 import { syntheticZip } from '../fetch/generate.mjs';
 import { writeFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
-export function workbook({ sharedStrings, sheet, first = 'sheet1.xml', extra = [] }) {
+export function workbook({ sharedStrings, sheet, first = 'sheet1.xml', extra = [], stored = true }) {
   const entries = [
     { name: 'xl/workbook.xml', body: '<?xml version="1.0"?><workbook xmlns:r="synthetic"><sheets><sheet name="synthetic" r:id="rId1"/></sheets></workbook>' },
     { name: 'xl/_rels/workbook.xml.rels', body: `<Relationships><Relationship Id="rId1" Target="worksheets/${first}" Type="synthetic/worksheet"/></Relationships>` },
@@ -10,7 +10,8 @@ export function workbook({ sharedStrings, sheet, first = 'sheet1.xml', extra = [
     ...extra,
   ];
   if (sharedStrings !== undefined) entries.push({ name: 'xl/sharedStrings.xml', body: sharedStrings });
-  return syntheticZip(entries);
+  // Golden bytes must not depend on the platform's zlib implementation.
+  return syntheticZip(entries, { stored });
 }
 export function dishonestZip() {
   const zip = syntheticZip([{ name: 'synthetic-bomb.xml', body: 'A'.repeat(256 * 1024) }]);
@@ -30,7 +31,8 @@ export function dishonestRatioZip() {
   bytes.writeUInt32LE(central + padding.length, bytes.length - 22 + 16);
   return bytes;
 }
-export const syntheticWorkbook = () => workbook({
+export const syntheticWorkbook = ({ stored = true } = {}) => workbook({
+  stored,
   sharedStrings: '<sst><si><t>State</t></si><si><r><t>Issuer </t></r><r><t>ID</t></r></si><si><t>URL Submitted</t></si><si><t>TX</t></si><si><t>https://synthetic.example/index.json?x=1&amp;y=2</t></si></sst>',
   sheet: '<worksheet><sheetData><row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1" t="s"><v>1</v></c><c r="C1" t="s"><v>2</v></c></row><row r="2"><c r="A2" t="s"><v>3</v></c><c r="B2"><v>76589</v></c><c r="C2" t="s"><v>4</v></c></row><row r="3"><c r="A3" t="inlineStr"><is><t>A &amp; B &#x1F600;</t></is></c><c r="C3"><f>1+1</f><v>2</v></c></row></sheetData></worksheet>',
 });

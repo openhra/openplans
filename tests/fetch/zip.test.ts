@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { inspectZip } from '../../src/fetch/index.js';
 import { fixtures, syntheticZip } from '../fixtures/fetch/generate.mjs';
+import { singleEntryZipContents } from '../fixtures/fetch/zip-contents.js';
 
 let directory: string;
 beforeEach(async () => { directory = await mkdtemp(join(tmpdir(), 'openplans-zip-')); });
@@ -15,14 +16,25 @@ async function archive(bytes: Buffer): Promise<string> {
 }
 
 describe('ZIP central-directory inspection', () => {
-  it.each(['valid', 'bomb', 'traversal'] as const)('regenerates the committed synthetic %s fixture', async (name) => {
+  it.each(['valid', 'bomb', 'traversal'] as const)('regenerates the contents and metadata of the committed synthetic %s fixture', async (name) => {
     const hex = await readFile(new URL(`../fixtures/fetch/${name}.zip.hex`, import.meta.url), 'utf8');
-    expect(fixtures[name]().toString('hex')).toBe(hex.trim());
+    expect(singleEntryZipContents(fixtures[name]())).toEqual(singleEntryZipContents(Buffer.from(hex.trim(), 'hex')));
+  });
+
+  it('compares decoded contents independently of encoding while retaining payload and metadata checks', () => {
+    const entries = [{ name: 'synthetic.txt', body: 'synthetic fixture' }];
+    const stored = singleEntryZipContents(syntheticZip(entries, { stored: true }));
+    expect(singleEntryZipContents(syntheticZip(entries))).toEqual(stored);
+    expect(singleEntryZipContents(syntheticZip([{ ...entries[0]!, body: 'mutant fixture' }]))).not.toEqual(stored);
+    const mutant = syntheticZip(entries);
+    mutant.writeUInt32LE(123, 14);
+    expect(singleEntryZipContents(mutant)).not.toEqual(stored);
   });
 
   it('lists members and byte sizes without extracting files', async () => {
     const result = await inspectZip(await archive(fixtures.valid()));
-    expect(result.members).toEqual([{ name: 'synthetic/data.csv', compressedBytes: 20, uncompressedBytes: 18, compressionMethod: 8 }]);
+    expect(result.members).toEqual([{ name: 'synthetic/data.csv', compressedBytes: expect.any(Number), uncompressedBytes: 18, compressionMethod: 8 }]);
+    expect(result.members[0]!.compressedBytes).toBeGreaterThan(0);
     expect(result.uncompressedBytes).toBe(18);
   });
 

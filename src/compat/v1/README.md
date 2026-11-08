@@ -1,7 +1,7 @@
 # Compatibility API
 
-This module maps native OpenPlans repositories/domain results into the keys,
-primitive types and nesting observed in captured reference responses and the
+This module maps results from native OpenPlans repositories and domain functions to the keys,
+primitive types and nesting found in captured reference responses and the
 reference-capture mock's route handlers. It never loads captures at runtime or contacts a vendor API. Remove
 the single mount line in `src/api/app.ts` and delete this directory and its tests
 to remove the facade. There are no new dependencies or native schema changes.
@@ -36,8 +36,8 @@ Harris single/family captures have the same sequence despite different premiums;
 they group carriers but do not establish an ordering rule within those groups.
 Public source row order does not reproduce it either. No captured ranking table is
 installed as catalog data. `default_plan_order_unverified` flags the public-ID fallback.
-Consequently, first-page membership is still not identical to the captured page:
-public plans outside that captured page can appear before public plans on it.
+As a result, the first page still differs from the captured page.
+Public plans outside that captured page can appear before public plans on it.
 Use explicit `sort` for a reproducible public ordering, or `ids` for a particular
 comparison set. Missing public plans remain absent, with no invented placeholders.
 
@@ -141,10 +141,10 @@ arrays stay empty when `providers` or `drug_packages` were requested, with an
 explicit coverage gap; no synthetic participation is injected.
 
 Some captures have non-null scalar values for which public/native evidence is
-unavailable. Those fields are **nullable extensions** to the observed shape,
-with a gap header: they cannot truthfully satisfy a client's strict non-null
-vendor schema. Consumers must accept nulls. Missing evidence never becomes
-`false`, `0`, “not covered”, a guessed document URL or a fabricated premium.
+unavailable. Those fields extend the observed shape to allow nulls,
+with a gap header. They cannot satisfy a client's strict non-null
+vendor schema without inventing data. Consumers must accept nulls. Missing evidence never becomes
+`false`, `0`, "not covered", a guessed document URL or a fabricated premium.
 The shape oracle enforces required keys, non-null primitive types and nesting,
 allows these nulls/empty collections, and omits private capture-only provenance metadata.
 
@@ -196,8 +196,8 @@ associations; packages retain each association. `med_id`, package descriptions
 and separately resolved ingredient-strength fields are null. Brand concept
 names populate `proprietary_name`; other concept names populate
 `non_proprietary_name`. The other name is null. No commercial NDC-product IDs,
-package quantities or patient prices are invented. The response header calls
-out these identity/count/metadata gaps.
+package quantities or patient prices are invented. The response header lists
+these identity/count/metadata gaps.
 
 An empty catalog import does not include terminology. Load RxNorm into the same
 database as the API using the [terminology bootstrap steps](../../ingest/rxnorm/README.md#bootstrap-a-shopping-database).
@@ -240,11 +240,11 @@ Optional capture tests read only `OPENPLANS_REFERENCE_CAPTURES_DIR` and skip whe
 They derive shapes directly for all captured covered route files, execute the
 ported covered request list, and check 43 public Harris County premiums against
 the 50-plan capture. For the only captured detail (MN), the exact request must
-return 404; its vocabulary is additionally checked against a real TX detail.
+return 404; the tests also check its vocabulary against a real TX detail.
 MN/other unloaded states are empty, never substituted with TX. The ported API
 request list covers **19 reference-capture mock cases**, excluding its service-specific dashboard.
 That includes the four provider requests; TX equivalents check nonempty shapes.
-The captured MN detail remains an honest 404 and unknown drug/ZIP searches return
+The captured MN detail returns 404 and unknown drug/ZIP searches return
 empty 200 responses with evidence gaps rather than a mock fixture-cache 404.
 
 The committed CMS CSV cuts retain archive hashes, source row offsets and their
@@ -275,7 +275,7 @@ Archive-dependent HTTP comparisons are maintained only in the source checkout.
 | `GET /plans/dental/:id` | SADP base/variant HIOS identifier, optional `year` |
 | `POST /plans/vision/search` | Required `fips_code`, nonempty `applicants`; explicit unsupported result |
 
-Provider search additionally accepts native `plan_id` with optional `year`
+Provider search also accepts native `plan_id` with optional `year`
 (default 2026, flagged), and `taxonomy` or `specialty`. Taxonomy codes returned by
 `/specialties` work as the specialty filter. Searches delegate to the native
 `/v1/providers` logic, including its plan participation and geographic checks.
@@ -353,5 +353,5 @@ Conflicting selectors return 400. Missing selected evidence leaves existing wire
 fields null and adds `variant_cost_sharing_unknown`; defaulted selection adds
 `standard_on_exchange_variant_defaulted`. There is no income-to-CSR mapping.
 Existing deductible/MOOP text fields label network tiers, accumulator scopes and any integrated
-medical/drug accumulator. Service fields retain publisher conditions. No new
-response fields are introduced, and gross premiums continue to use base-plan rates.
+medical/drug accumulator. Service fields retain publisher conditions. The facade adds no new
+response fields. Gross premiums continue to use base-plan rates.

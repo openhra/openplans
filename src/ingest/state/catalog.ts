@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises';
 import type { SqlSession } from '../../db/database.js';
 import type { CommunityFamilyRule, CommunityRate } from '../../domain/rating/index.js';
 import { parseCommunityRules } from './index.js';
+import { reflectivePublication } from './reflective.js';
 
 const geography = JSON.parse(await readFile(new URL('../../../data/rating-rules/state-geography-2026.json', import.meta.url), 'utf8')) as {
   plan_year: number;
@@ -34,7 +35,7 @@ export interface StateCatalogRow extends Record<string, unknown> {
   hios_match_reason: string | null; hios_candidates: Record<string, unknown>[] | null;
   hios_match_rule: string | null; hios_match_provenance: Record<string, unknown> | null;
   sbe_exchange?: { on_exchange: boolean; off_exchange: boolean;
-    snapshot_id: string; source_rows: number[] } | null;
+    snapshot_id: string; source_rows: number[]; source_record?: string; source_url?: string; source_sha256?: string } | null;
 }
 export async function stateCatalog(db: SqlSession, year: number, state?: string, key?: string, region?: string) {
   return (await db.query<StateCatalogRow>(`SELECT a.state,a.plan_year,r.*,i.rules_document,
@@ -61,7 +62,18 @@ export async function stateCatalog(db: SqlSession, year: number, state?: string,
     ) e ON true
     WHERE a.plan_year=$1 AND ($2::text IS NULL OR a.state=$2)
       AND ($3::text IS NULL OR r.plan_key=$3 OR h.hios_id=$3) AND ($4::text IS NULL OR r.region=$4)
-    ORDER BY r.plan_key,r.region,r.source_index,r.record_index`, [year, state ?? null, key ?? null, region ?? null])).rows;
+    ORDER BY r.plan_key,r.region,r.source_index,r.record_index`, [year, state ?? null, key ?? null, region ?? null])).rows.map(row => {
+    if (row.state === 'VT' && row.raw_record.exchange === 'Off'
+      && reflectivePublication(row.rate.provenance.sourceUrl, row.rate.provenance.sourceSha256)) {
+      // This exchange-evidence slot also carries the separately cited state
+      // filing. An empty CSV-row list never pretends a PDF is a PUF.
+      return { ...row, sbe_exchange: { on_exchange: false, off_exchange: true,
+        snapshot_id: row.publication_snapshot_id, source_rows: [],
+        source_record: row.rate.provenance.sourceRecord, source_url: row.rate.provenance.sourceUrl,
+        source_sha256: row.rate.provenance.sourceSha256 } };
+    }
+    return row;
+  });
 }
 export function catalogRule(row: StateCatalogRow): CommunityFamilyRule | null {
   // Revalidate the stored authorization at the API boundary; a per-age mutant

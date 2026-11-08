@@ -3,7 +3,7 @@
 Surveyed 2026-11-07. Public rate publications exist for both states. P8a supplies
 source preparation, staging, and the pure filed-tier calculator. P8c connects the
 staged catalog to the API repository, filed-tier quotes, and data availability.
-NY HIOS base IDs work through native premium HTTP. VT keeps issuer + published
+Native premium HTTP requests accept NY HIOS base IDs. VT keeps issuer + published
 plan name keys; `plan_keys` requests select its filed tiers. Supplemental CMS SBE
 identity evidence supplies `hios_id` only for a unique exact match under the rule
 below. Matched base HIOS IDs also work in native `plan_ids` requests and detail
@@ -113,8 +113,8 @@ and rule version in `state_vt_hios_match`. Historical results are retained. It
 records the original publication snapshot, URL, SHA-256, PDF cell location, issuer,
 and name; the normalized tuple; and every candidate base HIOS ID with bundle URL,
 SHA-256, attribute member/snapshot, and physical source rows (including variants).
-The result is `matched`, `ambiguous`, or `none`, with a reason. No rate or raw
-record is updated, and the supplemental SBE catalog is never a pricing pointer.
+The result is `matched`, `ambiguous`, or `none`, with a reason. The join never updates a rate or raw
+record. The supplemental SBE catalog never selects the pricing source.
 
 The rule is scoped to VT and the same plan year:
 
@@ -148,14 +148,14 @@ break. Activation triggers populate the join in either import order; migration
 backfills deployments with both sources already installed. Partial/quarantined
 imports cannot replace a valid source. `state_vt_hios_current` limits results to
 the current state-rate pointer and current SBE set. Re-importing the same inputs
-is idempotent for each import pair.
+leaves the results unchanged for each import pair.
 
 Native plan views and estimates expose `hios_match`, `hios_candidates`, rule,
 reason and match provenance when there are candidate identities. With zero
 candidates the API keeps a stable `none` / `no_verified_hios_match` response and
 null match provenance, so an unrelated supplemental import cannot change it.
 The audit table retains the attempted rule, precise reason and source provenance
-even for zero candidates. The pricing key remains `plan_key`; HIOS IDs are
+even for zero candidates. The pricing key remains `plan_key`. HIOS IDs are
 lookup aliases. Compatibility searches by key and details by key or HIOS publish
 the actual joined HIOS identifier in `identifiers`, never an internal key in a
 HIOS field. Compatibility search `ids` filtering still compares internal keys;
@@ -220,3 +220,87 @@ retains its named keys and supplements them only with evidenced HIOS matches.
 `nativecheck.mjs` tests actual Postgres/TCP HTTP against the full cached corpus and writes failures as
 `PARTIAL`, separately from its explicit VT library checks. Its `--candidate` option
 only selects a separate report filename for review-copy testing.
+
+## Optional VT reflective Silver supplement (PY2026)
+
+`reflective.py` adds eight separately published off-exchange Silver designs to a
+**copy** of the original 26-design artifact. It does not replace the original
+`vt-2026.json` or infer missing HIOS IDs. The additional evidence is from two
+public GMCB docket downloads:
+
+- [BCBSVT actuarial memo](https://ratereview.vermont.gov/sites/dfr/files/documents/BCBSVT-Ind-Actuarial%20Memo-COMBINED.pdf),
+  SHA-256 `0c6e85368bf739e620eb84bc3ddae4e7b111d1e18ae5de217067d69a781192a9`,
+  physical PDF p.82, Exhibit 9-IND, Table 2. Select only the four columns headed
+  **2026 Approved Rates**, for the four named Reflective Silver rows.
+- [MVP actuarial memo](https://ratereview.vermont.gov/sites/dfr/files/documents/MVP%20Ind%20Actuarial%20Memo-COMBINED.pdf),
+  SHA-256 `b0eefb0470e5e84519ea14ad2a2d38680eaa6f8a01467b59c2b50fe74faec595`,
+  physical PDF p.51, individual contract/benefit-plan rate-increase table. Select
+  only the four rows under **2026 Approved Rates**, Reflective Silver columns
+  4/6/12/14 (one-based, excluding the row-label column).
+
+Both publications are filings for 2027, but expressly print approved **2026**
+prices as comparison data. Proposed 2027 cells, increase percentages, PMPM,
+aggregate revenue, and newly proposed designs without 2026 prices are excluded.
+No current-year approval is inferred from a proposed rate. Each imported price
+is one explicit monthly family-tier cell, never a multiplier applied to an
+already rounded single premium. All 32 prices are available; a missing cell
+rejects the supplement and preserves the active catalog, never emitting zero.
+The existing cited VT individual community-family rule continues to apply.
+
+BCBSVT uses its published row names. MVP's price table identifies designs by
+Standard/Non-Standard, Silver, Reflective, and HDHP/Non-HDHP column hierarchy.
+Its internal names concatenate those published design labels, e.g.
+`MVP:Non-Standard Silver Reflective Non-HDHP`; they are **not claims of an
+issuer marketing name**. Neither source establishes a 2026 HIOS ID alongside
+these cells. HIOS stays null, and no 2027 HIOS identity is transferred backward.
+The existing exact-match rule does not merge these records into the original
+on-exchange Silver designs. This supplies eight priced design records. It does not
+verify a match to eight externally observed HIOS IDs.
+
+Source review on 2026-11-08: public anonymous state docket downloads, no login
+or captcha; paths permitted by the state's `robots.txt`. [Vermont website
+policies](https://www.vermont.gov/policies) provide no dataset-specific reuse
+licence here and do not state a prohibition on extraction of these factual rate
+cells. Keep URLs, hashes, physical PDF coordinates and original source text;
+fixtures contain only small factual table cuts. This is not a licence claim for
+complete documents, logos, photography, or issuer prose. The direct issuer
+premium charts were rejected as import sources: [BCBSVT terms](https://www.bluecrossvt.org/documents/website-terms-and-conditions)
+restrict copying without permission, and [MVP terms](https://www.mvphealthcare.com/terms-of-use)
+restrict extraction and incorporation into a database. No restricted issuer
+chart is acquired by the preparation tool. The external lane source survey has
+the full candidate-by-candidate access and terms record.
+
+From `openplans/`, using the external cache containing the original full VT
+artifact and pinned publications:
+
+```sh
+python3 src/ingest/state/reflective.py --data-dir /absolute/cache
+# Optional first acquisition of missing public state publications:
+python3 src/ingest/state/reflective.py --data-dir /absolute/cache --acquire
+# Regenerate the two small real fixtures (no network by default):
+python3 src/ingest/state/reflective.py --data-dir /absolute/cache --fixtures
+npm run build
+node dist/worker/cli.js ingest state --state VT --file /absolute/cache/derived/state-rating/vt-2026-with-reflective.json
+```
+
+The worker's existing original-byte verification applies to all three PDFs. The
+state catalog carries the supplemental PDF's exchange evidence through the
+existing native and compatibility repositories: `on_exchange: false`,
+`off_exchange: true`, `metal: Silver`, `hios_id: null`. `provenance.exchange`
+contains the publication snapshot, URL, hash and PDF record coordinate; its
+CSV `source_rows` list is empty because this source is a PDF. No new filter
+parameter, subsidy entitlement, benefit identity or enrollment eligibility is
+asserted. Ingest the combined artifact when serving the supplement; ingesting
+the original artifact intentionally serves the original catalog again.
+
+`node src/ingest/state/reflectivecheck.mjs /absolute/cache` verifies the original
+PDF hashes, stages the full 34-design catalog in isolated PGlite, activates the
+cached supplemental CMS identity evidence, then exercises native and
+compatibility requests over loopback TCP. It checks 104 original tier prices,
+32 reflective tier prices, all 34 compatibility single premiums/market flags,
+unknown reflective HIOS IDs, and byte-identical original rate data. Output is
+`reports/p8h-vt-http.json` outside git. This is not a production Postgres or
+PostGIS deployment check. Offline tests additionally reject altered premium
+cells, missing prices, wrong-year headings, changed publication hashes, corrupt
+raw bytes, and an attempted cross-year HIOS assignment; changed age/tobacco
+inputs keep the published community prices.

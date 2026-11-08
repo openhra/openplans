@@ -7,10 +7,10 @@ npm run build
 npm run worker -- ingest qhp formulary --year 2026 --state TX --issuer 76589
 ```
 
-Missing plan and formulary children are downloaded through `fetchToCache` with a 4 GiB cap.
+The importer downloads missing plan and formulary children through `fetchToCache` with a 4 GiB cap.
 The command selects every formulary child advertised by
 all issuer registry rows in the latest discovery run, deduplicating by kind and original URL
-hash (including distinct query shards). Historical discovery runs are not unioned. Cached
+hash (including distinct query shards). It does not combine historical discovery runs. Cached
 plan children supply published tier definitions; cached bytes are SHA-256 checked while
 streaming. Drug record and association indexes are zero-based.
 
@@ -22,7 +22,7 @@ for the issuer's catalog markets, without overwriting catalog/premium/provider p
 
 Only active PUF catalog plans in the requested state/year/issuer are retained. Unknown target
 plans generate counted `plan_not_in_catalog` issues; other states/issuers/years are skipped.
-Publisher duplicate associations are retained with their association index. Missing/null
+The importer retains duplicate publisher associations with their association index. Missing/null
 optional flags remain NULL. Nonboolean flags reject the association and quarantine the set.
 Unresolved tier labels remain verbatim on ACTIVE edges with `tier_status: unresolved`.
 Migration 330 adds the explicit tier status. These labels generate one warning per label × plan
@@ -37,7 +37,7 @@ All required shards must reach EOF, pass hash/schema validation, and have an ava
 catalog before publication. One issuer-scoped transaction/advisory lock atomically publishes
 the ACTIVE pointer and manifest. Any failed attempt leaves prior ACTIVE snapshots and their
 positive evidence intact. Its latest manifest blocks absence from becoming `not_listed`.
-Exit status is 1 for a quarantined attempt; the JSON report is still emitted.
+A quarantined attempt exits 1 and still emits the JSON report.
 
 Use `createDrugRepository(db).drugCoverage(planId, rxcui, year)` from `domain/drugs`.
 The exact RxCUI must exist in the current ACTIVE RxNorm release. A 17-character variant
@@ -61,7 +61,7 @@ python3 src/ingest/qhp/formulary-compare.py
 Regeneration uses cached real Cigna files plus the real active PUF and RxNorm PGlite databases;
 it retains selected drug objects, projects only tier fields from plans, and excludes contact
 fields. Source hashes and original drug indexes are in fixture provenance. Mutants and their
-acquisition/catalog identity harnesses are labelled synthetic in tests. Every fixture is below
+acquisition/catalog identity test setups are labelled synthetic in tests. Every fixture is below
 200 KB. CI needs neither the data cache nor network access.
 
 The developer runner clones `qhp-pglite-p2b-integrated` into `formulary-pglite-p2c` on first run,
@@ -74,7 +74,7 @@ Archive-dependent comparisons are omitted from public releases.
 The measured live Cigna file has two tier labels absent from its plan definitions. Under the
 2026-11-07 tier policy it is ACTIVE with 44 warnings, covering 35,226 unresolved associations.
 Truncated/missing shards, malformed records, unknown years and string booleans still quarantine.
-Production PostgreSQL/Docker was not exercised.
+This validation did not run production PostgreSQL/Docker.
 
 `OPENPLANS_FORMULARY_REPORT` changes the developer runner's report filename
 (default `p2c-formulary-realdata.json`). Reports retain the source hashes,
@@ -101,7 +101,7 @@ Migration 420 extends the manifest to `complete`, `partial`, `failed`, `access_d
 `unknown`. The batch considers each registry issuer's latest discovery run. It imports readable
 indexes and also writes unknown/denied rows for unreadable indexes, so they are visible in the
 manifest. An absent kind is unknown. One issuer's failure never stops the next issuer. A batch
-returns exit 1 if any issuer is incomplete and still emits every issuer's report.
+exits 1 if any issuer is incomplete and still emits every issuer's report.
 
 Plan definitions and the requested kind are deduplicated by the original URL hash, including
 across issuers. Cached acquisition metadata is reused through the safe fetcher and feed hashes

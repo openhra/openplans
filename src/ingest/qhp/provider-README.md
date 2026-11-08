@@ -2,13 +2,13 @@
 
 `worker ingest qhp providers --year 2026 --state TX --issuer 76589` uses the latest
 registry-backed discovery run and the active PUF catalog. Run discovery and catalog import
-first. Missing provider children are acquired through `fetchToCache`, restricted to the
+first. The importer acquires missing provider children through `fetchToCache`, restricted to the
 index's evidenced child hosts, with a 4 GiB bound. Existing downloaded children are streamed
 and SHA-256 checked at EOF. No dependencies were added.
 
 The importer exhausts every advertised provider child and every plan definition before
 publishing an issuer/year/state source set. If required definitions fail fetch, structure or
-integrity checks, publication is already impossible: every provider shard is recorded as
+integrity checks, the importer cannot publish. It records every provider shard as
 failed with `plan_definitions_incomplete`, without acquiring or parsing its provider bytes.
 The source-set issue retains the definition failure; prior ACTIVE evidence is preserved.
 Zero-record/zero-edge attempts derive zero identity and pair counts without scanning
@@ -20,7 +20,7 @@ are counted, omitted, and quarantine the attempt. Unknown catalog plans are coun
 omitted. Undeclared network tiers are counted warnings: the edge retains the publisher's
 label with `tier_status=unresolved`, with a warning alongside the publisher's participation evidence.
 
-Records are preserved from the whole national feed, including records without target plan
+The importer preserves records from the whole national feed, including records without target plan
 edges. Only associations for the requested issuer/state/year that exist in the active PUF
 catalog are stored as edges. Associations naming another state produce a counted
 `plan_outside_state_scope` issue with the requested scope and first excluded plan; they never
@@ -29,7 +29,7 @@ evidence. `record_id` is the immutable raw SHA-256 plus zero-based source
 ordinal; it must not be treated as a cross-publication person identifier. NPI, when published,
 is separate and nullable. Facilities retain the published `facility_name` and `facility_type`;
 individual `name` and optional `group_name` remain separate. Every address retains its original JSON and ordinal. No edge has an
-address foreign key: three addresses and two plans produce three address rows and two edges.
+address foreign key. Three addresses and two plans produce three address rows and two edges.
 
 `createProviderRepository(db).providerParticipation(planId, npiOrRecordId, year)` normalizes
 validated catalog variants to their base plan, and returns five-state evidence with
@@ -101,8 +101,7 @@ rows as findings, independently of participation.
 ## Consolidated native runs and slow later children
 
 Provider batches acquire plan definitions first, then acquire and parse each provider child
-before waiting for the next download. This removes the all-downloads-before-any-parsing
-barrier that exhausted P6a's Best Life and Centene budgets. `acquireQhpChildren` also accepts
+before waiting for the next download. Waiting for all downloads before parsing had exhausted P6a's Best Life and Centene budgets. `acquireQhpChildren` also accepts
 `childIds` for bounded acquisition. Acquisition inside a provider transaction uses that same
 SQL session, including on PGlite; it must not query the outer single-connection database.
 
@@ -141,8 +140,8 @@ either kind ACTIVE (the missing kind must return unknown), then closes
 it. Missing identity matches fail the audit for an ACTIVE source rather than silently skipping
 the check. JSON output includes all-attempt attribution counts, current NPPES absence counts
 and the migration inventory. The P6c report retains the original D1/D2 reference limitations
-and exact immutable publisher bytes for the FirstCare/CHRISTUS quarantines. No source file is
-repaired locally and no missing evidence is treated as negative coverage.
+and exact immutable publisher bytes for the FirstCare/CHRISTUS quarantines. The runner does not repair source files
+locally or treat missing evidence as negative coverage.
 
 ## Dense association lists (migration 480)
 
@@ -235,9 +234,9 @@ An explicit `query_timeout` in `DATABASE_URL` takes precedence.
 ## Georgia PY2026 source boundary (P6i)
 
 Georgia uses a state-based exchange. The cached 2026 federal Plan Attributes PUF and
-MR URL PUF both contain zero Georgia rows. Consequently, `--state GA --all-readable`
-currently emits an empty issuer list and exits zero; this is an empty selection, not
-successful Georgia coverage. The generic native runner's GA catalog bootstrap has no
+MR URL PUF both contain zero Georgia rows. As a result, `--state GA --all-readable`
+currently emits an empty issuer list and exits zero. This means the selection is empty;
+it does not establish Georgia coverage. The generic native runner's GA catalog bootstrap has no
 validated cache to copy. Do not manufacture registry rows or infer issuer hosts from
 another state's discovery.
 

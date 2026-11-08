@@ -21,12 +21,12 @@ worker ingest taxonomy --accept-nucc-terms
 `worker ingest taxonomy --accept-nucc-terms` fetches the current Health Care Provider Taxonomy CSV linked from the
 [NUCC CSV page](https://www.nucc.org/index.php/code-sets-mainmenu-41/provider-taxonomy-mainmenu-40/csv-mainmenu-57)
 and stores it under `OPENPLANS_DATA_DIR/raw/nucc-provider-taxonomy/` through `fetchToCache`.
-The importer records the NUCC version and source snapshot. Provider responses expose the NUCC
-display name, classification and specialization only when loaded, alongside `taxonomy_status`. Each taxonomy
+The importer records the NUCC version and source snapshot. After import, provider responses include the NUCC
+display name, classification and specialization alongside `taxonomy_status`. Each taxonomy
 entry carries its NPPES `code`, nullable `display_name` (also `taxonomy_display_name`) and a
 `taxonomy_source`: `nucc` for a matched name, `nppes_code_only` otherwise. Codes absent from a
-loaded NUCC version have null names and `unknown_code` status. The same code-only behavior works
-with an empty or absent taxonomy table; no display names are inferred from codes.
+loaded NUCC version have null names and `unknown_code` status. An empty or absent taxonomy table produces
+the same code-only response. The API never infers display names from codes.
 
 `/v1/providers?taxonomy=207Q00000X` and `?specialty=207Q00000X` search exact codes without NUCC.
 A specialty name search requires loaded taxonomy, then searches NUCC names case-insensitively

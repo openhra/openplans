@@ -9,7 +9,7 @@ npm run worker -- ingest qhp discover --year 2026 --state TX
 
 The command verifies the MR URL PUF snapshot in the newest P1a manifest, reads the
 first XLSX worksheet, and selects the state's issuer rows. It retains only State,
-Issuer ID and URL Submitted; contact columns are discarded. An unusable registry or
+Issuer ID and URL Submitted. It discards contact columns. An unusable registry or
 database fails the command. Publisher failures become individual `qhp_index.status`
 values and do not fail the run. Exit zero means discovery finished, not that every
 issuer was accessible. JSON output includes each issuer's statuses and child counts.
@@ -27,9 +27,9 @@ status, PUF hosts and index-child hosts separately. `qhp_child_url` records ever
 advertised child and its kind, index snapshot, delegated host, status and optional download
 snapshot. Original HTTP child URLs are retained in `published_url`; requests use only the
 same host/path over HTTPS. Unexpected redirect hosts remain blocked. No provider file is
-requested. Only issuer 76589's plan and formulary children are downloaded in this lane.
+requested. This lane downloads only issuer 76589's plan and formulary children.
 
-Query values are redacted in persisted URLs. `url_sha256` hashes the original child URL
+Discovery redacts query values in persisted URLs. `url_sha256` hashes the original child URL
 so distinct query shards remain distinct. Query-bearing URLs are not conditionally matched
 against a redacted cache URL. Discoveries retain all submitted resources without guessing
 which are shards or superseded versions. Published year/update/version metadata is kept;
@@ -61,7 +61,7 @@ This makes one plain HTTPS GET per distinct failed-issuer index and host root, w
 certificate verification, public-address checks, the honest client identity and the same
 redirect-host restrictions. It records DNS, negotiated TLS on responses, redirect hops,
 selected headers and relevant root-page links in `reports/p2e-discovery-diagnosis.json`.
-Root HTML is processed in bounded memory and discarded. No alternate URL is substituted
+The diagnostic processes root HTML in bounded memory and discards it. No alternate URL is substituted
 into discovery; a changed 2027 PUF URL is evidence to review, not proof of 2026 membership.
 
 ## Readers and limits

@@ -7,6 +7,7 @@ import { xmlTokens } from '../../../src/ingest/xlsx/xml.js';
 import { dishonestRatioZip, dishonestZip, syntheticWorkbook, workbook } from '../../fixtures/qhp/generate.mjs';
 import { inspectZip, streamZipMember } from '../../../src/fetch/index.js';
 import { syntheticZip } from '../../fixtures/fetch/generate.mjs';
+import { singleEntryZipContents } from '../../fixtures/fetch/zip-contents.js';
 let directory: string;
 beforeEach(async () => { directory = await mkdtemp(join(tmpdir(), 'openplans-xlsx-')); });
 afterEach(async () => { await rm(directory, { recursive: true, force: true }); });
@@ -15,10 +16,21 @@ async function collect<T>(items: AsyncIterable<T>): Promise<T[]> { const result:
 
 describe('minimal bounded XLSX', () => {
   it('regenerates synthetic fixtures and decodes shared/rich/inline strings and sparse cells', async () => {
-    expect((await readFile(new URL('../../fixtures/qhp/synthetic.xlsx.hex', import.meta.url), 'utf8')).trim()).toBe(syntheticWorkbook().toString('hex'));
-    expect(await collect(readXlsxRows(await file(syntheticWorkbook())))).toEqual([
+    const hex = (await readFile(new URL('../../fixtures/qhp/synthetic.xlsx.hex', import.meta.url), 'utf8')).trim();
+    expect(hex).toBe(syntheticWorkbook().toString('hex'));
+    const committed = Buffer.from(hex, 'hex');
+    const path = await file(committed);
+    expect((await inspectZip(path)).members.every(member => member.compressionMethod === 0)).toBe(true);
+    expect(await collect(readXlsxRows(path))).toEqual([
       ['State', 'Issuer ID', 'URL Submitted'], ['TX', '76589', 'https://synthetic.example/index.json?x=1&y=2'], ['A & B 😀', '', '2'],
     ]);
+  });
+  it('also decodes the workbook through DEFLATE entries', async () => {
+    const deflated = await file(syntheticWorkbook({ stored: false }));
+    expect((await inspectZip(deflated)).members.every(member => member.compressionMethod === 8)).toBe(true);
+    const rows = await collect(readXlsxRows(deflated));
+    expect(rows).toHaveLength(3);
+    expect(rows).toEqual(await collect(readXlsxRows(await file(syntheticWorkbook()))));
   });
   it('uses the first workbook relationship rather than assuming sheet1', async () => {
     const path = await file(workbook({ first: 'sheet2.xml', sheet: '<worksheet><sheetData><row><c t="inlineStr"><is><t>first</t></is></c></row></sheetData></worksheet>', extra: [{ name: 'xl/worksheets/sheet1.xml', body: '<worksheet/>' }] }));
@@ -47,7 +59,8 @@ describe('ZIP actual-output limits', () => {
   it('negative control: lying declared sizes pass metadata inspection but fail actual output bytes/ratio', async () => {
     const bytes = dishonestZip();
     expect(bytes.length).toBeLessThan(2000);
-    expect((await readFile(new URL('../../fixtures/qhp/dishonest-size.zip.hex', import.meta.url), 'utf8')).trim()).toBe(bytes.toString('hex'));
+    const committed = Buffer.from((await readFile(new URL('../../fixtures/qhp/dishonest-size.zip.hex', import.meta.url), 'utf8')).trim(), 'hex');
+    expect(singleEntryZipContents(committed)).toEqual(singleEntryZipContents(bytes));
     const path = await file(bytes);
     expect((await inspectZip(path)).uncompressedBytes).toBe(16);
     await expect(collect(streamZipMember(path, 'synthetic-bomb.xml', { maxUncompressedBytes: 64 * 1024, maxExpansionRatio: 10000 }))).rejects.toMatchObject({ code: 'zip_bomb' });

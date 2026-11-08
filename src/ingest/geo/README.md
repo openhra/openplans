@@ -1,6 +1,6 @@
 # Geography ingestion
 
-Production: build, then `npm run worker -- ingest geo --state TX` with `DATABASE_URL` configured.
+For production, build, then run `npm run worker -- ingest geo --state TX` with `DATABASE_URL` configured.
 The command runs migrations before importing. State imports support Census state identifiers; the default plan year is 2026.
 
 Without Docker, install dev dependencies and run:
@@ -10,7 +10,7 @@ npm run build
 npm run worker:geo:pglite -- --state TX
 ```
 
-This dispatches the same worker command using a persistent PGlite database in
+This runs the same worker command using a persistent PGlite database in
 `$OPENPLANS_DATA_DIR/geo-pglite`. Downloads and the report
 `reports/p1b-geo-realdata.json` also stay in that external cache. The developer runner omits
 only the PostGIS migration; the geography tables use portable SQL. Production migrations
@@ -35,7 +35,7 @@ always require PostGIS. Reports use public Census and CMS evidence only.
   records this limitation. Harris County maps to Rating Area 10.
 
 `acquireGeo()` uses `fetchToCache()` and the newest matching cached snapshot, verified by
-SHA-256. Use `acquireGeo({ refresh: true })` to explicitly check for publisher updates. Raw
+SHA-256. Use `acquireGeo({ refresh: true })` to check for publisher updates. Raw
 snapshots are immutable. Changed snapshots get new identities. Parsing and activation occur
 in a transaction, so failed input preserves the previous `geo_import` pointer and rows.
 
@@ -46,8 +46,8 @@ area as denominator. Zero denominators produce null. These are area shares, not 
 or address shares. Unknown ZIPs return `status: unknown` and an empty county list.
 
 ZIP postal delivery codes and Census ZCTAs do not coincide perfectly. In the current local
-captured reference response, Harris ZIP 77001 has no 2020 ZCTA; the resolver now uses the explicitly labelled postal fallbacks below instead of inferring a
-county from the capture.
+captured reference response, Harris ZIP 77001 has no 2020 ZCTA. The resolver uses
+the labelled postal fallbacks below; it does not infer a county from the capture.
 Service Area PUF statewide flags and partial-county ZIP restrictions (plan defects D3/D4)
 belong in the PUF importer; county geography alone does not establish plan availability.
 
@@ -73,8 +73,8 @@ is the individual-market division when CMS publishes separate market tables.
 Two- and three-column county tables are accepted; county/parish name punctuation
 is normalized while ambiguous and missing counties fail closed.
 
-Alaska's CMS table uses ZIP3 divisions. These are retained in `rating_area_zip`
-(migration 500), never guessed as county areas. `ratingAreaForLocation` resolves
+Alaska's CMS table uses ZIP3 divisions. The importer retains these in `rating_area_zip`
+under migration 500. It never treats them as county areas. `ratingAreaForLocation` resolves
 county or ZIP3 evidence; without a ZIP an Alaska rating area stays unknown.
 National Census snapshots accumulate rows without deleting previously imported
 states. A failed state transaction preserves its prior geography pointer.
@@ -97,8 +97,8 @@ table must still account for every Census county. Unknown names fail closed.
 ZIP county resolution uses the following order, shared by native ZIP queries, plan/premium
 location resolution, and the compatibility API:
 
-1. Loaded Census ZCTA/county intersections. A match returns immediately: neither fallback
-   table nor CMS is consulted. All published county intersections remain available.
+1. Loaded Census ZCTA/county intersections. A match returns immediately. The resolver consults neither the fallback
+   table nor CMS. All published county intersections remain available.
 2. An exact, user-requested ZIP lookup in the CMS Marketplace API, only with `CMS_API_KEY`
    configured. A fresh cache answer takes precedence over GeoNames. There is no CMS bulk
    import, range enumeration, or background refresh. Facade three/four-digit prefix searches
@@ -200,6 +200,6 @@ database under the external cache, verifies 77001/85001 and their absence from t
 and compares 1,000 deterministic national ZCTAs with GeoNames. The main Census county has
 the largest land intersection (ties by FIPS); the sample is ordered by a fixed SHA-256 seed.
 Report: `$OPENPLANS_DATA_DIR/reports/p2f-zip-fallback.md`. The agreement rate is an estimate,
-not an activation gate. Without a CMS key, live checks are listed as unrun. With a key, the
+not a requirement for activation. Without a CMS key, live checks are listed as unrun. With a key, the
 script tries only the two named target ZIPs, subject to the same persistent request budget;
 a blocked second ZIP is reported for a later individual check, never bypassed or retried early.
