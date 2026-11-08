@@ -1,0 +1,33 @@
+{
+  "name": "openplans",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "bin": { "worker": "./dist/worker/cli.js" },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "start": "node dist/api/server.js",
+    "api:pglite": "node dist/api/pglite.js",
+    "worker": "node dist/worker/cli.js",
+    "worker:geo:pglite": "node dist/ingest/geo/pglite.js ingest geo",
+    "fixtures:geo": "npm run build && node tests/fixtures/geo/regenerate.mjs",
+    "check:extraction": "node scripts/check-extraction.mjs",
+    "worker:puf:pglite": "node dist/ingest/puf/import-pglite.js",
+    "fixtures:puf:import": "python3 tests/fixtures/puf/import/regenerate.py"
+  },
+  "dependencies": {
+    "@hono/node-server": "1.19.11",
+    "hono": "4.12.8",
+    "pg": "8.23.1"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.5.15",
+    "@types/node": "22.19.15",
+    "@types/pg": "8.23.1",
+    "typescript": "5.9.3",
+    "vitest": "2.1.9"
+  }
+}

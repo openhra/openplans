@@ -1,0 +1,76 @@
+name: openplans-local
+
+services:
+  db:
+    image: openplans-db:local
+    build:
+      context: .
+      dockerfile: Dockerfile.db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB in .env}
+    ports:
+      - "127.0.0.1:${DB_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+  api:
+    image: ${OPENPLANS_IMAGE:-openplans:local}
+    build:
+      context: .
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      PORT: "3000"
+      OPENPLANS_API_TOKEN: ${OPENPLANS_API_TOKEN:-}
+      OPENPLANS_COMPAT_API_KEY: ${OPENPLANS_COMPAT_API_KEY:-}
+      OPENPLANS_COMPAT_KEY_HEADER: ${OPENPLANS_COMPAT_KEY_HEADER:-}
+    command: ["sh", "-c", "worker migrate && exec node dist/api/server.js"]
+    ports:
+      - "127.0.0.1:${API_PORT:-3000}:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/healthz').then(async r => { const b = await r.json(); if (!r.ok || b.db !== 'ok') process.exit(1); }).catch(() => process.exit(1))"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+  worker:
+    image: ${OPENPLANS_IMAGE:-openplans:local}
+    build:
+      context: .
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      OPENPLANS_DATA_DIR: /data
+    volumes:
+      - type: bind
+        source: ${OPENPLANS_DATA_DIR:-/var/lib/openplans}/raw
+        target: /data/raw
+        read_only: ${OPENPLANS_RAW_READ_ONLY:-true}
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${OPENPLANS_DATA_DIR:-/var/lib/openplans}/reports
+        target: /data/reports
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${OPENPLANS_DATA_DIR:-/var/lib/openplans}/work
+        target: /data/work
+        bind:
+          create_host_path: false
+    entrypoint: ["worker"]
+    command: ["status"]
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  pgdata:
