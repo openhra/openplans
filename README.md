@@ -6,14 +6,14 @@ US health plan data you can host yourself.
 
 OpenPlans turns public CMS, Census, NPPES, NLM RxNorm and insurer files into an HTTP API for ACA
 marketplace plans, household premiums, subsidy estimates, drug coverage and provider networks. It
-runs in Docker on your own server, and every answer can be traced to the public file it came from.
+runs in Docker on your own server. You can trace every answer to the public file it came from.
 
 Project page: <https://plans.openhra.com/> · Part of [OpenHRA](https://www.openhra.com/).
 
-> **Status: in development, no release yet.** The code is here and its offline checks pass; expect
-> changes on `develop` until the first tagged version.
+> **Status: in development, no release yet.** The code is here and its offline checks pass.
+> Expect changes on `develop` until the first tagged version.
 
-**Get started:** [run it with Docker, call the API and check coverage](docs/usage.md) ·
+[Get started with Docker, call the API and check coverage](docs/usage.md) ·
 [self-hosting guide](docs/self-host.md).
 
 ## What it answers
@@ -28,16 +28,16 @@ Project page: <https://plans.openhra.com/> · Part of [OpenHRA](https://www.open
 
 ## Principles
 
-- **Public sources only**, with attribution and provenance kept for every row.
-- **Nothing is invented.** Missing, blocked or incomplete evidence is `unknown`, never
+- OpenPlans uses public sources only and keeps attribution and provenance for every row.
+- OpenPlans never invents data. Missing, blocked or incomplete evidence is `unknown`, never
   "not covered".
-- **Self-hosted.** Docker Compose with PostgreSQL and PostGIS; services bind to `127.0.0.1`.
-- **Checked against the source.** Releases are compared value by value with the raw public files.
+- Host it yourself with Docker Compose, PostgreSQL and PostGIS. Services bind to `127.0.0.1`.
+- We compare releases value by value against the raw public files.
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). Security issues: see [SECURITY.md](SECURITY.md).
-Questions: use the contact section of <https://www.openhra.com/#contact>.
+See [CONTRIBUTING.md](CONTRIBUTING.md). For security issues, see [SECURITY.md](SECURITY.md).
+For questions, use the contact section of <https://www.openhra.com/#contact>.
 
 ## License
 
