@@ -1,0 +1,17 @@
+BusinessYear,StateCode,IssuerId,SourceName,ImportDate,StandardComponentId,PlanId,BenefitName,CopayInnTier1,CopayInnTier2,CopayOutofNet,CoinsInnTier1,CoinsInnTier2,CoinsOutofNet,IsEHB,IsCovered,QuantLimitOnSvc,LimitQty,LimitUnit,Exclusions,Explanation,EHBVarReason,IsExclFromInnMOOP,IsExclFromOonMOOP
+2026,AK,21989,HIOS,2025-10-15,21989AK0030001,21989AK0030001-00,Accidental Dental,,,,,,,,Not Covered,,,,,,,,
+2026,TX,11718,HIOS,2025-10-15,11718TX0140016,11718TX0140016-00,Abortion for Which Public Funding is Prohibited,,,,,,,,Not Covered,,,,,,,,
+2026,TX,11718,HIOS,2025-10-15,11718TX0140016,11718TX0140016-00,Accidental Dental,$90.00 Copay after deductible,,Not Applicable,Not Applicable,,100.00%,Yes,Covered,No,,,,Cost sharing and limitation depend on type and site of service. Limited to treatment for a Dental Injury to a Sound Natural Tooth.,,No,No
+2026,TX,11718,HIOS,2025-10-15,11718TX0140016,11718TX0140016-00,Acupuncture,,,,,,,,Not Covered,,,,,,,,
+2026,TX,11718,HIOS,2025-10-15,11718TX0140016,11718TX0140016-00,Allergy Testing,$35.00 Copay after deductible,,Not Applicable,Not Applicable,,100.00%,Yes,Covered,No,,,,Cost sharing depends on type and site of service.,,No,No
+2026,TX,11718,HIOS,2025-10-15,11718TX0140016,11718TX0140016-00,Bariatric Surgery,,,,,,,,Not Covered,,,,,,,,
+2026,TX,12846,HIOS,2025-10-28,12846TX0270005,12846TX0270005-00,Accidental Dental,,,,,,,,Not Covered,,,,,,,,
+2026,TX,12846,HIOS,2025-10-28,12846TX0270005,12846TX0270005-00,Basic Dental Care - Adult,Not Applicable,,Not Applicable,50.00% Coinsurance after deductible,,50.00% Coinsurance after deductible,,Covered,,,,,An annual deductible and maximum apply to adult services. A 6-month waiting period applies to Basic Dental Care for adults.,Not EHB,Yes,Yes
+2026,TX,12846,HIOS,2025-10-28,12846TX0270005,12846TX0270005-00,Basic Dental Care - Child,Not Applicable,,Not Applicable,20.00% Coinsurance after deductible,,20.00% Coinsurance after deductible,Yes,Covered,,,,,,,No,No
+2026,TX,12846,HIOS,2025-10-28,12846TX0270005,12846TX0270005-00,Dental Check-Up for Children,Not Applicable,,Not Applicable,No Charge,,No Charge,Yes,Covered,,,,,,,No,No
+2026,TX,12846,HIOS,2025-10-28,12846TX0270005,12846TX0270005-00,Major Dental Care - Adult,Not Applicable,,Not Applicable,50.00% Coinsurance after deductible,,50.00% Coinsurance after deductible,,Covered,,,,,An annual deductible and maximum apply to adult services. A 12-month waiting period applies to Major Dental Care for adults.,Not EHB,Yes,Yes
+2026,TX,66252,HIOS,2025-10-15,66252TX0380001,66252TX0380001-00,Abortion for Which Public Funding is Prohibited,,,,,,,,Not Covered,,,,,,,,
+2026,TX,66252,HIOS,2025-10-15,66252TX0380001,66252TX0380001-00,Accidental Dental,Not Applicable,,Not Applicable,50.00% Coinsurance after deductible,,100.00%,Yes,Covered,No,,,,,,No,No
+2026,TX,66252,HIOS,2025-10-15,66252TX0380001,66252TX0380001-00,Acupuncture,,,,,,,,Not Covered,,,,,,,,
+2026,TX,66252,HIOS,2025-10-15,66252TX0380001,66252TX0380001-00,Allergy Testing,$100.00,,Not Applicable,Not Applicable,,100.00%,Yes,Covered,No,,,,,,No,No
+2026,TX,66252,HIOS,2025-10-15,66252TX0380001,66252TX0380001-00,Autism Spectrum Disorders,$50.00,,Not Applicable,Not Applicable,,100.00%,,Covered,No,,,,Texas State Required Benefit,Additional EHB Benefit,No,No

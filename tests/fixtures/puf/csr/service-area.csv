@@ -1,0 +1,2 @@
+BusinessYear,StateCode,IssuerId,SourceName,ImportDate,ServiceAreaId,ServiceAreaName,CoverEntireState,County,PartialCounty,ZipCodes,PartialCountyJustification,MarketCoverage,DentalOnlyPlan
+2026,TX,11718,HIOS,2025-10-15,TXS001,Community Gulf Coast Ultra,No,48201,No,,,Individual,No

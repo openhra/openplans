@@ -1,0 +1,7082 @@
+[
+  {
+    "rxnorm_id": "311354",
+    "drug_name": "LISINOPRIL 5 MG TABLET",
+    "plans": [
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "97667AZ0110013",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "97667AZ0110044",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "97667AZ0110018",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "97667AZ0110040",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "97667AZ0110036",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "97667AZ0110019",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "97667AZ0110014",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "97667AZ0110038",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "97667AZ0110016",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "97667AZ0110041",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "97667AZ0110043",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "97667AZ0110045",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060039",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060025",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060019",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060007",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060024",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060034",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060021",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060032",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060033",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060013",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060015",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060022",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060017",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060012",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060030",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060035",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060038",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060023",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060036",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060039",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060025",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060019",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060007",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060024",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060034",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060021",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060032",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060033",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060013",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060015",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060022",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060017",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060012",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060030",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060035",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060038",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060023",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060036",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070144",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070138",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070051",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "79850FL0020001",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "79850FL0020003",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070125",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070133",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070142",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "79850FL0020002",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "79850FL0020004",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070129",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070150",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070131",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070127",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070126",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070033",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070128",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070130",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070122",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070141",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070030",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070029",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070057",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070149",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070148",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070140",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070134",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070139",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070108",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "15105GA0020007",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "15105GA0020005",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "15105GA0020003",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "15105GA0020012",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "15105GA0020010",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "15105GA0020021",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "15105GA0020006",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "15105GA0020002",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "15105GA0020017",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "15105GA0020008",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "15105GA0020020",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "53882IL0040062",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "53882IL0040058",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "53882IL0040056",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "53882IL0040060",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "53882IL0040006",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "53882IL0040055",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "53882IL0040057",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "53882IL0040053",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "53882IL0040059",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "53882IL0040052",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "53882IL0040002",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "53882IL0040009",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "53882IL0040054",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "53882IL0040061",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "94419IN0010029",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "94419IN0010009",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "94419IN0010034",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "94419IN0010019",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "94419IN0010035",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "94419IN0010033",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "94419IN0010028",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "94419IN0010017",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "94419IN0010023",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "94419IN0010027",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "94419IN0010032",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "94419IN0010022",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "94419IN0010026",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "94419IN0010004",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "94419IN0010037",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "94419IN0010025",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "94419IN0010011",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "94419IN0010016",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "94419IN0010030",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "94419IN0010013",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "94419IN0010002",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "94419IN0010015",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "94419IN0010036",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "94419IN0010031",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "56766MS0010008",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "56766MS0010015",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "56766MS0010016",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "56766MS0010005",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "56766MS0010003",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "56766MS0010002",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "56766MS0010004",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "73943NC0070052",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "73943NC0070060",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "73943NC0070027",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "73943NC0070062",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "73943NC0070051",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "73943NC0070030",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "73943NC0070033",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "73943NC0070055",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "73943NC0070054",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "73943NC0070058",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "73943NC0070029",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "73943NC0070053",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "73943NC0070028",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "73943NC0070057",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "99248TN0060113",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "99248TN0060117",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "99248TN0060102",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "99248TN0060114",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "99248TN0060116",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "99248TN0060101",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "99248TN0060093",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "99248TN0060033",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "99248TN0060005",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "99248TN0060115",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "99248TN0060044",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010045",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010040",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010018",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010049",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010050",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010041",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010039",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010015",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010017",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010021",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010036",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010027",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010016",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010025",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010024",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010047",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010026",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010037",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010044",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010035",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010045",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010040",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010018",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010049",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010050",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010041",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010039",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010015",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010017",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010021",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010036",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010027",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010016",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010025",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010024",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010047",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010026",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010037",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010044",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010035",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "41921VA0020012",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "41921VA0020080",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "41921VA0020062",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "41921VA0020082",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "41921VA0020056",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "41921VA0020081",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "41921VA0020054",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "41921VA0020064",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "41921VA0020073",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "41921VA0020055",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "41921VA0020030",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "41921VA0020078",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "41921VA0020079",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "41921VA0020018",
+        "drug_tier": "PREFERRED-GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      }
+    ]
+  },
+  {
+    "rxnorm_id": "259255",
+    "drug_name": "ATORVASTATIN 80 MG TABLET",
+    "plans": [
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "97667AZ0110013",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "97667AZ0110044",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "97667AZ0110018",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "97667AZ0110040",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "97667AZ0110036",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "97667AZ0110019",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "97667AZ0110014",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "97667AZ0110038",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "97667AZ0110016",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "97667AZ0110041",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "97667AZ0110043",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "97667AZ0110045",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060039",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060025",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060019",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060007",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060024",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060034",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060021",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060032",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060033",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060013",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060015",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060022",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060017",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060012",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060030",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060035",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060038",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060023",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060036",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060039",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060025",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060019",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060007",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060024",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060034",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060021",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060032",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060033",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060013",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060015",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060022",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060017",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060012",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060030",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060035",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060038",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060023",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060036",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070144",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070138",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070051",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "79850FL0020001",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "79850FL0020003",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070125",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070133",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070142",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "79850FL0020002",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "79850FL0020004",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070129",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070150",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070131",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070127",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070126",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070033",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070128",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070130",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070122",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070141",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070030",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070029",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070057",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070149",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070148",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070140",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070134",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070139",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070108",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "15105GA0020007",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "15105GA0020005",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "15105GA0020003",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "15105GA0020012",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "15105GA0020010",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "15105GA0020021",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "15105GA0020006",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "15105GA0020002",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "15105GA0020017",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "15105GA0020008",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "15105GA0020020",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "53882IL0040062",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "53882IL0040058",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "53882IL0040056",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "53882IL0040060",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "53882IL0040006",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "53882IL0040055",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "53882IL0040057",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "53882IL0040053",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "53882IL0040059",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "53882IL0040052",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "53882IL0040002",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "53882IL0040009",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "53882IL0040054",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "53882IL0040061",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "94419IN0010029",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "94419IN0010009",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "94419IN0010034",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "94419IN0010019",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "94419IN0010035",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "94419IN0010033",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "94419IN0010028",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "94419IN0010017",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "94419IN0010023",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "94419IN0010027",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "94419IN0010032",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "94419IN0010022",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "94419IN0010026",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "94419IN0010004",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "94419IN0010037",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "94419IN0010025",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "94419IN0010011",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "94419IN0010016",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "94419IN0010030",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "94419IN0010013",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "94419IN0010002",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "94419IN0010015",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "94419IN0010036",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "94419IN0010031",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "56766MS0010008",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "56766MS0010015",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "56766MS0010016",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "56766MS0010005",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "56766MS0010003",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "56766MS0010002",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "56766MS0010004",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "73943NC0070052",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "73943NC0070060",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "73943NC0070027",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "73943NC0070062",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "73943NC0070051",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "73943NC0070030",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "73943NC0070033",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "73943NC0070055",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "73943NC0070054",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "73943NC0070058",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "73943NC0070029",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "73943NC0070053",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "73943NC0070028",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "73943NC0070057",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "99248TN0060113",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "99248TN0060117",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "99248TN0060102",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "99248TN0060114",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "99248TN0060116",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "99248TN0060101",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "99248TN0060093",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "99248TN0060033",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "99248TN0060005",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "99248TN0060115",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "99248TN0060044",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010045",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010040",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010018",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010049",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010050",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010041",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010039",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010015",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010017",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010021",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010036",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010027",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010016",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010025",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010024",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010047",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010026",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010037",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010044",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010035",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010045",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010040",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010018",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010049",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010050",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010041",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010039",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010015",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010017",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010021",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010036",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010027",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010016",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010025",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010024",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010047",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010026",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010037",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010044",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010035",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "41921VA0020012",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "41921VA0020080",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "41921VA0020062",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "41921VA0020082",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "41921VA0020056",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "41921VA0020081",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "41921VA0020054",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "41921VA0020064",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "41921VA0020073",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "41921VA0020055",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "41921VA0020030",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "41921VA0020078",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "41921VA0020079",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "41921VA0020018",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      }
+    ]
+  },
+  {
+    "rxnorm_id": "860975",
+    "drug_name": "METFORMIN ER 500 MG GASTRC-TB",
+    "plans": [
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "97667AZ0110013",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "97667AZ0110044",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "97667AZ0110018",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "97667AZ0110040",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "97667AZ0110036",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "97667AZ0110019",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "97667AZ0110014",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "97667AZ0110038",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "97667AZ0110016",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "97667AZ0110041",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "97667AZ0110043",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "97667AZ0110045",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060039",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060025",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060019",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060007",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060024",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060034",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060021",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060032",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060033",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060013",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060015",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060022",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060017",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060012",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060030",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060035",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060038",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060023",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060036",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060039",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060025",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060019",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060007",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060024",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060034",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060021",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060032",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060033",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060013",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060015",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060022",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060017",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060012",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060030",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060035",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060038",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060023",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "49375CO0060036",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070144",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070138",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070051",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "79850FL0020001",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "79850FL0020003",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070125",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070133",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070142",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "79850FL0020002",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "79850FL0020004",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070129",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070150",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070131",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070127",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070126",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070033",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070128",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070130",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070122",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070141",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070030",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070029",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070057",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070149",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070148",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070140",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070134",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070139",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "48121FL0070108",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "15105GA0020007",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "15105GA0020005",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "15105GA0020003",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "15105GA0020012",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "15105GA0020010",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "15105GA0020021",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "15105GA0020006",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "15105GA0020002",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "15105GA0020017",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "15105GA0020008",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "15105GA0020020",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "53882IL0040062",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "53882IL0040058",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "53882IL0040056",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "53882IL0040060",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "53882IL0040006",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "53882IL0040055",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "53882IL0040057",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "53882IL0040053",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "53882IL0040059",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "53882IL0040052",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "53882IL0040002",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "53882IL0040009",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "53882IL0040054",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "53882IL0040061",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "94419IN0010029",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "94419IN0010009",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "94419IN0010034",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "94419IN0010019",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "94419IN0010035",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "94419IN0010033",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "94419IN0010028",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "94419IN0010017",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "94419IN0010023",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "94419IN0010027",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "94419IN0010032",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "94419IN0010022",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "94419IN0010026",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "94419IN0010004",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "94419IN0010037",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "94419IN0010025",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "94419IN0010011",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "94419IN0010016",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "94419IN0010030",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "94419IN0010013",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "94419IN0010002",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "94419IN0010015",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "94419IN0010036",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "94419IN0010031",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "56766MS0010008",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "56766MS0010015",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "56766MS0010016",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "56766MS0010005",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "56766MS0010003",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "56766MS0010002",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "56766MS0010004",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "73943NC0070052",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "73943NC0070060",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "73943NC0070027",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "73943NC0070062",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "73943NC0070051",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "73943NC0070030",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "73943NC0070033",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "73943NC0070055",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "73943NC0070054",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "73943NC0070058",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "73943NC0070029",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "73943NC0070053",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "73943NC0070028",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "73943NC0070057",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "99248TN0060113",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "99248TN0060117",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "99248TN0060102",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "99248TN0060114",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "99248TN0060116",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "99248TN0060101",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "99248TN0060093",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "99248TN0060033",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "99248TN0060005",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "99248TN0060115",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "99248TN0060044",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010045",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010040",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010018",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010049",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010050",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010041",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010039",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010015",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010017",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010021",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010036",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010027",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010016",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010025",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010024",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010047",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010026",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010037",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010044",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010035",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010045",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010040",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010018",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010049",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010050",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010041",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010039",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010015",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010017",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010021",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010036",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010027",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010016",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010025",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010024",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010047",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010026",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010037",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010044",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "76589TX0010035",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "41921VA0020012",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "41921VA0020080",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "41921VA0020062",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "41921VA0020082",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "41921VA0020056",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "41921VA0020081",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "41921VA0020054",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "41921VA0020064",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "41921VA0020073",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "41921VA0020055",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "41921VA0020030",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "41921VA0020078",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "41921VA0020079",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      },
+      {
+        "plan_id_type": "HIOS-PLAN-ID",
+        "plan_id": "41921VA0020018",
+        "drug_tier": "GENERIC",
+        "prior_authorization": false,
+        "step_therapy": false,
+        "quantity_limit": false,
+        "years": [
+          2026
+        ]
+      }
+    ]
+  }
+]

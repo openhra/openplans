@@ -1,0 +1,61 @@
+{
+  "source": "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/State_County/MapServer/1/query?where=STATE%3D%2748%27&outFields=GEOID%2CNAME&returnGeometry=true&outSR=4326&f=json",
+  "sha256": "b9539e6217dbec4b904af7d75e0ecef6f59a10713b739d81629ef24e92748e89",
+  "generated_by": "regenerate-statewide.mjs",
+  "counties": [
+    {
+      "county_fips": "48141",
+      "name": "El Paso County",
+      "south": 31.387229999799555,
+      "north": 32.0026500003734,
+      "west": -106.64564599964328,
+      "east": -105.95432799996868,
+      "snapshot_id": "census-tx-county-bounds:b9539e6217dbec4b904af7d75e0ecef6f59a10713b739d81629ef24e92748e89"
+    },
+    {
+      "county_fips": "48225",
+      "name": "Houston County",
+      "south": 30.925879000357355,
+      "north": 31.5928859998222,
+      "west": -95.77703900029192,
+      "east": -94.95811000007492,
+      "snapshot_id": "census-tx-county-bounds:b9539e6217dbec4b904af7d75e0ecef6f59a10713b739d81629ef24e92748e89"
+    },
+    {
+      "county_fips": "48339",
+      "name": "Montgomery County",
+      "south": 30.02774800033273,
+      "north": 30.63028399970069,
+      "west": -95.83024000002519,
+      "east": -95.09670800020997,
+      "snapshot_id": "census-tx-county-bounds:b9539e6217dbec4b904af7d75e0ecef6f59a10713b739d81629ef24e92748e89"
+    },
+    {
+      "county_fips": "48453",
+      "name": "Travis County",
+      "south": 30.02345099999651,
+      "north": 30.628249000174232,
+      "west": -98.17297700000218,
+      "east": -97.36953900039711,
+      "snapshot_id": "census-tx-county-bounds:b9539e6217dbec4b904af7d75e0ecef6f59a10713b739d81629ef24e92748e89"
+    },
+    {
+      "county_fips": "48113",
+      "name": "Dallas County",
+      "south": 32.54521399978215,
+      "north": 32.989691000038256,
+      "west": -97.03868499956096,
+      "east": -96.5168700003541,
+      "snapshot_id": "census-tx-county-bounds:b9539e6217dbec4b904af7d75e0ecef6f59a10713b739d81629ef24e92748e89"
+    },
+    {
+      "county_fips": "48201",
+      "name": "Harris County",
+      "south": 29.49729699962755,
+      "north": 30.170606000217358,
+      "west": -95.96073299991662,
+      "east": -94.90849200002265,
+      "snapshot_id": "census-tx-county-bounds:b9539e6217dbec4b904af7d75e0ecef6f59a10713b739d81629ef24e92748e89"
+    }
+  ]
+}

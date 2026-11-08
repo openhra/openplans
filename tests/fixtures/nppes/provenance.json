@@ -1,0 +1,19 @@
+{
+  "source": "https://download.cms.gov/nppes/NPPES_Data_Dissemination_November_2026_V2.zip",
+  "sha256": "c5a34fba9b2e04bcb87358a1e3f9f4bbfc79b49b71fb37b71f9de43570c18713",
+  "deactivation_source": "https://download.cms.gov/nppes/NPPES_Deactivated_NPI_Report_110226_V2.zip",
+  "deactivation_sha256": "39019f544cb9a5f0e2843fd75822b8df7b24424e98252b015479edf560689e9e",
+  "data_date": "2026-11-02",
+  "labels": {
+    "out_of_state": "1679576722",
+    "individual": "1215930367",
+    "organization": "1205839230",
+    "three_practices": "1336142512",
+    "secondary_tx_only": "1306849310",
+    "deactivated": "1295739183"
+  },
+  "rule": "Keep if primary or ANY secondary practice location is TX; mailing state does not qualify.",
+  "redacted_deactivated": "Keep a redacted NPI only if a published secondary practice establishes TX; identity fields remain null. Preserve previously observed identities on status-only updates.",
+  "fields": "Exact published columns and values only; endpoint file and contact-email fields excluded.",
+  "containers": "synthetic ZIP/OOXML containers around exact real CSV cuts; empty PDF is only a V2 filename marker"
+}

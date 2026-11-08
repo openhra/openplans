@@ -1,0 +1,7 @@
+{
+  "url": "https://geocoding.geo.census.gov/geocoder/geographies/addressbatch",
+  "sha256": "4abb4a160e8dd6500d0e48da203dda954e65eee630e2e6a42125dd0f5165a4fc",
+  "benchmark": "Public_AR_Current",
+  "vintage": "Current_Current",
+  "generated_by": "regenerate-statewide.mjs --record"
+}

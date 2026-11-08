@@ -1,0 +1,13 @@
+# Optional live CMS adapter: layer over compose.yml. Never populate a key in this file.
+services:
+  api:
+    environment:
+      CMS_API_KEY: ${CMS_API_KEY:-}
+      OPENPLANS_DATA_DIR: /data
+    volumes:
+      - type: bind
+        source: ${OPENPLANS_DATA_DIR:-/var/lib/openplans}/raw
+        target: /data/raw
+        read_only: false
+        bind:
+          create_host_path: false

@@ -1,0 +1,110 @@
+[
+  {
+    "snapshot_id": "rxnorm-2026-11-02-c742a6c4b2995194aa3479400e08a7c1ad707178bfc80fe9c8cd7afa693ae987",
+    "rxcui": "6809",
+    "rxaui": "12251601",
+    "name": "metformin",
+    "tty": "IN",
+    "suppress": "N",
+    "source_record": 1665
+  },
+  {
+    "snapshot_id": "rxnorm-2026-11-02-c742a6c4b2995194aa3479400e08a7c1ad707178bfc80fe9c8cd7afa693ae987",
+    "rxcui": "311354",
+    "rxaui": "12325651",
+    "name": "lisinopril 5 MG Oral Tablet",
+    "tty": "SCD",
+    "suppress": "N",
+    "source_record": 40195
+  },
+  {
+    "snapshot_id": "rxnorm-2026-11-02-c742a6c4b2995194aa3479400e08a7c1ad707178bfc80fe9c8cd7afa693ae987",
+    "rxcui": "860975",
+    "rxaui": "12348417",
+    "name": "24 HR metformin hydrochloride 500 MG Extended Release Oral Tablet",
+    "tty": "SCD",
+    "suppress": "N",
+    "source_record": 97764
+  },
+  {
+    "snapshot_id": "rxnorm-2026-11-02-c742a6c4b2995194aa3479400e08a7c1ad707178bfc80fe9c8cd7afa693ae987",
+    "rxcui": "259255",
+    "rxaui": "1305832",
+    "name": "atorvastatin 80 MG Oral Tablet",
+    "tty": "SCD",
+    "suppress": "N",
+    "source_record": 29556
+  },
+  {
+    "snapshot_id": "rxnorm-2026-11-02-c742a6c4b2995194aa3479400e08a7c1ad707178bfc80fe9c8cd7afa693ae987",
+    "rxcui": "259255",
+    "rxaui": "3625512",
+    "name": "atorvastatin (as atorvastatin calcium) 80 MG Oral Tablet",
+    "tty": "SY",
+    "suppress": "N",
+    "source_record": 29559
+  },
+  {
+    "snapshot_id": "rxnorm-2026-11-02-c742a6c4b2995194aa3479400e08a7c1ad707178bfc80fe9c8cd7afa693ae987",
+    "rxcui": "6809",
+    "rxaui": "3737123",
+    "name": "metFORMIN",
+    "tty": "TMSY",
+    "suppress": "N",
+    "source_record": 1666
+  },
+  {
+    "snapshot_id": "rxnorm-2026-11-02-c742a6c4b2995194aa3479400e08a7c1ad707178bfc80fe9c8cd7afa693ae987",
+    "rxcui": "311354",
+    "rxaui": "6359510",
+    "name": "lisinopril 5 MG Oral Tablet",
+    "tty": "PSN",
+    "suppress": "N",
+    "source_record": 40231
+  },
+  {
+    "snapshot_id": "rxnorm-2026-11-02-c742a6c4b2995194aa3479400e08a7c1ad707178bfc80fe9c8cd7afa693ae987",
+    "rxcui": "259255",
+    "rxaui": "6371356",
+    "name": "atorvastatin calcium 80 MG Oral Tablet",
+    "tty": "PSN",
+    "suppress": "N",
+    "source_record": 29561
+  },
+  {
+    "snapshot_id": "rxnorm-2026-11-02-c742a6c4b2995194aa3479400e08a7c1ad707178bfc80fe9c8cd7afa693ae987",
+    "rxcui": "860975",
+    "rxaui": "6375453",
+    "name": "24 HR metFORMIN hydrochloride 500 MG Extended Release Oral Tablet",
+    "tty": "TMSY",
+    "suppress": "N",
+    "source_record": 97830
+  },
+  {
+    "snapshot_id": "rxnorm-2026-11-02-c742a6c4b2995194aa3479400e08a7c1ad707178bfc80fe9c8cd7afa693ae987",
+    "rxcui": "860975",
+    "rxaui": "6810708",
+    "name": "metFORMIN HCl 500 MG 24HR Extended Release Oral Tablet",
+    "tty": "PSN",
+    "suppress": "N",
+    "source_record": 97831
+  },
+  {
+    "snapshot_id": "rxnorm-2026-11-02-c742a6c4b2995194aa3479400e08a7c1ad707178bfc80fe9c8cd7afa693ae987",
+    "rxcui": "860975",
+    "rxaui": "8714196",
+    "name": "metformin HCl 500 MG 24 HR Extended Release Oral Tablet",
+    "tty": "SY",
+    "suppress": "N",
+    "source_record": 97837
+  },
+  {
+    "snapshot_id": "rxnorm-2026-11-02-c742a6c4b2995194aa3479400e08a7c1ad707178bfc80fe9c8cd7afa693ae987",
+    "rxcui": "860975",
+    "rxaui": "8714721",
+    "name": "metFORMIN HCl 500 MG 24 HR Extended Release Oral Tablet",
+    "tty": "TMSY",
+    "suppress": "N",
+    "source_record": 97838
+  }
+]

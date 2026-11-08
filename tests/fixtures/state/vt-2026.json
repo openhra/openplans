@@ -1,0 +1,61 @@
+{
+  "schema_version": "state-rates-v1",
+  "state": "VT",
+  "plan_year": 2026,
+  "sources": [
+    {
+      "url": "https://info.healthconnect.vermont.gov/sites/vhc/files/documents/2026_PlanDesigns_FinalRates.pdf",
+      "status": 200,
+      "content_type": "application/pdf",
+      "sha256": "8353a9b2d90f2b4b23173c154e0de8ef426b90ec8a897eed965f4b97c82f68c3",
+      "bytes": 182241,
+      "retrieved_at": "2026-11-07T17:54:31.849796+00:00",
+      "records": [
+        {
+          "plan_id": null,
+          "issuer": "BCBSVT",
+          "plan_name": "Gold Plan",
+          "region": "Vermont",
+          "prices": {
+            "single": "1345.45",
+            "couple": "2690.90",
+            "adult_children": "2596.72",
+            "family": "3780.71"
+          },
+          "child_only": "No",
+          "metal": null,
+          "exchange": "On",
+          "source_record": "page=1;issuer=BCBSVT;column=2",
+          "raw": {
+            "single": "1345.45",
+            "couple": "2690.90",
+            "adult_children": "2596.72",
+            "family": "3780.71"
+          }
+        },
+        {
+          "plan_id": null,
+          "issuer": "MVP",
+          "plan_name": "MVP VT Gold 1",
+          "region": "Vermont",
+          "prices": {
+            "single": "1144.62",
+            "couple": "2289.24",
+            "adult_children": "2209.12",
+            "family": "3216.38"
+          },
+          "child_only": "No",
+          "metal": null,
+          "exchange": "On",
+          "source_record": "page=1;issuer=MVP;column=2",
+          "raw": {
+            "single": "1144.62",
+            "couple": "2289.24",
+            "adult_children": "2209.12",
+            "family": "3216.38"
+          }
+        }
+      ]
+    }
+  ]
+}

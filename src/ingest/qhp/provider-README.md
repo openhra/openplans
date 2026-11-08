@@ -1,0 +1,257 @@
+# QHP provider source sets
+
+`worker ingest qhp providers --year 2026 --state TX --issuer 76589` uses the latest
+registry-backed discovery run and the active PUF catalog. Run discovery and catalog import
+first. Missing provider children are acquired through `fetchToCache`, restricted to the
+index's evidenced child hosts, with a 4 GiB bound. Existing downloaded children are streamed
+and SHA-256 checked at EOF. No dependencies were added.
+
+The importer exhausts every advertised provider child and every plan definition before
+publishing an issuer/year/state source set. If required definitions fail fetch, structure or
+integrity checks, publication is already impossible: every provider shard is recorded as
+failed with `plan_definitions_incomplete`, without acquiring or parsing its provider bytes.
+The source-set issue retains the definition failure; prior ACTIVE evidence is preserved.
+Zero-record/zero-edge attempts derive zero identity and pair counts without scanning
+unrelated national records.
+A valid definition-year gap still follows the dated-positive exception described below. A parse, hash, missing-child or structural failure
+quarantines the attempt. The prior ACTIVE pointer and its evidence remain intact; absent
+identities return `unknown` until the current manifest is complete. Missing association years
+are counted, omitted, and quarantine the attempt. Unknown catalog plans are counted and
+omitted. Undeclared network tiers are counted warnings: the edge retains the publisher's
+label with `tier_status=unresolved`, with a warning alongside the publisher's participation evidence.
+
+Records are preserved from the whole national feed, including records without target plan
+edges. Only associations for the requested issuer/state/year that exist in the active PUF
+catalog are stored as edges. Associations naming another state produce a counted
+`plan_outside_state_scope` issue with the requested scope and first excluded plan; they never
+produce edges. This is expected in national feeds and does not quarantine valid target-state
+evidence. `record_id` is the immutable raw SHA-256 plus zero-based source
+ordinal; it must not be treated as a cross-publication person identifier. NPI, when published,
+is separate and nullable. Facilities retain the published `facility_name` and `facility_type`;
+individual `name` and optional `group_name` remain separate. Every address retains its original JSON and ordinal. No edge has an
+address foreign key: three addresses and two plans produce three address rows and two edges.
+
+`createProviderRepository(db).providerParticipation(planId, npiOrRecordId, year)` normalizes
+validated catalog variants to their base plan, and returns five-state evidence with
+`participation_scope=provider_record`, source dates, raw and publication snapshot identifiers,
+and unresolved-tier provenance. Multiple positive tiers can be legitimate; contradictory
+positive/explicit-negative evidence returns `conflicting`. The QHP positive-list adapter does
+not infer explicit exclusions from absence or from `accepting`. A missing identity is
+`not_listed` only for the current complete source set.
+
+`providerIdentity(recordId, shardSnapshotId)` joins `npi_provider` and `npi_taxonomy` by NPI.
+It never establishes network participation. Missing and deactivated NPPES identities are
+counted findings, not reasons to remove issuer evidence. Findings cover retained national
+source records; a TX-only NPPES import naturally leaves non-TX identities unmatched. The real
+runner also reports a distinct-NPI match rate restricted to records with TX edges.
+
+## Offline checks and fixture regeneration
+
+Run `scripts/ci.sh` or the repository's `tools/gate.sh`. Tests use cuts of the real Cigna
+publication and the final 4 KB of the real truncated Sanford tar member. Synthetic mutants
+are labelled in tests. To regenerate, first build, then run:
+
+```sh
+ISSUER_TAR=/path/to/issuer-files.tar node tests/fixtures/qhp/provider/regenerate.mjs
+```
+
+`ISSUER_TAR` is required; when unset the script exits with usage before reading the cache or writing fixtures.
+The script verifies Cigna's full hash, selects source records, projects only documented
+public fields, retains all of each record's addresses/associations, and records source ordinals.
+It seeks over unrelated tar members and reads only the last 4 KB of Sanford. Its truncated
+fixture begins at a complete association inside that tail, prepended with an array opener;
+the original incomplete EOF remains, with CRLF normalized to LF. Each committed fixture is below 200 KB.
+
+## Real-data verification
+
+```sh
+npm run build
+node dist/ingest/qhp/provider-pglite.js ingest qhp providers --year 2026 --state TX --issuer 76589
+```
+
+The runner creates `provider-pglite-p3b` under `OPENPLANS_DATA_DIR`, with PostGIS omitted only
+from its temporary migration copy. It copies registry discovery and real catalog rows from
+the existing cache databases, verifies/reuses a cached provider download by SHA-256, and copies
+matching real NPPES identities/taxonomies. Outputs include counts, issue totals, elapsed time,
+shard bytes/hash, per-plan edges, distinct NPI/plan pairs and an example evidence lookup.
+
+
+Migration 340 follows the lane's allocated namespace. The inherited migration runner applies
+pending lane migrations in numeric order even when a higher-numbered migration is already
+installed, and still verifies every previously applied checksum. The real runner uses a fresh
+isolated database to keep source/candidate data separate from other lanes.
+
+## All readable issuers
+
+Use `worker ingest qhp providers --year 2026 --state TX --all-readable` after discovery and
+catalog ingestion. Plan definitions and provider children are fetched once per original URL
+hash across issuers, using the same 4 GiB cap. Only each issuer's own catalog plan edges are
+retained. Every issuer gets a manifest row, including denied/unknown indexes and absent kinds;
+issuer failures are isolated. HTML errors quarantine that issuer; a fetch size-cap failure is
+recorded as `too_large`/partial without loading a truncated download. Previous ACTIVE evidence
+survives failed attempts. Labels remain verbatim and unresolved when not declared.
+
+See [formulary-README.md](formulary-README.md#all-readable-issuers) for the isolated P6a PGlite
+runner, time budget and retry controls. Reports
+include per-issuer files, bytes, records, edges, distinct NPI/plan pairs, issue counts and elapsed
+time. Source records are streamed with bounded batches; full national feeds are never read
+into memory as a single JSON value. The prior NPPES identity join still counts missing identity
+rows as findings, independently of participation.
+
+## Consolidated native runs and slow later children
+
+Provider batches acquire plan definitions first, then acquire and parse each provider child
+before waiting for the next download. This removes the all-downloads-before-any-parsing
+barrier that exhausted P6a's Best Life and Centene budgets. `acquireQhpChildren` also accepts
+`childIds` for bounded acquisition. Acquisition inside a provider transaction uses that same
+SQL session, including on PGlite; it must not query the outer single-connection database.
+
+Parser `qhp-provider-v4` uses a savepoint for each child. Invalid schema, truncation, a hash
+mismatch or an interrupted parse discards every record/address/edge from that child, including
+batches already inserted. The shard still records the reason and offending source ordinal.
+Complete children remain private if another child fails. Prior ACTIVE source sets stay intact.
+Other-issuer TX associations are omitted with counted `plan_outside_issuer_scope` issues;
+national/shared files remain supported without cross-issuer edges. An `onShard` callback gives
+records, edges and elapsed milliseconds (including acquisition) after each child.
+
+The native developer runner can consolidate the real cached releases into one loopback
+Postgres/PostGIS database. The caller owns a Compose project named `openplans-<lane>`, applies
+all migrations, and preserves its database volume when tearing the containers down. Set
+`OPENPLANS_QHP_DATABASE_URL` explicitly, as for the existing native runner; it never uses a
+production `DATABASE_URL` implicitly. No new dependencies are needed.
+
+```sh
+# Run from OpenPlans, after npm run build; configure the loopback URL separately.
+export OPENPLANS_QHP_REPORT_PREFIX=p6c
+OPENPLANS_QHP_ENRICHMENT=1 node dist/ingest/qhp/formulary-all-postgres.js bootstrap
+node dist/ingest/qhp/formulary-all-postgres.js formulary
+node dist/ingest/qhp/formulary-all-postgres.js providers
+node dist/ingest/qhp/provider-postgres-audit.js
+```
+
+Enrichment copies the already validated full RxNorm and TX-filtered NPPES release tables
+with 2,000-row cursors, retaining source snapshots, taxonomies and addresses. Restarted copies
+use `ON CONFLICT DO NOTHING`; run each source copy only against its intended isolated database.
+The report prefix isolates issuer checkpoints from P6a's reports. Resume skips issuers with a database coverage manifest (except `not_run_budget`); retry an incomplete issuer with `OPENPLANS_QHP_ISSUER` and without resume. Do not run
+two imports for the same issuer concurrently. Native provider imports should run sequentially:
+their in-transaction ANALYZE locks are held until the issuer commits.
+
+The audit starts a temporary loopback HTTP server, checks one exact drug lookup and one plan-scoped provider search for every issuer with
+either kind ACTIVE (the missing kind must return unknown), then closes
+it. Missing identity matches fail the audit for an ACTIVE source rather than silently skipping
+the check. JSON output includes all-attempt attribution counts, current NPPES absence counts
+and the migration inventory. The P6c report retains the original D1/D2 reference limitations
+and exact immutable publisher bytes for the FirstCare/CHRISTUS quarantines. No source file is
+repaired locally and no missing evidence is treated as negative coverage.
+
+## Dense association lists (migration 480)
+
+The BCBSTX PY2026 cache contains 604,871 records and 162,977,400 published associations.
+Parser `qhp-provider-v4` factors lists of at least 8 associations into immutable
+`provider_plan_group_edge` lists plus `provider_record_plan_group` links. The hash includes
+every original association ordinal, plan, year, exact tier and resolution status. Repeated
+associations within a record remain distinct. Identical lists are stored once; each record
+retains its own snapshot, addresses and participation scope.
+
+`qhp_provider_plan` remains the same queryable relation, now a view over sparse legacy rows
+and shared lists. Per-record SQL inserts/updates/deletes use sparse overrides and tombstones;
+changing one record never changes a shared list or another record. Migration 480 retains all
+pre-existing rows. Invalid/truncated children roll back their links and new lists with their
+other rows. Tests compare all expanded ordinals, exercise conflicting evidence on one record,
+and truncate a dense source after flushed batches.
+
+The native audit verifies logical edge counts against the shard counters using list
+multiplicity, including sparse overrides, without materializing the full dense join. TX NPI
+match rates use record-level existence. The batch deliberately omits the optional distinct
+NPI/plan-pair measurement above 10 million associations (`not_measured_large_source_set`);
+raw/expanded edge counts remain measured. This avoids a large reference-style deduplication
+sort during ingestion. D1/D2 still apply to comparisons with the older reference database.
+
+A provider child that fails JSON parsing is marked `truncated`/`invalid_json` while retaining
+its failed raw snapshot. Its next acquisition bypasses the invalid cached hash and requests
+the public URL again; a newly validated SHA becomes a new immutable acquisition. Other
+issuers sharing that failed raw snapshot cannot silently reuse it as downloaded evidence.
+Explicit caller hash pins still apply. The old bytes and quarantined attempts are retained.
+
+## Published and historical projections (migrations 481–482)
+
+Migration 481 tracks sparse overrides in a small keyed table, avoiding a hash of every sparse
+association to expand dense lists. Migration 482 exposes current ACTIVE source sets through
+`qhp_provider_plan`; `qhp_provider_plan_all` retains every stored historical/private association
+for ingestion and audit. The columns and per-record write triggers are preserved.
+
+Native checkpoints are merged under an advisory lock and written by atomic rename. The audit
+reconciles the provider JSON report to the database manifest and immutable shard snapshots,
+recovering timings from completed runner logs. Missing timings are labelled unmeasured.
+`OPENPLANS_QHP_MIGRATIONS_DIRECTORY` may select a checksum-verified combined migration directory
+when another lane has applied a migration that has not yet reached develop.
+
+The HTTP audit uses the production database factory, including its five-second query timeout.
+A matching server statement limit cancels abandoned audit SQL. A timeout fails the audit; bulk audit statements have separate 120-second limits and disable
+parallel query to fit small Docker shared-memory allocations. API search performance on large
+ACTIVE sources remains a separately reported result, not an ingestion success condition.
+
+
+Florida PY2026 also publishes repeated 27/34-entry lists. The eight-entry threshold captures
+those medium catalogs using the same exact group keys, original ordinals and sparse override
+semantics. A complete cached UHC child has 233,598 records and 5,728,286 scoped associations,
+all represented by one 34-entry list linked to 168,479 records. No published associations are
+removed; the expanded view and shard counters continue to count all 5,728,286. The offline
+controls cover lists of 8, 27, 34, 63 and 100 entries, duplicate ordinals and isolated overrides.
+
+
+Provider ingestion uses transaction-local generic plans. A newly allocated shard ID can be
+absent from the snapshot column's most-common-value statistics; a custom foreign-key plan
+then estimates an empty snapshot and scans the snapshot/source-ordinal index while filtering
+record IDs. A generic plan uses both primary-key columns. This setting ends with the issuer
+transaction, preserving normal API session defaults. Near-empty tables still get initial
+statistics priming. Final statistics refresh uses a savepoint and a one-second lock timeout;
+a competing issuer's advisory statistics lock can skip that refresh while retaining fully
+validated evidence. Unexpected SQL errors still fail the attempt. The offline lock control
+raises a real PostgreSQL 55P03 error, verifies publication and checks both session settings.
+
+
+## Bootstrap with several states
+
+`worker bootstrap --states TX,FL --years 2026 --with-providers` selects NPPES
+import runs by state, kind and archive SHA-256. An existing TX import does not
+satisfy the FL step. Migration 680's `npi_state_scope` retains both observations;
+the shared identity follows the importer's date rules. Equal-date releases add
+memberships without rewriting existing identities, addresses or taxonomies.
+Bootstrap refuses identities missing their original state membership, so an
+inconsistent legacy selection must be repaired before another state is loaded.
+The TX-only geocoding guard remains in place.
+
+Offline bootstrap tests load TX first, then select TX and FL from the same
+hash-verified synthetic ZIP around public NPPES cuts. Checksums cover every TX
+identity, address, taxonomy, membership and import-run row, including a shared
+identity with a Florida primary and Texas secondary practice. Removing the
+bootstrap import-run state predicate makes the FL completion assertion fail.
+
+On populated data, bootstrap allows one hour per query for schema/index upgrades.
+An explicit `query_timeout` in `DATABASE_URL` takes precedence.
+
+
+## Georgia PY2026 source boundary (P6i)
+
+Georgia uses a state-based exchange. The cached 2026 federal Plan Attributes PUF and
+MR URL PUF both contain zero Georgia rows. Consequently, `--state GA --all-readable`
+currently emits an empty issuer list and exits zero; this is an empty selection, not
+successful Georgia coverage. The generic native runner's GA catalog bootstrap has no
+validated cache to copy. Do not manufacture registry rows or infer issuer hosts from
+another state's discovery.
+
+CMS publishes a separate [Georgia SBE bundle](https://www.cms.gov/files/zip/georgiasbepuf2026.zip),
+linked from its [SBE PUF page](https://www.cms.gov/marketplace/resources/data/state-based-public-use-files).
+The inspected bundle contains 896 plan rows for 16 issuers, with spaced SBE column names.
+Its network and formulary URL fields are empty, and it contains no MR URL registry.
+P6i records each real SBE issuer's drug/provider attempt as QUARANTINED with missing
+catalog/index/children reasons; it publishes no GA issuer evidence. Loading the catalog
+and discovering evidenced issuer index URLs require an SBE source adapter and registry
+work before the normal streaming path can run. Missing evidence remains unknown.
+
+The external report is `$OPENPLANS_DATA_DIR/reports/p6i-ga.md`, with acquisition hashes,
+immutable reference counts, GA NPPES results, FL preservation checks and HTTP timings.
+Operational scripts and logs are under `$OPENPLANS_DATA_DIR/work/p6i/`. The offline
+GA-source/FL-plan control requires zero edges and a `plan_outside_state_scope` issue;
+a temporary copy with the state guard removed fails that assertion.

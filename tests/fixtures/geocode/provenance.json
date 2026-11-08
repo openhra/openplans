@@ -1,0 +1,8 @@
+{
+  "publisher": "US Census Bureau",
+  "url": "https://geocoding.geo.census.gov/geocoder/locations/addressbatch",
+  "fetched_at": "2026-11-07T09:33:13.361Z",
+  "sha256": "cc255f77307dbb050489378daee602bcebfcd5c60b9216c98483dbda56e2ba66",
+  "benchmark": "Public_AR_Current",
+  "notes": "Public building addresses and published NPPES practice locations; PO box and incomplete street are explicitly unmatched/ambiguous test inputs. Coordinates are Census-interpolated, not rooftop locations."
+}

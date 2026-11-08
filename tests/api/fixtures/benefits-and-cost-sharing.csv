@@ -1,0 +1,6 @@
+BusinessYear,StateCode,IssuerId,SourceName,ImportDate,StandardComponentId,PlanId,BenefitName,CopayInnTier1,CopayInnTier2,CopayOutofNet,CoinsInnTier1,CoinsInnTier2,CoinsOutofNet,IsEHB,IsCovered,QuantLimitOnSvc,LimitQty,LimitUnit,Exclusions,Explanation,EHBVarReason,IsExclFromInnMOOP,IsExclFromOonMOOP
+2026,TX,87226,HIOS,2025-10-15,87226TX0100013,87226TX0100013-00,Abortion for Which Public Funding is Prohibited,,,,,,,,Not Covered,,,,,,,,
+2026,TX,87226,HIOS,2025-10-15,87226TX0100013,87226TX0100013-00,Accidental Dental,Not Applicable,,Not Applicable,20.00% Coinsurance after deductible,,100.00%,Yes,Covered,,,,,,,No,Yes
+2026,TX,87226,HIOS,2025-10-15,87226TX0100013,87226TX0100013-00,Acupuncture,,,,,,,,Not Covered,,,,,,,,
+2026,TX,87226,HIOS,2025-10-15,87226TX0100013,87226TX0100013-00,Allergy Testing,$35.00,,Not Applicable,Not Applicable,,100.00%,Yes,Covered,,,,,,,No,Yes
+2026,TX,87226,HIOS,2025-10-15,87226TX0100013,87226TX0100013-00,Bariatric Surgery,,,,,,,,Not Covered,,,,,,,,

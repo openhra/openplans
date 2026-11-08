@@ -1,0 +1,22 @@
+{
+  "notice": "Entirely synthetic fixture; identifiers do not establish real provider, drug or plan existence. Not a full QHP schema example.",
+  "source_snapshot": "synthetic-demo-2027-v1",
+  "plans": [{
+    "plan_id_type": "HIOS-PLAN-ID", "plan_id": "12345VA0010001", "years": [2027],
+    "marketing_name": "Synthetic Demo Plan",
+    "network": [{"network_tier": "PREFERRED"}],
+    "formulary": [{"drug_tier": "GENERIC", "mail_order": false, "cost_sharing": []}]
+  }],
+  "providers": [{
+    "npi": "1234567890", "type": "INDIVIDUAL",
+    "name": {"first": "Example", "last": "Clinician"},
+    "addresses": [{"address": "Synthetic location A"}, {"address": "Synthetic location B"}],
+    "plans": [{"plan_id_type": "HIOS-PLAN-ID", "plan_id": "12345VA0010001", "network_tier": "PREFERRED", "years": [2027]}],
+    "last_updated_on": "2026-11-01"
+  }],
+  "drugs": [{
+    "rxnorm_id": "999999999", "drug_name": "Synthetic exact drug concept",
+    "plans": [{"plan_id_type": "HIOS-PLAN-ID", "plan_id": "12345VA0010001", "drug_tier": "GENERIC", "prior_authorization": true, "quantity_limit": false, "years": [2027]}],
+    "last_updated_on": "2026-11-01"
+  }]
+}

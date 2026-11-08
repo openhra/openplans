@@ -1,0 +1,499 @@
+// Generated from data/subsidy/*.json by scripts/subsidy/build.mjs. Do not edit.
+export const parameterRegistry: Readonly<Record<number, unknown>> = {
+  "2026": {
+    "schemaVersion": 1,
+    "year": {
+      "value": 2026,
+      "citations": [
+        {
+          "url": "https://www.irs.gov/pub/irs-drop/rp-25-25.pdf",
+          "title": "IRS Revenue Procedure 2025-25",
+          "section": "Section 3.01: applicable percentage table for 2026",
+          "retrievedOn": "2026-11-07"
+        }
+      ]
+    },
+    "status": "confirmed",
+    "statusReason": "Published HHS 2025 tables and IRS Rev. Proc. 2025-25; statutory temporary enhanced percentages/cliff removal ended after 2025. Verified primary sources on 2026-11-07. Confirmation concerns these parameters, not household eligibility.",
+    "fplGuidelineYear": {
+      "value": 2025,
+      "citations": [
+        {
+          "url": "https://www.ecfr.gov/current/title-26/section-1.36B-1",
+          "title": "26 CFR 1.36B-1",
+          "section": "(h): poverty guidelines at start of preceding open enrollment period",
+          "retrievedOn": "2026-11-07"
+        }
+      ]
+    },
+    "fpl": {
+      "contiguous": {
+        "annualDollarsBySize": {
+          "value": [
+            15650,
+            21150,
+            26650,
+            32150,
+            37650,
+            43150,
+            48650,
+            54150
+          ],
+          "citations": [
+            {
+              "url": "https://www.govinfo.gov/content/pkg/FR-2025-01-17/html/2025-01377.htm",
+              "title": "HHS 2025 Annual Update of Poverty Guidelines, 90 FR 5917–5918, 2025-01377",
+              "section": "2025 48 contiguous states and DC table, family sizes 1–8 and additional-person note",
+              "retrievedOn": "2026-11-07"
+            }
+          ]
+        },
+        "additionalPersonDollars": {
+          "value": 5500,
+          "citations": [
+            {
+              "url": "https://www.govinfo.gov/content/pkg/FR-2025-01-17/html/2025-01377.htm",
+              "title": "HHS 2025 Annual Update of Poverty Guidelines, 90 FR 5917–5918, 2025-01377",
+              "section": "2025 48 contiguous states and DC table, family sizes 1–8 and additional-person note",
+              "retrievedOn": "2026-11-07"
+            }
+          ]
+        }
+      },
+      "alaska": {
+        "annualDollarsBySize": {
+          "value": [
+            19550,
+            26430,
+            33310,
+            40190,
+            47070,
+            53950,
+            60830,
+            67710
+          ],
+          "citations": [
+            {
+              "url": "https://www.govinfo.gov/content/pkg/FR-2025-01-17/html/2025-01377.htm",
+              "title": "HHS 2025 Annual Update of Poverty Guidelines, 90 FR 5917–5918, 2025-01377",
+              "section": "2025 Alaska table, family sizes 1–8 and additional-person note",
+              "retrievedOn": "2026-11-07"
+            }
+          ]
+        },
+        "additionalPersonDollars": {
+          "value": 6880,
+          "citations": [
+            {
+              "url": "https://www.govinfo.gov/content/pkg/FR-2025-01-17/html/2025-01377.htm",
+              "title": "HHS 2025 Annual Update of Poverty Guidelines, 90 FR 5917–5918, 2025-01377",
+              "section": "2025 Alaska table, family sizes 1–8 and additional-person note",
+              "retrievedOn": "2026-11-07"
+            }
+          ]
+        }
+      },
+      "hawaii": {
+        "annualDollarsBySize": {
+          "value": [
+            17990,
+            24320,
+            30650,
+            36980,
+            43310,
+            49640,
+            55970,
+            62300
+          ],
+          "citations": [
+            {
+              "url": "https://www.govinfo.gov/content/pkg/FR-2025-01-17/html/2025-01377.htm",
+              "title": "HHS 2025 Annual Update of Poverty Guidelines, 90 FR 5917–5918, 2025-01377",
+              "section": "2025 Hawaii table, family sizes 1–8 and additional-person note",
+              "retrievedOn": "2026-11-07"
+            }
+          ]
+        },
+        "additionalPersonDollars": {
+          "value": 6330,
+          "citations": [
+            {
+              "url": "https://www.govinfo.gov/content/pkg/FR-2025-01-17/html/2025-01377.htm",
+              "title": "HHS 2025 Annual Update of Poverty Guidelines, 90 FR 5917–5918, 2025-01377",
+              "section": "2025 Hawaii table, family sizes 1–8 and additional-person note",
+              "retrievedOn": "2026-11-07"
+            }
+          ]
+        }
+      }
+    },
+    "applicablePercentageBands": {
+      "value": [
+        {
+          "lowerFplPercent": 100,
+          "upperFplPercent": 133,
+          "initialBasisPoints": 210,
+          "finalBasisPoints": 210
+        },
+        {
+          "lowerFplPercent": 133,
+          "upperFplPercent": 150,
+          "initialBasisPoints": 314,
+          "finalBasisPoints": 419
+        },
+        {
+          "lowerFplPercent": 150,
+          "upperFplPercent": 200,
+          "initialBasisPoints": 419,
+          "finalBasisPoints": 660
+        },
+        {
+          "lowerFplPercent": 200,
+          "upperFplPercent": 250,
+          "initialBasisPoints": 660,
+          "finalBasisPoints": 844
+        },
+        {
+          "lowerFplPercent": 250,
+          "upperFplPercent": 300,
+          "initialBasisPoints": 844,
+          "finalBasisPoints": 996
+        },
+        {
+          "lowerFplPercent": 300,
+          "upperFplPercent": 400,
+          "initialBasisPoints": 996,
+          "finalBasisPoints": 996
+        }
+      ],
+      "citations": [
+        {
+          "url": "https://www.irs.gov/pub/irs-drop/rp-25-25.pdf",
+          "title": "IRS Revenue Procedure 2025-25",
+          "section": "Section 3.01: applicable percentage table for 2026",
+          "retrievedOn": "2026-11-07"
+        },
+        {
+          "url": "https://uscode.house.gov/view.xhtml?req=granuleid:USC-prelim-title26-section36B&num=0&edition=prelim",
+          "title": "26 USC 36B",
+          "section": "(c)(1)(A), (c)(1)(E): 100–400% limits; temporary cliff removal ends before 2026",
+          "retrievedOn": "2026-11-07"
+        }
+      ]
+    },
+    "requiredContributionPercentageBasisPoints": {
+      "value": 996,
+      "citations": [
+        {
+          "url": "https://www.irs.gov/pub/irs-drop/rp-25-25.pdf",
+          "title": "IRS Revenue Procedure 2025-25",
+          "section": "Section 3.02: required contribution percentage for 2026 (employer affordability)",
+          "retrievedOn": "2026-11-07"
+        }
+      ]
+    },
+    "minimumFplPercent": {
+      "value": 100,
+      "citations": [
+        {
+          "url": "https://uscode.house.gov/view.xhtml?req=granuleid:USC-prelim-title26-section36B&num=0&edition=prelim",
+          "title": "26 USC 36B",
+          "section": "(c)(1)(A), (c)(1)(E): 100–400% limits; temporary cliff removal ends before 2026",
+          "retrievedOn": "2026-11-07"
+        }
+      ]
+    },
+    "maximumFplPercent": {
+      "value": 400,
+      "citations": [
+        {
+          "url": "https://uscode.house.gov/view.xhtml?req=granuleid:USC-prelim-title26-section36B&num=0&edition=prelim",
+          "title": "26 USC 36B",
+          "section": "(c)(1)(A), (c)(1)(E): 100–400% limits; temporary cliff removal ends before 2026",
+          "retrievedOn": "2026-11-07"
+        }
+      ]
+    },
+    "stateRulesReviewThroughFplPercent": {
+      "value": 138,
+      "citations": [
+        {
+          "url": "https://www.healthcare.gov/medicaid-chip/medicaid-expansion-and-you/",
+          "title": "CMS HealthCare.gov: Medicaid expansion",
+          "section": "Effective 138% expansion threshold; screening only, state rules and current Medicaid income guidelines still required",
+          "retrievedOn": "2026-11-07"
+        }
+      ]
+    },
+    "rounding": {
+      "value": {
+        "fpl": "truncate_whole_percent_exact_cliff",
+        "applicablePercentage": "nearest_basis_point_half_up",
+        "annualContribution": "nearest_dollar_half_up",
+        "monthlyContribution": "annual_rounded_then_divide_12_nearest_dollar_half_up"
+      },
+      "citations": [
+        {
+          "url": "https://www.ecfr.gov/current/title-26/section-1.36B-3",
+          "title": "26 CFR 1.36B-3",
+          "section": "(g)(1): linear interpolation rounded to nearest one-hundredth of one percent",
+          "retrievedOn": "2026-11-07"
+        },
+        {
+          "url": "https://www.irs.gov/instructions/i8962",
+          "title": "IRS Instructions for Form 8962 (2025), procedural rounding only",
+          "section": "Line 5 Worksheet 2 (exact >400 check then truncate); lines 8a–8b (whole-dollar annual then monthly contribution); NOT the 2025 percentage table",
+          "retrievedOn": "2026-11-07"
+        }
+      ]
+    }
+  },
+  "2027": {
+    "schemaVersion": 1,
+    "year": {
+      "value": 2027,
+      "citations": [
+        {
+          "url": "https://www.irs.gov/pub/irs-drop/rp-26-26.pdf",
+          "title": "IRS Revenue Procedure 2026-26",
+          "section": "Section 3.01: applicable percentage table for 2027",
+          "retrievedOn": "2026-11-07"
+        }
+      ]
+    },
+    "status": "confirmed",
+    "statusReason": "Published HHS 2026 tables and IRS Rev. Proc. 2026-26; statutory temporary enhanced percentages/cliff removal ended after 2025. Verified primary sources on 2026-11-07. Confirmation concerns these parameters, not household eligibility.",
+    "fplGuidelineYear": {
+      "value": 2026,
+      "citations": [
+        {
+          "url": "https://www.ecfr.gov/current/title-26/section-1.36B-1",
+          "title": "26 CFR 1.36B-1",
+          "section": "(h): poverty guidelines at start of preceding open enrollment period",
+          "retrievedOn": "2026-11-07"
+        }
+      ]
+    },
+    "fpl": {
+      "contiguous": {
+        "annualDollarsBySize": {
+          "value": [
+            15960,
+            21640,
+            27320,
+            33000,
+            38680,
+            44360,
+            50040,
+            55720
+          ],
+          "citations": [
+            {
+              "url": "https://www.govinfo.gov/content/pkg/FR-2026-01-15/html/2026-00755.htm",
+              "title": "HHS 2026 Annual Update of Poverty Guidelines, 91 FR 1797–1798, 2026-00755",
+              "section": "2026 48 contiguous states and DC table, family sizes 1–8 and additional-person note",
+              "retrievedOn": "2026-11-07"
+            }
+          ]
+        },
+        "additionalPersonDollars": {
+          "value": 5680,
+          "citations": [
+            {
+              "url": "https://www.govinfo.gov/content/pkg/FR-2026-01-15/html/2026-00755.htm",
+              "title": "HHS 2026 Annual Update of Poverty Guidelines, 91 FR 1797–1798, 2026-00755",
+              "section": "2026 48 contiguous states and DC table, family sizes 1–8 and additional-person note",
+              "retrievedOn": "2026-11-07"
+            }
+          ]
+        }
+      },
+      "alaska": {
+        "annualDollarsBySize": {
+          "value": [
+            19950,
+            27050,
+            34150,
+            41250,
+            48350,
+            55450,
+            62550,
+            69650
+          ],
+          "citations": [
+            {
+              "url": "https://www.govinfo.gov/content/pkg/FR-2026-01-15/html/2026-00755.htm",
+              "title": "HHS 2026 Annual Update of Poverty Guidelines, 91 FR 1797–1798, 2026-00755",
+              "section": "2026 Alaska table, family sizes 1–8 and additional-person note",
+              "retrievedOn": "2026-11-07"
+            }
+          ]
+        },
+        "additionalPersonDollars": {
+          "value": 7100,
+          "citations": [
+            {
+              "url": "https://www.govinfo.gov/content/pkg/FR-2026-01-15/html/2026-00755.htm",
+              "title": "HHS 2026 Annual Update of Poverty Guidelines, 91 FR 1797–1798, 2026-00755",
+              "section": "2026 Alaska table, family sizes 1–8 and additional-person note",
+              "retrievedOn": "2026-11-07"
+            }
+          ]
+        }
+      },
+      "hawaii": {
+        "annualDollarsBySize": {
+          "value": [
+            18360,
+            24890,
+            31420,
+            37950,
+            44480,
+            51010,
+            57540,
+            64070
+          ],
+          "citations": [
+            {
+              "url": "https://www.govinfo.gov/content/pkg/FR-2026-01-15/html/2026-00755.htm",
+              "title": "HHS 2026 Annual Update of Poverty Guidelines, 91 FR 1797–1798, 2026-00755",
+              "section": "2026 Hawaii table, family sizes 1–8 and additional-person note",
+              "retrievedOn": "2026-11-07"
+            }
+          ]
+        },
+        "additionalPersonDollars": {
+          "value": 6530,
+          "citations": [
+            {
+              "url": "https://www.govinfo.gov/content/pkg/FR-2026-01-15/html/2026-00755.htm",
+              "title": "HHS 2026 Annual Update of Poverty Guidelines, 91 FR 1797–1798, 2026-00755",
+              "section": "2026 Hawaii table, family sizes 1–8 and additional-person note",
+              "retrievedOn": "2026-11-07"
+            }
+          ]
+        }
+      }
+    },
+    "applicablePercentageBands": {
+      "value": [
+        {
+          "lowerFplPercent": 100,
+          "upperFplPercent": 133,
+          "initialBasisPoints": 215,
+          "finalBasisPoints": 215
+        },
+        {
+          "lowerFplPercent": 133,
+          "upperFplPercent": 150,
+          "initialBasisPoints": 323,
+          "finalBasisPoints": 430
+        },
+        {
+          "lowerFplPercent": 150,
+          "upperFplPercent": 200,
+          "initialBasisPoints": 430,
+          "finalBasisPoints": 678
+        },
+        {
+          "lowerFplPercent": 200,
+          "upperFplPercent": 250,
+          "initialBasisPoints": 678,
+          "finalBasisPoints": 866
+        },
+        {
+          "lowerFplPercent": 250,
+          "upperFplPercent": 300,
+          "initialBasisPoints": 866,
+          "finalBasisPoints": 1022
+        },
+        {
+          "lowerFplPercent": 300,
+          "upperFplPercent": 400,
+          "initialBasisPoints": 1022,
+          "finalBasisPoints": 1022
+        }
+      ],
+      "citations": [
+        {
+          "url": "https://www.irs.gov/pub/irs-drop/rp-26-26.pdf",
+          "title": "IRS Revenue Procedure 2026-26",
+          "section": "Section 3.01: applicable percentage table for 2027",
+          "retrievedOn": "2026-11-07"
+        },
+        {
+          "url": "https://uscode.house.gov/view.xhtml?req=granuleid:USC-prelim-title26-section36B&num=0&edition=prelim",
+          "title": "26 USC 36B",
+          "section": "(c)(1)(A), (c)(1)(E): 100–400% limits; temporary cliff removal ends before 2026",
+          "retrievedOn": "2026-11-07"
+        }
+      ]
+    },
+    "requiredContributionPercentageBasisPoints": {
+      "value": 1022,
+      "citations": [
+        {
+          "url": "https://www.irs.gov/pub/irs-drop/rp-26-26.pdf",
+          "title": "IRS Revenue Procedure 2026-26",
+          "section": "Section 3.02: required contribution percentage for 2027 (employer affordability)",
+          "retrievedOn": "2026-11-07"
+        }
+      ]
+    },
+    "minimumFplPercent": {
+      "value": 100,
+      "citations": [
+        {
+          "url": "https://uscode.house.gov/view.xhtml?req=granuleid:USC-prelim-title26-section36B&num=0&edition=prelim",
+          "title": "26 USC 36B",
+          "section": "(c)(1)(A), (c)(1)(E): 100–400% limits; temporary cliff removal ends before 2026",
+          "retrievedOn": "2026-11-07"
+        }
+      ]
+    },
+    "maximumFplPercent": {
+      "value": 400,
+      "citations": [
+        {
+          "url": "https://uscode.house.gov/view.xhtml?req=granuleid:USC-prelim-title26-section36B&num=0&edition=prelim",
+          "title": "26 USC 36B",
+          "section": "(c)(1)(A), (c)(1)(E): 100–400% limits; temporary cliff removal ends before 2026",
+          "retrievedOn": "2026-11-07"
+        }
+      ]
+    },
+    "stateRulesReviewThroughFplPercent": {
+      "value": 138,
+      "citations": [
+        {
+          "url": "https://www.healthcare.gov/medicaid-chip/medicaid-expansion-and-you/",
+          "title": "CMS HealthCare.gov: Medicaid expansion",
+          "section": "Effective 138% expansion threshold; screening only, state rules and current Medicaid income guidelines still required",
+          "retrievedOn": "2026-11-07"
+        }
+      ]
+    },
+    "rounding": {
+      "value": {
+        "fpl": "truncate_whole_percent_exact_cliff",
+        "applicablePercentage": "nearest_basis_point_half_up",
+        "annualContribution": "nearest_dollar_half_up",
+        "monthlyContribution": "annual_rounded_then_divide_12_nearest_dollar_half_up"
+      },
+      "citations": [
+        {
+          "url": "https://www.ecfr.gov/current/title-26/section-1.36B-3",
+          "title": "26 CFR 1.36B-3",
+          "section": "(g)(1): linear interpolation rounded to nearest one-hundredth of one percent",
+          "retrievedOn": "2026-11-07"
+        },
+        {
+          "url": "https://www.irs.gov/instructions/i8962",
+          "title": "IRS Instructions for Form 8962 (2025), procedural rounding only",
+          "section": "Line 5 Worksheet 2 (exact >400 check then truncate); lines 8a–8b (whole-dollar annual then monthly contribution); NOT the 2025 percentage table",
+          "retrievedOn": "2026-11-07"
+        }
+      ]
+    }
+  }
+};

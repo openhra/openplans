@@ -1,0 +1,2 @@
+BusinessYear,StateCode,IssuerId,SourceName,ImportDate,MedicalDentalBoth,ProductId,StandardComponentId,MedicalDentalIndicator,MaximumUnderageDependent,DependentMaximumAgRule,AgeDeterminationRule,MinimumTobaccoFreeMonthsRule,CohabitationRule,MarketCoverage,DentalOnlyPlan
+2026,TX,11718,HIOS,2025-10-15,Medical,11718TX014,11718TX0140019,Medical,3,25,Age on effective date,6,"Brother or Sister,No;Child,No;Foster Child,No;Grandson or Granddaughter,No;Life Partner,Yes;Self,Yes;Spouse,Yes;Stepson or Stepdaughter,No;Ward,No",Individual,No

@@ -1,0 +1,123 @@
+{
+  "publisher": "Centers for Medicare & Medicaid Services",
+  "source_manifest": "manifest-2026-11-07T07-33-40.115Z.json",
+  "synthetic": false,
+  "files": [
+    {
+      "kind": "plan-attributes",
+      "url": "https://download.cms.gov/marketplace-puf/2026/plan-attributes-puf.zip",
+      "source_archive_sha256": "954e697885efcb709aed0be1de14075afe11704bf3447372960d08c879950af2",
+      "cut_sha256": "e6fb64b831dc22831b7d7cdb8148c92252afb9fabe346aa70e0c7a915a441db8",
+      "source_physical_end_lines": [
+        19663
+      ],
+      "rows": 1
+    },
+    {
+      "kind": "service-area",
+      "url": "https://download.cms.gov/marketplace-puf/2026/service-area-puf.zip",
+      "source_archive_sha256": "eb2d7d18b6c4b9a6124e7841862c5f51384511840791ac30a72f98a248b7817f",
+      "cut_sha256": "0d3cbb6ac655540534b3b7e87a9fe85b9e2b5307b97bed653b159742dd4cfd4c",
+      "source_physical_end_lines": [
+        8209,
+        8210,
+        8211
+      ],
+      "rows": 3
+    },
+    {
+      "kind": "network",
+      "url": "https://download.cms.gov/marketplace-puf/2026/network-puf.zip",
+      "source_archive_sha256": "3d06ea11631c49efa7f7ae687a163d4a8d4b80ffc81dee8199cdf1d73f13a9f3",
+      "cut_sha256": "aba461e42d1ef2c385e5e504ae1ccabcb1c509b17ed43be02a686aec0621ad04",
+      "source_physical_end_lines": [
+        475
+      ],
+      "rows": 1
+    },
+    {
+      "kind": "business-rules",
+      "url": "https://download.cms.gov/marketplace-puf/2026/business-rules-puf.zip",
+      "source_archive_sha256": "f133c3f8eb8452468dc28c17b7c38b6e2bac4f547d0a070fd415091b1447446a",
+      "cut_sha256": "75da16ecd5b481e2ee0fddf021bb95409f689c84786eefb374901c2e3126ee65",
+      "source_physical_end_lines": [
+        4562
+      ],
+      "rows": 1
+    },
+    {
+      "kind": "rate",
+      "url": "https://download.cms.gov/marketplace-puf/2026/rate-puf.zip",
+      "source_archive_sha256": "a05423ee91d137420510ca0d325fb8538861ace21d07ea062e8c3f6410732edf",
+      "cut_sha256": "4a7f5cb64c9eaf56ca1cb70c5434defbc44152aa902555fb513130ed20f6e0b4",
+      "source_physical_end_lines": [
+        2035417,
+        2035418,
+        2035419,
+        2035420,
+        2035421,
+        2035422,
+        2035423,
+        2035424,
+        2035425,
+        2035426,
+        2035427,
+        2035428,
+        2035429,
+        2035430,
+        2035431,
+        2035432,
+        2035433,
+        2035434,
+        2035435,
+        2035436,
+        2035437,
+        2035438,
+        2035439,
+        2035440,
+        2035441,
+        2035442,
+        2035443,
+        2035444,
+        2035445,
+        2035446,
+        2035447,
+        2035448,
+        2035449,
+        2035450,
+        2035451,
+        2035452,
+        2035453,
+        2035454,
+        2035455,
+        2035456,
+        2035457,
+        2035458,
+        2035459,
+        2035460,
+        2035461,
+        2035462,
+        2035463,
+        2035464,
+        2035465,
+        2035466,
+        2035467
+      ],
+      "rows": 51
+    },
+    {
+      "kind": "benefits-and-cost-sharing",
+      "url": "https://download.cms.gov/marketplace-puf/2026/benefits-and-cost-sharing-puf.zip",
+      "source_archive_sha256": "aa2d6874704bc951ed28792af3e65a4bd5b48eb3dbc086325f5ce053f08d8682",
+      "cut_sha256": "5fe65aec27fe761dbde50d02971a67dfa23758ac817466fb5a651d0b831b14ad",
+      "source_physical_end_lines": [
+        1298408,
+        1298409,
+        1298410,
+        1298411,
+        1298412
+      ],
+      "rows": 5
+    }
+  ]
+}

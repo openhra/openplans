@@ -1,0 +1,107 @@
+{
+  "schema_version": "state-rates-v1",
+  "state": "NY",
+  "plan_year": 2026,
+  "sources": [
+    {
+      "url": "https://myportal.dfs.ny.gov/documents/538523/45010883/MetroPlus_IND_ONX_MPHP-134514244_ApprRatesTemplate",
+      "status": 200,
+      "content_type": "application/vnd.ms-excel",
+      "sha256": "525fab46b6f6c8c7b8a953c115cdbf6feddf42a5b29b8a65ab7ce7d5a73fd174",
+      "bytes": 476672,
+      "retrieved_at": "2026-11-07T17:55:58.882456+00:00",
+      "records": [
+        {
+          "plan_id": "11177NY0220001",
+          "issuer": "11177",
+          "region": "Rating Area 4",
+          "prices": {
+            "single": "1270.98",
+            "couple": "2541.96",
+            "adult_children": "2160.67",
+            "family": "3622.29"
+          },
+          "child_only": "No",
+          "metal": null,
+          "exchange": "unknown",
+          "source_record": "publication#Rate Table!row=20",
+          "raw": {
+            "0": "11177NY0220001",
+            "1": "Rating Area 4",
+            "4": "1270.98",
+            "6": "2541.96",
+            "7": "2160.67",
+            "8": "2160.67",
+            "9": "2160.67",
+            "10": "3622.29",
+            "11": "3622.29",
+            "12": "3622.29",
+            "rating_method": "Family-Tier Rates",
+            "effective_serial": "46023.0",
+            "expiration_serial": "46387.0"
+          }
+        },
+        {
+          "plan_id": "11177NY0010001",
+          "issuer": "11177",
+          "region": "Rating Area 4",
+          "prices": {
+            "single": "784.51",
+            "couple": "1569.01",
+            "adult_children": "1333.66",
+            "family": "2235.84"
+          },
+          "child_only": "No",
+          "metal": null,
+          "exchange": "unknown",
+          "source_record": "publication#Rate Table!row=24",
+          "raw": {
+            "0": "11177NY0010001",
+            "1": "Rating Area 4",
+            "4": "784.51",
+            "6": "1569.01",
+            "7": "1333.66",
+            "8": "1333.66",
+            "9": "1333.66",
+            "10": "2235.84",
+            "11": "2235.84",
+            "12": "2235.84",
+            "rating_method": "Family-Tier Rates",
+            "effective_serial": "46023.0",
+            "expiration_serial": "46387.0"
+          }
+        },
+        {
+          "plan_id": "11177NY0010002",
+          "issuer": "11177",
+          "region": "Rating Area 4",
+          "prices": {
+            "single": "808.52",
+            "couple": "1617.05",
+            "adult_children": "1374.49",
+            "family": "2304.30"
+          },
+          "child_only": "No",
+          "metal": null,
+          "exchange": "unknown",
+          "source_record": "publication#Rate Table!row=25",
+          "raw": {
+            "0": "11177NY0010002",
+            "1": "Rating Area 4",
+            "4": "808.52",
+            "6": "1617.05",
+            "7": "1374.49",
+            "8": "1374.49",
+            "9": "1374.49",
+            "10": "2304.3",
+            "11": "2304.3",
+            "12": "2304.3",
+            "rating_method": "Family-Tier Rates",
+            "effective_serial": "46023.0",
+            "expiration_serial": "46387.0"
+          }
+        }
+      ]
+    }
+  ]
+}

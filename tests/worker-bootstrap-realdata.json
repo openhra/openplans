@@ -1,0 +1,212 @@
+{
+  "kind": "measured_real_public_data",
+  "measured_at_utc": "2026-11-07T18:09:58.429805+00:00",
+  "base_develop_commit": "148947a08e92e29cd4ff1032bb7f79d824e8807a",
+  "command": "worker bootstrap --states DE --years 2026",
+  "environment": {
+    "database": "fresh PostgreSQL 16 + PostGIS Docker named volume",
+    "compose_project": "openplans-p8b",
+    "worker": "packaged Docker worker, Node.js 22, native arm64",
+    "image_id": "sha256:691c3501e459a00bfdd346d9f91144d0c35f1bb087bf195311b3cfab3b290e85",
+    "cache": "warm; reuses verified public snapshots copied into an ephemeral Docker-visible OPENPLANS_DATA_DIR",
+    "startup_note": "API startup applies migrations before the bootstrap worker repeats the journal check",
+    "rss_method": "process.resourceUsage().maxRSS * 1024 in the Linux worker; excludes DB/API RAM",
+    "timing_note": "worker process elapsed only; image build and dependency startup excluded; offline CI was running concurrently"
+  },
+  "source_sha256": {
+    "src/worker/bootstrap.ts": "09de66699c3bf983722fb86c087b0a23a1c4c12c64109754224a03b5465d45b4",
+    "src/worker/commands.ts": "86729483f84fc279ea119e1ed0e890cba81a7d2b04e5328b99eeae7472513656",
+    "compose.yml": "efda426c9098faf274cb7acaf36f30a50ee7894f89c2a3edb5602a81177fb74a"
+  },
+  "first_run": {
+    "passed": true,
+    "metrics": {
+      "elapsed_seconds": 62.866064631,
+      "peak_worker_rss_bytes": 157646848,
+      "exit_code": 0
+    },
+    "steps": [
+      {
+        "skipped": true,
+        "reason": "schema_current",
+        "evidence": {
+          "applied": []
+        },
+        "id": "migrate",
+        "status": "skipped",
+        "elapsed_ms": 30
+      },
+      {
+        "evidence": {
+          "plan_year": 2026,
+          "snapshot_id": "openplans-rating-rules-2026:47a4689ed190cec3f2161d3a4bd9afd7dbdbf1583c479add575f9789a7312593",
+          "rules": 32,
+          "status": "ACTIVE"
+        },
+        "id": "rating-rules-2026",
+        "status": "completed",
+        "elapsed_ms": 20
+      },
+      {
+        "skipped": true,
+        "reason": "bundled_parameters_validated",
+        "evidence": {
+          "status": "confirmed"
+        },
+        "id": "subsidy-2026",
+        "status": "skipped",
+        "elapsed_ms": 1
+      },
+      {
+        "skipped": true,
+        "reason": "verified_cached_publication",
+        "id": "puf-acquire-2026",
+        "status": "skipped",
+        "elapsed_ms": 117
+      },
+      {
+        "evidence": {
+          "import_id": "puf-2026-DE-5e4be758-af47-4b0e-b552-c5b138d64fa1",
+          "base_plans": 53,
+          "report_json": "/data/reports/puf-2026-DE-5e4be758-af47-4b0e-b552-c5b138d64fa1.json"
+        },
+        "id": "puf-DE-2026",
+        "status": "completed",
+        "elapsed_ms": 60120
+      },
+      {
+        "evidence": {
+          "state": "DE",
+          "planYear": 2026,
+          "zctaCountyRows": 78,
+          "zctaCentroidRows": 70,
+          "ratingAreaRows": 3,
+          "snapshots": {
+            "relationship": "census-zcta-county-2020:3ed41278d637dc249e0323306f68be8a6c234e3090f4de88ef328dee71aeaaaf",
+            "centroids": "census-zcta-gazetteer-2021:d6a68825d6028a2293971296076d9ed2fba63ab4182c5f9b353c8bb77e6e63db",
+            "ratingAreas": "cms-rating-areas:f18598696759f1d03efe80e5ba2090441c5239d62b5c1bac0018091ac7ff0b24"
+          },
+          "countyNameCorrections": [],
+          "ratingAreaUnit": "county",
+          "ratingAreaBasis": "current_cms_table"
+        },
+        "id": "geo-DE-2026",
+        "status": "completed",
+        "elapsed_ms": 1849
+      }
+    ],
+    "base_plans": 53,
+    "medical_plans_zip_19801": 40
+  },
+  "second_run": {
+    "passed": true,
+    "every_step_skipped": true,
+    "metrics": {
+      "elapsed_seconds": 0.146152684,
+      "peak_worker_rss_bytes": 95584256,
+      "exit_code": 0
+    },
+    "steps": [
+      {
+        "skipped": true,
+        "reason": "schema_current",
+        "evidence": {
+          "applied": []
+        },
+        "id": "migrate",
+        "status": "skipped",
+        "elapsed_ms": 18
+      },
+      {
+        "skipped": true,
+        "reason": "current_active_snapshot",
+        "id": "rating-rules-2026",
+        "status": "skipped",
+        "elapsed_ms": 2
+      },
+      {
+        "skipped": true,
+        "reason": "bundled_parameters_validated",
+        "evidence": {
+          "status": "confirmed"
+        },
+        "id": "subsidy-2026",
+        "status": "skipped",
+        "elapsed_ms": 1
+      },
+      {
+        "skipped": true,
+        "reason": "verified_cached_publication",
+        "id": "puf-acquire-2026",
+        "status": "skipped",
+        "elapsed_ms": 63
+      },
+      {
+        "skipped": true,
+        "reason": "current_active_snapshot",
+        "id": "puf-DE-2026",
+        "status": "skipped",
+        "elapsed_ms": 4
+      },
+      {
+        "skipped": true,
+        "reason": "current_active_snapshot",
+        "id": "geo-DE-2026",
+        "status": "skipped",
+        "elapsed_ms": 21
+      }
+    ]
+  },
+  "api": {
+    "health": {
+      "status": "ok",
+      "db": "ok"
+    },
+    "premium": {
+      "plan_id": "64004DE0090001",
+      "zip": "19801",
+      "year": 2026,
+      "age": 35,
+      "rating_area_id": "Rating Area 1",
+      "total_cents": 56879,
+      "source_row": 126918,
+      "raw_sha256": "a05423ee91d137420510ca0d325fb8538861ace21d07ea062e8c3f6410732edf",
+      "raw_url": "https://download.cms.gov/marketplace-puf/2026/rate-puf.zip"
+    },
+    "reported_total_cents": 56879,
+    "reported_status": "rated",
+    "raw_physical_row_matched": true
+  },
+  "disk": {
+    "database_bytes": 44637207,
+    "pgdata_volume_bytes": 135438336,
+    "volume_below_3_GiB": true,
+    "raw_payload_bytes": 38361673,
+    "raw_payloads": 11,
+    "active_snapshots": 11,
+    "docker_images_and_backup_bytes": "not included"
+  },
+  "negative_controls": {
+    "temporary_acquisition_failure": "offline actual worker returned 1, skipped catalog, and activated independent real-cut geography",
+    "transitive_dependency_failure": "mutated in-memory step blocked both descendants and left independent step completed",
+    "cache_integrity": "temporary corrupted ZIP rejected before catalog publication",
+    "unsupported_state": "CA absent from the fixture publication never activated; TX sibling still imported",
+    "issuer_freshness": "partial manifest and changed discovery retried; complete matching source skipped"
+  },
+  "teardown": {
+    "command": "docker compose -p openplans-p8b down -v",
+    "containers_remaining": 0,
+    "volumes_remaining": 0
+  },
+  "not_run": [
+    "cold-network end-to-end bootstrap",
+    "full optional drugs/providers/geocode source set through bootstrap",
+    "backup/restore disaster-recovery drill"
+  ],
+  "known_limits": [
+    "NPPES importer supports one state per database",
+    "general geocode importer supports TX only",
+    "older optional-source reports do not measure peak RAM"
+  ],
+  "external_evidence_directory": "OPENPLANS_DATA_DIR/reports/p8b-bootstrap/"
+}

@@ -1,12 +1,12 @@
 # Contributing to OpenPlans
 
-Thanks for helping. OpenPlans is in development and the code is still arriving from its incubator,
-so expect larger changes on `develop` until the first release.
+Thanks for helping. OpenPlans is in development, so expect larger changes on `develop` until the
+first release.
 
 ## How work flows
 
 1. Branch from `develop`, one task per branch.
-2. Run `scripts/ci.sh` before you commit (once the code has landed). It works offline.
+2. Run `npm ci` once, then `scripts/ci.sh` before you commit. It works offline.
 3. Open a pull request against `develop`. Maintainers merge after the checks pass.
 4. `main` only moves forward to a fully validated `develop` commit. Failures are fixed forward.
 

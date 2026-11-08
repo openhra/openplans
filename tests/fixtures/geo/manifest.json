@@ -1,0 +1,66 @@
+{
+  "kind": "real_source_cuts",
+  "selection": "TX county rows only: first ZCTA per TX county, all Harris ZCTAs, and 75034; Gazetteer matching ZCTAs; complete CMS TX table without page chrome",
+  "sources": {
+    "relationship": {
+      "filename": "zcta-county-tx.psv",
+      "publisher_url": "https://www2.census.gov/geo/docs/maps-data/data/rel2020/zcta520/tab20_zcta520_county20_natl.txt",
+      "original_snapshot": {
+        "snapshot_id": "3ed41278d637dc249e0323306f68be8a6c234e3090f4de88ef328dee71aeaaaf",
+        "source": "census-zcta-county-2020",
+        "url": "https://www2.census.gov/geo/docs/maps-data/data/rel2020/zcta520/tab20_zcta520_county20_natl.txt",
+        "final_url": "https://www2.census.gov/geo/docs/maps-data/data/rel2020/zcta520/tab20_zcta520_county20_natl.txt",
+        "redirect_chain": [],
+        "status": 200,
+        "content_type": "text/plain",
+        "etag": null,
+        "last_modified": "Thu, 09 Dec 2021 16:27:40 GMT",
+        "sha256": "3ed41278d637dc249e0323306f68be8a6c234e3090f4de88ef328dee71aeaaaf",
+        "bytes": 6821287,
+        "fetched_at": "2026-11-07T07:32:05.594Z"
+      },
+      "fixture_sha256": "112a2bf89b9cfe00aa7bd18828071c31bbd00ef693bd3e791f83a144aad8b32b",
+      "fixture_bytes": 83719
+    },
+    "centroids": {
+      "filename": "zcta-centroids-tx.tsv",
+      "publisher_url": "https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2021_Gazetteer/2021_Gaz_zcta_national.zip",
+      "original_snapshot": {
+        "snapshot_id": "d6a68825d6028a2293971296076d9ed2fba63ab4182c5f9b353c8bb77e6e63db",
+        "source": "census-zcta-gazetteer-2021",
+        "url": "https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2021_Gazetteer/2021_Gaz_zcta_national.zip",
+        "final_url": "https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2021_Gazetteer/2021_Gaz_zcta_national.zip",
+        "redirect_chain": [],
+        "status": 200,
+        "content_type": "application/zip",
+        "etag": null,
+        "last_modified": "Tue, 10 Aug 2021 18:20:27 GMT",
+        "sha256": "d6a68825d6028a2293971296076d9ed2fba63ab4182c5f9b353c8bb77e6e63db",
+        "bytes": 1013957,
+        "fetched_at": "2026-11-07T07:37:30.654Z"
+      },
+      "fixture_sha256": "7fb9ccd47fdb2b22bfdfdeebf94d1362feb267e52fa96dd288309540037142ab",
+      "fixture_bytes": 20633
+    },
+    "ratingAreas": {
+      "filename": "tx-rating-areas.html",
+      "publisher_url": "https://www.cms.gov/cciio/programs-and-initiatives/health-insurance-market-reforms/tx-gra",
+      "original_snapshot": {
+        "snapshot_id": "c1ac46907b43ec9d22a30060a72e3b1b3d651652ef96021da78b007ebb27cb8f",
+        "source": "cms-rating-areas",
+        "url": "https://www.cms.gov/cciio/programs-and-initiatives/health-insurance-market-reforms/tx-gra",
+        "final_url": "https://www.cms.gov/cciio/programs-and-initiatives/health-insurance-market-reforms/tx-gra",
+        "redirect_chain": [],
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "\"1794033143-gzip\"",
+        "last_modified": "Sat, 07 Nov 2026 06:32:23 GMT",
+        "sha256": "c1ac46907b43ec9d22a30060a72e3b1b3d651652ef96021da78b007ebb27cb8f",
+        "bytes": 249392,
+        "fetched_at": "2026-11-07T07:32:06.519Z"
+      },
+      "fixture_sha256": "4ab85f51784ca9d968bf733bb09f2278e0f3a609dd852356fec9ba7837922713",
+      "fixture_bytes": 61887
+    }
+  }
+}

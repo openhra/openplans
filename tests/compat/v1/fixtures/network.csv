@@ -1,0 +1,6 @@
+BusinessYear,StateCode,IssuerId,SourceName,ImportDate,NetworkName,NetworkId,NetworkURL,MarketCoverage,DentalOnlyPlan
+2026,TX,20069,HIOS,2026-02-03,Individual Texas EPO,TXN001,https://www.hioscar.com/search/?networkId=064&year=2026,Individual,No
+2026,TX,29418,HIOS,2025-10-15,Premier,TXN001,https://www.ambetterhealth.com/en/tx/findadoc,Individual,No
+2026,TX,33602,HIOS,2026-02-03,MyBlue Health,TXN002,https://my.providerfinderonline.com/?ci=tx-myblue-health&corp_code=TX,Individual,No
+2026,TX,33602,HIOS,2026-02-03,Blue Advantage,TXN009,https://my.providerfinderonline.com/?ci=tx-blueadvantage-retail&corp_code=TX,Individual,No
+2026,TX,87226,HIOS,2025-10-15,Value,TXN001,https://www.ambetterhealth.com/en/tx/findadoc,Individual,No

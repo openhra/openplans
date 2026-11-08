@@ -1,0 +1,8 @@
+[
+  {"npi":"test-city-hall","kind":"practice","ordinal":0,"line_1":"901 Bagby St","line_2":null,"city":"Houston","state":"TX","zip5":"77002","snapshot_id":"test-input"},
+  {"npi":"test-medical-center","kind":"practice","ordinal":0,"line_1":"6621 Fannin St","line_2":null,"city":"Houston","state":"TX","zip5":"77030","snapshot_id":"test-input"},
+  {"npi":"1336142512","kind":"practice","ordinal":1,"line_1":"102 S Main St","line_2":null,"city":"Grapeland","state":"TX","zip5":"75844","snapshot_id":"test-input"},
+  {"npi":"test-po-box","kind":"practice","ordinal":0,"line_1":"PO BOX 1","line_2":null,"city":"Houston","state":"TX","zip5":"77001","snapshot_id":"test-input"},
+  {"npi":"test-ambiguous","kind":"practice","ordinal":0,"line_1":"100 Main St","line_2":null,"city":null,"state":"TX","zip5":null,"snapshot_id":"test-input"},
+  {"npi":"1295739183","kind":"practice","ordinal":1,"line_1":"PO Box 448","line_2":null,"city":"Montgomery","state":"TX","zip5":"77356","snapshot_id":"test-input"}
+]

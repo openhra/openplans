@@ -10,9 +10,11 @@ runs in Docker on your own server, and every answer can be traced to the public 
 
 Project page: <https://plans.openhra.com/> · Part of [OpenHRA](https://www.openhra.com/).
 
-> **Status: in development.** The code is being moved into this repository from its incubator. Until
-> the first release, `main` may be empty or incomplete. Watch the repository for the first tagged
-> version.
+> **Status: in development, no release yet.** The code is here and its offline checks pass; expect
+> changes on `develop` until the first tagged version.
+
+**Get started:** [run it with Docker, call the API and check coverage](docs/usage.md) ·
+[self-hosting guide](docs/self-host.md).
 
 ## What it answers
 
