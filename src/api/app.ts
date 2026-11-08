@@ -1,3 +1,4 @@
+import { createMcpHttp } from '../mcp/http.js';
 import { Hono } from 'hono';
 import { checkDatabase } from '../db/availability.js';
 import type { SqlSession } from '../db/database.js';
@@ -33,6 +34,7 @@ export function createApp(db: SqlSession, options: ApiOptions = { premiumToken: 
     }
   });
 
+  app.route('/', createMcpHttp(db));
   app.route('/v1', nativeRoutes(db, options));
   app.route('/', compatRoutes(db, options));
 

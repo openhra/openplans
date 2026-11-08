@@ -11,7 +11,7 @@ if (!Number.isInteger(port) || port < 1 || port > 65535) {
 try {
   const db = createDatabase();
   const app = createApp(db);
-  const server = serve({ fetch: app.fetch, port }, () => {
+  const server = serve({ fetch: app.fetch, port, hostname: process.env.HOST ?? '127.0.0.1' }, () => {
     console.log(`OpenPlans API listening on port ${port}`);
   });
   server.on('error', () => {

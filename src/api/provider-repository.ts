@@ -38,9 +38,13 @@ export async function searchProviders(db: SqlSession, q: ProviderSearch) {
   // name filter before fetching NPPES identities, then retain the exact full filter.
   const recordFilter = Boolean(q.taxonomy || q.specialty || q.name || q.type);
   const namePrefilter = issuer && q.name && !/[%_\\]/.test(q.name);
-  const nameWord = (offset: number) => `(SELECT term FROM regexp_split_to_table($5::text,'[[:space:]]+')
-    WITH ORDINALITY words(term,ordinal) ORDER BY length(term) DESC,ordinal LIMIT 1 OFFSET ${offset})`;
-  const nameTerm = nameWord(0),otherTerm = nameWord(1);
+  const nameTerm = `(SELECT term FROM regexp_split_to_table($5::text,'[[:space:]]+')
+    WITH ORDINALITY words(term,ordinal) ORDER BY length(term) DESC,ordinal LIMIT 1)`;
+  // Shorter indexable qualifiers can distinguish multiword organizations after
+  // their longest token. This only chooses a lossless coarse refinement.
+  const otherTerm = `(SELECT term FROM regexp_split_to_table($5::text,'[[:space:]]+')
+    WITH ORDINALITY words(term,ordinal) WHERE length(term)>=4 AND term<>${nameTerm}
+    ORDER BY length(term),ordinal LIMIT 1)`;
   const recordLookup = `FROM (SELECT snapshot_id,array_agg(record_id) AS record_ids
     FROM plan_records GROUP BY snapshot_id) keys JOIN LATERAL (SELECT * FROM qhp_provider_record r
     WHERE r.snapshot_id=keys.snapshot_id AND r.record_id=ANY(keys.record_ids) OFFSET 0) r ON true`;
@@ -62,17 +66,18 @@ export async function searchProviders(db: SqlSession, q: ProviderSearch) {
   // probes to avoid a shard x name product. Above 2,000 coarse keys, another
   // literal word narrows issuer-or-identity matches; remaining broad sets use a
   // hashed plan intersection. These cutoffs choose work, never limit results.
-  // Resolve indexed plan keys before expanding record data; evidence JSON is page-only.
+  // All candidate paths require a positive plan edge before expanding record data;
+  // the page-only evidence JSON still retains negative/conflicting ordinals.
   const membership = issuer ? `active_shards AS MATERIALIZED (
     SELECT s.*,snap.final_url AS source_url,snap.retrieved_at,snap.publisher_updated_at FROM provider_active_set a JOIN provider_shard s ON s.source_set_id=a.snapshot_id
     JOIN snapshot snap ON snap.snapshot_id=s.snapshot_id AND snap.validation_state='ACTIVE'
     WHERE a.issuer_id=left($1,5) AND a.state=substring($1,6,2) AND a.plan_year=$2
   ), plan_groups AS MATERIALIZED (
-    SELECT * FROM provider_plan_group_edge WHERE base_hios_id=$1 AND plan_year=$2
-      ${recordFilter ? '' : `AND evidence_status='listed_participating'`}
+    SELECT group_id,source_plan_index FROM provider_plan_group_edge WHERE base_hios_id=$1 AND plan_year=$2
+      AND evidence_status='listed_participating'
   ), plan_records AS MATERIALIZED (
     SELECT e.snapshot_id,e.record_id FROM qhp_provider_plan_legacy e JOIN active_shards s USING(snapshot_id)
-    WHERE e.base_hios_id=$1 AND e.plan_year=$2 ${recordFilter ? '' : `AND e.evidence_status='listed_participating'`}
+    WHERE e.base_hios_id=$1 AND e.plan_year=$2 AND e.evidence_status='listed_participating'
     UNION ALL
     SELECT l.snapshot_id,l.record_id FROM plan_groups e JOIN provider_record_plan_group l USING(group_id)
     JOIN active_shards s ON s.snapshot_id=l.snapshot_id
@@ -97,7 +102,10 @@ export async function searchProviders(db: SqlSession, q: ProviderSearch) {
   ), coarse_names AS MATERIALIZED (
     SELECT * FROM record_names UNION SELECT * FROM identity_record_names
   ), ${refineName ? `other_record_names AS MATERIALIZED (${recordNames(otherTerm)}),
-    other_identity_names AS MATERIALIZED (${identityNames(otherTerm,true)}), ` : ''}qualified_names AS MATERIALIZED (
+    other_identity_names AS MATERIALIZED (
+      SELECT npi FROM npi_provider WHERE npi=ANY(ARRAY(SELECT DISTINCT npi FROM coarse_names ORDER BY npi))
+        AND concat_ws(' ',organization_name,first_name,last_name) ILIKE '%'||${otherTerm}||'%'
+    ), ` : ''}qualified_names AS MATERIALIZED (
     SELECT r.* FROM coarse_names r ${refineName ? `WHERE CASE WHEN (SELECT count(*) FROM coarse_names)>2000
       AND length(${otherTerm})>=4 THEN
         (r.snapshot_id,r.record_id) IN (SELECT snapshot_id,record_id FROM other_record_names)
@@ -106,7 +114,7 @@ export async function searchProviders(db: SqlSession, q: ProviderSearch) {
     ${indexedName ? `SELECT r.snapshot_id,r.record_id FROM qualified_names r
       WHERE CASE WHEN (SELECT count(*) FROM qualified_names)<=2000 THEN
         EXISTS (SELECT 1 FROM qhp_provider_plan e WHERE e.snapshot_id=r.snapshot_id AND e.record_id=r.record_id
-          AND e.base_hios_id=$1 AND e.plan_year=$2 OFFSET 0)
+          AND e.base_hios_id=$1 AND e.plan_year=$2 AND e.evidence_status='listed_participating' OFFSET 0)
       ELSE (r.snapshot_id,r.record_id) IN (SELECT snapshot_id,record_id FROM plan_records) END`
       : `SELECT r.snapshot_id,r.record_id ${recordLookup}
         WHERE concat_ws(' ',r.name::text,r.facility_name,r.group_name) ILIKE '%'||${nameTerm}||'%'
@@ -130,15 +138,18 @@ export async function searchProviders(db: SqlSession, q: ProviderSearch) {
           WHERE t.npi=r.npi AND (nt.display_name ILIKE '%'||$4||'%' OR nt.classification ILIKE '%'||$4||'%'
             OR nt.specialization ILIKE '%'||$4||'%')))
       ${q.name ? `AND concat_ws(' ',r.name::text,r.facility_name,r.group_name,n.organization_name,n.first_name,n.last_name) ILIKE '%'||$5||'%'` : 'AND $5::text IS NULL'}
-      AND ($6::text IS NULL OR r.type=$6)
-      AND EXISTS (SELECT 1 FROM qhp_provider_plan e WHERE e.snapshot_id=r.snapshot_id AND e.record_id=r.record_id
-        AND e.base_hios_id=$1 AND e.plan_year=$2 AND e.evidence_status='listed_participating' OFFSET 0)` : 'SELECT DISTINCT snapshot_id,record_id FROM plan_records WHERE $3::text IS NULL AND $4::text IS NULL AND $5::text IS NULL AND $6::text IS NULL')
+      AND ($6::text IS NULL OR r.type=$6)` : 'SELECT DISTINCT snapshot_id,record_id FROM plan_records WHERE $3::text IS NULL AND $4::text IS NULL AND $5::text IS NULL AND $6::text IS NULL')
     : `SELECT n.npi AS record_id,n.snapshot_id FROM ${spatialRadius ? `(SELECT DISTINCT record_id FROM radius_locations) keys
       JOIN LATERAL (SELECT * FROM npi_provider n WHERE n.npi=keys.record_id OFFSET 0) n ON true` : 'npi_provider n'}
       WHERE ${identityPredicate}`;
-  const location = issuer ? `SELECT a.record_id,a.snapshot_id,a.address_index,
-      a.snapshot_id||':'||a.record_id||':'||a.address_index::text AS source_row
-    FROM qhp_provider_address a JOIN selected r USING(record_id,snapshot_id)`
+  const batchLocations = issuer && spatialRadius && !recordFilter;
+  const location = issuer ? `SELECT a.record_id,a.snapshot_id,a.address_index
+      ${batchLocations ? '' : ",a.snapshot_id||':'||a.record_id||':'||a.address_index::text AS source_row"}
+    ${batchLocations ? `FROM (SELECT snapshot_id,array_agg(record_id ORDER BY record_id) AS record_ids
+      FROM selected GROUP BY snapshot_id) keys JOIN LATERAL (
+      SELECT a.record_id,a.snapshot_id,a.address_index FROM qhp_provider_address a
+      WHERE a.snapshot_id=keys.snapshot_id AND a.record_id=ANY(keys.record_ids) OFFSET 0) a ON true`
+      : 'FROM qhp_provider_address a JOIN selected r USING(record_id,snapshot_id)'}`
     : `SELECT a.npi AS record_id,a.snapshot_id,a.ordinal AS address_index,a.line_1,a.line_2,a.city,a.state,a.zip5 AS zip,
       a.phone,a.npi||':'||a.kind||':'||a.ordinal::text AS source_row
     FROM npi_address a JOIN selected r ON r.record_id=a.npi WHERE a.kind='practice'`;
@@ -164,15 +175,43 @@ export async function searchProviders(db: SqlSession, q: ProviderSearch) {
         : `a.kind='practice' AND a.npi||':'||a.kind||':'||a.ordinal::text=p.source_row
         AND a.snapshot_id=p.source_snapshot_id`} OFFSET 0) a ON true
   ), ` : '';
+  // Each candidate address has one source key. Count matching distinct keys per
+  // shard, so repeated geocodes cannot reduce the exact missing-address count.
+  const countPoints = issuer && (!q.origin || spatialRadius && !recordFilter);
+  const currentPoints = batchLocations ? `current_points AS MATERIALIZED (
+    SELECT p.source_snapshot_id,p.record_id,p.address_index FROM active_shards s JOIN LATERAL (
+      SELECT p.source_snapshot_id,p.source_row,
+        substring(p.source_row FROM length(p.source_snapshot_id)+2 FOR greatest(0,
+          length(p.source_row)-length(p.source_snapshot_id)-length(split_part(p.source_row,':',-1))-2)) AS record_id,
+        CASE WHEN split_part(p.source_row,':',-1) ~ '^[0-9]{1,10}$'
+          THEN split_part(p.source_row,':',-1)::bigint END AS address_index
+      FROM address_point p WHERE p.source_table='qhp_provider_address'
+        AND p.source_snapshot_id=s.snapshot_id OFFSET 0
+    ) p ON true WHERE p.source_row=p.source_snapshot_id||':'||p.record_id||':'||p.address_index::text
+  ), ` : countPoints ? `current_point_counts AS MATERIALIZED (
+    SELECT count(DISTINCT p.source_row)::int AS located FROM (SELECT snapshot_id,
+      array_agg(${batchLocations ? "snapshot_id||':'||record_id||':'||address_index::text" : 'source_row'}) AS source_rows
+      FROM locations GROUP BY snapshot_id) s JOIN LATERAL (
+      SELECT p.source_snapshot_id,p.source_row FROM address_point p
+      WHERE p.source_table='qhp_provider_address' AND p.source_snapshot_id=s.snapshot_id
+        AND p.source_row=ANY(s.source_rows) OFFSET 0
+    ) p ON true GROUP BY s.snapshot_id
+  ), ` : '';
+  const pageLocations = issuer && !q.origin;
+  const pageKeys = pageLocations ? `page_keys AS MATERIALIZED (
+    SELECT record_id,snapshot_id FROM selected ORDER BY record_id,snapshot_id LIMIT 50 OFFSET ${(q.page-1)*50}
+  ), ` : '';
   const selectedCte = `selected AS MATERIALIZED (${selected}), `;
-  const ctes = `WITH ${membership}${issuer ? selectedCte+radiusLocations : radiusLocations+selectedCte}locations AS (${location}), located AS (
+  const ctes = `WITH ${membership}${issuer ? selectedCte+pageKeys+radiusLocations : radiusLocations+selectedCte}locations AS (${location}), ${currentPoints}located AS (
     ${spatialRadius ? `SELECT a.* FROM radius_locations a JOIN selected r ON a.record_id=r.record_id
       ${issuer ? 'AND a.snapshot_id=r.snapshot_id' : ''}`
-      : `SELECT a.*,${pointFields} FROM locations a LEFT JOIN address_point p
+      : `SELECT a.*,${pointFields} FROM locations a ${pageLocations ? 'JOIN page_keys keys USING(record_id,snapshot_id)' : ''} LEFT JOIN address_point p
       ON p.source_table='${source}' AND p.source_row=a.source_row AND p.source_snapshot_id=a.snapshot_id`})`;
   // Missing-point counts do not need coordinate heaps or the radius. Use an anti
   // join independently of the spatial candidates; the count remains exact.
-  const unlocated = spatialRadius ? issuer ? `(SELECT count(*)::int FROM locations a WHERE NOT EXISTS (
+  const unlocated = batchLocations ? `(SELECT count(*)::int FROM locations a WHERE NOT EXISTS (SELECT 1 FROM current_points p WHERE p.source_snapshot_id=a.snapshot_id AND p.record_id=a.record_id AND p.address_index=a.address_index))`
+    : countPoints ? `(SELECT count(*)::int FROM locations)-(SELECT coalesce(sum(located),0)::int FROM current_point_counts)`
+    : spatialRadius ? issuer ? `(SELECT count(*)::int FROM locations a WHERE NOT EXISTS (
     SELECT 1 FROM address_point p WHERE p.source_table='${source}'
       AND p.source_row=a.source_row AND p.source_snapshot_id=a.snapshot_id))`
     : `(SELECT count(*)::int FROM npi_address a JOIN npi_provider n ON n.npi=a.npi

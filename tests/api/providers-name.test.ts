@@ -74,8 +74,9 @@ describe('plan-scoped identity name candidates',() => {
       .replace('(SELECT count(*) FROM qualified_names)<=2000','(SELECT count(*) FROM qualified_names)<=0'),args) };
     expect(await all(forced)).toEqual(expected);
   });
-  it('a second-word refinement preserves a literal name across issuer and identity fields',async () => {
-    const q = { plan,year: 2026,name: 'CrossOne CrossTwo',page: 1 };
+  it.each(['CrossOne CrossTwo','CrossOne CrossTwo SyntheticNational'])(
+    'another-word refinement preserves %s across issuer and identity fields',async name => {
+    const q = { plan,year: 2026,name,page: 1 };
     const expected = await searchProviders(h.db,q);
     expect(expected.total).toBe(1);
     const forced: SqlSession = { ...h.db,query: (sql,args) => h.db.query(sql
@@ -88,7 +89,7 @@ describe('plan-scoped identity name candidates',() => {
       sql = query; args = parameters;
       return h.db.query(query,parameters);
     } },{ plan,year: 2026,name,page: 1 });
-    // Execute production candidate CTEs before the independent final membership guard.
+    // Execute the production candidate CTEs before record filtering and paging.
     const prefix = sql.slice(0,sql.indexOf('selected AS MATERIALIZED')).replace(/,\s*$/,'');
     const candidates = `${prefix} SELECT record_id FROM name_candidates
       WHERE $3::text IS NULL AND $4::text IS NULL AND $6::text IS NULL ORDER BY record_id`;

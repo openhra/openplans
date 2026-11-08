@@ -261,3 +261,42 @@ at transaction commit, independently of endpoint TTLs.
 
 See the [cache contract](../src/api/cache/README.md) for eligible endpoints,
 credentials, invalidation, metrics, bounds, and operator inspection commands.
+
+## MCP endpoint
+
+The API accepts stateless Streamable HTTP at `POST /mcp`. GET and DELETE return 405.
+Catalog tools need no credential. To enable `estimate_premiums`, set a private
+`OPENPLANS_MCP_TOKEN` and send it as a bearer token. REST and compatibility credentials
+do not grant MCP access. Set `OPENPLANS_MCP=off` to remove the endpoint.
+
+Clients can use 2026-07-28 or the legacy 2025-11-25 and 2025-06-18 protocols on the same
+endpoint. Send `Accept: application/json, text/event-stream`. Modern clients must supply
+protocol, method and applicable name headers that match the request body. The server stores
+no sessions or replay state.
+
+Direct Node launches bind to 127.0.0.1 by default. `HOST` overrides the listener. Compose
+listens inside the container and publishes only to 127.0.0.1. For a TLS proxy, set
+`OPENPLANS_MCP_ALLOWED_HOSTS` to comma-separated exact Host authorities, including any
+nondefault port. Set `OPENPLANS_MCP_ALLOWED_ORIGINS` to exact scheme/host/port origins.
+Native clients can omit Origin; the server rejects a supplied Origin outside that list.
+
+Only socket peers listed in `OPENPLANS_TRUST_PROXY` may supply a forwarded client address.
+The server uses the last X-Forwarded-For hop. Configure those proxies to overwrite incoming
+forwarding headers. This bearer-token setup does not provide an OAuth server.
+
+Each API process allows 60 anonymous or 120 authenticated requests per source per minute,
+and four concurrent database-heavy requests. Input is limited to 64 KiB and output to
+128 KiB. SQL statements have a five-second server timeout; requests have a fifteen-second
+deadline. Rate and concurrency failures return 429 with Retry-After. Disconnects cancel
+active SQL. Retry reads with a new RPC ID.
+
+Logs contain only the recognized tool name, HTTP status, elapsed time, byte count and cache
+outcome. MCP currently bypasses the REST response cache. Share a private random
+`OPENPLANS_MCP_CURSOR_SECRET` across replicas to keep cursors valid between processes.
+Without it, each process generates its own secret.
+
+For subprocess clients, build and run `node dist/mcp/stdio.js` with `DATABASE_URL`.
+The image also provides the `openplans-mcp` command. Attach stdin when running it in a
+container. Stdout contains protocol JSON only; diagnostics go to stderr. The process closes
+on EOF or signals. Set `OPENPLANS_MCP_ALLOW_PERSONALIZED=1` to grant local estimates.
+HTTP tokens do not grant stdio estimates.

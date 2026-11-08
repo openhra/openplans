@@ -1,3 +1,6 @@
+import { canonicalEstimateOutput } from '../mcp/canonical-estimate.js';
+import { assertHonest } from '../../src/mcp/schemas.js';
+import { getPlan, estimatePremiums } from '../../src/services/catalog.js';
 import assert from 'node:assert/strict';
 import { PGlite } from '@electric-sql/pglite';
 import { afterAll, beforeAll, expect, it } from 'vitest';
@@ -179,4 +182,15 @@ it('DFS county transcription agrees with all 62 Census county identifiers', asyn
   expect(Object.fromEntries(map.NY.counties.map((c: any) => [c.county_fips, c.county]))).toEqual(census.ny_counties);
   expect(map.NY.counties).toHaveLength(62);
   expect(new Set(map.NY.counties.map((c: any) => c.rating_area_id)).size).toBe(8);
+});
+
+it('MCP contracts preserve state plan keys, filed totals and source cells', async () => {
+  expect(await getPlan(db, 'BCBSVT:Gold Plan', { year: '2026' })).toMatchObject({ plan_key: 'BCBSVT:Gold Plan', hios_id: null });
+  for (const request of [body(), { ...body('05401'), plan_ids: [], plan_keys: ['BCBSVT:Gold Plan'] }]) {
+    const canonical = await estimatePremiums(db, request);
+    const output = await canonicalEstimateOutput(db, canonical.estimates);
+    assertHonest('estimate_premiums', output, canonical);
+    expect(output.data!.estimates[0]).toMatchObject({ gross_status: 'rated', quote_method: 'state_filed_tier', members: [],
+      state_rule_trace: { tier: 'single' }, rate_trace: [{ column: expect.any(String), value: expect.any(String) }] });
+  }
 });

@@ -1,3 +1,6 @@
+import { canonicalEstimateOutput } from '../mcp/canonical-estimate.js';
+import { assertHonest } from '../../src/mcp/schemas.js';
+import { estimatePremiums } from '../../src/services/catalog.js';
 import assert from 'node:assert/strict';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createApp } from '../../src/api/app.js';
@@ -247,4 +250,14 @@ describe('native subsidy and benchmark wiring', () => {
     expect(response.headers.get('x-openplans-gaps')).toContain('csr_eligibility_not_evaluated');
     expect(data.plans[0]).not.toHaveProperty('estimated_monthly_tax_credit_cents');
   });
+});
+
+it('MCP contract preserves the real full-catalog benchmark, credit and net trace', async () => {
+  const canonical = await estimatePremiums(h.db, body());
+  const output = await canonicalEstimateOutput(h.db, canonical.estimates);
+  assertHonest('estimate_premiums', output, canonical);
+  expect(output.data!.estimates[0]).toMatchObject({ gross_monthly_cents: 55354, estimated_credit_cents: 42005,
+    estimated_net_cents: 13349, benchmark_cents: 59205, subsidy: { benchmark: { silver_plan_count: expect.any(Number) } } });
+  const changed = structuredClone(output); changed.data!.estimates[0]!.subsidy!.benchmark.lowest_silver_plans[0]!.ehb_monthly_cents++;
+  expect(() => assertHonest('estimate_premiums', changed, canonical)).toThrow('changed benchmark ranking');
 });

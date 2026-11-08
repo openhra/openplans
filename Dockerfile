@@ -14,7 +14,9 @@ COPY --from=build --chown=node:node /app/node_modules ./node_modules
 COPY --from=build --chown=node:node /app/dist ./dist
 COPY --chown=node:node migrations ./migrations
 COPY --chown=node:node data/rating-rules ./data/rating-rules
-RUN chmod +x dist/worker/cli.js && ln -s /app/dist/worker/cli.js /usr/local/bin/worker
+RUN chmod +x dist/worker/cli.js dist/mcp/stdio.js \
+    && ln -s /app/dist/worker/cli.js /usr/local/bin/worker \
+    && ln -s /app/dist/mcp/stdio.js /usr/local/bin/openplans-mcp
 USER node
 EXPOSE 3000
 CMD ["node", "dist/api/server.js"]

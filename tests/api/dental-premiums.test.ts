@@ -1,3 +1,6 @@
+import { canonicalEstimateOutput } from '../mcp/canonical-estimate.js';
+import { assertHonest } from '../../src/mcp/schemas.js';
+import { estimatePremiums } from '../../src/services/catalog.js';
 import { PGlite } from '@electric-sql/pglite';
 import { beforeAll, afterAll, expect, it } from 'vitest';
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -64,6 +67,9 @@ it('uses the named Family Option column without inventing member premiums or ped
   await tx.query(`UPDATE rate SET age_band='Family Option',rating_method='family_tier',individual_rate_cents=1000,
     primary_subscriber_and_two_dependents_cents=4000,primary_subscriber_and_three_or_more_dependents_cents=5000,
     raw=raw || '{"Age":"Family Option","IndividualRate":"10","PrimarySubscriberAndTwoDependents":"40","PrimarySubscriberAndThreeOrMoreDependents":"50"}'::jsonb WHERE base_plan_id=$1`, [plan]);
+  const canonical = await estimatePremiums(tx, { plan_ids: [plan], county: '48201', coverage_start: '2026-01-01',
+    members: [member(35),member(10,'child'),member(12,'child')] });
+  assertHonest('estimate_premiums', await canonicalEstimateOutput(tx, canonical.estimates), canonical);
   expect(await quote(tx,[member(35),member(10,'child'),member(12,'child')])).toMatchObject({ status: 'rated', total_cents: 4000,
     coverage: 'dental', quote_method: 'filed_dental_family_option', filed_column: 'PrimarySubscriberAndTwoDependents',
     members: [], pediatric_ehb: { status: 'unknown', monthly_cents: null, fraction: '1' } });
@@ -83,4 +89,13 @@ it('negative control: NY/VT SADPs reject even a federal PUF catalog mislabelled 
     expect(result).not.toHaveProperty('total_cents');
     expect(result.rate_rows_used).toEqual([]);
   });
+});
+
+it('MCP contract retains dental business rules, pediatric allocation and noncharged dependents', async () => {
+  const canonical = await estimatePremiums(db, { plan_ids: [plan], county: '48201', coverage_start: '2026-01-01',
+    members: [member(35), ...[10,11,12,13].map(age => member(age,'child'))] });
+  const output = await canonicalEstimateOutput(db, canonical.estimates);
+  assertHonest('estimate_premiums', output, canonical);
+  expect(output.data!.estimates[0]).toMatchObject({ coverage: 'dental', quote_method: 'filed_dental_per_member',
+    dental_business_rules: [{ fields: expect.any(Array) }], pediatric_ehb: { field: 'EHBPediatricDentalApportionmentQuantity' } });
 });

@@ -181,3 +181,123 @@ export async function planView(db: SqlSession, plan: Plan, options: CostSharingO
 export async function variantExists(db: SqlSession, plan: Plan, full: string): Promise<boolean> {
   return (await db.query('SELECT 1 FROM plan_variant WHERE snapshot_id=$1 AND variant_plan_id=$2', [plan.snapshot_id, full])).rows.length === 1;
 }
+
+// Read-service persistence queries.
+export function premiumRateRows(db: SqlSession, snapshotId: string | undefined, base: string, area: string) {
+  return db.query(`SELECT *,effective_date::text AS effective_date,expiration_date::text AS expiration_date
+    FROM rate WHERE snapshot_id=$1 AND base_plan_id=$2 AND rating_area_id=$3`,
+    [snapshotId, base, area]);
+}
+
+export function dentalBusinessRows(db: SqlSession, snapshotId: string | undefined, base: string, market: string) {
+  return db.query<{ raw: Record<string, string>; source_row: number }>(
+    `SELECT raw,source_row FROM business_rule WHERE snapshot_id=$1 AND base_plan_id=$2 AND dental_only AND market=$3 ORDER BY source_row`,
+    [snapshotId, base, market]);
+}
+
+export function premiumAttributeRows(db: SqlSession, snapshotId: string, base: string) {
+  return db.query<{ raw: Record<string, string>; source_row: number }>(
+    `SELECT raw,source_row FROM plan_attribute WHERE snapshot_id=$1 AND base_plan_id=$2 ORDER BY source_row`,
+    [snapshotId, base]);
+}
+
+export function exchangeAttributeRows(db: SqlSession, snapshotId: string, base: string) {
+  return db.query<{ raw: Record<string, string>; source_row: number }>(`SELECT raw,source_row FROM plan_attribute
+    WHERE snapshot_id=$1 AND base_plan_id=$2 AND on_exchange ORDER BY source_row`, [snapshotId, base]);
+}
+
+export function dentalBenchmarkRates(db: SqlSession, snapshotId: string | undefined, base: string, area: string, childAgeBands: string[]) {
+  return db.query<{ raw: import('../domain/rating/index.js').CmsRateRow; snapshot_id: string; source_row: number }>(
+      `SELECT raw,snapshot_id,source_row FROM rate WHERE snapshot_id=$1 AND base_plan_id=$2 AND rating_area_id=$3 AND age_band = ANY($4::text[])`,
+      [snapshotId, base, area, childAgeBands]);
+}
+
+export function federalCatalog(db: SqlSession, state: string | null, year: number) {
+  return db.query('SELECT 1 FROM puf_active_catalog WHERE state=$1 AND plan_year=$2', [state, year]);
+}
+
+export function childDentalBenefits(db: SqlSession, snapshotId: string | undefined, base: string, names: string[]) {
+  return db.query<{ benefit_name: string; raw: Record<string, string>; source_row: number }>(
+        `SELECT benefit_name,raw,source_row FROM plan_benefit WHERE snapshot_id=$1 AND base_plan_id=$2
+          AND benefit_name = ANY($3::text[])`, [snapshotId, base, names]);
+}
+
+export function enrollmentAttributes(db: SqlSession, year: number, ids: string[]) {
+  return db.query<{ raw: Record<string, string>; source_row: number; base_plan_id: string }>(`SELECT pa.base_plan_id,pa.raw,pa.source_row FROM puf_active_catalog a
+    JOIN puf_import_file f ON f.import_id=a.import_id AND f.kind='plan-attributes'
+    JOIN plan_attribute pa ON pa.snapshot_id=f.snapshot_id
+    WHERE a.plan_year=$1 AND pa.base_plan_id = ANY($2::text[]) AND pa.on_exchange`, [year, ids]);
+}
+
+export function sbeAvailabilitySources(db: SqlSession) {
+  return db.query<{ state: string; plan_year: number; import_id: string; bundle_url: string; bundle_sha256: string }>(`SELECT p.state,p.plan_year,c.import_id,c.bundle_url,c.bundle_sha256 FROM sbe_catalog c JOIN puf_import p USING(import_id) JOIN puf_active_catalog a USING(import_id) JOIN snapshot s ON s.snapshot_id=c.import_id AND s.validation_state='ACTIVE'`);
+}
+
+export function availabilityGeography(db: SqlSession) {
+  return db.query<{ state: string; plan_year: number; county_areas: number; zip3_areas: number }>(`
+    SELECT g.state,g.plan_year,
+      (SELECT count(*)::int FROM rating_area r WHERE r.snapshot_id=g.rating_snapshot_id AND r.state=g.state AND r.plan_year=g.plan_year) AS county_areas,
+      (SELECT count(*)::int FROM rating_area_zip z WHERE z.snapshot_id=g.rating_snapshot_id AND z.state=g.state AND z.plan_year=g.plan_year) AS zip3_areas
+    FROM geo_import g`);
+}
+
+export function availabilityRateEvidence(db: SqlSession, entry: { state: string; plan_year: number; market: string; issuer_id: string | null; snapshot_id: string | null }) {
+  return db.query<{ snapshot_id: string; rate_rows: number; medical_plans: number }>(`
+      SELECT rf.snapshot_id, count(r.base_plan_id)::int AS rate_rows,
+        count(DISTINCT p.base_plan_id)::int AS medical_plans
+      FROM puf_active_catalog a
+      JOIN puf_import_file pf ON pf.import_id=a.import_id AND pf.kind='plan-attributes'
+      JOIN puf_import_file rf ON rf.import_id=a.import_id AND rf.kind='rate'
+      LEFT JOIN plan p ON p.snapshot_id=pf.snapshot_id AND NOT p.dental_only AND p.market=$3
+        AND ($4::text IS NULL OR p.issuer_id=$4)
+      LEFT JOIN rate r ON r.snapshot_id=rf.snapshot_id AND r.base_plan_id=p.base_plan_id
+      WHERE a.state=$1 AND a.plan_year=$2 AND a.import_id=$5 GROUP BY rf.snapshot_id`,
+    [entry.state, entry.plan_year, entry.market, entry.issuer_id, entry.snapshot_id]);
+}
+
+export function activeStateScopes(db: SqlSession) {
+  return db.query<{ state: string; plan_year: number }>(`SELECT a.state,a.plan_year FROM state_rate_active a
+    JOIN snapshot s ON s.snapshot_id=a.import_id AND s.validation_state='ACTIVE' ORDER BY a.state,a.plan_year`);
+}
+
+export async function directoryRows(db: SqlSession, kind: 'carriers' | 'networks', state: string, year: number | null) {
+  const fileKind = kind === 'carriers' ? 'plan-attributes' : 'network';
+  const columns = kind === 'carriers' ? 'r.issuer_id,r.marketing_names,r.state,r.plan_year,r.snapshot_id,r.source_row'
+    : 'r.network_id,r.issuer_id,r.network_name,r.network_url,r.state,r.plan_year,r.market,r.dental_only,r.snapshot_id,r.source_row';
+  const { rows } = await db.query(`SELECT ${columns} FROM puf_active_catalog a
+    JOIN puf_import_file f ON f.import_id=a.import_id AND f.kind=$1
+    JOIN ${kind === 'carriers' ? 'issuer' : 'network'} r ON r.snapshot_id=f.snapshot_id
+    WHERE a.state=$2 AND ($3::integer IS NULL OR a.plan_year=$3) ORDER BY r.plan_year,r.issuer_id,r.source_row`, [fileKind, state, year]);
+  return rows;
+}
+
+export function activeCatalog(db: SqlSession, year: number, state: string | null) {
+  return db.query(`SELECT 1 FROM puf_active_catalog WHERE plan_year=$1 AND state=$2
+    UNION ALL SELECT 1 FROM state_rate_active a JOIN snapshot s ON s.snapshot_id=a.import_id AND s.validation_state='ACTIVE'
+    WHERE a.plan_year=$1 AND a.state=$2`, [year, state]);
+}
+
+export interface SnapshotMetadata extends Record<string, unknown> {
+  snapshot_id: string; source_id: string; publisher: string; source_kind: string;
+  url: string | null; sha256: string | null; bytes: string | null;
+  retrieved_at: string | null; publisher_updated_at: string | null;
+  validation_state: string; expected_children: number | null; fetched_children: number;
+  parent_snapshot_ids: string[]; child_snapshot_ids: string[];
+}
+/** Explicit public columns: never expose raw filesystem paths, headers or destinations. */
+export async function snapshotMetadata(db: SqlSession, id: string): Promise<SnapshotMetadata | null> {
+  const { rows } = await db.query<SnapshotMetadata>(`WITH edges AS (
+    SELECT source_set_id AS parent,snapshot_id AS child FROM provider_shard WHERE source_set_id=$1 OR snapshot_id=$1
+    UNION SELECT snapshot_id,raw_snapshot_id FROM provider_shard WHERE raw_snapshot_id IS NOT NULL AND (snapshot_id=$1 OR raw_snapshot_id=$1)
+    UNION SELECT source_set_id,snapshot_id FROM formulary_shard WHERE source_set_id=$1 OR snapshot_id=$1
+    UNION SELECT snapshot_id,raw_snapshot_id FROM formulary_shard WHERE raw_snapshot_id IS NOT NULL AND (snapshot_id=$1 OR raw_snapshot_id=$1)
+    UNION SELECT import_id,snapshot_id FROM puf_import_file WHERE import_id=$1 OR snapshot_id=$1
+    UNION SELECT import_id,publication_snapshot_id FROM state_community_rate WHERE import_id=$1 OR publication_snapshot_id=$1
+  ) SELECT s.snapshot_id,s.source_id,p.publisher,p.source_kind,coalesce(s.final_url,s.requested_url) AS url,
+    s.sha256,s.uncompressed_bytes::text AS bytes,s.retrieved_at::text,s.publisher_updated_at::text,
+    s.validation_state,s.expected_children,s.fetched_children,
+    ARRAY(SELECT parent FROM edges WHERE child=s.snapshot_id ORDER BY parent) AS parent_snapshot_ids,
+    ARRAY(SELECT child FROM edges WHERE parent=s.snapshot_id ORDER BY child) AS child_snapshot_ids
+    FROM snapshot s JOIN source p USING(source_id) WHERE s.snapshot_id=$1`, [id]);
+  return rows[0] ?? null;
+}
