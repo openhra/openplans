@@ -1,7 +1,14 @@
-import type { SqlSession } from './database.js';
+import type { SqlSession } from "./database.js";
 
-export type CoverageStatus = 'not_yet_verified' | 'available' | 'partial' | 'unknown'
-  | 'unavailable' | 'unsupported' | 'stale' | 'conflicted';
+export type CoverageStatus =
+  | "not_yet_verified"
+  | "available"
+  | "partial"
+  | "unknown"
+  | "unavailable"
+  | "unsupported"
+  | "stale"
+  | "conflicted";
 
 export interface CoverageEntry extends Record<string, unknown> {
   state: string;
@@ -17,14 +24,16 @@ export interface CoverageEntry extends Record<string, unknown> {
 
 export async function checkDatabase(db: SqlSession): Promise<boolean> {
   try {
-    await db.query('SELECT 1');
+    await db.query("SELECT 1");
     return true;
   } catch {
     return false;
   }
 }
 
-export async function coverageManifest(db: SqlSession): Promise<CoverageEntry[]> {
+export async function coverageManifest(
+  db: SqlSession,
+): Promise<CoverageEntry[]> {
   const { rows } = await db.query<CoverageEntry>(`
     SELECT state, plan_year, market, issuer_id, catalog_status, premium_status,
            provider_status, formulary_status, snapshot_id

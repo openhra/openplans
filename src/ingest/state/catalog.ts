@@ -1,13 +1,33 @@
-import { readFile } from 'node:fs/promises';
-import type { SqlSession } from '../../db/database.js';
-import type { CommunityFamilyRule, CommunityRate } from '../../domain/rating/index.js';
-import { parseCommunityRules } from './index.js';
-import { reflectivePublication } from './reflective.js';
+import { readFile } from "node:fs/promises";
+import type { SqlSession } from "../../db/database.js";
+import type {
+  CommunityFamilyRule,
+  CommunityRate,
+} from "../../domain/rating/index.js";
+import { parseCommunityRules } from "./index.js";
+import { reflectivePublication } from "./reflective.js";
 
-const geography = JSON.parse(await readFile(new URL('../../../data/rating-rules/state-geography-2026.json', import.meta.url), 'utf8')) as {
+const geography = JSON.parse(
+  await readFile(
+    new URL(
+      "../../../data/rating-rules/state-geography-2026.json",
+      import.meta.url,
+    ),
+    "utf8",
+  ),
+) as {
   plan_year: number;
-  NY: { citation: string; references: string[]; source_sha256: string;
-    counties: { county_fips: string; county: string; rating_area_id: string; region: string }[] };
+  NY: {
+    citation: string;
+    references: string[];
+    source_sha256: string;
+    counties: {
+      county_fips: string;
+      county: string;
+      rating_area_id: string;
+      region: string;
+    }[];
+  };
   VT: { region: string; citation: string; references: string[] };
 };
 
@@ -15,30 +35,73 @@ const geography = JSON.parse(await readFile(new URL('../../../data/rating-rules/
  * VT guidance explicitly makes every Vermont ZIP part of the service area. */
 export function stateRatingArea(state: string, year: number, county: string) {
   if (year !== geography.plan_year) return null;
-  if (state === 'VT' && /^50(00[13579]|01[13579]|02[1357])$/.test(county)) {
-    return { rating_area_id: geography.VT.region, citation: geography.VT.citation, references: geography.VT.references,
-      scope: 'statewide' as const };
+  if (state === "VT" && /^50(00[13579]|01[13579]|02[1357])$/.test(county)) {
+    return {
+      rating_area_id: geography.VT.region,
+      citation: geography.VT.citation,
+      references: geography.VT.references,
+      scope: "statewide" as const,
+    };
   }
-  if (state !== 'NY') return null;
-  const row = geography.NY.counties.find(row => row.county_fips === county);
-  return row ? { rating_area_id: row.rating_area_id, citation: geography.NY.citation, references: geography.NY.references,
-    source_sha256: geography.NY.source_sha256, county_fips: county, scope: 'rating_area' as const } : null;
+  if (state !== "NY") return null;
+  const row = geography.NY.counties.find((row) => row.county_fips === county);
+  return row
+    ? {
+        rating_area_id: row.rating_area_id,
+        citation: geography.NY.citation,
+        references: geography.NY.references,
+        source_sha256: geography.NY.source_sha256,
+        county_fips: county,
+        scope: "rating_area" as const,
+      }
+    : null;
 }
 
 export interface StateCatalogRow extends Record<string, unknown> {
-  state: 'NY' | 'VT'; plan_year: number; import_id: string; publication_snapshot_id: string;
-  record_index: number; plan_key: string; region: string; rate: CommunityRate;
-  raw_record: { plan_id: string | null; issuer: string; plan_name?: string; metal: string | null;
-    exchange: string; prices: Record<string, string>; raw: Record<string, string> };
+  state: "NY" | "VT";
+  plan_year: number;
+  import_id: string;
+  publication_snapshot_id: string;
+  record_index: number;
+  plan_key: string;
+  region: string;
+  rate: CommunityRate;
+  raw_record: {
+    plan_id: string | null;
+    issuer: string;
+    plan_name?: string;
+    metal: string | null;
+    exchange: string;
+    prices: Record<string, string>;
+    raw: Record<string, string>;
+  };
   rules_document: unknown;
-  hios_id: string | null; hios_match: 'matched' | 'ambiguous' | 'none' | null;
-  hios_match_reason: string | null; hios_candidates: Record<string, unknown>[] | null;
-  hios_match_rule: string | null; hios_match_provenance: Record<string, unknown> | null;
-  sbe_exchange?: { on_exchange: boolean; off_exchange: boolean;
-    snapshot_id: string; source_rows: number[]; source_record?: string; source_url?: string; source_sha256?: string } | null;
+  hios_id: string | null;
+  hios_match: "matched" | "ambiguous" | "none" | null;
+  hios_match_reason: string | null;
+  hios_candidates: Record<string, unknown>[] | null;
+  hios_match_rule: string | null;
+  hios_match_provenance: Record<string, unknown> | null;
+  sbe_exchange?: {
+    on_exchange: boolean;
+    off_exchange: boolean;
+    snapshot_id: string;
+    source_rows: number[];
+    source_record?: string;
+    source_url?: string;
+    source_sha256?: string;
+  } | null;
 }
-export async function stateCatalog(db: SqlSession, year: number, state?: string, key?: string, region?: string) {
-  return (await db.query<StateCatalogRow>(`SELECT a.state,a.plan_year,r.*,i.rules_document,
+export async function stateCatalog(
+  db: SqlSession,
+  year: number,
+  state?: string,
+  key?: string,
+  region?: string,
+) {
+  return (
+    await db.query<StateCatalogRow>(
+      `SELECT a.state,a.plan_year,r.*,i.rules_document,
     h.hios_id,h.hios_match,h.reason AS hios_match_reason,h.candidates AS hios_candidates,
     h.rule_version AS hios_match_rule,e.sbe_exchange,
     CASE WHEN h.state_import_id IS NOT NULL THEN jsonb_build_object(
@@ -62,15 +125,32 @@ export async function stateCatalog(db: SqlSession, year: number, state?: string,
     ) e ON true
     WHERE a.plan_year=$1 AND ($2::text IS NULL OR a.state=$2)
       AND ($3::text IS NULL OR r.plan_key=$3 OR h.hios_id=$3) AND ($4::text IS NULL OR r.region=$4)
-    ORDER BY r.plan_key,r.region,r.source_index,r.record_index`, [year, state ?? null, key ?? null, region ?? null])).rows.map(row => {
-    if (row.state === 'VT' && row.raw_record.exchange === 'Off'
-      && reflectivePublication(row.rate.provenance.sourceUrl, row.rate.provenance.sourceSha256)) {
+    ORDER BY r.plan_key,r.region,r.source_index,r.record_index`,
+      [year, state ?? null, key ?? null, region ?? null],
+    )
+  ).rows.map((row) => {
+    if (
+      row.state === "VT" &&
+      row.raw_record.exchange === "Off" &&
+      reflectivePublication(
+        row.rate.provenance.sourceUrl,
+        row.rate.provenance.sourceSha256,
+      )
+    ) {
       // This exchange-evidence slot also carries the separately cited state
       // filing. An empty CSV-row list never pretends a PDF is a PUF.
-      return { ...row, sbe_exchange: { on_exchange: false, off_exchange: true,
-        snapshot_id: row.publication_snapshot_id, source_rows: [],
-        source_record: row.rate.provenance.sourceRecord, source_url: row.rate.provenance.sourceUrl,
-        source_sha256: row.rate.provenance.sourceSha256 } };
+      return {
+        ...row,
+        sbe_exchange: {
+          on_exchange: false,
+          off_exchange: true,
+          snapshot_id: row.publication_snapshot_id,
+          source_rows: [],
+          source_record: row.rate.provenance.sourceRecord,
+          source_url: row.rate.provenance.sourceUrl,
+          source_sha256: row.rate.provenance.sourceSha256,
+        },
+      };
     }
     return row;
   });
@@ -78,12 +158,124 @@ export async function stateCatalog(db: SqlSession, year: number, state?: string,
 export function catalogRule(row: StateCatalogRow): CommunityFamilyRule | null {
   // Revalidate the stored authorization at the API boundary; a per-age mutant
   // must not be accepted even if the import pointer is otherwise active.
-  try { return parseCommunityRules(JSON.stringify(row.rules_document)).find(rule => rule.state === row.state) ?? null; }
-  catch { return null; }
+  try {
+    return (
+      parseCommunityRules(JSON.stringify(row.rules_document)).find(
+        (rule) => rule.state === row.state,
+      ) ?? null
+    );
+  } catch {
+    return null;
+  }
 }
 export function stateSourceCell(row: StateCatalogRow, tier: string) {
-  const column = row.state === 'NY' ? ({ single: 'E', couple: 'G', adult_children: 'H:J', family: 'K:M' } as Record<string, string>)[tier] : tier;
-  return { publication_snapshot_id: row.publication_snapshot_id, source_url: row.rate.provenance.sourceUrl,
-    source_sha256: row.rate.provenance.sourceSha256, source_record: row.rate.provenance.sourceRecord,
-    column, tier, value: row.raw_record.prices[tier], currency: 'USD', period: 'month' };
+  const column =
+    row.state === "NY"
+      ? (
+          {
+            single: "E",
+            couple: "G",
+            adult_children: "H:J",
+            family: "K:M",
+          } as Record<string, string>
+        )[tier]
+      : tier;
+  return {
+    publication_snapshot_id: row.publication_snapshot_id,
+    source_url: row.rate.provenance.sourceUrl,
+    source_sha256: row.rate.provenance.sourceSha256,
+    source_record: row.rate.provenance.sourceRecord,
+    column,
+    tier,
+    value: row.raw_record.prices[tier],
+    currency: "USD",
+    period: "month",
+  };
+}
+
+/** Supplemental detail never authorizes a rate or a new filed-to-HIOS match. */
+export async function stateDetailSource(
+  db: SqlSession,
+  state: string,
+  year: number,
+  hios: string | null | undefined,
+  filedImport: string,
+  planKey: string | undefined,
+) {
+  if (
+    !["NY", "VT"].includes(state) ||
+    !hios ||
+    !new RegExp(`^\\d{5}${state}\\d{7}$`).test(hios)
+  )
+    return null;
+  const { rows } = await db.query<{
+    snapshot_id: string;
+    import_id: string;
+    bundle_url: string;
+    bundle_sha256: string;
+  }>(
+    `WITH detail_catalog AS (
+      SELECT p.import_id,c.bundle_url,c.bundle_sha256 FROM puf_import p
+      JOIN sbe_catalog c ON c.import_id=p.import_id
+      JOIN snapshot s ON s.snapshot_id=p.import_id AND s.validation_state='ACTIVE'
+      WHERE p.state=$1 AND p.plan_year=$2 AND (SELECT count(*) FROM puf_import_file f
+        JOIN snapshot fs ON fs.snapshot_id=f.snapshot_id AND fs.validation_state='ACTIVE'
+        WHERE f.import_id=p.import_id)=6
+      ORDER BY p.started_at DESC,p.import_id DESC LIMIT 1
+    )
+    SELECT f.snapshot_id,c.* FROM detail_catalog c
+    JOIN puf_import_file f ON f.import_id=c.import_id AND f.kind='plan-attributes'
+    WHERE EXISTS (SELECT 1 FROM plan_attribute pa WHERE pa.snapshot_id=f.snapshot_id
+      AND pa.base_plan_id=$3 AND pa.state=$1 AND pa.plan_year=$2
+      AND pa.market='Individual' AND NOT pa.dental_only)
+    AND ($1='NY' OR EXISTS (SELECT 1 FROM state_vt_hios_current h
+      WHERE h.state_import_id=$4 AND h.plan_key=$5 AND h.hios_id=$3
+        AND h.hios_match='matched' AND h.sbe_import_id=c.import_id))`,
+    [state, year, hios, filedImport, planKey ?? null],
+  );
+  return rows.length === 1 ? rows[0]! : null;
+}
+
+/** CMS state files use spaced headers and a single published family cell. */
+export function stateDetailColumns(raw: Record<string, string>) {
+  const names =
+    `BusinessYear StateCode StandardComponentId PlanId PlanType IsHSAEligible
+    PlanEffectiveDate PlanExpirationDate FormularyURL MedicalDrugDeductiblesIntegrated
+    MedicalDrugMaximumOutofPocketIntegrated IsCovered QuantLimitOnSvc LimitQty LimitUnit
+    Exclusions Explanation EHBVarReason IsExclFromInnMOOP IsExclFromOonMOOP
+    MinimumStay IsSubjectedToDedTier1 IsSubjectedToDedTier2
+    CopayInnTier1 CopayInnTier2 CopayOutofNet CoinsInnTier1 CoinsInnTier2 CoinsOutofNet`.split(
+      /\s+/,
+    );
+  for (const prefix of ["MEHB", "DEHB", "TEHB"])
+    for (const network of ["InnTier1", "InnTier2", "OutOfNet", "CombInnOon"])
+      for (const scope of [
+        "Individual",
+        "Family",
+        "FamilyPerPerson",
+        "FamilyPerGroup",
+      ]) {
+        names.push(
+          `${prefix}Ded${network}${scope}`,
+          `${prefix}${network}${scope}MOOP`,
+        );
+      }
+  const compact = (key: string) => key.replace(/[^a-z0-9]/gi, "").toLowerCase();
+  const aliases = new Map(names.map((key) => [compact(key), key]));
+  aliases.set("quantitylimitonsvc", "QuantLimitOnSvc");
+  aliases.set("limitquantity", "LimitQty");
+  aliases.set("isexcludedfrominnmoop", "IsExclFromInnMOOP");
+  aliases.set("isexcludedfromoonmoop", "IsExclFromOonMOOP");
+  const result = { ...raw };
+  for (const [key, value] of Object.entries(raw)) {
+    const canonical = aliases.get(compact(key));
+    if (!canonical) continue;
+    if (
+      result[canonical] !== undefined &&
+      result[canonical]!.trim() !== value.trim()
+    )
+      throw new Error("Conflicting supplemental detail columns");
+    result[canonical] = value;
+  }
+  return result;
 }

@@ -27,16 +27,7 @@
   "fpl": {
     "contiguous": {
       "annualDollarsBySize": {
-        "value": [
-          15960,
-          21640,
-          27320,
-          33000,
-          38680,
-          44360,
-          50040,
-          55720
-        ],
+        "value": [15960, 21640, 27320, 33000, 38680, 44360, 50040, 55720],
         "citations": [
           {
             "url": "https://www.govinfo.gov/content/pkg/FR-2026-01-15/html/2026-00755.htm",
@@ -60,16 +51,7 @@
     },
     "alaska": {
       "annualDollarsBySize": {
-        "value": [
-          19950,
-          27050,
-          34150,
-          41250,
-          48350,
-          55450,
-          62550,
-          69650
-        ],
+        "value": [19950, 27050, 34150, 41250, 48350, 55450, 62550, 69650],
         "citations": [
           {
             "url": "https://www.govinfo.gov/content/pkg/FR-2026-01-15/html/2026-00755.htm",
@@ -93,16 +75,7 @@
     },
     "hawaii": {
       "annualDollarsBySize": {
-        "value": [
-          18360,
-          24890,
-          31420,
-          37950,
-          44480,
-          51010,
-          57540,
-          64070
-        ],
+        "value": [18360, 24890, 31420, 37950, 44480, 51010, 57540, 64070],
         "citations": [
           {
             "url": "https://www.govinfo.gov/content/pkg/FR-2026-01-15/html/2026-00755.htm",

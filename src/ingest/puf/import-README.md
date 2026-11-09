@@ -53,9 +53,9 @@ Consumers must honor `state_rating_rule` before invoking the premium engine.
 ## County query contract
 
 ```ts
-import { plansForCounty, createPufRepository } from './import.js';
-await plansForCounty(db, '48201', 2026, 'Individual');
-await createPufRepository(db).plansForCounty('48201', 2026, 'Individual');
+import { plansForCounty, createPufRepository } from "./import.js";
+await plansForCounty(db, "48201", 2026, "Individual");
+await createPufRepository(db).plansForCounty("48201", 2026, "Individual");
 ```
 
 Results are canonical base plans from the active set, with `on_exchange`,

@@ -180,17 +180,13 @@ NLM's complete requested acknowledgement. No publisher endorsement is implied.
 ## Optional compatibility API
 
 The native API is `/v1/*`. The isolated module at `src/compat/v1/` exposes
-`/compat/v1/*` using shapes checked against optional captured responses.
+`/compat/v1/*`, a compatibility API for existing quoting integrations.
 Set `OPENPLANS_COMPAT_API_KEY` in `.env`; clients send the `X-Api-Key`
 header. Optionally set `OPENPLANS_COMPAT_KEY_HEADER` to one additional credential
 header name (a single RFC 7230 token; invalid names prevent startup). Both headers
 accept the same key. These settings are separate from the native bearer token. The facade
 reports unsupported or unavailable fields through nulls and `x-openplans-gaps`.
 Read the [facade guide](../src/compat/v1/README.md) for routes, defaults and gaps.
-
-The reference-capture mock is only an optional external test oracle: point `OPENPLANS_REFERENCE_CAPTURES_DIR`
-at an existing capture directory to run those comparisons. When unset, they
-skip. Neither runtime nor standalone CI needs the reference-capture mock or proprietary credentials.
 
 ## Local development
 

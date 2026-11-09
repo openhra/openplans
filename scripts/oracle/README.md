@@ -33,7 +33,21 @@ select prepared file databases. The defaults are `formulary-pglite-p2d`,
 `provider-pglite-p3b` and `geocode-pglite-p3c` below the cache. These checks never
 download or create missing databases. Results go to `reports/public-raw-evidence.json`.
 
-A source checkout may also contain optional local reference comparisons. Those
-comparisons and their archive-dependent tests are omitted from public exports.
-Public CI and the public raw-file checks require neither reference captures nor
-an owner-supplied database archive. Offline checker tests live in `tests/oracle/`.
+Public CI and the public raw-file checks need no private data or database archive.
+Offline checker tests live in `tests/oracle/`.
+
+Source controls use `source-controls.mjs` and the shared syntax matcher in
+`scripts/source-mutation.mjs`. Offline CI runs `tests/oracle/source-controls.test.mjs`
+against current TypeScript and built JavaScript, with both quote styles and
+different wrapping and trailing commas. A missing or duplicate target fails.
+The registry covers dental family tiers, CSR income inference, the NY/VT federal
+guard, filed family cells, Alaska FPL selection and ZCTA priority. CSR import
+rebasing also uses parsed module specifiers. Dental requires 3/3 controls and CSR
+requires 2/2.
+
+The other controls select data rather than source text. SBE changes one parsed
+rate expectation. NY/VT corpus checks select prepared JSON records, filed cells
+and database rows; VT HIOS controls change disposable prepared records. Rate,
+drug, provider and geocode oracles mutate parsed records or isolated database
+rows. Publication-anchor checks use HTML fixtures and parsed discovery results.
+These targets do not depend on TypeScript formatting.

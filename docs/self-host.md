@@ -311,3 +311,16 @@ The image also provides the `openplans-mcp` command. Attach stdin when running i
 container. Stdout contains protocol JSON only; diagnostics go to stderr. The process closes
 on EOF or signals. Set `OPENPLANS_MCP_ALLOW_PERSONALIZED=1` to grant local estimates.
 HTTP tokens do not grant stdio estimates.
+
+## Optional second geocoder
+
+A separate Nominatim service can retry addresses still unresolved after Census cleanup.
+It uses public OSM state extracts, runs on `colima-openplans-big`, and binds its port to
+127.0.0.1. Start with TX, FL or NC, one state at a time. The download, import, retry and
+stop commands are in [the geocoder guide](../src/ingest/geocode/README.md#self-hosted-open-geocoder).
+
+Leave `OPENPLANS_OPEN_GEOCODER_URL` unset to disable it. Stored open results retain their
+source, licence, attribution and extract date in a separate SQL ledger. They do not yet
+replace Census/ZCTA evidence in provider API responses. Keep 40 GiB free on both the VM
+Docker disk and external data disk, monitor imports, and stop the service when finished.
+The stop command retains its state database for reuse.

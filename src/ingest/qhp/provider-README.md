@@ -75,7 +75,6 @@ the existing cache databases, verifies/reuses a cached provider download by SHA-
 matching real NPPES identities/taxonomies. Outputs include counts, issue totals, elapsed time,
 shard bytes/hash, per-plan edges, distinct NPI/plan pairs and an example evidence lookup.
 
-
 Migration 340 follows the lane's allocated namespace. The inherited migration runner applies
 pending lane migrations in numeric order even when a higher-numbered migration is already
 installed, and still verifies every previously applied checksum. The real runner uses a fresh
@@ -163,8 +162,8 @@ The native audit verifies logical edge counts against the shard counters using l
 multiplicity, including sparse overrides, without materializing the full dense join. TX NPI
 match rates use record-level existence. The batch deliberately omits the optional distinct
 NPI/plan-pair measurement above 10 million associations (`not_measured_large_source_set`);
-raw/expanded edge counts remain measured. This avoids a large reference-style deduplication
-sort during ingestion. D1/D2 still apply to comparisons with the older reference database.
+raw/expanded edge counts remain measured. This avoids a large deduplication sort during
+ingestion.
 
 A provider child that fails JSON parsing is marked `truncated`/`invalid_json` while retaining
 its failed raw snapshot. Its next acquisition bypasses the invalid cached hash and requests
@@ -190,14 +189,12 @@ A matching server statement limit cancels abandoned audit SQL. A timeout fails t
 parallel query to fit small Docker shared-memory allocations. API search performance on large
 ACTIVE sources remains a separately reported result, not an ingestion success condition.
 
-
 Florida PY2026 also publishes repeated 27/34-entry lists. The eight-entry threshold captures
 those medium catalogs using the same exact group keys, original ordinals and sparse override
 semantics. A complete cached UHC child has 233,598 records and 5,728,286 scoped associations,
 all represented by one 34-entry list linked to 168,479 records. No published associations are
 removed; the expanded view and shard counters continue to count all 5,728,286. The offline
 controls cover lists of 8, 27, 34, 63 and 100 entries, duplicate ordinals and isolated overrides.
-
 
 Provider ingestion uses transaction-local generic plans. A newly allocated shard ID can be
 absent from the snapshot column's most-common-value statistics; a custom foreign-key plan
@@ -208,7 +205,6 @@ statistics priming. Final statistics refresh uses a savepoint and a one-second l
 a competing issuer's advisory statistics lock can skip that refresh while retaining fully
 validated evidence. Unexpected SQL errors still fail the attempt. The offline lock control
 raises a real PostgreSQL 55P03 error, verifies publication and checks both session settings.
-
 
 ## Bootstrap with several states
 
@@ -229,7 +225,6 @@ bootstrap import-run state predicate makes the FL completion assertion fail.
 
 On populated data, bootstrap allows one hour per query for schema/index upgrades.
 An explicit `query_timeout` in `DATABASE_URL` takes precedence.
-
 
 ## Georgia PY2026 source boundary (P6i)
 

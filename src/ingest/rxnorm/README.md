@@ -78,7 +78,7 @@ node dist/worker/cli.js ingest rxnorm
 ```
 
 For a developer PGlite database, stop its API before making a private copy, then use
-the existing API/worker runner on that copy (never on a shared reference database):
+the existing API/worker runner on that copy (never on a shared database):
 
 ```sh
 cp -R /absolute/prepared/pglite /absolute/private/pglite-with-rxnorm
@@ -145,7 +145,4 @@ node dist/ingest/rxnorm/pglite.js
 The developer runner uses `OPENPLANS_DATA_DIR/rxnorm-pglite-p2a`, omits only PostGIS from a
 temporary migration copy, imports the full release, repeats it to prove the no-op, and writes
 `reports/p2a-rxnorm-realdata.json`. Production `worker` migrations never skip PostGIS.
-Set `OPENPLANS_REFERENCE_CAPTURES_DIR` to an external fixture directory for the optional comparison of
-metformin, lisinopril and Lipitor against `drugs/*.json` `meta.total`.
-RxNorm counts are distinct name/TTY candidates (also reported as distinct RxCUIs); the oracle
-counts NDC products and was captured on a different date. They are not expected to be equal.
+RxNorm counts are distinct name/TTY candidates (also reported as distinct RxCUIs), not NDC products.

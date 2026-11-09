@@ -1,3 +1,5 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync } from "node:fs";
 
-export const applicationVersion: string = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8')).version;
+export const applicationVersion: string = JSON.parse(
+  readFileSync(new URL("../../package.json", import.meta.url), "utf8"),
+).version;

@@ -378,3 +378,155 @@ CTE. It never writes them into Postgres or replaces a successful Census match. A
 `geocode_label` as `census_match`, `census_match_after_normalisation`, `operator_geocoder` or
 `zcta_fallback`. Operator coordinates have `precision: operator_reported` and `geocode_as_of`;
 a Census Exact match remains a street-range interpolation.
+
+## Self-hosted open geocoder
+
+The optional second geocoder is Nominatim 5.3, using OpenStreetMap state extracts from
+Geofabrik. `OPENPLANS_OPEN_GEOCODER_URL` is unset by default. Only a literal loopback IP
+is accepted, so this adapter cannot fall back to a public hosted service. It uses P3m's
+async geocoder interface, bounded JSON reader, address cleanup and Census county polygons.
+
+We chose Nominatim for a single Postgres/PostGIS service and its address-only import style.
+The supplied profile caps it at 6 GiB RAM and two CPUs. TX, FL and NC extracts dated
+2026-11-07 total about 1.7 GiB compressed. Imports run one state at a time. Actual import
+elapsed time, database sizes and the 2,000-row unresolved-address evaluation belong in
+`OPENPLANS_DATA_DIR/reports/p3n-open-geocoder.md`; do not infer them from compressed size.
+[Nominatim's hardware guide](https://nominatim.org/release-docs/latest/admin/Installation/)
+gives a 2 GB minimum. Its planet figures do not predict state import times.
+[Import styles](https://nominatim.org/release-docs/latest/admin/Import/) allow addresses
+without the full POI index.
+
+Pelias is the alternative we reviewed. Its
+[local build guide](https://github.com/pelias/documentation/blob/master/pelias_from_scratch.md)
+recommends at least 8 GB RAM and 50 GB disk. Its
+[requirements](https://github.com/pelias/documentation/blob/master/requirements.md) include
+Elasticsearch and libpostal, whose model alone takes about 4 GB disk. That is a poor fit
+beside the current state databases on a 10 GiB VM with a 40 GiB disk reserve. Pelias import
+time and match rate for these states are unmeasured. This is an operational choice, not a
+claim that Nominatim wins a measured accuracy comparison. Pelias could improve coverage
+through OpenAddresses, but each source needs its own licence review before import.
+
+### Data licences and attribution
+
+OpenStreetMap data is licensed under [ODbL-1.0](https://www.openstreetmap.org/copyright).
+Required attribution: © OpenStreetMap contributors. Keep that attribution and the link
+`https://www.openstreetmap.org/copyright` with exported results and any public display.
+Geofabrik supplies [state extracts](https://download.geofabrik.de/north-america/us.html)
+of the same OSM data under ODbL-1.0; it does not remove the attribution obligation.
+Redistribution of the database or a substantial derived extract must retain ODbL notices
+and satisfy its share-alike and access requirements. The
+[OSMF geocoding guideline](https://osmfoundation.org/wiki/Licence/Community_Guidelines/Geocoding_-_Guideline)
+permits storing individual results with other data when they do not reconstruct a
+substantial part of OSM. Do not treat that as a blanket exemption for bulk redistribution.
+Each stored point retains `source: open_geocoder`, `licence: ODbL-1.0`, attribution,
+original and indexed SHA-256, import profile, extract data date, OSM object identifier and county-bounds snapshot.
+
+Nominatim software is [GPL-3.0-or-later](https://github.com/osm-search/Nominatim/blob/master/COPYING).
+The application talks to a separate unmodified service over HTTP. Distribution of the
+service software must preserve its licence and corresponding-source obligations.
+The [Pelias API](https://github.com/pelias/api/blob/master/LICENSE) uses MIT; its dependencies
+have their own terms. OpenAddresses does not relicense its processed address data.
+Its [licence policy](https://github.com/openaddresses/openaddresses#license) requires
+checking each original source. Its source-reference JSON is CC0 and processing code is
+BSD-3-Clause; neither grants a blanket licence to all addresses. This profile imports no
+OpenAddresses data. No existing project licence text was changed.
+
+### Address index preparation
+
+`prepare-open.py` keeps OSM address tags, places, highways, boundaries and associatedStreet
+relations, plus their referenced objects. It checks that every way node is present and
+preserves the original replication timestamp. The full publisher extracts stay in `raw/`;
+filtered inputs and hash manifests stay in `work/open-geocoder/`. This profile indexes addresses and their geographic context. The original and filtered file hashes and profile are
+frozen in each retry run. Changing the indexed data requires a new run ID.
+
+The manifest also records the newest object timestamp from the filtered file. Nominatim's
+status endpoint reports that object time, which can precede the snapshot's replication
+time. The CLI checks the server against the object timestamp and keeps the replication
+date as `data_date`. Cached manifests without this field are upgraded by a read-only
+osmium scan after hash verification. The input file stays unchanged.
+Use `geocoder.sh prepare` to upgrade metadata while an import is running.
+
+The optional helper image builds from the same pinned service image and installs
+[osmium-tool 1.16.0](https://github.com/osmcode/osmium-tool), licensed under GPL-3.0-or-later. Filtering runs separately with a 6 GiB memory cap and two CPUs, before
+starting Nominatim. Successful preparation reuses the verified cache. A hash or scope
+mismatch fails instead of silently rebuilding the index. A failed preparation retains
+its partial output and can be repeated. Offline CI never builds the helper or downloads data.
+
+### Download and run
+
+Run from `openplans/`. The script uses only Python's standard library and curl. It downloads
+immutable dated state extracts to `raw/open-geocoder/<state>/<YYMMDD>/` under the external
+data directory. Interrupted downloads retain `.part` files for HTTP range resume.
+Publisher MD5 verifies the transfer; a recorded SHA-256 verifies every later reuse.
+The PBF replication timestamp supplies the data date. A changed or corrupt cache fails.
+
+```sh
+export OPENPLANS_DATA_DIR=/var/lib/openplans
+python3 src/ingest/geocode/download-open.py TX FL NC --snapshot 261107
+export OPENPLANS_GEOCODER_STATE=tx OPENPLANS_GEOCODER_SNAPSHOT=261107
+bash src/ingest/geocode/geocoder.sh up
+bash src/ingest/geocode/geocoder.sh logs
+# Wait for /status?format=json to report status 0, then use the existing state database:
+export OPENPLANS_OPEN_GEOCODER_URL=http://127.0.0.1:58080
+node dist/ingest/geocode/open-cli.js --state TX \
+  --source-run tx-20261107-p3e-active14 --cleanup-run p3m-tx-cleanup-v1 \
+  --run-id p3n-tx-sample --snapshot 261107 --limit 667 --budget-minutes 30
+bash src/ingest/geocode/geocoder.sh stop
+```
+
+The compose project is `openplans-geocoder` on `colima-openplans-big`. Its only published
+port binds to 127.0.0.1. No API key is used. The launcher checks the VM Docker disk has
+at least 41 GiB free and the external disk has 160 GiB before import. OSM node coordinates
+use a separate flatnode staging file on the external disk, avoiding the large intermediate
+Postgres node index. Flatnode logical size follows global OSM IDs and can exceed 100 GiB;
+physical allocation depends on the extract. The staging directory contains public OSM data
+and permits writes from the container's Linux UID. State imports with the same PBF
+replication timestamp clone a derived coordinate seed, using copy-on-write on APFS or a
+reflink-capable Linux filesystem. This avoids initializing its empty global-ID slots three
+times and isolates each writer. Each state imports its own extract and overwrites every
+referenced coordinate. A different timestamp gets a different seed.
+[osm2pgsql's cache implementation](https://github.com/osm2pgsql-dev/osm2pgsql/blob/1.11.0/src/node-persistent-cache.cpp)
+opens an existing array without truncating it. Nominatim freeze removes the state's cache;
+the seed remains. This cache is derived staging, not an immutable raw
+snapshot. On macOS the Postgres database uses a
+40 GiB sparse ext4 image on the external disk, mounted in the VM and attached through a
+named volume. This preserves Linux ownership, which PostgreSQL needs and virtiofs bind
+mounts do not reliably provide. The image grows as data is written; it does not reserve
+40 GiB of physical disk. Keep at least 40 GiB free during the run. Stop the service if
+either disk approaches that reserve. `stop` retains the volume, database and extract.
+After a VM restart, `up` remounts the retained image. Never remove volumes to stop a run.
+Changing state recreates the service with that state's retained volume.
+
+`up` leaves a running unfinished import unchanged and refuses to replace it with another
+state. It also refuses to start a stopped database without its `import-finished` marker.
+The image's ordinary initialization drops that unfinished database. Preserve the volume
+and use an explicit Nominatim continuation stage instead of restarting blindly. The
+installed CLI documents `import-from-file`, `load-data`, `indexing` and `db-postprocess`
+as recovery stages. Choose the stage from the saved import log; a partial initial OSM
+load still needs to be repeated. A completed database can restart normally.
+
+Use `fl` and `nc` for the other states and their original/cleanup run IDs. A limit of zero
+or no `--limit` selects every remaining geocodable tie/no-match. A positive limit freezes
+a hash-ordered sample. Reuse the same run ID, source IDs, limit and extract to resume.
+Completed no-matches are cached; transport failures stay pending. A new extract needs a
+new run ID and a fresh import volume. Do not swap a running server's database beneath a
+client or change the snapshot variables while retaining the old service.
+
+### What the stored results mean
+
+Only a unique house-level reply with the same house number, normalized street, ZIP and state qualifies.
+The returned county name must agree with the Census polygon containing the point. Both
+extent and polygon checks run again before storage. PO boxes, ties, wrong counties,
+street-only replies and ZIP/city centroids remain unresolved. OSM building coordinates
+are labelled `osm_address`; they are not surveyed entrances or a promise of rooftop precision.
+
+Migration 910 stores open observations in `geocode_open_run` and `geocode_open_result`.
+It leaves successful Census evidence and the private operator store unchanged. The existing
+provider API still serves its Census/ZCTA evidence; this lane's open ledger is available
+for measurement and a later explicitly attributed API integration. `matched_after` in a
+sample report counts Census matches plus that sample's recovered open addresses, not an
+estimate for all unresolved rows. The cohort and its provenance stay separate from private
+operator coordinates, and public exports must retain the attribution above.
+
+Offline tests use a synthetic loopback service. The README attribution check runs with
+those tests and fails when a disposable copy loses the required attribution string.

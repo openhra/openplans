@@ -1,0 +1,5 @@
+FROM mediagis/nominatim:5.3@sha256:168c30e20fbba0c2e8199fca7a8aa2640e8cc1a62f8b05b1958897796fdb38f1
+RUN apt-get update -qq \
+    && apt-get install -y --no-install-recommends osmium-tool=1.16.0-1build1 \
+    && rm -rf /var/lib/apt/lists/*
+ENTRYPOINT ["osmium"]

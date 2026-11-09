@@ -1,0 +1,12 @@
+{
+  "source": "census-zcta-county-2020",
+  "url": "https://www2.census.gov/geo/docs/maps-data/data/rel2020/zcta520/tab20_zcta520_county20_natl.txt",
+  "source_sha256": "3ed41278d637dc249e0323306f68be8a6c234e3090f4de88ef328dee71aeaaaf",
+  "source_rows": [
+    15538,
+    15539,
+    15540,
+    39844
+  ],
+  "cut_sha256": "07a58224135cde78f706a5b648b20602410f9380088d993a150667e0c54ccc9d"
+}

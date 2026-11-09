@@ -9,7 +9,12 @@
       "method": "community_family_tier",
       "age_factor": "none",
       "tobacco_factor": "none",
-      "tiers": { "single": 100, "couple": 200, "adult_children": 170, "family": 285 },
+      "tiers": {
+        "single": 100,
+        "couple": 200,
+        "adult_children": 170,
+        "family": 285
+      },
       "denominator": 100,
       "dependent_age_exclusive": 26,
       "mapping": "One subscriber, optional spouse, and relationship=child dependents under 26. One adult alone: single; two adults alone: couple; one adult with children: adult_children; two adults with children: family. Child-only policies and dependent extensions require separate evidence and are unsupported here.",
@@ -29,7 +34,12 @@
       "method": "community_family_tier",
       "age_factor": "none",
       "tobacco_factor": "none",
-      "tiers": { "single": 100, "couple": 200, "adult_children": 193, "family": 281 },
+      "tiers": {
+        "single": 100,
+        "couple": 200,
+        "adult_children": 193,
+        "family": 281
+      },
       "denominator": 100,
       "dependent_age_exclusive": 26,
       "mapping": "DVHA PY2026 issuer guidance section 2.2: single person, couple, adult and dependents, family (two adults and dependents). Relationship=child under 26 is the supported subset. Age-26 end-of-year coverage, disabled dependent extensions, child-only policies and other relationships require separate evidence. Do not use the dental tiers in section 3.2.1 for medical plans.",

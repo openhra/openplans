@@ -45,9 +45,9 @@ integers as strings, derived decimal land shares, source row numbers and snapsho
 area as denominator. Zero denominators produce null. These are area shares, not population
 or address shares. Unknown ZIPs return `status: unknown` and an empty county list.
 
-ZIP postal delivery codes and Census ZCTAs do not coincide perfectly. In the current local
-captured reference response, Harris ZIP 77001 has no 2020 ZCTA. The resolver uses
-the labelled postal fallbacks below; it does not infer a county from the capture.
+ZIP postal delivery codes and Census ZCTAs do not coincide perfectly. Harris ZIP 77001,
+for example, has no 2020 ZCTA. The resolver uses the labelled postal fallbacks below; it
+does not infer a county.
 Service Area PUF statewide flags and partial-county ZIP restrictions (plan defects D3/D4)
 belong in the PUF importer; county geography alone does not establish plan availability.
 
@@ -102,7 +102,7 @@ location resolution, and the compatibility API:
 2. An exact, user-requested ZIP lookup in the CMS Marketplace API, only with `CMS_API_KEY`
    configured. A fresh cache answer takes precedence over GeoNames. There is no CMS bulk
    import, range enumeration, or background refresh. Facade three/four-digit prefix searches
-   and the optional offline capture oracle use only bulk data and fresh existing CMS cache.
+   use only bulk data and fresh existing CMS cache.
 3. The operator's active GeoNames US postal snapshot.
 4. `status: unknown`, `source: null`, and no counties. City names and nearby ZIPs never supply
    county evidence.
@@ -113,8 +113,8 @@ are null because these sources do not publish ZCTA intersection areas. Each coun
 its snapshot and physical source row (CMS: 1-based `counties` array position). Plan location
 responses preserve these county records. Premium requests use the same resolver, retaining
 the separate service-area/partial-ZIP and rating-area checks. County evidence alone does not
-prove a plan is offered. The facade adds `source` on each `zip_counties` relationship, an
-additive field permitted by the captured object shapes; GeoNames relationships also carry
+prove a plan is offered. The facade adds `source` on each `zip_counties` relationship as an
+additive field; GeoNames relationships also carry
 attribution. Existing identity/reference fields keep their types. Unknown facade results keep
 their empty wire shape, with both the current geography gap and the legacy ZCTA gap alias.
 

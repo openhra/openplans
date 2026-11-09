@@ -24,10 +24,11 @@ export interface CmsRateRow {
 
 declare const centsBrand: unique symbol;
 export type Cents = number & { readonly [centsBrand]: true };
-export type AgeBand = '0-14' | number | '64 and over' | 'Family Option';
-export type Tobacco = 'No Preference' | 'Tobacco User/Non-Tobacco User' | '';
-export type RatingMethod = 'per_member' | 'family_tier' | 'composite' | 'community_family_tier';
-export type Relationship = 'subscriber' | 'spouse' | 'child' | 'other';
+export type AgeBand = "0-14" | number | "64 and over" | "Family Option";
+export type Tobacco = "No Preference" | "Tobacco User/Non-Tobacco User" | "";
+export type RatingMethod =
+  "per_member" | "family_tier" | "composite" | "community_family_tier";
+export type Relationship = "subscriber" | "spouse" | "child" | "other";
 
 export interface RateProvenance {
   readonly snapshotId: string;
@@ -37,9 +38,13 @@ export interface RateProvenance {
 }
 
 export const FAMILY_RATE_FIELDS = [
-  'Couple', 'PrimarySubscriberAndOneDependent', 'PrimarySubscriberAndTwoDependents',
-  'PrimarySubscriberAndThreeOrMoreDependents', 'CoupleAndOneDependent',
-  'CoupleAndTwoDependents', 'CoupleAndThreeOrMoreDependents',
+  "Couple",
+  "PrimarySubscriberAndOneDependent",
+  "PrimarySubscriberAndTwoDependents",
+  "PrimarySubscriberAndThreeOrMoreDependents",
+  "CoupleAndOneDependent",
+  "CoupleAndTwoDependents",
+  "CoupleAndThreeOrMoreDependents",
 ] as const;
 
 export interface RateRow {
@@ -53,7 +58,9 @@ export interface RateRow {
   readonly expirationDate: string;
   readonly individualRateCents: Cents | null;
   readonly individualTobaccoRateCents: Cents | null;
-  readonly familyRatesCents: Readonly<Record<typeof FAMILY_RATE_FIELDS[number], Cents | null>>;
+  readonly familyRatesCents: Readonly<
+    Record<(typeof FAMILY_RATE_FIELDS)[number], Cents | null>
+  >;
   readonly ratingMethod: RatingMethod;
   readonly provenance: RateProvenance;
   readonly raw: Readonly<CmsRateRow>;
@@ -64,7 +71,10 @@ export type HouseholdMember = {
   readonly relationship: Relationship;
   readonly tobaccoUse: boolean;
 } & (
-  | { /** Completed years on coverageStartDate, NOT age today. */ readonly age: number; readonly dateOfBirth?: never }
+  | {
+      /** Completed years on coverageStartDate, NOT age today. */ readonly age: number;
+      readonly dateOfBirth?: never;
+    }
   | { readonly dateOfBirth: string; readonly age?: never }
 );
 
@@ -76,19 +86,23 @@ export interface Household {
 }
 
 export type RateSelection =
-  | { readonly status: 'selected'; readonly row: RateRow }
-  | { readonly status: 'missing'; readonly rows: readonly RateRow[] }
-  | { readonly status: 'ambiguous'; readonly rows: readonly RateRow[] }
-  | { readonly status: 'unsupported_rating_method'; readonly rows: readonly RateRow[] };
+  | { readonly status: "selected"; readonly row: RateRow }
+  | { readonly status: "missing"; readonly rows: readonly RateRow[] }
+  | { readonly status: "ambiguous"; readonly rows: readonly RateRow[] }
+  | {
+      readonly status: "unsupported_rating_method";
+      readonly rows: readonly RateRow[];
+    };
 
-export type PremiumFailure = 'unknown' | 'missing' | 'ambiguous' | 'unsupported_rating_method';
+export type PremiumFailure =
+  "unknown" | "missing" | "ambiguous" | "unsupported_rating_method";
 export interface MemberPremium {
   readonly memberId: string;
   readonly age: number;
   readonly relationship: Relationship;
   readonly tobaccoUse: boolean;
   readonly charged: boolean;
-  readonly status: 'rated' | 'not_charged' | PremiumFailure;
+  readonly status: "rated" | "not_charged" | PremiumFailure;
   readonly premiumCents: Cents | null;
   readonly rateRows: readonly RateRow[];
 }
@@ -105,13 +119,22 @@ interface PremiumTrace {
   readonly ratingAreaId: string;
   readonly coverageStartDate: string;
   readonly ratingMethod: RatingMethod;
-  readonly currency: 'USD';
-  readonly period: 'month';
+  readonly currency: "USD";
+  readonly period: "month";
   readonly members: readonly MemberPremium[];
   readonly rowsUsed: readonly RateRow[];
 }
 
-export type HouseholdPremium = PremiumTrace & (
-  | { readonly status: 'rated'; readonly totalCents: Cents; readonly issues: readonly [] }
-  | { readonly status: PremiumFailure; readonly totalCents: null; readonly issues: readonly PremiumIssue[] }
-);
+export type HouseholdPremium = PremiumTrace &
+  (
+    | {
+        readonly status: "rated";
+        readonly totalCents: Cents;
+        readonly issues: readonly [];
+      }
+    | {
+        readonly status: PremiumFailure;
+        readonly totalCents: null;
+        readonly issues: readonly PremiumIssue[];
+      }
+  );

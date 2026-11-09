@@ -50,16 +50,16 @@ remain unsupported. Dependent ages must fit the filed maximum (inclusive).
 The API's input cannot establish required cohabitation, so that case is unsupported.
 Missing, conflicting or absent relationship entries cannot establish membership.
 
-| Household | Filed Rate PUF column |
-|---|---|
-| One primary subscriber, no dependents | IndividualRate |
-| Primary subscriber and spouse, no dependents | Couple |
-| Primary subscriber and one child dependent | PrimarySubscriberAndOneDependent |
-| Primary subscriber and two child dependents | PrimarySubscriberAndTwoDependents |
-| Primary subscriber and at least three child dependents | PrimarySubscriberAndThreeOrMoreDependents |
-| Primary subscriber, spouse, one child dependent | CoupleAndOneDependent |
-| Primary subscriber, spouse, two child dependents | CoupleAndTwoDependents |
-| Primary subscriber, spouse, at least three child dependents | CoupleAndThreeOrMoreDependents |
+| Household                                                   | Filed Rate PUF column                     |
+| ----------------------------------------------------------- | ----------------------------------------- |
+| One primary subscriber, no dependents                       | IndividualRate                            |
+| Primary subscriber and spouse, no dependents                | Couple                                    |
+| Primary subscriber and one child dependent                  | PrimarySubscriberAndOneDependent          |
+| Primary subscriber and two child dependents                 | PrimarySubscriberAndTwoDependents         |
+| Primary subscriber and at least three child dependents      | PrimarySubscriberAndThreeOrMoreDependents |
+| Primary subscriber, spouse, one child dependent             | CoupleAndOneDependent                     |
+| Primary subscriber, spouse, two child dependents            | CoupleAndTwoDependents                    |
+| Primary subscriber, spouse, at least three child dependents | CoupleAndThreeOrMoreDependents            |
 
 The adapter uses family columns only when Age is Family Option. Populated family columns
 on an age row, mixed methods and unsupported composite methods fail closed.

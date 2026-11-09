@@ -1,8 +1,8 @@
 # Compatibility API
 
-This module maps results from native OpenPlans repositories and domain functions to the keys,
-primitive types and nesting found in captured reference responses and the
-reference-capture mock's route handlers. It never loads captures at runtime or contacts a vendor API. Remove
+This module is a compatibility API for existing quoting integrations. It maps results from
+native OpenPlans repositories and domain functions to the keys, primitive types and nesting
+those integrations expect. It reads only native data and calls no outside API. Remove
 the single mount line in `src/api/app.ts` and delete this directory and its tests
 to remove the facade. There are no new dependencies or native schema changes.
 
@@ -19,32 +19,24 @@ All paths below are under `/compat/v1`.
 | `GET /carriers` | Optional `state`, `year`, `market`, `line_of_coverage`, `page`, `per_page` |
 | `GET /networks` | Optional `state`, `year`, `page`, `per_page` |
 
-Pagination is 1-based; `ids` accepts up to 100 identifiers. Medical pages are capped at **50**:
-the captured Harris single/family requests specify `per_page: 100` but return 50 records.
+Pagination is 1-based; `ids` accepts up to 100 identifiers. Medical pages are capped at **50**.
 For example, `page: 2, per_page: 100` starts at offset 50, not 100. Smaller requested
 sizes are honored. Other lists retain their 1,000-record cap. Inputs above 1,000
-remain invalid. Defaults retain the covered handlers' 10 medical plans, 25 drugs,
-100 carriers/networks; no raw capture establishes a different omitted-size default. Plan sorting
+remain invalid. Defaults are 10 medical plans, 25 drugs and 100 carriers/networks. Plan sorting
 supports `premium`, `premium_subsidized`, `level`, `name`, `id`, with an optional
 leading `-`. Sorting occurs before pagination, with ascending public ID as the
 tie breaker and unknown prices last in either direction. Without `sort`, public ID
 order is deterministic and independent of the order of an `ids` filter. Totals count available public
-results after filtering, never the commercial catalog's totals.
+results after filtering.
 
-The captured default catalog order is **not** premium, ID or plan-name order.
-Harris single/family captures have the same sequence despite different premiums;
-they group carriers but do not establish an ordering rule within those groups.
-Public source row order does not reproduce it either. No captured ranking table is
-installed as catalog data. `default_plan_order_unverified` flags the public-ID fallback.
-As a result, the first page still differs from the captured page.
-Public plans outside that captured page can appear before public plans on it.
-Use explicit `sort` for a reproducible public ordering, or `ids` for a particular
-comparison set. Missing public plans remain absent, with no invented placeholders.
+`default_plan_order_unverified` flags the public-ID default order. Use explicit `sort`
+for a chosen ordering, or `ids` for a particular set of plans. Missing public plans
+remain absent, with no invented placeholders.
 
 All compatibility requests accept `X-Api-Key`, compared in constant time against
 `OPENPLANS_COMPAT_API_KEY`. To support a client that sends a different credential
 header, optionally set `OPENPLANS_COMPAT_KEY_HEADER` to that one header name
-(for example `X-Reference-Key`). Both accepted headers use the same key and comparison;
+(for example `X-Client-Key`). Both accepted headers use the same key and comparison;
 either may authenticate a request. No other credential headers are enabled.
 An unset or empty extra-header setting disables it. A configured name must be a
 single RFC 7230 token: ASCII letters, digits, or `!#$%&'*+-.^_` plus backtick,
@@ -81,8 +73,7 @@ its development server. Configure the credential header as described above.
 The retired compatibility path has no alias and returns 404.
 
 The PGlite runner binds to 127.0.0.1. `OPENPLANS_API_TOKEN` remains a separate native API
-credential. The manual mk03 browser flow is still an owner check; nullable public
-data gaps can differ from the commercial reference catalog even though response shapes match.
+credential. Fields without public evidence stay null and are listed in `x-openplans-gaps`.
 
 ## Conditional subsidies
 
@@ -93,7 +84,7 @@ never inferred from applicant count. Missing/separate/non-filing status leaves
 subsidies unresolved. Native benchmark, parameter, state-rule and pediatric-dental
 limitations apply; see `src/api/README.md`. No CSR variant is chosen from income.
 
-The existing captured fields carry results in dollars: `plan.premium` remains
+The existing response fields carry results in dollars: `plan.premium` remains
 gross, `plan.premium_subsidized` receives net after the per-plan gross cap, and
 `meta.premium_tax_credit` receives the household credit before that cap. No new
 plan or meta keys are invented. `state_subsidy` and `eligible_for_chip_medicaid`
@@ -109,7 +100,7 @@ above the confirmed income cliff is a resolved calculation; an unknown credit is
 
 ## Defaults and evidence gaps
 
-The captured searches omit a year. The facade defaults omitted `enrollment_date`
+Search requests may omit a year. The facade defaults omitted `enrollment_date`
 to **2026-01-01**, and detail/list `year` to **2026**; lists default to **TX**.
 Explicit dates determine the quote year. Native rating, tobacco, child-charging,
 ZIP/county mismatch and service-area rules remain authoritative. ZIP lookup uses
@@ -127,8 +118,7 @@ because the state filings supply contract totals. Native state-rule/subsidy limi
 in the gaps; no age/tobacco factors or subsidy amounts are invented. Full source-cell/rule
 provenance remains available through native premium estimates.
 
-The reference-capture mock's plan route handler declares `ids?: string[]` and compares `plan.id` as an opaque
-string; it imposes no HIOS syntax on that field. VT therefore uses its native `plan_key`
+`plan.id` is an opaque string with no required HIOS syntax. VT therefore uses its native `plan_key`
 (for example `BCBSVT:Gold Plan`) for `plan.id`, search `ids[]`, and detail roundtrips.
 `identifiers` is empty, with `hios_ids_unavailable` and `plan_ids_are_native_plan_keys`:
 the internal key never becomes an identifier of type `hios_id`. NY retains published HIOS IDs.
@@ -140,13 +130,12 @@ Vision search always returns `200`, `{meta:{total:0},plans:[]}` and
 arrays stay empty when `providers` or `drug_packages` were requested, with an
 explicit coverage gap; no synthetic participation is injected.
 
-Some captures have non-null scalar values for which public/native evidence is
-unavailable. Those fields extend the observed shape to allow nulls,
-with a gap header. They cannot satisfy a client's strict non-null
-vendor schema without inventing data. Consumers must accept nulls. Missing evidence never becomes
+Some fields have no public or native evidence. They are null, with a gap header.
+OpenPlans cannot fill them for a client that requires non-null values without
+inventing data, so consumers must accept nulls. Missing evidence never becomes
 `false`, `0`, "not covered", a guessed document URL or a fabricated premium.
-The shape oracle enforces required keys, non-null primitive types and nesting,
-allows these nulls/empty collections, and omits private capture-only provenance metadata.
+The shape checks enforce required keys, non-null primitive types and nesting,
+and allow these nulls and empty collections.
 
 * Quotes expose gross `premium` and per-applicant amounts from the native rating
   engine. Without resolved subsidy inputs, `premium_subsidized` and premium tax
@@ -165,19 +154,17 @@ allows these nulls/empty collections, and omits private capture-only provenance 
   null. These are implementation/native-view gaps, not claims that CMS lacks
   those fields.
 * Carrier IDs are CMS issuer IDs (strings), scoped to loaded state/year sources.
-  Markets/lines come from the native Network PUF census. Vendor issuer crosswalk
+  Markets/lines come from the native Network PUF census. Issuer crosswalk
   arrays stay empty. Geographic numeric IDs remain public FIPS/ZIP aliases so
-  existing geographic joins continue to work. They do **not** equal the captured
-  opaque numeric IDs: no public crosswalk is available, and no captured crosswalk
-  is installed as geographic source data. `vendor_geography_ids_unavailable`
-  advertises this remaining identifier mismatch. ZIP/county join-row IDs and
+  existing geographic joins continue to work. No public crosswalk to other numeric
+  ID schemes exists; `vendor_geography_ids_unavailable` says so. ZIP/county join-row IDs and
   exchange-state flags stay null. `counties[].fips_code`, `states[].fips_number` and `zip_codes[].code`
   retain the public codes as strings, including leading zeros. County display
   names use the unique label from an active Census relationship for that same
   FIPS when available (for example `Harris County` instead of postal `Harris`).
   Otherwise the published source label is retained; suffixes and identifiers
   are never inferred. Postal attribution/source fields remain present.
-* Vendor network IDs are unavailable: `networks[].id` is null and `network_ids`
+* External network IDs are unavailable: `networks[].id` is null and `network_ids`
   is empty. Network names and published directory URLs come from the native
   catalog; no arbitrary numeric surrogate is advertised. Import dates are null.
 
@@ -185,8 +172,7 @@ allows these nulls/empty collections, and omits private capture-only provenance 
 
 `drugs[].id` is `rxnorm:<RxCUI>`. Each result is one active matching RxNorm
 concept; alternate published names/TTY rows for the same RxCUI are deduplicated.
-`meta.total` counts those concepts, **not NDC products**. Thus it intentionally
-differs from the reference-capture mock's commercial product-list totals and order. No fuzzy
+`meta.total` counts those concepts, **not NDC products**. No fuzzy
 brand/generic expansion or strength equivalence is implied.
 
 Published RxNorm NDC associations become `drug_package_ids` and `drug_packages`.
@@ -195,7 +181,7 @@ carry the exact associated `rx_cui_id`. A shared NDC may have multiple concept
 associations; packages retain each association. `med_id`, package descriptions
 and separately resolved ingredient-strength fields are null. Brand concept
 names populate `proprietary_name`; other concept names populate
-`non_proprietary_name`. The other name is null. No commercial NDC-product IDs,
+`non_proprietary_name`. The other name is null. No proprietary NDC-product IDs,
 package quantities or patient prices are invented. The response header lists
 these identity/count/metadata gaps.
 
@@ -207,19 +193,16 @@ empty without that gap. Case-insensitive substring matching already handles
 `metformin`, `METFORMIN` and interior name fragments; no TTY is excluded.
 
 Only ACTIVE-release `RXNSAT` NDC attributes with `SAB=RXNORM` and `SUPPRESS=N`
-supply packages. They do not contain container descriptions or commercial `med_id`
+supply packages. They do not contain container descriptions or `med_id`
 values. Neither clinical concept names nor GPCK/BPCK pack names establish the
 bottle/carton description for each NDC, so those fields stay null and their gap
 remains. This import does not use the licensed full release or an FDA directory.
 
-The captured drug page does not follow RxCUI, package-ID or alphabetical name
-order; its rank cannot be derived from the public fields used here. Searches
-retain the public repository order: SCD/SBD first, prefix before other substring
+Searches use the public repository order: SCD/SBD first, prefix before other substring
 matches, then lowercase name, RxCUI, TTY, suppression and exact name. The first
 matching row represents a repeated RxCUI. Concepts paginate after deduplication;
-their exact NDC strings sort ascending within each concept. No captured product
-rank or opaque identifier is installed as source data, so first-page membership,
-totals and product identities can differ even when the response shape matches.
+their exact NDC strings sort ascending within each concept. No outside product
+rank or opaque identifier is installed as source data.
 
 Drug checks use the regenerable public RxNorm cut. They verify nonempty package
 associations against raw `RXNSAT` rows, leading zeros, suppression, pagination,
@@ -233,36 +216,23 @@ Run from the standalone `openplans/` directory:
 
 ```sh
 scripts/ci.sh
-OPENPLANS_REFERENCE_CAPTURES_DIR=/absolute/capture/fixtures npm test -- tests/compat/v1
+npm test -- tests/compat/v1
 ```
 
-Optional capture tests read only `OPENPLANS_REFERENCE_CAPTURES_DIR` and skip when unset.
-They derive shapes directly for all captured covered route files, execute the
-ported covered request list, and check 43 public Harris County premiums against
-the 50-plan capture. For the only captured detail (MN), the exact request must
-return 404; the tests also check its vocabulary against a real TX detail.
-MN/other unloaded states are empty, never substituted with TX. The ported API
-request list covers **19 reference-capture mock cases**, excluding its service-specific dashboard.
-That includes the four provider requests; TX equivalents check nonempty shapes.
-The captured MN detail returns 404 and unknown drug/ZIP searches return
-empty 200 responses with evidence gaps rather than a mock fixture-cache 404.
+The tests quote 43 public Harris County plans from real TX source cuts. An MN detail
+request returns 404, and MN or other unloaded states return empty results, never TX
+substitutes. Unknown drug/ZIP searches return empty 200 responses with evidence gaps.
 
 The committed CMS CSV cuts retain archive hashes, source row offsets and their
 own hashes in `tests/compat/v1/fixtures/provenance.json`. Rate groups include
 all 51 age bands; split files stay below 200 KB each. Recreate them with
 `python3 tests/compat/v1/regenerate.py` against the acquired shared cache.
-The initial selection can use `OPENPLANS_REFERENCE_CAPTURES_DIR`; subsequent regeneration
-uses the existing public identifier selection in the provenance manifest.
+Regeneration uses the public identifier selection in the provenance manifest.
 RxNorm and Census fixtures reuse the existing independently regenerable cuts.
 
-Negative controls add an extra required captured key, alter a premium by one
-cent in a temporary response copy, remove rate evidence inside a rolled-back
-test transaction, and request a non-TX ZIP. The first two must fail the same
-comparators used for the positive capture checks. Original evidence is intact.
-
-Public fixture tests cover the facade without external captures. Run
-`npm test -- tests/compat/v1` after installing the pinned dependencies.
-Archive-dependent HTTP comparisons are maintained only in the source checkout.
+Negative controls alter a premium by one cent in a temporary response copy,
+remove rate evidence inside a rolled-back test transaction, and request a non-TX
+ZIP. Each must fail the checks used for valid responses. Original evidence is intact.
 
 ## Providers, specialties and nonmedical plans
 
@@ -291,26 +261,26 @@ location has a `provenance` array preserving all record IDs, source ordinals,
 snapshots, source URLs, original address precision, timestamps and plan evidence.
 Different NPIs, different addresses and missing-NPI source records remain distinct.
 `meta.total` counts deduplicated locations. Numeric provider IDs/`npis` are public
-NPIs; state vendor IDs remain null. `/specialties` and `npi_specialty` use native
+NPIs; other state provider IDs remain null. `/specialties` and `npi_specialty` use native
 NUCC display names/classification/specialization only when `taxonomy_status` is
 `known`. Codes remain their IDs. Unknown codes retain null descriptions and
 `specialty_descriptions_unavailable`; a mixed result retains that gap even if
 other codes are known. A known code without a specialization legitimately maps
 `sub_specialty: null`. The specialties list is a read-only projection of native
 NPPES/NUCC tables because no native taxonomy-list route exists.
-No captured vendor specialty names or IDs are copied into data.
+Specialty names and IDs come only from NPPES and NUCC.
 
 Detail wraps one location in `provider` and adds `locations`, native
 `plan_participations` and `provider_coverage`. All source locations and provenance
 are retained. Coordinates are null because the native detail response does not
 join geocodes. Record-level plan evidence never assigns participation to an
-NPPES address or an unrelated issuer record. Vendor `network_ids` and `carrier_id`
-filters have no crosswalk: requests using them return empty plus
+NPPES address or an unrelated issuer record. `network_ids` and `carrier_id`
+filters have no public crosswalk: requests using them return empty plus
 `vendor_carrier_or_network_filter_unsupported`, rather than ignoring the filter.
 
 Dental catalog selection and pricing delegate to native SADP eligibility and filed
 rating (including service areas, ZIP restrictions, business rules and date intervals).
-Rated searches map native gross cents into the captured `premium` field. Native
+Rated searches map native gross cents into the `premium` field. Native
 unknown/missing/ambiguous values stay null with the corresponding `premium_*` gap.
 Only native `unsupported_rating_method` adds
 `dental_premiums_unsupported_by_native_rating` and a plan-specific
@@ -320,17 +290,9 @@ Detail has no household, so its null premium is labelled `dental_premium_require
 No loaded SADPs or an unsupported market returns empty with a gap. Vision has no
 public source and never returns a plan.
 
-The cached TX individual dental question (age 35, male, 2026-01-01, ZIP 77002,
-FIPS 48201, `per_page: 100`) has zero reference results, while the loaded public
-SADP catalog returns 57. The older small-group dental capture is nonempty but
-uses another market and opaque plan identities; it does not establish individual
-eligibility. There is no paired capture varying only market, enrollment type,
-gender, date, or a required parameter. Hypotheses include an individual-product
-catalog gap or an unobserved enrollment/offering filter. None is established by
-these captures. Individual SADP filtering therefore remains unchanged: no TX,
-adult, date or gender exclusion is invented to reproduce an unexplained empty
-answer. Small group remains explicitly unsupported. Resolving this discrepancy
-needs existing captures that isolate one of those inputs or public offering evidence.
+Individual SADP filtering follows native eligibility only. Search adds no TX, adult,
+date or gender exclusion without public offering evidence. Small group remains
+explicitly unsupported.
 
 Refresh negative controls compile a temporary VT mapper that fills an invented
 HIOS-shaped `plan.id`, and remove `premium_unknown` from a copied gaps header while
@@ -341,8 +303,7 @@ Additional negative controls compile a temporary credential-check mutant that
 always returns true, inject duplicate results/drop provenance into response copies,
 and inject an invented vision plan. Each fails the same contract used for valid
 responses. A 52-record synthetic issuer feed checks deduplication across the
-native 50-record page boundary, while real captured response shapes remain an
-optional oracle through `OPENPLANS_REFERENCE_CAPTURES_DIR`.
+native 50-record page boundary.
 
 ## Explicit CSR display selection
 

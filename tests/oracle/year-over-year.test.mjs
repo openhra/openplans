@@ -1,7 +1,7 @@
-import { expect, it } from 'vitest';
-import { spawnSync } from 'node:child_process';
+import { expect, it } from "vitest";
+import { spawnSync } from "node:child_process";
 
-it('reproduces year-over-year counts and age-40 medians from real cuts, and rejects a hash mutant', () => {
+it("reproduces year-over-year counts and age-40 medians from real cuts, and rejects a hash mutant", () => {
   const script = String.raw`
 import csv, hashlib, importlib.util, io, json, sys, tempfile, zipfile
 from decimal import Decimal
@@ -42,6 +42,8 @@ with tempfile.TemporaryDirectory() as d:
  except ValueError as e: assert 'hash mismatch' in str(e)
  else: raise AssertionError('Hash mutant did not fail')
 `;
-  const result = spawnSync('python3', ['-B', '-c', script], {encoding: 'utf8'});
+  const result = spawnSync("python3", ["-B", "-c", script], {
+    encoding: "utf8",
+  });
   expect(result.status, result.stderr).toBe(0);
 });

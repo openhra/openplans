@@ -11,8 +11,7 @@ python3 tests/fixtures/rating/regenerate.py
 # Requires OPENPLANS_DATA_DIR, or supply --source /path/to/rate-puf.csv.
 ```
 
-Run `npm test -- tests/domain/rating` for the public fixture checks. External
-captured-response comparisons are omitted from public exports.
+Run `npm test -- tests/domain/rating` for the public fixture checks.
 
 The unit tests label all altered rows and households as synthetic test
 scenarios. Negative controls remove a tobacco price, create a date gap, and

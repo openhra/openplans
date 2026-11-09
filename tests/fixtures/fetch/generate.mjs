@@ -1,13 +1,14 @@
 /** Synthetic security fixtures, no health-plan data. Regenerate: node tests/fixtures/fetch/generate.mjs */
-import { deflateRawSync } from 'node:zlib';
-import { writeFile } from 'node:fs/promises';
-import { pathToFileURL } from 'node:url';
+import { deflateRawSync } from "node:zlib";
+import { writeFile } from "node:fs/promises";
+import { pathToFileURL } from "node:url";
 
 function crc32(bytes) {
   let crc = 0xffffffff;
   for (const byte of bytes) {
     crc ^= byte;
-    for (let bit = 0; bit < 8; bit++) crc = (crc >>> 1) ^ ((crc & 1) ? 0xedb88320 : 0);
+    for (let bit = 0; bit < 8; bit++)
+      crc = (crc >>> 1) ^ (crc & 1 ? 0xedb88320 : 0);
   }
   return (crc ^ 0xffffffff) >>> 0;
 }
@@ -15,7 +16,11 @@ export function syntheticZip(entries, { zip64 = false, stored = false } = {}) {
   const locals = [];
   const central = [];
   let offset = 0;
-  for (const { name, body = 'synthetic fixture\n', symlink = false } of entries) {
+  for (const {
+    name,
+    body = "synthetic fixture\n",
+    symlink = false,
+  } of entries) {
     const filename = Buffer.from(name);
     const bytes = Buffer.from(body);
     const compressed = stored ? bytes : deflateRawSync(bytes);
@@ -72,13 +77,25 @@ export function syntheticZip(entries, { zip64 = false, stored = false } = {}) {
   return Buffer.concat([...locals, directory, ...extensions, end]);
 }
 export const fixtures = {
-  valid: () => syntheticZip([{ name: 'synthetic/data.csv', body: 'synthetic\nfixture\n' }]),
-  bomb: () => syntheticZip([{ name: 'synthetic-bomb.txt', body: 'A'.repeat(1024 * 1024) }]),
-  traversal: () => syntheticZip([{ name: ['..', 'evil'].join('/') }]),
+  valid: () =>
+    syntheticZip([
+      { name: "synthetic/data.csv", body: "synthetic\nfixture\n" },
+    ]),
+  bomb: () =>
+    syntheticZip([
+      { name: "synthetic-bomb.txt", body: "A".repeat(1024 * 1024) },
+    ]),
+  traversal: () => syntheticZip([{ name: ["..", "evil"].join("/") }]),
 };
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (
+  process.argv[1] &&
+  import.meta.url === pathToFileURL(process.argv[1]).href
+) {
   // Hex text keeps generated fixture artifacts reviewable and avoids committing binaries.
   for (const [name, generate] of Object.entries(fixtures)) {
-    await writeFile(new URL(`./${name}.zip.hex`, import.meta.url), `${generate().toString('hex')}\n`);
+    await writeFile(
+      new URL(`./${name}.zip.hex`, import.meta.url),
+      `${generate().toString("hex")}\n`,
+    );
   }
 }

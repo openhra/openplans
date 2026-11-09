@@ -1,0 +1,56 @@
+name: openplans-geocoder
+
+services:
+  geocoder:
+    image: mediagis/nominatim:5.3@sha256:168c30e20fbba0c2e8199fca7a8aa2640e8cc1a62f8b05b1958897796fdb38f1
+    mem_limit: 6g
+    cpus: 2
+    shm_size: 512m
+    environment:
+      PBF_PATH: /input/addresses.osm.pbf
+      THREADS: "2"
+      FREEZE: "true"
+      IMPORT_STYLE: address
+      IMPORT_WIKIPEDIA: "false"
+      IMPORT_SECONDARY_WIKIPEDIA: "false"
+      IMPORT_US_POSTCODES: "false"
+      IMPORT_GB_POSTCODES: "false"
+      IMPORT_TIGER_ADDRESSES: "false"
+      POSTGRES_SHARED_BUFFERS: 512MB
+      POSTGRES_MAINTENANCE_WORK_MEM: 256MB
+      POSTGRES_AUTOVACUUM_WORK_MEM: 128MB
+      POSTGRES_WORK_MEM: 8MB
+      POSTGRES_EFFECTIVE_CACHE_SIZE: 2GB
+      POSTGRES_MAX_WAL_SIZE: 512MB
+      GUNICORN_WORKERS: "1"
+    ports:
+      - "127.0.0.1:${OPENPLANS_GEOCODER_PORT:-58080}:8080"
+    volumes:
+      - type: bind
+        source: ${OPENPLANS_DATA_DIR}/work/open-geocoder/${OPENPLANS_GEOCODER_STATE:?Set a state directory}-${OPENPLANS_GEOCODER_SNAPSHOT:?Set the extract date}-addresses.osm.pbf
+        target: /input/addresses.osm.pbf
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${OPENPLANS_DATA_DIR:?Set the external data directory}/raw/open-geocoder
+        target: /data
+        read_only: true
+        bind:
+          create_host_path: false
+      - geocoder-data:/var/lib/postgresql/16/main
+      - type: bind
+        source: ${OPENPLANS_DATA_DIR}/work/open-geocoder/${OPENPLANS_GEOCODER_STATE}-${OPENPLANS_GEOCODER_SNAPSHOT}-flatnode
+        target: /nominatim/flatnode
+        bind:
+          create_host_path: false
+    stop_grace_period: 60s
+
+volumes:
+  geocoder-data:
+    name: openplans-geocoder-${OPENPLANS_GEOCODER_STATE}-${OPENPLANS_GEOCODER_SNAPSHOT}-ext4
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${OPENPLANS_GEOCODER_VOLUME_DIR:?Run through src/ingest/geocode/geocoder.sh}

@@ -13,6 +13,9 @@
 **/package-lock.json
 release-manifest.json
 
+# Workflows use JSON syntax for the dependency-free CI contract checks.
+.github/workflows/*.yml
+
 # Payloads stay byte-identical. Keep generator/helper code selected.
 **/fixtures/**/*
 !**/fixtures/**/

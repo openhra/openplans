@@ -181,7 +181,7 @@ Those checks need the later shopping/eligibility adapters and a matched househol
 ## P5c audit: ZIP 77002, PY2026, single age 40, annual income $31,300
 
 Audited 2026-11-07 using a private copy of the complete TX PGlite catalog. Household inputs
-are **synthetic**; plan/rate/benefit records are real CMS PUF records. No commercial reference API call or invented
+are **synthetic**; plan/rate/benefit records are real CMS PUF records. No invented
 premium is involved. The existing engine deliberately follows Form 8962 contribution rounding.
 **Under that policy the correct result is 41,976 cents, not the proposed 41,961 cents.**
 This is a conditional Form-based estimate, not a claim that Marketplace advance-payment rounding

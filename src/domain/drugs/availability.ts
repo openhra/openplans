@@ -1,18 +1,37 @@
-import type { SqlSession } from '../../db/database.js';
+import type { SqlSession } from "../../db/database.js";
 
-export type DrugSourceStatus = 'complete' | 'partial' | 'failed' | 'access_denied' | 'unknown';
+export type DrugSourceStatus =
+  "complete" | "partial" | "failed" | "access_denied" | "unknown";
 export interface DrugAvailability extends Record<string, unknown> {
-  issuer_id: string; plan_year: number; state: string; status: DrugSourceStatus;
-  reason: string; snapshot_id: string | null; active_snapshot_id: string | null;
-  discovery_id: string | null; expected_children: number; complete_children: number;
+  issuer_id: string;
+  plan_year: number;
+  state: string;
+  status: DrugSourceStatus;
+  reason: string;
+  snapshot_id: string | null;
+  active_snapshot_id: string | null;
+  discovery_id: string | null;
+  expected_children: number;
+  complete_children: number;
 }
 /** Discovery alone never establishes completeness. Only a validated current source set can. */
-export async function drugAvailability(db: SqlSession, scope?: { issuer: string; year: number; state: string }): Promise<DrugAvailability[]> {
-  const rows = (await db.query<DrugAvailability & {
-    manifest_status: DrugSourceStatus | null; manifest_reason: string | null;
-    manifest_discovery: string | null; index_statuses: string[] | null;
-    child_statuses: string[] | null; discovered_children: number | null; denied: boolean | null;
-  }>(`WITH latest AS (
+export async function drugAvailability(
+  db: SqlSession,
+  scope?: { issuer: string; year: number; state: string },
+): Promise<DrugAvailability[]> {
+  const rows = (
+    await db.query<
+      DrugAvailability & {
+        manifest_status: DrugSourceStatus | null;
+        manifest_reason: string | null;
+        manifest_discovery: string | null;
+        index_statuses: string[] | null;
+        child_statuses: string[] | null;
+        discovered_children: number | null;
+        denied: boolean | null;
+      }
+    >(
+      `WITH latest AS (
     SELECT DISTINCT ON (issuer_id,plan_year,state) issuer_id,plan_year,state,discovery_id
     FROM qhp_index ORDER BY issuer_id,plan_year,state,discovered_at DESC,qhp_index_id DESC
   ), discovery AS (
@@ -38,23 +57,64 @@ export async function drugAvailability(db: SqlSession, scope?: { issuer: string;
     WHERE ($1::text IS NULL OR coalesce(m.issuer_id,d.issuer_id)=$1)
       AND ($2::int IS NULL OR coalesce(m.plan_year,d.plan_year)=$2)
       AND ($3::text IS NULL OR coalesce(m.state,d.state)=$3)
-    ORDER BY state,plan_year,issuer_id`, [scope?.issuer ?? null, scope?.year ?? null, scope?.state ?? null])).rows;
-  return rows.map(row => {
-    const statuses = [...row.index_statuses ?? [], ...row.child_statuses ?? []];
-    let status: DrugSourceStatus = 'unknown', reason = 'source_set_not_validated';
-    if (row.denied || statuses.includes('access_denied') || row.manifest_status === 'access_denied') {
-      status = 'access_denied'; reason = 'source_access_denied';
-    } else if (row.index_statuses?.some(s => s !== 'ok') || row.child_statuses?.some(s => !['downloaded','discovered'].includes(s))) {
-      status = row.child_statuses?.includes('downloaded') ? 'partial' : 'failed'; reason = 'discovery_incomplete';
-    } else if (row.manifest_status && (!row.discovery_id || row.manifest_discovery === row.discovery_id)) {
-      status = row.manifest_status; reason = row.manifest_reason ?? reason;
-      if (status === 'complete' && (row.snapshot_id !== row.active_snapshot_id
-        || row.child_statuses?.some(s => s !== 'downloaded'))) { status = 'unknown'; reason = 'source_set_not_active'; }
+    ORDER BY state,plan_year,issuer_id`,
+      [scope?.issuer ?? null, scope?.year ?? null, scope?.state ?? null],
+    )
+  ).rows;
+  return rows.map((row) => {
+    const statuses = [
+      ...(row.index_statuses ?? []),
+      ...(row.child_statuses ?? []),
+    ];
+    let status: DrugSourceStatus = "unknown",
+      reason = "source_set_not_validated";
+    if (
+      row.denied ||
+      statuses.includes("access_denied") ||
+      row.manifest_status === "access_denied"
+    ) {
+      status = "access_denied";
+      reason = "source_access_denied";
+    } else if (
+      row.index_statuses?.some((s) => s !== "ok") ||
+      row.child_statuses?.some((s) => !["downloaded", "discovered"].includes(s))
+    ) {
+      status = row.child_statuses?.includes("downloaded")
+        ? "partial"
+        : "failed";
+      reason = "discovery_incomplete";
+    } else if (
+      row.manifest_status &&
+      (!row.discovery_id || row.manifest_discovery === row.discovery_id)
+    ) {
+      status = row.manifest_status;
+      reason = row.manifest_reason ?? reason;
+      if (
+        status === "complete" &&
+        (row.snapshot_id !== row.active_snapshot_id ||
+          row.child_statuses?.some((s) => s !== "downloaded"))
+      ) {
+        status = "unknown";
+        reason = "source_set_not_active";
+      }
     }
-    return { issuer_id: row.issuer_id, plan_year: row.plan_year, state: row.state, status, reason,
-      snapshot_id: row.snapshot_id ?? null, active_snapshot_id: row.active_snapshot_id ?? null,
+    return {
+      issuer_id: row.issuer_id,
+      plan_year: row.plan_year,
+      state: row.state,
+      status,
+      reason,
+      snapshot_id: row.snapshot_id ?? null,
+      active_snapshot_id: row.active_snapshot_id ?? null,
       discovery_id: row.discovery_id ?? row.manifest_discovery ?? null,
-      expected_children: row.discovery_id && row.manifest_discovery !== row.discovery_id ? row.discovered_children ?? 0 : row.expected_children,
-      complete_children: !row.discovery_id || row.manifest_discovery === row.discovery_id ? row.complete_children : 0 };
+      expected_children:
+        row.discovery_id && row.manifest_discovery !== row.discovery_id
+          ? (row.discovered_children ?? 0)
+          : row.expected_children,
+      complete_children:
+        !row.discovery_id || row.manifest_discovery === row.discovery_id
+          ? row.complete_children
+          : 0,
+    };
   });
 }

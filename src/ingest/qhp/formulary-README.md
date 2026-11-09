@@ -81,8 +81,6 @@ This validation did not run production PostgreSQL/Docker.
 imported counts and issues for inspection. Public fixture tests check nullable
 PA/ST/QL evidence and unknown coverage behavior.
 
-
-
 Migration-order integration note: this lane's reserved migration is 330. The current
 migration runner refuses pending migrations below an already-applied version. A database
 that already applied 400 or later needs the orchestrator to resolve migration ordering
@@ -132,7 +130,6 @@ kinds sequentially against a PGlite directory. Reports persist after each issuer
 `reports/p6a-tx-issuers.md` and caches immutable SQLite reference counts separately. It records
 D1/D2 completeness limits and explicitly lists issuers not yet run. These counts do not prove
 record equivalence, and quarantined rows never establish absent coverage.
-
 
 For an isolated native Postgres run, set `OPENPLANS_QHP_DATABASE_URL` explicitly to the
 loopback database owned by a Docker project named `openplans-p6a`. Then run

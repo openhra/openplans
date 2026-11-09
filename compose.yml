@@ -15,43 +15,47 @@ services:
       - sh
       - -ec
       - |
-          # BEGIN MEMORY PROFILE
-          #!/bin/sh
-          set -eu
-          # Budget in whole MiB/GiB, not total host RAM. Fail closed on invalid configuration.
-          budget=$${OPENPLANS_DB_MEMORY:-1g}
-          case "$$budget" in
-            *[gG]) amount=$${budget%?}; unit=1024 ;;
-            *[mM]) amount=$${budget%?}; unit=1 ;;
-            *) echo 'OPENPLANS_DB_MEMORY requires a whole m/g value (512m..256g)' >&2; exit 1 ;;
-          esac
-          case "$$amount" in ''|*[!0-9]*|0*) echo 'Invalid OPENPLANS_DB_MEMORY amount' >&2; exit 1 ;; esac
-          [ "$${#amount}" -le 6 ] || exit 1
-          memory=$$((amount * unit))
-          [ "$$memory" -ge 512 ] && [ "$$memory" -le 262144 ] || { echo 'OPENPLANS_DB_MEMORY outside 512m..256g' >&2; exit 1; }
-          connections=$$((memory / 32))
-          [ "$$connections" -ge 20 ] || connections=20
-          [ "$$connections" -le 100 ] || connections=100
-          work=$$((memory / (connections * 16)))
-          [ "$$work" -ge 1 ] || work=1
-          [ "$$work" -le 32 ] || work=32
-          maintenance=$$((memory / 10))
-          [ "$$maintenance" -le 1024 ] || maintenance=1024
-          exec docker-entrypoint.sh postgres \
-            -c "shared_buffers=$$((memory / 4))MB" \
-            -c "effective_cache_size=$$((memory * 70 / 100))MB" \
-            -c "work_mem=$${work}MB" \
-            -c "maintenance_work_mem=$${maintenance}MB" \
-            -c "autovacuum_work_mem=$${maintenance}MB" \
-            -c "max_connections=$$connections" \
-            -c "max_parallel_workers_per_gather=2"
-          # END MEMORY PROFILE
+        # BEGIN MEMORY PROFILE
+        #!/bin/sh
+        set -eu
+        # Budget in whole MiB/GiB, not total host RAM. Fail closed on invalid configuration.
+        budget=$${OPENPLANS_DB_MEMORY:-1g}
+        case "$$budget" in
+          *[gG]) amount=$${budget%?}; unit=1024 ;;
+          *[mM]) amount=$${budget%?}; unit=1 ;;
+          *) echo 'OPENPLANS_DB_MEMORY requires a whole m/g value (512m..256g)' >&2; exit 1 ;;
+        esac
+        case "$$amount" in ''|*[!0-9]*|0*) echo 'Invalid OPENPLANS_DB_MEMORY amount' >&2; exit 1 ;; esac
+        [ "$${#amount}" -le 6 ] || exit 1
+        memory=$$((amount * unit))
+        [ "$$memory" -ge 512 ] && [ "$$memory" -le 262144 ] || { echo 'OPENPLANS_DB_MEMORY outside 512m..256g' >&2; exit 1; }
+        connections=$$((memory / 32))
+        [ "$$connections" -ge 20 ] || connections=20
+        [ "$$connections" -le 100 ] || connections=100
+        work=$$((memory / (connections * 16)))
+        [ "$$work" -ge 1 ] || work=1
+        [ "$$work" -le 32 ] || work=32
+        maintenance=$$((memory / 10))
+        [ "$$maintenance" -le 1024 ] || maintenance=1024
+        exec docker-entrypoint.sh postgres \
+          -c "shared_buffers=$$((memory / 4))MB" \
+          -c "effective_cache_size=$$((memory * 70 / 100))MB" \
+          -c "work_mem=$${work}MB" \
+          -c "maintenance_work_mem=$${maintenance}MB" \
+          -c "autovacuum_work_mem=$${maintenance}MB" \
+          -c "max_connections=$$connections" \
+          -c "max_parallel_workers_per_gather=2"
+        # END MEMORY PROFILE
     ports:
       - "127.0.0.1:${DB_PORT:-5432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      test:
+        [
+          "CMD-SHELL",
+          'pg_isready -h 127.0.0.1 -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"',
+        ]
       interval: 2s
       timeout: 5s
       retries: 30
@@ -84,7 +88,13 @@ services:
       db:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/healthz').then(async r => { const b = await r.json(); if (!r.ok || b.db !== 'ok') process.exit(1); }).catch(() => process.exit(1))"]
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/healthz').then(async r => { const b = await r.json(); if (!r.ok || b.db !== 'ok') process.exit(1); }).catch(() => process.exit(1))",
+        ]
       interval: 2s
       timeout: 5s
       retries: 30
@@ -93,7 +103,20 @@ services:
     image: valkey/valkey:8.1-alpine
     profiles: ["cache"]
     tmpfs: ["/data"]
-    command: ["valkey-server", "--maxmemory", "${OPENPLANS_CACHE_MEMORY:-256mb}", "--maxmemory-policy", "allkeys-lru", "--save", "", "--appendonly", "no", "--protected-mode", "no"]
+    command:
+      [
+        "valkey-server",
+        "--maxmemory",
+        "${OPENPLANS_CACHE_MEMORY:-256mb}",
+        "--maxmemory-policy",
+        "allkeys-lru",
+        "--save",
+        "",
+        "--appendonly",
+        "no",
+        "--protected-mode",
+        "no",
+      ]
     # No host port or persistent volume: reachable only on the project network.
     healthcheck:
       test: ["CMD", "valkey-cli", "ping"]

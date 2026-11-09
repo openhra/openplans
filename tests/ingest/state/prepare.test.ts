@@ -1,9 +1,14 @@
-import { spawnSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
-import { expect, it } from 'vitest';
+import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
+import { expect, it } from "vitest";
 
-it('source preparer: synthetic CFB/BIFF, continuation strings and OOXML; corrupt chains, truncated strings and wrong family columns fail', () => {
-  const result = spawnSync('python3', ['-B', '-c', String.raw`
+it("source preparer: synthetic CFB/BIFF, continuation strings and OOXML; corrupt chains, truncated strings and wrong family columns fail", () => {
+  const result = spawnSync(
+    "python3",
+    [
+      "-B",
+      "-c",
+      String.raw`
 import io, pathlib, struct, sys, tempfile, zipfile
 sys.path.insert(0, sys.argv[1])
 from biff import biff_sheets, Strings, rk_value
@@ -81,8 +86,14 @@ with tempfile.TemporaryDirectory(prefix='openplans-synthetic-state-') as directo
     except ValueError as error: assert 'Non-uniform' in str(error)
     else: raise AssertionError('Wrong dependent-count tier was accepted')
 print('PASS: state preparer positive + negative controls')
-`, fileURLToPath(new URL('../../../src/ingest/state/', import.meta.url))], { encoding: 'utf8', timeout: 15_000 });
+`,
+      fileURLToPath(new URL("../../../src/ingest/state/", import.meta.url)),
+    ],
+    { encoding: "utf8", timeout: 15_000 },
+  );
   expect(result.error).toBeUndefined();
   expect(result.status, result.stderr).toBe(0);
-  expect(result.stdout.trim()).toBe('PASS: state preparer positive + negative controls');
+  expect(result.stdout.trim()).toBe(
+    "PASS: state preparer positive + negative controls",
+  );
 });

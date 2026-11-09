@@ -8,7 +8,7 @@ npm run build
 node dist/worker/cli.js ingest nppes --state TX
 # Optional: --kind full | weekly | deactivation (default: all)
 # Developer alternative, file database outside the checkout, no Docker/PostGIS:
-OPENPLANS_REFERENCE_CAPTURES_DIR=/absolute/reference-captures node dist/ingest/nppes/pglite.js all
+node dist/ingest/nppes/pglite.js all
 ```
 
 The worker requires the normal Postgres `DATABASE_URL`. The developer runner copies migrations
