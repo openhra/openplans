@@ -1,5 +1,9 @@
 export type FetchErrorCode =
   | "invalid_options"
+  | "admission_required"
+  | "admission_denied"
+  | "host_busy"
+  | "challenge_detected"
   | "invalid_url"
   | "https_required"
   | "embedded_credentials"
@@ -30,6 +34,8 @@ export interface FetchEvidence {
   final_url: string;
   redirect_chain: string[];
   response_headers: Record<string, string>;
+  status?: number;
+  policy?: FetchEvidence;
   attempts: number;
   connect_timeout_ms: number;
   address?: string;

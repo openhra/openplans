@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { compatKeyHeader, credentialMatches } from "./auth.js";
 import { providerCompatRoutes } from "./providers.js";
-import { mapDentalPlan } from "./dental.js";
+import { dentalHouseholdOffering, mapDentalPlan } from "./dental.js";
 import { countyDisplayNames, stateName } from "./geography.js";
 import { orderPlans, pageWindow } from "./search.js";
 import type { SqlSession } from "../../db/database.js";
@@ -403,6 +403,18 @@ export function compatRoutes(db: SqlSession, options: ApiOptions = {}) {
         }
         const plans: Record<string, unknown>[] = [];
         for (const { plan, id } of targets) {
+          if (product === "dental") {
+            const offering = await dentalHouseholdOffering(
+              db,
+              plan,
+              request.members,
+              request.coverage,
+            );
+            if (!offering.offered) {
+              reasons.add(`dental_child_only_excluded:${id}`);
+              continue;
+            }
+          }
           stateGaps(plan, reasons);
           const view = await planView(db, plan, {
             csrVariant: request.csrVariant,
@@ -455,7 +467,7 @@ export function compatRoutes(db: SqlSession, options: ApiOptions = {}) {
                     view.cost_sharing.benefits,
                     view.cost_sharing.selected_variant_id ?? "",
                   ),
-                  ...mapQuote(quote),
+                  ...mapQuote(quote, request.members),
                 },
           );
         }

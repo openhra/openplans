@@ -245,7 +245,14 @@ it("NY 10001 maps four filed tiers and preserves unknown exchange flags, age/tob
       // State publications have a known source enum, independent of exchange flags.
       source: "state",
       premium_source: "state",
-      premiums_by_applicant: [],
+      premiums_by_applicant: households[i]!.map((member) => ({
+        age: member.age,
+        child: "child" in member && member.child === true,
+        smoker: false,
+        premium: null,
+        composite_rated: false,
+        waived_for_total: null,
+      })),
       service_area_id: null,
     });
     expect(result.gaps.split(/,\s*/)).toContain("state_filed_tier");

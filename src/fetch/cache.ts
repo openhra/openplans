@@ -33,6 +33,9 @@ import { httpsTransport } from "./transport.js";
 import type { FetchResponse, Transport } from "./transport.js";
 import { inspectZip } from "./zip.js";
 import type { ZipLimits } from "./zip.js";
+import { AdmissionSession, assertObservedHostAllowed } from "./admission.js";
+import type { AdmissionReceipt, PolicyDocument } from "./admission.js";
+import { leaseHost } from "./limiter.js";
 
 export interface SnapshotMetadata {
   snapshot_id: string;
@@ -50,8 +53,11 @@ export interface SnapshotMetadata {
   content_encoding?: "gzip" | "deflate" | "br";
   transferred_bytes?: number;
   fetched_at: string;
+  access_policy?: AdmissionReceipt;
 }
 export interface FetchOptions {
+  /** One reviewed session per collection job; required for native network requests. */
+  admission?: AdmissionSession;
   source: string;
   allowHosts: readonly string[];
   expectedContent: "json" | "csv" | "zip" | "binary";
@@ -69,7 +75,7 @@ export interface FetchOptions {
   readTimeoutMs?: number;
   maxAttempts?: number;
   maxRetryDelayMs?: number;
-  /** Public project homepage; defaults to OPENPLANS_PROJECT_URL or a reserved placeholder. */
+  /** Public contact page; defaults to OPENPLANS_PROJECT_URL or the project contact page. */
   projectUrl?: string;
   zipLimits?: ZipLimits;
   /** Trusted dependency injection, principally for offline tests. URL policy always runs first. */
@@ -78,7 +84,7 @@ export interface FetchOptions {
   sleep?: (milliseconds: number) => Promise<void>;
   random?: () => number;
 }
-export type FetchResult =
+export type FetchResult = (
   | {
       outcome: "downloaded" | "reused";
       snapshotId: string;
@@ -92,7 +98,8 @@ export type FetchResult =
       url: string;
       final_url: string;
       redirect_chain: string[];
-    };
+    }
+) & { admission?: AdmissionReceipt };
 
 type Cached = Exclude<FetchResult, { outcome: "not_modified" }>;
 const transientStatuses = new Set([408, 429, 500, 502, 503, 504]);
@@ -127,14 +134,16 @@ function projectUrl(options: FetchOptions): string {
       url.username ||
       url.password ||
       url.search ||
-      url.hash
+      url.hash ||
+      url.href.includes("@") ||
+      /%40/i.test(url.href)
     )
       throw new Error();
     return url.href;
   } catch {
     throw new FetchError(
       "invalid_options",
-      "Project URL must be a public HTTPS homepage without credentials or query values",
+      "Project URL must be an HTTPS contact page without credentials or query values",
     );
   }
 }
@@ -262,8 +271,16 @@ async function requestChain(
   initial: URL,
   options: FetchOptions,
   evidence: FetchEvidence,
-): Promise<{ response: FetchResponse; url: URL; chain: string[] }> {
+  policyProbe: boolean,
+  probeDelayMs: number,
+): Promise<{
+  response: FetchResponse;
+  url: URL;
+  chain: string[];
+  release?: () => Promise<void>;
+}> {
   let url = initial;
+  let previous: URL | undefined;
   const chain: string[] = [];
   for (;;) {
     evidence.final_url = provenanceUrl(url);
@@ -271,6 +288,18 @@ async function requestChain(
     evidence.response_headers = {};
     delete evidence.address;
     url = checkedUrl(url, options.allowHosts);
+    assertObservedHostAllowed(url);
+    const admission = options.admission;
+    const delayMs =
+      admission && !policyProbe
+        ? await admission.authorize(
+            url,
+            (policyUrl, delay) =>
+              readPublisherPolicy(policyUrl, options, delay),
+            previous,
+          )
+        : probeDelayMs;
+    const dataDir = options.dataDir!;
     const address = await resolvePublic(
       url,
       options.lookup ?? systemLookup,
@@ -291,7 +320,12 @@ async function requestChain(
         headers["if-modified-since"] = options.conditional.lastModified;
     }
     let response: FetchResponse;
+    const release = admission
+      ? await leaseHost(dataDir, url.hostname, delayMs)
+      : undefined;
     try {
+      if (admission && !policyProbe) await admission.assertCurrent(url);
+      admission?.reserveRequest(url);
       response = await (options.transport ?? httpsTransport)(url, {
         address,
         headers,
@@ -299,10 +333,12 @@ async function requestChain(
         readTimeoutMs: options.readTimeoutMs ?? 30_000,
       });
     } catch (error) {
+      await release?.();
       if (error instanceof FetchError) throw error;
       throw new FetchError("network_error", "Publisher connection failed");
     }
     // Deliberate allowlist: never retain cookies, authentication challenges or arbitrary headers.
+    evidence.status = response.status;
     for (const name of [
       "content-type",
       "content-length",
@@ -317,8 +353,9 @@ async function requestChain(
         evidence.response_headers[name] = value.slice(0, 1024);
     }
     if (![301, 302, 303, 307, 308].includes(response.status))
-      return { response, url, chain };
+      return { response, url, chain, release };
     response.body.destroy();
+    await release?.();
     if (chain.length >= (options.maxRedirects ?? 5))
       throw new FetchError(
         "too_many_redirects",
@@ -337,7 +374,52 @@ async function requestChain(
       throw new FetchError("invalid_redirect", "Invalid publisher redirect");
     }
     chain.push(provenanceUrl(next));
+    previous = url;
     url = next;
+  }
+}
+
+async function readPublisherPolicy(
+  url: URL,
+  options: FetchOptions,
+  delayMs: number,
+): Promise<PolicyDocument> {
+  try {
+    const result = await acquire(
+      url,
+      {
+        ...options,
+        source: "publisher-policy",
+        allowHosts: [url.hostname],
+        expectedContent: "binary",
+        snapshotId: undefined,
+        expectedSha256: undefined,
+        conditional: undefined,
+        maxBytes: 512 * 1024,
+        maxDecompressedBytes: 512 * 1024,
+        maxAttempts: 1,
+      },
+      true,
+      delayMs,
+    );
+    if (result.outcome === "not_modified")
+      throw new FetchError(
+        "admission_denied",
+        "Publisher policy returned no content",
+      );
+    return {
+      status: 200,
+      sha256: result.metadata.sha256,
+      text: await readFile(result.path, "utf8"),
+    };
+  } catch (error) {
+    if (
+      url.pathname === "/robots.txt" &&
+      error instanceof FetchError &&
+      error.status === 404
+    )
+      return { status: 404, sha256: null, text: "" };
+    throw error;
   }
 }
 
@@ -383,6 +465,76 @@ function htmlProbe(enabled: boolean): (chunk: Buffer) => void {
     }
   };
 }
+
+function challengeProbe(): (chunk: Buffer) => void {
+  const maximumProbeCharacters = 64 * 1024;
+  let leading = "";
+  const decoder = new StringDecoder("utf8");
+  return (chunk) => {
+    if (leading.length >= maximumProbeCharacters) return;
+    leading = (leading + decoder.write(chunk)).slice(0, maximumProbeCharacters);
+    if (
+      /verify (?:that )?you are human|<title>\s*(?:just a moment|access denied|attention required)|\/cdn-cgi\/challenge-platform|(?:class|id)=["'](?:g-recaptcha|h-captcha)|<form[^>]+(?:login|sign-in)|<title>[^<]*(?:sign in|log in|paywall)/i.test(
+        leading,
+      )
+    )
+      throw new FetchError(
+        "challenge_detected",
+        "Publisher returned an access challenge",
+      );
+  };
+}
+
+async function checkRetryChallenge(
+  response: FetchResponse,
+  url: URL,
+  options: FetchOptions,
+): Promise<void> {
+  if (
+    header(response.headers, "content-encoding") &&
+    header(response.headers, "content-encoding") !== "identity"
+  )
+    throw new FetchError(
+      "unsupported_encoding",
+      "Encoded error response requires policy review",
+    );
+  const probe = challengeProbe();
+  const iterator = response.body[Symbol.asyncIterator]();
+  const probeLimit = Math.min(64 * 1024, options.maxBytes ?? 1024 ** 3);
+  let bytes = 0;
+  try {
+    while (bytes < probeLimit) {
+      const item = await nextChunk(
+        iterator,
+        response.body,
+        options.readTimeoutMs ?? 30_000,
+      );
+      if (item.done) break;
+      const chunk = Buffer.isBuffer(item.value)
+        ? item.value
+        : Buffer.from(item.value as Uint8Array);
+      options.admission?.transferred(url, chunk.length);
+      bytes += chunk.length;
+      if (bytes > (options.maxBytes ?? 1024 ** 3))
+        throw new FetchError(
+          "too_large",
+          "Publisher error body exceeds byte limit",
+        );
+      probe(chunk);
+    }
+  } finally {
+    response.body.destroy();
+  }
+  if (
+    /(?:text\/html|application\/xhtml\+xml)/i.test(
+      header(response.headers, "content-type") ?? "",
+    )
+  )
+    throw new FetchError(
+      "html_error_page",
+      "Publisher returned an HTML error page",
+    );
+}
 function checkContentType(
   type: string | null,
   expected: FetchOptions["expectedContent"],
@@ -411,8 +563,10 @@ async function validateCacheHit(
     throw new FetchError("too_large", "Cached body exceeds byte limit");
   checkContentType(cached.metadata.content_type, options.expectedContent);
   const probe = htmlProbe(options.expectedContent !== "binary");
+  const probeChallenge = challengeProbe();
   const hash = createHash("sha256");
   for await (const chunk of createReadStream(cached.path)) {
+    probeChallenge(chunk);
     probe(chunk);
     hash.update(chunk);
   }
@@ -428,6 +582,38 @@ async function validateCacheHit(
     });
 }
 
+async function validateSnapshotAdmission(
+  cached: Cached,
+  initial: URL,
+  options: FetchOptions,
+): Promise<void> {
+  let previous: URL | undefined;
+  for (const destination of [
+    initial.href,
+    cached.metadata.url,
+    ...cached.metadata.redirect_chain,
+    cached.metadata.final_url,
+  ]) {
+    let url = new URL(destination);
+    assertObservedHostAllowed(url);
+    if (options.admission) {
+      if (destination === provenanceUrl(initial)) url = initial;
+      else if (url.search)
+        throw new FetchError(
+          "admission_denied",
+          "Cached redirect query requires a fresh policy review",
+        );
+      url = checkedUrl(url, options.allowHosts);
+      await options.admission.authorize(
+        url,
+        (policyUrl, delay) => readPublisherPolicy(policyUrl, options, delay),
+        previous,
+      );
+    }
+    previous = url;
+  }
+}
+
 async function saveBody(
   initial: URL,
   url: URL,
@@ -435,6 +621,7 @@ async function saveBody(
   response: FetchResponse,
   sourceDir: string,
   options: FetchOptions,
+  policyProbe: boolean,
 ): Promise<Cached> {
   const limit = options.maxBytes ?? 1024 ** 3;
   const decodedLimit = options.maxDecompressedBytes ?? limit;
@@ -458,6 +645,7 @@ async function saveBody(
     const type = header(response.headers, "content-type") ?? null;
     checkContentType(type, options.expectedContent);
     const probe = htmlProbe(options.expectedContent !== "binary");
+    const probeChallenge = challengeProbe();
     await mkdir(sourceDir, { recursive: true });
     staging = await mkdtemp(join(sourceDir, ".pending-"));
     const partial = join(staging, "payload.part");
@@ -468,6 +656,11 @@ async function saveBody(
     try {
       const wire = new Transform({
         transform(chunk: Buffer, _encoding, callback) {
+          try {
+            options.admission?.transferred(url, chunk.length);
+          } catch (error) {
+            return callback(error as Error);
+          }
           transferredBytes += chunk.length;
           if (transferredBytes > limit)
             return callback(
@@ -535,6 +728,7 @@ async function saveBody(
             "too_large",
             "Publisher decoded body exceeds byte limit",
           );
+        probeChallenge(chunk);
         probe(chunk);
         hash.update(chunk);
         await file.writeFile(chunk);
@@ -567,8 +761,19 @@ async function saveBody(
           options.zipLimits?.maxCompressedBytes ?? decodedLimit,
         ),
       });
+    if (options.admission && !policyProbe) {
+      for (const destination of [initial.href, ...chain])
+        await options.admission.assertReady(
+          checkedUrl(destination, options.allowHosts),
+        );
+    }
     const existing = await findSnapshot(sourceDir, options.source, sha256);
-    if (existing) return existing;
+    if (existing) {
+      if (!policyProbe)
+        await validateSnapshotAdmission(existing, initial, options);
+      await validateCacheHit(existing, options);
+      return existing;
+    }
     const snapshotId = options.snapshotId ?? sha256;
     const metadata: SnapshotMetadata = {
       snapshot_id: snapshotId,
@@ -583,6 +788,9 @@ async function saveBody(
       sha256,
       bytes,
       fetched_at: new Date().toISOString(),
+      ...(options.admission && !policyProbe
+        ? { access_policy: options.admission.receipt() }
+        : {}),
       ...(encoding === "identity"
         ? {}
         : {
@@ -644,8 +852,23 @@ export async function fetchToCache(
   input: string | URL,
   options: FetchOptions,
 ): Promise<FetchResult> {
+  const manifestPath = process.env.OPENPLANS_ACCESS_MANIFEST;
+  const admission =
+    options.admission ??
+    (manifestPath ? new AdmissionSession(manifestPath) : undefined);
+  const result = await acquire(input, { ...options, admission });
+  return admission ? { ...result, admission: admission.receipt() } : result;
+}
+
+async function acquire(
+  input: string | URL,
+  options: FetchOptions,
+  policyProbe = false,
+  probeDelayMs = 5000,
+): Promise<FetchResult> {
   validateOptions(options);
   const initial = checkedUrl(input, options.allowHosts);
+  assertObservedHostAllowed(initial);
   // Built from components to keep the configurable external data cache independent of a checkout path.
   const dataDir =
     options.dataDir ??
@@ -656,6 +879,7 @@ export async function fetchToCache(
       "invalid_options",
       "Data cache directory must be absolute",
     );
+  options = { ...options, dataDir };
   const sourceDir = join(dataDir, "raw", options.source);
   try {
     if (options.expectedSha256) {
@@ -665,12 +889,27 @@ export async function fetchToCache(
         options.expectedSha256,
       );
       if (existing) {
+        await validateSnapshotAdmission(existing, initial, options);
         await validateCacheHit(existing, options);
+        if (options.admission) {
+          await options.admission.assertReady(initial);
+          const final =
+            existing.metadata.final_url === provenanceUrl(initial)
+              ? initial
+              : checkedUrl(existing.metadata.final_url, options.allowHosts);
+          await options.admission.assertReady(final);
+        }
         return existing;
       }
     }
+    if (!options.admission && !options.transport)
+      throw new FetchError(
+        "admission_required",
+        "Native collection requires a reviewed publisher manifest",
+      );
     for (let attempt = 0; attempt < (options.maxAttempts ?? 3); attempt++) {
       let response: FetchResponse | undefined;
+      let release: (() => Promise<void>) | undefined;
       const evidence: FetchEvidence = {
         requested_url: provenanceUrl(initial),
         final_url: provenanceUrl(initial),
@@ -680,10 +919,19 @@ export async function fetchToCache(
         connect_timeout_ms: options.connectTimeoutMs ?? 10_000,
       };
       try {
-        const result = await requestChain(initial, options, evidence);
+        const result = await requestChain(
+          initial,
+          options,
+          evidence,
+          policyProbe,
+          probeDelayMs,
+        );
+        release = result.release;
         response = result.response;
         if (response.status === 304) {
           response.body.destroy();
+          if (options.admission && !policyProbe)
+            await options.admission.assertReady(result.url);
           return {
             outcome: "not_modified",
             status: 304,
@@ -693,6 +941,8 @@ export async function fetchToCache(
           };
         }
         if (response.status !== 200) {
+          if (transientStatuses.has(response.status))
+            await checkRetryChallenge(response, result.url, options);
           response.body.destroy();
           throw new FetchError(
             "http_status",
@@ -707,11 +957,14 @@ export async function fetchToCache(
           response,
           sourceDir,
           options,
+          policyProbe,
         );
       } catch (error) {
         response?.body.destroy();
         if (!(error instanceof FetchError)) throw error;
         if (error.connection) evidence.connection = error.connection;
+        if (error.evidence && error.evidence !== evidence)
+          evidence.policy = error.evidence;
         error.evidence = evidence;
         const transient =
           transientCodes.has(error.code) ||
@@ -721,14 +974,19 @@ export async function fetchToCache(
           throw error;
         const delay = retryDelay(response, attempt, options);
         if (delay === undefined) throw error;
+        await release?.();
+        release = undefined;
         await (
           options.sleep ??
           ((ms) => new Promise((resolve) => setTimeout(resolve, ms)))
         )(delay);
+      } finally {
+        await release?.();
       }
     }
     throw new FetchError("network_error", "Publisher retry budget exhausted");
   } catch (error) {
+    if (!policyProbe) options.admission?.stop();
     if (error instanceof FetchError) throw error;
     throw new FetchError("cache_error", "Snapshot acquisition failed");
   }

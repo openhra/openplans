@@ -260,8 +260,17 @@ export function stateDetailColumns(raw: Record<string, string>) {
           `${prefix}${network}${scope}MOOP`,
         );
       }
+  for (const prefix of ["MEHB", "DEHB", "TEHB"])
+    for (const network of ["InnTier1", "InnTier2", "OutOfNet", "CombInnOon"])
+      names.push(`${prefix}Ded${network}Coinsurance`);
   const compact = (key: string) => key.replace(/[^a-z0-9]/gi, "").toLowerCase();
   const aliases = new Map(names.map((key) => [compact(key), key]));
+  // The CA publication spells the tier-1 accumulator column COINSURNACE.
+  for (const prefix of ["MEHB", "DEHB"])
+    aliases.set(
+      compact(`${prefix}DedInnTier1Coinsurnace`),
+      `${prefix}DedInnTier1Coinsurance`,
+    );
   aliases.set("quantitylimitonsvc", "QuantLimitOnSvc");
   aliases.set("limitquantity", "LimitQty");
   aliases.set("isexcludedfrominnmoop", "IsExclFromInnMOOP");

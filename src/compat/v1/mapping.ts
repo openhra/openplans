@@ -1,3 +1,4 @@
+import type { HouseholdMember } from "../../domain/rating/types.js";
 import type { planView } from "../../api/repository.js";
 import type { withSubsidy } from "../../api/subsidies.js";
 import type {
@@ -198,7 +199,34 @@ export function mapPlan(
   };
 }
 
-export function mapQuote(estimate: Estimate): Record<string, unknown> {
+export function mapQuote(
+  estimate: Estimate,
+  requestedMembers: readonly HouseholdMember[] = [],
+): Record<string, unknown> {
+  const unallocatedNyTier =
+    "state" in estimate &&
+    estimate.state === "NY" &&
+    "quote_method" in estimate &&
+    estimate.quote_method === "state_filed_tier" &&
+    estimate.members.length === 0;
+  const applicants = unallocatedNyTier
+    ? requestedMembers.map((member) => ({
+        age: member.age ?? null,
+        child: member.relationship === "child",
+        smoker: member.tobaccoUse,
+        premium: null,
+        composite_rated: false,
+        waived_for_total: null,
+      }))
+    : estimate.members.map((member) => ({
+        age: member.age,
+        child: member.relationship === "child",
+        smoker: member.tobacco,
+        premium:
+          member.premium_cents === null ? null : member.premium_cents / 100,
+        composite_rated: false,
+        waived_for_total: !member.charged,
+      }));
   return {
     premium:
       "total_cents" in estimate ? Number(estimate.total_cents) / 100 : null,
@@ -211,15 +239,7 @@ export function mapQuote(estimate: Estimate): Record<string, unknown> {
       "quote_method" in estimate && estimate.quote_method === "state_filed_tier"
         ? "state_filed_tier"
         : "cms_puf",
-    premiums_by_applicant: estimate.members.map((member) => ({
-      age: member.age,
-      child: member.relationship === "child",
-      smoker: member.tobacco,
-      premium:
-        member.premium_cents === null ? null : member.premium_cents / 100,
-      composite_rated: false,
-      waived_for_total: !member.charged,
-    })),
+    premiums_by_applicant: applicants,
   };
 }
 
@@ -283,9 +303,68 @@ const benefitFields: Record<string, string> = {
   child_eyewear: "Eye Glasses for Children",
   child_dental: "Dental Check-Up for Children",
 };
+const benefitConditionColumns = [
+  ["Exclusions", "exclusions"],
+  ["Explanation", "explanation"],
+  ["EHBVarReason", "EHB variation"],
+  ["IsExclFromInnMOOP", "excluded from in-network MOOP"],
+  ["IsExclFromOonMOOP", "excluded from out-of-network MOOP"],
+  ["MinimumStay", "minimum stay"],
+  ["IsSubjectedToDedTier1", "subject to tier 1 deductible"],
+  ["IsSubjectedToDedTier2", "subject to tier 2 deductible"],
+] as const;
+const compactHeader = (key: string) =>
+  key.replace(/[^a-z0-9]/gi, "").toLowerCase();
+const benefitHeaders = new Map(
+  [
+    "IsCovered",
+    "QuantLimitOnSvc",
+    "LimitQty",
+    "LimitUnit",
+    ...benefitConditionColumns.map(([key]) => key),
+  ].map((key) => [compactHeader(key), key]),
+);
+for (const [alias, key] of [
+  ["QuantityLimitOnSvc", "QuantLimitOnSvc"],
+  ["LimitQuantity", "LimitQty"],
+  ["IsExcludedFromInnMOOP", "IsExclFromInnMOOP"],
+  ["IsExcludedFromOonMOOP", "IsExclFromOonMOOP"],
+] as const)
+  benefitHeaders.set(compactHeader(alias), key);
+
+/** Federal and state publications use different spellings for the same columns. */
+function benefitCells(raw: NativeBenefit["raw"]): NativeBenefit["raw"] | null {
+  const cells: NativeBenefit["raw"] = {};
+  for (const [header, value] of Object.entries(raw)) {
+    const key = benefitHeaders.get(compactHeader(header));
+    if (!key) continue;
+    if (cells[key] !== undefined && cells[key] !== value.trim()) return null;
+    cells[key] = value.trim();
+  }
+  return cells;
+}
+
+function benefitConditions(raw: NativeBenefit["raw"]): string[] {
+  const limit = [raw.LimitQty?.trim(), raw.LimitUnit?.trim()]
+    .filter(Boolean)
+    .join(" ");
+  let quantityLimit: string | null = null;
+  if (raw.QuantLimitOnSvc?.trim() === "Yes")
+    quantityLimit = `limit: ${limit || "applies; quantity unknown"}`;
+  else if (limit)
+    quantityLimit = `published limit: ${limit}; applicability: ${raw.QuantLimitOnSvc?.trim() || "unknown"}`;
+  return [
+    quantityLimit,
+    ...benefitConditionColumns.map(([key, label]) =>
+      raw[key]?.trim() ? `${label}: ${raw[key]!.trim()}` : null,
+    ),
+  ].filter((condition): condition is string => condition !== null);
+}
+
 function benefitText(benefit: NativeBenefit): string | null {
-  // Retain publisher conditions verbatim. Never infer zero cost from a blank,
-  // Not Applicable, or a missing coinsurance cell. Tier 2 is labelled separately.
+  const raw = benefitCells(benefit.raw);
+  if (!raw) return null;
+  // Cost cells include their own deductible and payment basis. Keep them verbatim.
   const tier = (copay: string, coins: string) =>
     [
       benefit.cost_sharing_raw[copay]?.trim()
@@ -300,34 +379,19 @@ function benefitText(benefit: NativeBenefit): string | null {
   const inside = tier("CopayInnTier1", "CoinsInnTier1"),
     outside = tier("CopayOutofNet", "CoinsOutofNet");
   const tier2 = tier("CopayInnTier2", "CoinsInnTier2");
-  const covered = benefit.raw.IsCovered;
+  const covered = raw.IsCovered;
+  const conditions = benefitConditions(raw);
   if (
     !inside &&
     !outside &&
     !tier2 &&
-    !["Yes", "No", "Covered", "Not Covered"].includes(covered ?? "")
+    !["Yes", "No", "Covered", "Not Covered"].includes(covered ?? "") &&
+    !conditions.length
   )
     return null;
-  const conditions = [
-    benefit.raw.QuantLimitOnSvc === "Yes"
-      ? `limit: ${[benefit.raw.LimitQty, benefit.raw.LimitUnit].filter(Boolean).join(" ") || "applies; quantity unknown"}`
-      : null,
-    ...(
-      [
-        ["Exclusions", "exclusions"],
-        ["Explanation", "explanation"],
-        ["EHBVarReason", "EHB variation"],
-        ["IsExclFromInnMOOP", "excluded from in-network MOOP"],
-        ["IsExclFromOonMOOP", "excluded from out-of-network MOOP"],
-        ["MinimumStay", "minimum stay"],
-        ["IsSubjectedToDedTier1", "subject to tier 1 deductible"],
-        ["IsSubjectedToDedTier2", "subject to tier 2 deductible"],
-      ] as const
-    ).map(([key, label]) =>
-      benefit.raw[key]?.trim() ? `${label}: ${benefit.raw[key]!.trim()}` : null,
-    ),
-  ].filter(Boolean);
-  let summary = "Coverage: Covered";
+  let summary = ["Yes", "Covered"].includes(covered ?? "")
+    ? "Coverage: Covered"
+    : "Coverage: unknown";
   if (["No", "Not Covered"].includes(covered ?? ""))
     summary = "Coverage: Not Covered";
   else if (inside || outside || tier2)
@@ -351,7 +415,7 @@ export function mapVariantBenefits(
   }
   const chiro = rows
     .filter((row) => row.benefit_name === "Chiropractic Care")
-    .map((row) => row.raw.IsCovered);
+    .map((row) => benefitCells(row.raw)?.IsCovered);
   if (chiro.length && new Set(chiro).size === 1)
     mapped.chiropractic_services =
       (

@@ -1,4 +1,37 @@
+import { premiumAttributeRows } from "../../api/repository.js";
 import type { planView } from "../../api/repository.js";
+import type { SqlSession } from "../../db/database.js";
+import type { HouseholdMember } from "../../domain/rating/types.js";
+import { ageOnDate } from "../../domain/rating/household.js";
+
+/** Only unanimous public offering evidence can exclude an adult household. */
+export async function dentalHouseholdOffering(
+  db: SqlSession,
+  plan: { snapshot_id: string; base_plan_id: string },
+  members: readonly HouseholdMember[],
+  coverage: string,
+) {
+  const { rows } = await premiumAttributeRows(
+    db,
+    plan.snapshot_id,
+    plan.base_plan_id,
+  );
+  const provenance = rows.map((row) => ({
+    snapshot_id: plan.snapshot_id,
+    source_row: row.source_row,
+    child_only_offering: row.raw.ChildOnlyOffering ?? null,
+  }));
+  const childOnly =
+    rows.length > 0 &&
+    rows.every(
+      (row) => row.raw.ChildOnlyOffering?.trim() === "Allows Child-Only",
+    );
+  // SADP offering eligibility uses the under-21 age boundary, including minor subscribers.
+  const hasChild = members.some(
+    (member) => (member.age ?? ageOnDate(member.dateOfBirth!, coverage)) < 21,
+  );
+  return { offered: !childOnly || hasChild, provenance };
+}
 
 // Dental benefit wire vocabulary; no carrier-only values.
 const benefitFields = `individual_deductible family_deductible individual_annual_max family_annual_max oral_exam

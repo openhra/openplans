@@ -466,6 +466,8 @@ export async function planCostSharing(
           ],
         ),
       ]);
+  if (detailPlan.state === "CA")
+    for (const row of attributes.rows) row.raw = stateDetailColumns(row.raw);
   if (supplement) {
     for (const row of attributes.rows) row.raw = stateDetailColumns(row.raw);
     for (const row of benefits.rows) {

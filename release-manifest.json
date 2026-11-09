@@ -856,8 +856,8 @@
     {
       "path": "src/api/repository.ts",
       "mode": "100644",
-      "size": 31473,
-      "sha256": "70406df41f7e02e50a56b7367fe1fd5240b7a09595844e74b56b97e8a33150e7"
+      "size": 31584,
+      "sha256": "55c741d534dbc9f6874727d10bd41fbd93f703267937694a2f6f1bfa3e25c50c"
     },
     {
       "path": "src/api/routes.ts",
@@ -898,8 +898,8 @@
     {
       "path": "src/compat/v1/dental.ts",
       "mode": "100644",
-      "size": 1593,
-      "sha256": "c45952397d97babc624c9a5ded958ceffe321a7b711d4a97e6c82ff7540b3a21"
+      "size": 2797,
+      "sha256": "fc1bc83a0052032575b4a1369f5de02705962215ec726b2818c340b3e5aeff86"
     },
     {
       "path": "src/compat/v1/geography.ts",
@@ -910,14 +910,14 @@
     {
       "path": "src/compat/v1/index.ts",
       "mode": "100644",
-      "size": 27356,
-      "sha256": "cde0acac11aa31e511cc1de1a981b2a5c9d6cd4d768100e6ee6a1e38e45fae62"
+      "size": 27762,
+      "sha256": "929627351443ff4bfa3729c8056eef2aa813cc91822cf8a8cb8798cbc39df80a"
     },
     {
       "path": "src/compat/v1/mapping.ts",
       "mode": "100644",
-      "size": 15881,
-      "sha256": "4348abfbfc7e7077f1d7f4b26c7f8e0bbe4531693359a409ff802f26c82df1f5"
+      "size": 18026,
+      "sha256": "5ee48ca4d6b16ec614858426aef7d8998e6ad44bb0b025c85629d4db7d3972de"
     },
     {
       "path": "src/compat/v1/providers.ts",
@@ -1096,32 +1096,56 @@
     {
       "path": "src/fetch/README.md",
       "mode": "100644",
-      "size": 6011,
-      "sha256": "ff4ece28932b283e54d293cb308ff5756a4af8bbb8d2bdfd507d1640576b88ac"
+      "size": 12556,
+      "sha256": "4a7267d4a2bf9663fe079a5fbf7b5dcc35a772443c330cd60f96acfc21c967d7"
+    },
+    {
+      "path": "src/fetch/admission.ts",
+      "mode": "100644",
+      "size": 12460,
+      "sha256": "748110ddb58b07cd0442f3eecb9924c1d753802d6603e9442fc6d285855033b5"
+    },
+    {
+      "path": "src/fetch/bulk.ts",
+      "mode": "100644",
+      "size": 11936,
+      "sha256": "d512e0973d51e2e68db2375745a7aa18faf929736161c81286f4e5d32d4ac984"
     },
     {
       "path": "src/fetch/cache.ts",
       "mode": "100644",
-      "size": 23314,
-      "sha256": "f3d05286a8dec616e9cd33c27aac29303cd63483017628106fa505f8a584d8c8"
+      "size": 31312,
+      "sha256": "5c40d6ac265376de01469e8c6ccdc48869fba9e9dd2019517b1e9d86ee4ac25f"
     },
     {
       "path": "src/fetch/errors.ts",
       "mode": "100644",
-      "size": 1230,
-      "sha256": "942650066feb4e688e687a7cdb08532e22291aae5f581839c7a7b4c58cbbc1a1"
+      "size": 1364,
+      "sha256": "ca3d615eee0082a63a5981a64093ba4fee67b3279598e2003ab6039ae2913480"
     },
     {
       "path": "src/fetch/index.ts",
       "mode": "100644",
-      "size": 570,
-      "sha256": "ee96d972d2cc38ec571d2f82770ec94c3c5153471c588fd02b26998c5d34542f"
+      "size": 786,
+      "sha256": "ba6b5e85531abfa621a94260f2342644de3beacae3f9dbb83ec4fa3b9ff57e21"
+    },
+    {
+      "path": "src/fetch/limiter.ts",
+      "mode": "100644",
+      "size": 2853,
+      "sha256": "68d6051b8a04d763cff861339be4d7144cb801f19f7052296c2bcc88c2c2d092"
     },
     {
       "path": "src/fetch/policy.ts",
       "mode": "100644",
       "size": 5735,
       "sha256": "6c91da4db03d15f57dab38dfacb309b7956accebd62bfad809666523a72714de"
+    },
+    {
+      "path": "src/fetch/robots.ts",
+      "mode": "100644",
+      "size": 3446,
+      "sha256": "2ec750ec8dac60f5d9a2f80753cc6321091a940a494c3547e5e980f6ca8beea3"
     },
     {
       "path": "src/fetch/transport.ts",
@@ -1774,8 +1798,8 @@
     {
       "path": "src/ingest/state/catalog.ts",
       "mode": "100644",
-      "size": 10018,
-      "sha256": "7dc7da3cc39bce3ab479ac85734e32fc2353ce0fb2f0eac129e279f3c2c006cd"
+      "size": 10430,
+      "sha256": "31d7a2508aa640f702df23885918adc37be4b1a35f3f6ded26202613fcadee50"
     },
     {
       "path": "src/ingest/state/command.ts",
@@ -2258,6 +2282,36 @@
       "sha256": "ac40a1e031f0fb263f7155adf7710f70f9fee528aa39e028f9e4b5be48b3ec3f"
     },
     {
+      "path": "tests/compat/v1/benefit-ca-accumulator-public.json",
+      "mode": "100644",
+      "size": 6561,
+      "sha256": "e3c20786bf6d7bb0013c866b74379a91dc990ae3edbd4e3514839b923f88e46d"
+    },
+    {
+      "path": "tests/compat/v1/benefit-ca-accumulator-regenerate.py",
+      "mode": "100644",
+      "size": 1406,
+      "sha256": "d60454c92202b4d9b0b0b74b4a1fe8f72102c5ed8bfd5f77bbafbf5be246b7e6"
+    },
+    {
+      "path": "tests/compat/v1/benefit-ca-accumulators.test.ts",
+      "mode": "100644",
+      "size": 3156,
+      "sha256": "1dbb3a28839322da2ccada622fcdb77f1b4abce3a12ef8e903827f046b5f7751"
+    },
+    {
+      "path": "tests/compat/v1/benefit-ca-public.json",
+      "mode": "100644",
+      "size": 3133,
+      "sha256": "bfdee9496ca041ef17e7a6673b66310ea9e548597bbb8099ed8e517beff525ef"
+    },
+    {
+      "path": "tests/compat/v1/benefit-ca-regenerate.py",
+      "mode": "100644",
+      "size": 1552,
+      "sha256": "6caa5280de02c95b67164ecca2cb514981ba90633efa89670952655b5c33f4d6"
+    },
+    {
       "path": "tests/compat/v1/benefit-controls.test.ts",
       "mode": "100644",
       "size": 3749,
@@ -2268,6 +2322,30 @@
       "mode": "100644",
       "size": 7862,
       "sha256": "12973aa155c05cd1f31e7d9b9725bcbdee2c32bfb432d8420b9b04d1c9416366"
+    },
+    {
+      "path": "tests/compat/v1/dental-offering-public.json",
+      "mode": "100644",
+      "size": 108683,
+      "sha256": "a9000fed8570ef0798a67d526a852623d9ada3dd153613e9a63e742092961856"
+    },
+    {
+      "path": "tests/compat/v1/dental-offering-regenerate.py",
+      "mode": "100644",
+      "size": 2021,
+      "sha256": "1aae7a11e578617bbc18ec95d72489e5b987925d2ae7e099f996c897f60aef72"
+    },
+    {
+      "path": "tests/compat/v1/dental-offering.test.ts",
+      "mode": "100644",
+      "size": 3888,
+      "sha256": "c5fbd883e4a9d1f7eb8f046eedef0939fc5441c321d13d7b743c7a0af06844b8"
+    },
+    {
+      "path": "tests/compat/v1/dental-values.test.ts",
+      "mode": "100644",
+      "size": 6943,
+      "sha256": "5e1cf7e645a59dc94b1eea44bb8c943577b95bae5fd0165ef0af474edb1eb731"
     },
     {
       "path": "tests/compat/v1/drugs.test.ts",
@@ -2372,6 +2450,18 @@
       "sha256": "719a46e1d7806b08419fded7ec16580a465f4417188b446d7983b76601bd1075"
     },
     {
+      "path": "tests/compat/v1/ny-tier-breakdown.test.ts",
+      "mode": "100644",
+      "size": 2792,
+      "sha256": "4c999a427d809421e582574bc93a6c7e6c16933f7b724a2df755dfa2a4430cf9"
+    },
+    {
+      "path": "tests/compat/v1/order.test.ts",
+      "mode": "100644",
+      "size": 2280,
+      "sha256": "b4c06b3dab8255e3231b6a63c018972cbf22d03cd51a4f94b573bdf7ce549e90"
+    },
+    {
       "path": "tests/compat/v1/prepare-realdata.mjs",
       "mode": "100644",
       "size": 2645,
@@ -2392,8 +2482,8 @@
     {
       "path": "tests/compat/v1/refresh.test.ts",
       "mode": "100644",
-      "size": 17569,
-      "sha256": "31ce7af2de84ce2d63d7e9b5755b3157ea3303b864466a150f2ef8484feb17d2"
+      "size": 17804,
+      "sha256": "75f0e179c3ce205786a0e729ddf656ff9f7d816395807a026bdd0f7108de460b"
     },
     {
       "path": "tests/compat/v1/regenerate.py",
@@ -2418,6 +2508,12 @@
       "mode": "100644",
       "size": 2579,
       "sha256": "97d79cfc65e41f773c17300835f8e4360dc72b1d0622116f50c8ab81093364c3"
+    },
+    {
+      "path": "tests/compat/v1/value-rendering.test.ts",
+      "mode": "100644",
+      "size": 13051,
+      "sha256": "02eee3ce830423ec40a4ce68581392793b979f532879783c74e508784fffb315"
     },
     {
       "path": "tests/domain/csr/index.test.ts",
@@ -2552,10 +2648,28 @@
       "sha256": "7e8385b38eb71cdaadcf6a384c43c3d563e7cbe6e6a52fc900276510db04a912"
     },
     {
+      "path": "tests/fetch/admission.test.ts",
+      "mode": "100644",
+      "size": 19021,
+      "sha256": "0de631578800950bb2e4c3e6694515d73a9360cee661232b071493ce2c8b475b"
+    },
+    {
+      "path": "tests/fetch/bulk.test.ts",
+      "mode": "100644",
+      "size": 9045,
+      "sha256": "742e1e1375cf11d5ec5d4f7e9ede2a079bd2181bffd89fc11959c43860049c9c"
+    },
+    {
       "path": "tests/fetch/cache.test.ts",
       "mode": "100644",
       "size": 29396,
       "sha256": "40e6ae60d01eeb302ea1ce1ed8f8d267fadb39f8edf1e1b963b7d566bc682bd2"
+    },
+    {
+      "path": "tests/fetch/limiter.test.ts",
+      "mode": "100644",
+      "size": 4591,
+      "sha256": "655e38fd5fa455016d323b22a8b1df77b5e125ec64c4b5878f27cc75d8f8c571"
     },
     {
       "path": "tests/fetch/policy.test.ts",

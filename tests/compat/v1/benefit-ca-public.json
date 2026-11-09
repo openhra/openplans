@@ -1,0 +1,92 @@
+{
+  "kind": "real-public-row-cut",
+  "sha256": "8a6d606a6da66b6d61296416d720f0d6b7a2766b398f52757f6ebe3600c52225",
+  "url": "https://www.cms.gov/files/zip/californiasbpuf2026.zip",
+  "member": "CABenefits05052026.csv",
+  "rows": [
+    {
+      "source_row": 5,
+      "values": {
+        "BUSINESS YEAR": "2026",
+        "STATE CODE": "CA",
+        "ISSUER ID": "18126",
+        "SOURCE NAME": "SERFF",
+        "VERSION NUMBER": "1",
+        "IMPORT DATE": "1/13/2026",
+        "STANDARD COMPONENT ID": "18126CA0010001",
+        "PLAN ID": "18126CA0010001-01",
+        "BENEFIT NAME": "Primary Care Visit to Treat an Injury or Illness",
+        "IS EHB": "Yes",
+        "IS STATE MANDATE": "",
+        "IS COVERED": "Yes",
+        "QUANTITY LIMIT ON SVC": "",
+        "LIMIT QUANTITY": "",
+        "LIMIT UNIT": "",
+        "MINIMUM STAY": "",
+        "EXCLUSIONS": "",
+        "EXPLANATION": "Please see plan's Summary of Benefits and Coverage (SBC) and Evidence of Coverage (EOC) or policy document for complete information on benefits and exclusions.",
+        "EHB VAR REASON": "",
+        "IS SUBJECTED TO DED TIER 1": "",
+        "IS SUBJECTED TO DED TIER 2": "",
+        "IS EXCLUDED FROM INN MOOP": "No",
+        "IS EXCLUDED FROM OON MOOP": "No"
+      }
+    },
+    {
+      "source_row": 12,
+      "values": {
+        "BUSINESS YEAR": "2026",
+        "STATE CODE": "CA",
+        "ISSUER ID": "18126",
+        "SOURCE NAME": "SERFF",
+        "VERSION NUMBER": "1",
+        "IMPORT DATE": "1/13/2026",
+        "STANDARD COMPONENT ID": "18126CA0010001",
+        "PLAN ID": "18126CA0010001-01",
+        "BENEFIT NAME": "Chiropractic Care",
+        "IS EHB": "No",
+        "IS STATE MANDATE": "",
+        "IS COVERED": "No",
+        "QUANTITY LIMIT ON SVC": "",
+        "LIMIT QUANTITY": "",
+        "LIMIT UNIT": "",
+        "MINIMUM STAY": "",
+        "EXCLUSIONS": "",
+        "EXPLANATION": "",
+        "EHB VAR REASON": "",
+        "IS SUBJECTED TO DED TIER 1": "",
+        "IS SUBJECTED TO DED TIER 2": "",
+        "IS EXCLUDED FROM INN MOOP": "",
+        "IS EXCLUDED FROM OON MOOP": ""
+      }
+    },
+    {
+      "source_row": 63,
+      "values": {
+        "BUSINESS YEAR": "2026",
+        "STATE CODE": "CA",
+        "ISSUER ID": "18126",
+        "SOURCE NAME": "SERFF",
+        "VERSION NUMBER": "1",
+        "IMPORT DATE": "1/13/2026",
+        "STANDARD COMPONENT ID": "18126CA0010001",
+        "PLAN ID": "18126CA0010001-01",
+        "BENEFIT NAME": "Dental Check-Up for Children",
+        "IS EHB": "Yes",
+        "IS STATE MANDATE": "",
+        "IS COVERED": "Yes",
+        "QUANTITY LIMIT ON SVC": "",
+        "LIMIT QUANTITY": "",
+        "LIMIT UNIT": "",
+        "MINIMUM STAY": "",
+        "EXCLUSIONS": "",
+        "EXPLANATION": "Please see plan's Summary of Benefits and Coverage (SBC) and Evidence of Coverage (EOC) or policy document for complete information on benefits and exclusions.",
+        "EHB VAR REASON": "",
+        "IS SUBJECTED TO DED TIER 1": "",
+        "IS SUBJECTED TO DED TIER 2": "",
+        "IS EXCLUDED FROM INN MOOP": "No",
+        "IS EXCLUDED FROM OON MOOP": "No"
+      }
+    }
+  ]
+}
