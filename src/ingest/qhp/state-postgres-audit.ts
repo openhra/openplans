@@ -139,17 +139,22 @@ try {
         providers?: { participation: string; nppes_snapshot_id?: string }[];
       };
       const elapsed = Date.now() - start;
-      const valid =
-        kind === "drug"
-          ? drug
-            ? body.status === "listed_covered"
-            : ["unknown", "not_listed"].includes(body.status ?? "")
-          : provider
-            ? Number(body.total) > 0 &&
-              body.providers?.every(
-                (p) => p.participation === "listed_participating",
-              )
-            : body.total === 0;
+      let valid;
+      if (kind === "drug") {
+        if (drug) {
+          valid = body.status === "listed_covered";
+        } else {
+          valid = ["unknown", "not_listed"].includes(body.status ?? "");
+        }
+      } else if (provider) {
+        valid =
+          Number(body.total) > 0 &&
+          body.providers?.every(
+            (p) => p.participation === "listed_participating",
+          );
+      } else {
+        valid = body.total === 0;
+      }
       row[kind] = {
         plan,
         http_status: response.status,

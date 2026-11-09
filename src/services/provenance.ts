@@ -9,6 +9,7 @@ export async function getSnapshot(db: SqlSession, id: unknown) {
     typeof id !== "string" ||
     !id.length ||
     id.length > 1024 ||
+    // eslint-disable-next-line no-control-regex -- Control characters must be rejected at this boundary.
     /[\u0000-\u001f]/.test(id)
   )
     return v.fail("snapshot_id");

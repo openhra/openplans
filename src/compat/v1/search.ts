@@ -8,8 +8,15 @@ export function pageWindow(
   return { start: (page - 1) * size, size };
 }
 
-const compareId = (a: Record<string, unknown>, b: Record<string, unknown>) =>
-  String(a.id) < String(b.id) ? -1 : String(a.id) > String(b.id) ? 1 : 0;
+const compareId = (a: Record<string, unknown>, b: Record<string, unknown>) => {
+  if (String(a.id) < String(b.id)) {
+    return -1;
+  } else if (String(a.id) > String(b.id)) {
+    return 1;
+  } else {
+    return 0;
+  }
+};
 
 /** Public ID is the deterministic default order. */
 export function orderPlans(plans: Record<string, unknown>[], sort = "id") {
@@ -32,16 +39,25 @@ export function orderPlans(plans: Record<string, unknown>[], sort = "id") {
     }
     // Unknown prices stay last in either direction. Equal values have a public-ID tie breaker,
     // independent of SQL row order or the order of an ids[] request.
-    if (x == null || y == null)
-      return x == null && y == null ? compareId(a, b) : x == null ? 1 : -1;
-    const result =
-      typeof x === "number" && typeof y === "number"
-        ? x - y
-        : String(x) < String(y)
-          ? -1
-          : String(x) > String(y)
-            ? 1
-            : 0;
+    if (x == null || y == null) {
+      if (x == null && y == null) {
+        return compareId(a, b);
+      } else if (x == null) {
+        return 1;
+      } else {
+        return -1;
+      }
+    }
+    let result;
+    if (typeof x === "number" && typeof y === "number") {
+      result = x - y;
+    } else if (String(x) < String(y)) {
+      result = -1;
+    } else if (String(x) > String(y)) {
+      result = 1;
+    } else {
+      result = 0;
+    }
     return (descending ? -result : result) || compareId(a, b);
   });
 }

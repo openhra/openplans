@@ -516,6 +516,15 @@ export async function geocodeStatewide(
           !matchedCounty ||
           !insideBounds(row.latitude!, row.longitude!, matchedCounty));
       const status = rejected ? "rejected_out_of_bounds" : row.status;
+      function pointRejectionReason() {
+        if (wrongState) {
+          return "state_mismatch";
+        } else if (!containingCounty) {
+          return "outside_state_bounds";
+        } else {
+          return "outside_county_bounds";
+        }
+      }
       const rejection = rejected
         ? {
             response_row_id: row.id,
@@ -528,11 +537,7 @@ export async function geocodeStatewide(
             match_quality: row.quality,
             input_state: work.address.state,
             bounds_snapshot_id: counties[0]?.snapshot_id ?? null,
-            reason: wrongState
-              ? "state_mismatch"
-              : !containingCounty
-                ? "outside_state_bounds"
-                : "outside_county_bounds",
+            reason: pointRejectionReason(),
           }
         : null;
       const candidate =
@@ -546,21 +551,25 @@ export async function geocodeStatewide(
         status === "Match" ? row.latitude! : (centroid?.latitude ?? null);
       const longitude =
         status === "Match" ? row.longitude! : (centroid?.longitude ?? null);
-      const method =
-        status === "Match"
-          ? "census_geocoder"
-          : centroid
-            ? "zcta_centroid"
-            : null;
+      let method;
+      if (status === "Match") {
+        method = "census_geocoder";
+      } else if (centroid) {
+        method = "zcta_centroid";
+      } else {
+        method = null;
+      }
       const county = pointCounty?.county_fips ?? work.selection_county;
-      const basis =
-        status === "Match" && row.countyFips
-          ? "census_response"
-          : pointCounty
-            ? "point_in_county"
-            : county
-              ? "zip_candidate"
-              : "unknown";
+      let basis;
+      if (status === "Match" && row.countyFips) {
+        basis = "census_response";
+      } else if (pointCounty) {
+        basis = "point_in_county";
+      } else if (county) {
+        basis = "zip_candidate";
+      } else {
+        basis = "unknown";
+      }
       if (latitude !== null && longitude !== null)
         checkCountyPoint(latitude, longitude, county!, counties);
       return {

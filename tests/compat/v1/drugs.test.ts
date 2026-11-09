@@ -65,6 +65,38 @@ async function search(term: string, extra = "") {
 const packageId = (ndc: string) =>
   `${ndc.slice(0, 5)}-${ndc.slice(5, 9)}-${ndc.slice(9)}`;
 
+function packageContract(value: unknown) {
+  assert.ok(value !== null && typeof value === "object");
+  const row = value as Record<string, unknown>;
+  assert.deepEqual(Object.keys(row).sort(), [
+    "description",
+    "id",
+    "med_id",
+    "rx_cui_id",
+  ]);
+  assert.equal(typeof row.id, "string");
+  assert.match(String(row.id), /^\d{5}-\d{4}-\d{2}$/);
+  assert.equal(typeof row.rx_cui_id, "string");
+  // NDC associations establish neither a package description nor a product ID.
+  assert.equal(row.description, null);
+  assert.equal(row.med_id, null);
+}
+
+it("keeps required package nulls even when the package count differs from the concept count", async () => {
+  const { body } = await search("metformin");
+  expect(body.drug_packages.length).toBeGreaterThan(0);
+  expect(body.drug_packages.length).not.toBe(body.drugs.length);
+  for (const value of body.drug_packages) packageContract(value);
+  const original = body.drug_packages[0] as Record<string, unknown>;
+  for (const field of ["description", "med_id"]) {
+    const absent = { ...original };
+    delete absent[field];
+    expect(() => packageContract(absent), field).toThrow();
+    const invented = { ...original, [field]: "synthetic unknown value" };
+    expect(() => packageContract(invented), field).toThrow();
+  }
+});
+
 it("distinguishes an unloaded terminology database from an unknown search after bootstrap", async () => {
   expect(missing.status).toBe(200);
   expect(await missing.json()).toEqual({

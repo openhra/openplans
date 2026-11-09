@@ -8,6 +8,13 @@ import { ESLint } from "eslint";
 import * as prettier from "prettier";
 import { checkInventory, inventory, packageRoot } from "./format-inventory.mjs";
 
+import {
+  findingsFromResults,
+  checkBaseline,
+  assertOnlyShrinks,
+  assertHistoryOnlyShrinks,
+} from "./lint-baseline.mjs";
+
 const eslint = new ESLint({ cwd: packageRoot });
 for (const [filePath, sourceType] of [
   ["scripts/example.mjs", "module"],
@@ -116,6 +123,156 @@ try {
 } finally {
   await rm(scratch, { recursive: true, force: true });
 }
+const legacyRule = "@typescript-eslint/no-explicit-any";
+const legacyPath = "tests/legacy.ts";
+const legacyText = "export const legacy: any = 1;";
+const lintLegacy = async (source) =>
+  findingsFromResults(await eslint.lintText(source, { filePath: legacyPath }));
+const initialFindings = await lintLegacy(legacyText);
+assert.equal(initialFindings.length, 1);
+const initialPolicy = {
+  schema_version: 1,
+  entries: {
+    [legacyPath]: {
+      rule: legacyRule,
+      cleanup: "Replace the synthetic legacy type.",
+      fingerprints: initialFindings.map((finding) => finding.fingerprint),
+      context_fingerprints: initialFindings.map(
+        (finding) => finding.contextFingerprint,
+      ),
+    },
+  },
+};
+const initialSuppressions = { [legacyPath]: { [legacyRule]: { count: 1 } } };
+assert.deepEqual(
+  checkBaseline(initialFindings, initialSuppressions, initialPolicy),
+  initialPolicy,
+);
+const extraFindings = await lintLegacy(
+  legacyText + "\nexport const added: any = 2;",
+);
+assert.throws(
+  () => checkBaseline(extraFindings, initialSuppressions, initialPolicy),
+  /Stale or expanded suppression/,
+);
+const replacementFindings = await lintLegacy(
+  "export const replacement: any = 1;",
+);
+assert.throws(
+  () => checkBaseline(replacementFindings, initialSuppressions, initialPolicy),
+  /New or stale baseline finding/,
+);
+assert.throws(
+  () => checkBaseline([], initialSuppressions, initialPolicy),
+  /Stale or expanded suppression/,
+);
+const expandedSuppressions = { [legacyPath]: { [legacyRule]: { count: 2 } } };
+assert.throws(
+  () => checkBaseline(initialFindings, expandedSuppressions, initialPolicy),
+  /Stale or expanded suppression/,
+);
+const expandedPolicy = structuredClone(initialPolicy);
+expandedPolicy.entries[legacyPath].fingerprints = extraFindings
+  .map((finding) => finding.fingerprint)
+  .sort();
+assert.throws(
+  () => assertOnlyShrinks(initialPolicy, expandedPolicy),
+  /Baseline expansion/,
+);
+expandedPolicy.entries[legacyPath].context_fingerprints = extraFindings
+  .map((finding) => finding.contextFingerprint)
+  .sort();
+const firstTest = await lintLegacy(
+  'import { it } from "vitest"; it("first", () => { const legacy: any = 1; return legacy; });',
+);
+const movedTest = await lintLegacy(
+  'import { it } from "vitest"; it("second", () => { const legacy: any = 1; return legacy; });',
+);
+assert.equal(firstTest[0].fingerprint, movedTest[0].fingerprint);
+assert.notEqual(
+  firstTest[0].contextFingerprint,
+  movedTest[0].contextFingerprint,
+);
+const scopedPolicy = structuredClone(initialPolicy);
+scopedPolicy.entries[legacyPath].fingerprints = firstTest.map(
+  (finding) => finding.fingerprint,
+);
+scopedPolicy.entries[legacyPath].context_fingerprints = firstTest.map(
+  (finding) => finding.contextFingerprint,
+);
+checkBaseline(firstTest, initialSuppressions, scopedPolicy);
+assert.throws(
+  () => checkBaseline(movedTest, initialSuppressions, scopedPolicy),
+  /New or stale baseline context/,
+);
+const reboundPolicy = structuredClone(scopedPolicy);
+reboundPolicy.entries[legacyPath].context_fingerprints = movedTest.map(
+  (finding) => finding.contextFingerprint,
+);
+assert.throws(
+  () => assertOnlyShrinks(scopedPolicy, reboundPolicy),
+  /Baseline expansion/,
+);
+const prunedPolicy = checkBaseline([], {}, initialPolicy, { prune: true });
+assert.deepEqual(prunedPolicy.entries, {});
+assertOnlyShrinks(initialPolicy, prunedPolicy);
+
+const syntheticIdentity = [
+  "synthetic-lint-test",
+  "users.noreply.github.com",
+].join("@");
+const baselineHistory = await mkdtemp(
+  join(tmpdir(), "openplans-lint-history-"),
+);
+try {
+  const git = (...args) =>
+    execFileSync(
+      "git",
+      [
+        "-c",
+        "user.name=Synthetic lint test",
+        "-c",
+        `user.email=${syntheticIdentity}`,
+        ...args,
+      ],
+      { cwd: baselineHistory, stdio: "pipe" },
+    );
+  git("init", "--quiet");
+  await writeFile(
+    join(baselineHistory, "eslint-baseline.json"),
+    JSON.stringify(initialPolicy),
+  );
+  git("add", "eslint-baseline.json");
+  git("commit", "--quiet", "-m", "synthetic baseline");
+  assertHistoryOnlyShrinks(initialPolicy, baselineHistory);
+  assertHistoryOnlyShrinks(prunedPolicy, baselineHistory);
+  assert.throws(
+    () => assertHistoryOnlyShrinks(expandedPolicy, baselineHistory),
+    /Baseline expansion/,
+  );
+  await writeFile(
+    join(baselineHistory, "eslint-baseline.json"),
+    JSON.stringify(expandedPolicy),
+  );
+  git("add", "eslint-baseline.json");
+  git("commit", "--quiet", "-m", "synthetic expansion control");
+  assert.throws(
+    () => assertHistoryOnlyShrinks(expandedPolicy, baselineHistory),
+    /Baseline expansion/,
+  );
+} finally {
+  await rm(baselineHistory, { recursive: true, force: true });
+}
+
+const inlineSuppression = await eslint.lintText(
+  "/* eslint-disable @typescript-eslint/no-explicit-any -- Synthetic bypass control. */\n" +
+    legacyText,
+  { filePath: legacyPath },
+);
+assert.throws(
+  () => findingsFromResults(inlineSuppression),
+  /Unapproved inline suppression/,
+);
 console.log(
-  `lint setup: PASS (undefined reference, type import, nested ternary, stale disable, server globals, formatting and payload mutation rejected; ${current.fixture_sources.length} fixture sources selected)`,
+  `lint setup: PASS (undefined reference, type import, nested ternary, stale disable, server globals, formatting, payload mutation, baseline expansion/replacement/staleness, moved statements and inline bypass rejected; ${current.fixture_sources.length} fixture sources selected)`,
 );

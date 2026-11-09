@@ -189,8 +189,8 @@ describe("real Census/CMS source cuts imported into PGlite", () => {
     }
     await expect(
       (async () => {
-        for await (const _row of relationships(badHeader())) {
-          /* fully consume */
+        for await (const discarded of relationships(badHeader())) {
+          void discarded;
         }
       })(),
     ).rejects.toBeInstanceOf(GeoError);
@@ -199,8 +199,8 @@ describe("real Census/CMS source cuts imported into PGlite", () => {
     }
     await expect(
       (async () => {
-        for await (const _row of ratingRows(brokenHtml())) {
-          /* fully consume */
+        for await (const discarded of ratingRows(brokenHtml())) {
+          void discarded;
         }
       })(),
     ).rejects.toMatchObject({ code: "incomplete" });
@@ -213,8 +213,8 @@ describe("real Census/CMS source cuts imported into PGlite", () => {
     }
     await expect(
       (async () => {
-        for await (const _row of ratingRows(noTableEnd())) {
-          /* consume */
+        for await (const discarded of ratingRows(noTableEnd())) {
+          void discarded;
         }
       })(),
     ).rejects.toMatchObject({ code: "incomplete" });

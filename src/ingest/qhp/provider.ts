@@ -505,18 +505,21 @@ export async function importProviders(
             await flush();
         }
       } catch (error) {
-        failure =
-          error instanceof JsonStreamError
-            ? error.code
-            : error instanceof Error &&
-                ([
-                  "child_not_cached",
-                  "cache_hash_mismatch",
-                  "plan_definitions_incomplete",
-                ].includes(error.message) ||
-                  childFailureCodes.has(error.message))
-              ? error.message
-              : "child_read_failed";
+        if (error instanceof JsonStreamError) {
+          failure = error.code;
+        } else if (
+          error instanceof Error &&
+          ([
+            "child_not_cached",
+            "cache_hash_mismatch",
+            "plan_definitions_incomplete",
+          ].includes(error.message) ||
+            childFailureCodes.has(error.message))
+        ) {
+          failure = error.message;
+        } else {
+          failure = "child_read_failed";
+        }
         // The root issue already records the failed definitions once per source set.
         if (failure !== "plan_definitions_incomplete")
           issue(failure, count, true);
@@ -572,13 +575,18 @@ export async function importProviders(
             }),
           ],
         );
-      const status = failure
-        ? count
-          ? "partial"
-          : "failed"
-        : invalid
-          ? "partial"
-          : "complete";
+      let status;
+      if (failure) {
+        if (count) {
+          status = "partial";
+        } else {
+          status = "failed";
+        }
+      } else if (invalid) {
+        status = "partial";
+      } else {
+        status = "complete";
+      }
       if (status === "partial") partial = true;
       const reason = failure ?? (invalid ? "invalid_source_records" : null);
       if (status === "complete") complete++;
@@ -656,23 +664,29 @@ export async function importProviders(
         await saveIssues(tx, id, new Map([[code, { count, first: null }]]));
       }
     }
-    const completeness =
-      !reasons.size && complete === children.length
-        ? "complete"
-        : partial ||
-            complete ||
-            records ||
-            totals.truncated ||
-            totals.too_large ||
-            totals.run_budget_exceeded
-          ? "partial"
-          : !children.length
-            ? set.indexStatuses.includes("access_denied")
-              ? "access_denied"
-              : "unknown"
-            : totals.access_denied
-              ? "access_denied"
-              : "failed";
+    let completeness: ProviderReport["completeness"];
+    if (!reasons.size && complete === children.length) {
+      completeness = "complete";
+    } else if (
+      partial ||
+      complete ||
+      records ||
+      totals.truncated ||
+      totals.too_large ||
+      totals.run_budget_exceeded
+    ) {
+      completeness = "partial";
+    } else if (!children.length) {
+      if (set.indexStatuses.includes("access_denied")) {
+        completeness = "access_denied";
+      } else {
+        completeness = "unknown";
+      }
+    } else if (totals.access_denied) {
+      completeness = "access_denied";
+    } else {
+      completeness = "failed";
+    }
     const reason =
       completeness === "complete"
         ? "all_advertised_provider_children_validated"

@@ -13,7 +13,7 @@
   "scripts": {
     "format": "prettier --ignore-path .prettierignore --write .",
     "format:check": "prettier --ignore-path .prettierignore --check .",
-    "lint": "eslint . --max-warnings 0",
+    "lint": "eslint . --max-warnings 0 && node scripts/lint-baseline.mjs",
     "check:lint-setup": "node scripts/lint-setup-selftest.mjs",
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
@@ -25,7 +25,8 @@
     "fixtures:geo": "npm run build && node tests/fixtures/geo/regenerate.mjs",
     "check:extraction": "node scripts/check-extraction.mjs",
     "worker:puf:pglite": "node dist/ingest/puf/import-pglite.js",
-    "fixtures:puf:import": "python3 tests/fixtures/puf/import/regenerate.py"
+    "fixtures:puf:import": "python3 tests/fixtures/puf/import/regenerate.py",
+    "lint:prune": "eslint . --max-warnings 0 --prune-suppressions && node scripts/lint-baseline.mjs --prune"
   },
   "dependencies": {
     "@hono/node-server": "1.19.11",

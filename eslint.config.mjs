@@ -33,12 +33,21 @@ export default defineConfig([
       globals: globals.nodeBuiltin,
     },
     linterOptions: { reportUnusedDisableDirectives: "error" },
-    rules: { "no-nested-ternary": "error" },
+    rules: {
+      "no-nested-ternary": "error",
+      "no-unused-vars": ["error", { ignoreRestSiblings: true }],
+    },
   },
   {
     files: ["**/*.{ts,mts,cts}"],
     extends: [tseslint.configs.recommended],
-    rules: { "@typescript-eslint/consistent-type-imports": "error" },
+    rules: {
+      "@typescript-eslint/consistent-type-imports": "error",
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        { argsIgnorePattern: "^_", ignoreRestSiblings: true },
+      ],
+    },
   },
   {
     files: ["**/*.cjs", "**/*.cts"],

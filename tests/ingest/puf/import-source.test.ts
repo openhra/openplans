@@ -129,8 +129,8 @@ describe("PUF acquired-manifest adapter and worker", () => {
       await writeFile(selected.files[0]!.path, multi);
       await expect(
         (async () => {
-          for await (const _row of importRows(selected.files[0]!)) {
-            /* consume */
+          for await (const discarded of importRows(selected.files[0]!)) {
+            void discarded;
           }
         })(),
       ).rejects.toThrow("single CSV");

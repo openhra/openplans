@@ -124,13 +124,18 @@ export function communityFamilyPremium(
   }
   const adults = aged.filter((m) => m.relationship !== "child").length;
   const children = aged.length - adults;
-  const tier: CommunityTier = children
-    ? adults === 1
-      ? "adult_children"
-      : "family"
-    : adults === 1
-      ? "single"
-      : "couple";
+  let tier: CommunityTier;
+  if (children) {
+    if (adults === 1) {
+      tier = "adult_children";
+    } else {
+      tier = "family";
+    }
+  } else if (adults === 1) {
+    tier = "single";
+  } else {
+    tier = "couple";
+  }
   // Filed tiers preserve the issuer's component and base-rate rounding. Re-multiplying
   // an already rounded single rate can change an approved premium by several cents.
   const price = rate.prices[tier];

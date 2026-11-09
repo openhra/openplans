@@ -42,7 +42,15 @@ export function canonical(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
   if (value && typeof value === "object")
     return `{${Object.entries(value)
-      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+      .sort(([a], [b]) => {
+        if (a < b) {
+          return -1;
+        } else if (a > b) {
+          return 1;
+        } else {
+          return 0;
+        }
+      })
       .map(([key, item]) => `${JSON.stringify(key)}:${canonical(item)}`)
       .join(",")}}`;
   return JSON.stringify(value);
@@ -176,13 +184,19 @@ export function createResponseCache(
         ))
     )
       return bypass(c, next);
-    const allowedCredentials = new Set(
-      compat
-        ? ["x-api-key", ...(extraHeader ? [extraHeader.toLowerCase()] : [])]
-        : personalized
-          ? ["authorization"]
-          : [],
-    );
+    function credentialHeaders() {
+      if (compat) {
+        return [
+          "x-api-key",
+          ...(extraHeader ? [extraHeader.toLowerCase()] : []),
+        ];
+      } else if (personalized) {
+        return ["authorization"];
+      } else {
+        return [];
+      }
+    }
+    const allowedCredentials = new Set(credentialHeaders());
     for (const [name] of c.req.raw.headers) {
       if (secretField.test(name) && !allowedCredentials.has(name))
         return bypass(c, next);
@@ -324,9 +338,16 @@ export function createResponseCache(
     load: () => Promise<T>,
   ): Promise<T> {
     const report = (outcome: CacheOutcome) => {
-      stats[
-        outcome === "hit" ? "hits" : outcome === "miss" ? "misses" : "bypasses"
-      ]++;
+      function counterForOutcome() {
+        if (outcome === "hit") {
+          return "hits";
+        } else if (outcome === "miss") {
+          return "misses";
+        } else {
+          return "bypasses";
+        }
+      }
+      stats[counterForOutcome()]++;
       request.outcome?.(outcome);
     };
     if (disabled || !request.authorized() || !publicDto(request.query)) {
@@ -382,19 +403,26 @@ export function createResponseCache(
   const cache = {
     middleware,
     catalog,
-    stats: () => ({
-      ...stats,
-      bytes: store.bytes(),
-      backend: disabled
-        ? "off"
-        : store instanceof MemoryCache
-          ? "memory"
-          : "external",
-      bytes_scope:
-        store instanceof MemoryCache
-          ? "resident_keys_and_values"
-          : "payload_bytes_transferred",
-    }),
+    stats: () => {
+      function cacheBackend() {
+        if (disabled) {
+          return "off";
+        } else if (store instanceof MemoryCache) {
+          return "memory";
+        } else {
+          return "external";
+        }
+      }
+      return {
+        ...stats,
+        bytes: store.bytes(),
+        backend: cacheBackend(),
+        bytes_scope:
+          store instanceof MemoryCache
+            ? "resident_keys_and_values"
+            : "payload_bytes_transferred",
+      };
+    },
   };
   caches.set(db, cache);
   return cache;

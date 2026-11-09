@@ -245,9 +245,10 @@ async function readProviders(
           OR nt.classification ILIKE '%'||$4||'%' OR nt.specialization ILIKE '%'||$4||'%')))
       AND ($5::text IS NULL OR concat_ws(' ',n.organization_name,n.first_name,n.last_name) ILIKE '%'||$5||'%')
       AND ($6::text IS NULL OR CASE WHEN n.entity_type='1' THEN 'INDIVIDUAL' ELSE 'GROUP' END=$6)`;
-  const selected = issuer
-    ? recordFilter
-      ? `SELECT r.snapshot_id,r.record_id
+  let selected;
+  if (issuer) {
+    if (recordFilter) {
+      selected = `SELECT r.snapshot_id,r.record_id
     ${
       namePrefilter
         ? `FROM name_candidates keys JOIN LATERAL (SELECT * FROM qhp_provider_record r
@@ -261,25 +262,30 @@ async function readProviders(
           WHERE t.npi=r.npi AND (nt.display_name ILIKE '%'||$4||'%' OR nt.classification ILIKE '%'||$4||'%'
             OR nt.specialization ILIKE '%'||$4||'%')))
       ${q.name ? `AND concat_ws(' ',r.name::text,r.facility_name,r.group_name,n.organization_name,n.first_name,n.last_name) ILIKE '%'||$5||'%'` : "AND $5::text IS NULL"}
-      AND ($6::text IS NULL OR r.type=$6)`
-      : "SELECT DISTINCT snapshot_id,record_id FROM plan_records WHERE $3::text IS NULL AND $4::text IS NULL AND $5::text IS NULL AND $6::text IS NULL"
-    : spatialRadius && !q.name && !q.type
-      ? `SELECT keys.record_id,NULL::text AS snapshot_id
+      AND ($6::text IS NULL OR r.type=$6)`;
+    } else {
+      selected =
+        "SELECT DISTINCT snapshot_id,record_id FROM plan_records WHERE $3::text IS NULL AND $4::text IS NULL AND $5::text IS NULL AND $6::text IS NULL";
+    }
+  } else if (spatialRadius && !q.name && !q.type) {
+    selected = `SELECT keys.record_id,NULL::text AS snapshot_id
       FROM (SELECT DISTINCT record_id FROM radius_locations) keys
       WHERE $1::text IS NULL AND $2::integer IS NULL AND $5::text IS NULL AND $6::text IS NULL
         AND NOT EXISTS (SELECT 1 FROM npi_provider n WHERE NOT n.in_scope AND n.npi=keys.record_id)
         AND ($3::text IS NULL OR EXISTS (SELECT 1 FROM npi_taxonomy t WHERE t.npi=keys.record_id AND t.code=$3))
         AND ($4::text IS NULL OR EXISTS (SELECT 1 FROM npi_taxonomy t LEFT JOIN ${taxonomy} nt ON nt.code=t.code
           WHERE t.npi=keys.record_id AND (t.code ILIKE '%'||$4||'%' OR nt.display_name ILIKE '%'||$4||'%'
-            OR nt.classification ILIKE '%'||$4||'%' OR nt.specialization ILIKE '%'||$4||'%'))) `
-      : `SELECT n.npi AS record_id,n.snapshot_id FROM ${
-          spatialRadius
-            ? `(SELECT DISTINCT record_id FROM radius_locations ORDER BY record_id) keys
+            OR nt.classification ILIKE '%'||$4||'%' OR nt.specialization ILIKE '%'||$4||'%'))) `;
+  } else {
+    selected = `SELECT n.npi AS record_id,n.snapshot_id FROM ${
+      spatialRadius
+        ? `(SELECT DISTINCT record_id FROM radius_locations ORDER BY record_id) keys
       JOIN LATERAL (SELECT n.npi,n.snapshot_id FROM npi_provider n WHERE n.npi=keys.record_id
         AND ${identityPredicate} OFFSET 0) n ON true`
-            : "npi_provider n"
-        }
+        : "npi_provider n"
+    }
       WHERE ${spatialRadius ? "true" : identityPredicate}`;
+  }
   const batchLocations = issuer && spatialRadius && !recordFilter;
   const location = issuer
     ? `SELECT a.record_id,a.snapshot_id,a.address_index
@@ -339,8 +345,9 @@ async function readProviders(
   // Each candidate address has one source key. Count matching distinct keys per
   // shard, so repeated geocodes cannot reduce the exact missing-address count.
   const countPoints = issuer && (!q.origin || (spatialRadius && !recordFilter));
-  const currentPoints = batchLocations
-    ? `current_points AS MATERIALIZED (
+  let currentPoints;
+  if (batchLocations) {
+    currentPoints = `current_points AS MATERIALIZED (
     SELECT p.source_snapshot_id,p.record_id,p.address_index FROM active_shards s JOIN LATERAL (
       SELECT p.source_snapshot_id,p.source_row,
         substring(p.source_row FROM length(p.source_snapshot_id)+2 FOR greatest(0,
@@ -350,9 +357,9 @@ async function readProviders(
       FROM ${pointsRelation} p WHERE p.source_table='qhp_provider_address'
         AND p.source_snapshot_id=s.snapshot_id OFFSET 0
     ) p ON true WHERE p.source_row=p.source_snapshot_id||':'||p.record_id||':'||p.address_index::text
-  ), `
-    : countPoints
-      ? `current_point_counts AS MATERIALIZED (
+  ), `;
+  } else if (countPoints) {
+    currentPoints = `current_point_counts AS MATERIALIZED (
     SELECT count(DISTINCT p.source_row)::int AS located FROM (SELECT snapshot_id,
       array_agg(${batchLocations ? "snapshot_id||':'||record_id||':'||address_index::text" : "source_row"}) AS source_rows
       FROM locations GROUP BY snapshot_id) s JOIN LATERAL (
@@ -360,8 +367,10 @@ async function readProviders(
       WHERE p.source_table='qhp_provider_address' AND p.source_snapshot_id=s.snapshot_id
         AND p.source_row=ANY(s.source_rows) OFFSET 0
     ) p ON true GROUP BY s.snapshot_id
-  ), `
-      : "";
+  ), `;
+  } else {
+    currentPoints = "";
+  }
   const pageLocations = issuer && !q.origin;
   const pageKeys = pageLocations
     ? `page_keys AS MATERIALIZED (
@@ -375,39 +384,47 @@ async function readProviders(
     SELECT n.npi FROM npi_provider n WHERE ${identityPredicate}
   ), `
       : "";
+  function unfilteredLocationJoin() {
+    if (issuer) {
+      return "";
+    } else if (!recordFilter) {
+      return `WHERE $1::text IS NULL AND $2::integer IS NULL
+      AND NOT EXISTS (SELECT 1 FROM npi_provider n WHERE NOT n.in_scope AND n.npi=a.record_id)`;
+    } else {
+      return "JOIN selected r ON a.record_id=r.record_id";
+    }
+  }
   const ctes = `WITH ${identityCandidates}${membership}${issuer ? selectedCte + pageKeys + radiusLocations : radiusLocations + selectedCte}locations AS MATERIALIZED (${location}), ${currentPoints}located AS (
     ${
       spatialRadius
-        ? `SELECT a.* FROM radius_locations a ${
-            issuer
-              ? ""
-              : !recordFilter
-                ? `WHERE $1::text IS NULL AND $2::integer IS NULL
-      AND NOT EXISTS (SELECT 1 FROM npi_provider n WHERE NOT n.in_scope AND n.npi=a.record_id)`
-                : "JOIN selected r ON a.record_id=r.record_id"
-          }`
+        ? `SELECT a.* FROM radius_locations a ${unfilteredLocationJoin()}`
         : `SELECT a.*,${pointFields} FROM locations a ${pageLocations ? "JOIN page_keys keys USING(record_id,snapshot_id)" : ""} LEFT JOIN ${pointsRelation} p
       ON p.source_table='${source}' AND p.source_row=a.source_row AND p.source_snapshot_id=a.snapshot_id`
     })`;
   // Missing-point counts do not need coordinate heaps or the radius. Use an anti
   // join independently of the spatial candidates; the count remains exact.
-  const unlocated = batchLocations
-    ? `(SELECT count(*)::int FROM locations a WHERE NOT EXISTS (SELECT 1 FROM current_points p WHERE p.source_snapshot_id=a.snapshot_id AND p.record_id=a.record_id AND p.address_index=a.address_index))`
-    : countPoints
-      ? `(SELECT count(*)::int FROM locations)-(SELECT coalesce(sum(located),0)::int FROM current_point_counts)`
-      : spatialRadius
-        ? issuer
-          ? `(SELECT count(*)::int FROM locations a WHERE NOT EXISTS (
+  let unlocated;
+  if (batchLocations) {
+    unlocated = `(SELECT count(*)::int FROM locations a WHERE NOT EXISTS (SELECT 1 FROM current_points p WHERE p.source_snapshot_id=a.snapshot_id AND p.record_id=a.record_id AND p.address_index=a.address_index))`;
+  } else if (countPoints) {
+    unlocated = `(SELECT count(*)::int FROM locations)-(SELECT coalesce(sum(located),0)::int FROM current_point_counts)`;
+  } else if (spatialRadius) {
+    if (issuer) {
+      unlocated = `(SELECT count(*)::int FROM locations a WHERE NOT EXISTS (
     SELECT 1 FROM ${pointsRelation} p WHERE p.source_table='${source}'
-      AND p.source_row=a.source_row AND p.source_snapshot_id=a.snapshot_id))`
-          : `(SELECT count(*)::int FROM (SELECT npi,snapshot_id,ordinal::text AS address_index FROM npi_address WHERE kind='practice'
+      AND p.source_row=a.source_row AND p.source_snapshot_id=a.snapshot_id))`;
+    } else {
+      unlocated = `(SELECT count(*)::int FROM (SELECT npi,snapshot_id,ordinal::text AS address_index FROM npi_address WHERE kind='practice'
         ORDER BY npi,snapshot_id,ordinal::text OFFSET 0) a ${recordFilter ? "JOIN identity_candidates n ON n.npi=a.npi" : ""}
       WHERE true ${recordFilter ? "" : "AND NOT EXISTS (SELECT 1 FROM npi_provider n WHERE NOT n.in_scope AND n.npi=a.npi)"} AND NOT EXISTS (
         SELECT 1 FROM ${pointsRelation} p WHERE p.source_table='npi_address'
           AND p.source_row=split_part(p.source_row,':',1)||':practice:'||split_part(p.source_row,':',3)
           AND split_part(p.source_row,':',1)=a.npi AND split_part(p.source_row,':',3)=a.address_index
-          AND p.source_snapshot_id=a.snapshot_id))`
-        : "(SELECT count(*)::int FROM located WHERE latitude IS NULL)";
+          AND p.source_snapshot_id=a.snapshot_id))`;
+    }
+  } else {
+    unlocated = "(SELECT count(*)::int FROM located WHERE latitude IS NULL)";
+  }
   let distance = "NULL::float8",
     radiusFilter = "";
   if (q.origin) {
@@ -447,21 +464,48 @@ async function readProviders(
       address_index ${direction} LIMIT ${locationPage.size} OFFSET ${locationPage.offset}
   ), `
     : "";
+  function distanceSelection() {
+    if (!q.origin) {
+      return "SELECT record_id,snapshot_id,NULL::float8 AS distance_miles FROM selected";
+    } else if (q.radius !== undefined) {
+      if (issuer) {
+        return "SELECT record_id,snapshot_id,min(distance_miles) AS distance_miles FROM distances GROUP BY record_id,snapshot_id";
+      } else {
+        return "SELECT record_id,NULL::text AS snapshot_id,min(distance_miles) AS distance_miles FROM distances GROUP BY record_id";
+      }
+    } else {
+      return `SELECT r.record_id,r.snapshot_id,min(a.distance_miles) AS distance_miles
+    FROM selected r ${q.radius !== undefined ? "JOIN" : "LEFT JOIN"} distances a ON a.record_id=r.record_id
+      ${issuer ? "AND a.snapshot_id=r.snapshot_id" : ""}
+    GROUP BY r.record_id,r.snapshot_id`;
+    }
+  }
+  function addressFields() {
+    if (issuer) {
+      return `||jsonb_build_object(
+      'line_1',addr.address,'line_2',addr.address_2,'city',addr.city,'state',addr.state,'zip',addr.zip,'phone',addr.phone)`;
+    } else if (spatialRadius) {
+      return `||jsonb_build_object(
+      'line_1',addr.line_1,'line_2',addr.line_2,'city',addr.city,'state',addr.state,'zip',addr.zip5,'phone',addr.phone)`;
+    } else {
+      return "";
+    }
+  }
+  function addressJoin() {
+    if (issuer) {
+      return `JOIN qhp_provider_address addr ON addr.snapshot_id=a.snapshot_id
+        AND addr.record_id=a.record_id AND addr.address_index=a.address_index`;
+    } else if (spatialRadius) {
+      return `JOIN npi_address addr ON addr.npi=a.record_id
+        AND addr.kind='practice' AND addr.ordinal=a.address_index AND addr.snapshot_id=a.snapshot_id`;
+    } else {
+      return "";
+    }
+  }
   let query = `${ctes}, measured AS (
     SELECT located.*,${distance} AS distance_miles FROM located
   ), distances AS (SELECT * FROM measured ${radiusFilter}), grouped AS (
-    ${
-      !q.origin
-        ? "SELECT record_id,snapshot_id,NULL::float8 AS distance_miles FROM selected"
-        : q.radius !== undefined
-          ? issuer
-            ? "SELECT record_id,snapshot_id,min(distance_miles) AS distance_miles FROM distances GROUP BY record_id,snapshot_id"
-            : "SELECT record_id,NULL::text AS snapshot_id,min(distance_miles) AS distance_miles FROM distances GROUP BY record_id"
-          : `SELECT r.record_id,r.snapshot_id,min(a.distance_miles) AS distance_miles
-    FROM selected r ${q.radius !== undefined ? "JOIN" : "LEFT JOIN"} distances a ON a.record_id=r.record_id
-      ${issuer ? "AND a.snapshot_id=r.snapshot_id" : ""}
-    GROUP BY r.record_id,r.snapshot_id`
-    }
+    ${distanceSelection()}
   ), ${wireCtes}paged AS (${
     locationPage
       ? `SELECT g.* FROM grouped g
@@ -503,25 +547,9 @@ async function readProviders(
         AND e.base_hios_id=$1 AND e.plan_year=$2),`
         : ""
     }
-    'addresses',coalesce((SELECT jsonb_agg(${locationPage ? "(to_jsonb(a)-'address_key'-'record_distance'-'location_count')" : "to_jsonb(a)"}${
-      issuer
-        ? `||jsonb_build_object(
-      'line_1',addr.address,'line_2',addr.address_2,'city',addr.city,'state',addr.state,'zip',addr.zip,'phone',addr.phone)`
-        : spatialRadius
-          ? `||jsonb_build_object(
-      'line_1',addr.line_1,'line_2',addr.line_2,'city',addr.city,'state',addr.state,'zip',addr.zip5,'phone',addr.phone)`
-          : ""
-    }
+    'addresses',coalesce((SELECT jsonb_agg(${locationPage ? "(to_jsonb(a)-'address_key'-'record_distance'-'location_count')" : "to_jsonb(a)"}${addressFields()}
       ORDER BY a.distance_miles NULLS LAST,a.address_index)
-      FROM page_addresses a ${
-        issuer
-          ? `JOIN qhp_provider_address addr ON addr.snapshot_id=a.snapshot_id
-        AND addr.record_id=a.record_id AND addr.address_index=a.address_index`
-          : spatialRadius
-            ? `JOIN npi_address addr ON addr.npi=a.record_id
-        AND addr.kind='practice' AND addr.ordinal=a.address_index AND addr.snapshot_id=a.snapshot_id`
-            : ""
-      }
+      FROM page_addresses a ${addressJoin()}
       WHERE a.record_id=p.record_id ${issuer ? "AND a.snapshot_id=p.snapshot_id" : ""}
       ),'[]'::jsonb),
     'distance_miles',p.distance_miles,
@@ -592,33 +620,47 @@ async function readProviders(
           specialty: provider.specialty,
         })
       : [],
-    addresses: provider.addresses.map((a) => ({
-      ...a,
-      source: source,
-      participation: "not_evaluated",
-      participation_scope: issuer ? "provider_record" : null,
-      geocode_label:
-        a.method === "operator_geocoder"
-          ? "operator_geocoder"
-          : a.method === "census_geocoder"
-            ? a.normalization
-              ? "census_match_after_normalisation"
-              : "census_match"
-            : a.method === "zcta_centroid"
-              ? "zcta_fallback"
-              : null,
-      geocode_as_of: a.method === "operator_geocoder" ? a.geocoded_at : null,
-      precision:
-        a.method === "operator_geocoder"
-          ? "operator_reported"
-          : a.method === "zcta_centroid"
-            ? "approximate"
-            : a.method === "census_geocoder"
-              ? a.match_quality === "Exact"
-                ? "exact"
-                : "non_exact"
-              : null,
-    })),
+    addresses: provider.addresses.map((a) => {
+      function geocodeLabel() {
+        if (a.method === "operator_geocoder") {
+          return "operator_geocoder";
+        } else if (a.method === "census_geocoder") {
+          if (a.normalization) {
+            return "census_match_after_normalisation";
+          } else {
+            return "census_match";
+          }
+        } else if (a.method === "zcta_centroid") {
+          return "zcta_fallback";
+        } else {
+          return null;
+        }
+      }
+      function geocodePrecision() {
+        if (a.method === "operator_geocoder") {
+          return "operator_reported";
+        } else if (a.method === "zcta_centroid") {
+          return "approximate";
+        } else if (a.method === "census_geocoder") {
+          if (a.match_quality === "Exact") {
+            return "exact";
+          } else {
+            return "non_exact";
+          }
+        } else {
+          return null;
+        }
+      }
+      return {
+        ...a,
+        source: source,
+        participation: "not_evaluated",
+        participation_scope: issuer ? "provider_record" : null,
+        geocode_label: geocodeLabel(),
+        geocode_as_of: a.method === "operator_geocoder" ? a.geocoded_at : null,
+        precision: geocodePrecision(),
+      };
+    }),
   }));
   return {
     ...(locationPage

@@ -265,9 +265,16 @@ for (const [year, parameters, boundaries] of [
         expect(applicablePercentageForFpl(edge, parameters)).toBe(at);
         inputs.forEach((input, index) => {
           const estimate = estimateAptc(input);
-          expect(estimate.fplPercent).toBe(
-            edge === 400 && index === 2 ? 401 : index === 0 ? edge - 1 : edge,
-          );
+          function fplBoundaryIncome() {
+            if (edge === 400 && index === 2) {
+              return 401;
+            } else if (index === 0) {
+              return edge - 1;
+            } else {
+              return edge;
+            }
+          }
+          expect(estimate.fplPercent).toBe(fplBoundaryIncome());
           if (edge <= 133) {
             expect(estimate.status).toBe("requires_state_rules");
             expect(estimate.estimatedMonthlyCreditCents).toBeNull();

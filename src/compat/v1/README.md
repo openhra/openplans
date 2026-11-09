@@ -113,7 +113,10 @@ NY filed-area availability does not prove exchange/enrollment eligibility: `on_m
 `off_market` and `plan_market` remain null where the native view says unknown.
 
 NY/VT gross premiums select the native approved contract tier, with `state_filed_tier`
-in `x-openplans-gaps`, `source` and `premium_source`. Per-applicant allocations stay empty
+in `x-openplans-gaps`. Medical plan `source` and `premium_source` use `state` for these
+filings and `cms` for federal PUFs. Native routes retain their full source vocabulary.
+`plan_market` uses `both_markets`, `on_market`, `off_market` or null, based on native flags.
+Per-applicant allocations stay empty
 because the state filings supply contract totals. Native state-rule/subsidy limitations remain
 in the gaps; no age/tobacco factors or subsidy amounts are invented. Full source-cell/rule
 provenance remains available through native premium estimates.
@@ -126,9 +129,9 @@ the internal key never becomes an identifier of type `hios_id`. NY retains publi
 Every successful mapped response includes `x-openplans-gaps`, a comma-separated
 list of machine-readable reasons. Unsupported vision detail and Medicare Advantage routes return 501 plus this header.
 Vision search always returns `200`, `{meta:{total:0},plans:[]}` and
-`vision_unsupported`; malformed search bodies still return 400. Coverage
-arrays stay empty when `providers` or `drug_packages` were requested, with an
-explicit coverage gap; no synthetic participation is injected.
+`vision_unsupported`; malformed search bodies still return 400. The response-level
+`coverages` array stays empty when `providers` or `drug_packages` were requested,
+with an explicit coverage gap. Plans omit the unused `providers` field.
 
 Some fields have no public or native evidence. They are null, with a gap header.
 OpenPlans cannot fill them for a client that requires non-null values without
@@ -272,7 +275,11 @@ Specialty names and IDs come only from NPPES and NUCC.
 
 Detail wraps one location in `provider` and adds `locations`, native
 `plan_participations` and `provider_coverage`. All source locations and provenance
-are retained. Coordinates are null because the native detail response does not
+are retained. `networks`, `network_ids` and `hios_ids` are empty until a public
+network crosswalk is available, flagged by `provider_network_crosswalk_unavailable`.
+Native plan evidence remains in `plan_participations`; it does not populate an
+external network or assign offices to one.
+Coordinates are null because the native detail response does not
 join geocodes. Record-level plan evidence never assigns participation to an
 NPPES address or an unrelated issuer record. `network_ids` and `carrier_id`
 filters have no public crosswalk: requests using them return empty plus

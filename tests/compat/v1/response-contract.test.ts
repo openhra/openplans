@@ -4,10 +4,14 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, expect, it } from "vitest";
-import { planResponse } from "../../../src/compat/v1/mapping.js";
+import {
+  mapPlan,
+  mapQuote,
+  planResponse,
+} from "../../../src/compat/v1/mapping.js";
 import { countyDisplayNames } from "../../../src/compat/v1/geography.js";
 import type { SqlSession } from "../../../src/db/database.js";
-import { BASE, headers, searchBody, setup } from "./helpers.js";
+import { BASE, headers, searchBody, setup, TOKEN } from "./helpers.js";
 import { assertShape } from "./shape.js";
 
 let h: Awaited<ReturnType<typeof setup>>;
@@ -59,38 +63,112 @@ function planContract(plan: any) {
     assert.ok(!Object.hasOwn(plan, key));
 }
 
-it("preserves nullable fields and existing federal wire fields without inventing coverage", async () => {
+function wirePlanContract(value: unknown) {
+  assert.ok(value !== null && typeof value === "object");
+  const plan = value as Record<string, unknown>;
+  assertShape(
+    {
+      id: "synthetic-shape-only",
+      premium: 0,
+      premium_subsidized: null,
+      networks: [
+        { id: null, name: "synthetic network", provider_directory_url: null },
+      ],
+      carrier: {
+        id: null,
+        issuer_id: "synthetic issuer",
+        name: null,
+        logo_url: null,
+      },
+      source: "cms",
+      premium_source: "cms",
+    },
+    plan,
+  );
+  assert.equal(plan.premium_subsidized, null);
+  assert.ok(Object.hasOwn(plan, "premium_subsidized"));
+  // CMS publications use the wire enum, while native provenance retains cms_puf.
+  assert.equal(plan.source, "cms");
+  assert.equal(plan.premium_source, "cms");
+  assert.ok(
+    plan.plan_market === null ||
+      (typeof plan.plan_market === "string" &&
+        ["both_markets", "on_market", "off_market"].includes(plan.plan_market)),
+  );
+  assert.ok(!Object.hasOwn(plan, "providers"));
+  for (const key of [
+    "plan_key",
+    "hios_id",
+    "hios_candidates",
+    "hios_match_provenance",
+  ])
+    assert.ok(!Object.hasOwn(plan, key));
+}
+
+it("keeps the native intermediate contract before applying the final wire vocabulary", async () => {
+  const id = "87226TX0100013";
+  const detail = await h.app.request(`/v1/plans/${id}?year=2026`);
+  expect(detail.status).toBe(200);
+  const view = (await detail.json()) as Parameters<typeof mapPlan>[0];
+  const response = await h.app.request("/v1/premium-estimates", {
+    method: "POST",
+    headers: { ...headers, authorization: `Bearer ${TOKEN}` },
+    body: JSON.stringify({
+      plan_ids: [id],
+      county: "48201",
+      coverage_start: "2026-01-01",
+      members: [{ age: 35, tobacco: false, relationship: "subscriber" }],
+    }),
+  });
+  expect(response.status).toBe(200);
+  const quote = (await response.json()) as {
+    estimates: Parameters<typeof mapQuote>[0][];
+  };
+  // Source and coverage vocabulary change only at the final wire boundary.
+  planContract({ ...mapPlan(view, id), ...mapQuote(quote.estimates[0]!) });
+});
+
+it("preserves nullable federal fields and omits a plan-level coverage extension", async () => {
   const { response, body } = await search();
-  planContract(body.plans[0]);
+  wirePlanContract(body.plans[0]);
   expect(body.plans[0].premium).toBe(529.28);
   expect(response.headers.get("Link")).toContain("/v1/plans");
   const expanded = await search({ providers: [{ npi: "1000000000" }] });
-  expect(expanded.body.plans[0].providers).toEqual([]);
+  expect(Object.hasOwn(expanded.body.plans[0], "providers")).toBe(false);
   expect(expanded.body.coverages).toEqual([]);
   expect(expanded.response.headers.get("x-openplans-gaps")).toContain(
     "provider_and_drug_coverage_unavailable",
   );
   const drugOnly = await search({ drug_packages: [] });
-  expect(drugOnly.body.plans[0].providers).toEqual([]);
+  expect(Object.hasOwn(drugOnly.body.plans[0], "providers")).toBe(false);
 });
 
-it("negative controls: a renamed field, null-to-absent swap, and wrong source enum fail the same contract", async () => {
+it("negative controls: a renamed field, null-to-absent swap, wrong enum and wrong nesting fail the same contract", async () => {
   const { body } = await search();
   const original = body.plans[0];
-  planContract(original);
+  wirePlanContract(original);
   const renamed = structuredClone(original);
   renamed.premium_amount = renamed.premium;
   delete renamed.premium;
-  expect(() => planContract(renamed)).toThrow("premium");
+  expect(() => wirePlanContract(renamed)).toThrow("premium");
   const absent = structuredClone(original);
   delete absent.premium_subsidized;
-  expect(() => planContract(absent)).toThrow("premium_subsidized");
+  expect(() => wirePlanContract(absent)).toThrow("premium_subsidized");
   const wrongEnum = structuredClone(original);
   wrongEnum.source = "synthetic-unsupported-feed";
-  expect(() => planContract(wrongEnum)).toThrow();
+  expect(() => wirePlanContract(wrongEnum)).toThrow();
+  const wrongNesting = structuredClone(original);
+  wrongNesting.networks = { networks: wrongNesting.networks };
+  expect(() => wirePlanContract(wrongNesting)).toThrow("expected array");
+  const wrongMarket = structuredClone(original);
+  wrongMarket.plan_market = "both";
+  expect(() => wirePlanContract(wrongMarket)).toThrow();
+  const wrongSource = structuredClone(original);
+  wrongSource.source = "carrier";
+  expect(() => wirePlanContract(wrongSource)).toThrow();
 });
 
-it("keeps state feeds unknown and audit details native without changing premiums or identity", () => {
+it("maps state source enums and keeps audit details native without changing premiums or identity", () => {
   const native = {
     id: "synthetic-native-key",
     source: "state_filed_tier",
@@ -110,8 +188,9 @@ it("keeps state feeds unknown and audit details native without changing premiums
   const output = planResponse(native);
   expect(output).toEqual({
     id: native.id,
-    source: null,
-    premium_source: null,
+    // A filed state source has the state wire enum; exchange availability stays unknown.
+    source: "state",
+    premium_source: "state",
     on_market: null,
     off_market: null,
     plan_market: null,
@@ -123,10 +202,12 @@ it("keeps state feeds unknown and audit details native without changing premiums
     hios_match: "unmatched",
   });
   expect(native.hios_match).toBe("unmatched");
+  expect(native.source).toBe("state_filed_tier");
+  expect(native.premium_source).toBe("state_filed_tier");
   expect(
     planResponse({ plan_market: "both", on_market: true, off_market: true })
       .plan_market,
-  ).toBe("both");
+  ).toBe("both_markets");
   expect(planResponse({ plan_market: "on_market" }).plan_market).toBe(
     "on_market",
   );
@@ -137,6 +218,19 @@ it("keeps state feeds unknown and audit details native without changing premiums
   expect(Object.hasOwn(planResponse({ source: null }), "source")).toBe(true);
   expect(planResponse({ providers: null })).toEqual({ providers: null });
   expect(Object.hasOwn(planResponse({}), "providers")).toBe(false);
+  const emptyProviders = { providers: [] };
+  expect(planResponse(emptyProviders)).toEqual({});
+  expect(emptyProviders).toEqual({ providers: [] });
+  expect(
+    planResponse({ source: "cms_puf", premium_source: "cms_puf" }),
+  ).toEqual({
+    source: "cms",
+    premium_source: "cms",
+  });
+  expect(planResponse({ source: "carrier", premium_source: "cms" })).toEqual({
+    source: "carrier",
+    premium_source: "cms",
+  });
 });
 
 it("keeps public identity labels and complete provenance accessible on the native detail", async () => {

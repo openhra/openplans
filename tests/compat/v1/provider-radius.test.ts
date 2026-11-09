@@ -222,7 +222,7 @@ describe("compatibility location paging preserves the complete native mapping", 
       if (!result.next_page) break;
     }
     const mapped = mapProviders(records).sort(
-      (a, b) => a.distance_miles - b.distance_miles,
+      (a, b) => a.distance_miles! - b.distance_miles!,
     );
     const updated = records.find((p) => p.npi === "1000040061")!;
     expect(updated.snapshot_id).toBe("registry");
@@ -239,7 +239,7 @@ describe("compatibility location paging preserves the complete native mapping", 
           reverse,
         });
         const actual = mapProviders(result.providers).sort(
-          (a, b) => a.distance_miles - b.distance_miles,
+          (a, b) => a.distance_miles! - b.distance_miles!,
         );
         if (reverse) actual.reverse();
         expect(actual).toEqual(expected.slice(offset, offset + 17));

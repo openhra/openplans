@@ -308,27 +308,35 @@ export async function importFormulary(
           }
         }
       } catch (error) {
-        failure =
-          error instanceof JsonStreamError
-            ? error.code
-            : error instanceof Error &&
-                (["child_not_cached", "cache_hash_mismatch"].includes(
-                  error.message,
-                ) ||
-                  childFailureCodes.has(error.message))
-              ? error.message
-              : "child_read_failed";
+        if (error instanceof JsonStreamError) {
+          failure = error.code;
+        } else if (
+          error instanceof Error &&
+          (["child_not_cached", "cache_hash_mismatch"].includes(
+            error.message,
+          ) ||
+            childFailureCodes.has(error.message))
+        ) {
+          failure = error.message;
+        } else {
+          failure = "child_read_failed";
+        }
         issue(failure, count, true);
       }
       await insertEdges(tx, batch);
       await saveIssues(tx, shardId, issues);
-      const status = failure
-        ? count
-          ? "partial"
-          : "failed"
-        : invalid
-          ? "partial"
-          : "complete";
+      let status;
+      if (failure) {
+        if (count) {
+          status = "partial";
+        } else {
+          status = "failed";
+        }
+      } else if (invalid) {
+        status = "partial";
+      } else {
+        status = "complete";
+      }
       const reason = failure ?? (invalid ? "invalid_source_records" : null);
       if (status === "complete") complete++;
       else reasons.add(reason!);
@@ -355,18 +363,27 @@ export async function importFormulary(
           }),
         ],
       );
-    const completeness =
-      !reasons.size && complete === children.length
-        ? "complete"
-        : complete || records || totals.too_large || totals.run_budget_exceeded
-          ? "partial"
-          : !children.length
-            ? set.indexStatuses.includes("access_denied")
-              ? "access_denied"
-              : "unknown"
-            : totals.access_denied
-              ? "access_denied"
-              : "failed";
+    let completeness: FormularyReport["completeness"];
+    if (!reasons.size && complete === children.length) {
+      completeness = "complete";
+    } else if (
+      complete ||
+      records ||
+      totals.too_large ||
+      totals.run_budget_exceeded
+    ) {
+      completeness = "partial";
+    } else if (!children.length) {
+      if (set.indexStatuses.includes("access_denied")) {
+        completeness = "access_denied";
+      } else {
+        completeness = "unknown";
+      }
+    } else if (totals.access_denied) {
+      completeness = "access_denied";
+    } else {
+      completeness = "failed";
+    }
     const reason =
       completeness === "complete"
         ? "all_advertised_formulary_children_validated"

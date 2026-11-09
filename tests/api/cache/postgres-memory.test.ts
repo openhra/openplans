@@ -15,7 +15,7 @@ beforeAll(async () => {
     .split("# BEGIN MEMORY PROFILE\n")[1]!
     .split("# END MEMORY PROFILE")[0]!
     .split("\n")
-    .map((line) => line.replace(/^          /, ""))
+    .map((line) => line.replace(/^ {10}/, ""))
     .join("\n")
     .replaceAll("$$", "$");
   script = join(directory, "openplans-postgres");

@@ -303,7 +303,10 @@ it("compatibility key searches and key/HIOS details publish only the evidenced H
       }),
     });
     expect(response.status).toBe(200);
-    expect(((await response.json()) as any).plans).toMatchObject([
+    const result = (await response.json()) as {
+      plans: Record<string, unknown>[];
+    };
+    expect(result.plans).toMatchObject([
       {
         id: key,
         hios_id: id,
@@ -312,7 +315,8 @@ it("compatibility key searches and key/HIOS details publish only the evidenced H
         premium: 1345.45,
         on_market: true,
         off_market: true,
-        plan_market: "both",
+        // The wire enum changes; the evidenced HIOS, exchange flags and price do not.
+        plan_market: "both_markets",
       },
     ]);
     expect(response.headers.get("x-openplans-gaps")).not.toContain(
@@ -324,7 +328,8 @@ it("compatibility key searches and key/HIOS details publish only the evidenced H
         { headers },
       );
       expect(detail.status).toBe(200);
-      expect(((await detail.json()) as any).plan).toMatchObject({
+      const result = (await detail.json()) as { plan: Record<string, unknown> };
+      expect(result.plan).toMatchObject({
         id: lookup,
         plan_key: key,
         identifiers: [{ type: "hios_id", value: id }],

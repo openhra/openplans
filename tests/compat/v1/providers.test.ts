@@ -236,6 +236,28 @@ describe("provider facade native integration", () => {
     expect((await get("/providers/1000000099")).status).toBe(404);
     expect((await get("/providers/bad")).status).toBe(400);
   });
+  it("exposes explicit unknown network containers without inventing address membership", async () => {
+    const response = await get(`/providers/${npi}?year=2026`);
+    expect(response.status).toBe(200);
+    const body: unknown = await response.json();
+    // A record/plan edge does not crosswalk external networks or their offices.
+    assertShape(
+      { provider: { networks: [], network_ids: [], hios_ids: [] } },
+      body,
+    );
+    expect(body).toMatchObject({
+      provider: { networks: [], network_ids: [], hios_ids: [] },
+    });
+    expect(response.headers.get("x-openplans-gaps")).toContain(
+      "provider_network_crosswalk_unavailable",
+    );
+    const wrongNesting = {
+      provider: { networks: { addresses: [] }, network_ids: [], hios_ids: [] },
+    };
+    expect(() =>
+      assertShape({ provider: { networks: [] } }, wrongNesting),
+    ).toThrow("expected array");
+  });
   it("returns NPPES taxonomy codes with explicit unknown descriptions", async () => {
     const response = await get("/specialties");
     expect(response.status).toBe(200);

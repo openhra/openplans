@@ -1,0 +1,83 @@
+{
+  "tests/api/csr.test.ts": {
+    "@typescript-eslint/no-explicit-any": { "count": 13 }
+  },
+  "tests/api/dental-premiums.test.ts": {
+    "@typescript-eslint/no-explicit-any": { "count": 1 }
+  },
+  "tests/api/drugs.test.ts": {
+    "@typescript-eslint/no-explicit-any": { "count": 10 }
+  },
+  "tests/api/premiums-location.test.ts": {
+    "@typescript-eslint/no-explicit-any": { "count": 8 }
+  },
+  "tests/api/providers-name.test.ts": {
+    "@typescript-eslint/no-explicit-any": { "count": 2 }
+  },
+  "tests/api/providers-plan-radius.test.ts": {
+    "@typescript-eslint/no-explicit-any": { "count": 2 }
+  },
+  "tests/api/providers-radius.test.ts": {
+    "@typescript-eslint/no-explicit-any": { "count": 4 }
+  },
+  "tests/api/providers.test.ts": {
+    "@typescript-eslint/no-explicit-any": { "count": 38 }
+  },
+  "tests/api/routes.test.ts": {
+    "@typescript-eslint/no-explicit-any": { "count": 16 }
+  },
+  "tests/api/state-premiums.test.ts": {
+    "@typescript-eslint/no-explicit-any": { "count": 5 }
+  },
+  "tests/api/subsidies.test.ts": {
+    "@typescript-eslint/no-explicit-any": { "count": 7 }
+  },
+  "tests/api/subsidy-dental.test.ts": {
+    "@typescript-eslint/no-explicit-any": { "count": 2 }
+  },
+  "tests/compat/v1/auth.test.ts": {
+    "@typescript-eslint/no-explicit-any": { "count": 2 }
+  },
+  "tests/compat/v1/drugs.test.ts": {
+    "@typescript-eslint/no-explicit-any": { "count": 3 }
+  },
+  "tests/compat/v1/fidelity.test.ts": {
+    "@typescript-eslint/no-explicit-any": { "count": 5 }
+  },
+  "tests/compat/v1/geo-rejection.test.ts": {
+    "@typescript-eslint/no-explicit-any": { "count": 4 }
+  },
+  "tests/compat/v1/providers.test.ts": {
+    "@typescript-eslint/no-explicit-any": { "count": 22 }
+  },
+  "tests/compat/v1/refresh.test.ts": {
+    "@typescript-eslint/no-explicit-any": { "count": 10 }
+  },
+  "tests/compat/v1/response-contract.test.ts": {
+    "@typescript-eslint/no-explicit-any": { "count": 5 }
+  },
+  "tests/compat/v1/routes.test.ts": {
+    "@typescript-eslint/no-explicit-any": { "count": 14 }
+  },
+  "tests/domain/hios/hios.test.ts": {
+    "@typescript-eslint/no-explicit-any": { "count": 15 }
+  },
+  "tests/ingest/geo/fallback.test.ts": {
+    "@typescript-eslint/no-explicit-any": { "count": 3 }
+  },
+  "tests/ingest/qhp/formulary-batch.test.ts": {
+    "@typescript-eslint/no-explicit-any": { "count": 3 }
+  },
+  "tests/ingest/qhp/formulary.test.ts": {
+    "@typescript-eslint/no-explicit-any": { "count": 11 }
+  },
+  "tests/ingest/qhp/provider.test.ts": {
+    "@typescript-eslint/no-explicit-any": { "count": 13 }
+  },
+  "tests/ingest/state/hios.test.ts": {
+    "@typescript-eslint/no-explicit-any": { "count": 2 }
+  },
+  "tests/ingest/state/reflective.test.ts": {
+    "@typescript-eslint/no-explicit-any": { "count": 6 }
+  }
+}

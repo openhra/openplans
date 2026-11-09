@@ -167,11 +167,16 @@ export async function* readCsv(
     if (!headers) {
       headers = record.fields.map((name, index) => {
         const header = name.trim();
-        return typeof options.headerMap === "function"
-          ? options.headerMap(header, index)
-          : options.headerMap && Object.hasOwn(options.headerMap, header)
-            ? options.headerMap[header]!
-            : header;
+        if (typeof options.headerMap === "function") {
+          return options.headerMap(header, index);
+        } else if (
+          options.headerMap &&
+          Object.hasOwn(options.headerMap, header)
+        ) {
+          return options.headerMap[header]!;
+        } else {
+          return header;
+        }
       });
       if (
         headers.some((name) => !name) ||

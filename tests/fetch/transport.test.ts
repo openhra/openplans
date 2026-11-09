@@ -1,3 +1,4 @@
+import type * as Https from "node:https";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -10,7 +11,7 @@ import { httpsTransport } from "../../src/fetch/transport.js";
 import type { TransportContext } from "../../src/fetch/transport.js";
 
 vi.mock("node:https", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("node:https")>();
+  const actual = await importOriginal<typeof Https>();
   return { ...actual, request: vi.fn(actual.request) };
 });
 
@@ -83,12 +84,11 @@ describe("native HTTPS transport (local servers only)", () => {
       res.end("synthetic TLS body"),
     );
     const port = await listen(server);
-    const actual =
-      await vi.importActual<typeof import("node:https")>("node:https");
+    const actual = await vi.importActual<typeof Https>("node:https");
     const https = await import("node:https");
     vi.mocked(https.request).mockImplementationOnce(((
       url: URL,
-      opts: import("node:https").RequestOptions,
+      opts: Https.RequestOptions,
     ) => actual.request(url, { ...opts, ca: cert })) as typeof actual.request);
     try {
       const response = await httpsTransport(
@@ -108,12 +108,11 @@ describe("native HTTPS transport (local servers only)", () => {
   it("bounds waiting for response headers after verified TLS connects", async () => {
     const server = createTlsServer({ key, cert }, () => {});
     const port = await listen(server);
-    const actual =
-      await vi.importActual<typeof import("node:https")>("node:https");
+    const actual = await vi.importActual<typeof Https>("node:https");
     const https = await import("node:https");
     vi.mocked(https.request).mockImplementationOnce(((
       url: URL,
-      opts: import("node:https").RequestOptions,
+      opts: Https.RequestOptions,
     ) => actual.request(url, { ...opts, ca: cert })) as typeof actual.request);
     try {
       await expect(
@@ -134,12 +133,11 @@ describe("native HTTPS transport (local servers only)", () => {
       res.write("partial");
     });
     const port = await listen(server);
-    const actual =
-      await vi.importActual<typeof import("node:https")>("node:https");
+    const actual = await vi.importActual<typeof Https>("node:https");
     const https = await import("node:https");
     vi.mocked(https.request).mockImplementationOnce(((
       url: URL,
-      opts: import("node:https").RequestOptions,
+      opts: Https.RequestOptions,
     ) => actual.request(url, { ...opts, ca: cert })) as typeof actual.request);
     try {
       const response = await httpsTransport(

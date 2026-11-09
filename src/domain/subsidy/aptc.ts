@@ -61,8 +61,14 @@ export function fplAnnualDollars(
     throw new RangeError("Tax family size must be a positive safe integer");
   if (!STATES.has(state))
     throw new RangeError("A supported state/DC abbreviation is required");
-  const region =
-    state === "AK" ? "alaska" : state === "HI" ? "hawaii" : "contiguous";
+  let region: keyof SubsidyParameters["fpl"];
+  if (state === "AK") {
+    region = "alaska";
+  } else if (state === "HI") {
+    region = "hawaii";
+  } else {
+    region = "contiguous";
+  }
   const table = parameters.fpl[region];
   const dollars =
     table.annualDollarsBySize.value[Math.min(householdSize, 8) - 1]! +

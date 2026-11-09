@@ -78,14 +78,16 @@ describe("response middleware policy and canonical keys", () => {
       "oversized-entry",
       "write-error",
     ]) {
-      const body =
-        mode === "credential"
-          ? { api_key: "synthetic-secret" }
-          : mode === "oversized"
-            ? { padding: "x".repeat(2 * 1024 * 1024) }
-            : mode === "oversized-entry"
-              ? { padding: "\n".repeat(700_000) }
-              : { synthetic: true };
+      let body;
+      if (mode === "credential") {
+        body = { api_key: "synthetic-secret" };
+      } else if (mode === "oversized") {
+        body = { padding: "x".repeat(2 * 1024 * 1024) };
+      } else if (mode === "oversized-entry") {
+        body = { padding: "\n".repeat(700_000) };
+      } else {
+        body = { synthetic: true };
+      }
       const store: CacheStore = {
         bytes: () => 0,
         get: async () => null,

@@ -2,6 +2,18 @@
 import { readFile, writeFile, rename } from "node:fs/promises";
 import { join } from "node:path";
 import type { SqlSession } from "../../db/database.js";
+interface PriorProviderReport {
+  issuers: {
+    issuer: unknown;
+    records: unknown;
+    issues?: Record<string, unknown>;
+    files?: {
+      url_sha256: unknown;
+      sha256: unknown;
+      validation?: { record_count?: unknown };
+    }[];
+  }[];
+}
 export async function synchronizeProviderReport(
   db: SqlSession,
   cache: string,
@@ -111,6 +123,26 @@ export async function synchronizeProviderReport(
           ],
         )
       ).rows[0]!.n;
+    function elapsedSourceWindow() {
+      if (row.source_window_ms !== null) {
+        return Number(row.source_window_ms);
+      } else if (row.reason === "not_run_budget") {
+        return 0;
+      } else {
+        return null;
+      }
+    }
+    function elapsedBasis() {
+      if (saved?.elapsed_ms !== undefined) {
+        return "runner_checkpoint";
+      } else if (timing) {
+        return "completed_runner_log";
+      } else if (row.source_window_ms !== null) {
+        return "source_snapshot_window_excludes_definition_acquisition";
+      } else {
+        return "not_recorded";
+      }
+    }
     reports.push({
       ...saved,
       ...row,
@@ -119,21 +151,8 @@ export async function synchronizeProviderReport(
       files: selected,
       bytes: selected.reduce((n, f) => n + Number(f.bytes), 0),
       elapsed_ms:
-        saved?.elapsed_ms ??
-        timing?.elapsed_ms ??
-        (row.source_window_ms !== null
-          ? Number(row.source_window_ms)
-          : row.reason === "not_run_budget"
-            ? 0
-            : null),
-      elapsed_basis:
-        saved?.elapsed_ms !== undefined
-          ? "runner_checkpoint"
-          : timing
-            ? "completed_runner_log"
-            : row.source_window_ms !== null
-              ? "source_snapshot_window_excludes_definition_acquisition"
-              : "not_recorded",
+        saved?.elapsed_ms ?? timing?.elapsed_ms ?? elapsedSourceWindow(),
+      elapsed_basis: elapsedBasis(),
       issues: issueCounts.get(String(row.issuer)) ?? {},
       distinct_npis: match?.distinct_npis ?? 0,
       nppes_matches: match?.nppes_matches ?? 0,
@@ -169,7 +188,7 @@ export async function comparePriorProviderIdentity(
   db: SqlSession,
   cache: string,
 ) {
-  let prior: { issuers: Record<string, any>[] };
+  let prior: PriorProviderReport;
   try {
     prior = JSON.parse(
       await readFile(

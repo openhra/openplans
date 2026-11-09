@@ -1,3 +1,5 @@
+import type * as PufSource from "../src/ingest/puf/import-source.js";
+import type * as PufBatch from "../src/ingest/puf/import-batch.js";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { Database } from "../src/db/database.js";
 vi.mock("../src/db/migrate.js", () => ({
@@ -6,11 +8,11 @@ vi.mock("../src/db/migrate.js", () => ({
 }));
 vi.mock("../src/ingest/geo/index.js", () => ({ ingestGeo: vi.fn() }));
 vi.mock("../src/ingest/puf/import-source.js", async (original) => ({
-  ...(await original<typeof import("../src/ingest/puf/import-source.js")>()),
+  ...(await original<typeof PufSource>()),
   cachedImportFiles: vi.fn(),
 }));
 vi.mock("../src/ingest/puf/import-batch.js", async (original) => ({
-  ...(await original<typeof import("../src/ingest/puf/import-batch.js")>()),
+  ...(await original<typeof PufBatch>()),
   pufStates: vi.fn(),
   importAllStates: vi.fn(),
 }));

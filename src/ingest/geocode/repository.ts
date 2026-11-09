@@ -166,14 +166,25 @@ export async function saveResult(
       row && row.status !== "Match" && a.zip5
         ? await zipCentroid(db, a.zip5)
         : null;
-  const method =
-    row?.status === "Match"
-      ? "census_geocoder"
-      : centroid
-        ? "zcta_centroid"
-        : row
-          ? "no_point"
-          : "issue";
+  let method: "zcta_centroid" | "census_geocoder" | "issue" | "no_point";
+  if (row?.status === "Match") {
+    method = "census_geocoder";
+  } else if (centroid) {
+    method = "zcta_centroid";
+  } else if (row) {
+    method = "no_point";
+  } else {
+    method = "issue";
+  }
+  function attemptOutcome() {
+    if (method === "no_point") {
+      return "no_point";
+    } else if (method === "issue") {
+      return "issue";
+    } else {
+      return "point";
+    }
+  }
   await db.query(
     `INSERT INTO geocode_attempt(address_hash,source_table,source_row,normalized_address,source_snapshot_id,
     snapshot_id,match_status,match_quality,outcome) VALUES($1,$9,$2,$3,$4,$5,$6,$7,$8)
@@ -188,11 +199,7 @@ export async function saveResult(
       snapshot,
       row?.status ?? "invalid",
       row?.quality ?? null,
-      method === "no_point"
-        ? "no_point"
-        : method === "issue"
-          ? "issue"
-          : "point",
+      attemptOutcome(),
       a.source_table ?? "npi_address",
     ],
   );

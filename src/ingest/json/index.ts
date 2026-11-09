@@ -49,11 +49,13 @@ class Reader {
       const next = await this.iterator.next();
       this.at = 0;
       try {
-        this.text = next.done
-          ? this.decoder.decode()
-          : typeof next.value === "string"
-            ? next.value
-            : this.decoder.decode(next.value, { stream: true });
+        if (next.done) {
+          this.text = this.decoder.decode();
+        } else if (typeof next.value === "string") {
+          this.text = next.value;
+        } else {
+          this.text = this.decoder.decode(next.value, { stream: true });
+        }
       } catch {
         fail("invalid_json");
       }
@@ -117,14 +119,16 @@ async function value(
       reader.at++;
       const code = char.charCodeAt(0);
       // A split UTF-16 pair contributes 3 + 1 bytes, matching its four-byte UTF-8 encoding.
-      const charBytes =
-        code < 0x80
-          ? 1
-          : code < 0x800
-            ? 2
-            : trailingHighSurrogate && code >= 0xdc00 && code <= 0xdfff
-              ? 1
-              : 3;
+      let charBytes;
+      if (code < 0x80) {
+        charBytes = 1;
+      } else if (code < 0x800) {
+        charBytes = 2;
+      } else if (trailingHighSurrogate && code >= 0xdc00 && code <= 0xdfff) {
+        charBytes = 1;
+      } else {
+        charBytes = 3;
+      }
       trailingHighSurrogate = code >= 0xd800 && code <= 0xdbff;
       bytes += charBytes;
       if (bytes > byteLimit) fail("json_record_too_large");

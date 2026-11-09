@@ -10,6 +10,9 @@ fi
 export npm_config_offline=true
 export npm_config_audit=false
 export npm_config_fund=false
+npm run format:check
+npm run lint
+npm run check:lint-setup
 npm run typecheck
 node scripts/check-neutral.mjs
 npm run check:extraction

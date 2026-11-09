@@ -28,6 +28,15 @@ export async function saveSnapshot(
     VALUES ($1, $2, 'geography', $3, $4) ON CONFLICT (source_id) DO NOTHING`,
     [m.source, source.publisher, JSON.stringify([source.url]), source.url],
   );
+  function snapshotSchema() {
+    if (kind === "ratingAreas") {
+      return "cms-state-gra-observed";
+    } else if (kind === "centroids") {
+      return "census-gazetteer-2021-zcta2020";
+    } else {
+      return "census-2020";
+    }
+  }
   await tx.query(
     `INSERT INTO snapshot (snapshot_id, source_id, requested_url, final_url, redirect_chain,
     retrieved_at, http_status, etag, last_modified, content_type, compressed_bytes, sha256, raw_path,
@@ -48,11 +57,7 @@ export async function saveSnapshot(
       m.bytes,
       m.sha256,
       file.path,
-      kind === "ratingAreas"
-        ? "cms-state-gra-observed"
-        : kind === "centroids"
-          ? "census-gazetteer-2021-zcta2020"
-          : "census-2020",
+      snapshotSchema(),
     ],
   );
 }
@@ -238,13 +243,17 @@ export async function ratingAreaForLocation(
     WHERE g.state=$1 AND g.plan_year=$2 AND z.zip_prefix=substring($4::text,1,3)`,
     [state, year, county, zip ?? null],
   );
+  function ratingAreaStatus() {
+    if (rows.length === 1) {
+      return "available" as const;
+    } else if (rows.length) {
+      return "ambiguous" as const;
+    } else {
+      return "unknown" as const;
+    }
+  }
   return {
-    status:
-      rows.length === 1
-        ? ("available" as const)
-        : rows.length
-          ? ("ambiguous" as const)
-          : ("unknown" as const),
+    status: ratingAreaStatus(),
     areas: rows,
   };
 }

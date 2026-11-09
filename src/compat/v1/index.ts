@@ -294,14 +294,19 @@ export function compatRoutes(db: SqlSession, options: ApiOptions = {}) {
             typeof applicant.child !== "boolean"
           )
             return v.fail("applicants.child");
+          function applicantRelationship() {
+            if (applicant.child) {
+              return "child";
+            } else if (index === 0) {
+              return "subscriber";
+            } else {
+              return "spouse";
+            }
+          }
           return {
             age: applicant.age,
             tobacco: applicant.smoker === undefined ? false : applicant.smoker,
-            relationship: applicant.child
-              ? "child"
-              : index === 0
-                ? "subscriber"
-                : "spouse",
+            relationship: applicantRelationship(),
           };
         });
         // Validate household/date through the same native validator before returning

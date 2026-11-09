@@ -230,9 +230,9 @@ describe("MCP response CORS", () => {
                 headers: origin === undefined ? {} : { origin },
               });
         const response = await setup().fetch(request);
-        expect(response.status).toBe(
-          origin === undefined ? (method === "POST" ? 200 : 204) : 403,
-        );
+        const allowedStatus = method === "POST" ? 200 : 204;
+        const expectedStatus = origin === undefined ? allowedStatus : 403;
+        expect(response.status).toBe(expectedStatus);
         expect(response.headers.has("access-control-allow-origin")).toBe(false);
         expect(response.headers.has("access-control-expose-headers")).toBe(
           false,

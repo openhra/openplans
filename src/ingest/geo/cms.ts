@@ -139,12 +139,14 @@ export async function cmsCountySnapshot(
         error instanceof FetchError
           ? error.evidence?.response_headers["retry-after"]
           : undefined;
-      const seconds =
-        retry && /^\d+$/.test(retry)
-          ? Number(retry)
-          : retry
-            ? Math.ceil((Date.parse(retry) - Date.now()) / 1000)
-            : 0;
+      let seconds;
+      if (retry && /^\d+$/.test(retry)) {
+        seconds = Number(retry);
+      } else if (retry) {
+        seconds = Math.ceil((Date.parse(retry) - Date.now()) / 1000);
+      } else {
+        seconds = 0;
+      }
       ttlSeconds = Math.max(3600, Number.isFinite(seconds) ? seconds : 0);
       await db.query(
         `UPDATE cms_zip_budget SET blocked_until=GREATEST(blocked_until,now()+$1*interval '1 second') WHERE singleton`,

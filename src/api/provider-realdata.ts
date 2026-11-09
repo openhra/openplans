@@ -10,6 +10,10 @@ import type { Database } from "../db/database.js";
 import { ingestGeocode } from "../ingest/geocode/index.js";
 import { dataDirectory } from "../ingest/geocode/census.js";
 import { createApp } from "./app.js";
+import type { findProviders } from "../services/providers.js";
+type ProviderSearchResult = Awaited<ReturnType<typeof findProviders>>;
+type ProviderCheckRow = ProviderSearchResult["providers"][number] &
+  Record<string, unknown>;
 const root = dataDirectory(),
   path = join(root, "provider-pglite-p3d");
 const mode = process.argv[2] ?? "check";
@@ -116,7 +120,7 @@ try {
         throw new Error("No listener");
       const url = `http://127.0.0.1:${address.port}/v1/providers?plan_id=76589TX0010015&year=2026&zip=77030&radius_miles=5&taxonomy=207Q00000X`;
       const response = await fetch(url),
-        body = (await response.json()) as Record<string, any>;
+        body = (await response.json()) as ProviderSearchResult;
       if (!response.ok || !body.providers?.length)
         throw new Error(`HTTP check failed: ${response.status}`);
       const result = {
@@ -127,20 +131,22 @@ try {
         returned: body.providers.length,
         meta: body.meta,
         provider_coverage: body.provider_coverage,
-        nearest_5: body.providers.slice(0, 5).map((p: any) => ({
-          npi: p.npi,
-          record_id: p.record_id,
-          name: p.name,
-          organization_name: p.organization_name,
-          participation: p.participation,
-          scope: p.participation_scope,
-          distance_miles: p.distance_miles,
-          source_updated_at: p.source_updated_at,
-          snapshot_id: p.snapshot_id,
-          network_tier: p.evidence[0]?.network_tier,
-          tier_status: p.evidence[0]?.tier_status,
-          address: p.addresses[0],
-        })),
+        nearest_5: body.providers
+          .slice(0, 5)
+          .map((provider: ProviderCheckRow) => ({
+            npi: provider.npi,
+            record_id: provider.record_id,
+            name: provider.name,
+            organization_name: provider.organization_name,
+            participation: provider.participation,
+            scope: provider.participation_scope,
+            distance_miles: provider.distance_miles,
+            source_updated_at: provider.source_updated_at,
+            snapshot_id: provider.snapshot_id,
+            network_tier: provider.evidence[0]?.network_tier,
+            tier_status: provider.evidence[0]?.tier_status,
+            address: provider.addresses[0],
+          })),
       };
       await writeFile(
         join(root, "reports/p3d-provider-http.json"),

@@ -99,12 +99,15 @@ const slice = <T>(items: T[], offset: number, limit: number) => ({
   total: items.length,
   more: offset + limit < items.length,
 });
-const status = (native: unknown) =>
-  native === "ambiguous"
-    ? ("ambiguous" as const)
-    : native === "unknown"
-      ? ("unknown" as const)
-      : ("ok" as const);
+const status = (native: unknown) => {
+  if (native === "ambiguous") {
+    return "ambiguous" as const;
+  } else if (native === "unknown") {
+    return "unknown" as const;
+  } else {
+    return "ok" as const;
+  }
+};
 
 async function planAnswer(
   db: SqlSession,
@@ -446,12 +449,15 @@ async function fetchAnswer(
     const plan = row(answer.data.plan);
     title = String(plan.name);
     p = answer.p;
-    records =
-      input.section === "summary"
-        ? offset === 0
-          ? [plan]
-          : []
-        : rows(answer.data.records);
+    if (input.section === "summary") {
+      if (offset === 0) {
+        records = [plan];
+      } else {
+        records = [];
+      }
+    } else {
+      records = rows(answer.data.records);
+    }
     total = input.section === "summary" ? 1 : (answer.total ?? null);
     more = Boolean(answer.more);
   } else if (kind === "drug") {
@@ -871,26 +877,30 @@ export function errorResult(
   generation: string,
   checkedAt: string,
 ) {
-  const code =
-    error instanceof ToolError
-      ? error.code
-      : error instanceof InputError
-        ? error.code
-        : error instanceof ReadError
-          ? error.error.code
-          : error instanceof ZodError
-            ? "INVALID_INPUT"
-            : error instanceof HonestyError
-              ? error.code
-              : "DATA_UNAVAILABLE";
-  const field =
-    error instanceof ToolError
-      ? error.field
-      : error instanceof InputError
-        ? error.field
-        : error instanceof ReadError
-          ? (error.error.field ?? null)
-          : null;
+  let code;
+  if (error instanceof ToolError) {
+    code = error.code;
+  } else if (error instanceof InputError) {
+    code = error.code;
+  } else if (error instanceof ReadError) {
+    code = error.error.code;
+  } else if (error instanceof ZodError) {
+    code = "INVALID_INPUT";
+  } else if (error instanceof HonestyError) {
+    code = error.code;
+  } else {
+    code = "DATA_UNAVAILABLE";
+  }
+  let field;
+  if (error instanceof ToolError) {
+    field = error.field;
+  } else if (error instanceof InputError) {
+    field = error.field;
+  } else if (error instanceof ReadError) {
+    field = error.error.field ?? null;
+  } else {
+    field = null;
+  }
   const output = {
     schema_version: "1" as const,
     status: "error" as const,

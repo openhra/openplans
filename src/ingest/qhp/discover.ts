@@ -400,13 +400,17 @@ export async function discoverQhp(
       summary.index_statuses.push(index.status);
     }
     const failures = summary.index_statuses.filter((status) => status !== "ok");
-    summary.status = failures.length
-      ? summary.index_statuses.length === 1
-        ? failures[0]!
-        : "partial"
-      : summary.child_failures
-        ? "child_failure"
-        : "ok";
+    if (failures.length) {
+      if (summary.index_statuses.length === 1) {
+        summary.status = failures[0]!;
+      } else {
+        summary.status = "partial";
+      }
+    } else if (summary.child_failures) {
+      summary.status = "child_failure";
+    } else {
+      summary.status = "ok";
+    }
     report.issuers.push(summary);
   }
   return report;

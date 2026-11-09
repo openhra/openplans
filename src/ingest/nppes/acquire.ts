@@ -47,17 +47,20 @@ export function discoverReleases(html: string): Release[] {
     )
       continue;
     if (!/_V2\.zip$/i.test(url.pathname)) continue;
-    const kind: Kind | undefined = /\/NPPES_Deactivated_NPI_Report_/i.test(
-      url.pathname,
-    )
-      ? "deactivation"
-      : /\/NPPES_Data_Dissemination_.*_Weekly_V2\.zip$/i.test(url.pathname)
-        ? "weekly"
-        : /\/NPPES_Data_Dissemination_[A-Za-z]+_\d{4}_V2\.zip$/i.test(
-              url.pathname,
-            )
-          ? "full"
-          : undefined;
+    let kind: Kind | undefined;
+    if (/\/NPPES_Deactivated_NPI_Report_/i.test(url.pathname)) {
+      kind = "deactivation";
+    } else if (
+      /\/NPPES_Data_Dissemination_.*_Weekly_V2\.zip$/i.test(url.pathname)
+    ) {
+      kind = "weekly";
+    } else if (
+      /\/NPPES_Data_Dissemination_[A-Za-z]+_\d{4}_V2\.zip$/i.test(url.pathname)
+    ) {
+      kind = "full";
+    } else {
+      kind = undefined;
+    }
     if (kind && !releases.some((r) => r.url === url.href))
       releases.push({ kind, url: url.href });
   }

@@ -1,3 +1,4 @@
+import type { ProviderOptions } from "./provider.js";
 import { randomUUID } from "node:crypto";
 import type { Database } from "../../db/database.js";
 import { acquireQhpChildren } from "./formulary-acquire.js";
@@ -9,7 +10,7 @@ export interface QhpBatchOptions extends AcquisitionOptions {
   year: number;
   state: string;
   issuer?: string;
-  onShard?: import("./provider.js").ProviderOptions["onShard"];
+  onShard?: ProviderOptions["onShard"];
   onReport?: (report: Record<string, unknown>) => void | Promise<void>;
   /** Developer runner resume: completed issuer rows are retained in its external report. */
   skipIssuers?: readonly string[];

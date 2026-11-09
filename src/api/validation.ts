@@ -133,6 +133,7 @@ export function premiumRequest(value: unknown) {
   const named = keys.map((key: unknown) => {
     if (
       typeof key !== "string" ||
+      // eslint-disable-next-line no-control-regex -- Control characters must be rejected at this boundary.
       !/^[A-Z][A-Z0-9]{1,15}:[^\u0000-\u001f]{1,200}$/.test(key)
     )
       return fail("plan_keys");
@@ -270,10 +271,21 @@ export function benchmarkRequest(query: Record<string, string>) {
     plan_ids: ["00000TX0000000"],
     ...location(query),
     coverage_start: `${planYear}-01-01`,
-    members: ages.map((age, index) => ({
-      age,
-      tobacco: false,
-      relationship: index === 0 ? "subscriber" : age < 21 ? "child" : "other",
-    })),
+    members: ages.map((age, index) => {
+      function memberRelationship() {
+        if (index === 0) {
+          return "subscriber";
+        } else if (age < 21) {
+          return "child";
+        } else {
+          return "other";
+        }
+      }
+      return {
+        age,
+        tobacco: false,
+        relationship: memberRelationship(),
+      };
+    }),
   });
 }

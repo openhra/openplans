@@ -23,11 +23,10 @@ import type {
 } from "../domain/subsidy/index.js";
 import { QUOTE_METADATA } from "../domain/subsidy/aptc.js";
 import { ratingRule } from "../ingest/rating-rules/index.js";
-import type { Plan } from "../api/repository.js";
+import type { Plan, resolveLocation } from "../api/repository.js";
 import {
   countyPlans,
   countyState,
-  resolveLocation,
   snapshots,
   zipEligible,
 } from "../api/repository.js";
@@ -483,19 +482,23 @@ export function withSubsidy(
           eligiblePremium!,
         )
       : null;
-  const status =
-    subsidy.status === "requires_state_rules"
-      ? subsidy.status
-      : !eligiblePlan
-        ? "plan_ineligible_for_tax_credit"
-        : quote.status === "rated" && eligiblePremium === null
-          ? "requires_premium_adjustments"
-          : quote.status === "rated" ||
-              subsidy.estimated_monthly_tax_credit_cents === null
-            ? subsidy.status
-            : quote.status === "unsupported_rating_method"
-              ? quote.status
-              : `premium_${quote.status}`;
+  let status;
+  if (subsidy.status === "requires_state_rules") {
+    status = subsidy.status;
+  } else if (!eligiblePlan) {
+    status = "plan_ineligible_for_tax_credit";
+  } else if (quote.status === "rated" && eligiblePremium === null) {
+    status = "requires_premium_adjustments";
+  } else if (
+    quote.status === "rated" ||
+    subsidy.estimated_monthly_tax_credit_cents === null
+  ) {
+    status = subsidy.status;
+  } else if (quote.status === "unsupported_rating_method") {
+    status = quote.status;
+  } else {
+    status = `premium_${quote.status}`;
+  }
   const { enrollment_ehb_fractions: _fractions, ...trace } = subsidy;
   return {
     ...QUOTE_METADATA,

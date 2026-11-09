@@ -51,11 +51,13 @@ export function providerSpecialties(record: {
   specialty?: unknown;
 }): string[] {
   const value = record.speciality ?? record.specialty;
-  return Array.isArray(value)
-    ? value.filter((v): v is string => typeof v === "string")
-    : typeof value === "string"
-      ? [value]
-      : [];
+  if (Array.isArray(value)) {
+    return value.filter((v): v is string => typeof v === "string");
+  } else if (typeof value === "string") {
+    return [value];
+  } else {
+    return [];
+  }
 }
 export {
   createProviderRepository,

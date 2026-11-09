@@ -307,12 +307,14 @@ try {
         const first = rows[0];
         for (const r of rows)
           for (const tobaccoUse of [false, true]) {
-            const age =
-              r.age_band === "0-14"
-                ? 0
-                : r.age_band === "64 and over"
-                  ? 64
-                  : Number(r.age_band);
+            let age;
+            if (r.age_band === "0-14") {
+              age = 0;
+            } else if (r.age_band === "64 and over") {
+              age = 64;
+            } else {
+              age = Number(r.age_band);
+            }
             const result = householdPremium(
               parsed,
               r.base_plan_id,
@@ -343,13 +345,23 @@ try {
           {
             coverageStartDate: first.effective_date,
             ratingMethod: "per_member",
-            members: ages.map((age, at) => ({
-              id: String(at),
-              age,
-              relationship:
-                at === 0 ? "subscriber" : at === 1 ? "spouse" : "child",
-              tobaccoUse: false,
-            })),
+            members: ages.map((age, at) => {
+              function householdRelationship() {
+                if (at === 0) {
+                  return "subscriber";
+                } else if (at === 1) {
+                  return "spouse";
+                } else {
+                  return "child";
+                }
+              }
+              return {
+                id: String(at),
+                age,
+                relationship: householdRelationship(),
+                tobaccoUse: false,
+              };
+            }),
           },
         );
         const prices = ages
@@ -430,8 +442,17 @@ print(json.dumps(ids))
       JSON.stringify(report, null, 2) + "\n",
     );
   }
+  function stateCheckStatus() {
+    if (failed) {
+      return "FAIL";
+    } else if (links.length) {
+      return "PASS";
+    } else {
+      return "not_published";
+    }
+  }
   const aggregate = {
-    status: failed ? "FAIL" : links.length ? "PASS" : "not_published",
+    status: stateCheckStatus(),
     year,
     states: reports,
     negative_controls: {

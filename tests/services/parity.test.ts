@@ -125,6 +125,8 @@ it("retains pre-extraction native and compatibility status, headers and exact JS
       ),
     });
   }
+  // Compatibility source/market enums and plan coverage keys follow the wire
+  // contract. Native response bytes, source labels and all prices stay frozen.
   expect(wire).toMatchSnapshot();
 });
 

@@ -18,6 +18,7 @@ import { ReadError } from "./errors.js";
 export function parsePlanRef(value: unknown) {
   if (
     typeof value === "string" &&
+    // eslint-disable-next-line no-control-regex -- Control characters must be rejected at this boundary.
     /^[A-Z][A-Z0-9]{1,15}:[^\u0000-\u001f]{1,200}$/.test(value)
   ) {
     return { base: value, full: value, variant: null };

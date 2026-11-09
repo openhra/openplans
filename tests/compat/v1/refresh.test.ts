@@ -242,8 +242,9 @@ it("NY 10001 maps four filed tiers and preserves unknown exchange flags, age/tob
       on_market: null,
       off_market: null,
       plan_market: null,
-      source: null,
-      premium_source: null,
+      // State publications have a known source enum, independent of exchange flags.
+      source: "state",
+      premium_source: "state",
       premiums_by_applicant: [],
       service_area_id: null,
     });

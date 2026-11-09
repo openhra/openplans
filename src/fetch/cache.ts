@@ -486,14 +486,16 @@ async function saveBody(
           callback(null, chunk);
         },
       });
-      const decoder =
-        encoding === "gzip"
-          ? createGunzip()
-          : encoding === "deflate"
-            ? createInflate()
-            : encoding === "br"
-              ? createBrotliDecompress()
-              : undefined;
+      let decoder;
+      if (encoding === "gzip") {
+        decoder = createGunzip();
+      } else if (encoding === "deflate") {
+        decoder = createInflate();
+      } else if (encoding === "br") {
+        decoder = createBrotliDecompress();
+      } else {
+        decoder = undefined;
+      }
       output = decoder ?? wire;
       transfer = decoder
         ? pipeline(response.body, wire, decoder)

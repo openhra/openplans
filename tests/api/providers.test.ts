@@ -125,7 +125,16 @@ describe("provider API: record scope, distance and source evidence", () => {
         source_table: "qhp_provider_address",
         source_row: `${row.snapshot_id}:${row.record_id}:0`,
       };
-      if (i !== 2)
+      if (i !== 2) {
+        function latitudeOffset() {
+          if (i === 1) {
+            return 8 / 69.093;
+          } else if (i === 4) {
+            return 2 / 69.093;
+          } else {
+            return 0;
+          }
+        }
         await saveResult(
           h.db,
           a,
@@ -133,11 +142,12 @@ describe("provider API: record scope, distance and source evidence", () => {
             id: String(i + 1),
             status: "Match",
             quality: i === 4 ? "Non_Exact" : "Exact",
-            latitude: lat + (i === 1 ? 8 / 69.093 : i === 4 ? 2 / 69.093 : 0),
+            latitude: lat + latitudeOffset(),
             longitude: lon,
           },
           "catalog",
         );
+      }
       // NPPES B is 8 miles away even when issuer A is at the origin.
       await saveResult(
         h.db,

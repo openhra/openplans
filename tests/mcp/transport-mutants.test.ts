@@ -50,12 +50,21 @@ it.each([
           log: () => {},
         },
       );
-      const request =
-        kind === "origin"
-          ? post("server/discover", {}, { origin: "https://attacker.example" })
-          : kind === "auth"
-            ? post("tools/call", { name: "estimate_premiums", arguments: {} })
-            : post("server/discover", { padding: "x".repeat(64 * 1024) });
+      let request;
+      if (kind === "origin") {
+        request = post(
+          "server/discover",
+          {},
+          { origin: "https://attacker.example" },
+        );
+      } else if (kind === "auth") {
+        request = post("tools/call", {
+          name: "estimate_premiums",
+          arguments: {},
+        });
+      } else {
+        request = post("server/discover", { padding: "x".repeat(64 * 1024) });
+      }
       const response = await app.fetch(request);
       await response.text();
       await expect(async () => {

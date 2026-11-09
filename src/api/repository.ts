@@ -10,6 +10,7 @@ import {
   stateDetailColumns,
 } from "../ingest/state/catalog.js";
 import type { StateCatalogRow } from "../ingest/state/catalog.js";
+import type { CmsRateRow } from "../domain/rating/index.js";
 import type { SqlSession } from "../db/database.js";
 import {
   ratingAreaForLocation,
@@ -242,21 +243,27 @@ export async function countyPlans(
     coverage === "dental"
       ? dentalRatingRule(state, year, "Individual") !== null
       : rule?.method === "per_member";
-  const premiumAvailability = !supported
-    ? {
-        status: "unsupported_rating_method",
-        reason: "STATE_RATING_METHOD_UNSUPPORTED",
-      }
-    : area
-      ? {
-          status: "available",
-          rating_area_id: area.rating_area_id,
-          rating_area_provenance: {
-            snapshot_id: area.snapshot_id,
-            source_row: area.source_row,
-          },
-        }
-      : { status: resolution.status, reason: "UNRESOLVED_RATING_AREA" };
+  let premiumAvailability;
+  if (!supported) {
+    premiumAvailability = {
+      status: "unsupported_rating_method",
+      reason: "STATE_RATING_METHOD_UNSUPPORTED",
+    };
+  } else if (area) {
+    premiumAvailability = {
+      status: "available",
+      rating_area_id: area.rating_area_id,
+      rating_area_provenance: {
+        snapshot_id: area.snapshot_id,
+        source_row: area.source_row,
+      },
+    };
+  } else {
+    premiumAvailability = {
+      status: resolution.status,
+      reason: "UNRESOLVED_RATING_AREA",
+    };
+  }
   return plans.map((plan) => ({
     ...plan,
     premium_availability: premiumAvailability,
@@ -328,14 +335,19 @@ async function stateCountyPlans(
     const matches = rows.filter((r) => r.plan_key === key),
       plan = statePlan(matches);
     const supported = matches.every((row) => catalogRule(row) !== null);
+    function premiumStatus() {
+      if (!supported) {
+        return "unsupported_rating_method";
+      } else if (matches.length > 1) {
+        return "ambiguous";
+      } else {
+        return "available";
+      }
+    }
     return {
       ...plan,
       premium_availability: {
-        status: !supported
-          ? "unsupported_rating_method"
-          : matches.length > 1
-            ? "ambiguous"
-            : "available",
+        status: premiumStatus(),
         ...(!supported ? { reason: "NO_APPLICABLE_COMMUNITY_RULE" } : {}),
         rating_area_id: area.rating_area_id,
         rating_area_provenance: area,
@@ -706,7 +718,7 @@ export function dentalBenchmarkRates(
   childAgeBands: string[],
 ) {
   return db.query<{
-    raw: import("../domain/rating/index.js").CmsRateRow;
+    raw: CmsRateRow;
     snapshot_id: string;
     source_row: number;
   }>(

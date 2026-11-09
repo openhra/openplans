@@ -2,6 +2,9 @@ import type { SqlSession } from "../../db/database.js";
 import type { ImportKind } from "./import-source.js";
 import { importTables } from "./import-parse.js";
 
+const RECONCILIATION_SAMPLE_SIZE = 20;
+const PER_MEMBER_AGE_BAND_COUNT = 51;
+
 export interface FileReconciliation {
   error?: string;
   expected_rows?: number;
@@ -42,11 +45,11 @@ export async function reconcileImport(
   const snapshots = Object.fromEntries(
     files.map((f) => [f.kind, f.snapshot_id]),
   );
-  const p = snapshots["plan-attributes"],
-    s = snapshots["service-area"],
-    r = snapshots.rate,
-    n = snapshots.network,
-    b = snapshots["benefits-and-cost-sharing"];
+  const planSnapshot = snapshots["plan-attributes"],
+    serviceAreaSnapshot = snapshots["service-area"],
+    rateSnapshot = snapshots.rate,
+    networkSnapshot = snapshots.network,
+    benefitSnapshot = snapshots["benefits-and-cost-sharing"];
   const checks: ReconciliationCheck[] = [];
   for (const file of files) {
     file.stored_rows = Number(
@@ -87,14 +90,14 @@ export async function reconcileImport(
         ],
       });
   }
-  async function check(
+  async function appendCheck(
     code: string,
     sql: string,
     parameters: unknown[],
     severity: "error" | "warning" = "error",
   ) {
     const { rows } = await db.query(
-      `SELECT count(*) OVER() AS total, x.* FROM (${sql}) x LIMIT 20`,
+      `SELECT count(*) OVER() AS total, x.* FROM (${sql}) x LIMIT ${RECONCILIATION_SAMPLE_SIZE}`,
       parameters,
     );
     checks.push({
@@ -104,70 +107,70 @@ export async function reconcileImport(
       sample: rows.map(({ total: _total, ...row }) => row),
     });
   }
-  await check(
+  await appendCheck(
     "plans_without_rates",
     `SELECT p.base_plan_id FROM plan p WHERE p.snapshot_id=$1 AND NOT EXISTS
     (SELECT 1 FROM rate r WHERE r.snapshot_id=$2 AND r.base_plan_id=p.base_plan_id)`,
-    [p, r],
+    [planSnapshot, rateSnapshot],
   );
-  await check(
+  await appendCheck(
     "rates_without_plan",
     `SELECT r.base_plan_id,r.source_row FROM rate r WHERE r.snapshot_id=$1 AND NOT EXISTS
     (SELECT 1 FROM plan p WHERE p.snapshot_id=$2 AND p.base_plan_id=r.base_plan_id)`,
-    [r, p],
+    [rateSnapshot, planSnapshot],
   );
-  await check(
+  await appendCheck(
     "variants_without_base",
     `SELECT v.variant_plan_id FROM plan_variant v WHERE v.snapshot_id=$1 AND NOT EXISTS
     (SELECT 1 FROM plan p WHERE p.snapshot_id=$1 AND p.base_plan_id=v.base_plan_id)`,
-    [p],
+    [planSnapshot],
   );
-  await check(
+  await appendCheck(
     "unused_service_areas",
     `SELECT s.issuer_id,s.service_area_id,s.market,s.dental_only FROM service_area s WHERE s.snapshot_id=$1 AND NOT EXISTS
     (SELECT 1 FROM plan p WHERE p.snapshot_id=$2 AND p.issuer_id=s.issuer_id AND p.service_area_id=s.service_area_id AND p.market=s.market AND p.dental_only=s.dental_only)`,
-    [s, p],
+    [serviceAreaSnapshot, planSnapshot],
     "warning",
   );
-  await check(
+  await appendCheck(
     "plans_without_service_area",
     `SELECT p.base_plan_id FROM plan p WHERE p.snapshot_id=$1 AND NOT EXISTS
     (SELECT 1 FROM service_area s WHERE s.snapshot_id=$2 AND s.issuer_id=p.issuer_id AND s.service_area_id=p.service_area_id AND s.market=p.market AND s.dental_only=p.dental_only)`,
-    [p, s],
+    [planSnapshot, serviceAreaSnapshot],
   );
-  await check(
+  await appendCheck(
     "plans_without_network",
     `SELECT p.base_plan_id FROM plan p WHERE p.snapshot_id=$1 AND NOT EXISTS
     (SELECT 1 FROM network n WHERE n.snapshot_id=$2 AND n.issuer_id=p.issuer_id AND n.network_id=p.network_id AND n.market=p.market AND n.dental_only=p.dental_only)`,
-    [p, n],
+    [planSnapshot, networkSnapshot],
   );
-  await check(
+  await appendCheck(
     "benefits_without_plan",
     `SELECT DISTINCT b.published_plan_id FROM plan_benefit b WHERE b.snapshot_id=$1 AND NOT EXISTS
     (SELECT 1 FROM plan_attribute p WHERE p.snapshot_id=$2 AND ${options.sbe ? "p.base_plan_id=b.base_plan_id" : "p.published_plan_id=b.published_plan_id"})`,
-    [b, p],
+    [benefitSnapshot, planSnapshot],
   );
   if (options.sbe)
-    await check(
+    await appendCheck(
       "benefit_variant_attributes_missing",
       `SELECT DISTINCT b.published_plan_id FROM plan_benefit b WHERE b.snapshot_id=$1 AND NOT EXISTS
     (SELECT 1 FROM plan_attribute p WHERE p.snapshot_id=$2 AND p.published_plan_id=b.published_plan_id)`,
-      [b, p],
+      [benefitSnapshot, planSnapshot],
       "warning",
     );
   // Per-member PUF rows explicitly enumerate these 51 bands; never manufacture missing prices.
-  await check(
+  await appendCheck(
     "incomplete_rate_age_bands",
     `SELECT base_plan_id,rating_area_id,tobacco,effective_date,expiration_date,count(*) AS rows,count(DISTINCT age_band) AS bands
     FROM rate WHERE snapshot_id=$1 AND rating_method='per_member'
-    GROUP BY base_plan_id,rating_area_id,tobacco,effective_date,expiration_date HAVING count(*)<>51 OR count(DISTINCT age_band)<>51`,
-    [r],
+    GROUP BY base_plan_id,rating_area_id,tobacco,effective_date,expiration_date HAVING count(*)<>${PER_MEMBER_AGE_BAND_COUNT} OR count(DISTINCT age_band)<>${PER_MEMBER_AGE_BAND_COUNT}`,
+    [rateSnapshot],
   );
-  await check(
+  await appendCheck(
     "duplicate_rate_keys",
     `SELECT base_plan_id,rating_area_id,tobacco,effective_date,expiration_date,age_band,count(*) AS rows
     FROM rate WHERE snapshot_id=$1 GROUP BY base_plan_id,rating_area_id,tobacco,effective_date,expiration_date,age_band HAVING count(*)>1`,
-    [r],
+    [rateSnapshot],
   );
   const identifiers = (
     await db.query(
@@ -178,7 +181,7 @@ export async function reconcileImport(
     (SELECT count(*) FROM plan_variant WHERE snapshot_id=$1)::integer AS variants,
     (SELECT count(*) FROM rate WHERE snapshot_id=$2 AND length(base_plan_id)=14)::integer AS rate_14,
     (SELECT count(*) FROM rate WHERE snapshot_id=$2 AND length(base_plan_id)=17)::integer AS rate_17`,
-      [p, r],
+      [planSnapshot, rateSnapshot],
     )
   ).rows[0] as Reconciliation["identifiers"];
   const invalid = files.reduce((sum, file) => sum + file.rejected_rows, 0);

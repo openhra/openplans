@@ -58,8 +58,18 @@ export async function allStatesReport(cache = importDataDirectory()) {
     "The acquired individual on-exchange medical Plan Attributes rows select 30 states in 2026 and 29 in 2027 (Oregon absent in 2027). Counts include every catalog market/dental row in each selected state; rule authorization is individual medical only. No invented rates, default-curve calculation, or tier pricing. Each state uses its own cache DB `puf-pglite-p6d-<year>-<state>`. Detailed results: `p6d-<year>-<state>.json`; immutable inputs: the newest acquired CMS manifest. Python ZIP/CSV and Decimal recompute independently of persisted normalized columns. Ages 0–64 and both tobacco flags are exercised; missing tobacco prices remain unknown. Family tiers are counted and skipped.\n\n";
   md +=
     "| Year | State | Plans | Variants | Rate rows | Method / citation | Family Option | Oracle comparisons | Mismatches | Geography | Result |\n| --- | --- | ---: | ---: | ---: | --- | ---: | ---: | ---: | --- | --- |\n";
-  for (const r of results)
-    md += `| ${r.year} | ${r.state} | ${metric(r, "base_plans")} | ${metric(r, "variants")} | ${metric(r, "rate")} | per_member; [CMS ${r.state} row](${r.references[0]}), [45 CFR 147.102(c)(1)](${r.references[1]}) | ${r.family_options ?? "—"} | ${r.premiums?.comparisons ?? "—"} | ${r.premiums?.mismatch_count ?? "—"} | ${r.geography?.ratingAreaUnit ?? r.geography?.error ?? "—"} | ${r.pending ? "PENDING" : r.passed ? "PASS" : `FAIL: ${(r.failures ?? []).join("; ")}`} |\n`;
+  for (const r of results) {
+    function stateCheckStatus() {
+      if (r.pending) {
+        return "PENDING";
+      } else if (r.passed) {
+        return "PASS";
+      } else {
+        return `FAIL: ${(r.failures ?? []).join("; ")}`;
+      }
+    }
+    md += `| ${r.year} | ${r.state} | ${metric(r, "base_plans")} | ${metric(r, "variants")} | ${metric(r, "rate")} | per_member; [CMS ${r.state} row](${r.references[0]}), [45 CFR 147.102(c)(1)](${r.references[1]}) | ${r.family_options ?? "—"} | ${r.premiums?.comparisons ?? "—"} | ${r.premiums?.mismatch_count ?? "—"} | ${r.geography?.ratingAreaUnit ?? r.geography?.error ?? "—"} | ${stateCheckStatus()} |\n`;
+  }
   md +=
     "\nCitation review: CMS current Market Rating Reforms table (updated 2021-12-10), its linked 2018-effective State Specific Age Curve Variations PDF (2017-05-31), and eCFR current through 2026-11-05 were actually read on 2026-11-07. CMS does not publish a separate year-labelled 2026/2027 curve at that link. State-specific AL/MS/OR/UT curves are respected by using filed rows directly. Versioned JSON contains the full citation per state. The existing no-file rating-rules command retains the TX PY2026 bootstrap; complete state support requires explicitly selecting data/rating-rules/<year>.json (as this oracle does). NY/VT are explicit unsupported guards, not imported states; household tier selection remains unsupported.\n\n";
   md +=

@@ -60,12 +60,14 @@ export async function projector(db: SqlSession, native: unknown) {
     for (const snapshot_id of references) {
       const source = metadata.get(snapshot_id);
       if (!source) continue;
-      const pointer =
-        r.source_record !== undefined
-          ? `record:${r.source_record}${r.source_plan_index === undefined ? "" : `:plan:${r.source_plan_index}`}`
-          : r.source_row !== undefined
-            ? `row:${r.source_row}`
-            : null;
+      let pointer;
+      if (r.source_record !== undefined) {
+        pointer = `record:${r.source_record}${r.source_plan_index === undefined ? "" : `:plan:${r.source_plan_index}`}`;
+      } else if (r.source_row !== undefined) {
+        pointer = `row:${r.source_row}`;
+      } else {
+        pointer = null;
+      }
       const id = pointer ? `${snapshot_id}#${pointer}` : snapshot_id;
       sources.set(id, {
         id,
@@ -218,20 +220,28 @@ export async function projector(db: SqlSession, native: unknown) {
     };
   }
   function dataset(value: unknown, capability: string) {
+    function coverageForCapability() {
+      if (capability === "drugs") {
+        return r.drug_coverage;
+      } else if (capability === "providers") {
+        return r.provider_coverage;
+      } else {
+        return null;
+      }
+    }
     const r = row(value),
-      detail = row(
-        capability === "drugs"
-          ? r.drug_coverage
-          : capability === "providers"
-            ? r.provider_coverage
-            : null,
-      );
+      detail = row(coverageForCapability());
+    function capabilityStatusPrefix() {
+      if (capability === "catalog") {
+        return "catalog";
+      } else if (capability === "premiums") {
+        return "premium";
+      } else {
+        return capability;
+      }
+    }
     const status =
-      detail.status ??
-      r[
-        `${capability === "catalog" ? "catalog" : capability === "premiums" ? "premium" : capability}_status`
-      ] ??
-      "unknown";
+      detail.status ?? r[`${capabilityStatusPrefix()}_status`] ?? "unknown";
     const snapshot =
       detail.active_snapshot_id ??
       detail.snapshot_id ??

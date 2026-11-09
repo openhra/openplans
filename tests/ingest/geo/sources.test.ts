@@ -74,15 +74,19 @@ describe("geography acquisition", () => {
                     "GEOID\tINTPTLAT\tINTPTLONG\n00000\t0.000000\t0.000000\n",
                   )
                 : await readFile(fixtures[kind].path);
+            function sourceContentType() {
+              if (kind === "centroids") {
+                return "application/zip";
+              } else if (kind === "ratingAreas") {
+                return "text/html";
+              } else {
+                return "text/plain";
+              }
+            }
             return {
               status: 200,
               headers: {
-                "content-type":
-                  kind === "centroids"
-                    ? "application/zip"
-                    : kind === "ratingAreas"
-                      ? "text/html"
-                      : "text/plain",
+                "content-type": sourceContentType(),
               },
               body: Readable.from([body]),
             };
@@ -146,8 +150,8 @@ describe("geography acquisition", () => {
       });
       await expect(
         (async () => {
-          for await (const _chunk of stream) {
-            /* fully consume */
+          for await (const discarded of stream) {
+            void discarded;
           }
         })(),
       ).rejects.toThrow("Unexpected Gazetteer");

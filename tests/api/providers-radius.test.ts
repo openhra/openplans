@@ -40,14 +40,19 @@ describe("statewide identity radius: source keys, exact counts and pagination", 
     // 55 far identities sort before all 60 near identities. Five more have no
     // current point: two missing and three geocoded against an obsolete snapshot.
     for (let i = 0; i < 121; i++) {
+      function providerName() {
+        if (i < 55) {
+          return "RadiusFar";
+        } else if (i < 115) {
+          return "RadiusNear";
+        } else {
+          return "RadiusMissing";
+        }
+      }
       await h.db.query(
         `INSERT INTO npi_provider(npi,entity_type,first_name,last_name,in_scope,state_filter,data_date,snapshot_id)
         VALUES ($1,$2,'Synthetic',$3,true,'TX','2026-11-07','catalog')`,
-        [
-          npi(i),
-          i === 119 ? "2" : "1",
-          i < 55 ? "RadiusFar" : i < 115 ? "RadiusNear" : "RadiusMissing",
-        ],
+        [npi(i), i === 119 ? "2" : "1", providerName()],
       );
       await h.db.query(
         `INSERT INTO npi_taxonomy VALUES ($1,1,'207Q00000X',true,'TX','catalog')`,

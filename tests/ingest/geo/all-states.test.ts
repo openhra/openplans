@@ -165,8 +165,8 @@ it("selects the first individual-market CMS table and rejects malformed third co
   }
   await expect(
     (async () => {
-      for await (const _ of ratingRows(mutant())) {
-        /* consume */
+      for await (const discarded of ratingRows(mutant())) {
+        void discarded;
       }
     })(),
   ).rejects.toThrow("unrecognized CMS");

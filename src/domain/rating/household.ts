@@ -65,7 +65,7 @@ export function householdMembers(household: Household) {
   });
 }
 
-/** Overrides require separately cited filed dental business rules; medical defaults stay unchanged. */
+/** Overrides require separately cited market rules or filed dental business rules. */
 export interface PerMemberPolicy {
   maximumRatedChildren: number;
   noPreferenceUsesIndividual: boolean;

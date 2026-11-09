@@ -75,12 +75,14 @@ export function dentalFamilyColumn(
   ).length;
   if (!dependents)
     return { column: spouses.length ? "Couple" : "IndividualRate" };
-  const suffix =
-    dependents === 1
-      ? "OneDependent"
-      : dependents === 2
-        ? "TwoDependents"
-        : "ThreeOrMoreDependents";
+  let suffix;
+  if (dependents === 1) {
+    suffix = "OneDependent";
+  } else if (dependents === 2) {
+    suffix = "TwoDependents";
+  } else {
+    suffix = "ThreeOrMoreDependents";
+  }
   return {
     column:
       `${spouses.length ? "Couple" : "PrimarySubscriber"}And${suffix}` as DentalColumn,

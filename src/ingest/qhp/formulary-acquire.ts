@@ -262,15 +262,21 @@ export async function acquireQhpChildren(
         ],
       );
     } catch (error) {
-      const reason =
+      let reason;
+      if (
         options.signal?.aborted ||
         (options.deadline !== undefined && Date.now() >= options.deadline)
-          ? "run_budget_exceeded"
-          : error instanceof FetchError
-            ? error.code === "http_status" && error.status === 403
-              ? "access_denied"
-              : error.code
-            : "child_not_cached";
+      ) {
+        reason = "run_budget_exceeded";
+      } else if (error instanceof FetchError) {
+        if (error.code === "http_status" && error.status === 403) {
+          reason = "access_denied";
+        } else {
+          reason = error.code;
+        }
+      } else {
+        reason = "child_not_cached";
+      }
       await db.query(
         `UPDATE qhp_child_url SET status=$2,http_status=$3,snapshot_id=NULL,
         publisher_metadata=publisher_metadata || $4::jsonb WHERE qhp_child_url_id=$1`,
@@ -298,8 +304,3 @@ export async function acquireQhpChildren(
   if (results.some((r) => r.status === "rejected"))
     throw new Error("issuer_acquisition_failed");
 }
-export const acquireFormulary = (
-  db: SqlSession,
-  scope: FormularyScope,
-  options?: AcquisitionOptions,
-) => acquireQhpChildren(db, scope, "formulary_urls", options);

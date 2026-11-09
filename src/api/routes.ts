@@ -26,16 +26,18 @@ function authorized(header: string | undefined, token: string): boolean {
 }
 export function nativeRoutes(db: SqlSession, options: ApiOptions) {
   const app = new Hono();
-  app.onError((error, c) =>
-    error instanceof v.InputError
-      ? c.json({ error: { code: error.code, field: error.field } }, 400)
-      : error instanceof ReadError
-        ? c.json(
-            { error: error.error },
-            error.error.code === "unsupported_without_taxonomy" ? 422 : 404,
-          )
-        : c.json({ error: { code: "INTERNAL_ERROR" } }, 500),
-  );
+  app.onError((error, c) => {
+    if (error instanceof v.InputError) {
+      return c.json({ error: { code: error.code, field: error.field } }, 400);
+    } else if (error instanceof ReadError) {
+      return c.json(
+        { error: error.error },
+        error.error.code === "unsupported_without_taxonomy" ? 422 : 404,
+      );
+    } else {
+      return c.json({ error: { code: "INTERNAL_ERROR" } }, 500);
+    }
+  });
 
   app.route("/", drugRoutes(db));
   app.route("/", providerRoutes(db));

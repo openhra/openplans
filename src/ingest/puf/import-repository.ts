@@ -31,18 +31,23 @@ export async function saveImportSnapshot(
   file?: ImportFile,
 ): Promise<void> {
   const m = file?.metadata;
+  function registryEvidence() {
+    if (file) {
+      if (file.source === "cms_sbe_puf") {
+        return { url: file.url, member: file.member, sha256: file.sha256 };
+      } else {
+        return [file.url];
+      }
+    } else {
+      return [];
+    }
+  }
   await tx.query(
     `INSERT INTO source(source_id,publisher,source_kind,registry_evidence)
     VALUES ($1,'Centers for Medicare & Medicaid Services',$3,$2) ON CONFLICT DO NOTHING`,
     [
       source,
-      JSON.stringify(
-        file
-          ? file.source === "cms_sbe_puf"
-            ? { url: file.url, member: file.member, sha256: file.sha256 }
-            : [file.url]
-          : [],
-      ),
+      JSON.stringify(registryEvidence()),
       file?.source ?? "exchange-puf",
     ],
   );

@@ -108,6 +108,7 @@ export function parseEntityId(id: string): EntityId {
     if (
       !kind ||
       entityId(kind, ...parts) !== id ||
+      // eslint-disable-next-line no-control-regex -- Control characters must be rejected at this boundary.
       parts.some((part) => !part || /[\u0000-\u001f]/.test(part))
     )
       throw 0;
@@ -118,39 +119,43 @@ export function parseEntityId(id: string): EntityId {
       Number(s) <= 2100;
     const identity = (s: string | undefined) =>
       s !== undefined && /^[12]\d{9}$/.test(s);
-    const valid =
-      kind === "plan"
-        ? parts.length === 2 && yr(parts[0]) && Boolean(parsePlanRef(parts[1]))
-        : kind === "drug"
-          ? parts.length === 1 && /^\d{1,20}$/.test(parts[0]!)
-          : kind === "provider"
-            ? (parts.length === 1 && identity(parts[0])) ||
-              (parts.length === 4 && yr(parts[0]) && identity(parts[1]))
-            : kind === "geography"
-              ? parts.length === 2 &&
-                parts.every((part) => /^\d{5}$/.test(part))
-              : kind === "carrier" || kind === "network"
-                ? parts.length === 5 &&
-                  /^[A-Z]{2}$/.test(parts[0]!) &&
-                  yr(parts[1]) &&
-                  /^\d+$/.test(parts[4]!)
-                : kind === "dataset"
-                  ? parts.length === 4 &&
-                    /^(?:[A-Z]{2}|_)$/.test(parts[0]!) &&
-                    (parts[1] === "_" || yr(parts[1])) &&
-                    [
-                      "catalog",
-                      "premiums",
-                      "drugs",
-                      "providers",
-                      "geography",
-                      "terminology",
-                      "taxonomy",
-                    ].includes(parts[3]!)
-                  : kind === "snapshot"
-                    ? parts.length === 1 &&
-                      !/^(?:https?:|\.\.)|[\\/]/.test(parts[0]!)
-                    : false;
+    let valid;
+    if (kind === "plan") {
+      valid =
+        parts.length === 2 && yr(parts[0]) && Boolean(parsePlanRef(parts[1]));
+    } else if (kind === "drug") {
+      valid = parts.length === 1 && /^\d{1,20}$/.test(parts[0]!);
+    } else if (kind === "provider") {
+      valid =
+        (parts.length === 1 && identity(parts[0])) ||
+        (parts.length === 4 && yr(parts[0]) && identity(parts[1]));
+    } else if (kind === "geography") {
+      valid = parts.length === 2 && parts.every((part) => /^\d{5}$/.test(part));
+    } else if (kind === "carrier" || kind === "network") {
+      valid =
+        parts.length === 5 &&
+        /^[A-Z]{2}$/.test(parts[0]!) &&
+        yr(parts[1]) &&
+        /^\d+$/.test(parts[4]!);
+    } else if (kind === "dataset") {
+      valid =
+        parts.length === 4 &&
+        /^(?:[A-Z]{2}|_)$/.test(parts[0]!) &&
+        (parts[1] === "_" || yr(parts[1])) &&
+        [
+          "catalog",
+          "premiums",
+          "drugs",
+          "providers",
+          "geography",
+          "terminology",
+          "taxonomy",
+        ].includes(parts[3]!);
+    } else if (kind === "snapshot") {
+      valid = parts.length === 1 && !/^(?:https?:|\.\.)|[\\/]/.test(parts[0]!);
+    } else {
+      valid = false;
+    }
     if (!valid) throw 0;
     return { kind, parts };
   } catch {

@@ -108,8 +108,15 @@ export function date(value: string): string | null {
   return d;
 }
 export const nullable = (s: string) => s || null;
-export const flag = (s: string): boolean | null =>
-  s === "Y" ? true : s === "N" ? false : null;
+export const flag = (s: string): boolean | null => {
+  if (s === "Y") {
+    return true;
+  } else if (s === "N") {
+    return false;
+  } else {
+    return null;
+  }
+};
 export interface Address {
   kind: "mailing" | "practice";
   ordinal: number;

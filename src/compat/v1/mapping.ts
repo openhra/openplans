@@ -21,9 +21,13 @@ export function planResponse(
   ])
     delete result[key];
   for (const key of ["source", "premium_source"]) {
-    // A state filing is neither a carrier feed nor a CMS feed.
-    if (result[key] === "state_filed_tier") result[key] = null;
+    if (result[key] === "cms_puf") result[key] = "cms";
+    if (result[key] === "state_filed_tier") result[key] = "state";
   }
+  if (result.plan_market === "both") result.plan_market = "both_markets";
+  // Coverage is reported by its own envelope, never an empty plan-level extension.
+  if (Array.isArray(result.providers) && !result.providers.length)
+    delete result.providers;
   return result;
 }
 
@@ -113,6 +117,19 @@ export function mapPlan(
   const stateFiled = "plan_key" in view;
   const on = typeof view.on_exchange === "boolean" ? view.on_exchange : null;
   const off = typeof view.off_exchange === "boolean" ? view.off_exchange : null;
+  function marketplaceAvailability() {
+    if (on === null || off === null) {
+      return null;
+    } else if (on && off) {
+      return "both";
+    } else if (on) {
+      return "on_market";
+    } else if (off) {
+      return "off_market";
+    } else {
+      return null;
+    }
+  }
   return {
     ...Object.fromEntries(
       unknownPlanFields.split(/\s+/).map((key) => [key, null]),
@@ -139,16 +156,7 @@ export function mapPlan(
     level: view.metal.toLowerCase().replaceAll(" ", "_"),
     on_market: on,
     off_market: off,
-    plan_market:
-      on === null || off === null
-        ? null
-        : on && off
-          ? "both"
-          : on
-            ? "on_market"
-            : off
-              ? "off_market"
-              : null,
+    plan_market: marketplaceAvailability(),
     service_area_id:
       serviceAreaId === null
         ? null

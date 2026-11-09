@@ -167,39 +167,53 @@ export async function importRxnorm(
         "RXNREL.RRF",
         "RXNSAT.RRF",
       ] as RrfFile[]) {
-        const table =
-          name === "RXNCONSO.RRF"
-            ? "rx_concept"
-            : name === "RXNREL.RRF"
-              ? "rx_relation"
-              : "rx_ndc";
-        const columns =
-          name === "RXNCONSO.RRF"
-            ? [
-                "snapshot_id",
-                "rxcui",
-                "rxaui",
-                "name",
-                "tty",
-                "suppress",
-                "source_record",
-              ]
-            : name === "RXNREL.RRF"
-              ? [
-                  "snapshot_id",
-                  "source_rxcui",
-                  "target_rxcui",
-                  "rela",
-                  "suppress",
-                  "source_record",
-                ]
-              : ["snapshot_id", "rxcui", "ndc", "suppress", "source_record"];
-        const filter =
-          name === "RXNCONSO.RRF"
-            ? ""
-            : name === "RXNREL.RRF"
-              ? "WHERE EXISTS(SELECT 1 FROM rx_concept c WHERE c.snapshot_id=v.snapshot_id AND c.rxcui=v.source_rxcui) AND EXISTS(SELECT 1 FROM rx_concept c WHERE c.snapshot_id=v.snapshot_id AND c.rxcui=v.target_rxcui)"
-              : "WHERE EXISTS(SELECT 1 FROM rx_concept c WHERE c.snapshot_id=v.snapshot_id AND c.rxcui=v.rxcui)";
+        let table;
+        if (name === "RXNCONSO.RRF") {
+          table = "rx_concept";
+        } else if (name === "RXNREL.RRF") {
+          table = "rx_relation";
+        } else {
+          table = "rx_ndc";
+        }
+        let columns;
+        if (name === "RXNCONSO.RRF") {
+          columns = [
+            "snapshot_id",
+            "rxcui",
+            "rxaui",
+            "name",
+            "tty",
+            "suppress",
+            "source_record",
+          ];
+        } else if (name === "RXNREL.RRF") {
+          columns = [
+            "snapshot_id",
+            "source_rxcui",
+            "target_rxcui",
+            "rela",
+            "suppress",
+            "source_record",
+          ];
+        } else {
+          columns = [
+            "snapshot_id",
+            "rxcui",
+            "ndc",
+            "suppress",
+            "source_record",
+          ];
+        }
+        let filter;
+        if (name === "RXNCONSO.RRF") {
+          filter = "";
+        } else if (name === "RXNREL.RRF") {
+          filter =
+            "WHERE EXISTS(SELECT 1 FROM rx_concept c WHERE c.snapshot_id=v.snapshot_id AND c.rxcui=v.source_rxcui) AND EXISTS(SELECT 1 FROM rx_concept c WHERE c.snapshot_id=v.snapshot_id AND c.rxcui=v.target_rxcui)";
+        } else {
+          filter =
+            "WHERE EXISTS(SELECT 1 FROM rx_concept c WHERE c.snapshot_id=v.snapshot_id AND c.rxcui=v.rxcui)";
+        }
         const batch: unknown[][] = [];
         let line = 0;
         for await (const fields of rrfRecords(input(name), name)) {

@@ -63,12 +63,15 @@ export async function dataAvailability(
     );
     const hasGeography =
       geo !== undefined && geo.county_areas + geo.zip3_areas > 0;
-    result.premium_status =
-      rule?.method === "per_member" && evidence.medical_plans > 0
-        ? evidence.rate_rows > 0 && hasGeography
-          ? "available"
-          : "unknown"
-        : "unsupported";
+    if (rule?.method === "per_member" && evidence.medical_plans > 0) {
+      if (evidence.rate_rows > 0 && hasGeography) {
+        result.premium_status = "available";
+      } else {
+        result.premium_status = "unknown";
+      }
+    } else {
+      result.premium_status = "unsupported";
+    }
     return {
       ...result,
       rate_snapshot_id: evidence.snapshot_id,

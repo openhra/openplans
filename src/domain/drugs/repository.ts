@@ -136,15 +136,19 @@ export async function drugCoverage(
   const flags = (
     key: "prior_authorization" | "step_therapy" | "quantity_limit",
   ) => evidence.map((row) => row[key]).find((value) => value !== null) ?? null;
+  function coverageReason() {
+    if (status === "unknown") {
+      return "source_set_incomplete";
+    } else if (status === "conflicting") {
+      return "conflicting_source_records";
+    } else {
+      return null;
+    }
+  }
   return {
     ...result,
     status,
-    reason:
-      status === "unknown"
-        ? "source_set_incomplete"
-        : status === "conflicting"
-          ? "conflicting_source_records"
-          : null,
+    reason: coverageReason(),
     evidence,
     ...(evidence.length && status !== "conflicting"
       ? {

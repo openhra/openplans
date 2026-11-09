@@ -133,14 +133,21 @@ export async function findProviders(
       next_page: null,
       meta: { unlocated: null, origin: q.origin ?? null },
     };
+  function providerSearchStatus() {
+    if (q.plan) {
+      if (coverage?.status === "complete") {
+        return "available";
+      } else {
+        return "unknown";
+      }
+    } else {
+      return "available";
+    }
+  }
   return {
     warnings:
       q.plan && coverage?.status !== "complete" ? ["SOURCE_INCOMPLETE"] : [],
-    status: q.plan
-      ? coverage?.status === "complete"
-        ? "available"
-        : "unknown"
-      : "available",
+    status: providerSearchStatus(),
     requested_plan_id: params.plan_id ?? null,
     base_hios_id: q.plan ?? null,
     plan_year: q.year ?? null,

@@ -146,13 +146,16 @@ describe("FL and NC statewide geocoding", () => {
           )) {
             const id = record.fields[0],
               index = Number(record.fields[1]!.split(" ")[0]);
-            lines.push(
-              index === 0
-                ? `"${id}","synthetic","Match","Exact","0 SYNTHETIC TEST, ${scope.city}, ${state}, ${scope.zip}","${scope.lon},${scope.lat}","1","L"`
-                : index === 1
-                  ? `"${id}","synthetic","Match","Exact","1 SYNTHETIC TEST, HOUSTON, TX, 77002","-95.37,29.76","1","L"`
-                  : `"${id}","synthetic","${index === 2 ? "Tie" : "No_Match"}"`,
-            );
+            function censusResultRow() {
+              if (index === 0) {
+                return `"${id}","synthetic","Match","Exact","0 SYNTHETIC TEST, ${scope.city}, ${state}, ${scope.zip}","${scope.lon},${scope.lat}","1","L"`;
+              } else if (index === 1) {
+                return `"${id}","synthetic","Match","Exact","1 SYNTHETIC TEST, HOUSTON, TX, 77002","-95.37,29.76","1","L"`;
+              } else {
+                return `"${id}","synthetic","${index === 2 ? "Tie" : "No_Match"}"`;
+              }
+            }
+            lines.push(censusResultRow());
           }
           return { file: await h.file(lines.join("\n") + "\n"), requests: 1 };
         };

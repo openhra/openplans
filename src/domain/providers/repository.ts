@@ -154,16 +154,20 @@ export async function providerParticipation(
       : []),
     ...(availability?.status !== "complete" ? ["SOURCE_INCOMPLETE"] : []),
   ];
+  function participationReason() {
+    if (status === "unknown") {
+      return availability?.reason ?? "source_set_incomplete";
+    } else if (status === "conflicting") {
+      return "conflicting_source_records";
+    } else {
+      return null;
+    }
+  }
   return {
     ...result,
     status,
     evidence,
     warnings,
-    reason:
-      status === "unknown"
-        ? (availability?.reason ?? "source_set_incomplete")
-        : status === "conflicting"
-          ? "conflicting_source_records"
-          : null,
+    reason: participationReason(),
   };
 }

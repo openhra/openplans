@@ -71,11 +71,14 @@ export function checkDentalRow(expected, rows, rules, rate = dentalPremium) {
       expected.market,
     );
     const supported = !unsupportedMembership(expected, members, rules);
-    const wantStatus = !supported
-      ? "unsupported_rating_method"
-      : cents === null
-        ? "unknown"
-        : "rated";
+    let wantStatus;
+    if (!supported) {
+      wantStatus = "unsupported_rating_method";
+    } else if (cents === null) {
+      wantStatus = "unknown";
+    } else {
+      wantStatus = "rated";
+    }
     const match =
       result.status === wantStatus &&
       result.totalCents === (supported ? cents : null) &&
@@ -126,12 +129,14 @@ export function checkDentalRow(expected, rows, rules, rate = dentalPremium) {
         );
     }
   } else {
-    const ages =
-      expected.age === "0-14"
-        ? Array.from({ length: 15 }, (_, i) => i)
-        : expected.age === "64 and over"
-          ? [64, 65, 80, 120]
-          : [Number(expected.age)];
+    let ages;
+    if (expected.age === "0-14") {
+      ages = Array.from({ length: 15 }, (_, i) => i);
+    } else if (expected.age === "64 and over") {
+      ages = [64, 65, 80, 120];
+    } else {
+      ages = [Number(expected.age)];
+    }
     for (const age of ages)
       for (const tobacco of [false, true])
         for (const date of new Set([expected.effective, expected.expiration])) {

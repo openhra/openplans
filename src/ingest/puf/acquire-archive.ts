@@ -173,11 +173,14 @@ export async function inspectPufArchive(
     const offsets = await memberOffsets(file, inspection.members.length);
     const members: AcquiredMember[] = [];
     for (const member of inspection.members) {
-      const format = /\.csv$/i.test(member.name)
-        ? "csv"
-        : /\.xlsx$/i.test(member.name)
-          ? "xlsx"
-          : "other";
+      let format: AcquiredMember["format"];
+      if (/\.csv$/i.test(member.name)) {
+        format = "csv";
+      } else if (/\.xlsx$/i.test(member.name)) {
+        format = "xlsx";
+      } else {
+        format = "other";
+      }
       const header =
         format === "csv"
           ? await csvHeader(path, file, member, offsets.get(member.name)!)

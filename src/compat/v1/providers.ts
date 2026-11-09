@@ -9,7 +9,40 @@ import {
 import * as v from "../../api/validation.js";
 import { zipCentroid } from "../../domain/geo/index.js";
 
-type Row = Record<string, any>;
+interface ProviderAddress extends Record<string, unknown> {
+  distance_miles?: number | null;
+}
+interface ProviderTaxonomy extends Record<string, unknown> {
+  code?: string;
+  taxonomy_status?: string;
+  taxonomy_display_name?: string | null;
+  specialization?: string | null;
+  classification?: string | null;
+}
+interface ProviderRecord extends Record<string, unknown> {
+  npi?: string | null;
+  addresses: ProviderAddress[];
+  taxonomy?: ProviderTaxonomy[];
+  specialties?: string[];
+  warnings?: string[];
+  distance_miles?: number | null;
+}
+interface ProviderSearchResponse {
+  providers: ProviderRecord[];
+  status?: string;
+  reason?: string;
+  warnings?: string[];
+  next_page?: number | null;
+  meta?: { origin?: { method?: string } | null; unlocated?: number | null };
+}
+interface ProviderDetailResponse {
+  identity: ProviderRecord | null;
+  issuer_records: ProviderRecord[];
+  plan_participations: unknown;
+  provider_coverage: unknown;
+}
+type ProviderLocation = ReturnType<typeof providerLocation>;
+type ProviderTrace = ReturnType<typeof providerTrace>;
 const PROVIDER_GAPS = [
   "vendor_provider_and_specialty_ids_unavailable",
   "provider_metadata_limited_to_native_evidence",
@@ -20,12 +53,14 @@ const header = (
   c: { header(name: string, value: string): void },
   reasons: Iterable<string>,
 ) => c.header("x-openplans-gaps", [...new Set(reasons)].join(", "));
-function paging(body: Row, fallback = 10) {
+function paging(body: Record<string, unknown>, fallback = 10) {
   const page = body.page ?? 1,
     size = body.per_page ?? fallback;
   if (
+    typeof page !== "number" ||
     !Number.isSafeInteger(page) ||
     page < 1 ||
+    typeof size !== "number" ||
     !Number.isSafeInteger(size) ||
     size < 1 ||
     size > 1000 ||
@@ -39,7 +74,7 @@ function text(value: unknown, field: string): string {
     return v.fail(field);
   return value.trim();
 }
-const addressKey = (a: Row) =>
+const addressKey = (a: ProviderAddress) =>
   JSON.stringify(
     [
       a.line_1 ?? a.address,
@@ -55,100 +90,127 @@ const addressKey = (a: Row) =>
     ),
   );
 
-function primaryTaxonomy(row: Row): Row | undefined {
-  return row.taxonomy?.find((t: Row) => t.is_primary) ?? row.taxonomy?.[0];
+function primaryTaxonomy(row: ProviderRecord): ProviderTaxonomy | undefined {
+  return row.taxonomy?.find((t) => t.is_primary) ?? row.taxonomy?.[0];
 }
-function taxonomyName(t: Row | undefined) {
+function taxonomyName(t: ProviderTaxonomy | undefined) {
   return t?.taxonomy_status === "known"
     ? (t.taxonomy_display_name ?? null)
     : null;
 }
-function taxonomyGaps(rows: Row[]) {
+function taxonomyGaps(rows: ProviderRecord[]) {
   return rows.some((row) => !taxonomyName(primaryTaxonomy(row)))
     ? ["specialty_descriptions_unavailable"]
     : [];
 }
 
+function providerTrace(record: ProviderRecord, address: ProviderAddress) {
+  return {
+    record_id: record.record_id,
+    snapshot_id: record.snapshot_id,
+    source_record: record.source_record ?? null,
+    source_set_id: record.source_set_id ?? null,
+    raw_snapshot_id: record.raw_snapshot_id ?? null,
+    source_url: record.source_url ?? null,
+    nppes_snapshot_id: record.nppes_snapshot_id ?? null,
+    source_updated_at: record.source_updated_at ?? null,
+    retrieved_at: record.retrieved_at ?? null,
+    publisher_updated_at: record.publisher_updated_at ?? null,
+    address,
+    participation: record.participation ?? "not_evaluated",
+    participation_scope: record.participation_scope ?? null,
+    evidence: record.evidence ?? record.plan_participations ?? [],
+  };
+}
+function providerLocation(
+  record: ProviderRecord,
+  address: ProviderAddress,
+  trace: ProviderTrace,
+) {
+  const name = (
+    record.name && typeof record.name === "object" ? record.name : {}
+  ) as Record<string, unknown>;
+  const taxonomy = primaryTaxonomy(record),
+    known = taxonomy?.taxonomy_status === "known";
+  const individual = record.type
+    ? record.type === "INDIVIDUAL"
+    : record.entity_type === "1";
+  const first = record.first_name ?? name.first ?? null,
+    last = record.last_name ?? name.last ?? null;
+  const organization =
+    record.organization_name ??
+    record.facility_name ??
+    record.group_name ??
+    null;
+  return {
+    id: record.npi ? Number(record.npi) : null,
+    npis: record.npi ? [Number(record.npi)] : [],
+    type: individual ? "individual" : "organization",
+    first_name: first,
+    last_name: last,
+    middle_name: record.middle_name ?? name.middle ?? null,
+    organization_name: organization,
+    presentation_name: individual
+      ? [first, last].filter(Boolean).join(" ") || null
+      : organization,
+    doing_business_as_name: null,
+    gender: null,
+    suffix: record.name_suffix ?? null,
+    title: record.name_prefix ?? null,
+    credentials: record.credential ? [record.credential] : [],
+    specialty:
+      record.specialties?.join(", ") ||
+      taxonomyName(taxonomy) ||
+      taxonomy?.code ||
+      null,
+    npi_specialty: {
+      id: taxonomy?.code ?? null,
+      taxonomy_code: taxonomy?.code ?? null,
+      name: taxonomyName(taxonomy),
+      display_name: taxonomyName(taxonomy),
+      taxonomy_source: known ? "nucc" : "nppes_code_only",
+      sub_specialty: known ? (taxonomy.specialization ?? null) : null,
+    },
+    city: address.city ?? null,
+    state: address.state ?? null,
+    state_id: null,
+    street_line_1: address.line_1 ?? address.address ?? null,
+    street_line_2: address.line_2 ?? address.address_2 ?? null,
+    zip_code: address.zip ?? address.zip5 ?? null,
+    phone: address.phone ?? null,
+    latitude: address.latitude ?? null,
+    longitude: address.longitude ?? null,
+    distance_miles: address.distance_miles ?? record.distance_miles ?? null,
+    provenance: [trace],
+  };
+}
+
 /** Dedupe the wire location, retaining every contributing record and edge separately. */
-export function mapProviders(records: Row[]) {
-  const merged = new Map<string, Row>();
-  for (const row of records)
-    for (const a of row.addresses.length ? row.addresses : [{}]) {
-      const key = `${row.npi ?? `${row.snapshot_id}:${row.record_id}`}|${addressKey(a)}`;
+export function mapProviders(records: ProviderRecord[]) {
+  const merged = new Map<string, ProviderLocation>();
+  for (const record of records)
+    for (const address of record.addresses.length ? record.addresses : [{}]) {
+      const key = `${record.npi ?? `${record.snapshot_id}:${record.record_id}`}|${addressKey(address)}`;
       const existing = merged.get(key);
-      const trace = {
-        record_id: row.record_id,
-        snapshot_id: row.snapshot_id,
-        source_record: row.source_record ?? null,
-        source_set_id: row.source_set_id ?? null,
-        raw_snapshot_id: row.raw_snapshot_id ?? null,
-        source_url: row.source_url ?? null,
-        nppes_snapshot_id: row.nppes_snapshot_id ?? null,
-        source_updated_at: row.source_updated_at ?? null,
-        retrieved_at: row.retrieved_at ?? null,
-        publisher_updated_at: row.publisher_updated_at ?? null,
-        address: a,
-        participation: row.participation ?? "not_evaluated",
-        participation_scope: row.participation_scope ?? null,
-        evidence: row.evidence ?? row.plan_participations ?? [],
-      };
+      const trace = providerTrace(record, address);
       if (existing) {
         existing.provenance.push(trace);
         continue;
       }
-      const name = row.name && typeof row.name === "object" ? row.name : {};
-      const taxonomy = primaryTaxonomy(row),
-        known = taxonomy?.taxonomy_status === "known";
-      const individual = row.type
-        ? row.type === "INDIVIDUAL"
-        : row.entity_type === "1";
-      const first = row.first_name ?? name.first ?? null,
-        last = row.last_name ?? name.last ?? null;
-      const organization =
-        row.organization_name ?? row.facility_name ?? row.group_name ?? null;
-      merged.set(key, {
-        id: row.npi ? Number(row.npi) : null,
-        npis: row.npi ? [Number(row.npi)] : [],
-        type: individual ? "individual" : "organization",
-        first_name: first,
-        last_name: last,
-        middle_name: row.middle_name ?? name.middle ?? null,
-        organization_name: organization,
-        presentation_name: individual
-          ? [first, last].filter(Boolean).join(" ") || null
-          : organization,
-        doing_business_as_name: null,
-        gender: null,
-        suffix: row.name_suffix ?? null,
-        title: row.name_prefix ?? null,
-        credentials: row.credential ? [row.credential] : [],
-        specialty:
-          row.specialties?.join(", ") ||
-          taxonomyName(taxonomy) ||
-          taxonomy?.code ||
-          null,
-        npi_specialty: {
-          id: taxonomy?.code ?? null,
-          taxonomy_code: taxonomy?.code ?? null,
-          name: taxonomyName(taxonomy),
-          display_name: taxonomyName(taxonomy),
-          taxonomy_source: known ? "nucc" : "nppes_code_only",
-          sub_specialty: known ? (taxonomy.specialization ?? null) : null,
-        },
-        city: a.city ?? null,
-        state: a.state ?? null,
-        state_id: null,
-        street_line_1: a.line_1 ?? a.address ?? null,
-        street_line_2: a.line_2 ?? a.address_2 ?? null,
-        zip_code: a.zip ?? a.zip5 ?? null,
-        phone: a.phone ?? null,
-        latitude: a.latitude ?? null,
-        longitude: a.longitude ?? null,
-        distance_miles: a.distance_miles ?? row.distance_miles ?? null,
-        provenance: [trace],
-      });
+      merged.set(key, providerLocation(record, address, trace));
     }
   return [...merged.values()];
+}
+
+export function providerDetailResponse(provider: Record<string, unknown>) {
+  return {
+    ...provider,
+    // Record-level participation does not crosswalk external networks or
+    // establish address-level membership. The native trace remains available.
+    networks: [],
+    network_ids: [],
+    hios_ids: [],
+  };
 }
 
 export function providerCompatRoutes(db: SqlSession, native: Hono) {
@@ -160,7 +222,7 @@ export function providerCompatRoutes(db: SqlSession, native: Hono) {
       onError: (c) => c.json({ error: "Request too large" }, 400),
     }),
     async (c) => {
-      let body: Row;
+      let body: Record<string, unknown>;
       try {
         body = await c.req.json();
       } catch {
@@ -205,13 +267,15 @@ export function providerCompatRoutes(db: SqlSession, native: Hono) {
       }
       if (
         body.type !== undefined &&
-        !["individual", "organization"].includes(body.type)
+        (typeof body.type !== "string" ||
+          !["individual", "organization"].includes(body.type))
       )
         return v.fail("type");
       if (body.type === "individual") params.set("type", "individual");
       if (
         body.sort !== undefined &&
-        !["distance", "name", "-distance", "-name"].includes(body.sort)
+        (typeof body.sort !== "string" ||
+          !["distance", "name", "-distance", "-name"].includes(body.sort))
       )
         return v.fail("sort");
       if (
@@ -277,13 +341,13 @@ export function providerCompatRoutes(db: SqlSession, native: Hono) {
           }
         }
       }
-      const rows: Row[] = [];
-      let origin: Row | null = null;
+      const rows: ProviderRecord[] = [];
+      let origin: { method?: string } | null = null;
       for (let page = 1; ; page++) {
         params.set("page", String(page));
         const response = await native.request(`/providers?${params}`);
         if (!response.ok) return response;
-        const result = (await response.json()) as Row;
+        const result = (await response.json()) as ProviderSearchResponse;
         origin = result.meta?.origin ?? null;
         if (origin?.method === "zcta_centroid")
           reasons.add("provider_origin_zip_centroid_approximate");
@@ -293,7 +357,7 @@ export function providerCompatRoutes(db: SqlSession, native: Hono) {
         if (result.meta?.unlocated)
           reasons.add("provider_unlocated_addresses_excluded");
         if (
-          result.providers.some((r: Row) =>
+          result.providers.some((r: ProviderRecord) =>
             r.warnings?.includes("UNRESOLVED_NETWORK_TIER"),
           )
         )
@@ -304,7 +368,7 @@ export function providerCompatRoutes(db: SqlSession, native: Hono) {
       if (
         rows.some((r) =>
           r.addresses.some(
-            (a: Row) =>
+            (a: ProviderAddress) =>
               a.method === "zcta_centroid" || a.precision === "approximate",
           ),
         )
@@ -346,17 +410,19 @@ export function providerCompatRoutes(db: SqlSession, native: Hono) {
       `/providers/${encodeURIComponent(c.req.param("npi"))}?${params}`,
     );
     if (!response.ok) return response;
-    const result = (await response.json()) as Row,
-      identity = result.identity ?? {};
-    const rows = result.issuer_records.map((r: Row) => ({
-      ...identity,
-      ...r,
-      nppes_snapshot_id: identity.snapshot_id ?? null,
-      taxonomy: identity.taxonomy,
-      specialties: [r.speciality ?? r.specialty]
-        .flat()
-        .filter((s: unknown) => typeof s === "string"),
-    }));
+    const result = (await response.json()) as ProviderDetailResponse,
+      identity = (result.identity ?? {}) as ProviderRecord;
+    const rows: ProviderRecord[] = result.issuer_records.map(
+      (r: ProviderRecord) => ({
+        ...identity,
+        ...r,
+        nppes_snapshot_id: identity.snapshot_id ?? null,
+        taxonomy: identity.taxonomy,
+        specialties: [r.speciality ?? r.specialty]
+          .flat()
+          .filter((s: unknown) => typeof s === "string"),
+      }),
+    );
     if (identity.npi)
       rows.push({
         ...identity,
@@ -368,21 +434,22 @@ export function providerCompatRoutes(db: SqlSession, native: Hono) {
       ...PROVIDER_GAPS,
       ...taxonomyGaps(rows),
       "provider_detail_coordinates_unavailable",
+      "provider_network_crosswalk_unavailable",
     ]);
     return c.json({
-      provider: {
+      provider: providerDetailResponse({
         ...locations[0],
         locations,
         plan_participations: result.plan_participations,
         provider_coverage: result.provider_coverage,
-      },
+      }),
     });
   });
   app.get("/specialties", async (c) => {
     const taxonomy = await taxonomyRelation(db);
     // Mirror native taxonomy enrichment, including its explicit unknown-code status.
     const { rows } =
-      await db.query<Row>(`SELECT DISTINCT t.code,nt.display_name AS taxonomy_display_name,
+      await db.query<ProviderTaxonomy>(`SELECT DISTINCT t.code,nt.display_name AS taxonomy_display_name,
       nt.classification,nt.specialization,CASE WHEN nt.code IS NULL THEN 'unknown_code' ELSE 'known' END AS taxonomy_status
       FROM npi_taxonomy t JOIN npi_provider n ON n.npi=t.npi
       LEFT JOIN ${taxonomy} nt ON nt.code=t.code WHERE n.in_scope ORDER BY t.code`);

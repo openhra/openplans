@@ -4,6 +4,7 @@ import {
   premiumAttributeRows,
 } from "../api/repository.js";
 import { communityFamilyPremium } from "../domain/rating/index.js";
+import { medicalTobaccoPolicy } from "../domain/rating/medical-policy.js";
 import {
   catalogRule,
   stateCatalog,
@@ -113,6 +114,13 @@ export async function ratePremium(
     ? dentalRatingRule(plan.state, plan.plan_year, plan.market)
     : await ratingRule(db, plan.state, plan.plan_year, plan.market);
   const files = await snapshots(db, plan);
+  const tobaccoPolicy = medicalTobaccoPolicy({
+    state: plan.state,
+    planYear: plan.plan_year,
+    market: plan.market,
+    dentalOnly: plan.dental_only,
+    coverageStartDate: request.coverage,
+  });
   const trace = {
     plan_id: requestedId,
     base_plan_id: plan.base_plan_id,
@@ -122,7 +130,11 @@ export async function ratePremium(
     period: "month",
     coverage: plan.dental_only ? ("dental" as const) : ("medical" as const),
     bindable_quote: false as const,
-    provenance: { snapshot_ids: files, rating_rule: rule },
+    provenance: {
+      snapshot_ids: files,
+      rating_rule: rule,
+      ...(tobaccoPolicy ? { tobacco_policy: tobaccoPolicy } : {}),
+    },
   };
   const failure = (
     status: "unsupported_rating_method" | "missing" | "ambiguous" | "unknown",
@@ -237,6 +249,7 @@ export async function ratePremium(
         plan.base_plan_id,
         area.rating_area_id,
         household,
+        tobaccoPolicy?.policy,
       );
   if (result.status === "unsupported_rating_method")
     return failure(
@@ -249,22 +262,35 @@ export async function ratePremium(
   const hasPediatric = request.members.some(
     (m) => (m.age ?? ageOnDate(m.dateOfBirth!, request.coverage)) < 19,
   );
-  const pediatricGross =
-    result.status !== "rated"
-      ? null
-      : !hasPediatric
-        ? 0
-        : result.ratingMethod === "family_tier"
-          ? null
-          : result.members
-              .filter((m) => m.age < 19)
-              .reduce((sum, m) => checkedCents(sum + m.premiumCents!), 0);
-  const pediatricCents =
-    pediatricGross === null
-      ? null
-      : pediatricGross === 0
-        ? 0
-        : allocatePremium(pediatricGross, fraction);
+  let pediatricGross: number | null;
+  if (result.status !== "rated") {
+    pediatricGross = null;
+  } else if (!hasPediatric) {
+    pediatricGross = 0;
+  } else if (result.ratingMethod === "family_tier") {
+    pediatricGross = null;
+  } else {
+    pediatricGross = result.members
+      .filter((m) => m.age < 19)
+      .reduce((sum, m) => checkedCents(sum + m.premiumCents!), 0);
+  }
+  let pediatricCents;
+  if (pediatricGross === null) {
+    pediatricCents = null;
+  } else if (pediatricGross === 0) {
+    pediatricCents = 0;
+  } else {
+    pediatricCents = allocatePremium(pediatricGross, fraction);
+  }
+  function pediatricAdjustmentReason() {
+    if (result.status !== "rated") {
+      return "PREMIUM_NOT_RATED";
+    } else if (pediatricGross === null) {
+      return "FAMILY_TIER_PEDIATRIC_ALLOCATION_UNPROVED";
+    } else {
+      return "EHB_FRACTION_MISSING_OR_CONFLICTING";
+    }
+  }
   return {
     householdPremium: result,
     estimate: {
@@ -298,12 +324,7 @@ export async function ratePremium(
               field: "EHBPediatricDentalApportionmentQuantity",
               ...(pediatricCents === null
                 ? {
-                    reason:
-                      result.status !== "rated"
-                        ? "PREMIUM_NOT_RATED"
-                        : pediatricGross === null
-                          ? "FAMILY_TIER_PEDIATRIC_ALLOCATION_UNPROVED"
-                          : "EHB_FRACTION_MISSING_OR_CONFLICTING",
+                    reason: pediatricAdjustmentReason(),
                   }
                 : {}),
               citation: DENTAL_REFERENCES.attributeDictionary,

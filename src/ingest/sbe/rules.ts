@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { ingestRatingRules } from "../rating-rules/index.js";
 import type { Database } from "../../db/database.js";
+import { CA_INDIVIDUAL_TOBACCO_POLICY } from "../../domain/rating/medical-policy.js";
 
 export const supportedSbeStates = [
   "CA",
@@ -41,7 +42,10 @@ export async function sbeRulesFile(
         state,
         market: "individual",
         method: "per_member",
-        citation: `${state}: CMS Market Rating Reforms individual-market state row; 45 CFR 147.102(c)(1), (d), (e), current through 2026-11-05; PY2026 reviewed 2026-11-08. Use each filed age/area/date/tobacco row verbatim, never an inferred curve. Family tiers and composite rows require a separate adapter.`,
+        citation:
+          state === CA_INDIVIDUAL_TOBACCO_POLICY.state
+            ? CA_INDIVIDUAL_TOBACCO_POLICY.provenance.citation
+            : `${state}: CMS Market Rating Reforms individual-market state row; 45 CFR 147.102(c)(1), (d), (e), current through 2026-11-05; PY2026 reviewed 2026-11-08. Use each filed age/area/date/tobacco row verbatim, never an inferred curve. Family tiers and composite rows require a separate adapter.`,
         references: [
           "https://www.cms.gov/cciio/programs-and-initiatives/health-insurance-market-reforms/state-rating",
           "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-B/part-147/section-147.102",

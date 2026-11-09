@@ -19,8 +19,8 @@ export interface StoredOperatorPoint extends OperatorPoint {
   bounds_snapshot_id: string;
 }
 async function storePath(root: string): Promise<string> {
-  let absolute = resolve(root),
-    missing: string[] = [];
+  let absolute = resolve(root);
+  const missing: string[] = [];
   for (;;) {
     try {
       absolute = join(await realpath(absolute), ...missing.reverse());

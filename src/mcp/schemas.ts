@@ -16,6 +16,7 @@ const planKey = z
   .string()
   .min(4)
   .max(217)
+  // eslint-disable-next-line no-control-regex -- Control characters must be rejected at this boundary.
   .regex(/^[A-Z][A-Z0-9]{1,15}:[^\u0000-\u001f]{1,200}$/);
 export const planRefSchema = z.union([hios, planKey]);
 const npi = z.string().regex(/^[12]\d{9}$/),

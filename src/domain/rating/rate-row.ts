@@ -172,7 +172,14 @@ export function selectRateRow(
   const unsupported = applicable.filter(isUnsupported);
   if (unsupported.length)
     return { status: "unsupported_rating_method", rows: unsupported };
-  const band = age <= 14 ? "0-14" : age >= 64 ? "64 and over" : age;
+  let band;
+  if (age <= 14) {
+    band = "0-14";
+  } else if (age >= 64) {
+    band = "64 and over";
+  } else {
+    band = age;
+  }
   const matches = applicable.filter(
     (row) => row.age === band && matchesTobacco(row, tobacco),
   );

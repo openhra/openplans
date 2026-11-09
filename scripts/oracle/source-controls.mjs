@@ -4,8 +4,8 @@ import { replaceSyntax } from "../source-mutation.mjs";
 export const sourceControls = {
   dental: {
     path: "domain/rating/dental",
-    before: "dependents === 2 ? 'TwoDependents'",
-    after: "dependents === 2 ? 'ThreeOrMoreDependents'",
+    before: "suffix = 'TwoDependents';",
+    after: "suffix = 'ThreeOrMoreDependents';",
   },
   csr: {
     path: "api/validation",
@@ -26,14 +26,14 @@ export const sourceControls = {
   },
   alaskaFpl: {
     path: "domain/subsidy/aptc",
-    before: "state === 'AK' ? 'alaska'",
-    after: "state === 'AK' ? 'contiguous'",
+    before: "region = 'alaska';",
+    after: "region = 'contiguous';",
   },
   zctaPriority: {
     path: "ingest/geo/repository",
-    before: "if (rows.length)",
+    before: "if (rows.length) return",
     after:
-      "const mutant = await fallbackCounties(db, zip, 'geonames'); if (mutant.length) return { zip, status: 'available', geography: 'postal_zip', source: 'geonames', counties: mutant }; if (rows.length)",
+      "const mutant = await fallbackCounties(db, zip, 'geonames'); if (mutant.length) return { zip, status: 'available', geography: 'postal_zip', source: 'geonames', counties: mutant }; if (rows.length) return",
   },
 };
 

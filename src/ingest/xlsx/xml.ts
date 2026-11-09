@@ -73,7 +73,14 @@ export async function* xmlTokens(
       // XML declarations and comments contain no data. Never accept DTD/entity declarations.
       const comment = pending.startsWith("<!--");
       const declaration = pending.startsWith("<?");
-      const terminator = comment ? "-->" : declaration ? "?>" : ">";
+      let terminator;
+      if (comment) {
+        terminator = "-->";
+      } else if (declaration) {
+        terminator = "?>";
+      } else {
+        terminator = ">";
+      }
       let end = -1;
       if (comment || declaration) end = pending.indexOf(terminator);
       else {
