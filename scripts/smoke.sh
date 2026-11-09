@@ -233,10 +233,10 @@ async function get(path) {
   assert.equal(response.status,200,path); return response.json();
 }
 async function quote(loc) {
-  const response=await fetch(base+'/v1/premium-estimates',{method:'POST',headers:{'content-type':'application/json',
+  const response=await fetch(base+'/v1/premium-quotes',{method:'POST',headers:{'content-type':'application/json',
     authorization:`Bearer ${process.env.OPENPLANS_API_TOKEN}`},body:JSON.stringify({zip:loc.zip,coverage_start:'2026-01-01',
     plan_ids:loc.samples.map(s=>s.raw.PlanId),members:[{age:40,tobacco:false,relationship:'subscriber'}]})});
-  assert.equal(response.status,200); return (await response.json()).estimates;
+  assert.equal(response.status,200); return (await response.json()).quotes;
 }
 function rawCheck(estimates,loc) {
   assert.equal(estimates.length,3);

@@ -181,7 +181,7 @@ export async function canonicalEstimateOutput(
       ...evidence,
     };
   });
-  return outputSchemas.estimate_premiums.parse({
+  return outputSchemas.quote_premiums.parse({
     schema_version: "1",
     status: "ok",
     data_generation: "fixture-generation",
@@ -191,6 +191,6 @@ export async function canonicalEstimateOutput(
     freshness: { checked_at: "2026-11-08T00:00:00Z", status: "current_local" },
     page: null,
     error: null,
-    data: { estimates, bindable_quote: false },
+    data: { quotes: estimates, bindable_quote: false },
   });
 }

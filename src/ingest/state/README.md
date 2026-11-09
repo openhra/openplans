@@ -150,7 +150,7 @@ imports cannot replace a valid source. `state_vt_hios_current` limits results to
 the current state-rate pointer and current SBE set. Re-importing the same inputs
 leaves the results unchanged for each import pair.
 
-Native plan views and estimates expose `hios_match`, `hios_candidates`, rule,
+Native plan views and quotes expose `hios_match`, `hios_candidates`, rule,
 reason and match provenance when there are candidate identities. With zero
 candidates the API keeps a stable `none` / `no_verified_hios_match` response and
 null match provenance, so an unrelated supplemental import cannot change it.
@@ -213,7 +213,7 @@ data directory and explicitly labels native HTTP checks as not run.
 
 Source acquisition was exercised over real anonymous HTTP, then the entire
 prepared corpus was staged with original-file hash checks in PGlite. Those are
-source/DB/domain checks, **not** a claim that native HTTP premium estimates work.
+source/DB/domain checks, **not** a claim that native HTTP premium quotes work.
 Native HTTP accepts VT's distinct `plan_keys` array and `/v1/plans` recognizes
 the active state catalog. New York retains its published HIOS base IDs; Vermont
 retains its named keys and supplements them only with evidenced HIOS matches.

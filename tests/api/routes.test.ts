@@ -35,7 +35,7 @@ const body = (extra = {}) => ({
 });
 async function estimate(payload: unknown = body(), session: SqlSession = db) {
   const response = await createApp(session, { premiumToken: TOKEN }).request(
-    "/v1/premium-estimates",
+    "/v1/premium-quotes",
     {
       method: "POST",
       headers: {
@@ -45,7 +45,10 @@ async function estimate(payload: unknown = body(), session: SqlSession = db) {
       body: JSON.stringify(payload),
     },
   );
-  return { response, json: (await response.json()) as any };
+  return {
+    response,
+    json: (await response.json()) as ReturnType<typeof JSON.parse>,
+  };
 }
 async function search(query = "zip=77002&year=2026", session: SqlSession = db) {
   const response = await createApp(session).request(`/v1/plans?${query}`);
@@ -123,11 +126,11 @@ describe("native v1 catalog, geography and provenance", () => {
     ).toBe(400);
     expect(
       (await estimate(body({ zip: "75034", county: undefined }))).json
-        .estimates[0],
+        .quotes[0],
     ).toMatchObject({ status: "ambiguous" });
     expect(
       (await estimate(body({ zip: "77001", county: undefined }))).json
-        .estimates[0],
+        .quotes[0],
     ).toMatchObject({ status: "unknown" });
   });
 
@@ -190,7 +193,7 @@ describe("native v1 catalog, geography and provenance", () => {
       expect(await listed("zip=77003&year=2026")).toBe(false);
       expect(await listed("county=48201&year=2026")).toBe(false);
       const premium = (await estimate(body({ zip: "77003" }), tx)).json
-        .estimates[0];
+        .quotes[0];
       expect(premium).toMatchObject({
         status: "missing",
         reason: "PLAN_NOT_OFFERED_IN_LOCATION",
@@ -272,7 +275,7 @@ describe("native v1 household gross premiums", () => {
   it("matches 87226TX0100013 age 35, Rating Area 10 = 52928 cents, with rate-row evidence", async () => {
     const { response, json } = await estimate();
     expect(response.status).toBe(200);
-    const result = json.estimates[0];
+    const result = json.quotes[0];
     expect(result).toMatchObject({
       status: "rated",
       total_cents: 52928,
@@ -293,7 +296,7 @@ describe("native v1 household gross premiums", () => {
         ],
       }),
     );
-    expect(dob.json.estimates[0].total_cents).toBe(52928);
+    expect(dob.json.quotes[0].total_cents).toBe(52928);
     expect(response.headers.get("cache-control")).toBe("no-store");
   });
 
@@ -318,7 +321,7 @@ describe("native v1 household gross premiums", () => {
         dataDir: mutantDirectory,
       });
       expect(imported.status).toBe("ACTIVE");
-      const result = (await estimate(body(), tx)).json.estimates[0];
+      const result = (await estimate(body(), tx)).json.quotes[0];
       expect(result.total_cents).toBe(52929);
       expect(() =>
         assert.equal(result.total_cents, 52928, "CMS/oracle exact-cent check"),
@@ -328,7 +331,9 @@ describe("native v1 household gross premiums", () => {
 
   it("uses the filed tobacco column, normalizes variant IDs and respects rate intervals", async () => {
     const variant = (
-      (await (await app.request(`/v1/plans/${PLAN}?year=2026`)).json()) as any
+      (await (
+        await app.request(`/v1/plans/${PLAN}?year=2026`)
+      ).json()) as ReturnType<typeof JSON.parse>
     ).variant_ids[0];
     const tobacco = (
       await estimate(
@@ -337,7 +342,7 @@ describe("native v1 household gross premiums", () => {
           members: [{ age: 35, tobacco: true, relationship: "subscriber" }],
         }),
       )
-    ).json.estimates[0];
+    ).json.quotes[0];
     expect(tobacco).toMatchObject({
       plan_id: variant,
       base_plan_id: PLAN,
@@ -350,16 +355,16 @@ describe("native v1 household gross premiums", () => {
         `UPDATE rate SET effective_date='2026-02-01',expiration_date='2026-06-30' WHERE snapshot_id=$1 AND base_plan_id=$2`,
         [rate, PLAN],
       );
-      expect((await estimate(body(), tx)).json.estimates[0]).toMatchObject({
+      expect((await estimate(body(), tx)).json.quotes[0]).toMatchObject({
         status: "missing",
       });
       expect(
         (await estimate(body({ coverage_start: "2026-02-01" }), tx)).json
-          .estimates[0],
+          .quotes[0],
       ).toMatchObject({ status: "rated", total_cents: 52928 });
       const expired = (
         await estimate(body({ coverage_start: "2026-07-01" }), tx)
-      ).json.estimates[0];
+      ).json.quotes[0];
       expect(expired.status).toBe("missing");
       expect(expired).not.toHaveProperty("total_cents");
     });
@@ -372,7 +377,7 @@ describe("native v1 household gross premiums", () => {
         `UPDATE rate SET rating_method='family_tier' WHERE snapshot_id=$1 AND base_plan_id=$2`,
         [rate, PLAN],
       );
-      const result = (await estimate(body(), tx)).json.estimates[0];
+      const result = (await estimate(body(), tx)).json.quotes[0];
       expect(result.status).toBe("unsupported_rating_method");
       expect(result).not.toHaveProperty("total_cents");
     });
@@ -385,7 +390,7 @@ describe("native v1 household gross premiums", () => {
     await writeFile(path, JSON.stringify(document));
     try {
       await ingestRatingRules(db, path);
-      const result = (await estimate()).json.estimates[0];
+      const result = (await estimate()).json.quotes[0];
       expect(result.status).toBe("unsupported_rating_method");
       expect(result).not.toHaveProperty("total_cents");
     } finally {
@@ -418,7 +423,7 @@ describe("native v1 household gross premiums", () => {
               }),
               tx,
             )
-          ).json.estimates[0];
+          ).json.quotes[0];
           expect(result.status).toBe("unsupported_rating_method");
           expect(result).not.toHaveProperty("total_cents");
           expect(result.members).toEqual([]);
@@ -437,7 +442,7 @@ describe("native v1 household gross premiums", () => {
           })),
         }),
       )
-    ).json.estimates[0];
+    ).json.quotes[0];
     expect(result.status).toBe("rated");
     expect(result.members[1]).toMatchObject({
       age: 10,
@@ -456,7 +461,7 @@ describe("native v1 household gross premiums", () => {
         `DELETE FROM rate WHERE snapshot_id=$1 AND base_plan_id=$2 AND age_band='35'`,
         [rate, PLAN],
       );
-      const result = (await estimate(body(), tx)).json.estimates[0];
+      const result = (await estimate(body(), tx)).json.quotes[0];
       expect(result.status).toBe("missing");
       expect(result).not.toHaveProperty("total_cents");
     });
@@ -465,7 +470,7 @@ describe("native v1 household gross premiums", () => {
         `UPDATE rate SET individual_rate_cents=NULL WHERE snapshot_id=$1 AND base_plan_id=$2 AND age_band='35'`,
         [rate, PLAN],
       );
-      const result = (await estimate(body(), tx)).json.estimates[0];
+      const result = (await estimate(body(), tx)).json.quotes[0];
       expect(result.status).toBe("unknown");
       expect(result).not.toHaveProperty("total_cents");
     });
@@ -474,14 +479,14 @@ describe("native v1 household gross premiums", () => {
         `UPDATE rate SET age_band='35',raw=jsonb_set(raw,'{Age}','"35"') WHERE snapshot_id=$1 AND base_plan_id=$2 AND age_band='36'`,
         [rate, PLAN],
       );
-      const result = (await estimate(body(), tx)).json.estimates[0];
+      const result = (await estimate(body(), tx)).json.quotes[0];
       expect(result.status).toBe("ambiguous");
       expect(result).not.toHaveProperty("total_cents");
     });
   });
 
   it("requires authentication and does not echo household details in errors", async () => {
-    const response = await app.request("/v1/premium-estimates", {
+    const response = await app.request("/v1/premium-quotes", {
       method: "POST",
       body: JSON.stringify(body()),
     });
@@ -489,7 +494,7 @@ describe("native v1 household gross premiums", () => {
     expect(await response.json()).toEqual({ error: { code: "UNAUTHORIZED" } });
     expect(
       (
-        await createApp(db, {}).request("/v1/premium-estimates", {
+        await createApp(db, {}).request("/v1/premium-quotes", {
           method: "POST",
         })
       ).status,
@@ -549,7 +554,7 @@ describe("native v1 household gross premiums", () => {
     expect(
       (await estimate(body({ plan_ids: ["99999TX0100001"] }))).response.status,
     ).toBe(404);
-    const malformed = await app.request("/v1/premium-estimates", {
+    const malformed = await app.request("/v1/premium-quotes", {
       method: "POST",
       headers: { authorization: `Bearer ${TOKEN}` },
       body: "{bad",

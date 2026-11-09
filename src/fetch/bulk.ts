@@ -6,6 +6,7 @@ import { pathToFileURL } from "node:url";
 import { z } from "zod";
 import { AdmissionSession } from "./admission.js";
 import type { AdmissionReceipt } from "./admission.js";
+import type { EgressReceipt } from "./egress.js";
 import { fetchToCache } from "./cache.js";
 import type { FetchOptions } from "./cache.js";
 import type { FetchEvidence } from "./errors.js";
@@ -63,6 +64,11 @@ export const bulkSpecSchema = z
       .max(20 * 1024 ** 3),
     maxRequests: z.number().int().positive().max(1000),
     wallSeconds: z.number().positive().max(86400),
+    /** Egress country recorded in receipts; required to admit a host whose robots file is absent. */
+    egressCountry: z
+      .string()
+      .regex(/^[A-Z]{2}$/)
+      .optional(),
   })
   .strict();
 export type BulkSpec = z.infer<typeof bulkSpecSchema>;
@@ -88,6 +94,8 @@ export interface BulkReport {
   state: "running" | "completed" | "stopped";
   startedAt: string;
   updatedAt: string;
+  /** The egress record the job ran under (`OPENPLANS_EGRESS_FILE`), or null without one. */
+  egress: EgressReceipt | null;
   items: Item[];
   error?: {
     code: string;
@@ -102,10 +110,14 @@ class TimedAdmission extends AdmissionSession {
     spec: BulkSpec,
     private readonly deadline: number,
   ) {
-    super(spec.admissionManifest, {
-      maxRequests: spec.maxRequests,
-      maxTransferBytes: spec.maxTransferBytes,
-    });
+    super(
+      spec.admissionManifest,
+      {
+        maxRequests: spec.maxRequests,
+        maxTransferBytes: spec.maxTransferBytes,
+      },
+      { egressCountry: spec.egressCountry },
+    );
   }
   checkTime(): void {
     if (Date.now() >= this.deadline) {
@@ -242,17 +254,19 @@ async function classifyPayload(
 export async function runBulk(input: unknown): Promise<BulkReport> {
   const spec = bulkSpecSchema.parse(input);
   const startedAt = new Date().toISOString();
+  // Built first: an egress record that is set but invalid, mismatched or stale refuses the job.
+  const admission = new TimedAdmission(
+    spec,
+    Date.now() + spec.wallSeconds * 1000,
+  );
   const report: BulkReport = {
     id: spec.id,
     state: "running",
     startedAt,
     updatedAt: startedAt,
+    egress: admission.egress?.receipt ?? null,
     items: [],
   };
-  const admission = new TimedAdmission(
-    spec,
-    Date.now() + spec.wallSeconds * 1000,
-  );
   await save(spec.reportPath, report);
   for (const target of spec.targets) {
     try {

@@ -16,7 +16,11 @@ COPY --from=build --chown=node:node /app/node_modules ./node_modules
 COPY --from=build --chown=node:node /app/dist ./dist
 COPY --chown=node:node migrations ./migrations
 COPY --chown=node:node data/rating-rules ./data/rating-rules
-RUN chmod +x dist/worker/cli.js dist/mcp/stdio.js \
+COPY --chown=node:node data/access ./data/access
+# The worker's cache root: raw/, reports/ and work/ are bind mounts below it, and admitted
+# collection keeps its per-host pacing leases in /data/access.
+RUN install -d -o node -g node /data \
+    && chmod +x dist/worker/cli.js dist/mcp/stdio.js \
     && ln -s /app/dist/worker/cli.js /usr/local/bin/worker \
     && ln -s /app/dist/mcp/stdio.js /usr/local/bin/openplans-mcp
 USER node

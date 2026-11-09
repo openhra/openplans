@@ -9,6 +9,7 @@ import { dataAvailability } from "./availability.js";
 import { compatRoutes } from "../compat/v1/index.js";
 import { createResponseCache } from "./cache/index.js";
 import type { ResponseCacheOptions } from "./cache/index.js";
+import { publicQuoteAdmission } from "./quotes.js";
 
 export function createApp(
   db: SqlSession,
@@ -17,6 +18,8 @@ export function createApp(
 ) {
   const app = new Hono();
   const cache = createResponseCache(db, options.premiumToken, cacheOptions);
+  // Admission precedes the cache so cached quotes count against the same limits.
+  app.use("/v1/quotes", ...publicQuoteAdmission(options));
   app.use("*", cache.middleware);
 
   app.get("/healthz", async (c) => {

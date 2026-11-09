@@ -1,0 +1,8 @@
+{
+  "reviewer": "OpenPlans maintainers",
+  "maxAgeDays": 90,
+  "previousRelease": {
+    "version": "v0.1.2",
+    "publishedAt": "2026-11-09T04:47:48Z"
+  }
+}

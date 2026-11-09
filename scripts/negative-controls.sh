@@ -11,19 +11,23 @@ scratch="$(mktemp -d "${TMPDIR:-/tmp}/openplans-negative.XXXXXX")"
 cleanup() { rm -rf "$scratch"; }
 trap cleanup EXIT
 cp package.json package-lock.json tsconfig*.json vitest.config.ts "$scratch/"
+# The copy runs the same format and lint gates, so it needs their configuration.
+cp .prettierignore .prettierrc.json .editorconfig eslint.config.mjs \
+  eslint-baseline.json eslint-suppressions.json "$scratch/"
 cp -R src migrations scripts tests "$scratch/"
 # Share only dependencies; the boundary checker deliberately rejects symlinks
 # outside the package except ignored generated node_modules.
 ln -s "$PWD/node_modules" "$scratch/node_modules"
 cat > "$scratch/tests/ci-mutant.test.ts" <<'EOF'
-import { it, expect } from 'vitest';
-it('deliberate CI negative control', () => expect(true).toBe(false));
+import { it, expect } from "vitest";
+it("deliberate CI negative control", () => expect(true).toBe(false));
 EOF
 set +e
 "$scratch/scripts/ci.sh" > "$scratch/ci.log" 2>&1
 code=$?
 set -e
-if [ "$code" -eq 0 ] || grep -qx 'PASS' "$scratch/ci.log"; then
+# Test output may contain bare PASS lines from fixtures; CI's own verdict is its last line.
+if [ "$code" -eq 0 ] || [ "$(tail -n 1 "$scratch/ci.log")" = 'PASS' ]; then
   echo 'FAIL: CI accepted deliberately failing test'
   exit 1
 fi

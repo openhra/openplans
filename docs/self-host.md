@@ -16,15 +16,21 @@ and loads Census/CMS geography. The API remains running after ingestion. Use
 years are currently supported. A state absent from the publication fails
 explicitly; it does not become an empty supported catalog.
 
+> **Public quoting is on by default.** Once the API runs, anyone who can reach it can
+> request quotes by age and ZIP (`POST /v1/quotes`, MCP `quote_plans`) without a token.
+> These quotes take no income or identity data. Set `OPENPLANS_PUBLIC_QUOTING=off` in
+> `.env` before starting the API if you do not want this. Household quotes with income
+> always need `OPENPLANS_API_TOKEN` or `OPENPLANS_MCP_TOKEN`.
+
 ## Options and completion
 
 | Option | Adds | Existing implementation limits |
 | --- | --- | --- |
 | No optional flags | Catalog, filed premiums, geography and bundled subsidy parameters | Public PUF coverage and cited state rules determine support. State exchanges need separate adapters. Subsidies remain conditional estimates. |
-| --with-drugs | Public RxNorm CPC, issuer discovery and all-readable formularies | Incomplete or blocked feeds stay unknown and can make the batch exit 1. |
-| --with-providers | NPPES full/weekly/deactivation codes, discovery and participation | NPPES memberships are state-scoped, so several states share one database (P6h); a step that would overwrite another state's rows still fails. |
-| --with-nucc-taxonomy | Optional NUCC specialty display names (also usable without --with-providers) | Explicit acceptance of operator responsibility for NUCC terms; commercial use requires a NUCC licence. |
-| --with-geocode | Provider inputs above, then incremental Census batch geocoding | Currently TX only. Other states fail explicitly; no TX points are substituted. |
+| --with-drugs | Public RxNorm CPC, issuer discovery and all-readable formularies | Cannot collect today. The RxNorm download host disallows automated access, so the rxnorm step fails with `admission_denied` (see [publisher access](#publisher-access)). Issuer feeds need operator manifests. Incomplete or blocked feeds stay unknown and can make the batch exit 1. |
+| --with-providers | NPPES full/weekly/deactivation codes, discovery and participation | NPPES works with the shipped manifests. Issuer discovery and participation need an operator manifest entry per issuer host. NPPES memberships are state-scoped, so several states share one database (P6h); a step that would overwrite another state's rows still fails. |
+| --with-nucc-taxonomy | Optional NUCC specialty display names (also usable without --with-providers) | Explicit acceptance of operator responsibility for NUCC terms; commercial use requires a NUCC licence. Also needs your own manifest entry for www.nucc.org. |
+| --with-geocode | Provider inputs above, then incremental Census batch geocoding | Cannot collect today. The county-bounds host rejects automated requests. The geocoder itself is shipped. TX, FL and NC only; other states fail explicitly and no points are substituted. |
 | --dry-run | Dependency plan and observed artifact sizes | No database, network, ingestion or writes. Unknown sizes stay unknown. |
 
 NUCC taxonomy is off by default, including with --with-providers or --with-geocode.
@@ -57,8 +63,12 @@ weekly file returned 404 in the recorded run; this fails its own step without
 discarding the monthly baseline or blocking deactivation.
 
 Each stdout line is JSON. Step results use completed, skipped or failed;
-dependency skips include reason=dependency_failed and blocked_by. The last line
-contains passed, failed, blocked and every step's elapsed milliseconds. Any
+dependency skips include reason=dependency_failed and blocked_by. A step that
+failed on a download carries `error` with the fetch code and message (for example
+`admission_denied`, "Path is outside the publisher's reviewed permitted paths")
+and uses the code as its reason. Access refusals add an `action` saying what to
+do. The last line contains passed, failed, blocked and every step's elapsed
+milliseconds, including those error fields. Any
 failure/block makes the CLI exit 1. Read the summary and /v1/data-availability
 before relying on coverage. Failed replacements preserve prior ACTIVE evidence.
 
@@ -77,6 +87,79 @@ Dry-run byte sizes describe artifacts from cache metadata, not incremental
 network traffic: shared national files can appear in several state/year steps,
 cache hits need no download, and new issuer feeds remain unknown.
 Raw snapshots are immutable; do not edit a payload to fix a source error.
+
+## Publisher access
+
+OpenPlans downloads only from hosts that a reviewed access manifest clears. Before
+each transfer it reads the host's robots.txt and checks that the terms document
+still matches the reviewed hash. A robots `Disallow` or a changed terms document
+stops collection, whatever the manifest says. Requests are paced per host and
+capped per session.
+
+### What ships
+
+OpenPlans ships reviewed manifests for the federal public-domain hosts a new
+installation needs, in [`data/access/`](../data/access/README.md). A first
+`bootstrap --states DE --years 2026` needs no access setup.
+
+| Host | Cleared for | Pacing |
+| --- | --- | --- |
+| www.cms.gov | PUF landing pages, state rating-area pages, PY2026 state-based PUF archives | 10 s |
+| download.cms.gov | Exchange PUFs PY2026 and PY2027, NPPES files | 5 s |
+| www2.census.gov | ZCTA to county relationship file, ZCTA Gazetteer | 30 s |
+| geocoding.geo.census.gov | Census batch geocoder | 5 s |
+
+Insurer hosts are never shipped. You review and add them yourself.
+
+### What each optional flag needs
+
+| Flag | With the shipped manifests | What to do |
+| --- | --- | --- |
+| None | Works: catalogs, rates, geography | Nothing. |
+| --with-providers | NPPES works. Issuer index and feed requests are refused until you add issuer hosts; refused indexes stay unknown coverage gaps. | Add a reviewed entry per issuer host (below). |
+| --with-drugs | The rxnorm step fails with `admission_denied`. The RxNorm download host, download.nlm.nih.gov, publishes `User-agent: *` / `Disallow: /`. NLM provides this subset "without any licensing restrictions", but its other download route, the UMLS download API, needs a UMLS account API key. The RxNav APIs return concepts, not the release files the importer reads. | None yet. Run without --with-drugs. Formulary steps also need issuer hosts. |
+| --with-nucc-taxonomy | The taxonomy step fails with `admission_denied`. www.nucc.org is held because NUCC says "For commercial use, including sales or licensing, a license must be obtained from this web site." | Review the NUCC terms for your use, add your own entry for www.nucc.org, and still pass the flag. |
+| --with-geocode | The geocode step fails with `admission_denied`. The county bounds come from tigerweb.geo.census.gov, whose robots.txt is an HTML "Request Rejected" page, and an HTML robots response holds collection. | None yet. The geocoder host itself is shipped. |
+
+The GeoNames postal-code fallback is also held: download.geonames.org publishes
+`Disallow: /` for every agent. It is not a bootstrap step.
+
+### Adding your own manifest
+
+Write a version 1 manifest in the format of
+[the fetch guide](../src/fetch/README.md) and the shipped file, one entry per host
+you have reviewed. Put it under the cache's `work/` directory, which the worker
+container mounts, and point the worker at it:
+
+~~~sh
+mkdir -p "$OPENPLANS_DATA_DIR/work/access"
+# write "$OPENPLANS_DATA_DIR/work/access/operator.json"
+OPENPLANS_ACCESS_MANIFEST=/data/work/access/operator.json OPENPLANS_RAW_READ_ONLY=false \
+  docker compose run --rm worker bootstrap --states TX --years 2026 --with-providers
+~~~
+
+Your manifest is layered over the shipped ones. An entry for a new host adds it.
+An entry for a shipped host, such as www.nucc.org, replaces the shipped entry. Each
+allowed entry needs the host's robots observation, the terms URL with its SHA-256,
+your review and expiry dates, exact `permittedPaths`, `delayMs` of at least 5000
+and `jobCaps`. Review the terms for your own use: robots permission and
+reachability do not grant permission to reuse a publisher's data. Set
+`OPENPLANS_SHIPPED_ACCESS=off` to use only your own manifest.
+
+Set `OPENPLANS_EGRESS_COUNTRY` (for example `US`) to record the country you collect
+from in every admission receipt. It is a record only. A host that answers robots.txt
+with a direct 404 or 410 has no robots rules wherever you collect from.
+
+### Review cadence
+
+The OpenPlans maintainers re-review every shipped entry before each release.
+`scripts/check-publisher-review.mjs` runs in CI and fails when a review is older
+than the previous release or more than 90 days old. Each shipped terms review
+expires 180 days after review. After that an old release stops collecting with
+"Publisher terms review is missing or expired" until you upgrade or add your own
+entry. If a publisher changes its terms, collection from that host stops with
+"Publisher terms changed or are unavailable" until a new release or your own
+re-review. Cached files keep working offline in both cases.
 
 ## Measured resources
 
@@ -207,8 +290,8 @@ Start with the same package version so migration checksums match. DB raw paths
 record the original import; restored snapshots remain addressed by source/hash
 under /data/raw. Re-establish UID 1000 write permissions on Linux.
 Inspect availability and repeat a known raw-row premium check before use.
-These are documented operator procedures; the P8b run validates bootstrap,
-not a disaster-recovery drill.
+These are documented operator procedures. The recorded bootstrap run validates
+bootstrap, not a disaster-recovery drill.
 
 ## Memory budgets and runtime caching
 
@@ -265,7 +348,8 @@ MCP caches successful public DTOs for 60 seconds, or 300 seconds for geography
 lookups. Keys include the tool, normalized filters, page offset, output-size budget,
 data generation and application version from `package.json`. Entries share the
 existing 2 MiB cap and backend memory limit. Requests check authorization and cursor
-validity before a lookup. Household estimates bypass cache reads and writes.
+validity before a lookup. Quoting tools (`quote_plans` and `quote_premiums`) bypass
+cache reads and writes.
 Credentials, household fields, errors and signed cursors never enter MCP entries.
 The server signs a new cursor and computes the access label for each caller.
 Old-generation cursors return `CURSOR_EXPIRED`; restart the search.
@@ -276,9 +360,17 @@ credentials, invalidation, metrics, bounds, and operator inspection commands.
 ## MCP endpoint
 
 Send Streamable HTTP requests to `POST /mcp`. GET and DELETE return 405.
-Catalog tools need no credential. To enable `estimate_premiums`, set a private
-`OPENPLANS_MCP_TOKEN` and send it as a bearer token. REST and compatibility credentials
-do not grant MCP access. Set `OPENPLANS_MCP=off` to remove the endpoint.
+Catalog tools and `quote_plans` need no credential. To enable `quote_premiums`, set a private
+`OPENPLANS_MCP_TOKEN` and send it as a bearer token. REST and compatibility credentials do not grant MCP access. Set
+`OPENPLANS_MCP=off` to remove the endpoint.
+
+> **Public quoting is on by default.** Every install answers anonymous quotes by age and
+> ZIP: `POST /v1/quotes` and the MCP tool `quote_plans`. They refuse income, household
+> size, tax filing, dates of birth and names, and never estimate a subsidy. Set
+> `OPENPLANS_PUBLIC_QUOTING=off` to disable both; the route then returns 503
+> `QUOTING_DISABLED` and the tool is no longer listed. Public quotes allow 30 requests
+> per minute per source with 2 in flight, and at most 10 members, 10 plans, 5 NPIs and
+> 5 RxCUIs. See the [quoting guide](quoting.md).
 
 Clients can use 2026-07-28 or the legacy 2025-11-25 and 2025-06-18 protocols on the same
 endpoint. Send `Accept: application/json, text/event-stream`. Modern clients must supply
@@ -309,14 +401,14 @@ Without it, each process generates its own secret.
 For subprocess clients, build and run `node dist/mcp/stdio.js` with `DATABASE_URL`.
 The image also provides the `openplans-mcp` command. Attach stdin when running it in a
 container. Stdout contains protocol JSON only; diagnostics go to stderr. The process closes
-on EOF or signals. Set `OPENPLANS_MCP_ALLOW_PERSONALIZED=1` to grant local estimates.
-HTTP tokens do not grant stdio estimates.
+on EOF or signals. Set `OPENPLANS_MCP_ALLOW_PERSONALIZED=1` to grant local household
+quotes. HTTP tokens do not grant stdio household quotes. `OPENPLANS_PUBLIC_QUOTING`
+applies to stdio too.
 
 ## Optional second geocoder
 
 A separate Nominatim service can retry addresses still unresolved after Census cleanup.
-It uses public OSM state extracts, runs on `colima-openplans-big`, and binds its port to
-127.0.0.1. Start with TX, FL or NC, one state at a time. The download, import, retry and
+It uses public OSM state extracts and binds its port to 127.0.0.1. Start with TX, FL or NC, one state at a time. The download, import, retry and
 stop commands are in [the geocoder guide](../src/ingest/geocode/README.md#self-hosted-open-geocoder).
 
 Leave `OPENPLANS_OPEN_GEOCODER_URL` unset to disable it. Stored open results retain their

@@ -39,7 +39,7 @@ try {
   assert.equal(plans.status, "available");
   assert.ok(plans.total > 3);
   const ids = ["11718TX0140016", "20069TX0100006", "87226TX0100013"];
-  const premiumResponse = await fetch(`${base}/v1/premium-estimates`, {
+  const premiumResponse = await fetch(`${base}/v1/premium-quotes`, {
     method: "POST",
     headers: {
       "content-type": "application/json",
@@ -54,12 +54,10 @@ try {
   });
   assert.equal(premiumResponse.status, 200);
   const premiums = await premiumResponse.json();
-  assert.equal(premiums.estimates.length, 3);
-  assert.ok(
-    premiums.estimates.every((estimate) => estimate.status === "rated"),
-  );
+  assert.equal(premiums.quotes.length, 3);
+  assert.ok(premiums.quotes.every((estimate) => estimate.status === "rated"));
   assert.equal(
-    premiums.estimates.find((estimate) => estimate.plan_id === "87226TX0100013")
+    premiums.quotes.find((estimate) => estimate.plan_id === "87226TX0100013")
       .total_cents,
     52928,
   );
@@ -90,7 +88,7 @@ try {
         off_exchange: plan.off_exchange,
       })),
     },
-    premium_estimates: premiums.estimates.map((estimate) => ({
+    premium_estimates: premiums.quotes.map((estimate) => ({
       plan_id: estimate.plan_id,
       status: estimate.status,
       total_cents: estimate.total_cents,

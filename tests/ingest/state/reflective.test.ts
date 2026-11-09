@@ -139,7 +139,7 @@ it("prices all 32 published family tiers verbatim; age and tobacco never change 
     for (const record of source.records) {
       for (const [tier, members] of Object.entries(cases)) {
         for (const changed of [false, true]) {
-          const response = await app.request("/v1/premium-estimates", {
+          const response = await app.request("/v1/premium-quotes", {
             method: "POST",
             headers: {
               "content-type": "application/json",
@@ -157,7 +157,9 @@ it("prices all 32 published family tiers verbatim; age and tobacco never change 
             }),
           });
           expect(response.status).toBe(200);
-          const quote = ((await response.json()) as any).estimates[0];
+          const quote = (
+            (await response.json()) as ReturnType<typeof JSON.parse>
+          ).quotes[0];
           expect(quote).toMatchObject({
             status: "rated",
             hios_id: null,

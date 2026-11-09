@@ -118,13 +118,13 @@ try {
   };
   const quote = async (lookup, members) =>
     (
-      await request("/v1/premium-estimates", {
+      await request("/v1/premium-quotes", {
         ...lookup,
         county: "50007",
         coverage_start: "2026-01-01",
         members,
       })
-    ).estimates[0];
+    ).quotes[0];
   const compat = async (key) =>
     (
       await request(

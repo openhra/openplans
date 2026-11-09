@@ -16,7 +16,7 @@ const request = {
   members: [{ age: 35, tobacco: false, relationship: "subscriber" }],
 };
 const premium = (headers) =>
-  fetch(`${base}/v1/premium-estimates`, {
+  fetch(`${base}/v1/premium-quotes`, {
     method: "POST",
     headers: { "content-type": "application/json", ...headers },
     body: JSON.stringify(request),
@@ -239,8 +239,8 @@ switch (mode) {
     assert.equal(response.status, 200);
     assert.equal(response.headers.get("cache-control"), "no-store");
     const result = await response.json();
-    assert.equal(result.estimates.length, 1);
-    const estimate = result.estimates[0];
+    assert.equal(result.quotes.length, 1);
+    const estimate = result.quotes[0];
     assert.equal(estimate.plan_id, "87226TX0100013");
     assert.equal(estimate.status, "rated");
     assert.equal(estimate.total_cents, 52928);

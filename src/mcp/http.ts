@@ -1,15 +1,16 @@
 import { sharedResponseCache } from "../api/cache/index.js";
 import type { CacheOutcome } from "../api/cache/index.js";
 import { Hono } from "hono";
-import { getConnInfo } from "@hono/node-server/conninfo";
 import { hostHeaderValidation } from "@modelcontextprotocol/hono";
 import {
   createMcpHandler,
   readRequestBody,
 } from "@modelcontextprotocol/server";
 import type { SqlSession } from "../db/database.js";
+import { createSourceLimiter, requestSource } from "../api/rate-limit.js";
 import { buildServer } from "./server.js";
-import { toolNames } from "./schemas.js";
+import { PERSONALIZED_TOOLS, toolNames } from "./schemas.js";
+import type { ToolName } from "./schemas.js";
 import { MAX_OUTPUT_BYTES, limits } from "./tools.js";
 import {
   authenticated,
@@ -68,7 +69,7 @@ export function createMcpHttp(db: SqlSession, options: HttpOptions = {}) {
   );
   const proxies = list(env.OPENPLANS_TRUST_PROXY);
   const log = options.log ?? ((entry) => console.error(JSON.stringify(entry)));
-  const buckets = new Map<string, { count: number; until: number }>();
+  const limiter = createSourceLimiter(now);
   let active = 0;
   const app = new Hono();
   app.use("/mcp", async (c, next) => {
@@ -158,37 +159,15 @@ export function createMcpHttp(db: SqlSession, options: HttpOptions = {}) {
         c.req.header("authorization") ?? null,
         env.OPENPLANS_MCP_TOKEN,
       );
-      let peer = options.peerAddress?.(c.req.raw);
-      if (!peer) {
-        try {
-          peer = getConnInfo(c).remote.address;
-        } catch {
-          /* In-process hosts share one conservative bucket. */
-        }
-      }
-      const forwarded = c.req.header("x-forwarded-for");
-      const source =
-        peer && proxies.includes(peer) && forwarded
-          ? forwarded.split(",").at(-1)!.trim()
-          : (peer ?? "in-process");
-      const key = `${granted ? "auth" : "anon"}:${source}`,
-        time = now();
-      for (const [k, bucket] of buckets)
-        if (bucket.until <= time) buckets.delete(k);
-      let bucket = buckets.get(key);
-      if (!bucket && buckets.size < 10_000) {
-        bucket = { count: 0, until: time + 60_000 };
-        buckets.set(key, bucket);
-      }
-      if (!bucket || ++bucket.count > (granted ? 120 : 60)) {
+      const source = requestSource(c, proxies, options.peerAddress);
+      const admission = limiter.take(
+        `${granted ? "auth" : "anon"}:${source}`,
+        granted ? 120 : 60,
+      );
+      if (!admission.allowed) {
         status = 429;
         return failure(status, -32000, "Rate limit exceeded", {
-          "Retry-After": String(
-            Math.max(
-              1,
-              Math.ceil(((bucket?.until ?? time + 60_000) - time) / 1000),
-            ),
-          ),
+          "Retry-After": String(admission.retryAfterSeconds),
         });
       }
       if (
@@ -233,7 +212,7 @@ export function createMcpHttp(db: SqlSession, options: HttpOptions = {}) {
       }
       const needsGrant =
         parsed.method === "tools/call" &&
-        params?.name === "estimate_premiums" &&
+        PERSONALIZED_TOOLS.has(params?.name as ToolName) &&
         !granted;
       const heavy =
         parsed.method === "tools/call" || parsed.method === "resources/read";
@@ -275,7 +254,7 @@ export function createMcpHttp(db: SqlSession, options: HttpOptions = {}) {
         aborted,
       ]);
       status = response.status;
-      // The denied factory omits estimates entirely, so validation cannot dispatch household work.
+      // The denied factory omits personalized quotes entirely, so validation cannot dispatch household work.
       // Preserve SDK metadata errors before applying the HTTP authentication challenge.
       if (needsGrant && (status === 200 || status === 404)) {
         await response.body?.cancel();

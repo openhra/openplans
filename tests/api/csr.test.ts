@@ -32,12 +32,15 @@ const requestBody = (extra = {}) => ({
   ...extra,
 });
 async function estimate(extra = {}) {
-  const response = await app.request("/v1/premium-estimates", {
+  const response = await app.request("/v1/premium-quotes", {
     method: "POST",
     headers: { authorization: `Bearer ${TOKEN}` },
     body: JSON.stringify(requestBody(extra)),
   });
-  return { response, json: (await response.json()) as any };
+  return {
+    response,
+    json: (await response.json()) as ReturnType<typeof JSON.parse>,
+  };
 }
 async function detail(query = "", id = PLAN) {
   const response = await app.request(`/v1/plans/${id}?year=2026${query}`);
@@ -132,7 +135,7 @@ describe("real TX 2026 silver CSR variants over HTTP", () => {
     ).toBe(`${PLAN}-03`);
   });
   it("search and premium requests select the same evidence; all seven gross premiums are equal", async () => {
-    const baseline = (await estimate()).json.estimates[0];
+    const baseline = (await estimate()).json.quotes[0];
     expect(baseline.status).toBe("rated");
     for (const csr of [
       "00",
@@ -147,7 +150,7 @@ describe("real TX 2026 silver CSR variants over HTTP", () => {
       "csr94",
     ]) {
       const result = await estimate({ csr_variant: csr });
-      const quoted = result.json.estimates[0],
+      const quoted = result.json.quotes[0],
         selected = (await detail(`&csr_variant=${csr}`)).json.cost_sharing;
       expect(quoted).toMatchObject({
         status: "rated",
@@ -160,9 +163,10 @@ describe("real TX 2026 silver CSR variants over HTTP", () => {
       const search = await app.request(
         `/v1/plans?county=48201&year=2026&csr_variant=${csr}`,
       );
-      expect(((await search.json()) as any).plans[0].cost_sharing).toEqual(
-        selected,
-      );
+      expect(
+        ((await search.json()) as ReturnType<typeof JSON.parse>).plans[0]
+          .cost_sharing,
+      ).toEqual(selected);
     }
     for (const income of [0, 20000, 100000]) {
       const result = (
@@ -171,7 +175,7 @@ describe("real TX 2026 silver CSR variants over HTTP", () => {
           household_size: 1,
           tax_filing: "single",
         })
-      ).json.estimates[0];
+      ).json.quotes[0];
       expect(result.cost_sharing.selected_variant_id).toBe(`${PLAN}-01`);
     }
   });
@@ -204,13 +208,15 @@ describe("real TX 2026 silver CSR variants over HTTP", () => {
           [snapshot, `${PLAN}-06`],
         );
         const scoped = createApp(tx, { premiumToken: TOKEN });
-        const response = await scoped.request("/v1/premium-estimates", {
+        const response = await scoped.request("/v1/premium-quotes", {
           method: "POST",
           headers: { authorization: `Bearer ${TOKEN}` },
           body: JSON.stringify(requestBody({ csr_variant: "csr94" })),
         });
-        const result = ((await response.json()) as any).estimates[0];
-        const unknown = (value: any) => {
+        const result = (
+          (await response.json()) as ReturnType<typeof JSON.parse>
+        ).quotes[0];
+        const unknown = (value: ReturnType<typeof JSON.parse>) => {
           assert.equal(
             value.status,
             "unknown",
@@ -229,7 +235,9 @@ describe("real TX 2026 silver CSR variants over HTTP", () => {
         expect(facade.headers.get("x-openplans-gaps")).toContain(
           "variant_cost_sharing_unknown",
         );
-        expect(((await facade.json()) as any).plan).toMatchObject({
+        expect(
+          ((await facade.json()) as ReturnType<typeof JSON.parse>).plan,
+        ).toMatchObject({
           individual_medical_deductible: null,
           individual_medical_moop: null,
           primary_care_physician: null,
@@ -309,13 +317,14 @@ describe("real TX 2026 silver CSR variants over HTTP", () => {
         csr_variant: "csr94",
       }),
     });
-    const result = ((await response.json()) as any).plans[0];
+    const result = ((await response.json()) as ReturnType<typeof JSON.parse>)
+      .plans[0];
     expect(result.individual_medical_deductible).toBe(
       csr.individual_medical_deductible,
     );
     expect(result.primary_care_physician).toBe(csr.primary_care_physician);
     expect(result.premium).toBe(
-      (await estimate()).json.estimates[0].total_cents / 100,
+      (await estimate()).json.quotes[0].total_cents / 100,
     );
   });
 });

@@ -66,7 +66,7 @@ standalone helpers take `db` first. Unknown ZIP centroids return null. Radius re
 method, quality and snapshot identifiers so callers can display “approximate (ZIP centroid)”.
 Production uses indexed geography `ST_DWithin` and spherical `ST_Distance` (`use_spheroid=false`);
 PGlite uses haversine with the same WGS84 mean radius. Distances are statute miles (1609.344 m).
-PostGIS/PGlite parity is tested with the recorded fixtures, including a corrupt-distance control.
+PostGIS and PGlite agreement is tested with the recorded fixtures, including a corrupt-distance control.
 
 ## Validation and fixture regeneration
 
@@ -75,7 +75,7 @@ PostGIS/PGlite parity is tested with the recorded fixtures, including a corrupt-
 npx vitest run tests/ingest/geocode tests/domain/geo
 # Re-record explicitly with network, retaining raw snapshots externally:
 node tests/fixtures/geocode/regenerate.mjs --record
-# Optional parity test against an EMPTY disposable PostGIS database:
+# Optional agreement test against an EMPTY disposable PostGIS database:
 GEOCODE_POSTGIS_URL=postgres://postgres@127.0.0.1:55463/postgres npx vitest run tests/domain/geo/postgis.test.ts
 ```
 
@@ -110,7 +110,7 @@ Accounting for that initial attempt gives 16 HTTP requests and 155,584 submitted
 
 Evidence: `OPENPLANS_DATA_DIR/reports/p3c-geocode-harris.json` and
 `p3c-geocode-run.log`; the DB is `geocode-pglite-p3c`. Responses and input CSVs are under
-`raw/census-geocoder-batch` and `raw/census-geocoder-requests`. PostGIS/PGlite fixture parity
+`raw/census-geocoder-batch` and `raw/census-geocoder-requests`. PostGIS/PGlite fixture agreement
 passed against a disposable PostGIS 16 container, which was removed afterward.
 
 A network-forbidden rerun reused all 145,584 observations in 16.738 seconds with zero requests
@@ -474,7 +474,7 @@ node dist/ingest/geocode/open-cli.js --state TX \
 bash src/ingest/geocode/geocoder.sh stop
 ```
 
-The compose project is `openplans-geocoder` on `colima-openplans-big`. Its only published
+The compose project is `openplans-geocoder`. Its only published
 port binds to 127.0.0.1. No API key is used. The launcher checks the VM Docker disk has
 at least 41 GiB free and the external disk has 160 GiB before import. OSM node coordinates
 use a separate flatnode staging file on the external disk, avoiding the large intermediate

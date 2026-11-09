@@ -35,6 +35,7 @@ const responseHeaders = [
   "access-control-allow-methods",
   "access-control-allow-headers",
   "access-control-expose-headers",
+  "x-quote-tier",
 ];
 
 /** Object keys are unordered; array order and repeated query-value order are significant. */
@@ -106,7 +107,7 @@ function ttl(method: string, path: string): number | undefined {
   }
   if (method === "POST") {
     if (
-      path === "/v1/premium-estimates" ||
+      ["/v1/quotes", "/v1/premium-quotes"].includes(path) ||
       /^\/compat\/v1\/plans\/(medical|dental)\/search$/.test(path)
     )
       return 30;
@@ -161,7 +162,7 @@ export function createResponseCache(
     const seconds = ttl(c.req.method, c.req.path);
     if (disabled || !seconds) return bypass(c, next);
     const compat = c.req.path.startsWith("/compat/v1/");
-    const personalized = ["/v1/premium-estimates", "/v1/benchmark"].includes(
+    const personalized = ["/v1/premium-quotes", "/v1/benchmark"].includes(
       c.req.path,
     );
     // Recheck before hits; the routers retain their own authentication and error responses.
@@ -289,8 +290,10 @@ export function createResponseCache(
         .filter((value): value is string => !!value);
       if (personalized && premiumToken) credentials.push(premiumToken);
       const json: unknown = text === undefined ? null : JSON.parse(text);
+      // Published evidence: provider degrees and boolean prior-authorization flags in quotes.
       const professionalCredentials = [
         "/v1/providers",
+        "/v1/quotes",
         "/compat/v1/providers/search",
       ].includes(c.req.path);
       if (

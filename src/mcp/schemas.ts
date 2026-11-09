@@ -5,6 +5,7 @@ import { FAMILY_RATE_FIELDS } from "../domain/rating/types.js";
 import { parseCents } from "../domain/rating/index.js";
 import * as v from "../api/validation.js";
 import type { estimatePremiums } from "../services/catalog.js";
+import type { quotePlans } from "../services/quotes.js";
 
 // No transport or registration here. Every exported JSON schema is self-contained 2020-12.
 const text = z.string().min(1).max(200),
@@ -34,6 +35,12 @@ const member = z.strictObject({
   age: z.int().min(0).max(120),
   tobacco: z.boolean(),
   relationship: z.enum(["subscriber", "spouse", "child", "other"]),
+});
+/** Public tier: ages only; tobacco is optional and rated (owner, 2026-11-09). */
+const quoteMember = z.strictObject({
+  age: z.int().min(0).max(120),
+  relationship: z.enum(["subscriber", "spouse", "child", "other"]).optional(),
+  tobacco: z.boolean().optional(),
 });
 const household = z.strictObject({
   income_annual: z.number().nonnegative(),
@@ -99,13 +106,34 @@ export const inputSchemas = {
       .default("summary"),
     ...paging,
   }),
-  estimate_premiums: z.strictObject({
+  quote_premiums: z.strictObject({
     plan_refs: ids(planRefSchema),
     location,
     coverage_start: z.iso.date(),
     members: z.array(member).min(1).max(20),
     household: household.optional(),
     csr_variant: csr.optional(),
+  }),
+  quote_plans: z.strictObject({
+    year,
+    location,
+    members: z.array(quoteMember).min(1).max(v.PUBLIC_QUOTE_LIMITS.members),
+    plan_refs: ids(planRefSchema).optional(),
+    coverage: z.enum(["medical", "dental"]).optional(),
+    metal: z
+      .enum([
+        "bronze",
+        "expanded bronze",
+        "silver",
+        "gold",
+        "platinum",
+        "catastrophic",
+      ])
+      .optional(),
+    csr_variant: csr.optional(),
+    npis: z.array(npi).max(v.PUBLIC_QUOTE_LIMITS.providers).optional(),
+    rxcuis: z.array(rxcui).max(v.PUBLIC_QUOTE_LIMITS.drugs).optional(),
+    cursor: cursor.optional(),
   }),
   search_providers: z.strictObject({
     name: text.optional(),
@@ -611,6 +639,17 @@ export const estimateSchema = z.strictObject({
   subsidy: subsidyTrace.nullable(),
   ...evidenceFields,
 });
+/** A public quote is an estimate plus per-plan provider and drug evidence; state plan keys allowed. */
+export const quoteSchema = estimateSchema.extend({
+  kind: z.literal("quote"),
+  providers: z
+    .array(participationSchema.extend({ plan_id: planRefSchema }))
+    .max(v.PUBLIC_QUOTE_LIMITS.providers),
+  drugs: z
+    .array(drugCoverageSchema.extend({ plan_id: planRefSchema }))
+    .max(v.PUBLIC_QUOTE_LIMITS.drugs),
+});
+const evidenceAvailability = z.enum(["available", "partial", "unknown"]);
 const hit = z.strictObject({
   kind: z.enum([
     "plan",
@@ -677,9 +716,22 @@ const payloadSchemas = {
     section: z.enum(["summary", "benefits", "documents", "provenance"]),
     records,
   }),
-  estimate_premiums: z.strictObject({
-    estimates: z.array(estimateSchema).max(10),
+  quote_premiums: z.strictObject({
+    quotes: z.array(estimateSchema).max(10),
     bindable_quote: z.literal(false),
+  }),
+  quote_plans: z.strictObject({
+    quotes: z.array(quoteSchema).max(v.PUBLIC_QUOTE_LIMITS.plans),
+    bindable_quote: z.literal(false),
+    tier: z.literal("public_quote"),
+    location_status: z.enum(["available", "ambiguous", "unknown"]),
+    tobacco_rating: z.literal("requested_flags"),
+    subsidy_status: z.literal("not_evaluated"),
+    data_availability: z.strictObject({
+      catalog: evidenceAvailability,
+      providers: evidenceAvailability,
+      drugs: evidenceAvailability,
+    }),
   }),
   search_providers: z.strictObject({
     providers: z.array(providerSchema).max(25),
@@ -708,6 +760,7 @@ const payloadSchemas = {
       "authentication_required",
       "disabled",
     ]),
+    public_quoting: z.enum(["enabled", "disabled"]),
     loaded: z.boolean(),
   }),
   list_carriers_networks: z.strictObject({
@@ -733,7 +786,8 @@ export const outputSchemas = {
   fetch: output(payloadSchemas.fetch),
   search_plans: output(payloadSchemas.search_plans),
   get_plan: output(payloadSchemas.get_plan),
-  estimate_premiums: output(payloadSchemas.estimate_premiums),
+  quote_premiums: output(payloadSchemas.quote_premiums),
+  quote_plans: output(payloadSchemas.quote_plans),
   search_providers: output(payloadSchemas.search_providers),
   search_drugs: output(payloadSchemas.search_drugs),
   check_drug_coverage: output(payloadSchemas.check_drug_coverage),
@@ -807,7 +861,8 @@ export function parseToolInput<T extends ToolName>(
     if (Array.isArray(values) && new Set(values).size !== values.length)
       v.fail(field, "DUPLICATE_IDENTIFIER");
   }
-  if (tool === "estimate_premiums") {
+  if (tool === "quote_plans") v.publicQuoteRequest(quoteBody(input, 1));
+  if (tool === "quote_premiums") {
     const refs = input.plan_refs as string[],
       scope = input.location as Record<string, unknown>;
     const tax = input.household as
@@ -848,6 +903,20 @@ export function parseToolInput<T extends ToolName>(
     );
   }
   return parsed as ToolInput<T>;
+}
+
+/** The public quote body for one native page; the MCP location object flattens to zip/county. */
+export function quoteBody(input: Record<string, unknown>, page: number) {
+  const body: Record<string, unknown> = {
+    ...input,
+    ...(input.location as Record<string, unknown>),
+  };
+  delete body.location;
+  delete body.cursor;
+  delete body.plan_refs;
+  if (input.plan_refs === undefined) body.page = page;
+  else body.plan_ids = input.plan_refs;
+  return body;
 }
 
 type JsonSchema = z.core.JSONSchema.BaseSchema;
@@ -919,6 +988,16 @@ export const outputJsonSchemas = Object.fromEntries(
   }),
 ) as unknown as Record<ToolName, JsonSchemaType>;
 
+/** Tools that compute premiums; none is cached and all reject personal identifiers. */
+export const QUOTING_TOOLS: ReadonlySet<ToolName> = new Set([
+  "quote_premiums",
+  "quote_plans",
+]);
+/** Personalized names; transports require a grant before dispatch. */
+export const PERSONALIZED_TOOLS: ReadonlySet<ToolName> = new Set([
+  "quote_premiums",
+]);
+
 export class HonestyError extends Error {
   readonly code = "INTERNAL_HONESTY_CHECK";
   constructor(reason: string) {
@@ -926,8 +1005,10 @@ export class HonestyError extends Error {
   }
 }
 export interface HonestyContext {
-  /** Canonical service output captured before projection; required for every estimate, including failures. */
-  estimates?: Awaited<ReturnType<typeof estimatePremiums>>["estimates"];
+  /** Canonical service output captured before projection; required for every estimate or quote, including failures. */
+  estimates?:
+    | Awaited<ReturnType<typeof estimatePremiums>>["estimates"]
+    | Awaited<ReturnType<typeof quotePlans>>["quotes"];
   /** If supplied, reject references to snapshots absent from the repository lookup. */
   snapshotIds?: ReadonlySet<string>;
   /** Unprojected terminology rows; plausible invented identifiers/names must fail too. */
@@ -1035,7 +1116,7 @@ export function assertHonest<T extends ToolName>(
       );
       if (!matched) reject("fabricated drug concept");
     }
-    if (record.kind === "estimate") {
+    if (record.kind === "estimate" || record.kind === "quote") {
       if (
         (record.gross_status === "rated") !==
         (record.gross_monthly_cents !== null)
@@ -1248,12 +1329,19 @@ export function assertHonest<T extends ToolName>(
       }
     }
     if (
-      tool === "estimate_premiums" &&
+      QUOTING_TOOLS.has(tool) &&
       ["email", "phone", "ssn", "dob", "dateOfBirth"].some(
         (field) => field in record,
       )
     )
       reject("personal data in estimate");
+    if (
+      tool === "quote_plans" &&
+      Object.keys(record).some((key) =>
+        /^(household|income|tax_filing)/.test(key),
+      )
+    )
+      reject("household data in public quote");
     for (const child of Object.values(record)) walk(child);
   }
   walk(result.data);

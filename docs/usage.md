@@ -7,8 +7,8 @@ and other technical identifiers keep their defined forms.
 
 OpenPlans is a self-hosted, open-source health-plan data service built from CMS plan files,
 Census geography, NPPES provider identities, NLM RxNorm and issuer QHP files.
-Its native HTTP API supports plan search, premium estimates, drugs, providers
-and data availability. It uses PostgreSQL 16 and PostGIS. Texas PY2026 and
+Its native HTTP API and MCP endpoint support plan search, premium quotes, drugs,
+providers and data availability. It uses PostgreSQL 16 and PostGIS. Texas PY2026 and
 PY2027 catalogs and per-member medical premiums work; issuer feed
 completeness varies. Read `/v1/data-availability` before relying on an answer.
 A fresh database is empty. Load public-source snapshots before searching.
@@ -18,6 +18,11 @@ Every result keeps its source evidence. Missing evidence stays `unknown`, not
 adapt the native API for existing clients. No proprietary health-plan API is
 called. The CMS Marketplace API is a possible future live-data integration,
 not a dependency of the current service.
+
+> **Public quoting is on by default.** Every install answers anonymous quotes
+> by age and ZIP at `POST /v1/quotes` and through the MCP tool `quote_plans`.
+> They take no income or subsidy inputs. Set `OPENPLANS_PUBLIC_QUOTING=off` to
+> turn both off. See the [quoting guide](quoting.md).
 
 ## Run with Docker
 
@@ -45,6 +50,17 @@ worker exits. The same bootstrap command resumes interrupted imports and skips
 current ACTIVE snapshots. Its last JSON line lists completed, skipped, failed
 and dependency-blocked steps. A failure returns exit 1; independent work
 continues. Downloads use public sources; no CMS API key is needed.
+
+Downloads come only from hosts that a reviewed access manifest clears. OpenPlans
+ships reviewed manifests for the federal hosts a new install needs, so a first
+`bootstrap --states DE --years 2026` needs no access setup. Insurer hosts are never
+shipped; add your own reviewed entries with `OPENPLANS_ACCESS_MANIFEST`. Before each
+transfer the fetcher reads the host's `robots.txt` and checks that the terms still
+match the reviewed hash. A `Disallow` or changed terms stop collection. Requests
+are paced per host, at least five seconds apart. Hash-checked cached snapshots
+still import offline. With only the shipped manifests, `--with-drugs` and
+`--with-geocode` stop with `admission_denied`, and issuer feeds wait for your own
+entries. See [publisher access](self-host.md#publisher-access).
 
 Append `--with-drugs` for RxNorm and issuer formularies, `--with-providers` for
 NPPES taxonomy codes and issuer participation, or `--with-geocode` to also include
@@ -87,8 +103,8 @@ separate local API/worker image tag (default `openplans:local`).
 `worker status` prints the same manifest as `/v1/data-availability`. The API
 applies migrations at startup; `worker migrate` is safe to repeat.
 
-Set `OPENPLANS_API_TOKEN` in `.env` for personalized premium requests and send
-`Authorization: Bearer <token>`. Missing/incorrect credentials return 401;
+Set `OPENPLANS_API_TOKEN` in `.env` to enable household quotes at
+`POST /v1/premium-quotes` and benchmarks, and send `Authorization: Bearer <token>`. Missing/incorrect credentials return 401;
 an unconfigured server token returns 503 (`AUTH_NOT_CONFIGURED`). Premium
 responses use `Cache-Control: no-store`. The DB image installs PostGIS on native
 arm64 or amd64 PostgreSQL 16; no emulation override is required.
@@ -121,8 +137,21 @@ The image includes versioned rules in `data/rating-rules/`. `worker ingest ratin
 records its cited, versioned rules; it also accepts `--file <path>`. Importing a
 PUF alone leaves rating unsupported until a cited rule set is loaded. The cached
 TX PY2026 data yields 121 individual medical plans for ZIP 77002, with 50 per page.
-An authenticated `POST /v1/premium-estimates` with this JSON returns 52928 cents
-for the monthly gross premium (no subsidy calculation):
+An anonymous `POST /v1/quotes` with this JSON returns 52928 cents for the monthly
+gross premium of a 35-year-old (no income, no subsidy calculation):
+
+```json
+{
+  "year": 2026,
+  "zip": "77002",
+  "members": [{ "age": 35 }],
+  "plan_ids": ["87226TX0100013"]
+}
+```
+
+The authenticated `POST /v1/premium-quotes` returns the same 52928 cents for the
+household form of the request, which also accepts dates of birth and the income
+inputs for subsidy estimates:
 
 ```json
 {
@@ -136,17 +165,30 @@ for the monthly gross premium (no subsidy calculation):
 For PY2027, acquire that year's PUFs, import `data/rating-rules/2027.json` with
 `worker ingest rating-rules --file /app/data/rating-rules/2027.json`, then import
 PUFs with `--year 2027` and query with `year=2027`. See the
+[quoting guide](quoting.md) for both quote tiers and the
 [native API guide](../src/api/README.md) for household inputs, benchmarks and
 conditional subsidy estimates.
 
 ## Scope and limits
 
-- Texas is the validated state. NY/VT community and family-tier rating is not
-  implemented. Unsupported rating methods return `unsupported_rating_method`;
+- Texas is the validated state. NY and VT PY2026 family-tier rates load through
+  a separate [state import](../src/ingest/state/README.md); other NY and VT years
+  are unsupported. Unsupported rating methods return `unsupported_rating_method`;
   the service does not substitute a federal default price.
-- Estimates are not bindable quotes (`bindable_quote: false`). Enrollment,
-  carrier acceptance and final eligibility require the appropriate marketplace
-  or issuer. Gross premium, estimated credit and net premium are separate.
+- Quotes are not bindable (`bindable_quote: false`). Enrollment, carrier
+  acceptance and final eligibility require the appropriate marketplace or
+  issuer. Gross premium, estimated credit and net premium are separate.
+- Public quotes take ages and a ZIP or county only. They refuse income,
+  household size, tax filing, dates of birth and names, and never estimate a
+  subsidy. Household quotes with income need `OPENPLANS_API_TOKEN`.
+- A public quote member may set `tobacco: true`; the plan's filed tobacco rate
+  then applies. One request takes at most 10 members, 10 plans, 5 NPIs and
+  5 RxCUIs. Each source may send 30 quote requests per minute, 2 at a time.
+- Each quote reports provider and drug coverage for the NPIs and RxCUIs you
+  send. Until issuer provider and formulary files are loaded, that coverage is
+  `unknown`, and `data_availability` says so.
+- The API writes no access log. It never logs request bodies, ages, ZIP codes,
+  tobacco flags or client addresses.
 - CSR eligibility is not evaluated. Subsidy estimates require explicit household
   eligibility inputs; Medicaid/CHIP eligibility is not determined. Pediatric
   dental benchmark adjustments can leave a subsidy estimate unresolved.

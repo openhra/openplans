@@ -82,7 +82,7 @@ describe("MCP boundary security", () => {
   it.each(["mcp-protocol-version", "mcp-method", "mcp-name"])(
     "missing or mismatched %s fails with HeaderMismatch",
     async (header) => {
-      for (const name of ["get_data_status", "estimate_premiums"])
+      for (const name of ["get_data_status", "quote_premiums"])
         for (const missing of [true, false]) {
           const request = post("tools/call", { name, arguments: {} });
           if (missing) request.headers.delete(header);
@@ -125,32 +125,38 @@ describe("MCP boundary security", () => {
     "Bearer wrong",
     "Bearer rest-only",
     "Bearer compat-only",
-  ])("estimates require the dedicated token: %s", async (authorization) => {
-    const request = post(
-      "tools/call",
-      { name: "estimate_premiums", arguments: {} },
-      authorization ? { authorization } : {},
-    );
-    const response = await setup({
-      OPENPLANS_MCP_TOKEN: "synthetic-mcp-token",
-    }).fetch(request);
-    expect(response.status).toBe(401);
-    expect(response.headers.get("www-authenticate")).toContain("Bearer");
-  });
+  ])(
+    "household quotes require the dedicated token: %s",
+    async (authorization) => {
+      for (const name of ["quote_premiums"]) {
+        const request = post(
+          "tools/call",
+          { name, arguments: {} },
+          authorization ? { authorization } : {},
+        );
+        const response = await setup({
+          OPENPLANS_MCP_TOKEN: "synthetic-mcp-token",
+        }).fetch(request);
+        expect(response.status, name).toBe(401);
+        expect(response.headers.get("www-authenticate")).toContain("Bearer");
+      }
+    },
+  );
   it("valid MCP token exposes estimates, but unset token never grants access", async () => {
     const app = setup({ OPENPLANS_MCP_TOKEN: "synthetic-mcp-token" });
     const response = await app.fetch(
       post("tools/list", {}, { authorization: "Bearer synthetic-mcp-token" }),
     );
-    expect(JSON.stringify(await response.json())).toContain(
-      "estimate_premiums",
-    );
+    const listed = JSON.stringify(await response.json());
+    for (const name of ["quote_premiums", "quote_plans"])
+      expect(listed).toContain(name);
+    expect(listed).not.toContain("estimate_premiums");
     expect(
       await status(
         setup(),
         post(
           "tools/call",
-          { name: "estimate_premiums", arguments: {} },
+          { name: "quote_premiums", arguments: {} },
           { authorization: "Bearer synthetic-mcp-token" },
         ),
       ),

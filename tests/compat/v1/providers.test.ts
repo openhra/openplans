@@ -469,12 +469,12 @@ describe("provider facade native integration", () => {
     expect(preflight.status).toBe(204);
     expect(preflight.headers.get("Access-Control-Allow-Origin")).toBe("*");
     expect(
-      (await app.request("/v1/premium-estimates", { method: "POST", headers }))
+      (await app.request("/v1/premium-quotes", { method: "POST", headers }))
         .status,
     ).toBe(401);
     expect(
       (
-        await app.request("/v1/premium-estimates", {
+        await app.request("/v1/premium-quotes", {
           method: "POST",
           headers: { authorization: "Bearer synthetic-native-token" },
           body: "{}",

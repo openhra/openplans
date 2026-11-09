@@ -15,14 +15,29 @@ const result = await fetchToCache(publisherUrl, {
 });
 ```
 
-Native network requests require an admission session or `OPENPLANS_ACCESS_MANIFEST`, an
-absolute path to a reviewed external JSON manifest. A missing manifest fails with
-`admission_required` before a network cache miss. Existing offline imports can reopen
-hash-pinned cached bytes without a session; this verifies content and gives no new
-access clearance. Observed host holds still apply. The environment setting creates a session for each fetch call;
-multi-file jobs must pass one shared session to enforce their whole-job budget. Trusted
-test transports can run offline without admission. Do not use transport injection to
-collect live data.
+Every native network request runs under an admission session. A session comes from, in order:
+
+1. `FetchOptions.admission`, a session the caller passes in;
+2. `OPENPLANS_ACCESS_MANIFEST`, an absolute path to an operator's reviewed JSON manifest, layered
+   over the shipped manifests;
+3. the shipped manifests alone, used only for a network cache miss.
+
+OpenPlans ships reviewed manifests for the federal public-domain hosts a new installation needs
+([`data/access/`](../../data/access/README.md)), so `worker bootstrap` works on an empty cache with no
+setup. A later manifest's entry replaces an earlier entry for the same host. An operator manifest
+can therefore add insurer hosts, or re-review a shipped host. `OPENPLANS_SHIPPED_ACCESS=off`
+withdraws the shipped manifests. With none of the three, a cache miss fails with
+`admission_required`. Existing offline imports can reopen hash-pinned cached bytes without a
+session; this verifies content and gives no new access clearance. Observed host holds still apply.
+
+The environment and shipped sessions are created per fetch call. Such a session may transfer the
+call's own `maxBytes` plus its policy reads (at least 50 MiB), and each host's `jobCaps` still bind
+it. Multi-file jobs must pass one shared session to enforce their whole-job budget. Trusted test
+transports run offline without admission. Do not use transport injection to collect live data.
+
+Refusals name their cause: a host missing from every manifest, a host the manifest holds (for
+example `robots-disallowed`), a missing or expired terms review, or a path outside
+`permittedPaths`.
 
 `admissionManifestSchema` validates version 1 manifests. Each publisher entry records
 `host`, `state`, observed HTTP evidence, product/state/year `scope`, `discoveryUrls`,
@@ -33,17 +48,71 @@ Every state except `allowed` holds collection. Unknown hosts also stay on hold.
 
 An allowed entry requires `terms` with its URL, reviewed `disposition: allowed`, SHA-256,
 `reviewedAt` and `expiresAt`, plus `robots` with its URL, HTTP status, SHA-256 and
-`checkedAt`. A robots 404 uses a null hash. Review the terms for the intended operation
-before marking an entry allowed. Reachability and robots permission do not establish
-permission to reuse a publisher's data. Terms and robots verification currently require
-same-host policy URLs; a policy hosted elsewhere needs a separate review.
+`checkedAt`. `terms` can also record its `reviewer` and the quoted publisher text it rests on
+(`basis`); shipped manifests always do. A robots 404 or 410 uses a null hash and must also record `country`, the
+egress country it was seen from. Review the terms for the intended operation before marking
+an entry allowed. Reachability and robots permission do not establish permission to reuse a
+publisher's data. Robots is always read from the data host. Terms may sit on another host,
+such as the publisher's main site. The session then reads that host's robots file first, and
+reads the terms only if it permits the terms path or answers a direct 404 or 410. The terms
+host gets no data clearance. Receipts record the terms URL and that host's robots status and
+hash.
 
 The session fetches robots before terms or data, verifies the current terms hash and
-rechecks both at least daily. A robots 404 records absent policy and still requires
-reviewed terms. Other unsuccessful robots responses hold collection. Robots matching
-uses the `openplans` product token, merged matching groups, wildcard fallback, longest
-path matches, allow precedence for equal matches, percent normalization and end anchors.
-Malformed rules hold collection. See [RFC 9309](https://www.rfc-editor.org/rfc/rfc9309.html).
+rechecks both at least daily. A 404 or 410 at `/robots.txt`, answered directly with no
+redirect, means the host publishes no robots rules (RFC 9309 section 2.3.1.3). It counts only
+when the manifest also recorded that absence, with the country it was observed from. The
+session's egress country (`egressCountry`, or `OPENPLANS_EGRESS_COUNTRY`) goes into every
+receipt, or `null` when unset. It does not restrict collection, because self-hosters collect
+from many countries. Terms still need review. Every other unsuccessful robots
+response holds collection: 401, 403, 429, 451, 5xx, timeouts and any 404 reached through a
+redirect. A robots file served as HTML holds too, because it is not directives. If a file appears at
+the daily recheck, the session parses and obeys it. Receipts record the egress country and whether
+robots was absent.
+
+### Egress records
+
+A collection wrapper that routes a job through a chosen country can hand the job an egress
+record: `OPENPLANS_EGRESS_FILE` (absolute path to a schema 1 JSON record) and
+`OPENPLANS_EGRESS_SHA256` (the hash of its bytes). The session reads the record once when it is
+built and refuses to start unless:
+
+- the bytes match the hash, and the record matches schema 1;
+- the wrapper checked the exit before the window started, and that check placed it in the record's country;
+- the window is still open (`maxEndAt` in the future, at most 24 hours long) and no
+  `<windowId>.result.json` sits next to the record;
+- `OPENPLANS_EGRESS_COUNTRY` and a bulk spec's `egressCountry`, when set, name the same country.
+
+The record's country then wins over `OPENPLANS_EGRESS_COUNTRY`. Before each admission the session
+hashes the record again and checks the window, and it stops on any change. Every host receipt
+gets an `egress` block with the record hash, window, kind, provider, country, server, check method and time,
+and the exit address only as a SHA-256 salted with the window id. The session never copies the raw
+address. Without the variable, `egress` is `null` and nothing else changes.
+
+A publisher entry can set `requiredEgressCountry` (for example `"US"`) when the host serves its
+files to one country only. The session refuses such a host unless it holds a valid record for
+that country. A declared country alone is not enough. The egress changes where a request comes
+from, never what it may fetch: robots, terms and the stop rules still apply.
+
+Robots matching uses the `openplans` product token, merged matching groups, wildcard
+fallback, longest path matches, allow precedence for equal matches, percent normalization
+and end anchors. Parsing follows section 2.3.1.5: unparseable lines are skipped and the
+parseable rules apply. The parser adds a missing leading slash to a path. A Crawl-delay or
+Disallow before any user-agent line applies to every agent; an Allow there is ignored. A
+group is chosen by its product token, so `OpenPlans/1.0` counts as `openplans` and `Example
+Spider 2.0` as `example`. A wildcard agent pattern that matches `openplans` adds its Disallow
+lines. A Disallow written without its colon, or spelled `Dissallow`, still counts. See
+[RFC 9309](https://www.rfc-editor.org/rfc/rfc9309.html).
+
+A source directory can hold a `QUARANTINE.json` marker listing snapshots fetched before
+admission existed. The cache never reuses a listed snapshot, offline or online, unless
+`<snapshot>.readmitted.json` names its exact hash and size and a stored admission receipt,
+by path and hash, that admits its host. Downloading identical bytes under a current
+admission writes that readmission. If the publisher now serves different bytes, the download
+becomes a new admitted snapshot and the listed one stays refused; a readmission names one
+snapshot and never covers another. `assertSnapshotAdmissible(dataDir, metadata)` applies the
+same rule for readers that open cached snapshots directly, such as the bootstrap's cached release
+pages.
 
 Within an admitted session, every data URL, redirect and cached snapshot destination needs current clearance.
 `permittedPaths` match a path or its descendants, so `/feed` does not admit `/feed-other`.
@@ -67,11 +136,10 @@ lasts until the body is consumed or destroyed. An unavailable lease fails after 
 seconds. Abandoned locks require operator review; the fetcher never deletes another
 process's lock. Jobs must share the same data directory to share these limits.
 
-Observed geographic restrictions for `www.molinahealthcare.com` and
-`nystateofhealth.ny.gov` remain on hold for an explicit owner decision. The observed
-bot-protection hold for `dmhc.ca.gov` and `www.dmhc.ca.gov` also blocks requests and cache
-reuse. `observedHostHolds` retains the reported country/status evidence. This module
-does not change network routes, solve challenges or import browser sessions.
+A host with an observed geographic restriction or bot protection stays on hold until a
+separate access decision. The hold blocks requests and cache reuse. `observedHostHolds`
+keeps the reported country and status evidence. This module does not change network
+routes, solve challenges or import browser sessions.
 
 The fetcher selects its data directory from `dataDir`, then `OPENPLANS_DATA_DIR`, then `$HOME/.local/share/openplans`. Tests always provide a temporary directory. The fetcher does not write to the database.
 
@@ -79,10 +147,17 @@ Results use `outcome: downloaded | reused | not_modified`. Downloads default to 
 
 Raw bytes live in `raw/<source>/<snapshot_id>/payload`, with the required `<snapshot_id>.meta.json` sidecar beside the directory. An internal `meta.json` permits atomic directory publication and sidecar recovery. Transfers use a temporary directory containing `payload.part`; errors remove it. For HTTP compression, `payload`, `sha256` and `bytes` describe the decoded content; `content_encoding` and `transferred_bytes` retain the wire encoding and size. `expectedSha256` always pins the decoded payload. Pre-request cache hits reapply both limits (older identity snapshots use `bytes` for both). Metadata is immutable when content is reused. The fetcher redacts all query values in provenance because unknown query keys may carry credentials. The redirect chain contains each destination in order, including the final destination.
 
+`requestBody: { contentType, body }` sends the data request as a POST, for publisher APIs that take
+an upload such as the Census batch geocoder. It needs `maxRedirects: 0`, so a body is never resent
+to another location. Robots and terms reads stay GET. The response is cached by content hash like any
+other snapshot, and callers keep their own request index for reuse (the geocoder keys it by the
+uploaded rows). Such a snapshot cannot be re-admitted by downloading it again; a quarantined POST
+response stays refused. `onRequest` is called before each data request, not before policy reads.
+
 Defaults: three attempts, five redirect hops, 10-second DNS/connect timeout, 30-second response/read inactivity timeout, 1 GiB transfer limit and 60-second maximum retry delay. Transient connection failures, truncation, 408/429 and 500/502/503/504 may retry with jitter. Retry-After accepts seconds and HTTP dates; a value beyond the delay budget stops retries rather than retrying too soon. 401/403 and policy/content/cache rejections never retry. Requests still ask for identity encoding. If the publisher sends HTTP `Content-Encoding: gzip`, `deflate` (zlib-wrapped) or `br`, a streaming decoder enforces `maxDecompressedBytes` on actual emitted bytes before writing them. This cap defaults to `maxBytes`, so existing callers also bound decoded output. `maxBytes` independently bounds transfer bytes, and Content-Length is checked against that transfer count. Unsupported or stacked encodings fail with `unsupported_encoding`; invalid/incomplete compressed streams fail with `truncated`. Crossing either byte cap fails with `too_large`, destroys the streams and removes the staging directory and `payload.part` without publishing a snapshot. Stream backpressure bounds decoder buffering. The fetcher never writes the first chunk that crosses the cap.
 
 JSON requests send `Accept: application/json, */*;q=0.1` (some publishers answer 406 to a strict JSON-only Accept, e.g. issuer 66252 serves its index as text/plain). The client identifies itself as
-`openplans/0.1 (public health-plan source discovery; +<project URL>)`. Configure the public
+`openplans/0.2 (public health-plan source discovery; +<project URL>)`. Configure the public
 contact page with `OPENPLANS_PROJECT_URL` (or `FetchOptions.projectUrl`); the default is
 `https://plans.openhra.com/`, which contains the captcha-protected contact form. A self-hoster may point it at their own contact page. Credentials, contact-email literals, query
 values and fragments are rejected in this identity URL. It does not identify itself as a browser.

@@ -64,7 +64,7 @@ it("retains pre-extraction native and compatibility status, headers and exact JS
     ["/v1/carriers?state=TX&year=2026"],
     ["/v1/networks?state=TX&year=2026"],
     [
-      "/v1/premium-estimates",
+      "/v1/premium-quotes",
       {
         plan_ids: ["87226TX0100013"],
         county: "48201",
@@ -218,40 +218,40 @@ it("round-trips the real gross premium trace and rejects a one-cent fabrication 
     freshness: { checked_at: "2026-11-08T00:00:00Z", status: "current_local" },
     page: null,
     error: null,
-    data: { estimates: [projected], bindable_quote: false },
+    data: { quotes: [projected], bindable_quote: false },
   };
   const wire = JSON.parse(JSON.stringify(output));
-  expect(outputSchemas.estimate_premiums.parse(wire)).toEqual(wire);
-  assertHonest("estimate_premiums", wire, canonical);
+  expect(outputSchemas.quote_premiums.parse(wire)).toEqual(wire);
+  assertHonest("quote_premiums", wire, canonical);
   // A structurally valid and plausible cent still fails against canonical service evidence.
   const mutant = structuredClone(wire);
-  mutant.data!.estimates[0]!.gross_monthly_cents =
-    mutant.data!.estimates[0]!.gross_monthly_cents! + 1;
-  expect(() => outputSchemas.estimate_premiums.parse(mutant)).not.toThrow();
-  expect(() => assertHonest("estimate_premiums", mutant, canonical)).toThrow(
+  mutant.data!.quotes[0]!.gross_monthly_cents =
+    mutant.data!.quotes[0]!.gross_monthly_cents! + 1;
+  expect(() => outputSchemas.quote_premiums.parse(mutant)).not.toThrow();
+  expect(() => assertHonest("quote_premiums", mutant, canonical)).toThrow(
     "fabricated cents",
   );
-  expect(() => assertHonest("estimate_premiums", wire)).toThrow(
+  expect(() => assertHonest("quote_premiums", wire)).toThrow(
     "missing canonical estimate",
   );
   const noSource = structuredClone(wire);
   noSource.provenance = [];
-  expect(() => assertHonest("estimate_premiums", noSource, canonical)).toThrow(
+  expect(() => assertHonest("quote_premiums", noSource, canonical)).toThrow(
     "unresolvable provenance",
   );
   const falseRate = structuredClone(wire);
-  falseRate.data!.estimates[0]!.rate_trace[0]!.individual_rate_cents!++;
-  expect(() => assertHonest("estimate_premiums", falseRate, canonical)).toThrow(
+  falseRate.data!.quotes[0]!.rate_trace[0]!.individual_rate_cents!++;
+  expect(() => assertHonest("quote_premiums", falseRate, canonical)).toThrow(
     "changed rate evidence",
   );
   const fabricatedCredit = structuredClone(wire);
-  fabricatedCredit.data!.estimates[0]!.estimated_credit_cents = 1;
+  fabricatedCredit.data!.quotes[0]!.estimated_credit_cents = 1;
   expect(() =>
-    assertHonest("estimate_premiums", fabricatedCredit, canonical),
+    assertHonest("quote_premiums", fabricatedCredit, canonical),
   ).toThrow("fabricated cents");
   const unrated = structuredClone(wire);
-  unrated.data!.estimates[0]!.gross_status = "unknown";
-  expect(() => assertHonest("estimate_premiums", unrated, canonical)).toThrow(
+  unrated.data!.quotes[0]!.gross_status = "unknown";
+  expect(() => assertHonest("quote_premiums", unrated, canonical)).toThrow(
     "unrated numeric premium",
   );
 });

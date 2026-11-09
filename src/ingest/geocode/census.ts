@@ -1,12 +1,13 @@
 import { homedir } from "node:os";
 import { createHash } from "node:crypto";
-import { request } from "node:https";
 import { mkdir, readFile, writeFile, rename } from "node:fs/promises";
 import { join } from "node:path";
-import { fetchToCache, FetchError } from "../../fetch/index.js";
+import { fetchToCache } from "../../fetch/index.js";
 import type {
+  AdmissionSession,
   FetchOptions,
   FetchResult,
+  RequestBody,
   Transport,
 } from "../../fetch/index.js";
 export const endpoint =
@@ -22,77 +23,29 @@ export type BatchFile = Exclude<FetchResult, { outcome: "not_modified" }>;
 export interface CensusOptions {
   dataDir?: string;
   sleep?: (ms: number) => Promise<void>;
+  /** A shared session for a multi-batch job; otherwise each batch gets its own admission. */
+  admission?: AdmissionSession;
+  /** Trusted offline test injection only; production requests use the native POST transport. */
   transport?: Transport;
   lookup?: FetchOptions["lookup"];
   geographies?: boolean;
 }
-export function postTransport(csv: string, geographies = false): Transport {
+/**
+ * The batch API takes a multipart upload. The body goes through fetchToCache's native POST support,
+ * so the request passes the same admission session as every other download: robots, reviewed terms,
+ * host pacing, job caps and a receipt. The response is content addressed like any snapshot.
+ */
+export function batchUpload(csv: string, geographies = false): RequestBody {
   const boundary = `------------------------${createHash("sha256").update(csv).digest("hex").slice(0, 24)}`;
   const vintage = geographies
     ? `--${boundary}\r\nContent-Disposition: form-data; name="vintage"\r\n\r\n4\r\n`
     : "";
-  const body = Buffer.from(
-    `--${boundary}\r\nContent-Disposition: form-data; name="addressFile"; filename="addresses.csv"\r\nContent-Type: text/csv\r\n\r\n${csv}\r\n--${boundary}\r\nContent-Disposition: form-data; name="benchmark"\r\n\r\n4\r\n${vintage}--${boundary}--\r\n`,
-  );
-  return (url, context) =>
-    new Promise((resolve, reject) => {
-      // Never forward uploaded addresses to a redirected endpoint.
-      if (url.href !== (geographies ? geographyEndpoint : endpoint)) {
-        reject(
-          new FetchError("invalid_redirect", "Unexpected Census endpoint"),
-        );
-        return;
-      }
-      const req = request(url, {
-        method: "POST",
-        family: context.address.family,
-        agent: false,
-        headers: {
-          ...context.headers,
-          accept: "*/*",
-          "content-type": `multipart/form-data; boundary=${boundary}`,
-          "content-length": String(body.length),
-        },
-        lookup: (_h, _o, cb) =>
-          cb(null, context.address.address, context.address.family),
-        rejectUnauthorized: true,
-      });
-      const timer = setTimeout(
-        () =>
-          req.destroy(
-            new FetchError("connect_timeout", "Census connection timed out"),
-          ),
-        context.connectTimeoutMs,
-      );
-      req.once("socket", (socket) =>
-        socket.once("secureConnect", () => {
-          clearTimeout(timer);
-          req.setTimeout(context.readTimeoutMs, () =>
-            req.destroy(
-              new FetchError("read_timeout", "Census response timed out"),
-            ),
-          );
-        }),
-      );
-      req.once("response", (response) => {
-        clearTimeout(timer);
-        response.on("error", () => {});
-        resolve({
-          status: response.statusCode ?? 0,
-          headers: response.headers,
-          body: response,
-        });
-      });
-      req.once("error", (error) => {
-        clearTimeout(timer);
-        reject(
-          error instanceof FetchError
-            ? error
-            : new FetchError("network_error", "Census request failed"),
-        );
-      });
-      req.end(body);
-    });
+  return {
+    contentType: `multipart/form-data; boundary=${boundary}`,
+    body: Buffer.from(
+      `--${boundary}\r\nContent-Disposition: form-data; name="addressFile"; filename="addresses.csv"\r\nContent-Type: text/csv\r\n\r\n${csv}\r\n--${boundary}\r\nContent-Disposition: form-data; name="benchmark"\r\n\r\n4\r\n${vintage}--${boundary}--\r\n`,
+    ),
+  };
 }
 export async function acquireBatch(
   csv: string,
@@ -120,8 +73,7 @@ export async function acquireBatch(
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
   }
   let requests = 0;
-  const transport =
-    options.transport ?? postTransport(csv, options.geographies);
+  const injected = options.transport;
   const file = await fetchToCache(target, {
     source: "census-geocoder-batch",
     allowHosts: ["geocoding.geo.census.gov"],
@@ -135,10 +87,12 @@ export async function acquireBatch(
     maxRetryDelayMs: 60_000,
     sleep: options.sleep,
     lookup: options.lookup,
-    transport: async (url, context) => {
+    admission: options.admission,
+    requestBody: batchUpload(csv, options.geographies),
+    onRequest: () => {
       requests++;
-      return transport(url, context);
     },
+    transport: injected,
   });
   if (file.outcome === "not_modified")
     throw new Error("Unexpected Census conditional response");

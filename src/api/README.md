@@ -1,15 +1,16 @@
 # Native v1 API
 
-The native API serves a read-only catalog, gross monthly premiums and conditional
-subsidy estimates from ACTIVE imported CMS and Census snapshots. Estimates do not establish eligibility
-or guarantee enrollment.
+The native API serves a read-only catalog, gross monthly premium quotes and conditional
+subsidy estimates from ACTIVE imported CMS and Census snapshots. Quotes do not establish eligibility
+or guarantee enrollment. The [quoting guide](../../docs/quoting.md) describes both quote tiers.
 
 ```text
 GET  /v1/zip-counties?zip=77002
 GET  /v1/plans?zip=77002&year=2026&market=individual&metal=silver&page=1
 GET  /v1/plans?county=48201&year=2026
 GET  /v1/plans/87226TX0100013?year=2026
-POST /v1/premium-estimates
+POST /v1/quotes                (public, on unless OPENPLANS_PUBLIC_QUOTING=off)
+POST /v1/premium-quotes        (personalized)
 GET  /v1/benchmark?zip=77002&year=2026&ages=40
 GET  /v1/carriers?state=TX[&year=2026]
 GET  /v1/networks?state=TX[&year=2026]
@@ -45,11 +46,20 @@ Only TX/2026/individual is currently supported. NY/VT per-member rules are rejec
 The API looks up the cited method for each plan's state, year and market, independently
 of PUF catalog snapshots. Unsupported methods never return total_cents.
 
-Personalized requests require `Authorization: Bearer <configured token>` with
-OPENPLANS_API_TOKEN set in the API process. Unconfigured servers return 503;
-missing/incorrect credentials return 401. The API adds Cache-Control: no-store and
-does not install access/body logging. Configure any reverse proxy to exclude
-household requests and authorization headers from logs (spec section 14).
+Personalized requests (`/v1/premium-quotes` and `/v1/benchmark`) require
+`Authorization: Bearer <configured token>` with OPENPLANS_API_TOKEN set in the API
+process. Unconfigured servers return 503; missing/incorrect credentials return 401.
+The API adds Cache-Control: no-store and does not install access/body logging.
+Configure any reverse proxy to exclude household requests and authorization headers
+from logs (spec section 14).
+
+Public quotes (`POST /v1/quotes`) need no token. They accept ages and a ZIP or
+county, an optional tobacco flag, up to 10 plans, 5 NPIs and 5 RxCUIs, and refuse
+income, dates of birth and any unlisted key. **They are on by default**; set
+OPENPLANS_PUBLIC_QUOTING=off to return 503 `QUOTING_DISABLED`. Each source may send
+30 per minute with 2 in flight (OPENPLANS_TRUST_PROXY names proxies whose last
+X-Forwarded-For hop is used). The [quoting guide](../../docs/quoting.md) has the
+contract and error codes.
 
 ```json
 {
@@ -63,7 +73,7 @@ household requests and authorization headers from logs (spec section 14).
 Supply age OR dob (YYYY-MM-DD), explicit boolean tobacco, and relationship
 (subscriber/spouse/child/other) per covered member. Age means completed years at
 coverage_start. Coverage date selects the applicable filed interval. Response:
-estimates[] with status, total_cents only when rated, member rows, rate_rows_used,
+quotes[] with status, total_cents only when rated, member rows, rate_rows_used,
 and rule/rate/geography provenance. Typed failures: missing, ambiguous, unknown,
 unsupported_rating_method. Invalid input returns 400 with error.code/error.field;
 unknown base/variant IDs return 404. Requests are bounded at 50 plan IDs, 100
@@ -110,7 +120,7 @@ instead of ZIP, or county plus ZIP to disambiguate. It requires the same Bearer
 authentication as premiums and returns `Cache-Control: no-store`. Do not log its
 query string. Ages are comma-separated completed ages (0–120, up to 100 members),
 with the first member as subscriber and subsequent under-21 members as children.
-This convenience route rates January 1; use premium-estimates for an explicit date,
+This convenience route rates January 1; use premium-quotes for an explicit date,
 DOB and relationship. All members are requesting one policy at the supplied location.
 The response lists `lowest_silver_plans` (up to two distinct base plans) with gross,
 EHB monthly cents, `pediatric_dental_adjustment_cents`, `benchmark_monthly_cents`
@@ -315,7 +325,7 @@ and nearest five in `OPENPLANS_DATA_DIR/reports/p3d-provider-http.json`, then cl
 
 ## Explicit cost-sharing variants
 
-`GET /v1/plans`, `GET /v1/plans/:id`, and `POST /v1/premium-estimates`
+`GET /v1/plans`, `GET /v1/plans/:id`, `POST /v1/quotes` and `POST /v1/premium-quotes`
 accept optional `csr_variant`. Use a literal CMS suffix (`"00"` through `"06"`)
 or an alias: `off_exchange` → `00`, `standard` → `01`, `zero` → `02`,
 `limited` → `03`, `csr73` → `04`, `csr87` → `05`, `csr94` → `06`.
@@ -330,7 +340,7 @@ list the variants actually published in the ACTIVE Plan Attributes snapshot.
 Each variant retains its published classification, deductible and MOOP fields,
 raw coinsurance and source row. Detail also includes every variant's Benefits and
 Cost Sharing PUF rows. Top-level `benefits` and `cost_sharing.benefits` contain only
-the selected variant. Search and premium estimates include selected benefit rows,
+the selected variant. Search and premium quotes include selected benefit rows,
 while their variant lists include accumulator summaries.
 
 Deductible/MOOP entries are keyed by the original Plan Attributes column and contain
@@ -347,7 +357,7 @@ returns the existing base plan with unknown variant evidence.
 `premium_basis: "base_plan_rate_puf"`, `premium_varies_by_csr: false`, and
 `premium_note` explicitly state that Rate PUF rows are filed at base-plan level:
 selecting a variant changes cost sharing and leaves the gross premium unchanged.
-A gross estimate can be rated even when the requested variant's cost sharing is
+A gross quote can be rated even when the requested variant's cost sharing is
 unknown. State-filed catalogs without PUF variants return unknown variant evidence
 and null `premium_varies_by_csr`.
 

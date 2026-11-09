@@ -1,0 +1,47 @@
+{
+  "note": "Real robots.txt files as served by each host, unmodified. regenerate.py finds each body by size and sha256 in the external data cache.",
+  "files": {
+    "scc-virginia.txt": {
+      "url": "https://www.scc.virginia.gov/robots.txt",
+      "observedAt": "2026-11-09T03:20:18.833Z",
+      "status": 200,
+      "sha256": "33f96f5c9080365c333c66b98064d269cff79840a057c3964bdb2cf5879a7338",
+      "bytes": 707
+    },
+    "capitalhealth.txt": {
+      "url": "https://capitalhealth.com/robots.txt",
+      "observedAt": "2026-11-09T03:20:58.577Z",
+      "status": 200,
+      "sha256": "442d0677c1acbe6412a7973d952ccb5cd8cd854e9711c8948516a258952ed85a",
+      "bytes": 191
+    },
+    "alliantplans.txt": {
+      "url": "https://alliantplans.com/robots.txt",
+      "observedAt": "2026-11-09T03:21:58.162Z",
+      "status": 200,
+      "sha256": "a24a0bd538228651c8019b5ed252d924a35b4af9b7140f25050bc823bbcf8aa5",
+      "bytes": 187
+    },
+    "bestlife.txt": {
+      "url": "https://json.bestlife.com/robots.txt",
+      "observedAt": "2026-11-09T03:20:58.577Z",
+      "status": 200,
+      "sha256": "5f8af8a6e5db8d7ac52eacbcd6a1cbaaf43fa49b3ce20d32f983d45d88f89c56",
+      "bytes": 385
+    },
+    "oscar-cloudfront.txt": {
+      "url": "https://d3ul0st9g52g6o.cloudfront.net/robots.txt",
+      "observedAt": "2026-11-09T03:21:58.167Z",
+      "status": 200,
+      "sha256": "efdb5938a9736727f5cce2b60355588e4fa541d19d022d222d8a09b8efd5dcce",
+      "bytes": 25
+    },
+    "cigna.txt": {
+      "url": "https://www.cigna.com/robots.txt",
+      "observedAt": "2026-11-09",
+      "status": 200,
+      "sha256": "0dc4f6e54b3ec70381f772d7562338a3ea89de32479f17af36b1d50ddbf7035c",
+      "bytes": 4041
+    }
+  }
+}

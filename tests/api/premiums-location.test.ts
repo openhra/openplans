@@ -52,7 +52,7 @@ async function rollback(run: (tx: SqlSession) => Promise<void>) {
 }
 async function quote(tx: SqlSession, county: string, id: string, zip?: string) {
   const response = await createApp(tx, { premiumToken: token }).request(
-    "/v1/premium-estimates",
+    "/v1/premium-quotes",
     {
       method: "POST",
       headers: {
@@ -69,7 +69,7 @@ async function quote(tx: SqlSession, county: string, id: string, zip?: string) {
     },
   );
   expect(response.status).toBe(200);
-  return ((await response.json()) as any).estimates[0];
+  return ((await response.json()) as ReturnType<typeof JSON.parse>).quotes[0];
 }
 async function listed(tx: SqlSession, county: string, zip?: string) {
   const response = await createApp(tx).request(

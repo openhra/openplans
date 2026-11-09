@@ -12,6 +12,7 @@ import {
   drugTerminology,
 } from "../../src/services/drugs.js";
 import { getDataStatus, getSnapshot } from "../../src/services/provenance.js";
+import { quotePlans } from "../../src/services/quotes.js";
 import { importProviders } from "../../src/ingest/qhp/provider.js";
 import { importFormulary } from "../../src/ingest/qhp/formulary.js";
 import * as providers from "../ingest/qhp/provider-helpers.js";
@@ -123,6 +124,28 @@ describe("drug, freshness and provenance services", () => {
     expect(coverage.results[0]).toMatchObject({
       status: "listed_covered",
       patient_price: null,
+    });
+  });
+  it("embeds the same drug coverage evidence in a public quote as the coverage route", async () => {
+    const coverage = await checkDrugCoverages(h.db, {
+      plan_ids: [plan],
+      rxcuis: [rxcui],
+      year: 2026,
+    });
+    const quote = await quotePlans(h.db, {
+      year: 2026,
+      county: "48201",
+      members: [{ age: 35 }],
+      plan_ids: [plan],
+      rxcuis: [rxcui],
+    });
+    expect(quote.quotes[0]!.drugs).toEqual(coverage.results);
+    expect(quote.quotes[0]!.drugs[0]).toMatchObject({
+      status: "listed_covered",
+    });
+    expect(quote).toMatchObject({
+      tier: "public_quote",
+      bindable_quote: false,
     });
   });
   it("returns only public snapshot columns, tracks parent/child edges and parameterizes identifiers", async () => {

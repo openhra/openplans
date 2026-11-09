@@ -311,6 +311,29 @@ export async function projector(db: SqlSession, native: unknown) {
       ...evidence(value),
     };
   }
+  /** A public quote: the estimate view plus the shared coverage and participation views. */
+  function quote(
+    value: unknown,
+    completeness: (
+      planId: string,
+      kind: "drug_coverage" | "provider_coverage",
+    ) => unknown,
+  ) {
+    const q = row(value);
+    return {
+      ...estimate(value),
+      kind: "quote",
+      providers: rows(q.providers).map((r) =>
+        participation(
+          r,
+          completeness(String(r.requested_plan_id), "provider_coverage"),
+        ),
+      ),
+      drugs: rows(q.drugs).map((r) =>
+        coverage(r, completeness(String(r.requested_plan_id), "drug_coverage")),
+      ),
+    };
+  }
   function snapshot(id: string) {
     const s = metadata.get(id);
     if (!s) throw new ToolError("SNAPSHOT_NOT_FOUND");
@@ -504,6 +527,7 @@ export async function projector(db: SqlSession, native: unknown) {
     snapshot,
     benefit,
     estimate,
+    quote,
     evidence,
     metadata,
     sources,

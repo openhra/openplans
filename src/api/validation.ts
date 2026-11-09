@@ -289,3 +289,192 @@ export function benchmarkRequest(query: Record<string, string>) {
     }),
   });
 }
+
+/** Public quote tier bounds (owner defaults, 2026-11-09). */
+export const PUBLIC_QUOTE_LIMITS = {
+  members: 10,
+  plans: 10,
+  providers: 5,
+  drugs: 5,
+  pairs: 100,
+} as const;
+const MAX_AGE = 120;
+const PUBLIC_QUOTE_FIELDS = new Set([
+  "year",
+  "zip",
+  "county",
+  "members",
+  "plan_ids",
+  "coverage",
+  "metal",
+  "csr_variant",
+  "page",
+  "npis",
+  "rxcuis",
+]);
+const PUBLIC_MEMBER_FIELDS = new Set(["age", "relationship", "tobacco"]);
+const INCOME_FIELDS = new Set([
+  "household_income_annual",
+  "household_size",
+  "tax_filing",
+]);
+/** Refused field names are echoed, never their values; long keys are cut. */
+const MAX_FIELD_ECHO = 100;
+// eslint-disable-next-line no-control-regex -- Control characters must be rejected at this boundary.
+const STATE_PLAN_KEY = /^[A-Z][A-Z0-9]{1,15}:[^\u0000-\u001f]{1,200}$/;
+/** premiumRequest needs one ID; the quote service enumerates the catalog instead (as benchmarkRequest does). */
+const CATALOG_PLACEHOLDER_ID = "00000TX0000000";
+export type QuoteCoverage = "medical" | "dental";
+
+export function npi(value: unknown): string {
+  if (typeof value !== "string" || !/^[12][0-9]{9}$/.test(value))
+    return fail("npi");
+  return value;
+}
+export function rxcui(value: unknown): string {
+  if (typeof value !== "string" || !/^\d{1,20}$/.test(value))
+    return fail("rxcui");
+  return value;
+}
+
+/** Income and dates of birth have their own codes; anything else unlisted is unknown. */
+function refuseFields(
+  value: Record<string, unknown>,
+  allowed: Set<string>,
+  prefix: string,
+) {
+  const keys = Object.keys(value),
+    field = (key: string) => `${prefix}${key}`.slice(0, MAX_FIELD_ECHO);
+  const income = keys.find((key) => INCOME_FIELDS.has(key));
+  if (income !== undefined) fail(field(income), "INCOME_NOT_ACCEPTED");
+  if (keys.includes("dob")) fail(field("dob"), "DOB_NOT_ACCEPTED");
+  const unknown = keys.find((key) => !allowed.has(key));
+  if (unknown !== undefined) fail(field(unknown), "UNKNOWN_FIELD");
+}
+function boundedList(
+  value: unknown,
+  field: string,
+  max: number,
+  code: string,
+): unknown[] {
+  if (value === undefined) return [];
+  if (!Array.isArray(value)) return fail(field);
+  if (value.length > max) return fail(field, code);
+  return value;
+}
+function distinct(values: string[], field: string, code: string): string[] {
+  if (new Set(values).size !== values.length) return fail(field, code);
+  return values;
+}
+/** Same default as benchmarkRequest: first member subscriber, later under-21 members children. */
+function defaultRelationship(index: number, age: number) {
+  if (index === 0) return "subscriber";
+  return age < 21 ? "child" : "other";
+}
+function quoteYear(value: unknown): number {
+  if (value === undefined) return fail("year", "YEAR_REQUIRED");
+  if (
+    typeof value !== "number" ||
+    !Number.isInteger(value) ||
+    value < 2014 ||
+    value > 2100
+  )
+    return fail("year");
+  return value;
+}
+function quotePage(value: unknown = 1): number {
+  if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 1)
+    return fail("page");
+  return value;
+}
+function quoteMember(value: unknown, index: number) {
+  const field = `members.${index}`,
+    member = record(value, field);
+  refuseFields(member, PUBLIC_MEMBER_FIELDS, `${field}.`);
+  const age = member.age;
+  if (
+    typeof age !== "number" ||
+    !Number.isInteger(age) ||
+    age < 0 ||
+    age > MAX_AGE
+  )
+    return fail(`${field}.age`);
+  // Optional; rated when true and never logged (owner, 2026-11-09).
+  const tobacco = member.tobacco ?? false;
+  if (typeof tobacco !== "boolean") return fail(`${field}.tobacco`);
+  return {
+    age,
+    tobacco,
+    relationship: member.relationship ?? defaultRelationship(index, age),
+  };
+}
+
+/** Strict allow-list for anonymous quotes by age and ZIP; builds a premiumRequest without subsidy inputs. */
+export function publicQuoteRequest(value: unknown) {
+  const body = record(value, "body");
+  refuseFields(body, PUBLIC_QUOTE_FIELDS, "");
+  if (!Array.isArray(body.members) || body.members.length < 1)
+    return fail("members");
+  if (body.members.length > PUBLIC_QUOTE_LIMITS.members)
+    return fail("members", "TOO_MANY_MEMBERS");
+  const members = body.members.map(quoteMember);
+  const planYear = quoteYear(body.year);
+  const refs = boundedList(
+    body.plan_ids,
+    "plan_ids",
+    PUBLIC_QUOTE_LIMITS.plans,
+    "TOO_MANY_PLANS",
+  );
+  if (body.plan_ids !== undefined && refs.length === 0) return fail("plan_ids");
+  const npis = distinct(
+    boundedList(
+      body.npis,
+      "npis",
+      PUBLIC_QUOTE_LIMITS.providers,
+      "TOO_MANY_PROVIDERS",
+    ).map(npi),
+    "npis",
+    "DUPLICATE_NPI",
+  );
+  const rxcuis = distinct(
+    boundedList(
+      body.rxcuis,
+      "rxcuis",
+      PUBLIC_QUOTE_LIMITS.drugs,
+      "TOO_MANY_DRUGS",
+    ).map(rxcui),
+    "rxcuis",
+    "DUPLICATE_RXCUI",
+  );
+  const coverage = body.coverage ?? "medical";
+  if (coverage !== "medical" && coverage !== "dental") return fail("coverage");
+  const page = quotePage(body.page);
+  if (refs.length && page !== 1) return fail("page");
+  const planCount = refs.length || PUBLIC_QUOTE_LIMITS.plans;
+  if (planCount * (npis.length + rxcuis.length) > PUBLIC_QUOTE_LIMITS.pairs)
+    return fail("body", "TOO_MANY_PAIRS");
+  const isKey = (ref: unknown) =>
+    typeof ref === "string" && STATE_PLAN_KEY.test(ref);
+  const premium = premiumRequest({
+    ...(refs.length
+      ? {
+          plan_ids: refs.filter((ref) => !isKey(ref)),
+          plan_keys: refs.filter(isKey),
+        }
+      : { plan_ids: [CATALOG_PLACEHOLDER_ID] }),
+    zip: body.zip,
+    county: body.county,
+    csr_variant: body.csr_variant,
+    coverage_start: `${planYear}-01-01`,
+    members,
+  });
+  return {
+    premium,
+    explicitPlans: refs.length > 0,
+    npis,
+    rxcuis,
+    coverage: coverage as QuoteCoverage,
+    metal: metal(body.metal),
+    page,
+  };
+}

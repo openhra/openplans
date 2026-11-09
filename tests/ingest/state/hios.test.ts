@@ -117,7 +117,7 @@ async function quote(
   members: unknown[],
 ) {
   const response = await createApp(tx, { premiumToken: token }).request(
-    "/v1/premium-estimates",
+    "/v1/premium-quotes",
     {
       method: "POST",
       headers: {
@@ -133,7 +133,7 @@ async function quote(
     },
   );
   expect(response.status).toBe(200);
-  return ((await response.json()) as any).estimates[0];
+  return ((await response.json()) as ReturnType<typeof JSON.parse>).quotes[0];
 }
 beforeAll(async () => {
   directory = await mkdtemp(join(tmpdir(), "openplans-vt-hios-"));

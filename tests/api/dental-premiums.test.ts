@@ -59,7 +59,7 @@ async function quote(
   county = "48201",
 ) {
   const response = await createApp(tx, { premiumToken: token }).request(
-    "/v1/premium-estimates",
+    "/v1/premium-quotes",
     {
       method: "POST",
       headers: {
@@ -75,7 +75,7 @@ async function quote(
     },
   );
   expect(response.status).toBe(200);
-  return ((await response.json()) as any).estimates[0];
+  return ((await response.json()) as ReturnType<typeof JSON.parse>).quotes[0];
 }
 async function rollback(run: (tx: SqlSession) => Promise<void>) {
   const marker = new Error("synthetic dental rollback");
@@ -161,7 +161,7 @@ it("uses the named Family Option column without inventing member premiums or ped
       members: [member(35), member(10, "child"), member(12, "child")],
     });
     assertHonest(
-      "estimate_premiums",
+      "quote_premiums",
       await canonicalEstimateOutput(tx, canonical.estimates),
       canonical,
     );
@@ -225,8 +225,8 @@ it("MCP contract retains dental business rules, pediatric allocation and nonchar
     ],
   });
   const output = await canonicalEstimateOutput(db, canonical.estimates);
-  assertHonest("estimate_premiums", output, canonical);
-  expect(output.data!.estimates[0]).toMatchObject({
+  assertHonest("quote_premiums", output, canonical);
+  expect(output.data!.quotes[0]).toMatchObject({
     coverage: "dental",
     quote_method: "filed_dental_per_member",
     dental_business_rules: [{ fields: expect.any(Array) }],

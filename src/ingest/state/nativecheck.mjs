@@ -153,7 +153,7 @@ try {
         household_size: households[i].length,
         tax_filing: i === 1 || i === 3 ? "married_filing_jointly" : "single",
       };
-      const response = await fetch(`${origin}/v1/premium-estimates`, {
+      const response = await fetch(`${origin}/v1/premium-quotes`, {
         method: "POST",
         headers: {
           "content-type": "application/json",
@@ -162,7 +162,7 @@ try {
         body: JSON.stringify(input),
       });
       const payload = await response.json(),
-        quote = payload.estimates?.[0];
+        quote = payload.quotes?.[0];
       const matches =
         response.status === 200 &&
         quote?.total_cents === expected[i] &&

@@ -287,7 +287,7 @@ describe("SBE: real GA cuts, source normalization and protected state catalogs",
             await app.request(`/v1/plans?county=${county}&year=2026`)
           ).text(),
         );
-        const response = await app.request("/v1/premium-estimates", {
+        const response = await app.request("/v1/premium-quotes", {
           method: "POST",
           headers: {
             "content-type": "application/json",
@@ -302,7 +302,7 @@ describe("SBE: real GA cuts, source normalization and protected state catalogs",
         });
         expect(response.status).toBe(200);
         const bytes = await response.text();
-        expect(JSON.parse(bytes).estimates[0].status).toBe("rated");
+        expect(JSON.parse(bytes).quotes[0].status).toBe("rated");
         out.push(bytes);
       }
       out.push(

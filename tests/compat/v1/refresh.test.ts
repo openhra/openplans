@@ -146,7 +146,7 @@ it("maps native SADP totals, sorts and paginates without retaining a priced-plan
   expect(result.gaps).not.toContain("premium_unknown");
   expect(result.gaps).toContain("dental_benefits_unmapped");
   const native = await createApp(db, { premiumToken: TOKEN }).request(
-    "/v1/premium-estimates",
+    "/v1/premium-quotes",
     {
       method: "POST",
       headers: { ...headers, authorization: `Bearer ${TOKEN}` },
@@ -158,9 +158,10 @@ it("maps native SADP totals, sorts and paginates without retaining a priced-plan
       }),
     },
   );
-  expect(((await native.json()) as any).estimates[0].total_cents).toBe(
-    Math.round(result.body.plans[0].premium * 100),
-  );
+  expect(
+    ((await native.json()) as ReturnType<typeof JSON.parse>).quotes[0]
+      .total_cents,
+  ).toBe(Math.round(result.body.plans[0].premium * 100));
   if (process.env.OPENPLANS_REFERENCE_CAPTURES_DIR) {
     const capture = JSON.parse(
       await readFile(
@@ -176,7 +177,9 @@ it("maps native SADP totals, sorts and paginates without retaining a priced-plan
   const detail = await createApp(db).request(`${BASE}/plans/dental/${dental}`, {
     headers,
   });
-  expect(((await detail.json()) as any).plan.premium).toBeNull();
+  expect(
+    ((await detail.json()) as ReturnType<typeof JSON.parse>).plan.premium,
+  ).toBeNull();
   expect(detail.headers.get("x-openplans-gaps")).toContain(
     "dental_premium_requires_household",
   );

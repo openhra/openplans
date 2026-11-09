@@ -39,8 +39,8 @@ it("preserves the full-catalog subsidy benchmark and independent whole-dollar ca
     year: 2026,
     limit: 1,
   });
-  const result = await h.call("estimate_premiums", input);
-  expect(result.data?.estimates[0]).toMatchObject({
+  const result = await h.call("quote_premiums", input);
+  expect(result.data?.quotes[0]).toMatchObject({
     gross_monthly_cents: 55_354,
     estimated_credit_cents: 42_005,
     estimated_net_cents: 13_349,
@@ -58,7 +58,7 @@ it("preserves the full-catalog subsidy benchmark and independent whole-dollar ca
     household_size: 1,
     tax_filing: "single",
   });
-  assertHonest("estimate_premiums", result, native);
+  assertHonest("quote_premiums", result, native);
 });
 
 it("preserves filed state plan keys, HIOS absence, raw cells and resource percent-encoding", async () => {
@@ -104,13 +104,13 @@ it("preserves filed state plan keys, HIOS absence, raw cells and resource percen
       ["BCBSVT:Gold Plan", "50007", 134_545],
     ] as const) {
       const members = [{ age: 40, tobacco: false, relationship: "subscriber" }];
-      const result = await h.call("estimate_premiums", {
+      const result = await h.call("quote_premiums", {
         plan_refs: [plan],
         location: { county },
         coverage_start: "2026-01-01",
         members,
       });
-      expect(result.data!.estimates[0]).toMatchObject({
+      expect(result.data!.quotes[0]).toMatchObject({
         gross_monthly_cents: expected,
         quote_method: "state_filed_tier",
         bindable_quote: false,
@@ -122,7 +122,7 @@ it("preserves filed state plan keys, HIOS absence, raw cells and resource percen
         coverage_start: "2026-01-01",
         members,
       });
-      assertHonest("estimate_premiums", result, native);
+      assertHonest("quote_premiums", result, native);
     }
   } finally {
     await rm(directory, { recursive: true, force: true });

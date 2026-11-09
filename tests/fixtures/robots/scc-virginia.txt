@@ -1,0 +1,38 @@
+User-agent: Terminalfour Nutch Spider
+Crawl-delay: 0.5
+Disallow: /BFI-Complaint-Response
+Disallow: /Browsers
+Disallow: /CIS-Support-Resp
+Disallow: /Clerks-Form-Resp
+Disallow: /eSCC-Unavailable
+Disallow: /iRecruitment-Unavailable
+Disallow: /Mobile-Privacy
+Disallow: /News-Subscribe-Resp
+Disallow: /notfound
+Disallow: /Public-Witness-Confirmation
+Disallow: /SHOP
+Disallow: /Utility-Complaint-Resp
+Disallow: /Utility-Contact-Resp
+
+User-Agent: googlebot
+Allow: /
+
+User-Agent: googlebot-image
+Allow: /
+
+User-Agent: duckduckbot
+Allow: /
+
+User-Agent: bingbot
+Allow: /
+
+User-Agent: SiteimproveBot
+Allow: /
+
+User-Agent: msnbot
+Allow: /
+
+Sitemap: https://www.scc.virginia.gov/sitemap-en.xml
+
+User-agent: *
+Disallow: /

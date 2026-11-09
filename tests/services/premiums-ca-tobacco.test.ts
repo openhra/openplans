@@ -160,7 +160,7 @@ async function quote(
   members: MemberInput[] = [{ age: 40, relationship: "subscriber", tobacco }],
 ) {
   const response = await createApp(tx, { premiumToken: token }).request(
-    "/v1/premium-estimates",
+    "/v1/premium-quotes",
     {
       method: "POST",
       headers: {
@@ -177,8 +177,8 @@ async function quote(
     },
   );
   expect(response.status, await response.clone().text()).toBe(200);
-  const body = (await response.json()) as { estimates: NativeEstimate[] };
-  return body.estimates[0]!;
+  const body = (await response.json()) as { quotes: NativeEstimate[] };
+  return body.quotes[0]!;
 }
 async function compat(
   tx: SqlSession,

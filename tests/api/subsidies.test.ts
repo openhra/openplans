@@ -34,14 +34,17 @@ const nativeHeaders = {
 };
 async function quote(payload = body(), db: SqlSession = h.db) {
   const response = await createApp(db, { premiumToken: TOKEN }).request(
-    "/v1/premium-estimates",
+    "/v1/premium-quotes",
     {
       method: "POST",
       headers: nativeHeaders,
       body: JSON.stringify(payload),
     },
   );
-  return { response, json: (await response.json()) as any };
+  return {
+    response,
+    json: (await response.json()) as ReturnType<typeof JSON.parse>,
+  };
 }
 async function benchmark(
   query = "zip=77002&year=2026&ages=40",
@@ -95,15 +98,15 @@ describe("native subsidy and benchmark wiring", () => {
     const { response, json } = await quote();
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store");
-    assertWorkedExample(json.estimates[0]);
-    expect(json.estimates[0]).toMatchObject({
+    assertWorkedExample(json.quotes[0]);
+    expect(json.quotes[0]).toMatchObject({
       status: "rated",
       subsidy_status: "estimated",
       quote_method: "puf_calculation",
       bindable_quote: false,
       csr_eligibility_status: "not_evaluated",
     });
-    expect(json.estimates[0]).not.toHaveProperty("csr_eligible");
+    expect(json.quotes[0]).not.toHaveProperty("csr_eligible");
     const b = await benchmark();
     expect(b.response.status).toBe(200);
     expect(b.response.headers.get("cache-control")).toBe("no-store");
@@ -139,7 +142,7 @@ describe("native subsidy and benchmark wiring", () => {
   it("maps the exact >400% cliff to over_income_limit and keeps net equal to gross", async () => {
     for (const income of [62_600.01, 90_000]) {
       const result = (await quote(body({ household_income_annual: income })))
-        .json.estimates[0];
+        .json.quotes[0];
       expect(result).toMatchObject({
         subsidy_status: "over_income_limit",
         slcsp_monthly_cents: 59_205,
@@ -148,7 +151,7 @@ describe("native subsidy and benchmark wiring", () => {
       });
     }
     expect(
-      (await quote(body({ household_income_annual: 62_600 }))).json.estimates[0]
+      (await quote(body({ household_income_annual: 62_600 }))).json.quotes[0]
         .subsidy_status,
     ).toBe("estimated");
   });
@@ -160,7 +163,7 @@ describe("native subsidy and benchmark wiring", () => {
           members: [{ age: 40, tobacco: true, relationship: "subscriber" }],
         }),
       )
-    ).json.estimates[0];
+    ).json.quotes[0];
     expect(result.slcsp_monthly_cents).toBe(59_205);
     expect(result.total_cents).toBeGreaterThan(55_354);
     expect(result.estimated_monthly_tax_credit_cents).toBe(42_005);
@@ -174,11 +177,13 @@ describe("native subsidy and benchmark wiring", () => {
         }),
       )
     ).json;
-    expect(result.estimates).toHaveLength(3);
+    expect(result.quotes).toHaveLength(3);
     expect(
-      result.estimates.every((e: any) => e.slcsp_monthly_cents === 59_205),
+      result.quotes.every(
+        (e: ReturnType<typeof JSON.parse>) => e.slcsp_monthly_cents === 59_205,
+      ),
     ).toBe(true);
-    expect(result.estimates[0].plan_id).toBe("87226TX0100013-00");
+    expect(result.quotes[0].plan_id).toBe("87226TX0100013-00");
   });
 
   it("missing rate for any silver member blocks the benchmark, even for an unrequested expensive plan", async () => {
@@ -186,7 +191,7 @@ describe("native subsidy and benchmark wiring", () => {
       await tx.query(
         `DELETE FROM rate WHERE base_plan_id='20069TX0100025' AND age_band='40'`,
       );
-      const result = (await quote(body(), tx)).json.estimates[0];
+      const result = (await quote(body(), tx)).json.quotes[0];
       expect(result).toMatchObject({
         status: "rated",
         subsidy_status: "incomplete_benchmark",
@@ -210,7 +215,7 @@ describe("native subsidy and benchmark wiring", () => {
     });
     // A TX requested plan in a NY household must not borrow the TX benchmark.
     const q = (await quote(body({ zip: undefined, county: "36061" }))).json
-      .estimates[0];
+      .quotes[0];
     expect(q.slcsp_monthly_cents).toBeNull();
     expect(q.estimated_monthly_tax_credit_cents).toBeNull();
     expect(q.subsidy.benchmark.status).toBe("unsupported_rating_method");
@@ -236,7 +241,7 @@ describe("native subsidy and benchmark wiring", () => {
         "requires_benchmark_adjustments",
       ],
     ] as const) {
-      const q = (await quote(body(extra))).json.estimates[0];
+      const q = (await quote(body(extra))).json.quotes[0];
       expect(q.subsidy_status).toBe(status);
       expect(q.estimated_monthly_tax_credit_cents).toBeNull();
     }
@@ -280,7 +285,7 @@ describe("native subsidy and benchmark wiring", () => {
           tax_filing: "married_filing_jointly",
         }),
       )
-    ).json.estimates[0];
+    ).json.quotes[0];
     expect(q).toMatchObject({
       total_cents: 110_708,
       slcsp_monthly_cents: 118_410,
@@ -301,7 +306,7 @@ describe("native subsidy and benchmark wiring", () => {
         await tx.exec(
           `UPDATE plan SET ${mutation} WHERE base_plan_id='87226TX0100013'`,
         );
-        expect((await quote(body(), tx)).json.estimates[0]).toMatchObject({
+        expect((await quote(body(), tx)).json.quotes[0]).toMatchObject({
           total_cents: 55_354,
           subsidy_status: "plan_ineligible_for_tax_credit",
           estimated_monthly_tax_credit_cents: null,
@@ -330,7 +335,7 @@ describe("native subsidy and benchmark wiring", () => {
       await tx.exec(
         `UPDATE plan_attribute SET raw=raw-'EHBPercentTotalPremium' WHERE base_plan_id='87226TX0140004'`,
       );
-      expect((await quote(body(), tx)).json.estimates[0]).toMatchObject({
+      expect((await quote(body(), tx)).json.quotes[0]).toMatchObject({
         subsidy_status: "requires_benchmark_adjustments",
         slcsp_monthly_cents: null,
         estimated_monthly_tax_credit_cents: null,
@@ -344,7 +349,7 @@ describe("native subsidy and benchmark wiring", () => {
       await tx.exec(
         `UPDATE rate SET individual_rate_cents=10000 WHERE base_plan_id='87226TX0100013' AND age_band='40'`,
       );
-      const q = (await quote(body(), tx)).json.estimates[0];
+      const q = (await quote(body(), tx)).json.quotes[0];
       expect(q).toMatchObject({
         total_cents: 10_000,
         estimated_monthly_tax_credit_cents: 10_000,
@@ -363,7 +368,7 @@ describe("native subsidy and benchmark wiring", () => {
       await tx.exec(
         `UPDATE plan_attribute SET raw=raw || '{"EHBPercentTotalPremium":"0.9"}'::jsonb WHERE base_plan_id='87226TX0100013'`,
       );
-      expect((await quote(body(), tx)).json.estimates[0]).toMatchObject({
+      expect((await quote(body(), tx)).json.quotes[0]).toMatchObject({
         total_cents: 10000,
         estimated_monthly_tax_credit_cents: 9000,
         estimated_net_monthly_cents: 1000,
@@ -377,7 +382,7 @@ describe("native subsidy and benchmark wiring", () => {
       await tx.exec(
         `UPDATE plan_attribute SET raw=raw-'EHBPercentTotalPremium' WHERE base_plan_id='87226TX0100013'`,
       );
-      expect((await quote(body(), tx)).json.estimates[0]).toMatchObject({
+      expect((await quote(body(), tx)).json.quotes[0]).toMatchObject({
         total_cents: 55354,
         estimated_monthly_tax_credit_cents: null,
         estimated_net_monthly_cents: null,
@@ -400,7 +405,7 @@ describe("native subsidy and benchmark wiring", () => {
         return { ...result, slcspMonthlyCents: lowest };
       });
     try {
-      const q = (await quote()).json.estimates[0];
+      const q = (await quote()).json.quotes[0];
       expect(q.slcsp_monthly_cents).toBe(59_176);
       expect(() => assertWorkedExample(q)).toThrow(
         "second-lowest silver household benchmark",
@@ -425,7 +430,7 @@ describe("native subsidy and benchmark wiring", () => {
         await tx.exec(
           `UPDATE rate SET individual_rate_cents=10000 WHERE base_plan_id='87226TX0100013' AND age_band='40'`,
         );
-        const q = (await quote(body(), tx)).json.estimates[0];
+        const q = (await quote(body(), tx)).json.quotes[0];
         expect(q.estimated_monthly_tax_credit_cents).toBe(42_005);
         expect(q.estimated_net_monthly_cents).toBe(-32_005);
         expect(() =>
@@ -512,8 +517,8 @@ describe("native subsidy and benchmark wiring", () => {
 it("MCP contract preserves the real full-catalog benchmark, credit and net trace", async () => {
   const canonical = await estimatePremiums(h.db, body());
   const output = await canonicalEstimateOutput(h.db, canonical.estimates);
-  assertHonest("estimate_premiums", output, canonical);
-  expect(output.data!.estimates[0]).toMatchObject({
+  assertHonest("quote_premiums", output, canonical);
+  expect(output.data!.quotes[0]).toMatchObject({
     gross_monthly_cents: 55354,
     estimated_credit_cents: 42005,
     estimated_net_cents: 13349,
@@ -521,9 +526,9 @@ it("MCP contract preserves the real full-catalog benchmark, credit and net trace
     subsidy: { benchmark: { silver_plan_count: expect.any(Number) } },
   });
   const changed = structuredClone(output);
-  changed.data!.estimates[0]!.subsidy!.benchmark.lowest_silver_plans[0]!
+  changed.data!.quotes[0]!.subsidy!.benchmark.lowest_silver_plans[0]!
     .ehb_monthly_cents++;
-  expect(() => assertHonest("estimate_premiums", changed, canonical)).toThrow(
+  expect(() => assertHonest("quote_premiums", changed, canonical)).toThrow(
     "changed benchmark ranking",
   );
 });

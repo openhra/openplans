@@ -1,6 +1,6 @@
 {
   "name": "openplans",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -24,6 +24,7 @@
     "worker:geo:pglite": "node dist/ingest/geo/pglite.js ingest geo",
     "fixtures:geo": "npm run build && node tests/fixtures/geo/regenerate.mjs",
     "check:extraction": "node scripts/check-extraction.mjs",
+    "check:publisher-review": "node scripts/check-publisher-review.mjs",
     "worker:puf:pglite": "node dist/ingest/puf/import-pglite.js",
     "fixtures:puf:import": "python3 tests/fixtures/puf/import/regenerate.py",
     "lint:prune": "eslint . --max-warnings 0 --prune-suppressions && node scripts/lint-baseline.mjs --prune"

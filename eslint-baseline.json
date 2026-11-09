@@ -7,42 +7,20 @@
       "fingerprints": [
         "14c4a24d749fcdea35e463ff3749f61fd1c6ed49eedf8ee5a900b498287709a8",
         "3aac630620241457e6427dde387ea9a8d2167ff0caf0ea2b9f626a1bf2fa3eb2",
-        "3aac630620241457e6427dde387ea9a8d2167ff0caf0ea2b9f626a1bf2fa3eb2",
-        "5b08c56f9d72c204873d5a9219943634f8eda9c0bdd225a099ecc8ebe6813f1b",
-        "5c1d9206c93e747866e06a161baf8342631c4cd07958f8f60bae7baaa3e0113b",
         "601d427a5ac8e93a2ea4887e0f1b8774272a92cea04136ce8c6b82bd7861b5de",
-        "681ad45998beb8ac2c4074be1c99468ea15a12651ad8b425e8cb72a634c160cb",
-        "7d030019273be01772c9c612673e6480b693d73445837fcc1304b08918679cf5",
         "baf99fb7617e5a3c3a4899e23cecf1e39963267ae82a270691d72c090bee6893",
-        "bc910b5e717faf299b17a0c17de8f77cd1200242427168ec66fad0863b2af0e5",
         "bdcad379286b4d6ed9ee6538549fd4b4660f36c3661e75021fc8dbf951b5b8f6",
         "bebccfa0645eb7dc9457de050c498b276273d8701ba06d2db11e1fe8aca7e4fa",
         "ff5141f0dca0f54a59f6cd87e5863612a081207f7cce099650c8fbbcf174b453"
       ],
       "context_fingerprints": [
-        "09eab2e6290099c1f239c2a5107834b0bb5e0c4381c04f7dace32814c62018e2",
-        "11e175a4acb1a9ce0a337efda2ec57f57440f3f4da5830d7f96b52ada1aebb37",
-        "28934be2c51837e1e019130748415b7a1ed8b904a94278fe1423fed992565103",
         "2c88cffa168ea39fb96d224f4abdd8b82c482afede6c91a5d6ccc3ce8f5dbbb6",
-        "33ed537da9e57481224c37cdca8f619504f5174ca1074e8101dd7a7f7bd47efd",
         "4c76427cd8625b26be4ae20af1b54b2e4a78bec3a88c0b3a50bbd65629917bcc",
-        "62f627e239f81d420740811013ad9542905cf749f80a47cbe18804241ce49891",
-        "85dd0e8e760ec373ac1e51b69c2fb4a189806accc2375dd2959ed59fdf6ced92",
         "b6acf1abda726acecff013e63735c99535a1d3c73a3a6e8b99df5a43b8c7d3d1",
         "c4411ea4dce4852626dc0f44b7595d984b773f435e11a3462f6e9fd9cf834ae8",
         "d95c64366e8873c6d861092b611ca94faa4bfa7ce354144dffc25575a5834fe4",
         "e4936d70c8b0051771d40e68d8f7157bba3751c9ce4c3f68d28c45879d4441b4",
         "e9419997c17bb28d0d9c68de046af262d559ee4ec53a1e4de6ede217fff767b4"
-      ]
-    },
-    "tests/api/dental-premiums.test.ts": {
-      "rule": "@typescript-eslint/no-explicit-any",
-      "cleanup": "Type HTTP response payloads and fixture envelopes, then remove the unchecked casts in this suite.",
-      "fingerprints": [
-        "672cbf6a1f3a902bafc611e6c16db0210c2a5909a3708bb9d79803823299fb9d"
-      ],
-      "context_fingerprints": [
-        "63a79989bb2cd46c06aa715cf1e19a0050c21d6bb6a6971f7f260715e64f2a4f"
       ]
     },
     "tests/api/drugs.test.ts": {
@@ -80,7 +58,6 @@
         "0e6c2af82e2963e23c12f581ef99f7b5aa8303c806bbbf601c9776a005c48a41",
         "459b4a6155d2d0f00f4d704d47238384b9c5eef265d71fc83a3526a875c71c47",
         "50331fba32ccedb82f4862725f8322d8f4d9c3b930793f080b68544fd1ffe53c",
-        "672cbf6a1f3a902bafc611e6c16db0210c2a5909a3708bb9d79803823299fb9d",
         "e0b29ad9b1b714557178ce05de51e0b6c0a95f6131df56d46a156f284968b8c4",
         "e2df693905ef97deab3d11c01350480d532e162e79233044b84b8186e10ca0a2",
         "e2df693905ef97deab3d11c01350480d532e162e79233044b84b8186e10ca0a2",
@@ -88,7 +65,6 @@
       ],
       "context_fingerprints": [
         "1b0b013dd08513c4a6b9f446a08a7847ff3bfb65405e53dec99a3092c7162d33",
-        "57a5416cbf4c6befe7c32e89a0512d09dc30993e8d1fb5e4d3fd823013513193",
         "5bd62f6c47f84afa76296973624eba3273b12fd00afeb767155f24e805400f52",
         "60b0ad1871c024ab14f615541c65bf37d2efc3933049adbaefb013f835e10f72",
         "8f5193bb880f122afe1e8c0ece695a5ca0e0ba963281d32103ae9f40c917bd63",
@@ -229,11 +205,9 @@
         "19acd316ff9752f07d64fa04dd52b075b53129d257ce2accbbed288540859b87",
         "288fbae7d414657c4fbcd7283fc945a7b867fdb2286ad9c187a72217141f054e",
         "3aac630620241457e6427dde387ea9a8d2167ff0caf0ea2b9f626a1bf2fa3eb2",
-        "3aac630620241457e6427dde387ea9a8d2167ff0caf0ea2b9f626a1bf2fa3eb2",
         "46fea1c5c39a82ee9deac34604cd4fba5022b25c43c515bf76c72846fd52e139",
         "7e102766fbdb0160d041b1113290e440d8368b2cdcda8be8f01ad626d5ba7b52",
         "a187c5d043f7cef8c60a7fa303fd39d86ff0c60a1ff90cb7ee625b30846bfe04",
-        "a5feae876d998e24c450f31a6f166ee91340153ddaea6540bd97ac043e9d4113",
         "bf06ffaaa83c2c1f370398fb6d346fa80a386ab0f2cb777df0bd9197a8b74c02",
         "c6094ceaa5778babba8e4b83d266c1807b2a49ac60ca1f85bc752fed5a761404",
         "c8803373778d2166f57d150de9679c90675eef9159b32658391e36fb7af364db",
@@ -252,11 +226,9 @@
         "503b87e278b5ea36c76419fc2367decc6f05333a077f7830e074fb09ec70e47e",
         "5f504d7c96f44699d776482ea3bd431b1bc36f0fd28a542999b3100df2649953",
         "6f1677059aa0b94a7a34c5efea41d4b92e803d7b799a504a22ea300ff2ca8900",
-        "828dbd9da2a8df188006169b63af758ca82885075403a69e06664a6a7b62c7a2",
         "845b346a0993da05d18743b90ba515849c6abb83b4f6e59f8b46810ab4c99098",
         "856165c03b3ca49a5a2ef78ad3ee6494e3cabacfc1d2db5aba2c0984bd1f6a62",
         "98d3a142a87504b76c081895b31083da66c40587ffa7cfdc6686f4bafe3b59b3",
-        "c5e7a7b363092ee2719258206ccd046bbd7c9efd8238b9295c209b412efde55d",
         "d6a98b7554b95cb4182e2a03cc29c17f9fc4bb81a24e5d2153f6092f27ee2565",
         "e4ff6190a28eb82e9724c8d7027257bfef57f29fa803b330fe9128d9b9c4a244"
       ]
@@ -265,7 +237,6 @@
       "rule": "@typescript-eslint/no-explicit-any",
       "cleanup": "Type HTTP response payloads and fixture envelopes, then remove the unchecked casts in this suite.",
       "fingerprints": [
-        "672cbf6a1f3a902bafc611e6c16db0210c2a5909a3708bb9d79803823299fb9d",
         "8fa1360b82e20d6077b3b403ebe44d45e71a9e9b992bb31a21a0b87cf67f2f74",
         "a97bb76d992b8c90ac16c4db6cf7a5aa24510cba89287289feed2bf2a5b327b4",
         "bdcad379286b4d6ed9ee6538549fd4b4660f36c3661e75021fc8dbf951b5b8f6",
@@ -275,8 +246,7 @@
         "025a7010705e27c6e183456c6b9d690bde8673573b80b627dc50f17fe6a8c5af",
         "532cd57a6f5e67310d780dde31780dd15192581091f3d81b41410c659aaa9caa",
         "a22b6728f980f2f9754c9fe0bd6eeccb60582ee4de3a0ac7461a0d2f1e111f52",
-        "bd0d4e06a8ae6dae8557ea04ce40c6a557238bcca5e42d104f4546b1184ee778",
-        "f28150e51f7fac81dd508552ddd7ee7106875d91183b99df8e061447b43dfddc"
+        "bd0d4e06a8ae6dae8557ea04ce40c6a557238bcca5e42d104f4546b1184ee778"
       ]
     },
     "tests/api/subsidies.test.ts": {
@@ -284,8 +254,6 @@
       "cleanup": "Type HTTP response payloads and fixture envelopes, then remove the unchecked casts in this suite.",
       "fingerprints": [
         "3aac630620241457e6427dde387ea9a8d2167ff0caf0ea2b9f626a1bf2fa3eb2",
-        "3aac630620241457e6427dde387ea9a8d2167ff0caf0ea2b9f626a1bf2fa3eb2",
-        "784f0ea2785d53fa3ac40a0ddd42eec0b8339dabfa45f5e824d4b543148153b3",
         "7e8bf83e97332120454528a88a4b0a236c5a59cc1920891caa5defef0f5ff08e",
         "9bc755217e8434e1e7688f4a5579159f224e433a02996b3a3eb8f69635e90b4f",
         "d5f103f4297bfefb3e6ac03890dded2b08f0cb5cc74851aafb3bce46be66d02d",
@@ -295,9 +263,7 @@
         "00aa4f8477d36a91a0c18b335da3eaca695f6cfdf2b0009615034c9c65d3baaa",
         "1009e49b548d9fd5ff9f953c240d7eccebf3d285de640fa08fc22686ee8ce0ce",
         "17a3e5b3c32dabb012b9d3f31f647b6222551bda2611a06dbbff13dde18acdb6",
-        "31560d28e452e4f2a89549684c8554d240b851ceaac83560be389bf0178d405b",
         "77c7c6862fa17086a837b08a01a4071749b1d090aa17289d66cd053908f7298a",
-        "93ee9ee6581319f11e8879da080fee8f0e08d1617e4f27ac1f2713308ed4b734",
         "9bdc361a8dc7090ad63456afdf51ccd49ecf70700f7660fc18a48ad0b067c63e"
       ]
     },
@@ -434,8 +400,6 @@
         "6eee2d08add069655ebe9ae0c1604e62e69e3f6d40b6fd3140ee8d408a0b1286",
         "753900666a416da13d7d1569a77f3036ff7b09ab7c1d9be46a97b9b165075b30",
         "7e5b4168b6553be2ad2c53148c961379cd2b798463cbb642ab6b7dd400a65967",
-        "8c2fca3e49328c1bcbc23a2a3b69be9f7f9f00a100ea185878ada9c42d1b083d",
-        "af800798386e739ac3cd74a5e057181929c4318c997a7f71b95c730da11d85a0",
         "b93cc110a5fe02e679253b241568a4e0d8a91ba784ce8e1b0062701a5ff61eff",
         "bdcad379286b4d6ed9ee6538549fd4b4660f36c3661e75021fc8dbf951b5b8f6",
         "f8f494c646ceeefc5441aee9859c20fc3cc9260c26cf170c37b5ed30813a7ad5"
@@ -448,9 +412,7 @@
         "4fcd9f77b4677489c62814ad8e6032893f65f33c9598ece238814684aa8d9121",
         "5439385544e36dcff707a5edb00ff45b80f8855f37dcc854f90bdfca30d4c579",
         "8e153d50bc5e175d284fdde90fcf5d4eba91cb99cb302b4f4ce892384a5a9b0c",
-        "ab904a6564006ea74acd0e1fce811da05ba71d0f9cf0b9ce0ffe82535b990346",
-        "abe04a6cee98cf5ca8f456c082f330380eebcd174b80cd46c465d42ee7add9c0",
-        "eb8eb5c89b02155c1bf29525835d92315a194ad5ba8a8c30089ea7965700cbb0"
+        "abe04a6cee98cf5ca8f456c082f330380eebcd174b80cd46c465d42ee7add9c0"
       ]
     },
     "tests/compat/v1/response-contract.test.ts": {
@@ -550,12 +512,10 @@
       "cleanup": "Name the source record and fixture envelope types before removing the unchecked casts in this suite.",
       "fingerprints": [
         "2a8ef84255081b8fcd8d35b70342d6b967fe236299326de7f4d80ad3760b9611",
-        "31ae42ed65e1f40856809d8d173dc7b6ab2dbbcc8bf2929476845c389f251c00",
         "fca953fa82336f4aefebf38b06ce427a976734aeef5417b47b01972c899356dd"
       ],
       "context_fingerprints": [
         "644af8fd4f3cd3278d411c9278706ef3dc482b58f742fc3adc56f67d4e2e38a0",
-        "91ede0b9de2ff6f54b92667165d7c964916346c454c0f02f2638db6ec7cc3d7f",
         "c24bc6fb287ace48e7ab770b8699d3e05e225d6d9b6ca36dda3129db7f87b0a9"
       ]
     },
@@ -641,11 +601,9 @@
       "rule": "@typescript-eslint/no-explicit-any",
       "cleanup": "Name the source record and fixture envelope types before removing the unchecked casts in this suite.",
       "fingerprints": [
-        "672cbf6a1f3a902bafc611e6c16db0210c2a5909a3708bb9d79803823299fb9d",
         "f34ae8db856c13df3617fbe5d55d6eebec7b9902528d4e7a22cf5abf03ac7467"
       ],
       "context_fingerprints": [
-        "d9bf013e5d23efb0826616b422a0a89484a81849bd1f0f95f9c7b4c1e95f5a0b",
         "f2cc807ded310b037938e9fbef6ab9a65c132c78e0dd955d1e157ac8e38698cc"
       ]
     },
@@ -657,14 +615,12 @@
         "5cfe672596129821722fd4655c42fec54810fa24a427c1deee58396fe9cc213f",
         "5cfe672596129821722fd4655c42fec54810fa24a427c1deee58396fe9cc213f",
         "618d9b0c451f13a892c86d3572cd16ae72be6482886654188c7b1147890816e5",
-        "a230e17f6a559a824dc676fe909624bf7c73efa57f4b31445ba7e0748ed539f6",
-        "ad4432927e48bc9ffb8a9778ad4157c13b957381730e8bc96049fed5f8a31269"
+        "a230e17f6a559a824dc676fe909624bf7c73efa57f4b31445ba7e0748ed539f6"
       ],
       "context_fingerprints": [
         "07437c9de51856029f37cfaa5e20562a8abc9191ae2fe8b0a2ae2e256f3bbb52",
         "85839d3c26830963a51305e4c7555a10bd0bbd2444cb25e62c1015323dd6b16b",
         "877deac3719772d0e1a321a98498d1d85ed62bb71db93a7c14443a0eb2d1b7bc",
-        "b3b7a9996fcd9c0af48ced1e8da376ade06aca86d7d614a9c6a26eca5244eb37",
         "cdfba27ddb0c0fea9afbaa4995981e5ae12a7a86e60aadbdb5cdf0d70d475ee2",
         "d1941ec73495f01d4baddb7a409ed0acfe049cd611ac0eff8d2683722524a5db"
       ]

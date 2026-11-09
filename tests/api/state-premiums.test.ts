@@ -42,22 +42,19 @@ function body(zip = "10001", members = households[0]!, id = "11177NY0220001") {
   return { zip, plan_ids: [id], coverage_start: "2026-01-01", members };
 }
 async function http(tx: SqlSession, input: unknown) {
-  return createApp(tx, { premiumToken: token }).request(
-    "/v1/premium-estimates",
-    {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(input),
+  return createApp(tx, { premiumToken: token }).request("/v1/premium-quotes", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      authorization: `Bearer ${token}`,
     },
-  );
+    body: JSON.stringify(input),
+  });
 }
 async function ny(tx: SqlSession, input = body()) {
   const response = await http(tx, input);
   expect(response.status).toBe(200);
-  return ((await response.json()) as any).estimates[0];
+  return ((await response.json()) as ReturnType<typeof JSON.parse>).quotes[0];
 }
 async function rollback(run: (tx: SqlSession) => Promise<void>) {
   const marker = new Error("synthetic state rollback");
@@ -378,8 +375,8 @@ it("MCP contracts preserve state plan keys, filed totals and source cells", asyn
   ]) {
     const canonical = await estimatePremiums(db, request);
     const output = await canonicalEstimateOutput(db, canonical.estimates);
-    assertHonest("estimate_premiums", output, canonical);
-    expect(output.data!.estimates[0]).toMatchObject({
+    assertHonest("quote_premiums", output, canonical);
+    expect(output.data!.quotes[0]).toMatchObject({
       gross_status: "rated",
       quote_method: "state_filed_tier",
       members: [],

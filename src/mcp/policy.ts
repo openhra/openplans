@@ -1,10 +1,13 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import type { SqlSession } from "../db/database.js";
 import type { McpDependencies } from "./server.js";
+import { boundedDatabase, DEADLINE_MS } from "../db/bounded.js";
+import { publicQuotingFromEnv } from "../api/quotes.js";
+
+export { boundedDatabase, DEADLINE_MS };
 
 export type McpEnvironment = Record<string, string | undefined>;
 const processSecret = randomBytes(32);
-export const DEADLINE_MS = 15_000;
 export function authenticated(
   header: string | null,
   token: string | undefined,
@@ -23,34 +26,9 @@ export function dependencies(
     cursorSecret: env.OPENPLANS_MCP_CURSOR_SECRET || processSecret,
     principal: granted ? { id: "personalized" } : undefined,
     policy: { canEstimate: (principal) => principal?.id === "personalized" },
+    publicQuoting: publicQuotingFromEnv(env.OPENPLANS_PUBLIC_QUOTING),
   };
 }
-/** One bounded SQL scope per query; cancellation also forbids subsequent queries. */
-export function boundedDatabase(
-  db: SqlSession,
-  signal: AbortSignal,
-): SqlSession {
-  return {
-    async query<Row extends Record<string, unknown>>(
-      sql: string,
-      parameters?: unknown[],
-    ) {
-      signal.throwIfAborted();
-      const result = db.withRequest
-        ? await db.withRequest(signal, (session) =>
-            session.query<Row>(sql, parameters),
-          )
-        : await db.query<Row>(sql, parameters);
-      signal.throwIfAborted();
-      return result;
-    },
-    async exec(sql) {
-      signal.throwIfAborted();
-      await this.query(sql);
-    },
-  };
-}
-
 export function requestDependencies(
   deps: McpDependencies,
   signal: AbortSignal,

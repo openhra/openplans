@@ -37,6 +37,7 @@ let dataStatus: number;
 let dataHeaders: Record<string, string>;
 let options: FetchOptions;
 let transport: Transport;
+const paths = () => requested.map((entry) => new URL(entry.url).pathname);
 
 function publisher(host = "publisher.test"): PublisherPolicy {
   return {
@@ -179,7 +180,7 @@ describe("publisher admission before acquisition and publication", () => {
     expect(await dataEntries()).toEqual([]);
   });
 
-  it.each([401, 403, 429, 500, 503])(
+  it.each([401, 403, 405, 429, 451, 500, 503])(
     "holds unresolved robots HTTP %s without a terms or data request",
     async (status) => {
       policyStatus = status;
@@ -193,16 +194,6 @@ describe("publisher admission before acquisition and publication", () => {
       expect(await dataEntries()).toEqual([]);
     },
   );
-
-  it("records a robots 404 as absent policy, while still requiring reviewed terms", async () => {
-    policyStatus = 404;
-    const result = await run();
-    expect(result.admission?.hosts[0]?.robots).toMatchObject({
-      status: 404,
-      sha256: null,
-    });
-    expect(requested).toHaveLength(3);
-  });
 
   it("rejects an unreviewed host even if it is allowlisted", async () => {
     manifest.publishers.shift();
@@ -448,6 +439,7 @@ describe("publisher admission before acquisition and publication", () => {
 
   it("requires a manifest for native transport, including an expected-hash cache request", async () => {
     vi.stubEnv("OPENPLANS_ACCESS_MANIFEST", "");
+    vi.stubEnv("OPENPLANS_SHIPPED_ACCESS", "off");
     await expect(
       run({ transport: undefined, admission: undefined }),
     ).rejects.toMatchObject({ code: "admission_required" });
@@ -459,6 +451,7 @@ describe("publisher admission before acquisition and publication", () => {
     if (first.outcome === "not_modified") throw new Error("Expected snapshot");
     requested = [];
     vi.stubEnv("OPENPLANS_ACCESS_MANIFEST", "");
+    vi.stubEnv("OPENPLANS_SHIPPED_ACCESS", "off");
     const reused = await run({
       admission: undefined,
       transport: undefined,
@@ -533,13 +526,552 @@ describe("robots path policy", () => {
     );
   });
   it.each([
-    "User-agent: *\nDisallow: private",
-    "User-agent: *\nCrawl-delay: soon",
-    "Disallow: /",
     "<html>unresolved policy</html>",
-  ])("holds malformed policy: %s", (text) => {
+    "  <!DOCTYPE html><title>Error Page</title>",
+    "\uFEFF<html>",
+  ])("holds an HTML document served as robots: %s", (text) => {
     expect(() => parseRobots(text)).toThrow(
       expect.objectContaining({ code: "admission_denied" }),
     );
+  });
+});
+
+describe("tolerant robots parsing (RFC 9309 2.3.1.5)", () => {
+  const allowed = (text: string, path: string) =>
+    parseRobots(text).allows(new URL(`https://publisher.test${path}`));
+  it("reads a path without its leading slash and still disallows it", () => {
+    expect(allowed("User-agent: *\nDisallow: private\n", "/private/a")).toBe(
+      false,
+    );
+    expect(allowed("User-agent: *\nDisallow: *.pdf\n", "/x/a.pdf")).toBe(false);
+    expect(allowed("User-agent: *\nDisallow: *.pdf\n", "/x/a.json")).toBe(true);
+  });
+  it("skips unparseable lines but keeps the parseable rules around them", () => {
+    const text = "---\nUser-agent: *\nnonsense line\nDisallow: /feed\n";
+    expect(allowed(text, "/feed/a.json")).toBe(false);
+    expect(allowed(text, "/other")).toBe(true);
+  });
+  it("applies an ungrouped Crawl-delay and Disallow to every agent but ignores an ungrouped Allow", () => {
+    const text =
+      "Crawl-delay: 10\nDisallow: /held\nAllow: /feed/open\nUser-agent: *\nDisallow: /feed\n";
+    expect(parseRobots(text).delayMs).toBe(10_000);
+    expect(allowed(text, "/held/a")).toBe(false);
+    expect(allowed(text, "/feed/open/a")).toBe(false);
+  });
+  it("reads a leading number from a crawl delay and skips one it cannot read", () => {
+    expect(parseRobots("User-agent: *\nCrawl-delay: 7s\n").delayMs).toBe(7000);
+    expect(parseRobots("User-agent: *\nCrawl-delay: soon\n").delayMs).toBe(0);
+  });
+  it("never lets a named agent with spaces select a group", () => {
+    const text =
+      "User-agent: Example Spider 2.0\nAllow: /\nUser-agent: *\nDisallow: /\n";
+    expect(allowed(text, "/feed")).toBe(false);
+  });
+  it("adds Disallow lines from a wildcard agent pattern that matches openplans", () => {
+    const text =
+      "User-agent: *\nDisallow:\nUser-agent: open*\nDisallow: /feed\nAllow: /\n";
+    expect(allowed(text, "/feed/a")).toBe(false);
+    expect(allowed(text, "/other")).toBe(true);
+    const unrelated =
+      "User-agent: *\nDisallow:\nUser-agent: *AI*\nDisallow: /\n";
+    expect(allowed(unrelated, "/feed/a")).toBe(true);
+  });
+});
+
+describe("real published robots files", () => {
+  const fixture = (name: string) =>
+    readFile(new URL(`../fixtures/robots/${name}`, import.meta.url), "utf8");
+  const allowed = async (name: string, path: string) =>
+    parseRobots(await fixture(name)).allows(
+      new URL(`https://host.test${path}`),
+    );
+  it("disallows the whole Virginia SCC host for openplans (User-agent * / Disallow /)", async () => {
+    expect(await allowed("scc-virginia.txt", "/")).toBe(false);
+    expect(await allowed("scc-virginia.txt", "/any/page")).toBe(false);
+  });
+  it("disallows the Cigna QHP index under Disallow: /sites*", async () => {
+    expect(await allowed("cigna.txt", "/sites/json/cms-data-index.json")).toBe(
+      false,
+    );
+  });
+  it("disallows the Oscar CloudFront host", async () => {
+    expect(await allowed("oscar-cloudfront.txt", "/ffm/plans.json")).toBe(
+      false,
+    );
+  });
+  it("admits Capital Health paths and honours its ungrouped 10 s crawl delay", async () => {
+    const policy = parseRobots(await fixture("capitalhealth.txt"));
+    expect(policy.delayMs).toBe(10_000);
+    expect(
+      policy.allows(new URL("https://host.test/cms-data-index.json")),
+    ).toBe(true);
+  });
+  it("reads Alliant's *.pdf rule as /*.pdf without blocking its JSON index", async () => {
+    expect(await allowed("alliantplans.txt", "/docs/a.pdf")).toBe(false);
+    expect(await allowed("alliantplans.txt", "/cms-data-index.json")).toBe(
+      true,
+    );
+  });
+  it("admits Best Life JSON paths: its *AI* pattern does not match openplans", async () => {
+    expect(await allowed("bestlife.txt", "/cms-data-index.json")).toBe(true);
+  });
+});
+
+describe("robots 404/410 as absent rules (owner decision D1, 2026-11-09)", () => {
+  function absentRobots(status = 404, country = "CO"): void {
+    policyStatus = status;
+    for (const entry of manifest.publishers)
+      entry.robots = {
+        url: `https://${entry.host}/robots.txt`,
+        status,
+        sha256: null,
+        checkedAt: new Date().toISOString(),
+        country,
+      };
+  }
+  const session = (egressCountry?: string) =>
+    new AdmissionSession(manifestPath, undefined, { egressCountry });
+  it.each([404, 410])(
+    "admits a direct robots %s, still checks terms, and records absence and egress",
+    async (status) => {
+      absentRobots(status);
+      await saveManifest();
+      const result = await run({ admission: session("CO") });
+      expect(paths()).toEqual(["/robots.txt", "/terms", "/feed/index.json"]);
+      expect(result.admission?.hosts[0]).toMatchObject({
+        egressCountry: "CO",
+        robots: { status, sha256: null, absent: true },
+      });
+    },
+  );
+
+  it("holds a 404 host whose terms are restricted, without any request", async () => {
+    absentRobots();
+    manifest.publishers[0]!.terms!.disposition = "restricted";
+    await saveManifest();
+    await expect(run({ admission: session("CO") })).rejects.toMatchObject({
+      code: "admission_denied",
+    });
+    expect(requested).toEqual([]);
+  });
+
+  it("stops a 404 host whose terms changed before any data request", async () => {
+    absentRobots();
+    await saveManifest();
+    termsBody = "Synthetic changed terms forbid automated access.";
+    await expect(run({ admission: session("CO") })).rejects.toMatchObject({
+      code: "admission_denied",
+    });
+    expect(paths()).toEqual(["/robots.txt", "/terms"]);
+    expect(await dataEntries()).toEqual([]);
+  });
+
+  it("admits a 404 reviewed from another country and records the egress country (owner decision, 2026-11-09)", async () => {
+    absentRobots(404, "US");
+    await saveManifest();
+    const elsewhere = await run({ admission: session("CO") });
+    expect(elsewhere.admission?.hosts[0]).toMatchObject({
+      egressCountry: "CO",
+      robots: { status: 404, absent: true },
+    });
+    const unrecorded = await run({
+      admission: session(),
+      expectedSha256: undefined,
+      snapshotId: undefined,
+    });
+    expect(unrecorded.admission?.hosts[0]).toMatchObject({
+      egressCountry: null,
+      robots: { status: 404, absent: true },
+    });
+  });
+
+  it("rejects a manifest recording robots absence without a country", () => {
+    absentRobots();
+    delete manifest.publishers[0]!.robots!.country;
+    expect(admissionManifestSchema.safeParse(manifest).success).toBe(false);
+    absentRobots();
+    manifest.publishers[0]!.robots!.sha256 = digest("x");
+    expect(admissionManifestSchema.safeParse(manifest).success).toBe(false);
+  });
+
+  it("holds a host reviewed with a robots file that now answers 404", async () => {
+    policyStatus = 404;
+    await expect(run({ admission: session("CO") })).rejects.toMatchObject({
+      code: "admission_denied",
+    });
+    expect(paths()).toEqual(["/robots.txt"]);
+  });
+
+  it.each([
+    "https://publisher.test/missing-robots",
+    "https://elsewhere.test/robots.txt",
+  ])(
+    "holds a robots 404 reached through a redirect to %s",
+    async (location) => {
+      absentRobots();
+      await saveManifest();
+      const original = transport;
+      transport = async (url, context) => {
+        if (url.href === "https://publisher.test/robots.txt") {
+          requested.push({ url: url.href, agent: "" });
+          return {
+            status: 302,
+            headers: { location },
+            body: Readable.from([]),
+          };
+        }
+        if (url.pathname === "/missing-robots") {
+          requested.push({ url: url.href, agent: "" });
+          return { status: 404, headers: {}, body: Readable.from(["gone"]) };
+        }
+        return original(url, context);
+      };
+      await expect(run({ admission: session("CO") })).rejects.toBeInstanceOf(
+        Error,
+      );
+      expect(paths()).not.toContain("/terms");
+      expect(paths()).not.toContain("/feed/index.json");
+      expect(await dataEntries()).toEqual([]);
+    },
+  );
+
+  it("holds a 200 HTML error page served as robots (soft 404)", async () => {
+    robots = "<!DOCTYPE html><html><title>Error Page</title></html>";
+    await expect(run()).rejects.toMatchObject({ code: "admission_denied" });
+    const original = transport;
+    transport = async (url, context) => {
+      const response = await original(url, context);
+      if (url.pathname === "/robots.txt") {
+        response.headers = { "content-type": "text/html; charset=utf-8" };
+        response.body = Readable.from(["User-agent: *\nAllow: /\n"]);
+      }
+      return response;
+    };
+    await expect(
+      run({ admission: new AdmissionSession(manifestPath) }),
+    ).rejects.toMatchObject({ code: "admission_denied" });
+    expect(paths()).toEqual(["/robots.txt", "/robots.txt"]);
+  });
+
+  it("obeys a robots file that appears with Disallow at the daily recheck", async () => {
+    absentRobots();
+    await saveManifest();
+    const admission = session("CO");
+    await run({ admission });
+    const tomorrow = Date.now() + 24 * 60 * 60 * 1000;
+    vi.spyOn(Date, "now").mockReturnValue(tomorrow);
+    try {
+      policyStatus = 200;
+      robots = "User-agent: *\nDisallow: /\n";
+      await expect(run({ admission })).rejects.toMatchObject({
+        code: "admission_denied",
+      });
+      expect(
+        paths().filter((path) => path === "/feed/index.json"),
+      ).toHaveLength(1);
+    } finally {
+      vi.restoreAllMocks();
+    }
+  });
+
+  it("stops when an absent robots file turns into a 403 at the daily recheck", async () => {
+    absentRobots();
+    await saveManifest();
+    const admission = session("CO");
+    await run({ admission });
+    vi.spyOn(Date, "now").mockReturnValue(Date.now() + 24 * 60 * 60 * 1000);
+    try {
+      policyStatus = 403;
+      await expect(run({ admission })).rejects.toMatchObject({
+        code: "http_status",
+        status: 403,
+      });
+    } finally {
+      vi.restoreAllMocks();
+    }
+  });
+
+  it("still stops a captcha or login page from a 404-robots host", async () => {
+    absentRobots();
+    await saveManifest();
+    for (const body of [
+      '<div class="g-recaptcha">',
+      '<form action="/login">',
+    ]) {
+      dataBody = body;
+      await expect(
+        run({ admission: session("CO"), expectedContent: "binary" }),
+      ).rejects.toMatchObject({ code: "challenge_detected" });
+    }
+    expect(await dataEntries()).toEqual([]);
+  });
+
+  it("rejects an invalid egress country", () => {
+    expect(() => session("co")).toThrow(
+      expect.objectContaining({ code: "invalid_options" }),
+    );
+  });
+});
+
+describe("quarantined pre-admission snapshots", () => {
+  async function quarantine(snapshots: string[]): Promise<void> {
+    await writeFile(
+      join(directory, "raw", "synthetic", "QUARANTINE.json"),
+      JSON.stringify({ version: 1, reason: "pre-admission", snapshots }),
+    );
+  }
+  async function cached() {
+    const first = await run();
+    if (first.outcome === "not_modified") throw new Error("Expected snapshot");
+    requested = [];
+    return first;
+  }
+  const reuse = (sha256: string) =>
+    run({
+      admission: new AdmissionSession(manifestPath),
+      expectedSha256: sha256,
+    });
+
+  it("refuses to reuse a listed snapshot with the right hash but no readmission", async () => {
+    const first = await cached();
+    await quarantine([first.snapshotId]);
+    await expect(reuse(first.metadata.sha256)).rejects.toMatchObject({
+      code: "admission_denied",
+    });
+    vi.stubEnv("OPENPLANS_ACCESS_MANIFEST", "");
+    await expect(
+      run({
+        admission: undefined,
+        transport: undefined,
+        expectedSha256: first.metadata.sha256,
+      }),
+    ).rejects.toMatchObject({ code: "admission_denied" });
+  });
+
+  it("ignores a marker that lists only unknown snapshots", async () => {
+    const first = await cached();
+    await quarantine(["0".repeat(64)]);
+    expect((await reuse(first.metadata.sha256)).outcome).toBe("reused");
+  });
+
+  it("re-admits identical bytes downloaded now under a current admission, then reuses them", async () => {
+    const first = await cached();
+    await quarantine([first.snapshotId]);
+    const fresh = await run({ admission: new AdmissionSession(manifestPath) });
+    expect(fresh.outcome).toBe("reused");
+    expect(paths()).toContain("/feed/index.json");
+    const readmission = JSON.parse(
+      await readFile(
+        join(
+          directory,
+          "raw",
+          "synthetic",
+          `${first.snapshotId}.readmitted.json`,
+        ),
+        "utf8",
+      ),
+    );
+    expect(readmission).toMatchObject({
+      sha256: first.metadata.sha256,
+      bytes: first.metadata.bytes,
+    });
+    expect((await reuse(first.metadata.sha256)).outcome).toBe("reused");
+  });
+
+  it("refuses a readmission whose receipt hash, bytes or host do not match", async () => {
+    const first = await cached();
+    await quarantine([first.snapshotId]);
+    await run({ admission: new AdmissionSession(manifestPath) });
+    const path = join(
+      directory,
+      "raw",
+      "synthetic",
+      `${first.snapshotId}.readmitted.json`,
+    );
+    const valid = JSON.parse(await readFile(path, "utf8"));
+    for (const mutant of [
+      { ...valid, admissionReceiptSha256: "0".repeat(64) },
+      { ...valid, bytes: valid.bytes + 1 },
+      { ...valid, admissionReceipt: "relative.json" },
+    ]) {
+      await writeFile(path, JSON.stringify(mutant));
+      await expect(reuse(first.metadata.sha256)).rejects.toMatchObject({
+        code: "admission_denied",
+      });
+    }
+    const receipt = JSON.parse(await readFile(valid.admissionReceipt, "utf8"));
+    receipt.hosts = receipt.hosts.map((entry: { host: string }) => ({
+      ...entry,
+      host: "other.test",
+    }));
+    const forged = join(directory, "forged-receipt.json");
+    const forgedBytes = JSON.stringify(receipt);
+    await writeFile(forged, forgedBytes);
+    await writeFile(
+      path,
+      JSON.stringify({
+        ...valid,
+        admissionReceipt: forged,
+        admissionReceiptSha256: digest(forgedBytes),
+      }),
+    );
+    await expect(reuse(first.metadata.sha256)).rejects.toMatchObject({
+      code: "admission_denied",
+    });
+  });
+
+  it("negative control: changed bytes admit the new snapshot and leave the old one refused", async () => {
+    const old = await cached();
+    await quarantine([old.snapshotId]);
+    dataBody = '{"synthetic":true,"republished":1}';
+    const fresh = await run({ admission: new AdmissionSession(manifestPath) });
+    if (fresh.outcome === "not_modified") throw new Error("Expected snapshot");
+    expect(fresh.outcome).toBe("downloaded");
+    expect(fresh.metadata.sha256).not.toBe(old.metadata.sha256);
+    expect(await dataEntries()).not.toContain(
+      `${old.snapshotId}.readmitted.json`,
+    );
+    expect((await reuse(fresh.metadata.sha256)).outcome).toBe("reused");
+    await expect(reuse(old.metadata.sha256)).rejects.toMatchObject({
+      code: "admission_denied",
+    });
+    vi.stubEnv("OPENPLANS_ACCESS_MANIFEST", "");
+    await expect(
+      run({
+        admission: undefined,
+        transport: undefined,
+        expectedSha256: old.metadata.sha256,
+      }),
+    ).rejects.toMatchObject({ code: "admission_denied" });
+  });
+
+  it("negative control: a readmission written for another snapshot does not cover a listed one", async () => {
+    const old = await cached();
+    // Same length as the first body, so only identity and hash tell the two apart.
+    dataBody = '{"synthetic":1234}';
+    const other = await run();
+    if (other.outcome === "not_modified") throw new Error("Expected snapshot");
+    await quarantine([old.snapshotId, other.snapshotId]);
+    await run({ admission: new AdmissionSession(manifestPath) });
+    expect((await reuse(other.metadata.sha256)).outcome).toBe("reused");
+    const borrowed = await readFile(
+      join(
+        directory,
+        "raw",
+        "synthetic",
+        `${other.snapshotId}.readmitted.json`,
+      ),
+    );
+    await writeFile(
+      join(directory, "raw", "synthetic", `${old.snapshotId}.readmitted.json`),
+      borrowed,
+    );
+    await expect(reuse(old.metadata.sha256)).rejects.toMatchObject({
+      code: "admission_denied",
+    });
+  });
+});
+
+describe("tolerant robots parsing keeps every real block", () => {
+  const allowed = (text: string, path: string) =>
+    parseRobots(text).allows(new URL(`https://publisher.test${path}`));
+  it("selects a group by the openplans product token, with a version or any case", () => {
+    const text =
+      "User-agent: *\nDisallow:\nUser-agent: OpenPlans/1.0\nDisallow: /feed\n";
+    expect(allowed(text, "/feed/a")).toBe(false);
+    expect(allowed(text, "/other")).toBe(true);
+  });
+  it("reads a Disallow written without its colon or with a common misspelling", () => {
+    expect(allowed("User-agent: *\nDisallow /feed\n", "/feed/a")).toBe(false);
+    expect(allowed("User-agent: *\nDissallow: /feed\n", "/feed/a")).toBe(false);
+    expect(allowed("User-agent *\nDisallow /feed:x\n", "/feed:x/a")).toBe(
+      false,
+    );
+  });
+  it("negative control: an unrelated directive never becomes a rule", () => {
+    expect(allowed("User-agent: *\nNoindex: /feed\n", "/feed/a")).toBe(true);
+    expect(allowed("User-agent: *\nSitemap: /feed\n", "/feed/a")).toBe(true);
+  });
+});
+
+describe("terms published on another host", () => {
+  function offHostTerms(): void {
+    manifest.publishers[0]!.terms!.url = "https://legal.test/terms";
+  }
+  it("checks the terms host's robots, verifies the terms hash and records both", async () => {
+    offHostTerms();
+    await saveManifest();
+    const result = await run();
+    expect(requested.map((entry) => entry.url)).toEqual([
+      "https://publisher.test/robots.txt",
+      "https://legal.test/robots.txt",
+      "https://legal.test/terms",
+      "https://publisher.test/feed/index.json",
+    ]);
+    expect(result.admission?.hosts[0]).toMatchObject({
+      termsUrl: "https://legal.test/terms",
+      termsRobots: { url: "https://legal.test/robots.txt", status: 200 },
+    });
+  });
+  it("reads terms when the terms host has no robots file (direct 404)", async () => {
+    offHostTerms();
+    await saveManifest();
+    const original = transport;
+    transport = async (url, context) =>
+      url.href === "https://legal.test/robots.txt"
+        ? (requested.push({ url: url.href, agent: "" }),
+          { status: 404, headers: {}, body: Readable.from([""]) })
+        : original(url, context);
+    const result = await run();
+    expect(result.admission?.hosts[0]?.termsRobots).toMatchObject({
+      status: 404,
+      absent: true,
+    });
+  });
+  it.each([
+    [
+      "robots disallows the terms page",
+      200,
+      "User-agent: *\nDisallow: /terms\n",
+    ],
+    ["terms host robots answers 403", 403, ""],
+  ])("holds when the %s, before any data request", async (_, status, body) => {
+    offHostTerms();
+    await saveManifest();
+    const original = transport;
+    transport = async (url, context) =>
+      url.href === "https://legal.test/robots.txt"
+        ? (requested.push({ url: url.href, agent: "" }),
+          { status, headers: {}, body: Readable.from([body]) })
+        : original(url, context);
+    await expect(run()).rejects.toBeInstanceOf(Error);
+    expect(paths()).not.toContain("/feed/index.json");
+    expect(paths()).not.toContain("/terms");
+  });
+  it("stops when off-host terms changed", async () => {
+    offHostTerms();
+    await saveManifest();
+    termsBody = "Synthetic changed terms forbid copying.";
+    await expect(run()).rejects.toMatchObject({ code: "admission_denied" });
+    expect(paths()).not.toContain("/feed/index.json");
+  });
+  it("stops when off-host terms are a captcha or login page", async () => {
+    offHostTerms();
+    manifest.publishers[0]!.terms!.sha256 = digest('<div class="g-recaptcha">');
+    await saveManifest();
+    termsBody = '<div class="g-recaptcha">';
+    await expect(run()).rejects.toMatchObject({ code: "challenge_detected" });
+    expect(paths()).not.toContain("/feed/index.json");
+  });
+  it("never grants the terms host data clearance", async () => {
+    offHostTerms();
+    await saveManifest();
+    await run();
+    await expect(
+      fetchToCache("https://legal.test/feed/index.json", {
+        ...options,
+        allowHosts: ["legal.test"],
+      }),
+    ).rejects.toMatchObject({ code: "admission_denied" });
   });
 });

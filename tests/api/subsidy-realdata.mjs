@@ -47,7 +47,7 @@ try {
   assert.equal(benchmark.slcsp_monthly_cents, 59176);
   const ids = ["11718TX0140016", "20069TX0100006", "87226TX0100013"];
   // SYNTHETIC household; all plan premiums and benchmark evidence come from real imported PUFs.
-  const premiumResponse = await fetch(`${base}/v1/premium-estimates`, {
+  const premiumResponse = await fetch(`${base}/v1/premium-quotes`, {
     method: "POST",
     headers: {
       "content-type": "application/json",
@@ -65,13 +65,13 @@ try {
   });
   assert.equal(premiumResponse.status, 200);
   const premiums = await premiumResponse.json();
-  assert.equal(premiums.estimates.length, 3);
+  assert.equal(premiums.quotes.length, 3);
   assert.ok(
-    premiums.estimates.every(
+    premiums.quotes.every(
       (e) => e.status === "rated" && e.subsidy_status === "estimated",
     ),
   );
-  for (const e of premiums.estimates) {
+  for (const e of premiums.quotes) {
     assert.equal(e.slcsp_monthly_cents, benchmark.slcsp_monthly_cents);
     assert.equal(e.subsidy.fpl_percent, 200);
     assert.equal(e.subsidy.applicable_percentage, 0.066);
@@ -98,7 +98,7 @@ try {
   });
   assert.equal(familyBenchmarkResponse.status, 200);
   const familyBenchmark = await familyBenchmarkResponse.json();
-  const familyResponse = await fetch(`${base}/v1/premium-estimates`, {
+  const familyResponse = await fetch(`${base}/v1/premium-quotes`, {
     method: "POST",
     headers: {
       "content-type": "application/json",
@@ -120,7 +120,7 @@ try {
   });
   assert.equal(familyResponse.status, 200);
   const family = await familyResponse.json();
-  assert.equal(family.estimates.length, 3);
+  assert.equal(family.quotes.length, 3);
   // This prepared complete TX catalog has the cited public dental evidence; do not accept a regression to unknown.
   assert.equal(
     familyBenchmark.status,
@@ -132,7 +132,7 @@ try {
   assert.deepEqual(familyBenchmark.pediatric_dental.planIds, [
     "23891TX0010006",
   ]);
-  for (const e of family.estimates) {
+  for (const e of family.quotes) {
     assert.equal(e.status, "rated");
     assert.equal(e.subsidy_status, "estimated");
     assert.equal(e.slcsp_monthly_cents, familyBenchmark.slcsp_monthly_cents);
@@ -177,7 +177,7 @@ try {
       })),
     },
     contribution: {
-      rounding_policy: premiums.estimates[0].subsidy.rounding_policy,
+      rounding_policy: premiums.quotes[0].subsidy.rounding_policy,
       annual_cents: 206600,
       monthly_cents: 17200,
       household_credit_cents: 41976,
@@ -194,9 +194,9 @@ try {
         offers: familyBenchmark.pediatric_dental.offers,
       },
       lowest_silver_plans: familyBenchmark.lowest_silver_plans,
-      estimates: family.estimates.map(trimmed),
+      estimates: family.quotes.map(trimmed),
     },
-    premium_estimates: premiums.estimates.map((e) => ({
+    premium_estimates: premiums.quotes.map((e) => ({
       plan_id: e.plan_id,
       status: e.status,
       total_cents: e.total_cents,

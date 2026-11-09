@@ -79,8 +79,8 @@ covered members, not an enrollment or dependency determination.
 
 ## Native response and EHB
 
-`POST /v1/premium-estimates` accepts SADP base/variant IDs through the existing
-validation/authentication path. Estimates contain `coverage: dental`,
+`POST /v1/premium-quotes` accepts SADP base/variant IDs through the existing
+validation/authentication path. Quotes contain `coverage: dental`,
 `bindable_quote: false`, the filed method, rate-row evidence, cited dental policy
 and filed business-rule evidence. Gross dental is independent of medical quotes.
 

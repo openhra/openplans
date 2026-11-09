@@ -119,7 +119,7 @@ filings and `cms` for federal PUFs. Native routes retain their full source vocab
 Per-applicant allocations stay empty
 because the state filings supply contract totals. Native state-rule/subsidy limitations remain
 in the gaps; no age/tobacco factors or subsidy amounts are invented. Full source-cell/rule
-provenance remains available through native premium estimates.
+provenance remains available through native premium quotes.
 
 `plan.id` is an opaque string with no required HIOS syntax. VT therefore uses its native `plan_key`
 (for example `BCBSVT:Gold Plan`) for `plan.id`, search `ids[]`, and detail roundtrips.

@@ -16,6 +16,7 @@ import {
   toolAnnotations,
   evidenceCaution,
   assertHonest,
+  PERSONALIZED_TOOLS,
 } from "./schemas.js";
 import {
   callTool,
@@ -23,7 +24,7 @@ import {
   MAX_INPUT_ELEMENTS,
   MAX_OUTPUT_BYTES,
   messageBytes,
-  mayEstimate,
+  mayCall,
   errorResult,
 } from "./tools.js";
 import type { McpDependencies } from "./tools.js";
@@ -39,7 +40,8 @@ export const instructions =
   "OpenPlans reads imported public data only. Call get_data_status first to inspect loaded scopes and gaps. " +
   "Use search for literal discovery and fetch with returned typed IDs for full records; arbitrary URLs and paths are refused. " +
   "Every answer carries provenance and an evidence status. Unknown means missing or incomplete evidence, never not covered or not in network. " +
-  "Household estimates require authorization, are not bindable quotes, and never determine CSR eligibility. " +
+  "quote_plans quotes plans by age and ZIP without income or subsidies. Household quotes with income need authorization. " +
+  "Quotes are not bindable and never determine CSR eligibility. " +
   "Follow next_cursor with the same filters; restart after CURSOR_EXPIRED. Results describe the current local data generation, not a live publisher check.";
 
 const descriptions: Record<ToolName, [string, string]> = {
@@ -59,9 +61,13 @@ const descriptions: Record<ToolName, [string, string]> = {
     "Read a plan",
     "Read an exact HIOS or state plan key and year, with optional CSR variant and paged benefits, documents or provenance.",
   ],
-  estimate_premiums: [
-    "Estimate household premiums",
-    "Authorized household calculation with gross, estimated credit/net and full rate evidence. Not a bindable quote; CSR eligibility is not evaluated.",
+  quote_premiums: [
+    "Quote household premiums",
+    "Authorized household quote with gross, estimated credit/net and full rate evidence. Not a bindable quote; CSR eligibility is not evaluated.",
+  ],
+  quote_plans: [
+    "Quote plans by age and ZIP",
+    "Quote plans by age and ZIP. Public tier: no income, subsidy or names; tobacco is optional. Provider and drug coverage per plan with evidence status. Not a bindable quote.",
   ],
   search_providers: [
     "Find provider identities",
@@ -121,16 +127,19 @@ export function buildServer(deps: McpDependencies): McpServer {
   );
   const definitions: Tool[] = [];
   for (const tool of toolNames) {
-    if (tool === "estimate_premiums" && !mayEstimate(deps)) continue;
+    // Denied personalized tools are never registered. A disabled public quote tool stays
+    // callable so that it answers QUOTING_DISABLED, but it is not listed.
+    if (PERSONALIZED_TOOLS.has(tool) && !mayCall(deps, tool)) continue;
     const [title, description] = descriptions[tool];
-    definitions.push({
-      name: tool,
-      title,
-      description: `${description} ${evidenceCaution}`,
-      annotations: toolAnnotations,
-      inputSchema: inputJsonSchemas[tool] as Tool["inputSchema"],
-      outputSchema: outputJsonSchemas[tool],
-    });
+    if (mayCall(deps, tool))
+      definitions.push({
+        name: tool,
+        title,
+        description: `${description} ${evidenceCaution}`,
+        annotations: toolAnnotations,
+        inputSchema: inputJsonSchemas[tool] as Tool["inputSchema"],
+        outputSchema: outputJsonSchemas[tool],
+      });
     server.registerTool(
       tool,
       {

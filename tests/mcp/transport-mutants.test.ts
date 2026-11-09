@@ -14,8 +14,8 @@ it.each([
   ["origin", "origin !== undefined && !origins.includes(origin)", "false", 403],
   [
     "auth",
-    "params?.name === 'estimate_premiums' && !granted",
-    "params?.name === 'estimate_premiums' && false",
+    "PERSONALIZED_TOOLS.has(params?.name as ToolName) && !granted",
+    "PERSONALIZED_TOOLS.has(params?.name as ToolName) && false",
     401,
   ],
   [
@@ -59,7 +59,7 @@ it.each([
         );
       } else if (kind === "auth") {
         request = post("tools/call", {
-          name: "estimate_premiums",
+          name: "quote_premiums",
           arguments: {},
         });
       } else {

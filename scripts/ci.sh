@@ -15,6 +15,7 @@ npm run lint
 npm run check:lint-setup
 npm run typecheck
 node scripts/check-neutral.mjs
+node scripts/check-publisher-review.mjs
 npm run check:extraction
 npm run build
 npm test

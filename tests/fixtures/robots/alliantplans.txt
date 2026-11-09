@@ -1,0 +1,8 @@
+# START YOAST BLOCK
+# ---------------------------
+User-agent: *
+Disallow: *.pdf
+
+Sitemap: https://alliantplans.com/sitemap_index.xml
+# ---------------------------
+# END YOAST BLOCK

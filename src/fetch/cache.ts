@@ -33,9 +33,14 @@ import { httpsTransport } from "./transport.js";
 import type { FetchResponse, Transport } from "./transport.js";
 import { inspectZip } from "./zip.js";
 import type { ZipLimits } from "./zip.js";
-import { AdmissionSession, assertObservedHostAllowed } from "./admission.js";
+import {
+  AdmissionSession,
+  absentRobotsStatuses,
+  assertObservedHostAllowed,
+} from "./admission.js";
 import type { AdmissionReceipt, PolicyDocument } from "./admission.js";
 import { leaseHost } from "./limiter.js";
+import { shippedManifestPaths } from "./shipped.js";
 
 export interface SnapshotMetadata {
   snapshot_id: string;
@@ -81,8 +86,19 @@ export interface FetchOptions {
   /** Trusted dependency injection, principally for offline tests. URL policy always runs first. */
   lookup?: Lookup;
   transport?: Transport;
+  /**
+   * Sends the data request as a POST with this body, for publisher APIs that take an upload (the
+   * Census batch geocoder). Policy reads stay GET. A body is never resent to a redirect target.
+   */
+  requestBody?: RequestBody;
+  /** Called before each data request is sent (not for robots or terms reads), e.g. to count batches. */
+  onRequest?: (url: URL) => void;
   sleep?: (milliseconds: number) => Promise<void>;
   random?: () => number;
+}
+export interface RequestBody {
+  contentType: string;
+  body: Buffer;
 }
 export type FetchResult = (
   | {
@@ -174,9 +190,149 @@ function validateOptions(options: FetchOptions): void {
     (options.maxAttempts ?? 3) > 10 ||
     !Number.isInteger(options.maxRedirects ?? 5) ||
     (options.maxRedirects ?? 5) < 0 ||
-    (options.maxRedirects ?? 5) > 20
+    (options.maxRedirects ?? 5) > 20 ||
+    (options.requestBody !== undefined &&
+      (!Buffer.isBuffer(options.requestBody.body) ||
+        !/^[\w.+-]+\/[\w.+-]+(?:;[ -~]*)?$/.test(
+          options.requestBody.contentType,
+        ) ||
+        (options.maxRedirects ?? 5) !== 0))
   ) {
     throw new FetchError("invalid_options", "Invalid fetch options");
+  }
+}
+
+const quarantineMarker = "QUARANTINE.json";
+
+async function readOptionalJson(path: string): Promise<unknown> {
+  try {
+    return JSON.parse(await readFile(path, "utf8"));
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
+    throw new FetchError("cache_error", "Cache policy file is unreadable");
+  }
+}
+
+function sha256Hex(bytes: Buffer): string {
+  return createHash("sha256").update(bytes).digest("hex");
+}
+
+/**
+ * Snapshots fetched before admission existed are listed in a per-source QUARANTINE.json marker.
+ * One is reused only with `<id>.readmitted.json` naming the same bytes and a stored admission
+ * receipt (matching hash) that admits the snapshot's host.
+ */
+async function assertNotQuarantined(
+  sourceDir: string,
+  metadata: SnapshotMetadata,
+  freshReceipt?: AdmissionReceipt,
+): Promise<void> {
+  const marker = (await readOptionalJson(join(sourceDir, quarantineMarker))) as
+    { snapshots?: unknown } | undefined;
+  if (
+    !marker ||
+    !Array.isArray(marker.snapshots) ||
+    !marker.snapshots.includes(metadata.snapshot_id)
+  )
+    return;
+  const denied = () =>
+    new FetchError(
+      "admission_denied",
+      "Snapshot quarantined pending admission",
+    );
+  const readmissionPath = join(
+    sourceDir,
+    `${metadata.snapshot_id}.readmitted.json`,
+  );
+  if (freshReceipt)
+    await writeReadmission(readmissionPath, metadata, freshReceipt);
+  const readmission = (await readOptionalJson(readmissionPath)) as
+    Record<string, unknown> | undefined;
+  if (
+    !readmission ||
+    readmission.snapshot_id !== metadata.snapshot_id ||
+    readmission.sha256 !== metadata.sha256 ||
+    readmission.bytes !== metadata.bytes ||
+    typeof readmission.admissionReceipt !== "string" ||
+    !isAbsolute(readmission.admissionReceipt) ||
+    typeof readmission.admissionReceiptSha256 !== "string"
+  )
+    throw denied();
+  let receiptBytes: Buffer;
+  try {
+    receiptBytes = await readFile(readmission.admissionReceipt);
+  } catch {
+    throw denied();
+  }
+  if (sha256Hex(receiptBytes) !== readmission.admissionReceiptSha256)
+    throw denied();
+  let receipt: AdmissionReceipt;
+  try {
+    receipt = JSON.parse(receiptBytes.toString("utf8")) as AdmissionReceipt;
+  } catch {
+    throw denied();
+  }
+  const host = new URL(metadata.url).hostname;
+  if (
+    !Array.isArray(receipt.hosts) ||
+    !receipt.hosts.some(
+      (entry) => entry.host === host && entry.state === "allowed",
+    )
+  )
+    throw denied();
+}
+
+/**
+ * The quarantine rule for readers that open cached snapshots without fetchToCache, such as the
+ * bootstrap's cached release pages: a listed snapshot needs a matching readmission and receipt.
+ */
+export async function assertSnapshotAdmissible(
+  dataDir: string,
+  metadata: SnapshotMetadata,
+): Promise<void> {
+  if (!identifier.test(metadata.source))
+    throw new FetchError("cache_error", "Cached snapshot source is invalid");
+  await assertNotQuarantined(join(dataDir, "raw", metadata.source), metadata);
+}
+
+/**
+ * A download made now under a current admission that produced the very bytes of a quarantined
+ * snapshot is its re-admission evidence: the receipt is stored next to it and referenced by hash.
+ * An existing readmission is never overwritten.
+ */
+async function writeReadmission(
+  readmissionPath: string,
+  metadata: SnapshotMetadata,
+  receipt: AdmissionReceipt,
+): Promise<void> {
+  const receiptBytes = Buffer.from(`${JSON.stringify(receipt, null, 2)}\n`);
+  const receiptSha256 = sha256Hex(receiptBytes);
+  const receiptPath = readmissionPath.replace(
+    /\.readmitted\.json$/,
+    `.admission-${receiptSha256.slice(0, 16)}.json`,
+  );
+  try {
+    await writeFile(receiptPath, receiptBytes, { flag: "wx" });
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+  }
+  const readmission = {
+    snapshot_id: metadata.snapshot_id,
+    sha256: metadata.sha256,
+    bytes: metadata.bytes,
+    admissionReceipt: receiptPath,
+    admissionReceiptSha256: receiptSha256,
+    decision: "fresh admitted download with identical bytes",
+    readmittedAt: new Date().toISOString(),
+  };
+  try {
+    await writeFile(
+      readmissionPath,
+      `${JSON.stringify(readmission, null, 2)}\n`,
+      { flag: "wx" },
+    );
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
   }
 }
 
@@ -184,6 +340,7 @@ async function findSnapshot(
   sourceDir: string,
   source: string,
   sha256: string,
+  freshReceipt?: AdmissionReceipt,
 ): Promise<Cached | undefined> {
   let names: string[];
   try {
@@ -222,6 +379,7 @@ async function findSnapshot(
         "Cached snapshot metadata is inconsistent",
       );
     }
+    await assertNotQuarantined(sourceDir, metadata, freshReceipt);
     const path = join(sourceDir, name, "payload");
     if ((await stat(path)).size !== metadata.bytes)
       throw new FetchError(
@@ -308,7 +466,7 @@ async function requestChain(
     evidence.address = address.address;
     const headers: Record<string, string> = {
       "accept-encoding": "identity",
-      "user-agent": `openplans/0.1 (public health-plan source discovery; +${projectUrl(options)})`,
+      "user-agent": `openplans/0.2 (public health-plan source discovery; +${projectUrl(options)})`,
     };
     if (options.expectedContent === "json")
       headers.accept = "application/json, */*;q=0.1";
@@ -326,11 +484,15 @@ async function requestChain(
     try {
       if (admission && !policyProbe) await admission.assertCurrent(url);
       admission?.reserveRequest(url);
+      const upload = policyProbe ? undefined : options.requestBody;
+      if (upload) headers["content-type"] = upload.contentType;
+      if (!policyProbe) options.onRequest?.(url);
       response = await (options.transport ?? httpsTransport)(url, {
         address,
         headers,
         connectTimeoutMs: options.connectTimeoutMs ?? 10_000,
         readTimeoutMs: options.readTimeoutMs ?? 30_000,
+        ...(upload && { method: "POST" as const, body: upload.body }),
       });
     } catch (error) {
       await release?.();
@@ -395,6 +557,7 @@ async function readPublisherPolicy(
         snapshotId: undefined,
         expectedSha256: undefined,
         conditional: undefined,
+        requestBody: undefined,
         maxBytes: 512 * 1024,
         maxDecompressedBytes: 512 * 1024,
         maxAttempts: 1,
@@ -411,14 +574,18 @@ async function readPublisherPolicy(
       status: 200,
       sha256: result.metadata.sha256,
       text: await readFile(result.path, "utf8"),
+      contentType: result.metadata.content_type,
     };
   } catch (error) {
+    // A 404 reached through a redirect is another location's answer, not this host's robots file.
     if (
       url.pathname === "/robots.txt" &&
       error instanceof FetchError &&
-      error.status === 404
+      error.code === "http_status" &&
+      absentRobotsStatuses.includes(error.status ?? 0) &&
+      error.evidence?.redirect_chain.length === 0
     )
-      return { status: 404, sha256: null, text: "" };
+      return { status: error.status!, sha256: null, text: "", absent: true };
     throw error;
   }
 }
@@ -767,7 +934,14 @@ async function saveBody(
           checkedUrl(destination, options.allowHosts),
         );
     }
-    const existing = await findSnapshot(sourceDir, options.source, sha256);
+    const existing = await findSnapshot(
+      sourceDir,
+      options.source,
+      sha256,
+      options.admission && !policyProbe
+        ? options.admission.receipt()
+        : undefined,
+    );
     if (existing) {
       if (!policyProbe)
         await validateSnapshotAdmission(existing, initial, options);
@@ -848,21 +1022,71 @@ async function saveBody(
   }
 }
 
+const policyAllowanceBytes = 4 * 512 * 1024;
+const defaultSessionLimits = {
+  maxRequests: 200,
+  maxTransferBytes: 50 * 1024 ** 2,
+};
+
+/**
+ * A session created for one fetch call may move that call's own byte cap plus its policy reads.
+ * Each host's reviewed `jobCaps` still bound it, so a large reviewed file such as the national NPPES
+ * archive is not refused by the 50 MiB default meant for multi-file jobs.
+ */
+function implicitSession(
+  paths: readonly string[],
+  options: FetchOptions,
+): AdmissionSession {
+  return new AdmissionSession(
+    paths,
+    {
+      maxRequests: defaultSessionLimits.maxRequests,
+      maxTransferBytes: Math.max(
+        defaultSessionLimits.maxTransferBytes,
+        (options.maxBytes ?? 1024 ** 3) + policyAllowanceBytes,
+      ),
+    },
+    { egressCountry: process.env.OPENPLANS_EGRESS_COUNTRY || undefined },
+  );
+}
+
+/**
+ * Admission order: an explicit session; else `OPENPLANS_ACCESS_MANIFEST` layered over the shipped
+ * manifests; else, for a network cache miss only, the shipped manifests alone. Cache hits without an
+ * explicit session or operator manifest stay offline, as hash-pinned imports always have.
+ */
 export async function fetchToCache(
   input: string | URL,
   options: FetchOptions,
 ): Promise<FetchResult> {
-  const manifestPath = process.env.OPENPLANS_ACCESS_MANIFEST;
+  const shipped = shippedManifestPaths();
+  const operatorManifest = process.env.OPENPLANS_ACCESS_MANIFEST;
   const admission =
     options.admission ??
-    (manifestPath ? new AdmissionSession(manifestPath) : undefined);
-  const result = await acquire(input, { ...options, admission });
-  return admission ? { ...result, admission: admission.receipt() } : result;
+    (operatorManifest
+      ? implicitSession([...shipped, operatorManifest], options)
+      : undefined);
+  const fallback =
+    !admission && !options.transport && shipped.length
+      ? implicitSession(shipped, options)
+      : undefined;
+  const result = await acquire(input, {
+    ...options,
+    admission,
+    fallbackAdmission: fallback,
+  });
+  const used = admission ?? (fallback?.active ? fallback : undefined);
+  return used ? { ...result, admission: used.receipt() } : result;
+}
+
+interface AcquireOptions extends FetchOptions {
+  /** Used only once a network request is needed and no other session applies. */
+  fallbackAdmission?: AdmissionSession;
 }
 
 async function acquire(
   input: string | URL,
-  options: FetchOptions,
+  options: AcquireOptions,
   policyProbe = false,
   probeDelayMs = 5000,
 ): Promise<FetchResult> {
@@ -902,11 +1126,14 @@ async function acquire(
         return existing;
       }
     }
-    if (!options.admission && !options.transport)
-      throw new FetchError(
-        "admission_required",
-        "Native collection requires a reviewed publisher manifest",
-      );
+    if (!options.admission && !options.transport) {
+      if (!options.fallbackAdmission)
+        throw new FetchError(
+          "admission_required",
+          "Native collection requires a reviewed publisher manifest",
+        );
+      options = { ...options, admission: options.fallbackAdmission };
+    }
     for (let attempt = 0; attempt < (options.maxAttempts ?? 3); attempt++) {
       let response: FetchResponse | undefined;
       let release: (() => Promise<void>) | undefined;

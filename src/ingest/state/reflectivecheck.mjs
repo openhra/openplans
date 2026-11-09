@@ -137,13 +137,13 @@ try {
       } else assert.ok(plan.hios_id);
       for (const [index, members] of households.entries()) {
         const quote = (
-          await request("/v1/premium-estimates", {
+          await request("/v1/premium-quotes", {
             plan_keys: [key],
             county: "50007",
             coverage_start: "2026-01-01",
             members,
           })
-        ).estimates[0];
+        ).quotes[0];
         assert.equal(quote.status, "rated");
         assert.equal(
           quote.total_cents,

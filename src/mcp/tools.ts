@@ -5,10 +5,12 @@ import type { SqlSession } from "../db/database.js";
 import { dataGeneration } from "../api/cache/generation.js";
 import { countyState } from "../api/repository.js";
 import { InputError } from "../api/validation.js";
+import * as v from "../api/validation.js";
 import { ReadError } from "../services/errors.js";
 import * as catalog from "../services/catalog.js";
 import * as providers from "../services/providers.js";
 import * as drugs from "../services/drugs.js";
+import * as quotes from "../services/quotes.js";
 import { getDataStatus, getSnapshot } from "../services/provenance.js";
 import {
   discoverDrugs,
@@ -21,7 +23,10 @@ import {
   assertHonest,
   HonestyError,
   parseToolInput,
+  PERSONALIZED_TOOLS,
   planRefSchema,
+  QUOTING_TOOLS,
+  quoteBody,
 } from "./schemas.js";
 import type {
   HonestyContext,
@@ -48,12 +53,22 @@ export interface McpDependencies {
   onCache?: (outcome: CacheOutcome) => void;
   principal?: McpPrincipal;
   policy?: McpPolicy;
+  /** Anonymous quotes by age and ZIP; on unless explicitly false (OPENPLANS_PUBLIC_QUOTING=off). */
+  publicQuoting?: boolean;
   /** Share across processes if cursors must survive load balancing/restarts. Never log this value. */
   cursorSecret?: string | Uint8Array;
   now?: () => number;
 }
 export const mayEstimate = (deps: McpDependencies) =>
   Boolean(deps.principal && deps.policy?.canEstimate(deps.principal));
+export const mayQuotePublic = (deps: McpDependencies) =>
+  deps.publicQuoting !== false;
+/** Personalized names need a grant; the public quote tool needs the tier on. */
+export function mayCall(deps: McpDependencies, tool: ToolName) {
+  if (PERSONALIZED_TOOLS.has(tool)) return mayEstimate(deps);
+  if (tool === "quote_plans") return mayQuotePublic(deps);
+  return true;
+}
 export const MAX_OUTPUT_BYTES = 128 * 1024;
 export const MAX_INPUT_ELEMENTS = 512;
 export const limits = {
@@ -63,6 +78,9 @@ export const limits = {
   max_page: 25,
   max_plans: 10,
   max_members: 20,
+  max_quote_members: v.PUBLIC_QUOTE_LIMITS.members,
+  max_quote_providers: v.PUBLIC_QUOTE_LIMITS.providers,
+  max_quote_drugs: v.PUBLIC_QUOTE_LIMITS.drugs,
   max_coverage_pairs: 100,
   max_tool_input_elements: MAX_INPUT_ELEMENTS,
   cursor_ttl_ms: 15 * 60_000,
@@ -601,6 +619,61 @@ async function fetchAnswer(
   };
 }
 
+export type Completeness = (
+  planId: string,
+  kind: "drug_coverage" | "provider_coverage",
+) => unknown;
+/** Issuer source completeness from the manifest, as the coverage tools report it. */
+async function sourceCompleteness(
+  db: SqlSession,
+  year: number,
+): Promise<Completeness> {
+  const manifest = await getDataStatus(db, { year: String(year) });
+  return (planId, kind) =>
+    row(
+      manifest.entries.find(
+        (e) =>
+          e.issuer_id === planId.slice(0, 5) && e.state === planId.slice(5, 7),
+      )?.[kind],
+    ).status;
+}
+
+/** Native pages hold QUOTE_PAGE_SIZE plans; a truncated page resumes inside it. */
+async function quoteAnswer(
+  db: SqlSession,
+  input: ToolInput<"quote_plans">,
+  offset: number,
+): Promise<Answer> {
+  const size = quotes.QUOTE_PAGE_SIZE;
+  const native = await quotes.quotePlans(
+    db,
+    quoteBody(input, Math.floor(offset / size) + 1),
+  );
+  const items = native.quotes.slice(offset % size);
+  const completeness = await sourceCompleteness(db, input.year);
+  const p = await projector(db, items);
+  return {
+    data: {
+      quotes: items.map((q) => p.quote(q, completeness)),
+      bindable_quote: false,
+      tier: native.tier,
+      location_status: native.location.status,
+      tobacco_rating: native.tobacco_rating,
+      subsidy_status: "not_evaluated",
+      data_availability: native.data_availability,
+    },
+    p,
+    list: "quotes",
+    total: native.total,
+    more: offset + items.length < native.total,
+    status: status(native.location.status),
+    context: { ...p.context, estimates: items },
+    notes: [
+      "Quotes by age and ZIP are not bindable. Income and subsidies are not evaluated.",
+    ],
+  };
+}
+
 async function dispatch(
   deps: McpDependencies,
   tool: ToolName,
@@ -648,7 +721,7 @@ async function dispatch(
         status: status(nativeStatus),
       };
     }
-    case "estimate_premiums": {
+    case "quote_premiums": {
       if (!mayEstimate(deps)) throw new ToolError("AUTH_REQUIRED");
       const input = parseToolInput(tool, value),
         tax = input.household;
@@ -668,18 +741,16 @@ async function dispatch(
           : {}),
       });
       const p = await projector(db, native);
+      const projected = native.estimates.map(p.estimate);
       return {
-        data: {
-          estimates: native.estimates.map(p.estimate),
-          bindable_quote: false,
-        },
+        data: { quotes: projected, bindable_quote: false },
         p,
         context: { ...p.context, estimates: native.estimates },
-        notes: [
-          "Estimates are not bindable quotes. CSR eligibility is not evaluated.",
-        ],
+        notes: ["Quotes are not bindable. CSR eligibility is not evaluated."],
       };
     }
+    case "quote_plans":
+      return quoteAnswer(db, parseToolInput(tool, value), offset);
     case "search_providers": {
       const input = parseToolInput(tool, value);
       if (input.npi) {
@@ -754,22 +825,13 @@ async function dispatch(
           tool === "check_drug_coverage"
             ? await drugs.checkDrugCoverages(db, input)
             : await providers.checkProviderNetworks(db, input);
-      const manifest = await getDataStatus(db, { year: String(input.year) });
+      const completeness = await sourceCompleteness(db, input.year);
       const p = await projector(db, native);
       const results = native.results.map((value) => {
-        const r = row(value),
-          id = String(r.requested_plan_id);
-        const entry = manifest.entries.find(
-          (e) => e.issuer_id === id.slice(0, 5) && e.state === id.slice(5, 7),
-        );
-        const completeness = row(
-          tool === "check_drug_coverage"
-            ? entry?.drug_coverage
-            : entry?.provider_coverage,
-        ).status;
+        const id = String(row(value).requested_plan_id);
         return tool === "check_drug_coverage"
-          ? p.coverage(value, completeness)
-          : p.participation(value, completeness);
+          ? p.coverage(value, completeness(id, "drug_coverage"))
+          : p.participation(value, completeness(id, "provider_coverage"));
       });
       return { data: { results }, p };
     }
@@ -796,6 +858,7 @@ async function dispatch(
           personalized_access: mayEstimate(deps)
             ? "authorized"
             : "authentication_required",
+          public_quoting: mayQuotePublic(deps) ? "enabled" : "disabled",
           loaded: found.native.entries.length > 0,
         },
         p: found.p,
@@ -936,8 +999,10 @@ export async function callTool(
   let generation = "unknown";
   deps.onCache?.("bypass");
   try {
-    if (tool === "estimate_premiums" && !mayEstimate(deps))
+    if (PERSONALIZED_TOOLS.has(tool) && !mayEstimate(deps))
       throw new ToolError("AUTH_REQUIRED");
+    if (tool === "quote_plans" && !mayQuotePublic(deps))
+      throw new ToolError("QUOTING_DISABLED");
     const input = parseToolInput(tool, value),
       { cursor, ...filters } = input as Row;
     generation = await dataGeneration(deps.db);
@@ -956,8 +1021,10 @@ export async function callTool(
         throw new ToolError("DATA_CHANGED");
       const data = answer.data,
         list = answer.list ? (data[answer.list] as unknown[]) : undefined;
-      if (tool === "get_data_status")
+      if (tool === "get_data_status") {
         data.personalized_access = "authentication_required";
+        data.public_quoting = "disabled";
+      }
       const output: Row = {
         schema_version: "1",
         status: answer.status ?? "ok",
@@ -1018,7 +1085,7 @@ export async function callTool(
         })),
       };
     };
-    const cacheable = tool !== "estimate_premiums";
+    const cacheable = !QUOTING_TOOLS.has(tool);
     const dto = cacheable
       ? await (deps.cache ?? sharedResponseCache(deps.db)).catalog(
           {
@@ -1056,10 +1123,14 @@ export async function callTool(
     if ((await dataGeneration(deps.db)) !== generation)
       throw new ToolError("DATA_CHANGED");
     row(output.freshness).checked_at = checkedAt;
-    if (tool === "get_data_status")
+    if (tool === "get_data_status") {
       row(output.data).personalized_access = mayEstimate(deps)
         ? "authorized"
         : "authentication_required";
+      row(output.data).public_quoting = mayQuotePublic(deps)
+        ? "enabled"
+        : "disabled";
+    }
     if (output.page && output.truncated)
       row(output.page).next_cursor = codec.issue(
         binding,

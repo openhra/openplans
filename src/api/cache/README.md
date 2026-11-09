@@ -13,7 +13,7 @@ disables snapshots and AOF, and evicts with `allkeys-lru` at
 
 Valkey 8.1 is used because its [BSD-3-Clause distribution](https://github.com/valkey-io/valkey/blob/8.1/COPYING)
 and [RESP protocol](https://valkey.io/topics/protocol/) support a small GET/SET EX
-client without adding dependencies. Compared with another caching daemon this
+client without adding dependencies. Unlike another caching daemon, this
 keeps a familiar operational interface (`valkey-cli`) and server-side TTL/eviction.
 Each command opens a bounded TCP connection with a 150 ms total deadline; replies
 and stored responses are limited to 2 MiB. There is no reconnect queue. Read or
@@ -28,14 +28,16 @@ Only these request-dependent searches opt in:
 | --- | ---: |
 | GET `/v1/plans`, `/v1/providers`, `/v1/drugs`, `/compat/v1/drugs` | 60 |
 | GET `/v1/zip-counties`, `/compat/v1/zip_counties` | 300 |
-| GET `/v1/benchmark`, POST `/v1/premium-estimates` | 30 |
+| GET `/v1/benchmark`, POST `/v1/premium-quotes` | 30 |
+| POST `/v1/quotes` (public quotes) | 30 |
 | POST `/compat/v1/plans/medical/search`, `/compat/v1/plans/dental/search` | 30 |
 | POST `/compat/v1/providers/search` | 60 |
 
 Successful JSON responses only are stored. Health, errors, other routes/methods,
 cookies, credential-named body/query fields, and unexpected credential headers
 bypass. Accepted auth headers are checked on every request before lookup, excluded
-from the key, and never stored. Personalized and compatibility responses retain
+from the key, and never stored. Public quote limits run before the cache, so a
+hit still counts against them. Personalized and compatibility responses retain
 `Cache-Control: no-store` for HTTP clients/proxies; this is a separate private
 application cache. Only selected content/CORS/evidence headers are stored. Do not
 add request/body access logging, including at a reverse proxy.

@@ -28,7 +28,20 @@ const payloads: Record<ToolName, unknown> = {
     counties: [],
   },
   get_plan: { plan: shellPlan, section: "summary", records: [] },
-  estimate_premiums: { estimates: [], bindable_quote: false },
+  quote_premiums: { quotes: [], bindable_quote: false },
+  quote_plans: {
+    quotes: [],
+    bindable_quote: false,
+    tier: "public_quote",
+    location_status: "unknown",
+    tobacco_rating: "requested_flags",
+    subsidy_status: "not_evaluated",
+    data_availability: {
+      catalog: "unknown",
+      providers: "unknown",
+      drugs: "unknown",
+    },
+  },
   search_providers: { providers: [], unlocated: null },
   search_drugs: {
     candidates: [],
@@ -41,6 +54,7 @@ const payloads: Record<ToolName, unknown> = {
   get_data_status: {
     datasets: [],
     personalized_access: "authentication_required",
+    public_quoting: "enabled",
     loaded: false,
   },
   list_carriers_networks: { rows: [] },
@@ -50,12 +64,18 @@ const validInputs: Record<ToolName, unknown> = {
   fetch: { id: "plan:2026:87226TX0100013" },
   search_plans: { location: { zip: "77002" }, year: 2026 },
   get_plan: { plan_ref: "BCBSVT:Gold Plan", year: 2026 },
-  estimate_premiums: {
+  quote_premiums: {
     plan_refs: ["87226TX0100013"],
     location: { county: "48201" },
     coverage_start: "2026-01-01",
     members: [{ age: 35, tobacco: false, relationship: "subscriber" }],
-    household: { income_annual: 30000.01, size: 1, tax_filing: "single" },
+  },
+  quote_plans: {
+    year: 2026,
+    location: { zip: "77002" },
+    members: [{ age: 35 }, { age: 8, tobacco: false }],
+    npis: ["1234567890"],
+    rxcuis: ["860975"],
   },
   search_providers: { npi: "1234567890", year: 2026 },
   search_drugs: { query: "metformin" },
@@ -74,9 +94,10 @@ const validInputs: Record<ToolName, unknown> = {
   list_carriers_networks: { state: "TX" },
 };
 const validator = new AjvJsonSchemaValidator();
-describe("twelve closed MCP tool contracts (no transport)", () => {
+describe("thirteen closed MCP tool contracts (no transport)", () => {
   it("compiles all input/output schemas with the pinned SDK validator and round-trips JSON", () => {
-    expect(toolNames).toHaveLength(12);
+    expect(toolNames).toHaveLength(13);
+    expect(toolNames).not.toContain("estimate_premiums");
     expect(toolNames).toEqual([...toolNames].sort());
     expect(toolNames).not.toContain("benchmark_silver");
     for (const tool of toolNames) {
@@ -128,10 +149,53 @@ describe("twelve closed MCP tool contracts (no transport)", () => {
         },
       ],
       [
-        "estimate_premiums",
+        "quote_premiums",
         {
-          ...(validInputs.estimate_premiums as object),
+          ...(validInputs.quote_premiums as object),
           members: [{ age: 35, relationship: "subscriber" }],
+        },
+      ],
+      // The public quote tool refuses household, income and identity inputs.
+      [
+        "quote_plans",
+        {
+          ...(validInputs.quote_plans as object),
+          household: { income_annual: 40000, size: 1, tax_filing: "single" },
+        },
+      ],
+      [
+        "quote_plans",
+        {
+          ...(validInputs.quote_plans as object),
+          members: [{ age: 35, dob: "1990-01-02" }],
+        },
+      ],
+      [
+        "quote_plans",
+        {
+          ...(validInputs.quote_plans as object),
+          members: [{ age: 35, household_income_annual: 40000 }],
+        },
+      ],
+      [
+        "quote_plans",
+        {
+          ...(validInputs.quote_plans as object),
+          members: Array.from({ length: 11 }, () => ({ age: 30 })),
+        },
+      ],
+      [
+        "quote_plans",
+        {
+          ...(validInputs.quote_plans as object),
+          npis: [
+            "1234567890",
+            "1234567891",
+            "1234567892",
+            "1234567893",
+            "1234567894",
+            "1234567895",
+          ],
         },
       ],
     ];

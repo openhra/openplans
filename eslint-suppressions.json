@@ -1,15 +1,12 @@
 {
   "tests/api/csr.test.ts": {
-    "@typescript-eslint/no-explicit-any": { "count": 13 }
-  },
-  "tests/api/dental-premiums.test.ts": {
-    "@typescript-eslint/no-explicit-any": { "count": 1 }
+    "@typescript-eslint/no-explicit-any": { "count": 7 }
   },
   "tests/api/drugs.test.ts": {
     "@typescript-eslint/no-explicit-any": { "count": 10 }
   },
   "tests/api/premiums-location.test.ts": {
-    "@typescript-eslint/no-explicit-any": { "count": 8 }
+    "@typescript-eslint/no-explicit-any": { "count": 7 }
   },
   "tests/api/providers-name.test.ts": {
     "@typescript-eslint/no-explicit-any": { "count": 2 }
@@ -24,13 +21,13 @@
     "@typescript-eslint/no-explicit-any": { "count": 38 }
   },
   "tests/api/routes.test.ts": {
-    "@typescript-eslint/no-explicit-any": { "count": 16 }
+    "@typescript-eslint/no-explicit-any": { "count": 14 }
   },
   "tests/api/state-premiums.test.ts": {
-    "@typescript-eslint/no-explicit-any": { "count": 5 }
+    "@typescript-eslint/no-explicit-any": { "count": 4 }
   },
   "tests/api/subsidies.test.ts": {
-    "@typescript-eslint/no-explicit-any": { "count": 7 }
+    "@typescript-eslint/no-explicit-any": { "count": 5 }
   },
   "tests/api/subsidy-dental.test.ts": {
     "@typescript-eslint/no-explicit-any": { "count": 2 }
@@ -51,7 +48,7 @@
     "@typescript-eslint/no-explicit-any": { "count": 22 }
   },
   "tests/compat/v1/refresh.test.ts": {
-    "@typescript-eslint/no-explicit-any": { "count": 10 }
+    "@typescript-eslint/no-explicit-any": { "count": 8 }
   },
   "tests/compat/v1/response-contract.test.ts": {
     "@typescript-eslint/no-explicit-any": { "count": 5 }
@@ -63,7 +60,7 @@
     "@typescript-eslint/no-explicit-any": { "count": 15 }
   },
   "tests/ingest/geo/fallback.test.ts": {
-    "@typescript-eslint/no-explicit-any": { "count": 3 }
+    "@typescript-eslint/no-explicit-any": { "count": 2 }
   },
   "tests/ingest/qhp/formulary-batch.test.ts": {
     "@typescript-eslint/no-explicit-any": { "count": 3 }
@@ -75,9 +72,9 @@
     "@typescript-eslint/no-explicit-any": { "count": 13 }
   },
   "tests/ingest/state/hios.test.ts": {
-    "@typescript-eslint/no-explicit-any": { "count": 2 }
+    "@typescript-eslint/no-explicit-any": { "count": 1 }
   },
   "tests/ingest/state/reflective.test.ts": {
-    "@typescript-eslint/no-explicit-any": { "count": 6 }
+    "@typescript-eslint/no-explicit-any": { "count": 5 }
   }
 }

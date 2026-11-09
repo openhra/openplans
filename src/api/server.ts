@@ -36,7 +36,7 @@ try {
   process.once("SIGTERM", shutdown);
 } catch {
   console.error(
-    "API startup failed; check PORT, DATABASE_URL and OPENPLANS_COMPAT_KEY_HEADER",
+    "API startup failed; check PORT, DATABASE_URL, OPENPLANS_COMPAT_KEY_HEADER and OPENPLANS_PUBLIC_QUOTING",
   );
   process.exitCode = 1;
 }

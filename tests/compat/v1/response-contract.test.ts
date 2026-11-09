@@ -110,7 +110,7 @@ it("keeps the native intermediate contract before applying the final wire vocabu
   const detail = await h.app.request(`/v1/plans/${id}?year=2026`);
   expect(detail.status).toBe(200);
   const view = (await detail.json()) as Parameters<typeof mapPlan>[0];
-  const response = await h.app.request("/v1/premium-estimates", {
+  const response = await h.app.request("/v1/premium-quotes", {
     method: "POST",
     headers: { ...headers, authorization: `Bearer ${TOKEN}` },
     body: JSON.stringify({
@@ -122,10 +122,10 @@ it("keeps the native intermediate contract before applying the final wire vocabu
   });
   expect(response.status).toBe(200);
   const quote = (await response.json()) as {
-    estimates: Parameters<typeof mapQuote>[0][];
+    quotes: Parameters<typeof mapQuote>[0][];
   };
   // Source and coverage vocabulary change only at the final wire boundary.
-  planContract({ ...mapPlan(view, id), ...mapQuote(quote.estimates[0]!) });
+  planContract({ ...mapPlan(view, id), ...mapQuote(quote.quotes[0]!) });
 });
 
 it("preserves nullable federal fields and omits a plan-level coverage extension", async () => {

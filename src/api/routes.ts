@@ -3,27 +3,19 @@ import {
   searchPlans,
   getPlan,
   benchmarkSilver,
-  estimatePremiums,
   listCarriersNetworks,
 } from "../services/catalog.js";
 import { ReadError } from "../services/errors.js";
 import { providerRoutes } from "./providers.js";
 import { drugRoutes } from "./drugs.js";
-import { timingSafeEqual } from "node:crypto";
 import { Hono } from "hono";
-import { bodyLimit } from "hono/body-limit";
 import type { SqlSession } from "../db/database.js";
 import * as v from "./validation.js";
 
-export interface ApiOptions {
-  /** Required for personalized requests (spec §14). Never logged. */
-  premiumToken?: string;
-}
-function authorized(header: string | undefined, token: string): boolean {
-  const expected = Buffer.from(`Bearer ${token}`),
-    actual = Buffer.from(header ?? "");
-  return expected.length === actual.length && timingSafeEqual(expected, actual);
-}
+import { personalizedOnly, quoteRoutes } from "./quotes.js";
+import type { QuoteOptions } from "./quotes.js";
+
+export type ApiOptions = QuoteOptions;
 export function nativeRoutes(db: SqlSession, options: ApiOptions) {
   const app = new Hono();
   app.onError((error, c) => {
@@ -52,34 +44,10 @@ export function nativeRoutes(db: SqlSession, options: ApiOptions) {
     c.json(await getPlan(db, v.planId(c.req.param("id")).full, c.req.query())),
   );
 
-  for (const path of ["/premium-estimates", "/benchmark"])
-    app.use(path, async (c, next) => {
-      c.header("Cache-Control", "no-store");
-      if (!options.premiumToken)
-        return c.json({ error: { code: "AUTH_NOT_CONFIGURED" } }, 503);
-      if (!authorized(c.req.header("authorization"), options.premiumToken))
-        return c.json({ error: { code: "UNAUTHORIZED" } }, 401);
-      await next();
-    });
+  app.route("/", quoteRoutes(db, options));
+  app.use("/benchmark", personalizedOnly(options));
   app.get("/benchmark", async (c) =>
     c.json(await benchmarkSilver(db, c.req.query())),
-  );
-  app.post(
-    "/premium-estimates",
-    bodyLimit({
-      maxSize: 65_536,
-      onError: (c) =>
-        c.json({ error: { code: "REQUEST_TOO_LARGE", field: "body" } }, 400),
-    }),
-    async (c) => {
-      let body: unknown;
-      try {
-        body = await c.req.json();
-      } catch {
-        return c.json({ error: { code: "INVALID_JSON", field: "body" } }, 400);
-      }
-      return c.json(await estimatePremiums(db, body));
-    },
   );
 
   for (const kind of ["carriers", "networks"] as const) {

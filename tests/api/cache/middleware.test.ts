@@ -28,7 +28,7 @@ function harness(
     for (const route of [
       "/v1/plans",
       "/v1/zip-counties",
-      "/v1/premium-estimates",
+      "/v1/premium-quotes",
       "/v1/drugs",
       "/v1/providers",
       "/v1/benchmark",
@@ -210,7 +210,7 @@ describe("response middleware policy and canonical keys", () => {
       body: JSON.stringify({ nested: { api_key: "synthetic" } }),
     };
     expect(
-      (await h.app.request("/v1/premium-estimates", request)).headers.get(
+      (await h.app.request("/v1/premium-quotes", request)).headers.get(
         "X-Cache",
       ),
     ).toBe("bypass");
@@ -236,7 +236,7 @@ describe("response middleware policy and canonical keys", () => {
         "X-Cache",
       ),
     ).toBe("bypass");
-    const response = await h.app.request("/v1/premium-estimates", {
+    const response = await h.app.request("/v1/premium-quotes", {
       method: "POST",
       headers: { Authorization: "Bearer synthetic-token" },
       body: JSON.stringify({ padding: "x".repeat(65_536) }),
@@ -251,18 +251,18 @@ describe("response middleware policy and canonical keys", () => {
       body: "{}",
     };
     expect(
-      (await h.app.request("/v1/premium-estimates", request)).headers.get(
+      (await h.app.request("/v1/premium-quotes", request)).headers.get(
         "X-Cache",
       ),
     ).toBe("miss");
     expect(
-      (await h.app.request("/v1/premium-estimates", request)).headers.get(
+      (await h.app.request("/v1/premium-quotes", request)).headers.get(
         "X-Cache",
       ),
     ).toBe("hit");
     expect(
       (
-        await h.app.request("/v1/premium-estimates", {
+        await h.app.request("/v1/premium-quotes", {
           ...request,
           headers: { Authorization: "Bearer wrong" },
         })
@@ -348,5 +348,61 @@ describe("response middleware policy and canonical keys", () => {
         expected === "miss" ? "hit" : "bypass",
       );
     }
+  });
+  it("caches public quotes for 30 s by body hash, keeps the quote tier header, and authenticates premium quotes", async () => {
+    const memory = new MemoryCache(1024 * 1024),
+      ttls: number[] = [];
+    const store: CacheStore = {
+      get: (key) => memory.get(key),
+      bytes: () => memory.bytes(),
+      set: async (key, value, ttl) => {
+        ttls.push(ttl);
+        await memory.set(key, value, ttl);
+      },
+    };
+    const cache = createResponseCache(fakeDb, "synthetic-token", { store });
+    const app = new Hono();
+    app.use("*", cache.middleware);
+    let calls = 0;
+    app.post("/v1/quotes", (c) => {
+      calls++;
+      c.header("Cache-Control", "no-store");
+      c.header("X-Quote-Tier", "public");
+      return c.json({ quotes: [{ drugs: [{ prior_authorization: null }] }] });
+    });
+    app.post("/v1/premium-quotes", (c) => {
+      calls++;
+      c.header("Cache-Control", "no-store");
+      return c.json({ synthetic: true });
+    });
+    const quote = (body: string) =>
+      app.request("/v1/quotes", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body,
+      });
+    expect((await quote('{"a":1,"b":2}')).headers.get("X-Cache")).toBe("miss");
+    const hit = await quote('{"b":2,"a":1}');
+    expect(hit.headers.get("X-Cache")).toBe("hit");
+    expect(hit.headers.get("x-quote-tier")).toBe("public");
+    expect(hit.headers.get("cache-control")).toBe("no-store");
+    expect(calls).toBe(1);
+    expect(ttls).toEqual([30]);
+    const personalized = (authorization: string) =>
+      app.request("/v1/premium-quotes", {
+        method: "POST",
+        headers: { authorization },
+        body: "{}",
+      });
+    expect((await personalized("Bearer wrong")).headers.get("X-Cache")).toBe(
+      "bypass",
+    );
+    expect(
+      (await personalized("Bearer synthetic-token")).headers.get("X-Cache"),
+    ).toBe("miss");
+    const cached = await personalized("Bearer synthetic-token");
+    expect(cached.headers.get("X-Cache")).toBe("hit");
+    expect(cached.headers.get("deprecation")).toBeNull();
+    expect(ttls).toEqual([30, 30]);
   });
 });

@@ -14,6 +14,7 @@ import { isAbsolute, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Database } from "../db/database.js";
 import { migrate, migrationsDirectory } from "../db/migrate.js";
+import { assertSnapshotAdmissible, FetchError } from "../fetch/index.js";
 import type { SnapshotMetadata } from "../fetch/index.js";
 import { parameterRegistry } from "../domain/subsidy/generated.js";
 import { isSubsidyParameters } from "../domain/subsidy/parameters.js";
@@ -94,13 +95,82 @@ export interface StepResult extends StepOutcome {
   status: "completed" | "skipped" | "failed" | "planned";
   elapsed_ms: number;
   blocked_by?: string[];
+  /** A fetch failure's stable code and log-safe message (FetchError messages exclude URLs and bodies). */
+  error?: { code: string; message: string; status?: number };
+  /** What an operator can do about a held or unreviewed publisher. */
+  action?: string;
 }
 const usage =
   "Usage: worker bootstrap --states TX,FL --years 2026,2027 [--with-drugs] [--with-providers] [--with-nucc-taxonomy] [--with-geocode] [--dry-run]";
-class BootstrapFailure extends Error {}
-const fail = (reason: string): never => {
-  throw new BootstrapFailure(reason);
+class BootstrapFailure extends Error {
+  constructor(
+    reason: string,
+    readonly evidence?: unknown,
+  ) {
+    super(reason);
+  }
+}
+const fail = (reason: string, evidence?: unknown): never => {
+  throw new BootstrapFailure(reason, evidence);
 };
+const accessGuide = "docs/self-host.md#publisher-access";
+/** Sources OpenPlans cannot collect with its shipped manifests, and why (see the access guide). */
+const heldSourceActions: [RegExp, string][] = [
+  [
+    /^rxnorm$/,
+    "RxNorm is unavailable: its download host (download.nlm.nih.gov) disallows all automated access in robots.txt, so OpenPlans ships no clearance for it. Run without --with-drugs.",
+  ],
+  [
+    /^taxonomy$/,
+    "NUCC taxonomy needs your own terms review: add a reviewed operator manifest entry for www.nucc.org through OPENPLANS_ACCESS_MANIFEST.",
+  ],
+  [
+    /^qhp-/,
+    "Issuer hosts are not shipped: add a reviewed operator manifest entry for each issuer host through OPENPLANS_ACCESS_MANIFEST.",
+  ],
+  [
+    /^geocode-/,
+    "Geocoding is unavailable: the Census TIGERweb county host answers its robots.txt with an HTML rejection page, so county bounds cannot be collected.",
+  ],
+];
+function operatorAction(stepId: string): string {
+  const held = heldSourceActions.find(([pattern]) => pattern.test(stepId));
+  return `${held ? `${held[1]} ` : ""}See ${accessGuide}.`;
+}
+function fetchFailure(error: unknown): FetchError | undefined {
+  for (let cause = error, depth = 0; cause && depth < 5; depth++) {
+    if (cause instanceof FetchError) return cause;
+    cause = (cause as { cause?: unknown }).cause;
+  }
+}
+/** Failure fields for a step result. FetchError text is log safe; other exception text is never logged. */
+export function failureDetail(
+  stepId: string,
+  error: unknown,
+): Pick<StepResult, "reason" | "error" | "action" | "evidence"> {
+  const fetchError = fetchFailure(error);
+  if (fetchError)
+    return {
+      reason: fetchError.code,
+      error: {
+        code: fetchError.code,
+        message: fetchError.message,
+        ...(fetchError.status !== undefined && { status: fetchError.status }),
+      },
+      ...(/^admission_/.test(fetchError.code) && {
+        action: operatorAction(stepId),
+      }),
+    };
+  if (error instanceof BootstrapFailure)
+    return {
+      reason: error.message,
+      ...(error.evidence !== undefined && { evidence: error.evidence }),
+      ...(/^(qhp_|no_qhp_|required_puf_)/.test(error.message) && {
+        action: operatorAction(stepId),
+      }),
+    };
+  return { reason: "step_failed_check_source_cache_and_database" };
+}
 const digest = (bytes: Buffer | string) =>
   createHash("sha256").update(bytes).digest("hex");
 const dataFile = (path: string) =>
@@ -145,7 +215,7 @@ export function parseBootstrapOptions(args: string[]): BootstrapOptions {
   };
 }
 
-/** The graph is ordered, but only failed prerequisites block a step. No exception text is logged. */
+/** The graph is ordered, but only failed prerequisites block a step. Only FetchError text is logged. */
 export async function executeBootstrap(
   steps: BootstrapStep[],
   output: Output,
@@ -195,10 +265,7 @@ export async function executeBootstrap(
         result = {
           id: step.id,
           status: "failed",
-          reason:
-            error instanceof BootstrapFailure
-              ? error.message
-              : "step_failed_check_source_cache_and_database",
+          ...failureDetail(step.id, error),
           elapsed_ms: Date.now() - started,
         };
       }
@@ -282,9 +349,11 @@ async function latestManifest(
     fail("invalid_puf_manifest");
   return m;
 }
+/** Cached release pages and archives obey the fetch cache's quarantine and re-admission rule. */
 async function verifiedCached(dataDir: string, source: string, url?: string) {
   const m = await metadata(dataDir, source, url);
   if (!m) return;
+  await assertSnapshotAdmissible(dataDir, m);
   const path = join(dataDir, "raw", source, m.sha256, "payload");
   const hash = createHash("sha256");
   let bytes = 0;
@@ -437,7 +506,14 @@ export async function bootstrapPlan(
               )?.status !== "ok",
           )
         )
-          fail("required_puf_files_unavailable");
+          fail(
+            "required_puf_files_unavailable",
+            combined.files
+              .filter(
+                (file) => file.year === year && wanted.includes(file.kind),
+              )
+              .map((file) => ({ kind: file.kind, status: file.status })),
+          );
         return { reason: "publication_acquired" };
       },
       estimate,
@@ -991,9 +1067,12 @@ export async function runBootstrap(
     );
     const summary = await executeBootstrap(steps, output, options.dryRun);
     code = summary.passed ? 0 : 1;
-  } catch {
+  } catch (error) {
+    const fetchError = fetchFailure(error);
     output.error(
-      "worker bootstrap failed; check data cache metadata, options and database",
+      fetchError
+        ? `worker bootstrap failed: ${fetchError.message} (${fetchError.code})`
+        : "worker bootstrap failed; check data cache metadata, options and database",
     );
     code = 1;
   } finally {

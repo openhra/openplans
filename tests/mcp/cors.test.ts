@@ -101,7 +101,7 @@ describe("MCP response CORS", () => {
       () =>
         post(
           "tools/call",
-          { name: "estimate_premiums", arguments: {} },
+          { name: "quote_premiums", arguments: {} },
           { origin: allowedOrigin },
         ),
     ],

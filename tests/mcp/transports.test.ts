@@ -53,7 +53,7 @@ describe("HTTP transport official clients", () => {
         expect(client.getProtocolEra()).toBe(legacy ? "legacy" : "modern");
         const tools = await client.listTools();
         expect(tools.tools.some((t) => t.name === "search_plans")).toBe(true);
-        expect(tools.tools.some((t) => t.name === "estimate_premiums")).toBe(
+        expect(tools.tools.some((t) => t.name === "quote_premiums")).toBe(
           false,
         );
         const result = await client.callTool({
@@ -213,7 +213,7 @@ it.each([undefined, "SIGTERM", "SIGINT"] as const)(
       messages
         .find((m) => m.id === 2)
         .result.tools.some(
-          (t: { name: string }) => t.name === "estimate_premiums",
+          (t: { name: string }) => t.name === "quote_premiums",
         ),
     ).toBe(false);
     expect(code).toBe(0);
@@ -228,9 +228,7 @@ it("stdio personalized grant is explicit", async () => {
   expect(
     messages
       .find((m) => m.id === 2)
-      .result.tools.some(
-        (t: { name: string }) => t.name === "estimate_premiums",
-      ),
+      .result.tools.some((t: { name: string }) => t.name === "quote_premiums"),
   ).toBe(true);
 });
 

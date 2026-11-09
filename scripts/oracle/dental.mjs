@@ -317,7 +317,7 @@ try {
   for (const expected of raw.household_cases
     .filter((c) => c.plan === examplePlan && c.area === "Rating Area 10")
     .slice(0, 3)) {
-    const response = await app.request("/v1/premium-estimates", {
+    const response = await app.request("/v1/premium-quotes", {
       method: "POST",
       headers: {
         "content-type": "application/json",
@@ -335,7 +335,7 @@ try {
       }),
     });
     const body = await response.json(),
-      actual = body.estimates?.[0];
+      actual = body.quotes?.[0];
     const passed =
       response.status === 200 &&
       actual?.coverage === "dental" &&

@@ -9,6 +9,9 @@ export interface TransportContext {
   headers: Record<string, string>;
   connectTimeoutMs: number;
   readTimeoutMs: number;
+  /** GET unless the caller supplied an upload body (FetchOptions.requestBody). */
+  method?: "GET" | "POST";
+  body?: Buffer;
 }
 export interface FetchResponse {
   status: number;
@@ -26,9 +29,11 @@ export const httpsTransport: Transport = (url, context) =>
     let responseBody: IncomingMessage | undefined;
     let phase: "tcp_connect" | "tls_handshake" | "response" = "tcp_connect";
     const req = request(url, {
-      method: "GET",
+      method: context.method ?? "GET",
       family: context.address.family,
-      headers: context.headers,
+      headers: context.body
+        ? { ...context.headers, "content-length": String(context.body.length) }
+        : context.headers,
       agent: false,
       rejectUnauthorized: true,
       // Pin the validated address through connect. TLS SNI/certificate checks still use the publisher hostname.
@@ -79,5 +84,5 @@ export const httpsTransport: Transport = (url, context) =>
       };
       reject(failure);
     });
-    req.end();
+    req.end(context.body);
   });

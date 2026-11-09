@@ -71,7 +71,7 @@ describe("in-process MCP public catalog and estimates", () => {
     await rm(dir, { recursive: true, force: true });
   });
 
-  it("discovers twelve tools in fixed order, closed contracts, annotations and instructions", async () => {
+  it("discovers all thirteen tools in fixed order when granted, closed contracts, annotations and instructions", async () => {
     const list = await h.client.listTools();
     expect(list.tools.map((t) => t.name)).toEqual(toolNames);
     for (const tool of list.tools) {
@@ -85,7 +85,8 @@ describe("in-process MCP public catalog and estimates", () => {
     expect(list.ttlMs).toBe(0);
     const discovery = await h.client.discover();
     expect(discovery.instructions).toContain("get_data_status");
-    expect(discovery.instructions).toContain("not bindable quotes");
+    expect(discovery.instructions).toContain("not bindable");
+    expect(discovery.instructions).toContain("quote_plans");
     expect(discovery.cacheScope).toBe("public");
     expect(discovery.ttlMs).toBe(3_600_000);
     expect(discovery.capabilities.tools?.listChanged).toBe(false);
@@ -174,29 +175,29 @@ describe("in-process MCP public catalog and estimates", () => {
       coverage_start: "2026-01-01",
       members: [{ age: 35, tobacco: false, relationship: "subscriber" }],
     };
-    const output = await h.call("estimate_premiums", input);
-    expect(output.data?.estimates[0]?.gross_monthly_cents).toBe(52928);
+    const output = await h.call("quote_premiums", input);
+    expect(output.data?.quotes[0]?.gross_monthly_cents).toBe(52928);
     const native = await estimatePremiums(db, {
       plan_ids: input.plan_refs,
       ...input.location,
       coverage_start: input.coverage_start,
       members: input.members,
     });
-    assertHonest("estimate_premiums", output, native);
+    assertHonest("quote_premiums", output, native);
     const amount = structuredClone(output);
-    amount.data!.estimates[0]!.gross_monthly_cents!++;
-    expect(() => outputSchemas.estimate_premiums.parse(amount)).not.toThrow();
-    expect(() => assertHonest("estimate_premiums", amount, native)).toThrow(
+    amount.data!.quotes[0]!.gross_monthly_cents!++;
+    expect(() => outputSchemas.quote_premiums.parse(amount)).not.toThrow();
+    expect(() => assertHonest("quote_premiums", amount, native)).toThrow(
       "fabricated cents",
     );
     const dropped = structuredClone(output);
     dropped.provenance = [];
-    expect(() => assertHonest("estimate_premiums", dropped, native)).toThrow(
+    expect(() => assertHonest("quote_premiums", dropped, native)).toThrow(
       "unresolvable provenance",
     );
     const status = structuredClone(output);
-    status.data!.estimates[0]!.gross_status = "unknown";
-    expect(() => assertHonest("estimate_premiums", status, native)).toThrow(
+    status.data!.quotes[0]!.gross_status = "unknown";
+    expect(() => assertHonest("quote_premiums", status, native)).toThrow(
       "unrated numeric premium",
     );
   });
@@ -332,7 +333,7 @@ describe("in-process MCP public catalog and estimates", () => {
     try {
       expect(
         (await anonymous.client.listTools()).tools.map((t) => t.name),
-      ).not.toContain("estimate_premiums");
+      ).not.toContain("quote_premiums");
       expect(
         (await anonymous.call("get_data_status", {})).data?.personalized_access,
       ).toBe("authentication_required");
@@ -340,7 +341,7 @@ describe("in-process MCP public catalog and estimates", () => {
       expect(
         (
           await restricted.call(
-            "estimate_premiums",
+            "quote_premiums",
             {
               plan_refs: ["87226TX0100013"],
               location: { county: "48201" },

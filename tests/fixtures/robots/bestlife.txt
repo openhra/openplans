@@ -1,0 +1,23 @@
+# Allow all standard search engines
+User-agent: *
+Disallow:
+
+# Block known AI training crawlers
+User-agent: GPTBot
+Disallow: /
+
+User-agent: Google-Extended
+Disallow: /
+
+User-agent: Anthropics-claude-web
+Disallow: /
+
+User-agent: Meta-ExternalAgent
+Disallow: /
+
+User-agent: CCBot
+Disallow: /
+
+# Catch-all block for other AI/LLM crawlers
+User-agent: *AI*
+Disallow: /

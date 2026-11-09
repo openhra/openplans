@@ -169,7 +169,7 @@ describe("ZIP fallback source order and provenance", () => {
       expect(url.pathname).toBe("/api/v1/counties/by/zip/77001");
       expect(url.searchParams.get("year")).toBe("2026");
       expect(url.searchParams.get("apikey")).toBe(KEY);
-      expect(context.headers["user-agent"]).toMatch(/^openplans\/0.1 /);
+      expect(context.headers["user-agent"]).toMatch(/^openplans\/0\.2 /);
       return response(200, body);
     });
     const guarded: SqlSession = {
@@ -453,7 +453,7 @@ describe("GeoNames import and native/facade integration", () => {
     await ingestRatingRules(db);
     const token = "synthetic-fallback-premium-token",
       app = createApp(db, { premiumToken: token });
-    const response = await app.request("/v1/premium-estimates", {
+    const response = await app.request("/v1/premium-quotes", {
       method: "POST",
       headers: {
         "content-type": "application/json",
@@ -467,7 +467,9 @@ describe("GeoNames import and native/facade integration", () => {
       }),
     });
     expect(response.status).toBe(200);
-    expect(((await response.json()) as any).estimates[0]).toMatchObject({
+    expect(
+      ((await response.json()) as ReturnType<typeof JSON.parse>).quotes[0],
+    ).toMatchObject({
       status: "rated",
       total_cents: 52928,
     });

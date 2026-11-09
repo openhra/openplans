@@ -70,7 +70,7 @@ legacy 2026 validation DB. Reports are under `OPENPLANS_DATA_DIR/reports/`:
 Offline controls also rename `IndividualRate` in a 2027 fixture and observe
 a named-column quarantine, and request a 2027 premium while its temporary rule file
 is absent. The latter returns `unsupported_rating_method` even after 2026 support
-has been loaded; adding the cited 2027 document enables a filed-rate estimate.
+has been loaded; adding the cited 2027 document enables a filed-rate quote.
 
 ## Year-over-year method
 

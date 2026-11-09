@@ -254,10 +254,10 @@ describe("MCP uses the existing public DTO cache", () => {
     };
     for (let i = 0; i < 2; i++)
       expect(
-        (await callTool(deps(granted), "estimate_premiums", household)).isError,
+        (await callTool(deps(granted), "quote_premiums", household)).isError,
       ).toBeUndefined();
     expect(
-      (await callTool(deps(), "estimate_premiums", household)).structuredContent
+      (await callTool(deps(), "quote_premiums", household)).structuredContent
         .error?.code,
     ).toBe("AUTH_REQUIRED");
     expect(
@@ -301,7 +301,7 @@ describe("MCP uses the existing public DTO cache", () => {
     expect(JSON.stringify(writes)).not.toContain(env.OPENPLANS_MCP_TOKEN);
     const readsBeforeDenial = reads.length;
     const denied = await app.fetch(
-      post("tools/call", { name: "estimate_premiums", arguments: {} }),
+      post("tools/call", { name: "quote_premiums", arguments: {} }),
     );
     expect(denied.status).toBe(401);
     await denied.text();
