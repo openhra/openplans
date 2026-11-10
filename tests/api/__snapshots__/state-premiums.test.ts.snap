@@ -1,0 +1,3 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`NY affordability response bytes stay at the recorded 2026 fixture answer 1`] = `"{"quote_method":"puf_calculation","bindable_quote":false,"plan_start":"2026-01-01","lcsp":{"status":"requires_state_rules","reason":"state_filed_tier_pending","basis_used":"gross","plan_ids":[],"monthly_cents":null,"by_basis":{"gross":null,"ehb_portion":null},"location":{"source":"residence","county_fips":"36061","zip":"10001","rating_area_id":null},"coverage_month":"2026-01-01","identified_at_age":40,"priced_at_age":40,"silver_plan_count":0,"provenance":null,"issues":[]},"employer_lcsp":null,"verdicts":[],"applicable_age":40,"status":"requires_state_rules","reason":"state_filed_tier_pending"}"`;

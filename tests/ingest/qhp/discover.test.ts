@@ -1,5 +1,12 @@
 import { createHash } from "node:crypto";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Readable } from "node:stream";
@@ -15,6 +22,7 @@ import { discoverQhp } from "../../../src/ingest/qhp/discover.js";
 import {
   cachedRegistry,
   readRegistry,
+  registryWorkbook,
 } from "../../../src/ingest/qhp/discover-registry.js";
 import type { RegistryInput } from "../../../src/ingest/qhp/discover-registry.js";
 import type { Transport } from "../../../src/fetch/index.js";
@@ -22,6 +30,7 @@ import { FetchError, fetchToCache } from "../../../src/fetch/index.js";
 import { httpsTransport } from "../../../src/fetch/transport.js";
 import { runWorker } from "../../../src/worker/commands.js";
 import { workbook } from "../../fixtures/qhp/generate.mjs";
+import { syntheticZip } from "../../fixtures/fetch/generate.mjs";
 
 let directory: string,
   db: Database,
@@ -72,6 +81,39 @@ async function registry(rows: string[][]): Promise<RegistryInput> {
 const lookup = async () => [{ address: "93.184.216.34", family: 4 as const }];
 
 describe("registry-first QHP discovery", () => {
+  it("extracts registry workbooks outside raw and rejects a corrupt derivative", async () => {
+    const input = await registry([
+      ["TX", "11111", "https://synthetic.example/index"],
+    ]);
+    const sheet = await readFile(input.path);
+    // Synthetic archive of the same workbook layout as the CMS publication.
+    const raw = join(directory, "raw");
+    await mkdir(raw);
+    const path = join(raw, "registry.zip");
+    await writeFile(
+      path,
+      syntheticZip([{ name: "registry.xlsx", body: sheet }]),
+    );
+    const archived = { ...input, path };
+    const extracted = await registryWorkbook(archived, directory);
+    expect(
+      extracted.startsWith(join(directory, "work", "qhp-registry-workbook")),
+    ).toBe(true);
+    expect(await readRegistry(extracted, "TX")).toHaveLength(1);
+    expect(await readdir(raw)).toEqual(["registry.zip"]);
+    expect(await registryWorkbook(archived, directory)).toBe(extracted);
+    // Disposable mutant: an existing derivative must not bypass hash verification.
+    await writeFile(extracted, "synthetic corrupt workbook");
+    await expect(registryWorkbook(archived, directory)).rejects.toMatchObject({
+      code: "cache_error",
+    });
+    expect(
+      (await readdir(join(directory, "work", "qhp-registry-workbook"))).some(
+        (name) => name.endsWith(".part"),
+      ),
+    ).toBe(false);
+  });
+
   it("negative HTML control: records per-issuer errors and continues; downloads Cigna plans/drugs only with child-host evidence", async () => {
     const input = await registry([
       ["TX", "11111", "https://html.example/index.json"],
@@ -331,7 +373,7 @@ describe("registry-first QHP discovery", () => {
         identities.every(
           (value) =>
             value ===
-            "openplans/0.3.1 (public health-plan source discovery; +https://project.example/openplans)",
+            "openplans/0.3.2 (public health-plan source discovery; +https://project.example/openplans)",
         ),
       ).toBe(true);
       expect(

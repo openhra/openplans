@@ -3,8 +3,15 @@
 Usage: python3 -I medicare-part-d-reference.py SPUF.zip
 Prints JSON: row counts, a digest of every row group, each plan's formularies and suppression
 flag, and a sample of drug lookups with the listing the raw rows give.
+--inventory counts each inner table. --large checks networks and prices; --sample-modulus N
+selects plans whose SHA-256 integer is divisible by N. --sample-archive writes their raw lines.
 """
 import hashlib, io, json, re, sys, zipfile
+
+if "--large" in sys.argv or "--inventory" in sys.argv:
+    import pathlib, runpy
+    runpy.run_path(str(pathlib.Path(__file__).with_name("medicare-part-d-large-reference.py")), run_name="__main__")
+    sys.exit(0)
 
 TABLES = {
     "plan": "plan information ",

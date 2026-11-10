@@ -53,7 +53,14 @@ import {
   verifyRegistry,
   readRegistry,
   registryWorkbook,
+  readGeorgiaRegistry,
 } from "../ingest/qhp/discover-registry.js";
+import { cachedGeorgiaRegistry } from "../ingest/sbe/georgia.js";
+import {
+  preparedQhpFetcher,
+  preparedQhpOutcome,
+  readQhpProfile,
+} from "./qhp-profile.js";
 import { discoverQhp } from "../ingest/qhp/discover.js";
 import { ingestQhpBatch } from "../ingest/qhp/formulary-batch.js";
 import {
@@ -81,6 +88,8 @@ export interface BootstrapOptions {
   nuccTaxonomy: boolean;
   geocode: boolean;
   dryRun: boolean;
+  qhpCacheOnly?: boolean;
+  qhpProfile?: string;
 }
 export interface StepOutcome {
   skipped?: boolean;
@@ -99,13 +108,13 @@ export interface StepResult extends StepOutcome {
   status: "completed" | "skipped" | "failed" | "planned";
   elapsed_ms: number;
   blocked_by?: string[];
-  /** A fetch failure's stable code and log-safe message (FetchError messages exclude URLs and bodies). */
+  /** A stable failure code and a message that excludes paths, credentials and row data. */
   error?: { code: string; message: string; status?: number };
   /** What an operator can do about a held or unreviewed publisher. */
   action?: string;
 }
 const usage =
-  "Usage: worker bootstrap --states TX,FL --years 2026,2027 [--with-drugs] [--with-providers] [--with-nucc-taxonomy] [--with-geocode] [--dry-run]";
+  "Usage: worker bootstrap --states TX,FL --years 2026,2027 [--with-drugs] [--with-providers] [--with-nucc-taxonomy] [--with-geocode] [--qhp-cache-only] [--qhp-profile PATH] [--dry-run]";
 class BootstrapFailure extends Error {
   constructor(
     reason: string,
@@ -143,7 +152,7 @@ function fetchFailure(error: unknown): FetchError | undefined {
     cause = (cause as { cause?: unknown }).cause;
   }
 }
-/** Failure fields for a step result. FetchError text is log safe; other exception text is never logged. */
+/** Only fetch errors and fixed diagnostic messages are safe to log. */
 export function failureDetail(
   stepId: string,
   error: unknown,
@@ -169,6 +178,19 @@ export function failureDetail(
         action: operatorAction(stepId),
       }),
     };
+  const filesystemMessages: Record<string, string> = {
+    EROFS:
+      "Cache filesystem is read-only; mount work and derived outputs writable",
+    EACCES: "Cache access denied; check worker permissions",
+    ENOENT: "Required cache file or directory is missing",
+    ENOSPC: "Cache filesystem has no free space",
+  };
+  const code = (error as NodeJS.ErrnoException | null)?.code;
+  if (typeof code === "string" && Object.hasOwn(filesystemMessages, code))
+    return {
+      reason: "filesystem_error",
+      error: { code, message: filesystemMessages[code]! },
+    };
   return { reason: "step_failed_check_source_cache_and_database" };
 }
 const digest = (bytes: Buffer | string) =>
@@ -189,11 +211,15 @@ export function parseBootstrapOptions(args: string[]): BootstrapOptions {
         "--with-providers",
         "--with-nucc-taxonomy",
         "--with-geocode",
+        "--qhp-cache-only",
+        "--qhp-profile",
         "--dry-run",
       ].includes(key)
     )
       throw new Error(usage);
-    const value = key === "--states" || key === "--years" ? args[++i] : "true";
+    const value = ["--states", "--years", "--qhp-profile"].includes(key)
+      ? args[++i]
+      : "true";
     if (!value || value.startsWith("--")) throw new Error(usage);
     flags.set(key, value);
   }
@@ -212,6 +238,10 @@ export function parseBootstrapOptions(args: string[]): BootstrapOptions {
     nuccTaxonomy: flags.has("--with-nucc-taxonomy"),
     geocode: flags.has("--with-geocode"),
     dryRun: flags.has("--dry-run"),
+    qhpCacheOnly: flags.has("--qhp-cache-only") || flags.has("--qhp-profile"),
+    ...(flags.has("--qhp-profile") && {
+      qhpProfile: flags.get("--qhp-profile")!,
+    }),
   };
 }
 
@@ -375,6 +405,23 @@ export async function bootstrapPlan(
   sbeScopes: readonly { state: string; year: number }[] = [],
 ): Promise<BootstrapStep[]> {
   if (!isAbsolute(dataDir)) fail("absolute_data_directory_required");
+  const profile = options.qhpProfile
+    ? await readQhpProfile(options.qhpProfile)
+    : undefined;
+  if (
+    profile &&
+    (!options.providers ||
+      options.drugs ||
+      options.nuccTaxonomy ||
+      profile.scopes.length !== options.states.length * options.years.length ||
+      profile.scopes.some(
+        (scope) =>
+          !options.states.includes(scope.state) ||
+          !options.years.includes(scope.year),
+      ))
+  )
+    fail("prepared_qhp_scope_mismatch");
+  const preparedFetcher = profile ? preparedQhpFetcher(profile) : undefined;
   const steps: BootstrapStep[] = [];
   const add = (
     id: string,
@@ -808,7 +855,10 @@ export async function bootstrapPlan(
     for (const year of options.years)
       for (const state of options.states) {
         const scope = `${state}-${year}`;
-        if (isSbe(state, year)) {
+        const preparedFeeds = profile?.provider_feeds.filter(
+          (feed) => feed.state === state,
+        );
+        if (isSbe(state, year) && !preparedFeeds?.length) {
           add(`qhp-sbe-${scope}`, [`puf-${scope}`], async () => ({
             skipped: true,
             reason: "sbe_no_index_registry",
@@ -819,20 +869,32 @@ export async function bootstrapPlan(
           `qhp-discover-${scope}`,
           [`puf-acquire-${year}`],
           async () => {
-            const registry = await cachedRegistry(dataDir, year);
+            const registry =
+              profile && state === "GA"
+                ? {
+                    ...(await cachedGeorgiaRegistry(dataDir, year)),
+                    format: "georgia-access-csv" as const,
+                  }
+                : await cachedRegistry(dataDir, year);
             await verifyRegistry(registry);
             // Discovery is observed PARSED evidence, never ACTIVE. Completeness here means
             // every registry row was attempted; denied indexes remain explicit coverage gaps.
-            const expected = await readRegistry(
-              await registryWorkbook(registry, dataDir),
-              state,
-            );
+            const expected =
+              "format" in registry
+                ? await readGeorgiaRegistry(registry.path, state)
+                : await readRegistry(
+                    await registryWorkbook(registry, dataDir),
+                    state,
+                  );
             const rows = (
               await database().query<{
                 registry_row: number;
                 registry_snapshot_id: string;
+                issuer_id: string;
+                status: string;
+                snapshot_id: string | null;
               }>(
-                `SELECT i.registry_row,i.registry_snapshot_id FROM qhp_index i
+                `SELECT i.registry_row,i.registry_snapshot_id,i.issuer_id,i.status,i.snapshot_id FROM qhp_index i
         WHERE i.state=$1 AND i.plan_year=$2 AND i.discovery_id=(SELECT discovery_id FROM qhp_index
           WHERE state=$1 AND plan_year=$2 ORDER BY discovered_at DESC,qhp_index_id DESC LIMIT 1)`,
                 [state, year],
@@ -841,6 +903,26 @@ export async function bootstrapPlan(
             if (
               rows.length &&
               rows.length === expected.length &&
+              (!profile ||
+                expected
+                  .filter((entry) =>
+                    preparedFeeds!.some((feed) => feed.issuer === entry.issuer),
+                  )
+                  .every((entry) => {
+                    const pin = profile.feed_raw.find(
+                      (file) => file.url === entry.url,
+                    );
+                    return (
+                      pin &&
+                      rows.some(
+                        (row) =>
+                          row.registry_row === entry.row &&
+                          row.status === "ok" &&
+                          row.snapshot_id ===
+                            `qhp:${entry.issuer}:${year}:index:${pin.sha256}`,
+                      )
+                    );
+                  })) &&
               expected.every((entry) =>
                 rows.some(
                   (row) =>
@@ -856,6 +938,8 @@ export async function bootstrapPlan(
               year,
               dataDir,
               registry,
+              offline: options.qhpCacheOnly,
+              ...(preparedFetcher && { fetcher: preparedFetcher }),
             });
             return { evidence: report };
           },
@@ -893,26 +977,71 @@ export async function bootstrapPlan(
               ).rows;
               if (!issuers.length) fail("no_qhp_issuers_discovered");
               const skipIssuers = issuers
-                .filter((issuer) => issuer.current)
+                .filter(
+                  (issuer) =>
+                    issuer.current ||
+                    (profile &&
+                      !preparedFeeds!.some(
+                        (feed) => feed.issuer === issuer.issuer_id,
+                      )),
+                )
                 .map((issuer) => issuer.issuer_id);
-              if (skipIssuers.length === issuers.length) return current;
+              if (skipIssuers.length === issuers.length)
+                return profile
+                  ? {
+                      skipped: true,
+                      reason: "prepared_qhp_issuers_current_or_out_of_scope",
+                    }
+                  : current;
               const report = await ingestQhpBatch(database(), kind, {
                 state,
                 year,
                 skipIssuers,
-                fetchOptions: { dataDir },
+                ...(preparedFetcher && { fetcher: preparedFetcher }),
+                fetchOptions: {
+                  dataDir,
+                  ...(options.qhpCacheOnly && {
+                    maxAttempts: 1,
+                    lookup: async () => {
+                      throw new FetchError(
+                        "cache_error",
+                        "QHP cache-only mode: snapshot unavailable",
+                      );
+                    },
+                    transport: async () => {
+                      throw new FetchError(
+                        "cache_error",
+                        "QHP cache-only mode: snapshot unavailable",
+                      );
+                    },
+                  }),
+                },
               });
               if (
-                report.issuers.some(
-                  (issuer) => issuer.completeness !== "complete",
+                report.issuers.some((issuer) =>
+                  profile
+                    ? !preparedQhpOutcome(issuer)
+                    : issuer.completeness !== "complete",
                 ) ||
                 report.not_run.length
               )
-                fail("qhp_incomplete_check_coverage_manifest");
+                fail(
+                  profile
+                    ? "prepared_qhp_import_failed"
+                    : "qhp_incomplete_check_coverage_manifest",
+                );
               return {
                 evidence: {
                   imported: report.issuers.length,
                   skipped_issuers: skipIssuers,
+                  ...(profile && {
+                    issuers: report.issuers.map((issuer) => ({
+                      issuer: issuer.issuer,
+                      status: issuer.status,
+                      reason: issuer.reason,
+                      completeness: issuer.completeness,
+                    })),
+                  }),
                 },
               };
             },

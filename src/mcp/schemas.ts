@@ -510,6 +510,11 @@ export const datasetSchema = z.strictObject({
   retrieved_at: isoTime,
   publisher_updated_at: isoTime,
   reason: label.nullable(),
+  ichra_status: z.enum(["requires_state_rules", "unknown"]).optional(),
+  ichra_reason: label.optional(),
+  ichra_lookback_status: z.literal("unknown").optional(),
+  ichra_lookback_reason: label.optional(),
+  ichra_documentation: text.optional(),
   ...evidenceFields,
 });
 const amount = z.strictObject({

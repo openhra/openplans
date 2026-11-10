@@ -260,6 +260,15 @@ export async function projector(db: SqlSession, native: unknown) {
       retrieved_at: date(source?.retrieved_at),
       publisher_updated_at: date(source?.publisher_updated_at),
       reason: detail.reason ?? r.premium_reason ?? null,
+      ...(r.ichra_documentation
+        ? {
+            ichra_status: r.ichra_status,
+            ichra_reason: r.ichra_reason,
+            ichra_lookback_status: r.ichra_lookback_status,
+            ichra_lookback_reason: r.ichra_lookback_reason,
+            ichra_documentation: r.ichra_documentation,
+          }
+        : {}),
       ...evidence({ ...r, ...detail }),
     };
   }

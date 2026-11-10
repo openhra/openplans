@@ -21,6 +21,11 @@ import { migrate } from "../../src/db/migrate.js";
 import type { SqlSession } from "../../src/db/database.js";
 import { ingestStateRates } from "../../src/ingest/state/index.js";
 import { stateRatingArea } from "../../src/ingest/state/catalog.js";
+import { callTool } from "../../src/mcp/tools.js";
+import { outputSchemas } from "../../src/mcp/schemas.js";
+import { dataAvailability } from "../../src/services/availability.js";
+import { rebaseImports, replaceSyntax } from "../source-mutation.js";
+import { pathToFileURL } from "node:url";
 import { coreMigrations, testDatabase } from "../pglite.js";
 
 const db = testDatabase(new PGlite()),
@@ -282,6 +287,108 @@ it("data availability exposes staged state catalogs separately from federal cata
           r.subsidy_status === "requires_state_rules",
       ),
     ).toBe(true);
+  }
+});
+
+function ichraDisclosure(year: number) {
+  return {
+    ichra_status: year === 2026 ? "requires_state_rules" : "unknown",
+    ichra_reason:
+      year === 2026 ? "state_filed_tier_pending" : "catalog_not_loaded",
+    ichra_lookback_status: "unknown",
+    ichra_lookback_reason: "catalog_not_loaded",
+    ichra_documentation: "docs/ichra.md#new-york-and-vermont",
+  };
+}
+async function checkMcpAvailability(
+  tx: SqlSession,
+  state: string,
+  year: number,
+) {
+  const result = await callTool({ db: tx }, "get_data_status", {
+    state,
+    year,
+    limit: 25,
+  });
+  const output = outputSchemas.get_data_status.parse(result.structuredContent);
+  expect(output.data!.datasets.length).toBeGreaterThan(0);
+  for (const row of output.data!.datasets)
+    expect(row).toMatchObject(ichraDisclosure(year));
+}
+
+it("NY and VT 2026 ICHRA availability explains the state-rules refusal over HTTP and MCP", async () => {
+  for (const state of ["NY", "VT"]) {
+    const response = await createApp(db).request(
+      `/v1/data-availability?state=${state}&year=2026`,
+    );
+    expect(response.status).toBe(200);
+    const rows = (await response.json()) as Record<string, unknown>[];
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) expect(row).toMatchObject(ichraDisclosure(2026));
+    await checkMcpAvailability(db, state, 2026);
+  }
+});
+
+it("NY and VT 2027 availability and look-back stay unknown over HTTP and MCP", async () => {
+  await rollback(async (tx) => {
+    // SYNTHETIC manifest entries exercise disclosure without inventing a loaded catalog.
+    await tx.exec(`INSERT INTO data_availability(state,plan_year,market,issuer_id,snapshot_id,catalog_status)
+      VALUES('NY',2027,'Individual','synthetic-ny-2027','state-api-census-cut','unknown'),
+      ('VT',2027,'Individual','synthetic-vt-2027','state-api-census-cut','unknown')`);
+    for (const state of ["NY", "VT"]) {
+      const response = await createApp(tx).request(
+        `/v1/data-availability?state=${state}&year=2027`,
+      );
+      expect(response.status).toBe(200);
+      const rows = (await response.json()) as Record<string, unknown>[];
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toMatchObject(ichraDisclosure(2027));
+      await checkMcpAvailability(tx, state, 2027);
+    }
+  });
+});
+
+it("NY affordability response bytes stay at the recorded 2026 fixture answer", async () => {
+  // SYNTHETIC employee over the existing, unmodified NY filed-rate fixture.
+  const response = await createApp(db).request("/v1/ichra/affordability", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      plan_start: "2026-01-01",
+      employee: { date_of_birth: "1985-10-01" },
+      residence: { zip: "10001" },
+      hra: { self_only_annual_cents: 300_000 },
+      income: [{ measure: "household", annual_cents: 4_118_000 }],
+    }),
+  });
+  expect(response.status).toBe(200);
+  expect(await response.text()).toMatchSnapshot();
+});
+
+it("planted mutant: dropping the NY/VT refusal fails the availability assertions", async () => {
+  const original = new URL(
+    "../../dist/services/availability.js",
+    import.meta.url,
+  );
+  const path = join(directory, "availability-mutant.mjs");
+  const source = replaceSyntax(
+    await readFile(original, "utf8"),
+    'const ICHRA_STATE_RULES = new Set(["NY", "VT"]);',
+    "const ICHRA_STATE_RULES = new Set();",
+  );
+  await writeFile(path, rebaseImports(source, original));
+  const mutant = (await import(pathToFileURL(path).href)) as {
+    dataAvailability: typeof dataAvailability;
+  };
+  for (const state of ["NY", "VT"]) {
+    const good = (await dataAvailability(db)).find((r) => r.state === state)!;
+    const bad = (await mutant.dataAvailability(db)).find(
+      (r) => r.state === state,
+    )!;
+    const check = (row: Record<string, unknown>) =>
+      assert.equal(row.ichra_status, "requires_state_rules");
+    check(good);
+    expect(() => check(bad)).toThrow(assert.AssertionError);
   }
 });
 

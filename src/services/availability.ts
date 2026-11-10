@@ -41,8 +41,8 @@ async function ichraAvailability(
       : null;
   let status: string, reason: string | null;
   if (ICHRA_STATE_RULES.has(state)) {
-    status = "requires_state_rules";
-    reason = "state_filed_tier_pending";
+    status = year === 2026 ? "requires_state_rules" : "unknown";
+    reason = year === 2026 ? "state_filed_tier_pending" : "catalog_not_loaded";
   } else if (!rules) {
     status = "unknown";
     reason = "parameters_unconfirmed";
@@ -67,6 +67,12 @@ async function ichraAvailability(
         ? "available"
         : "unknown",
     ichra_rules: rules,
+    ...(ICHRA_STATE_RULES.has(state)
+      ? {
+          ichra_documentation: "docs/ichra.md#new-york-and-vermont",
+          ichra_lookback_reason: "catalog_not_loaded",
+        }
+      : {}),
   };
 }
 

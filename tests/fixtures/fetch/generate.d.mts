@@ -1,6 +1,6 @@
 export interface SyntheticEntry {
   name: string;
-  body?: string;
+  body?: string | Uint8Array;
   symlink?: boolean;
 }
 export function syntheticZip(

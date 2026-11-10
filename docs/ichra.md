@@ -211,6 +211,46 @@ the route computes them, and each rule's status with its citation URLs. It is ne
 means premiums are available for the row, the year's catalog is loaded and the year's parameters
 are confirmed. The EHB-portion figure can still be unknown in some counties.
 
+### New York and Vermont
+
+For 2026, both New York and Vermont return `requires_state_rules` with reason
+`state_filed_tier_pending` from the affordability check. The response has no LCSP price or
+affordability verdicts. Loaded filed premiums can support a premium quote without supporting
+an ICHRA check.
+
+Both states use community-rated family tiers without age or tobacco factors. Self-only
+coverage uses the filed `single` tier. The state premium rules cite
+[New York Insurance Law 3231](https://www.nysenate.gov/legislation/laws/ISC/3231),
+[4317](https://www.nysenate.gov/legislation/laws/ISC/4317) and the
+[DFS 2026 filing instructions, sections M and N](https://www.dfs.ny.gov/apps-and-licensing/health-insurers/pa-nysoh-out-nysoh/2026-instruct-filing-premium-rates).
+For Vermont, they cite
+[33 V.S.A. 1811](https://legislature.vermont.gov/statutes/section/33/018/01811),
+[DFR Docket 13-002-I, page 2](https://dfr.vermont.gov/sites/finreg/files/regbul/dfr-order-docket-13-002-i-vermont-health-benefits-exchange.pdf)
+and [DVHA 2026 issuer guidance, section 2.2](https://dvha.vermont.gov/sites/dvha/files/documents/IssuerGuidanceForParticipation2026.pdf).
+
+The ICHRA service does not yet select the lowest on-Exchange silver plan from these single-tier
+prices. In New York, verifying each plan's Exchange offering in the employee's DFS region is
+not yet supported. In Vermont, selecting an LCSP from the filed state publication is not yet
+supported. Neither state uses the federal per-member calculation as a substitute.
+
+NY and VT availability rows report these limits as follows:
+
+| Scope     | Status field            | Value                  | Reason                     |
+| --------- | ----------------------- | ---------------------- | -------------------------- |
+| 2026      | `ichra_status`          | `requires_state_rules` | `state_filed_tier_pending` |
+| 2027      | `ichra_status`          | `unknown`              | `catalog_not_loaded`       |
+| Look-back | `ichra_lookback_status` | `unknown`              | `catalog_not_loaded`       |
+
+`ichra_reason` explains the row's year. `ichra_lookback_reason` explains the look-back gap.
+`ichra_documentation` points to this section for both. The MCP tool `get_data_status` and
+resource `openplans://availability` include the same fields on their NY and VT datasets.
+Rows describe the catalog manifest, so a state and year with no manifest entry has no row.
+
+The 2027 and look-back statuses describe catalog readiness. They do not change the
+affordability check, which still returns `requires_state_rules` with `state_filed_tier_pending`
+for either state before checking the requested year's catalog. Confirmed 2027 affordability
+parameters alone do not supply a state LCSP or a look-back catalog.
+
 Not covered: the employer's section 4980H payment, QSEHRA, class rules, months after the first one,
 a required contribution that changes during the offered months, and part-year periods across
 taxable years ([26 CFR 1.36B-2(c)(5)(vi)](https://www.ecfr.gov/current/title-26/section-1.36B-2)).

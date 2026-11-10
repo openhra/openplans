@@ -40,6 +40,24 @@ explicitly; it does not become an empty supported catalog.
 | --with-geocode | Provider inputs above, then incremental Census batch geocoding | Any of the 50 states and DC. County outlines come from one national Census boundary file, downloaded once. |
 | --dry-run | Dependency plan and observed artifact sizes | No database, network, ingestion or writes. Unknown sizes stay unknown. |
 
+For a prepared cache with read-only raw inputs, add `--qhp-cache-only` to
+`--with-providers` or `--with-drugs`. Missing indexes or shards stay unknown.
+Registry workbooks are extracted under
+`OPENPLANS_DATA_DIR/work/qhp-registry-workbook`, which must be writable.
+
+For a prepared provider profile, pass `--qhp-profile /data/reports/inputs.json`.
+The profile pins the allowed issuer/state pairs and exact cached URLs, sources,
+hashes and sizes. The profile also enables cache-only QHP reads. Existing admission
+receipts still apply, and no DNS or HTTP request is allowed on a miss. Shared
+index bytes can serve several states or years when their public registry rows
+name the same URL. Georgia uses its admitted Georgia Access MR-PUF.
+
+Prepared provider steps accept a quarantined source as unknown with its recorded
+status and reason. They still fail on an issuer transaction error or an interrupted
+batch. The generic bootstrap requires every discovered issuer to be complete. The profile
+flag applies only to QHP inputs. Other bootstrap sources keep their normal
+acquisition rules, and missing catalogs still fail their own steps.
+
 NUCC taxonomy is off by default, including with --with-providers or --with-geocode.
 No environment variable enables it: opt in on the command line with
 --with-nucc-taxonomy after reviewing the [NUCC terms](https://www.nucc.org/index.php/code-sets-mainmenu-41/provider-taxonomy-mainmenu-40/csv-mainmenu-57)

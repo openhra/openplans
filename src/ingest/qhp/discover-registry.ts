@@ -89,7 +89,7 @@ export async function registryWorkbook(
   const workbooks = members.filter((member) => /\.xlsx$/i.test(member.name));
   if (workbooks.length !== 1)
     throw new Error("Registry must contain exactly one workbook");
-  const directory = join(dataDir, "raw", "qhp-registry-workbook");
+  const directory = join(dataDir, "work", "qhp-registry-workbook");
   await mkdir(directory, { recursive: true });
   const partial = join(directory, `${randomUUID()}.part`);
   const file = await open(partial, "wx");

@@ -15,9 +15,13 @@ import { fileURLToPath } from "node:url";
 import {
   bootstrapPlan,
   executeBootstrap,
+  failureDetail,
   parseBootstrapOptions,
 } from "../src/worker/bootstrap.js";
 import type { BootstrapStep } from "../src/worker/bootstrap.js";
+import * as qhpDiscovery from "../src/ingest/qhp/discover.js";
+import * as qhpBatch from "../src/ingest/qhp/formulary-batch.js";
+import * as qhpRegistry from "../src/ingest/qhp/discover-registry.js";
 import * as taxonomyAcquire from "../src/ingest/taxonomy/acquire.js";
 import * as fetcher from "../src/fetch/index.js";
 import * as geoSources from "../src/ingest/geo/sources.js";
@@ -168,8 +172,44 @@ describe("one-command bootstrap", () => {
       nuccTaxonomy: false,
       geocode: true,
       dryRun: false,
+      qhpCacheOnly: false,
     });
   });
+
+  it("opts into cached QHP discovery without changing provider selection", () => {
+    expect(
+      parseBootstrapOptions([
+        "--states",
+        "TX",
+        "--years",
+        "2026",
+        "--with-providers",
+        "--qhp-cache-only",
+      ]),
+    ).toMatchObject({ providers: true, qhpCacheOnly: true });
+  });
+
+  it.each(["EROFS", "EACCES", "ENOENT", "ENOSPC"])(
+    "reports %s without exception messages, paths or row data",
+    (code) => {
+      const error = Object.assign(new Error("synthetic-sensitive-row"), {
+        code,
+        path: "/synthetic-sensitive-path",
+        detail: "synthetic-sensitive-detail",
+      });
+      const detail = failureDetail("qhp-discover-TX-2026", error);
+      expect(detail).toMatchObject({
+        reason: "filesystem_error",
+        error: { code },
+      });
+      expect(JSON.stringify(detail)).not.toContain("synthetic-sensitive");
+      expect(
+        failureDetail("qhp-discover-TX-2026", {
+          code: "synthetic-sensitive-code",
+        }),
+      ).toEqual({ reason: "step_failed_check_source_cache_and_database" });
+    },
+  );
 
   it("dry-run is metadata-only, reports unknown sizes, and never calls an action or database", async () => {
     const directory = await mkdtemp(join(tmpdir(), "openplans-bootstrap-dry-"));
@@ -551,6 +591,192 @@ describe("one-command bootstrap", () => {
       });
       expect(await providers.run()).toMatchObject({ skipped: true });
     } finally {
+      await h.close();
+    }
+  });
+
+  it("applies the prepared feed scope without weakening generic completeness checks", async () => {
+    const h = await providerHarness();
+    const batch = vi.spyOn(qhpBatch, "ingestQhpBatch").mockResolvedValue({
+      year: 2026,
+      state: "TX",
+      kind: "providers",
+      not_run: [],
+      issuers: [
+        {
+          issuer: "00010",
+          status: "QUARANTINED",
+          completeness: "partial",
+          reason: "invalid_source_records",
+        },
+      ],
+    });
+    try {
+      const path = join(h.directory, "inputs.json");
+      await writeFile(
+        path,
+        JSON.stringify({
+          schema: 1,
+          providers: true,
+          drugs: false,
+          taxonomy_names: false,
+          scopes: [{ state: "TX", year: 2026 }],
+          provider_feeds: [
+            { issuer: "00010", state: "TX", set: "qhp-00010-2026-index" },
+          ],
+          feed_raw: [
+            {
+              source: "qhp-00010-2026-index",
+              sha256: "a".repeat(64),
+              bytes: 1,
+              url: "https://issuer.example/index",
+            },
+          ],
+        }),
+      );
+      await h.db
+        .query(`INSERT INTO qhp_index(qhp_index_id,discovery_id,issuer_id,plan_year,state,registry_snapshot_id,registry_row,status)
+        VALUES ('unlisted','unlisted','99999',2026,'TX','registry',2,'not_cached')`);
+      const args = ["--states", "TX", "--years", "2026", "--with-providers"];
+      const prepared = await bootstrapPlan(
+        parseBootstrapOptions([...args, "--qhp-profile", path]),
+        () => h.db,
+        h.directory,
+        h.core.directory,
+      );
+      const step = prepared.find(
+        (step) => step.id === "qhp-providers-TX-2026",
+      )!;
+      expect(await step.run()).toMatchObject({
+        evidence: { imported: 1, skipped_issuers: ["99999"] },
+      });
+      expect(batch.mock.calls[0]![2]).toMatchObject({
+        fetcher: expect.any(Function),
+        skipIssuers: ["99999"],
+      });
+      const generic = await bootstrapPlan(
+        parseBootstrapOptions(args),
+        () => h.db,
+        h.directory,
+        h.core.directory,
+      );
+      await expect(
+        generic.find((step) => step.id === "qhp-providers-TX-2026")!.run(),
+      ).rejects.toThrow("qhp_incomplete_check_coverage_manifest");
+      const georgia = JSON.parse(await readFile(path, "utf8"));
+      georgia.scopes = [{ state: "GA", year: 2026 }];
+      georgia.provider_feeds[0].state = "GA";
+      await writeFile(path, JSON.stringify(georgia));
+      const graph = await bootstrapPlan(
+        parseBootstrapOptions([
+          "--states",
+          "GA",
+          "--years",
+          "2026",
+          "--with-providers",
+          "--qhp-profile",
+          path,
+        ]),
+        () => h.db,
+        h.directory,
+        h.core.directory,
+        [{ state: "GA", year: 2026 }],
+      );
+      expect(graph.some((step) => step.id === "qhp-discover-GA-2026")).toBe(
+        true,
+      );
+      expect(graph.some((step) => step.id === "qhp-sbe-GA-2026")).toBe(false);
+    } finally {
+      batch.mockRestore();
+      await h.close();
+    }
+  });
+
+  it("keeps QHP cache misses offline and resumes an observed discovery", async () => {
+    const h = await providerHarness();
+    const batch = vi
+      .spyOn(qhpBatch, "ingestQhpBatch")
+      .mockImplementation(async (_db, _kind, options) => {
+        await expect(
+          options.fetchOptions!.lookup!("synthetic.example"),
+        ).rejects.toMatchObject({ code: "cache_error" });
+        await expect(
+          options.fetchOptions!.transport!(
+            new URL("https://synthetic.example"),
+            {} as never,
+          ),
+        ).rejects.toMatchObject({ code: "cache_error" });
+        return {
+          issuers: [{ completeness: "complete" }],
+          not_run: [],
+        } as unknown as Awaited<ReturnType<typeof qhpBatch.ingestQhpBatch>>;
+      });
+    const registry = vi.spyOn(qhpRegistry, "cachedRegistry").mockResolvedValue({
+      path: "synthetic-registry",
+      metadata: { sha256: "a".repeat(64) },
+    } as qhpRegistry.RegistryInput);
+    const verify = vi.spyOn(qhpRegistry, "verifyRegistry").mockResolvedValue();
+    const workbook = vi
+      .spyOn(qhpRegistry, "registryWorkbook")
+      .mockResolvedValue("synthetic-workbook");
+    const rows = vi
+      .spyOn(qhpRegistry, "readRegistry")
+      .mockResolvedValue([
+        { issuer: "00010", row: 1, url: "https://synthetic.example" },
+      ]);
+    const discover = vi.spyOn(qhpDiscovery, "discoverQhp").mockResolvedValue({
+      discovery_id: "synthetic-discovery",
+      state: "TX",
+      year: 2026,
+      registry_snapshot_id: "synthetic-registry",
+      issuers: [],
+    });
+    try {
+      const plan = await bootstrapPlan(
+        parseBootstrapOptions([
+          "--states",
+          "TX",
+          "--years",
+          "2026",
+          "--with-providers",
+          "--qhp-cache-only",
+        ]),
+        () => h.db,
+        h.directory,
+        h.core.directory,
+      );
+      const discovery = plan.find(
+        (step) => step.id === "qhp-discover-TX-2026",
+      )!;
+      await discovery.run();
+      expect(discover).toHaveBeenCalledWith(
+        h.db,
+        expect.objectContaining({ offline: true }),
+      );
+      const providers = plan.find(
+        (step) => step.id === "qhp-providers-TX-2026",
+      )!;
+      await providers.run();
+      expect(batch).toHaveBeenCalledOnce();
+      await h.db.query(
+        "INSERT INTO snapshot(snapshot_id,source_id) VALUES ($1,'synthetic-harness')",
+        [`qhp:registry:${"a".repeat(64)}`],
+      );
+      await h.db.query("UPDATE qhp_index SET registry_snapshot_id=$1", [
+        `qhp:registry:${"a".repeat(64)}`,
+      ]);
+      expect(await discovery.run()).toEqual({
+        skipped: true,
+        reason: "current_observed_discovery",
+      });
+      expect(discover).toHaveBeenCalledOnce();
+    } finally {
+      batch.mockRestore();
+      registry.mockRestore();
+      verify.mockRestore();
+      workbook.mockRestore();
+      rows.mockRestore();
+      discover.mockRestore();
       await h.close();
     }
   });

@@ -3,8 +3,8 @@
  * Cache-only Part D check. Imports the newest cached Part D public use archive of a contract year
  * into a disposable PGlite database, then compares every imported row group, every plan's
  * formulary and suppression flag, and a sample of drug lookups with an independent Python reading
- * of the raw archive. Planted mutants must each be caught. Pharmacy networks and pricing are not
- * loaded here.
+ * of the raw archive. Planted mutants must each be caught. Network and pricing checks run through
+ * medicare-part-d-large.mjs with --mode sample or --mode full on a dedicated local Postgres database.
  */
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
