@@ -23,6 +23,8 @@ import {
   limits,
   MAX_INPUT_ELEMENTS,
   MAX_OUTPUT_BYTES,
+  MAX_TOOL_LIST_BYTES,
+  TOOL_LIST_PAGE_SIZE,
   messageBytes,
   mayCall,
   errorResult,
@@ -173,7 +175,7 @@ export function buildServer(deps: McpDependencies): McpServer {
       },
     );
   }
-  // The complete schema bundle is close to the message cap. Large RPC IDs require a paged listing too.
+  // Keep the catalogue on one page; signed cursors still resume earlier listings.
   server.server.setRequestHandler("tools/list", (request, ctx) => {
     const codec = cursorCodec(deps.cursorSecret, deps.now),
       binding = {
@@ -184,7 +186,9 @@ export function buildServer(deps: McpDependencies): McpServer {
       };
     try {
       const offset = codec.read(request.params?.cursor, binding),
-        tools = definitions.slice(offset);
+        tools = definitions.slice(offset, offset + TOOL_LIST_PAGE_SIZE);
+      if (offset > definitions.length) throw new ToolError("INVALID_CURSOR");
+      if (offset === definitions.length) return { tools: [] };
       while (tools.length) {
         const nextCursor =
           offset + tools.length < definitions.length
@@ -196,7 +200,7 @@ export function buildServer(deps: McpDependencies): McpServer {
             JSON.stringify({ jsonrpc: "2.0", id: ctx.mcpReq.id, result }),
           ) +
             512 <=
-          MAX_OUTPUT_BYTES
+          MAX_TOOL_LIST_BYTES
         )
           return result;
         tools.pop();

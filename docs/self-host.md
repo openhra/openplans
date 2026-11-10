@@ -337,6 +337,22 @@ when sizing the connection limit. Autovacuum workers also consume memory.
 values; measure your query mix and concurrency before increasing them. See the
 [PostgreSQL memory documentation](https://www.postgresql.org/docs/16/runtime-config-resource.html).
 
+The db service sets `shm_size: 256m` for `/dev/shm`, which PostgreSQL uses for
+parallel work. Docker's default is 64 MiB. The row-provenance backfill uses
+`VACUUM (PARALLEL 0)` and migrations disable parallel maintenance for their
+transaction, so these operations also work with the Docker default. This does
+not change parallel query settings or autovacuum.
+
+The shared-memory size takes effect only when the db container is recreated.
+A restart does not apply it. Schedule a database interruption, then run:
+
+```sh
+docker compose up -d --force-recreate db
+```
+
+This keeps the existing `pgdata` volume. Use the same Compose project, files and
+environment as the running installation.
+
 REST searches and MCP catalog tools share a 64 MiB local LRU by default. To use
 the shared Valkey service, set `OPENPLANS_CACHE_URL=redis://cache:6379` in the local
 environment. Start both services:
@@ -402,7 +418,10 @@ forwarding headers. This bearer-token setup does not provide an OAuth server.
 
 Each API process allows 60 anonymous or 120 authenticated requests per source per minute,
 and four concurrent database-heavy requests. Input is limited to 64 KiB and output to
-128 KiB. SQL statements have a five-second server timeout; requests have a fifteen-second
+128 KiB for tool results and resources. Tool discovery (`tools/list`) has a separate
+512 KiB budget and returns all 15 tools in one response when access permits. Signed
+cursors still resume a listing. Follow `nextCursor` whenever it is present.
+SQL statements have a five-second server timeout; requests have a fifteen-second
 deadline. Rate and concurrency failures return 429 with Retry-After. Disconnects cancel
 active SQL. Retry reads with a new RPC ID.
 

@@ -57,3 +57,12 @@ free disk before running it. The trigger adds about a third to the time of a bar
 
 API responses do not include these columns. Native responses already return the snapshot id
 and retrieval time in their provenance fields, and compatibility responses keep their shape.
+
+A query that returns a whole table row must drop them. Use `rowJson(alias)` where you would
+write `to_jsonb(alias)`, and pass a row selected with `alias.*` through
+`withoutRowProvenance(row)`. Both are in `src/db/row-provenance.ts`.
+
+The test setup in `tests/response-columns.setup.ts` reads every JSON response of every app the
+tests build with `createApp`. A request fails when its response has one of the five names. Two
+documented fields share a name with a column and are allowed: the `cms_api` object of the CMS
+Marketplace API fallback, and `updated_at` on a compatibility plan.

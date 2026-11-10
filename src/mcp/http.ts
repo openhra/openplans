@@ -11,7 +11,7 @@ import { createSourceLimiter, requestSource } from "../api/rate-limit.js";
 import { buildServer } from "./server.js";
 import { PERSONALIZED_TOOLS, toolNames } from "./schemas.js";
 import type { ToolName } from "./schemas.js";
-import { MAX_OUTPUT_BYTES, limits } from "./tools.js";
+import { MAX_OUTPUT_BYTES, MAX_TOOL_LIST_BYTES, limits } from "./tools.js";
 import {
   authenticated,
   boundedDatabase,
@@ -199,6 +199,8 @@ export function createMcpHttp(db: SqlSession, options: HttpOptions = {}) {
         status = 400;
         return failure(status, -32600, "Invalid request");
       }
+      const responseLimit =
+        parsed.method === "tools/list" ? MAX_TOOL_LIST_BYTES : MAX_OUTPUT_BYTES;
       const params = parsed.params as Record<string, unknown> | undefined;
       tool =
         parsed.method === "tools/call" &&
@@ -286,7 +288,7 @@ export function createMcpHttp(db: SqlSession, options: HttpOptions = {}) {
               return;
             }
             bytes += part.value.byteLength;
-            if (bytes > MAX_OUTPUT_BYTES) throw new Error("Response limit");
+            if (bytes > responseLimit) throw new Error("Response limit");
             out.enqueue(part.value);
           } catch {
             controller.abort();

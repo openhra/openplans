@@ -254,3 +254,284 @@ console.log(JSON.stringify(out));`;
     }
   });
 });
+
+describe("W-2 safe harbor, partial-year offer (SYNTHETIC wages and contributions)", () => {
+  // Hand case from 26 CFR 54.4980H-5(e)(2)(ii)(B): wages $30,000, employed in 10 calendar months,
+  // HRA offered in 6. Adjusted wages are 30,000 x 6 / 10 = $18,000; 9.96% of that is $1,792.80
+  // for the six offered months, which is $298.80 a month.
+  const context = {
+    requiredContributionBasisPoints: 996,
+    rateOfPayHours: 130,
+    purpose: "employer_4980H" as const,
+    povertyLine: null,
+    fullCalendarYear: false,
+    w2PartialYear: { monthsOffered: 6, monthsEmployed: 10 },
+  };
+  const wages = { measure: "w2" as const, annualCents: 3_000_000 };
+  const monthly = (cents: number) => ({
+    numerator: cents,
+    denominator: 1,
+    display: cents,
+  });
+  it("is affordable at $298.80 a month and not at $298.81", () => {
+    const at = ichra.affordabilityVerdict(wages, monthly(29_880), context);
+    expect(at).toMatchObject({ status: "calculated", affordable: true });
+    expect(at.thresholdCents?.display).toBe(29_880);
+    expect(
+      ichra.affordabilityVerdict(wages, monthly(29_881), context).affordable,
+    ).toBe(false);
+  });
+  it("stays unknown without the month counts, and a full year ignores them", () => {
+    const { w2PartialYear: _counts, ...bare } = context;
+    expect(
+      ichra.affordabilityVerdict(wages, monthly(29_880), bare),
+    ).toMatchObject({
+      status: "unknown",
+      affordable: null,
+      reason: "w2_partial_year_not_supported",
+    });
+    // Full year: 30,000 x 9.96% / 12 = $249.00.
+    expect(
+      ichra.affordabilityVerdict(wages, monthly(24_901), {
+        ...context,
+        fullCalendarYear: true,
+      }).affordable,
+    ).toBe(false);
+  });
+  it("rejects month counts the rule cannot produce", () => {
+    for (const counts of [
+      { monthsOffered: 0, monthsEmployed: 10 },
+      { monthsOffered: 7, monthsEmployed: 6 },
+      { monthsOffered: 6, monthsEmployed: 13 },
+      { monthsOffered: 1.5, monthsEmployed: 10 },
+    ])
+      expect(() =>
+        ichra.affordabilityVerdict(wages, monthly(1), {
+          ...context,
+          w2PartialYear: counts,
+        }),
+      ).toThrow(RangeError);
+  });
+  it("planted defect: dividing by the months offered passes $298.81", () => {
+    const original = new URL(
+      "../../../dist/domain/ichra/affordability.js",
+      import.meta.url,
+    );
+    const directory = mkdtempSync(join(tmpdir(), "openplans-w2-mutant-"));
+    try {
+      const source = replaceSyntax(
+        readFileSync(original, "utf8"),
+        "return BigInt(monthsEmployed);",
+        "return BigInt(monthsOffered);",
+      );
+      const path = join(directory, "affordability.mjs");
+      writeFileSync(path, rebaseImports(source, original));
+      const output = execFileSync(
+        process.execPath,
+        [
+          "--input-type=module",
+          "-e",
+          `import { affordabilityVerdict } from ${JSON.stringify(pathToFileURL(path).href)};
+import { readFileSync } from "node:fs";
+const { wages, contribution, context } = JSON.parse(readFileSync(0, "utf8"));
+console.log(JSON.stringify(affordabilityVerdict(wages, contribution, context)));`,
+        ],
+        {
+          input: JSON.stringify({
+            wages,
+            contribution: monthly(29_881),
+            context,
+          }),
+          encoding: "utf8",
+        },
+      );
+      expect(JSON.parse(output).affordable).toBe(true);
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("rate of pay safe harbor, hourly rate that changes (SYNTHETIC rates)", () => {
+  // Hand case from 26 CFR 54.4980H-5(e)(2)(iii): $20.00 on the first day of the coverage period,
+  // cut to $18.00 during the month. 130 x 18.00 x 9.96% = $233.06 (233.064 exactly).
+  const context = {
+    requiredContributionBasisPoints: 996,
+    rateOfPayHours: 130,
+    purpose: "employer_4980H" as const,
+    povertyLine: null,
+    fullCalendarYear: true,
+  };
+  const monthly = (cents: number) => ({
+    numerator: cents,
+    denominator: 1,
+    display: cents,
+  });
+  const cut = {
+    measure: "rate_of_pay_hourly" as const,
+    hourlyCents: 2_000,
+    lowestInMonthCents: 1_800,
+  };
+  it("uses the lower rate after a cut: $233.06 affordable, $233.07 not", () => {
+    expect(
+      ichra.affordabilityVerdict(cut, monthly(23_306), context).affordable,
+    ).toBe(true);
+    expect(
+      ichra.affordabilityVerdict(cut, monthly(23_307), context).affordable,
+    ).toBe(false);
+  });
+  it("a raise during the month does not lift the threshold above the first-day rate", () => {
+    // 130 x 20.00 x 9.96% = $258.96.
+    const raised = { ...cut, lowestInMonthCents: 2_200 };
+    expect(
+      ichra.affordabilityVerdict(raised, monthly(25_896), context).affordable,
+    ).toBe(true);
+    expect(
+      ichra.affordabilityVerdict(raised, monthly(25_897), context).affordable,
+    ).toBe(false);
+  });
+  it("planted defect: taking the higher rate passes $233.07", () => {
+    const original = new URL(
+      "../../../dist/domain/ichra/affordability.js",
+      import.meta.url,
+    );
+    const directory = mkdtempSync(join(tmpdir(), "openplans-rate-mutant-"));
+    try {
+      const source = replaceSyntax(
+        readFileSync(original, "utf8"),
+        "return lowest < first ? lowest : first;",
+        "return lowest > first ? lowest : first;",
+      );
+      const path = join(directory, "affordability.mjs");
+      writeFileSync(path, rebaseImports(source, original));
+      const output = execFileSync(
+        process.execPath,
+        [
+          "--input-type=module",
+          "-e",
+          `import { affordabilityVerdict } from ${JSON.stringify(pathToFileURL(path).href)};
+import { readFileSync } from "node:fs";
+const { income, contribution, context } = JSON.parse(readFileSync(0, "utf8"));
+console.log(JSON.stringify(affordabilityVerdict(income, contribution, context)));`,
+        ],
+        {
+          input: JSON.stringify({
+            income: cut,
+            contribution: monthly(23_307),
+            context,
+          }),
+          encoding: "utf8",
+        },
+      );
+      expect(JSON.parse(output).affordable).toBe(true);
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("rate of pay safe harbor, reduced salary (SYNTHETIC salary)", () => {
+  // 26 CFR 54.4980H-5(e)(2)(iii): "if the monthly salary is reduced, including due to a
+  // reduction in work hours, the safe harbor is not available". Without a reduction:
+  // $3,000.00 x 9.96% = $298.80.
+  const context = {
+    requiredContributionBasisPoints: 996,
+    rateOfPayHours: 130,
+    purpose: "employer_4980H" as const,
+    povertyLine: null,
+    fullCalendarYear: true,
+  };
+  const monthly = (cents: number) => ({
+    numerator: cents,
+    denominator: 1,
+    display: cents,
+  });
+  const salary = {
+    measure: "rate_of_pay_salary" as const,
+    monthlyCents: 300_000,
+  };
+  it("a reduced salary gives no verdict; an unreduced one is affordable at $298.80, not at $298.81", () => {
+    expect(
+      ichra.affordabilityVerdict(
+        { ...salary, reduced: true },
+        monthly(1),
+        context,
+      ),
+    ).toMatchObject({
+      status: "unknown",
+      reason: "rate_of_pay_salary_reduced",
+      affordable: null,
+      thresholdCents: null,
+      ruleIds: expect.arrayContaining(["rate_of_pay_safe_harbor"]),
+    });
+    for (const unreduced of [salary, { ...salary, reduced: false }]) {
+      expect(
+        ichra.affordabilityVerdict(unreduced, monthly(29_880), context)
+          .affordable,
+      ).toBe(true);
+      expect(
+        ichra.affordabilityVerdict(unreduced, monthly(29_881), context)
+          .affordable,
+      ).toBe(false);
+    }
+  });
+  it("a stated reason keeps the W-2 verdict unknown even with month counts", () => {
+    expect(
+      ichra.affordabilityVerdict(
+        { measure: "w2", annualCents: 3_000_000 },
+        monthly(1),
+        {
+          ...context,
+          fullCalendarYear: false,
+          w2PartialYear: { monthsOffered: 6, monthsEmployed: 10 },
+          w2Unavailable: "w2_non_calendar_plan_year_not_supported",
+        },
+      ),
+    ).toMatchObject({
+      status: "unknown",
+      reason: "w2_non_calendar_plan_year_not_supported",
+      affordable: null,
+    });
+  });
+  it("planted defect: ignoring the reduction answers affordable", () => {
+    const original = new URL(
+      "../../../dist/domain/ichra/affordability.js",
+      import.meta.url,
+    );
+    const directory = mkdtempSync(join(tmpdir(), "openplans-salary-mutant-"));
+    try {
+      const source = replaceSyntax(
+        readFileSync(original, "utf8"),
+        "if (income.reduced)",
+        "if (false)",
+      );
+      const path = join(directory, "affordability.mjs");
+      writeFileSync(path, rebaseImports(source, original));
+      const output = execFileSync(
+        process.execPath,
+        [
+          "--input-type=module",
+          "-e",
+          `import { affordabilityVerdict } from ${JSON.stringify(pathToFileURL(path).href)};
+import { readFileSync } from "node:fs";
+const { income, contribution, context } = JSON.parse(readFileSync(0, "utf8"));
+console.log(JSON.stringify(affordabilityVerdict(income, contribution, context)));`,
+        ],
+        {
+          input: JSON.stringify({
+            income: { ...salary, reduced: true },
+            contribution: monthly(29_880),
+            context,
+          }),
+          encoding: "utf8",
+        },
+      );
+      expect(JSON.parse(output)).toMatchObject({
+        status: "calculated",
+        affordable: true,
+      });
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+});

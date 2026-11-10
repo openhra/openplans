@@ -2,8 +2,20 @@
 export type IncomeMeasure =
   | { readonly measure: "household"; readonly annualCents: number }
   | { readonly measure: "w2"; readonly annualCents: number }
-  | { readonly measure: "rate_of_pay_hourly"; readonly hourlyCents: number }
-  | { readonly measure: "rate_of_pay_salary"; readonly monthlyCents: number }
+  | {
+      readonly measure: "rate_of_pay_hourly";
+      /** Hourly rate on the first day of the coverage period. */
+      readonly hourlyCents: number;
+      /** Lowest hourly rate during the calendar month, when it is known to differ. */
+      readonly lowestInMonthCents?: number;
+    }
+  | {
+      readonly measure: "rate_of_pay_salary";
+      /** Monthly salary on the first day of the coverage period. */
+      readonly monthlyCents: number;
+      /** True when the monthly salary was reduced, including through fewer work hours. */
+      readonly reduced?: boolean;
+    }
   | { readonly measure: "fpl" };
 export type MeasureName = IncomeMeasure["measure"];
 

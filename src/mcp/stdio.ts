@@ -9,7 +9,7 @@ import { createDatabase } from "../db/database.js";
 import { buildServer } from "./server.js";
 import { dependencies, householdOpen } from "./policy.js";
 import type { McpEnvironment } from "./policy.js";
-import { limits, MAX_OUTPUT_BYTES } from "./tools.js";
+import { limits, MAX_OUTPUT_BYTES, MAX_TOOL_LIST_BYTES } from "./tools.js";
 
 /** Local stdio grants household tools by default; OPENPLANS_MCP_ALLOW_PERSONALIZED=0 withholds them. */
 export function stdioGranted(env: McpEnvironment): boolean {
@@ -25,7 +25,11 @@ export function startStdio() {
   });
   const send = transport.send.bind(transport);
   transport.send = async (message) => {
-    if (Buffer.byteLength(JSON.stringify(message)) > MAX_OUTPUT_BYTES)
+    const responseLimit =
+      "result" in message && Array.isArray(message.result.tools)
+        ? MAX_TOOL_LIST_BYTES
+        : MAX_OUTPUT_BYTES;
+    if (Buffer.byteLength(JSON.stringify(message)) > responseLimit)
       throw new Error("Response limit");
     await send(message);
   };

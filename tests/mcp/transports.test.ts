@@ -7,6 +7,7 @@ import {
 } from "@modelcontextprotocol/client";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { PGlite } from "@electric-sql/pglite";
+import { toolNames } from "../../src/mcp/schemas.js";
 import { createMcpHttp } from "../../src/mcp/http.js";
 import { migrate } from "../../src/db/migrate.js";
 import { testDatabase, coreMigrations } from "../pglite.js";
@@ -224,14 +225,9 @@ it("stdio personalized grant is explicit", async () => {
     .trim()
     .split("\n")
     .map((line) => JSON.parse(line));
-  // The first page holds the earliest names; the bundle continues on later pages.
-  expect(
-    messages
-      .find((m) => m.id === 2)
-      .result.tools.some(
-        (t: { name: string }) => t.name === "check_ichra_affordability",
-      ),
-  ).toBe(true);
+  const result = messages.find((m) => m.id === 2).result;
+  expect(result.tools.map((t: { name: string }) => t.name)).toEqual(toolNames);
+  expect(result.nextCursor).toBeUndefined();
 });
 
 it("mounts MCP without applying its Host/Origin checks to REST health", async () => {

@@ -3,8 +3,8 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 years=(2026 2027)
 if [ "$#" -ne 0 ]; then
-  if [ "$#" -ne 2 ] || [ "$1" != '--year' ] || { [ "$2" != '2026' ] && [ "$2" != '2027' ]; }; then
-    echo 'Usage: scripts/realdata.sh [--year 2026|2027]' >&2
+  if [ "$#" -ne 2 ] || [ "$1" != '--year' ] || { [ "$2" != '2025' ] && [ "$2" != '2026' ] && [ "$2" != '2027' ]; }; then
+    echo 'Usage: scripts/realdata.sh [--year 2025|2026|2027]' >&2
     exit 2
   fi
   years=("$2")

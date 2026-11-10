@@ -34,13 +34,33 @@ The required contribution percentage is the one for plan years beginning in the 
 | `measure`            | Amount field    | Threshold                                                            | Purpose            | Rule                                                                                                            |
 | -------------------- | --------------- | -------------------------------------------------------------------- | ------------------ | --------------------------------------------------------------------------------------------------------------- |
 | `household`          | `annual_cents`  | household income x percentage / 12                                   | premium tax credit | 1.36B-2(c)(5)(i), final                                                                                         |
-| `w2`                 | `annual_cents`  | Form W-2 box 1 wages x percentage / 12; full calendar plan year only | employer           | [54.4980H-5(e)(2)(ii)](https://www.ecfr.gov/current/title-26/section-54.4980H-5), applied by proposed (f)(5)(i) |
+| `w2`                 | `annual_cents`  | Form W-2 box 1 wages x percentage / 12 for a full calendar plan year | employer           | [54.4980H-5(e)(2)(ii)](https://www.ecfr.gov/current/title-26/section-54.4980H-5), applied by proposed (f)(5)(i) |
 | `rate_of_pay_hourly` | `hourly_cents`  | 130 hours x hourly rate x percentage                                 | employer           | (e)(2)(iii), applied by proposed (f)(5)(ii)                                                                     |
 | `rate_of_pay_salary` | `monthly_cents` | monthly salary x percentage                                          | employer           | (e)(2)(iii), applied by proposed (f)(5)(ii)                                                                     |
 | `fpl`                | none            | one-person poverty line of the state of employment x percentage / 12 | employer           | (e)(2)(iv), applied by proposed (f)(5)(iii)                                                                     |
 
 Each verdict states its `purpose`. Employer verdicts answer section 4980H(b) only and never decide
 whether the employee may claim the premium tax credit.
+
+Three optional inputs refine the employer measures. A request without them gets the same answer
+as before.
+
+- **Partial-year offer, `w2`** ((e)(2)(ii)(B)): send `w2_months_offered` and `w2_months_employed`
+  on the `w2` measure when the HRA is offered for part of a calendar plan year. A calendar month
+  counts when the HRA is offered, or the employee is employed, on at least one day of it. The
+  rule multiplies the wages by months offered / months employed and compares the contributions
+  for the offered months with the percentage of that amount. With one monthly contribution for
+  every offered month, the monthly threshold is wages x percentage / months employed. Example:
+  wages of $30,000, 10 months employed, 6 offered, 9.96%: $30,000 x 6 / 10 = $18,000, 9.96% of
+  that is $1,792.80 for six months, so $298.80 a month. `w2_months_offered` must equal
+  `months_available`. If it differs, or the plan year is not a calendar year, the verdict is
+  `unknown`.
+- **Hourly rate that changes** ((e)(2)(iii)): `hourly_cents` is the rate on the first day of the
+  plan year. Send `lowest_hourly_cents` when the rate was lower at any time in the month. The
+  threshold uses the lower of the two, so a raise does not lift it.
+- **Reduced salary** ((e)(2)(iii)): send `salary_reduced: true` when the monthly salary was
+  reduced, including through fewer work hours. The rule says the safe harbor is not available
+  then, so the verdict is `unknown` (`rate_of_pay_salary_reduced`).
 
 The poverty-line measure uses the state of the worksite, or of the residence when no worksite is
 sent, including the Alaska and Hawaii tables. It uses the newest HHS guideline in effect on the
@@ -112,6 +132,17 @@ unlisted field is refused.
 (default 12) and `lcsp_premium_basis` (default `gross`) are optional. A ZIP is needed where a
 county has ZIP-limited service areas or sub-county rating areas.
 
+Optional fields on a measure:
+
+| Measure              | Field                                     | Values                                               |
+| -------------------- | ----------------------------------------- | ---------------------------------------------------- |
+| `w2`                 | `w2_months_offered`, `w2_months_employed` | integers 1 to 12, sent together, offered <= employed |
+| `rate_of_pay_hourly` | `lowest_hourly_cents`                     | integer cents above zero                             |
+| `rate_of_pay_salary` | `salary_reduced`                          | `true` or `false`                                    |
+
+A value outside these ranges gets a 400 that names the field. The service never substitutes a
+default.
+
 ## Response
 
 `lcsp` is the residence LCSP for the premium tax credit verdict; `employer_lcsp` is the
@@ -147,13 +178,22 @@ or unaffordable in these cases:
 | `no_silver_plans`           |                                                      | No on-Exchange silver plan is offered                                             |
 | `parameters_unconfirmed`    |                                                      | No cited parameters for the plan year                                             |
 
-A single verdict can also be `unknown`: `w2_partial_year_not_supported` (W-2 measure with fewer
-than 12 months or a non-calendar plan year) or `fpl_guideline_not_in_effect`. A verdict is
-`ambiguous_lcsp` when plans tied at the lowest age band have different prices at the employee's
-age and the verdicts differ.
+A single verdict can also be `unknown`. It still lists the rules it falls under, with citations.
+
+| Verdict `reason`                                  | Meaning                                                                                |
+| ------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `w2_partial_year_not_supported`                   | W-2 measure with fewer than 12 months or a non-calendar plan year, and no month counts |
+| `w2_months_offered_differs_from_months_available` | The month counts do not describe the months this HRA is available                      |
+| `w2_non_calendar_plan_year_not_supported`         | Month counts were sent for a plan year that is not a calendar year                     |
+| `rate_of_pay_salary_reduced`                      | The monthly salary was reduced, so the rate-of-pay safe harbor is not available        |
+| `fpl_guideline_not_in_effect`                     | No poverty guideline on file is in effect for the plan start                           |
+
+A verdict is `ambiguous_lcsp` when plans tied at the lowest age band have different prices at the
+employee's age and the verdicts differ.
 
 Errors: 400 `{"error":{"code":...,"field":...}}` with `INVALID_DATE`, `INVALID_INPUT`,
 `UNKNOWN_FIELD`, `DUPLICATE_MEASURE`, `LOCATION_REQUIRED`, `SAFE_HARBOR_INPUT_MISSING`,
+`W2_MONTHS_INCOMPLETE` (one month count without the other), `W2_MONTHS_OFFERED_EXCEED_EMPLOYED`,
 `INVALID_JSON` or `REQUEST_TOO_LARGE`; 401 `UNAUTHORIZED`; 503 `AUTH_NOT_CONFIGURED`; 504
 `REQUEST_DEADLINE`. Errors name the field and never echo its value.
 
@@ -172,4 +212,5 @@ means premiums are available for the row, the year's catalog is loaded and the y
 are confirmed. The EHB-portion figure can still be unknown in some counties.
 
 Not covered: the employer's section 4980H payment, QSEHRA, class rules, months after the first one,
-and part-year periods across taxable years.
+a required contribution that changes during the offered months, and part-year periods across
+taxable years ([26 CFR 1.36B-2(c)(5)(vi)](https://www.ecfr.gov/current/title-26/section-1.36B-2)).

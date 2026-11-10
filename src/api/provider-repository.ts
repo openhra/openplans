@@ -1,5 +1,6 @@
 import { searchOperatorPoints } from "../ingest/geocode/operator-store.js";
 import type { SqlSession } from "../db/database.js";
+import { rowJson, withoutRowProvenance } from "../db/row-provenance.js";
 import {
   classifyProviderEvidence,
   providerSpecialties,
@@ -534,7 +535,7 @@ async function readProviders(
           ORDER BY (t2.is_primary IS TRUE) DESC,t2.ordinal LIMIT 1))) AS location_taxonomy_unknown,`
         : ""
     }
-    coalesce((SELECT jsonb_agg(to_jsonb(r)||jsonb_build_object(
+    coalesce((SELECT jsonb_agg(${rowJson("r")}||jsonb_build_object(
     ${!issuer ? `'record_id',r.npi,'type',CASE WHEN r.entity_type='1' THEN 'INDIVIDUAL' ELSE 'GROUP' END,'evidence','[]'::jsonb,` : ""}
     ${
       issuer
@@ -542,12 +543,12 @@ async function readProviders(
     'first_name',n.first_name,'last_name',n.last_name,'nppes_snapshot_id',n.snapshot_id,
     'source_set_id',s.source_set_id,'raw_snapshot_id',s.raw_snapshot_id,'source_url',s.source_url,
     'retrieved_at',s.retrieved_at,'publisher_updated_at',s.publisher_updated_at,
-    'evidence',(SELECT jsonb_agg(to_jsonb(e) ORDER BY e.source_plan_index)
+    'evidence',(SELECT jsonb_agg(${rowJson("e")} ORDER BY e.source_plan_index)
       FROM qhp_provider_plan e WHERE e.snapshot_id=p.snapshot_id AND e.record_id=p.record_id
         AND e.base_hios_id=$1 AND e.plan_year=$2),`
         : ""
     }
-    'addresses',coalesce((SELECT jsonb_agg(${locationPage ? "(to_jsonb(a)-'address_key'-'record_distance'-'location_count')" : "to_jsonb(a)"}${addressFields()}
+    'addresses',coalesce((SELECT jsonb_agg(${locationPage ? `(${rowJson("a")}-'address_key'-'record_distance'-'location_count')` : rowJson("a")}${addressFields()}
       ORDER BY a.distance_miles NULLS LAST,a.address_index)
       FROM page_addresses a ${addressJoin()}
       WHERE a.record_id=p.record_id ${issuer ? "AND a.snapshot_id=p.snapshot_id" : ""}
@@ -691,28 +692,29 @@ export async function providerDetail(
   year: number | undefined,
 ) {
   const taxonomy = await taxonomyRelation(db);
-  const identity =
+  const identityRow =
     (
       await db.query(
-        `SELECT n.*,coalesce((SELECT jsonb_agg(to_jsonb(t)||jsonb_build_object(
+        `SELECT n.*,coalesce((SELECT jsonb_agg(${rowJson("t")}||jsonb_build_object(
       'display_name',nt.display_name,'taxonomy_display_name',nt.display_name,
       'taxonomy_source',CASE WHEN nt.code IS NULL THEN 'nppes_code_only' ELSE 'nucc' END,
       'classification',nt.classification,'specialization',nt.specialization,
       'taxonomy_status',CASE WHEN nt.code IS NULL THEN 'unknown_code' ELSE 'known' END) ORDER BY t.ordinal)
       FROM npi_taxonomy t LEFT JOIN ${taxonomy} nt ON nt.code=t.code WHERE t.npi=n.npi),'[]') AS taxonomy,
-    coalesce((SELECT jsonb_agg(to_jsonb(a)||jsonb_build_object('source','npi_address','participation','not_evaluated')
+    coalesce((SELECT jsonb_agg(${rowJson("a")}||jsonb_build_object('source','npi_address','participation','not_evaluated')
       ORDER BY a.kind,a.ordinal) FROM npi_address a WHERE a.npi=n.npi),'[]') AS addresses
     FROM npi_provider n WHERE n.npi=$1`,
         [npi],
       )
     ).rows[0] ?? null;
+  const identity = identityRow && withoutRowProvenance(identityRow);
   const records = (
     await db.query(
       `SELECT r.*,active.issuer_id,active.plan_year,active.state,s.source_set_id,s.raw_snapshot_id,snap.final_url AS source_url,
       snap.retrieved_at,snap.publisher_updated_at,
-    coalesce((SELECT jsonb_agg(to_jsonb(a)||jsonb_build_object('source','qhp_provider_address','participation','not_evaluated')
+    coalesce((SELECT jsonb_agg(${rowJson("a")}||jsonb_build_object('source','qhp_provider_address','participation','not_evaluated')
       ORDER BY a.address_index) FROM qhp_provider_address a WHERE a.record_id=r.record_id AND a.snapshot_id=r.snapshot_id),'[]') AS addresses,
-    coalesce((SELECT jsonb_agg(to_jsonb(e) ORDER BY e.plan_year,e.base_hios_id,e.source_plan_index) FROM qhp_provider_plan e
+    coalesce((SELECT jsonb_agg(${rowJson("e")} ORDER BY e.plan_year,e.base_hios_id,e.source_plan_index) FROM qhp_provider_plan e
       WHERE e.record_id=r.record_id AND e.snapshot_id=r.snapshot_id AND ($2::integer IS NULL OR e.plan_year=$2)),'[]') AS plan_participations
     FROM qhp_provider_record r JOIN provider_shard s USING(snapshot_id)
     JOIN provider_active_set active ON active.snapshot_id=s.source_set_id
@@ -720,7 +722,7 @@ export async function providerDetail(
     WHERE r.npi=$1 AND ($2::integer IS NULL OR active.plan_year=$2) ORDER BY r.snapshot_id,r.source_record`,
       [npi, year ?? null],
     )
-  ).rows;
+  ).rows.map(withoutRowProvenance);
   if (!identity && !records.length) return null;
   const coverage = (await providerAvailability(db)).filter((p) =>
     records.some(
@@ -882,7 +884,7 @@ export async function searchUnlocatedInState(
     SELECT * FROM locations ORDER BY npi,ordinal ${limit} OFFSET ${Math.max(0, Math.floor(page.offset))}
   )
   SELECT (SELECT count(*)::int FROM locations) AS total,
-    coalesce((SELECT jsonb_agg(to_jsonb(n)||jsonb_build_object(
+    coalesce((SELECT jsonb_agg(${rowJson("n")}||jsonb_build_object(
       'record_id',n.npi,'type',CASE WHEN n.entity_type='1' THEN 'INDIVIDUAL' ELSE 'GROUP' END,
       'evidence','[]'::jsonb,'distance_miles',NULL,
       'addresses',(SELECT jsonb_agg(jsonb_build_object('record_id',a.npi,'snapshot_id',a.snapshot_id,

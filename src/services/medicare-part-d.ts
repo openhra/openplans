@@ -1,4 +1,5 @@
 import type { SqlSession } from "../db/database.js";
+import type { PartDDrugName } from "../api/medicare-schemas.js";
 
 /**
  * Part D formulary, pharmacy network and unit-cost serving waits on an owner decision about which
@@ -88,6 +89,23 @@ function channel(cells: Record<string, string>, suffix: string) {
 
 type PlanKeyParts = { contractId: string; planId: string; segmentId: string };
 
+function drugName(row?: {
+  name_snapshot_id: string | null;
+  name: string | null;
+  name_tty: string | null;
+}): PartDDrugName {
+  let reason: PartDDrugName["name_reason"] = null;
+  if (!row) reason = "rxcui_not_in_plan_formulary";
+  else if (!row.name_snapshot_id) reason = "rxnorm_not_loaded";
+  else if (row.name === null) reason = "rxcui_not_in_loaded_rxnorm";
+  return {
+    name: row?.name ?? null,
+    name_tty: row?.name_tty ?? null,
+    name_reason: reason,
+    name_snapshot_id: row?.name_snapshot_id ?? null,
+  };
+}
+
 async function planFormulary(
   db: SqlSession,
   release: PartDRelease,
@@ -139,9 +157,23 @@ export async function partDDrug(
       tier: number | null;
       cells: Record<string, string>;
       source_row: number;
+      name_snapshot_id: string | null;
+      name: string | null;
+      name_tty: string | null;
     }>(
-      `SELECT ndc,tier,cells,source_row FROM partd_formulary_drug WHERE snapshot_id=$1 AND formulary_id=$2
-       AND rxcui=$3 ORDER BY ndc,source_row`,
+      `WITH current_rx AS (
+         SELECT r.snapshot_id FROM rx_release r JOIN snapshot s USING(snapshot_id)
+         WHERE s.validation_state='ACTIVE' ORDER BY r.source_version DESC LIMIT 1
+       )
+       SELECT f.ndc,f.tier,f.cells,f.source_row,r.snapshot_id AS name_snapshot_id,n.name,n.tty AS name_tty
+       FROM partd_formulary_drug f LEFT JOIN current_rx r ON true
+       LEFT JOIN LATERAL (
+         SELECT c.name,c.tty FROM rx_concept c
+         WHERE c.snapshot_id=r.snapshot_id AND c.rxcui=f.rxcui
+         ORDER BY CASE WHEN c.tty IN ('SCD','SBD') THEN 0 ELSE 1 END,
+           c.tty,c.name,c.suppress,c.source_record LIMIT 1
+       ) n ON true
+       WHERE f.snapshot_id=$1 AND f.formulary_id=$2 AND f.rxcui=$3 ORDER BY f.ndc,f.source_row`,
       [release.snapshot_id, formulary, rxcui],
     )
   ).rows;
@@ -194,6 +226,7 @@ export async function partDDrug(
       : [];
   return {
     status: listed.length ? "listed" : "not_listed",
+    ...drugName(listed[0]),
     note: listed.length
       ? "Listed on the plan's published formulary file."
       : "Not in the plan's published formulary file; ask the plan about exceptions.",

@@ -150,7 +150,7 @@ if __name__ == '__main__':
     for name in ['cache', 'manifest', 'output', 'summary']:
         parser.add_argument('--' + name, type=Path, required=True)
     parser.add_argument('--state', default='TX')
-    parser.add_argument('--year', type=int, choices=[2026, 2027], default=2026)
+    parser.add_argument('--year', type=int, choices=[2025, 2026, 2027], default=2026)
     parser.add_argument('--county')
     args = parser.parse_args()
     collect(args.cache, args.manifest, args.output, args.summary, args.state, args.year, args.county)

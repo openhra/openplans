@@ -1,5 +1,30 @@
 import type { SqlSession } from "./database.js";
 
+/**
+ * The columns migration 990 adds to every table. They describe the database row, so API
+ * responses leave them out.
+ */
+export const ROW_PROVENANCE_COLUMNS = [
+  "created_at",
+  "updated_at",
+  "sourced_by",
+  "sourced_at",
+  "sourced_slug",
+] as const;
+
+/** SQL for one table row as JSON without the row provenance columns. */
+export const rowJson = (alias: string) =>
+  `(to_jsonb(${alias})-'{${ROW_PROVENANCE_COLUMNS.join(",")}}'::text[])`;
+
+/** A row selected with `alias.*`, without the row provenance columns. */
+export function withoutRowProvenance<T extends Record<string, unknown>>(
+  row: T,
+): T {
+  const copy = { ...row };
+  for (const column of ROW_PROVENANCE_COLUMNS) delete copy[column];
+  return copy;
+}
+
 export interface BackfillResult {
   table: string;
   rows: number;
@@ -47,7 +72,7 @@ export async function backfillRowProvenance(
         vacuumEvery &&
         ((first / blocks + 1) % vacuumEvery === 0 || first + blocks > last)
       )
-        await db.exec(`VACUUM ${quoteIdentifier(table_name)}`);
+        await db.exec(`VACUUM (PARALLEL 0) ${quoteIdentifier(table_name)}`);
     }
     results.push(result);
     progress(result);

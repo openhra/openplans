@@ -1,3 +1,4 @@
+import { databaseErrorDiagnostic } from "./database-error.js";
 import { runSbe } from "../ingest/sbe/command.js";
 import { runState } from "../ingest/state/command.js";
 import { runBootstrap } from "./bootstrap.js";
@@ -126,10 +127,10 @@ export async function runWorker(
     } else {
       output.out(JSON.stringify(await coverageManifest(db)));
     }
-  } catch {
+  } catch (error) {
     // Driver errors can contain credentials, URLs or source-record contents.
     output.error(
-      `worker ${command} failed; check database connectivity and migration files`,
+      `worker ${command} failed${databaseErrorDiagnostic(error)}; check database connectivity and migration files`,
     );
     exitCode = 1;
   } finally {
@@ -177,9 +178,9 @@ async function runRowProvenanceBackfill(
     await backfillRowProvenance(db, { table, blocks }, (result) =>
       output.out(JSON.stringify(result)),
     );
-  } catch {
+  } catch (error) {
     output.error(
-      "worker backfill row-provenance failed; run worker migrate first and check the database",
+      `worker backfill row-provenance failed${databaseErrorDiagnostic(error)}; run worker migrate first and check the database`,
     );
     code = 1;
   } finally {

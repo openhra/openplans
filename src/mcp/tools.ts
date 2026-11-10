@@ -73,6 +73,9 @@ export function mayCall(deps: McpDependencies, tool: ToolName) {
   return true;
 }
 export const MAX_OUTPUT_BYTES = 128 * 1024;
+// Discovery includes every output schema, so it has a separate transport budget.
+export const MAX_TOOL_LIST_BYTES = 512 * 1024;
+export const TOOL_LIST_PAGE_SIZE = 15;
 export const MAX_INPUT_ELEMENTS = 512;
 export const limits = {
   input_bytes: 64 * 1024,

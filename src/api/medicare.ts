@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import type { SqlSession } from "../db/database.js";
+import { medicareDrugResponseSchema } from "./medicare-schemas.js";
 import {
   getMedicareBenefits,
   getMedicareDrug,
@@ -33,7 +34,11 @@ export function medicareRoutes(db: SqlSession) {
     c.json(await getMedicareLineage(db, c.req.param("key"), c.req.query())),
   );
   app.get("/medicare/plans/:key/drugs", async (c) =>
-    c.json(await getMedicareDrug(db, c.req.param("key"), c.req.query())),
+    c.json(
+      medicareDrugResponseSchema.parse(
+        await getMedicareDrug(db, c.req.param("key"), c.req.query()),
+      ),
+    ),
   );
   app.get("/medicare/plans/:key/pharmacies", async (c) =>
     c.json(await getMedicarePharmacies(db, c.req.param("key"), c.req.query())),

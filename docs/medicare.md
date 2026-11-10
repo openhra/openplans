@@ -1,8 +1,8 @@
 # Medicare plan data
 
 OpenPlans serves Medicare Advantage plans with and without drug coverage, stand-alone Part D
-plans, Special Needs Plans and Cost plans. Every value comes from files that the Centers for
-Medicare & Medicaid Services publishes on www.cms.gov, served as filed and tagged with its release.
+plans, Special Needs Plans and Cost plans. Plan and coverage values come from files that the Centers
+for Medicare & Medicaid Services publishes on www.cms.gov, served as filed and tagged with its release.
 Medicare premiums are not age-rated and the routes take no personal data, so they need no token.
 
 ## Sources
@@ -103,6 +103,17 @@ Two routes read these tables when serving is on.
   sharing by coverage phase and pharmacy channel, and the plan's average unit cost per proxy NDC.
   An RxCUI absent from the formulary file returns `not_listed`, never "not covered". Tier names
   such as "preferred brand" are not in the public files and stay `unknown`.
+  The nullable `name` comes from an exact join of the formulary row's RxCUI to the newest active
+  loaded NLM RxNorm release. `name_snapshot_id` identifies that release and `name_tty` gives the
+  published term type. Selection prefers SCD or SBD terms, then sorts by term type, name,
+  suppression code and source record. Synonyms stay in RxNorm and do not multiply formulary rows.
+  No loaded RxNorm release gives `name_reason: "rxnorm_not_loaded"`;
+  a loaded release without that RxCUI gives `rxcui_not_in_loaded_rxnorm`. An RxCUI absent from the
+  plan's formulary has a null name and snapshot with `rxcui_not_in_plan_formulary`. A null name also
+  has a null `name_tty`. When a name is selected, `name_reason` is null. No name is inferred from
+  an NDC, another drug or a brand link.
+  These fields are present on `listed` and `not_listed` responses. Responses with `status: "unknown"`,
+  including the default flag-off response, keep their existing shape.
 - `GET /v1/medicare/plans/{plan_key}/pharmacies?year=2026&zip=77002` lists the plan's network
   pharmacies in a ZIP. The Part D file gives only the NPI and ZIP, so names, addresses and phones
   come from NPPES when that is loaded.
@@ -127,3 +138,8 @@ listed, a changed cost-sharing amount, a flipped suppression flag, a dropped cou
 pointed at another formulary. The check does not load pharmacy networks or pricing.
 `tests/ingest/medicare/part-d-check.test.ts` runs the same comparison on the fixture cut. It also
 imports six archives with one value changed in each and expects the comparison to report every one.
+The disposable database has no RxNorm release, so the check also requires null drug names and
+the corresponding reasons. The Part D archive contains no names to check. Synthetic HTTP fixtures
+in `tests/api/medicare-drug-names.test.ts` check exact name matches, missing terminology, inactive
+releases, synonym selection and unchanged flag-off responses. Moving a loaded name to another RxCUI
+must fail the expected-name assertion.

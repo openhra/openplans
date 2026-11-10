@@ -2,7 +2,7 @@
 import { mutateSource, sourceControls } from "./source-controls.mjs";
 import { homedir } from "node:os";
 /**
- * npm run build && node scripts/oracle/dental.mjs [--year 2026|2027] [--state XX | --all-states]
+ * npm run build && node scripts/oracle/dental.mjs [--year 2025|2026|2027] [--state XX | --all-states]
  * Cache only. TX PY2026 owns the P5e DB and adds county HTTP examples; every other
  * publication-listed state/year owns its own DB, seeded from the all-states DB when present.
  */
@@ -39,9 +39,9 @@ const option = (name, fallback) =>
   args.includes(name) ? args[args.indexOf(name) + 1] : fallback;
 const year = Number(option("--year", "2026")),
   state = option("--state", "TX");
-if (![2026, 2027].includes(year) || !/^[A-Z]{2}$/.test(state ?? ""))
+if (![2025, 2026, 2027].includes(year) || !/^[A-Z]{2}$/.test(state ?? ""))
   throw new Error(
-    "Usage: dental.mjs [--year 2026|2027] [--state XX | --all-states]",
+    "Usage: dental.mjs [--year 2025|2026|2027] [--state XX | --all-states]",
   );
 if (args.includes("--all-states")) {
   process.exitCode = await allStates(year);

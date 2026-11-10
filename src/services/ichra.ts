@@ -53,6 +53,34 @@ export interface IchraRequest {
   readonly income: readonly IncomeMeasure[];
   readonly safeHarbors: Omit<SafeHarborChoices, "lowestAgeBand">;
   readonly lcspPremiumBasis: PremiumBasis | null;
+  /**
+   * Calendar-month counts for a partial-year W-2 offer, 26 CFR 54.4980H-5(e)(2)(ii)(B). Absent:
+   * the W-2 verdict is computed for a full calendar plan year only.
+   */
+  readonly w2PartialYear?: {
+    readonly monthsOffered: number;
+    readonly monthsEmployed: number;
+  } | null;
+}
+
+/**
+ * When the month counts settle the W-2 safe harbor. The domain test assumes one monthly
+ * contribution for every offered month, which holds only when the offered months are the months
+ * the HRA is available in a calendar plan year. Anything else stays unknown with a reason.
+ */
+export function w2PartialYearContext(
+  request: Pick<
+    IchraRequest,
+    "planStart" | "monthsAvailable" | "w2PartialYear"
+  >,
+) {
+  const counts = request.w2PartialYear;
+  if (!counts) return {};
+  if (!isCalendarYearPlan(request.planStart))
+    return { w2Unavailable: "w2_non_calendar_plan_year_not_supported" };
+  if (counts.monthsOffered !== request.monthsAvailable)
+    return { w2Unavailable: "w2_months_offered_differs_from_months_available" };
+  return { w2PartialYear: counts };
 }
 
 const BASES: readonly PremiumBasis[] = ["gross", "ehb_portion"];
@@ -618,6 +646,7 @@ export async function ichraAffordability(
     povertyLine: line,
     fullCalendarYear:
       isCalendarYearPlan(request.planStart) && request.monthsAvailable === 12,
+    ...w2PartialYearContext(request),
   });
   const verdicts = request.income.map((income) =>
     income.measure === "household" && ptc

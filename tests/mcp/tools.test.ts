@@ -26,7 +26,11 @@ import {
   toolNames,
 } from "../../src/mcp/schemas.js";
 import { buildServer } from "../../src/mcp/server.js";
-import { callTool, MAX_OUTPUT_BYTES } from "../../src/mcp/tools.js";
+import {
+  callTool,
+  MAX_OUTPUT_BYTES,
+  MAX_TOOL_LIST_BYTES,
+} from "../../src/mcp/tools.js";
 import { projector, row } from "../../src/mcp/projection.js";
 import { cursorCodec } from "../../src/mcp/cursor.js";
 import { testDatabase, coreMigrations } from "../pglite.js";
@@ -514,7 +518,7 @@ describe("in-process MCP public catalog and estimates", () => {
       text: expect.stringContaining("512 elements"),
     });
   });
-  it("pages schema discovery under the message cap even with a large caller-issued RPC ID", async () => {
+  it("fits schema discovery under its budget even with a large caller-issued RPC ID", async () => {
     // Each stateless factory must return a fresh instance; reuse dependencies, not the server object.
     const fresh = createMcpHandler(() => buildServer({ db, ...authorized }), {
       legacy: "stateless",
@@ -541,7 +545,9 @@ describe("in-process MCP public catalog and estimates", () => {
         );
         const text = await response.text();
         expect(response.status).toBe(200);
-        expect(Buffer.byteLength(text)).toBeLessThanOrEqual(MAX_OUTPUT_BYTES);
+        expect(Buffer.byteLength(text)).toBeLessThanOrEqual(
+          MAX_TOOL_LIST_BYTES,
+        );
         const payload = text.startsWith("{")
           ? text
           : text
@@ -549,7 +555,10 @@ describe("in-process MCP public catalog and estimates", () => {
               .find((line) => line.startsWith("data:"))!
               .slice(5);
         const result = JSON.parse(payload).result;
-        expect(result.tools.length).toBeGreaterThan(0);
+        expect(result.tools.map((t: { name: string }) => t.name)).toEqual(
+          toolNames,
+        );
+        expect(result.nextCursor).toBeUndefined();
         names.push(...result.tools.map((t: { name: string }) => t.name));
         cursor = result.nextCursor;
       } while (cursor);

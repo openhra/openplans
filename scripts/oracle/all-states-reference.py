@@ -57,5 +57,5 @@ def collect(cache, manifest, year, directory):
     (directory/'summary.json').write_text(json.dumps(result,indent=2)+'\n')
     return result
 if __name__=='__main__':
-    p=argparse.ArgumentParser();p.add_argument('--cache',type=Path,required=True);p.add_argument('--manifest',type=Path,required=True);p.add_argument('--year',type=int,choices=[2026,2027],required=True);p.add_argument('--directory',type=Path,required=True)
+    p=argparse.ArgumentParser();p.add_argument('--cache',type=Path,required=True);p.add_argument('--manifest',type=Path,required=True);p.add_argument('--year',type=int,choices=[2025,2026,2027],required=True);p.add_argument('--directory',type=Path,required=True)
     a=p.parse_args();collect(a.cache,a.manifest,a.year,a.directory)

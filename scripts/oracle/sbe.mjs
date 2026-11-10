@@ -137,8 +137,11 @@ const table = {
 const project = fileURLToPath(new URL("../../", import.meta.url));
 const dataDir = importDataDirectory();
 const args = process.argv.slice(2);
-const year = Number(args[args.indexOf("--year") + 1] ?? 2026);
-if (![2026, 2027].includes(year)) throw new Error("Expected --year 2026|2027");
+const year = Number(
+  args.includes("--year") ? args[args.indexOf("--year") + 1] : 2026,
+);
+if (![2025, 2026, 2027].includes(year))
+  throw new Error("Expected --year 2025|2026|2027");
 const mutant = args.includes("--mutate-rate");
 const suffix = mutant ? "-synthetic-mutant" : "";
 const selected = args.includes("--states")

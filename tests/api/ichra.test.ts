@@ -1,6 +1,12 @@
+import { execFileSync } from "node:child_process";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createApp } from "../../src/api/app.js";
 import { setup, TOKEN } from "../compat/v1/helpers.js";
+import { rebaseImports, replaceSyntax } from "../source-mutation.js";
 
 // SYNTHETIC employees over the real, unmodified CMS TX PY2026 Harris cut (20 silver plans).
 let h: Awaited<ReturnType<typeof setup>>;
@@ -129,6 +135,114 @@ describe("POST /v1/ichra/affordability", () => {
       "INVALID_INPUT",
     ],
     ["no income", body({ income: [] }), "income", "INVALID_INPUT"],
+    ...(
+      [
+        [
+          "zero months offered",
+          { w2_months_offered: 0, w2_months_employed: 6 },
+          "w2_months_offered",
+          "INVALID_INPUT",
+        ],
+        [
+          "13 months employed",
+          { w2_months_offered: 6, w2_months_employed: 13 },
+          "w2_months_employed",
+          "INVALID_INPUT",
+        ],
+        [
+          "a fractional month count",
+          { w2_months_offered: 5.5, w2_months_employed: 6 },
+          "w2_months_offered",
+          "INVALID_INPUT",
+        ],
+        [
+          "a month count sent as text",
+          { w2_months_offered: "6", w2_months_employed: 6 },
+          "w2_months_offered",
+          "INVALID_INPUT",
+        ],
+        [
+          "more months offered than employed",
+          { w2_months_offered: 7, w2_months_employed: 6 },
+          "w2_months_offered",
+          "W2_MONTHS_OFFERED_EXCEED_EMPLOYED",
+        ],
+        [
+          "months offered without months employed",
+          { w2_months_offered: 6 },
+          "w2_months_employed",
+          "W2_MONTHS_INCOMPLETE",
+        ],
+        [
+          "months employed without months offered",
+          { w2_months_employed: 6 },
+          "w2_months_offered",
+          "W2_MONTHS_INCOMPLETE",
+        ],
+      ] as const
+    ).map(
+      ([name, months, field, code]) =>
+        [
+          name,
+          body({
+            income: [{ measure: "w2", annual_cents: 4_118_000, ...months }],
+          }),
+          `income.0.${field}`,
+          code,
+        ] as [string, ReturnType<typeof body>, string, string],
+    ),
+    [
+      "month counts on another measure",
+      body({
+        income: [
+          { measure: "household", annual_cents: 1, w2_months_offered: 6 },
+        ],
+      }),
+      "income.0.w2_months_offered",
+      "UNKNOWN_FIELD",
+    ],
+    [
+      "a lowest hourly rate of zero",
+      body({
+        income: [
+          {
+            measure: "rate_of_pay_hourly",
+            hourly_cents: 2_000,
+            lowest_hourly_cents: 0,
+          },
+        ],
+      }),
+      "income.0.lowest_hourly_cents",
+      "INVALID_INPUT",
+    ],
+    [
+      "a negative lowest hourly rate",
+      body({
+        income: [
+          {
+            measure: "rate_of_pay_hourly",
+            hourly_cents: 2_000,
+            lowest_hourly_cents: -1,
+          },
+        ],
+      }),
+      "income.0.lowest_hourly_cents",
+      "INVALID_INPUT",
+    ],
+    [
+      "a salary reduction flag that is not a boolean",
+      body({
+        income: [
+          {
+            measure: "rate_of_pay_salary",
+            monthly_cents: 400_000,
+            salary_reduced: "yes",
+          },
+        ],
+      }),
+      "income.0.salary_reduced",
+      "INVALID_INPUT",
+    ],
     [
       "bad basis",
       body({ lcsp_premium_basis: "net" }),
@@ -156,6 +270,104 @@ describe("POST /v1/ichra/affordability", () => {
     expect(large.json).toEqual({
       error: { code: "REQUEST_TOO_LARGE", field: "body" },
     });
+  });
+  it("takes the partial-year, lowest-rate and salary-reduction fields", async () => {
+    // SYNTHETIC inputs. W-2: $30,000 x 9.96% / 10 months employed = $298.80, and
+    // (59,205 x 6 - 175,950) / 6 = 29,880 cents, so equal and affordable.
+    // Hourly: 130 x $18.00 x 9.96% = $233.064 against the same $298.80: not affordable.
+    const { response, json } = await post(
+      body({
+        months_available: 6,
+        hra: { self_only_annual_cents: 175_950 },
+        income: [
+          {
+            measure: "w2",
+            annual_cents: 3_000_000,
+            w2_months_offered: 6,
+            w2_months_employed: 10,
+          },
+          {
+            measure: "rate_of_pay_hourly",
+            hourly_cents: 2_000,
+            lowest_hourly_cents: 1_800,
+          },
+          {
+            measure: "rate_of_pay_salary",
+            monthly_cents: 400_000,
+            salary_reduced: true,
+          },
+        ],
+      }),
+    );
+    expect(response.status).toBe(200);
+    const [w2, hourly, salary] = json.verdicts;
+    expect(w2).toMatchObject({
+      status: "calculated",
+      required_hra_contribution_cents: { numerator: 29_880, denominator: 1 },
+      threshold_cents: { numerator: 29_880, denominator: 1 },
+      affordable: true,
+    });
+    expect(hourly).toMatchObject({
+      threshold_cents: { numerator: 116_532, denominator: 5, display: 23_306 },
+      affordable: false,
+    });
+    expect(salary).toMatchObject({
+      status: "unknown",
+      reason: "rate_of_pay_salary_reduced",
+      affordable: null,
+    });
+    const cited = Object.fromEntries(
+      json.rules.map((r: { id: string; citations: { section: string }[] }) => [
+        r.id,
+        r.citations.map((c) => c.section).join(" "),
+      ]),
+    );
+    expect(cited.w2_safe_harbor).toContain("(e)(2)(ii)");
+    expect(cited.rate_of_pay_safe_harbor).toContain("(e)(2)(iii)");
+  });
+  it("planted defect: a reversed month comparison lets 7 months offered of 6 employed through", () => {
+    const original = new URL("../../dist/api/validation.js", import.meta.url);
+    const directory = mkdtempSync(join(tmpdir(), "openplans-w2-months-"));
+    try {
+      const source = replaceSyntax(
+        readFileSync(original, "utf8"),
+        "monthsOffered > monthsEmployed",
+        "monthsOffered < monthsEmployed",
+      );
+      const path = join(directory, "validation.mjs");
+      writeFileSync(path, rebaseImports(source, original));
+      const output = execFileSync(
+        process.execPath,
+        [
+          "--input-type=module",
+          "-e",
+          `import { ichraRequest } from ${JSON.stringify(pathToFileURL(path).href)};
+import { readFileSync } from "node:fs";
+console.log(JSON.stringify(ichraRequest(JSON.parse(readFileSync(0, "utf8"))).w2PartialYear));`,
+        ],
+        {
+          input: JSON.stringify(
+            body({
+              income: [
+                {
+                  measure: "w2",
+                  annual_cents: 3_000_000,
+                  w2_months_offered: 7,
+                  w2_months_employed: 6,
+                },
+              ],
+            }),
+          ),
+          encoding: "utf8",
+        },
+      );
+      expect(JSON.parse(output)).toEqual({
+        monthsOffered: 7,
+        monthsEmployed: 6,
+      });
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
   });
   it("a refusal carries a status and no verdicts", async () => {
     const { response, json } = await post(body({ plan_start: "2027-01-01" }));

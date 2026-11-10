@@ -248,7 +248,7 @@ export const CASES = [
       hraAnnualCents: 750_000,
       income: { measure: "w2", annualCents: 5_250_000 },
     },
-    hand: "Six months available: the partial-year W-2 rule is not implemented, so the verdict is unknown.",
+    hand: "Six months available and no calendar-month counts given, so the W-2 verdict is unknown.",
     expect: { affordable: null, reason: "w2_partial_year_not_supported" },
   },
   {

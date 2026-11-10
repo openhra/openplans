@@ -29,8 +29,8 @@ const cache = importDataDirectory(),
   reports = join(cache, "reports");
 const args = process.argv.slice(2),
   year = Number(args[args.indexOf("--year") + 1]);
-if (![2026, 2027].includes(year))
-  throw new Error("Usage: all-states.mjs --year 2026|2027");
+if (![2025, 2026, 2027].includes(year))
+  throw new Error("Usage: all-states.mjs --year 2025|2026|2027");
 await mkdir(reports, { recursive: true });
 await mkdir(join(cache, "work"), { recursive: true });
 function child(command, args) {
@@ -255,7 +255,7 @@ if (args.includes("--state")) {
     await rm(scratch, { recursive: true, force: true });
     await atomicWrite(output, JSON.stringify(result, null, 2) + "\n");
   }
-  await allStatesReport(cache);
+  await allStatesReport(cache, year === 2025 ? [year] : undefined);
   console.log(
     `PY${year} ${state}: ${result.passed ? "PASS" : "FAIL"} comparisons=${result.premiums.comparisons} mismatches=${result.premiums.mismatch_count} ${result.failures.join("; ")}`,
   );
@@ -323,7 +323,7 @@ if (args.includes("--state")) {
       join(reports, `p6d-all-states-${year}.json`),
       JSON.stringify(report, null, 2) + "\n",
     );
-    await allStatesReport(cache);
+    await allStatesReport(cache, year === 2025 ? [year] : undefined);
     console.log(
       `PY${year} all-states: ${report.passed ? "PASS" : "FAIL"} (${results.filter((r) => r.passed).length}/${states.length})`,
     );

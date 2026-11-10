@@ -70,8 +70,24 @@ const db = {
 const started = Date.now();
 await migrate(db, migrations);
 const imported = await importSpuf(db, cached);
-const drug = (planKey, rxcui) =>
-  partDDrug(db, parsePlanKey(planKey), year, rxcui);
+let drugNameChecks = 0;
+const drug = async (planKey, rxcui) => {
+  const body = await partDDrug(db, parsePlanKey(planKey), year, rxcui);
+  // This disposable database has no RxNorm release; the Part D archive has no drug names.
+  if (body.status === "listed" || body.status === "not_listed") {
+    assert.equal(body.name, null);
+    assert.equal(body.name_tty, null);
+    assert.equal(body.name_snapshot_id, null);
+    assert.equal(
+      body.name_reason,
+      body.status === "listed"
+        ? "rxnorm_not_loaded"
+        : "rxcui_not_in_plan_formulary",
+    );
+    drugNameChecks++;
+  }
+  return body;
+};
 
 // Serving is off until the operator turns it on, even with the release loaded.
 const anyPlan = expected.sample[0];
@@ -100,6 +116,7 @@ const report = {
   ),
   plans_checked: Object.keys(expected.plans).length,
   drug_lookups_checked: expected.sample.length,
+  drug_name_checks_without_rxnorm: drugNameChecks,
   suppressed_plans_checked: expected.suppressed_sample.length,
   problems: problems.slice(0, 50),
   problem_count: problems.length,

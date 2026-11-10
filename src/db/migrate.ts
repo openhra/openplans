@@ -36,6 +36,8 @@ export async function migrate(
   migrations.sort((a, b) => a.version - b.version);
 
   return db.transaction(async (tx) => {
+    // Index builds on populated tables must fit Docker's default 64 MiB /dev/shm.
+    await tx.exec("SET LOCAL max_parallel_maintenance_workers = 0");
     await tx.query("SELECT pg_advisory_xact_lock(1869636974)");
     await tx.exec(`CREATE TABLE IF NOT EXISTS schema_migrations (
       name text PRIMARY KEY,

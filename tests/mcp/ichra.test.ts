@@ -128,6 +128,101 @@ describe("MCP check_ichra_affordability", () => {
       "SAFE_HARBOR_INPUT_MISSING",
     );
   });
+  it("takes the partial-year, lowest-rate and salary-reduction fields like the route", async () => {
+    // SYNTHETIC inputs; the arithmetic is worked in tests/api/ichra.test.ts.
+    const extended = {
+      ...input,
+      months_available: 6,
+      hra: { self_only_annual_cents: 175_950 },
+      income: [
+        {
+          measure: "w2",
+          annual_cents: 3_000_000,
+          w2_months_offered: 6,
+          w2_months_employed: 10,
+        },
+        {
+          measure: "rate_of_pay_hourly",
+          hourly_cents: 2_000,
+          lowest_hourly_cents: 1_800,
+        },
+        {
+          measure: "rate_of_pay_salary",
+          monthly_cents: 400_000,
+          salary_reduced: true,
+        },
+      ],
+    };
+    const result = (await callTool(
+      granted(),
+      "check_ichra_affordability",
+      extended,
+    )) as Json;
+    const output = result.structuredContent;
+    expect(output.status).toBe("ok");
+    const native = (await ichraAffordability(
+      h.db,
+      ichraRequest(extended),
+    )) as Json;
+    expect(output.data.verdicts).toEqual(native.verdicts);
+    expect(
+      output.data.verdicts.map((v: Json) => [
+        v.measure,
+        v.status,
+        v.affordable,
+      ]),
+    ).toEqual([
+      ["w2", "calculated", true],
+      ["rate_of_pay_hourly", "calculated", false],
+      ["rate_of_pay_salary", "unknown", null],
+    ]);
+    expect(output.data.verdicts[2].reason).toBe("rate_of_pay_salary_reduced");
+    const cited = output.data.rules.map((r: Json) => r.id);
+    expect(cited).toContain("w2_safe_harbor");
+    expect(cited).toContain("rate_of_pay_safe_harbor");
+    expect(
+      outputSchemas.check_ichra_affordability.safeParse(output).success,
+    ).toBe(true);
+  });
+  it("refuses month counts and rates outside their range, and never answers", async () => {
+    const w2 = (months: Record<string, unknown>) => ({
+      ...input,
+      income: [{ measure: "w2", annual_cents: 3_000_000, ...months }],
+    });
+    const cases: [Json, string | null][] = [
+      [
+        w2({ w2_months_offered: 7, w2_months_employed: 6 }),
+        "W2_MONTHS_OFFERED_EXCEED_EMPLOYED",
+      ],
+      [w2({ w2_months_offered: 6 }), "W2_MONTHS_INCOMPLETE"],
+      [w2({ w2_months_offered: 0, w2_months_employed: 6 }), null],
+      [w2({ w2_months_offered: 6, w2_months_employed: 13 }), null],
+      [
+        {
+          ...input,
+          income: [
+            {
+              measure: "rate_of_pay_hourly",
+              hourly_cents: 2_000,
+              lowest_hourly_cents: 0,
+            },
+          ],
+        },
+        null,
+      ],
+    ];
+    for (const [arguments_, code] of cases) {
+      const result = (await callTool(
+        granted(),
+        "check_ichra_affordability",
+        arguments_,
+      )) as Json;
+      expect(result.structuredContent.data).toBeNull();
+      expect(result.structuredContent.error.code).toEqual(
+        code ?? expect.any(String),
+      );
+    }
+  });
   it("negative control: a changed LCSP cent or verdict fails the honesty check", async () => {
     const result = (await callTool(
       granted(),

@@ -33,7 +33,7 @@ export function post(
     }),
   });
 }
-/** Every tool name over HTTP, following nextCursor: the full schema bundle exceeds one page. */
+/** Every tool name over HTTP, following nextCursor when present. */
 export async function listedToolNames(
   app: { fetch: (request: Request) => Response | Promise<Response> },
   extra: Record<string, string> = {},

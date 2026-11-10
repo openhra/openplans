@@ -504,6 +504,13 @@ const ICHRA_INCOME_AMOUNT = {
   rate_of_pay_salary: "monthly_cents",
   fpl: null,
 } as const;
+/** Optional fields of one income measure, beside its amount. */
+const ICHRA_INCOME_OPTIONAL: Readonly<Record<string, readonly string[]>> = {
+  w2: ["w2_months_offered", "w2_months_employed"],
+  rate_of_pay_hourly: ["lowest_hourly_cents"],
+  rate_of_pay_salary: ["salary_reduced"],
+};
+const MONTHS_IN_YEAR = 12;
 const ICHRA_MAX_INCOME_MEASURES = 4;
 /** Upper bound for any cents input: $100 million, far above any wage or HRA amount. */
 const ICHRA_MAX_CENTS = 10_000_000_000;
@@ -561,7 +568,11 @@ function ichraIncome(value: unknown, index: number) {
   const amount = ICHRA_INCOME_AMOUNT[measure];
   onlyFields(
     item,
-    new Set(amount ? ["measure", amount] : ["measure"]),
+    new Set([
+      "measure",
+      ...(amount ? [amount] : []),
+      ...(ICHRA_INCOME_OPTIONAL[measure] ?? []),
+    ]),
     `${field}.`,
   );
   if (measure === "fpl") return { measure };
@@ -570,11 +581,53 @@ function ichraIncome(value: unknown, index: number) {
     case "household":
     case "w2":
       return { measure, annualCents: amountCents };
-    case "rate_of_pay_hourly":
-      return { measure, hourlyCents: amountCents };
-    case "rate_of_pay_salary":
-      return { measure, monthlyCents: amountCents };
+    case "rate_of_pay_hourly": {
+      const lowest = item.lowest_hourly_cents;
+      if (lowest === undefined) return { measure, hourlyCents: amountCents };
+      // A pay rate of zero is not a rate; the first-day rate keeps its existing range.
+      if (cents(lowest, `${field}.lowest_hourly_cents`) < 1)
+        return fail(`${field}.lowest_hourly_cents`);
+      return {
+        measure,
+        hourlyCents: amountCents,
+        lowestInMonthCents: lowest as number,
+      };
+    }
+    case "rate_of_pay_salary": {
+      const reduced = item.salary_reduced;
+      if (reduced === undefined) return { measure, monthlyCents: amountCents };
+      if (typeof reduced !== "boolean") return fail(`${field}.salary_reduced`);
+      return { measure, monthlyCents: amountCents, reduced };
+    }
   }
+}
+function monthCount(value: unknown, field: string): number {
+  if (
+    typeof value !== "number" ||
+    !Number.isInteger(value) ||
+    value < 1 ||
+    value > MONTHS_IN_YEAR
+  )
+    return fail(field);
+  return value;
+}
+/** Calendar-month counts for a partial-year W-2 offer: both or neither, offered <= employed. */
+function w2Months(item: Record<string, unknown>, field: string) {
+  const offered = item.w2_months_offered,
+    employed = item.w2_months_employed;
+  if (offered === undefined && employed === undefined) return null;
+  if (offered === undefined)
+    return fail(`${field}.w2_months_offered`, "W2_MONTHS_INCOMPLETE");
+  if (employed === undefined)
+    return fail(`${field}.w2_months_employed`, "W2_MONTHS_INCOMPLETE");
+  const monthsOffered = monthCount(offered, `${field}.w2_months_offered`),
+    monthsEmployed = monthCount(employed, `${field}.w2_months_employed`);
+  if (monthsOffered > monthsEmployed)
+    return fail(
+      `${field}.w2_months_offered`,
+      "W2_MONTHS_OFFERED_EXCEED_EMPLOYED",
+    );
+  return { monthsOffered, monthsEmployed };
 }
 function flag(value: unknown, field: string): boolean {
   if (value === undefined) return false;
@@ -634,6 +687,15 @@ export function ichraRequest(value: unknown) {
   )
     return fail("income");
   const income = body.income.map(ichraIncome);
+  // The month counts travel beside the measures: the W-2 measure itself is wages only.
+  const w2Index = income.findIndex((i) => i.measure === "w2");
+  const w2PartialYear =
+    w2Index < 0
+      ? null
+      : w2Months(
+          record(body.income[w2Index], `income.${w2Index}`),
+          `income.${w2Index}`,
+        );
   distinct(
     income.map((i) => i.measure),
     "income",
@@ -664,5 +726,6 @@ export function ichraRequest(value: unknown) {
     income,
     safeHarbors,
     lcspPremiumBasis: basis as "gross" | "ehb_portion" | null,
+    ...(w2PartialYear ? { w2PartialYear } : {}),
   };
 }

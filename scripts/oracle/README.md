@@ -6,8 +6,10 @@ Python 3 and the pinned development dependencies are required. These checks do n
 start Docker containers or request external health-plan APIs.
 Missing required cached files fail; an old report cannot substitute for evidence.
 
-Both PY2026 and PY2027 run by default. Select one with `--year 2026` or
-`--year 2027`. The checks compare each supported state's imported catalog with
+Both PY2026 and PY2027 run by default. Select one with `--year 2025`,
+`--year 2026` or `--year 2027`. PY2025 requires its own acquired PUF manifest, a reviewed
+`data/rating-rules/2025.json`, and cached geography sources. Year selection does not
+acquire them. The checks compare each supported state's imported catalog with
 independently parsed CMS raw CSV counts, plan sets and filed premiums. Rates are
 checked in integer cents; unknown or unsupported methods stay explicit. Each
 state/year has a resumable developer database and reports under `reports/` in

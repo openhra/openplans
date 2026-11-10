@@ -76,8 +76,46 @@ export interface MeasureContext {
     readonly guidelineYear: number;
     readonly annualDollars: number;
   } | null;
-  /** The W-2 safe harbor is computed only for a full calendar plan year (partial years: later). */
+  /** True when the HRA is offered for all 12 months of a calendar plan year. */
   readonly fullCalendarYear: boolean;
+  /**
+   * Calendar-month counts for a partial-year offer, 26 CFR 54.4980H-5(e)(2)(ii)(B): a month counts
+   * when coverage is offered, or the employee is employed, on at least one day of it. Without the
+   * counts a partial-year W-2 verdict stays unknown.
+   */
+  readonly w2PartialYear?: {
+    readonly monthsOffered: number;
+    readonly monthsEmployed: number;
+  } | null;
+  /** A reason the W-2 safe harbor cannot be computed from this request; the verdict is unknown. */
+  readonly w2Unavailable?: string | null;
+}
+
+/**
+ * 26 CFR 54.4980H-5(e)(2)(ii)(B), applied to an individual coverage HRA by Prop.
+ * 54.4980H-5(f)(5)(i): W-2 wages are multiplied by months offered / months employed, and the
+ * required contributions totalled over the offered months must not exceed the percentage of that
+ * amount. With one monthly contribution c for every offered month, c x offered <=
+ * rate x wages x offered / employed is the same test as c <= rate x wages / employed, so the
+ * monthly base divides the wages by the months employed. A contribution that changes during the
+ * offered months is outside this function.
+ */
+function partialYearDivisor(counts: {
+  readonly monthsOffered: number;
+  readonly monthsEmployed: number;
+}): bigint {
+  const { monthsOffered, monthsEmployed } = counts;
+  if (
+    !Number.isSafeInteger(monthsOffered) ||
+    !Number.isSafeInteger(monthsEmployed) ||
+    monthsOffered < 1 ||
+    monthsOffered > monthsEmployed ||
+    monthsEmployed > MAX_MONTHS_AVAILABLE
+  )
+    throw new RangeError(
+      "w2PartialYear: 1 <= monthsOffered <= monthsEmployed <= 12 required",
+    );
+  return BigInt(monthsEmployed);
 }
 
 const MEASURE_RULES: Readonly<Record<IncomeMeasure["measure"], RuleId[]>> = {
@@ -87,6 +125,22 @@ const MEASURE_RULES: Readonly<Record<IncomeMeasure["measure"], RuleId[]>> = {
   rate_of_pay_salary: ["employer_safe_harbors", "rate_of_pay_safe_harbor"],
   fpl: ["employer_safe_harbors", "fpl_safe_harbor"],
 };
+
+/**
+ * 26 CFR 54.4980H-5(e)(2)(iii): the lower of the hourly rate on the first day of the coverage
+ * period and the lowest hourly rate during the calendar month.
+ */
+function lowerHourlyRate(
+  income: Extract<IncomeMeasure, { measure: "rate_of_pay_hourly" }>,
+): bigint {
+  const first = nonNegativeCents(income.hourlyCents, "hourlyCents");
+  if (income.lowestInMonthCents === undefined) return first;
+  const lowest = nonNegativeCents(
+    income.lowestInMonthCents,
+    "lowestInMonthCents",
+  );
+  return lowest < first ? lowest : first;
+}
 
 /** Monthly income base as base / divisor cents, or a reason it cannot be formed. */
 function monthlyBase(
@@ -100,20 +154,24 @@ function monthlyBase(
         divisor: MONTHS_PER_YEAR,
       };
     case "w2":
-      if (!context.fullCalendarYear)
+      if (context.w2Unavailable) return { reason: context.w2Unavailable };
+      if (!context.fullCalendarYear && !context.w2PartialYear)
         return { reason: "w2_partial_year_not_supported" };
       return {
         base: nonNegativeCents(income.annualCents, "annualCents"),
-        divisor: MONTHS_PER_YEAR,
+        divisor: context.fullCalendarYear
+          ? MONTHS_PER_YEAR
+          : partialYearDivisor(context.w2PartialYear!),
       };
     case "rate_of_pay_hourly":
       return {
-        base:
-          BigInt(context.rateOfPayHours) *
-          nonNegativeCents(income.hourlyCents, "hourlyCents"),
+        base: BigInt(context.rateOfPayHours) * lowerHourlyRate(income),
         divisor: 1n,
       };
     case "rate_of_pay_salary":
+      // 26 CFR 54.4980H-5(e)(2)(iii): "if the monthly salary is reduced, including due to a
+      // reduction in work hours, the safe harbor is not available".
+      if (income.reduced) return { reason: "rate_of_pay_salary_reduced" };
       return {
         base: nonNegativeCents(income.monthlyCents, "monthlyCents"),
         divisor: 1n,

@@ -8,11 +8,14 @@ export async function atomicWrite(path, text) {
   await writeFile(temporary, text);
   await rename(temporary, path);
 }
-export async function allStatesReport(cache = importDataDirectory()) {
+export async function allStatesReport(
+  cache = importDataDirectory(),
+  years = [2026, 2027],
+) {
   const directory = join(cache, "reports"),
     results = [];
   let complete = true;
-  for (const year of [2026, 2027]) {
+  for (const year of years) {
     const rules = JSON.parse(
       await readFile(
         fileURLToPath(
@@ -53,9 +56,16 @@ export async function allStatesReport(cache = importDataDirectory()) {
     }),
     { comparisons: 0, mismatches: 0, unknown: 0, passed: 0 },
   );
-  let md = `# P6d: publication-listed states, PY2026/PY2027\n\nGenerated ${new Date().toISOString()}. ${complete ? "All state checks finished" : "IN PROGRESS"}: ${totals.passed}/${results.length} PASS; ${totals.comparisons.toLocaleString("en-US")} raw Rate PUF comparisons, ${totals.mismatches} mismatches; ${totals.unknown.toLocaleString("en-US")} comparisons correctly return unknown for missing filed prices.\n\n`;
+  const legacy = years.length === 2 && years[0] === 2026 && years[1] === 2027;
+  const stem = legacy
+    ? "p6d-all-states"
+    : `p6d-all-states-summary-${years.join("-")}`;
+  let md = `# P6d: publication-listed states, ${years.map((year) => `PY${year}`).join("/")}\n\nGenerated ${new Date().toISOString()}. ${complete ? "All state checks finished" : "IN PROGRESS"}: ${totals.passed}/${results.length} PASS; ${totals.comparisons.toLocaleString("en-US")} raw Rate PUF comparisons, ${totals.mismatches} mismatches; ${totals.unknown.toLocaleString("en-US")} comparisons correctly return unknown for missing filed prices.\n\n`;
+  md += legacy
+    ? "The acquired individual on-exchange medical Plan Attributes rows select 30 states in 2026 and 29 in 2027 (Oregon absent in 2027). "
+    : "States come from the selected year's per-member rating rules. ";
   md +=
-    "The acquired individual on-exchange medical Plan Attributes rows select 30 states in 2026 and 29 in 2027 (Oregon absent in 2027). Counts include every catalog market/dental row in each selected state; rule authorization is individual medical only. No invented rates, default-curve calculation, or tier pricing. Each state uses its own cache DB `puf-pglite-p6d-<year>-<state>`. Detailed results: `p6d-<year>-<state>.json`; immutable inputs: the newest acquired CMS manifest. Python ZIP/CSV and Decimal recompute independently of persisted normalized columns. Ages 0–64 and both tobacco flags are exercised; missing tobacco prices remain unknown. Family tiers are counted and skipped.\n\n";
+    "Counts include every catalog market/dental row in each selected state; rule authorization is individual medical only. No invented rates, default-curve calculation, or tier pricing. Each state uses its own cache DB `puf-pglite-p6d-<year>-<state>`. Detailed results: `p6d-<year>-<state>.json`; immutable inputs: the newest acquired CMS manifest. Python ZIP/CSV and Decimal recompute independently of persisted normalized columns. Ages 0–64 and both tobacco flags are exercised; missing tobacco prices remain unknown. Family tiers are counted and skipped.\n\n";
   md +=
     "| Year | State | Plans | Variants | Rate rows | Method / citation | Family Option | Oracle comparisons | Mismatches | Geography | Result |\n| --- | --- | ---: | ---: | ---: | --- | ---: | ---: | ---: | --- | --- |\n";
   for (const r of results) {
@@ -76,9 +86,9 @@ export async function allStatesReport(cache = importDataDirectory()) {
     "Negative controls (offline CI): a synthetic NY `per_member` rules file is rejected before DB writes; a mutant importer deleting AL’s last stored rate fails `state_source_row_count` while the following TX state still activates. A damaged partition fails hash verification. A missing Alaska ZIP3 preserves the previous geography. Existing +1-cent premium and child-count controls remain in the suite.\n\n";
   md +=
     "Integration follow-ups outside the P6d lease:\n\n1. Delegate the production worker geo branch in `src/worker/commands.ts` to `runGeo` from `src/ingest/geo/command.ts` (the developer geo CLI already delegates). Its existing TX-only branch remains unchanged.\n2. Change `src/api/premiums.ts` to call `ratingAreaForLocation` for ZIP3 states. Until then the API correctly returns unknown for Alaska’s unresolved county rating area; raw rated-premium oracles pass independently.\n\nCMS county spelling corrections are explicitly allowlisted against Census names and recorded by source row (IN four, KS/LA/ND/OH one each). Geography uses the current undated CMS table associated explicitly with each requested year, not a claimed historical table. Census 2020 ZCTA/county relationships and Gazetteer points are preserved by snapshot; later state imports never delete earlier state rows. No Docker or production database was started.\n";
-  await atomicWrite(join(directory, "p6d-all-states.md"), md);
+  await atomicWrite(join(directory, `${stem}.md`), md);
   await atomicWrite(
-    join(directory, "p6d-all-states.json"),
+    join(directory, `${stem}.json`),
     JSON.stringify({ complete, totals, results }, null, 2) + "\n",
   );
 }

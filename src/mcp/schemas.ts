@@ -49,16 +49,24 @@ const household = z.strictObject({
 });
 const ids = <S extends z.ZodType>(schema: S) => z.array(schema).min(1).max(10);
 const ichraCents = z.int().min(0).max(10_000_000_000);
+const ichraMonths = z.int().min(1).max(12);
 const ichraIncome = z.discriminatedUnion("measure", [
   z.strictObject({ measure: z.literal("household"), annual_cents: ichraCents }),
-  z.strictObject({ measure: z.literal("w2"), annual_cents: ichraCents }),
+  z.strictObject({
+    measure: z.literal("w2"),
+    annual_cents: ichraCents,
+    w2_months_offered: ichraMonths.optional(),
+    w2_months_employed: ichraMonths.optional(),
+  }),
   z.strictObject({
     measure: z.literal("rate_of_pay_hourly"),
     hourly_cents: ichraCents,
+    lowest_hourly_cents: ichraCents.min(1).optional(),
   }),
   z.strictObject({
     measure: z.literal("rate_of_pay_salary"),
     monthly_cents: ichraCents,
+    salary_reduced: z.boolean().optional(),
   }),
   z.strictObject({ measure: z.literal("fpl") }),
 ]);

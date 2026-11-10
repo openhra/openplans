@@ -46,6 +46,23 @@ describe("migration transactions (PGlite; only PostGIS omitted)", () => {
     ).toHaveLength(2);
   });
 
+  it("disables parallel index maintenance only inside the migration transaction", async () => {
+    await pg.exec("SET max_parallel_maintenance_workers = 2");
+    await writeFile(
+      join(directory, "001_index.sql"),
+      `CREATE TABLE synthetic_maintenance (workers integer);
+       INSERT INTO synthetic_maintenance VALUES (current_setting('max_parallel_maintenance_workers')::int);
+       CREATE INDEX ON synthetic_maintenance(workers);`,
+    );
+    await migrate(testDatabase(pg), directory);
+    expect(
+      (await pg.query("SELECT workers FROM synthetic_maintenance")).rows,
+    ).toEqual([{ workers: 0 }]);
+    expect(
+      (await pg.query("SHOW max_parallel_maintenance_workers")).rows,
+    ).toEqual([{ max_parallel_maintenance_workers: "2" }]);
+  });
+
   it("negative control: syntax failure rolls back all new DDL and journal entries", async () => {
     const db = testDatabase(pg);
     await writeFile(
