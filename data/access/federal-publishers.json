@@ -25,7 +25,7 @@
           "CMS state geographic rating area pages"
         ],
         "states": ["US"],
-        "years": [2026, 2027]
+        "years": [2025, 2026, 2027]
       },
       "discoveryUrls": [
         "https://www.cms.gov/marketplace/resources/data/public-use-files"
@@ -150,12 +150,23 @@
         }
       ],
       "scope": {
-        "products": ["Exchange PUFs PY2026 and PY2027", "NPPES NPI files"],
+        "products": [
+          "Exchange PUFs PY2025, PY2026 and PY2027",
+          "NPPES NPI files"
+        ],
         "states": ["US"],
-        "years": [2026, 2027]
+        "years": [2025, 2026, 2027]
       },
       "discoveryUrls": ["https://download.cms.gov/nppes/NPI_Files.html"],
       "permittedPaths": [
+        "/marketplace-puf/2025/plan-attributes-puf.zip",
+        "/marketplace-puf/2025/rate-puf.zip",
+        "/marketplace-puf/2025/service-area-puf.zip",
+        "/marketplace-puf/2025/network-puf.zip",
+        "/marketplace-puf/2025/business-rules-puf.zip",
+        "/marketplace-puf/2025/benefits-and-cost-sharing-puf.zip",
+        "/marketplace-puf/2025/plan-id-crosswalk-puf.zip",
+        "/marketplace-puf/2025/machine-readable-url-puf.zip",
         "/marketplace-puf/2026/plan-attributes-puf.zip",
         "/marketplace-puf/2026/rate-puf.zip",
         "/marketplace-puf/2026/service-area-puf.zip",

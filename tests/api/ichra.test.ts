@@ -82,6 +82,28 @@ describe("POST /v1/ichra/affordability", () => {
     expect(json.lcsp.basis_used).toBe("ehb_portion");
     expect(json.verdicts[0].affordable).toBe(true);
   });
+  it("returns the annual rate basis and filed dates for a July plan start", async () => {
+    const { response, json } = await post(body({ plan_start: "2026-07-01" }));
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(json.status).toBe("calculated");
+    for (const evidence of [json.lcsp, json.employer_lcsp]) {
+      expect(evidence.coverage_month).toBe("2026-07-01");
+      expect(evidence.monthly_cents).toBe(59_205);
+      expect(evidence.provenance.rate_rows_by_plan[0].rate_basis).toMatchObject(
+        {
+          basis: "calendar_year_individual_rate",
+          coverage_month: "2026-07-01",
+          citation: {
+            fields: ["RateEffectiveDate", "RateExpirationDate"],
+            dates: [
+              { effective_date: "2026-01-01", expiration_date: "2026-12-31" },
+            ],
+          },
+        },
+      );
+    }
+  });
   it.each([
     [
       "bad plan start",

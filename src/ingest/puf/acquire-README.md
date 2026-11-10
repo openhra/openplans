@@ -4,9 +4,12 @@ Build with `npm run build`, then run:
 
 ```sh
 npm run worker -- ingest puf acquire
+npm run worker -- ingest puf acquire --year 2025
 npm run worker -- ingest puf acquire --year 2026
 npm run worker -- ingest puf acquire --year 2027 --dry-run
 ```
+
+Without `--year`, acquisition selects PY2026 and PY2027. PY2025 requires `--year 2025`.
 
 Downloads use `src/fetch/` and `OPENPLANS_DATA_DIR` (the project's shared external cache by
 default). No database is required. The fetcher also saves the landing page as a raw snapshot. Discovery

@@ -389,10 +389,38 @@ describe("PUF acquisition manifests", () => {
     ).toBe(true);
   });
 
+  it("acquires explicit PY2025 through advertised links and preserves default years", async () => {
+    // Synthetic year substitution tests discovery without fabricating source evidence.
+    const html = (await fixture("landing.real.html")).replaceAll(
+      "2026",
+      "2025",
+    );
+    const fetcher = await fakeFetcher(html);
+    const { manifest } = await acquirePufs({
+      dataDir: directory,
+      fetcher,
+      year: 2025,
+    });
+    expect(manifest.files).toHaveLength(8);
+    expect(
+      manifest.files.every(
+        (file) => file.year === 2025 && file.status === "ok",
+      ),
+    ).toBe(true);
+    expect(fetcher).toHaveBeenCalledTimes(9);
+    const output = { out: vi.fn(), error: vi.fn() };
+    vi.stubEnv("OPENPLANS_DATA_DIR", directory);
+    vi.spyOn(fetchModule, "fetchToCache").mockImplementation(fetcher);
+    expect(await runPufAcquire(["--year", "2025", "--dry-run"], output)).toBe(
+      0,
+    );
+    expect(output.error).not.toHaveBeenCalled();
+  });
+
   it("rejects unsupported years before any request", async () => {
     const fetcher = await fakeFetcher();
     await expect(
-      acquirePufs({ dataDir: directory, fetcher, year: 2025 }),
+      acquirePufs({ dataDir: directory, fetcher, year: 2024 }),
     ).rejects.toMatchObject({ code: "invalid_options" });
     expect(fetcher).not.toHaveBeenCalled();
   });
@@ -515,7 +543,7 @@ describe("puf acquire worker branch", () => {
 
   it.each([
     ["--year"],
-    ["--year", "2025"],
+    ["--year", "2024"],
     ["--unknown"],
     ["--dry-run", "--dry-run"],
     ["--year", "2026", "--year", "2027"],

@@ -54,7 +54,10 @@ export function nativeRoutes(db: SqlSession, options: ApiOptions) {
   app.route("/", ichraRoutes(db, options, household));
   app.use("/benchmark", household);
   app.get("/benchmark", async (c) => {
-    const deadline = AbortSignal.timeout(DEADLINE_MS);
+    const deadline = AbortSignal.any([
+      c.req.raw.signal,
+      AbortSignal.timeout(DEADLINE_MS),
+    ]);
     try {
       return c.json(
         await benchmarkSilver(boundedDatabase(db, deadline), c.req.query()),

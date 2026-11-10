@@ -88,7 +88,7 @@ services:
       OPENPLANS_API_CACHE: ${OPENPLANS_API_CACHE:-on}
       OPENPLANS_API_CACHE_MB: ${OPENPLANS_API_CACHE_MB:-64}
       OPENPLANS_CACHE_URL: ${OPENPLANS_CACHE_URL:-}
-    command: ["sh", "-c", "worker migrate && exec node dist/api/server.js"]
+    command: ["node", "dist/api/server.js"]
     ports:
       - "127.0.0.1:${API_PORT:-3000}:3000"
     depends_on:

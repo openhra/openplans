@@ -94,6 +94,63 @@ describe("worker CLI", () => {
     }
   });
 
+  it("dispatches migrate --check without applying SQL and rejects extra options", async () => {
+    const pg = new PGlite();
+    const db = testDatabase(pg);
+    const directory = await mkdtemp(join(tmpdir(), "openplans-preflight-"));
+    const stdout: string[] = [];
+    const errors: string[] = [];
+    let closed = 0;
+    const open = () => ({
+      ...db,
+      close: async () => {
+        closed++;
+      },
+    });
+    const output = {
+      out: (s: string) => stdout.push(s),
+      error: (s: string) => errors.push(s),
+    };
+    try {
+      await writeFile(
+        join(directory, "001_synthetic.sql"),
+        "DROP TABLE synthetic;",
+      );
+      expect(
+        await runWorker(["migrate", "--check"], open, output, directory),
+      ).toBe(0);
+      expect(JSON.parse(stdout[0]!)).toMatchObject({
+        format: 1,
+        pending: [{ name: "001_synthetic.sql", classification: "risky" }],
+      });
+      expect(
+        (await pg.query("SELECT to_regclass('schema_migrations') AS journal"))
+          .rows,
+      ).toEqual([{ journal: null }]);
+      expect(closed).toBe(1);
+      expect(
+        await runWorker(
+          ["migrate", "--check", "extra"],
+          open,
+          output,
+          directory,
+        ),
+      ).toBe(1);
+      expect(
+        await runWorker(
+          ["migrate", "--allow-risky-migration", "001_synthetic.sql"],
+          open,
+          output,
+          directory,
+        ),
+      ).toBe(1);
+      expect(closed).toBe(1);
+    } finally {
+      await db.close();
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
   it("negative control: a syntax error makes the runner command fail and records nothing", async () => {
     const pg = new PGlite();
     const db = testDatabase(pg);

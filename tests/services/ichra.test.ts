@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { SqlSession } from "../../src/db/database.js";
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -10,6 +11,7 @@ import {
   w2PartialYearContext,
 } from "../../src/services/ichra.js";
 import type { IchraRequest } from "../../src/services/ichra.js";
+import type * as IchraService from "../../src/services/ichra.js";
 import { setup } from "../compat/v1/helpers.js";
 import { rebaseImports, replaceSyntax } from "../source-mutation.js";
 
@@ -47,18 +49,190 @@ type Result = ReturnType<typeof JSON.parse>;
 async function run(extra: Partial<IchraRequest> = {}, db: SqlSession = h.db) {
   return (await ichraAffordability(db, request(extra))) as Result;
 }
-async function rollback(change: (tx: SqlSession) => Promise<void>) {
+async function rollback(
+  change: (tx: SqlSession) => Promise<void>,
+  extra: Partial<IchraRequest> = {},
+) {
   const marker = new Error("synthetic ICHRA mutation rollback");
   let result: Result | undefined;
   await expect(
     h.db.transaction(async (tx) => {
       await change(tx);
-      result = (await ichraAffordability(tx, request())) as Result;
+      result = (await ichraAffordability(tx, request(extra))) as Result;
       throw marker;
     }),
   ).rejects.toBe(marker);
   return result!;
 }
+
+describe("January response bytes frozen from develop 6a73d65", () => {
+  it.each([
+    [
+      "January 15",
+      { planStart: "2026-01-15" },
+      "6b169177d996adf700964390beb605ddbf2745204686be60d584faac5b850857",
+    ],
+    [
+      "household",
+      {},
+      "dfeea7d966d33340273a3ca7f4304f52620661b60f4e3e8428fad8a2b57d500f",
+    ],
+    [
+      "EHB portion",
+      { lcspPremiumBasis: "ehb_portion" },
+      "00230a99286311e818cb1f1ab01d715a851616b07f5db4d64424f927ae4d8f08",
+    ],
+    [
+      "employer",
+      { income: [{ measure: "rate_of_pay_hourly", hourlyCents: 2_000 }] },
+      "0ee591d3eace21d5e02deb407f5542cb4c808626c1d7ff6123d7d2adaa25311a",
+    ],
+    [
+      "look-back unavailable",
+      { safeHarbors: { location: false, lookBack: true } },
+      "2321c7cbc3975f592325a06cb30d7af39a26405ac201bff61b3336cf8aa90b55",
+    ],
+  ] as const)("%s stays byte-identical", async (_name, extra, digest) => {
+    const bytes = JSON.stringify(await run(extra)).replace(
+      /puf-2026-TX-[0-9a-f-]{36}/g,
+      "puf-2026-TX-<import>",
+    );
+    expect(createHash("sha256").update(bytes).digest("hex")).toBe(digest);
+  });
+});
+
+function requireAnnualRow(result: Result, month: string) {
+  expect(result.status).toBe("calculated");
+  for (const evidence of [result.lcsp, result.employer_lcsp].filter(Boolean)) {
+    expect(evidence.coverage_month).toBe(month);
+    expect(evidence.monthly_cents).toBe(59_205);
+    const [rate] = evidence.provenance.rate_rows_by_plan;
+    expect(rate.rate_basis).toMatchObject({
+      basis: "calendar_year_individual_rate",
+      coverage_month: month,
+      note: expect.stringContaining("January 1 individual-market rate row"),
+      citation: {
+        source: "CMS Rate PUF",
+        fields: ["RateEffectiveDate", "RateExpirationDate"],
+        dates: [
+          { effective_date: "2026-01-01", expiration_date: "2026-12-31" },
+        ],
+      },
+    });
+    expect(rate.rate_rows_used[0]).toMatchObject({
+      effective_date: "2026-01-01",
+      expiration_date: "2026-12-31",
+      provenance: { source_file: "rate", source_row: expect.any(Number) },
+    });
+    expect(rate.rate_snapshot_id).toMatch(/^puf-2026-TX-.*:rate$/);
+  }
+}
+
+describe("individual-market annual rows for a mid-year plan start", () => {
+  it.each(["2026-02-01", "2026-07-01", "2026-12-01"])(
+    "%s uses and labels the annual row for both LCSPs",
+    async (planStart) => {
+      const result = await run({
+        planStart,
+        dateOfBirth: "1985-12-31",
+        income: [
+          { measure: "household", annualCents: 4_118_000 },
+          { measure: "rate_of_pay_hourly", hourlyCents: 2_000 },
+        ],
+      });
+      requireAnnualRow(result, planStart);
+      expect(result.verdicts.map((v: { status: string }) => v.status)).toEqual([
+        "calculated",
+        "calculated",
+      ]);
+    },
+  );
+  it("uses a month-specific row at its filed price without an annual-row label", async () => {
+    // SYNTHETIC effective dates and +1 cent prices on the disposable real-file cut.
+    const result = await rollback(
+      async (tx) => {
+        await tx.query(
+          "UPDATE rate SET effective_date='2026-07-01', individual_rate_cents=individual_rate_cents+1",
+        );
+      },
+      { planStart: "2026-07-01" },
+    );
+    expect(result.status).toBe("calculated");
+    expect(result.lcsp.monthly_cents).toBe(59_206);
+    const [rate] = result.lcsp.provenance.rate_rows_by_plan;
+    expect(rate).not.toHaveProperty("rate_basis");
+    expect(rate.rate_rows_used[0].effective_date).toBe("2026-07-01");
+  });
+  it.each(["deleted", "expired", "wrong age"])(
+    "a %s rate stays unknown instead of using another plan or date",
+    async (missing) => {
+      const result = await rollback(
+        async (tx) => {
+          if (missing === "deleted")
+            await tx.query(`DELETE FROM rate WHERE base_plan_id='${EHB_PLAN}'`);
+          else if (missing === "expired")
+            await tx.query(
+              `UPDATE rate SET expiration_date='2026-06-30' WHERE base_plan_id='${EHB_PLAN}'`,
+            );
+          else
+            await tx.query(
+              `DELETE FROM rate WHERE base_plan_id='${EHB_PLAN}' AND age_band='40'`,
+            );
+        },
+        { planStart: "2026-07-01" },
+      );
+      expect(result).toMatchObject({
+        status: "unknown",
+        reason: "month_rate_rows_missing",
+        verdicts: [],
+        lcsp: { monthly_cents: null, plan_ids: [], provenance: null },
+      });
+    },
+  );
+  it("conflicting applicable rows stay unknown", async () => {
+    // SYNTHETIC overlapping intervals on two real age bands. No implicit January preference.
+    const result = await rollback(
+      async (tx) => {
+        await tx.query(
+          `UPDATE rate SET age_band='40', effective_date='2026-07-01' WHERE base_plan_id='${GROSS_PLAN}' AND age_band='41'`,
+        );
+      },
+      { planStart: "2026-07-01" },
+    );
+    expect(result.status).toBe("unknown");
+    expect(result.verdicts).toEqual([]);
+  });
+  it.each(["January-only refusal", "missing annual-row label"])(
+    "planted defect: catches %s in a disposable service copy",
+    async (defect) => {
+      const original = new URL("../../dist/services/ichra.js", import.meta.url);
+      const directory = mkdtempSync(join(tmpdir(), "openplans-midyear-"));
+      try {
+        const source = readFileSync(original, "utf8");
+        const mutant =
+          defect === "January-only refusal"
+            ? replaceSyntax(
+                source,
+                "const silver =",
+                'if (dateParts(question.month).month !== 1) return refuse("unknown", "month_rate_rows_missing"); const silver =',
+              )
+            : replaceSyntax(source, "rate_basis:", "unused_rate_basis:");
+        const path = join(directory, "ichra.mjs");
+        writeFileSync(path, rebaseImports(mutant, original));
+        const module = (await import(
+          pathToFileURL(path).href
+        )) as typeof IchraService;
+        const result = await module.ichraAffordability(
+          h.db,
+          request({ planStart: "2026-07-01" }),
+        );
+        expect(() => requireAnnualRow(result, "2026-07-01")).toThrow();
+      } finally {
+        rmSync(directory, { recursive: true, force: true });
+      }
+    },
+  );
+});
 
 describe("ICHRA affordability over the real Harris PY2026 cut", () => {
   it("gross default: LCSP $592.05; the EHB-portion plan differs, so the answer is basis sensitive", async () => {
@@ -206,16 +380,10 @@ describe("refusals: never affordable or unaffordable without the evidence", () =
       "invalid_or_missing",
     ],
     [
-      "a mid-year month without its rate rows",
-      { planStart: "2026-07-01" },
-      "unknown",
-      "month_rate_rows_missing",
-    ],
-    [
-      "New York before its filed-tier rules",
+      "New York without its filed catalog",
       { residence: { county: "36061" } },
-      "requires_state_rules",
-      "state_filed_tier_pending",
+      "unknown",
+      "catalog_not_loaded",
     ],
   ] as const)("%s", async (_name, extra, status, reason) => {
     const result = await run(extra as Partial<IchraRequest>);

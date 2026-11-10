@@ -6,7 +6,7 @@ import { cp, mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { isAbsolute, join } from "node:path";
 import type { Database } from "../db/database.js";
-import { migrate, migrationsDirectory } from "../db/migrate.js";
+import { migrationsDirectory } from "../db/migrate.js";
 import { runWorker } from "../worker/commands.js";
 import { createApp } from "./app.js";
 
@@ -39,6 +39,7 @@ if (
         await pg.exec(sql);
       },
       close: () => pg.close(),
+      withSession: (run) => run(db!),
       transaction: (run) =>
         pg.transaction((tx) =>
           run({
@@ -60,7 +61,6 @@ if (
         directory,
       );
     } else {
-      await migrate(db, directory);
       const app = createApp(db);
       await new Promise<void>((resolve, reject) => {
         const server = serve(

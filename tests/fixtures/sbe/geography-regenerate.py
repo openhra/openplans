@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Regenerate fact-only CA/MA geography cuts from already cached public sources."""
+"""Regenerate fact-only geography cuts from already cached public sources."""
 import csv, hashlib, io, json, os, pathlib, re, zipfile
 cache = pathlib.Path(os.environ.get('OPENPLANS_DATA_DIR', str(pathlib.Path.home() / '.local/share/openplans')))
 out = pathlib.Path(__file__).parent / 'geography'
@@ -17,7 +17,7 @@ with relpath.open() as f:
 with zipfile.ZipFile(centpath) as z:
     reader = csv.DictReader(io.TextIOWrapper(z.open('2021_Gaz_zcta_national.txt')), delimiter='\t'); centheader = reader.fieldnames; centers = list(reader)
 provenance = {'description': 'Unmodified factual public rows; synthetic acquisition wrappers in tests describe the cut hashes. Original physical rows are recorded here.', 'states': {}}
-for state, fips in [('CA', '06'), ('MA', '25')]:
+for state, fips in [('CA', '06'), ('GA', '13'), ('IL', '17'), ('MA', '25'), ('NM', '35')]:
     p, m = source('cms-rating-areas', 'https://www.cms.gov/cciio/programs-and-initiatives/health-insurance-market-reforms/' + state.lower() + '-gra')
     table = next(t for t in re.findall(r'<table\b[^>]*>.*?</table>', p.read_text(), re.I | re.S) if 'Rating Area ID' in t)
     area_prefixes = set(re.findall(r'\b\d{3}\b', table))
@@ -27,7 +27,7 @@ for state, fips in [('CA', '06'), ('MA', '25')]:
             chosen.setdefault(r['GEOID_COUNTY_20'], r['GEOID_ZCTA5_20'])
     selected = set(chosen.values())
     if state == 'CA': selected.update(['90001', '90601', '90620'])
-    else:
+    elif state == 'MA':
         border = {}
         for r in relationships:
             zip = r['GEOID_ZCTA5_20']

@@ -57,6 +57,16 @@ export function stateRatingArea(state: string, year: number, county: string) {
     : null;
 }
 
+/** A representative county for each published DFS rating region. */
+export function nyRatingCounties(year: number) {
+  if (year !== geography.plan_year) return [];
+  return [
+    ...new Map(
+      geography.NY.counties.map((r) => [r.rating_area_id, r.county_fips]),
+    ).values(),
+  ];
+}
+
 export interface StateCatalogRow extends Record<string, unknown> {
   state: "NY" | "VT";
   plan_year: number;
@@ -296,4 +306,68 @@ export function stateDetailColumns(raw: Record<string, string>) {
     result[canonical] = value;
   }
   return result;
+}
+
+/** Exact filed HIOS identity in an active CMS SBE Plan Attributes publication.
+ * Presence in this file is Exchange-offer evidence for the NY LCSP calculation. */
+export async function nyLcspCatalog(
+  db: SqlSession,
+  year: number,
+  region?: string,
+) {
+  const catalog = await stateCatalog(db, year, "NY", undefined, region);
+  const { rows: attributes } = await db.query<{
+    metal: string;
+    raw: Record<string, string>;
+    source_row: number;
+    base_plan_id: string;
+    snapshot_id: string;
+    import_id: string;
+    bundle_url: string;
+    bundle_sha256: string;
+  }>(
+    `WITH detail_catalog AS (
+    SELECT p.import_id,c.bundle_url,c.bundle_sha256 FROM puf_import p
+    JOIN sbe_catalog c ON c.import_id=p.import_id
+    JOIN snapshot s ON s.snapshot_id=p.import_id AND s.validation_state='ACTIVE'
+    WHERE p.state='NY' AND p.plan_year=$1 AND (SELECT count(*) FROM puf_import_file f
+      JOIN snapshot fs ON fs.snapshot_id=f.snapshot_id AND fs.validation_state='ACTIVE'
+      WHERE f.import_id=p.import_id)=6
+    ORDER BY p.started_at DESC,p.import_id DESC LIMIT 1
+  ) SELECT pa.metal,pa.raw,pa.source_row,pa.base_plan_id,f.snapshot_id,c.*
+    FROM detail_catalog c JOIN puf_import_file f ON f.import_id=c.import_id AND f.kind='plan-attributes'
+    JOIN plan_attribute pa ON pa.snapshot_id=f.snapshot_id
+    WHERE pa.state='NY' AND pa.plan_year=$1 AND pa.market='Individual' AND NOT pa.dental_only
+      AND pa.base_plan_id=ANY($2::text[]) ORDER BY pa.source_row`,
+    [
+      year,
+      catalog.map((r) => r.raw_record.plan_id).filter((id) => id !== null),
+    ],
+  );
+  return catalog.map((row) => {
+    const matched = attributes.filter(
+      (a) => a.base_plan_id === row.raw_record.plan_id,
+    );
+    const source = matched[0];
+    return {
+      row,
+      attributes: matched.map((a) => ({
+        metal: a.metal,
+        source_row: a.source_row,
+        raw: stateDetailColumns(a.raw),
+      })),
+      exchange_evidence: source
+        ? {
+            source: "cms_sbe_puf_plan_attributes",
+            evidence: "exchange_offer",
+            hios_id: row.raw_record.plan_id,
+            snapshot_id: source.snapshot_id,
+            import_id: source.import_id,
+            bundle_url: source.bundle_url,
+            bundle_sha256: source.bundle_sha256,
+            source_rows: matched.map((a) => a.source_row),
+          }
+        : null,
+    };
+  });
 }

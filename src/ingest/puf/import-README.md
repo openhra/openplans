@@ -9,7 +9,7 @@ npm run worker -- ingest puf import --year 2026 --state TX
 The production worker uses `DATABASE_URL` and runs the normal migrations. It reads
 only the newest `OPENPLANS_DATA_DIR/raw/cms-exchange-puf/manifest-*.json`, verifies
 each selected archive's SHA-256 and byte count against acquisition metadata, and
-streams its single CSV member. It never downloads. The observed 2026/2027 schema
+streams its single CSV member. It never downloads. The observed 2025/2026/2027 schema
 requires six catalog files; the XLSX MR URL file belongs to later work. The Plan ID
 Crosswalk PUF has its own command, described in the plan lineage section below.
 A changed archive layout or a missing critical column fails closed.
@@ -116,7 +116,7 @@ comparison, see [tx-2027-README.md](tx-2027-README.md).
 
 ## All publication-listed individual medical states
 
-`worker ingest puf import --year 2026 --all-states` (also PY2027) discovers states
+`worker ingest puf import --year 2026 --all-states` (also PY2025 and PY2027) discovers states
 from on-exchange individual medical Plan Attributes rows. It reads each archive
 once into bounded temporary partitions under the external data cache, preserving
 original physical row numbers, acquired hashes and URLs. The importer hashes

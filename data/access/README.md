@@ -10,7 +10,7 @@ manifest clears the host.
 | Host | State | Used for | Pacing | Per-session caps |
 | --- | --- | --- | --- | --- |
 | www.cms.gov | allowed | PUF and state-based PUF landing pages, state rating-area pages, PY2026 state-based PUF archives | 10 s | 20 requests, 256 MiB |
-| download.cms.gov | allowed | Exchange PUFs PY2026 and PY2027, NPPES files | 5 s | 20 requests, 2 GiB |
+| download.cms.gov | allowed | Exchange PUFs PY2025, PY2026 and PY2027, NPPES files | 5 s | 20 requests, 2 GiB |
 | www2.census.gov | allowed | ZCTA to county relationship file, ZCTA Gazetteer, county outlines (2024 cartographic boundary file) | 30 s | 10 requests, 64 MiB |
 | geocoding.geo.census.gov | allowed | Census batch geocoder (POST uploads) | 5 s | 10 requests, 32 MiB |
 | download.nlm.nih.gov | robots-disallowed | RxNorm Current Prescribable Content | none | none |

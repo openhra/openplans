@@ -14,6 +14,7 @@ export function testDatabase(pg: PGlite): Database {
   };
   return {
     ...session,
+    withSession: (run) => run(session),
     transaction: (run) =>
       pg.transaction(async (tx) =>
         run({

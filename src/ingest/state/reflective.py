@@ -18,7 +18,7 @@ import urllib.robotparser
 
 from prepare import sha
 
-UA = 'openplans/0.3.3 (public health-plan source discovery; +https://plans.openhra.com/)'
+UA = 'openplans/0.3.4 (public health-plan source discovery; +https://plans.openhra.com/)'
 HOST = 'https://ratereview.vermont.gov'
 PUBLICATIONS = {
     'BCBSVT': dict(url=HOST + '/sites/dfr/files/documents/BCBSVT-Ind-Actuarial%20Memo-COMBINED.pdf',

@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security problem
+    url: https://github.com/openhra/openplans/blob/main/SECURITY.md
+    about: Follow the security policy to report a vulnerability privately.
+  - name: General contact
+    url: https://www.openhra.com/#contact
+    about: Use the captcha-protected contact section for questions about OpenHRA or its projects.

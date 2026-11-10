@@ -25,6 +25,7 @@ export const PUF_KINDS = [
 ] as const;
 export type PufKind = (typeof PUF_KINDS)[number];
 export const PUF_YEARS = [2026, 2027] as const;
+export const SUPPORTED_PUF_YEARS = [2025, ...PUF_YEARS] as const;
 const source = "cms-exchange-puf";
 const allowHosts = [
   "www.cms.gov",
@@ -248,11 +249,11 @@ export async function acquirePufs(
 ): Promise<{ manifest: PufManifest; manifestPath: string | null }> {
   if (
     options.year !== undefined &&
-    !(PUF_YEARS as readonly number[]).includes(options.year)
+    !(SUPPORTED_PUF_YEARS as readonly number[]).includes(options.year)
   ) {
     throw new FetchError(
       "invalid_options",
-      "Supported PUF years are 2026 and 2027",
+      "Supported PUF years are 2025, 2026 and 2027",
     );
   }
   const dataDir =
@@ -342,12 +343,12 @@ export async function runPufAcquire(
     else if (
       flag === "--year" &&
       options.year === undefined &&
-      /^(2026|2027)$/.test(args[at + 1] ?? "")
+      /^(2025|2026|2027)$/.test(args[at + 1] ?? "")
     )
       options.year = Number(args[++at]);
     else {
       output.error(
-        "Usage: worker ingest puf acquire [--year 2026|2027] [--dry-run]",
+        "Usage: worker ingest puf acquire [--year 2025|2026|2027] [--dry-run]",
       );
       return 1;
     }

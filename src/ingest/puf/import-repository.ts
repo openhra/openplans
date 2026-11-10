@@ -29,7 +29,7 @@ function stateSchema(source: string | undefined): string {
   if (source === "georgia_access_puf")
     return "georgia-access-puf-2027-observed";
   if (source === "cms_sbe_puf") return "cms-sbe-puf-2026-observed";
-  return "cms-puf-2026-2027-observed";
+  return "cms-puf-2025-2027-observed";
 }
 export async function saveImportSnapshot(
   tx: SqlSession,

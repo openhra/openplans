@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { migrate } from "../src/db/migrate.js";
+import { checkMigrations, migrate } from "../src/db/migrate.js";
 import { coreMigrations, testDatabase } from "./pglite.js";
 
 describe("migration transactions (PGlite; only PostGIS omitted)", () => {
@@ -44,6 +44,42 @@ describe("migration transactions (PGlite; only PostGIS omitted)", () => {
         )
       ).rows,
     ).toHaveLength(2);
+  });
+
+  it("preflight leaves an empty database and an existing journal unchanged", async () => {
+    const db = testDatabase(pg);
+    await writeFile(
+      join(directory, "001_initial.sql"),
+      "CREATE TABLE synthetic (id integer);",
+    );
+    const empty = await checkMigrations(db, directory);
+    expect(empty.pending.map((m) => m.name)).toEqual(["001_initial.sql"]);
+    expect(
+      (await pg.query("SELECT to_regclass('schema_migrations') AS journal"))
+        .rows,
+    ).toEqual([{ journal: null }]);
+    await migrate(db, directory);
+    const before = (await pg.query("SELECT * FROM schema_migrations")).rows;
+    await writeFile(
+      join(directory, "002_risky.sql"),
+      "ALTER TABLE synthetic DROP COLUMN id;",
+    );
+    expect((await checkMigrations(db, directory)).pending).toMatchObject([
+      { name: "002_risky.sql", classification: "risky" },
+    ]);
+    expect((await pg.query("SELECT * FROM schema_migrations")).rows).toEqual(
+      before,
+    );
+    await writeFile(
+      join(directory, "001_initial.sql"),
+      "CREATE TABLE changed (id integer);",
+    );
+    await expect(checkMigrations(db, directory)).rejects.toThrow(
+      "missing or changed",
+    );
+    expect((await pg.query("SELECT * FROM schema_migrations")).rows).toEqual(
+      before,
+    );
   });
 
   it("disables parallel index maintenance only inside the migration transaction", async () => {

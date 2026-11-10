@@ -466,7 +466,7 @@ async function requestChain(
     evidence.address = address.address;
     const headers: Record<string, string> = {
       "accept-encoding": "identity",
-      "user-agent": `openplans/0.3.3 (public health-plan source discovery; +${projectUrl(options)})`,
+      "user-agent": `openplans/0.3.4 (public health-plan source discovery; +${projectUrl(options)})`,
     };
     if (options.expectedContent === "json")
       headers.accept = "application/json, */*;q=0.1";

@@ -290,16 +290,23 @@ it("data availability exposes staged state catalogs separately from federal cata
   }
 });
 
-function ichraDisclosure(year: number) {
+function ichraDisclosure(year: number, state: string) {
+  let status = "unknown",
+    reason = "catalog_not_loaded";
+  if (year === 2026) {
+    status = state === "NY" ? "incomplete_lcsp" : "requires_state_rules";
+    reason =
+      state === "NY" ? "metal_level_unknown" : "state_filed_tier_pending";
+  }
   return {
-    ichra_status: year === 2026 ? "requires_state_rules" : "unknown",
-    ichra_reason:
-      year === 2026 ? "state_filed_tier_pending" : "catalog_not_loaded",
+    ichra_status: status,
+    ichra_reason: reason,
     ichra_lookback_status: "unknown",
     ichra_lookback_reason: "catalog_not_loaded",
     ichra_documentation: "docs/ichra.md#new-york-and-vermont",
   };
 }
+
 async function checkMcpAvailability(
   tx: SqlSession,
   state: string,
@@ -313,10 +320,10 @@ async function checkMcpAvailability(
   const output = outputSchemas.get_data_status.parse(result.structuredContent);
   expect(output.data!.datasets.length).toBeGreaterThan(0);
   for (const row of output.data!.datasets)
-    expect(row).toMatchObject(ichraDisclosure(year));
+    expect(row).toMatchObject(ichraDisclosure(year, state));
 }
 
-it("NY and VT 2026 ICHRA availability explains the state-rules refusal over HTTP and MCP", async () => {
+it("NY and VT 2026 ICHRA availability explains their evidence gaps over HTTP and MCP", async () => {
   for (const state of ["NY", "VT"]) {
     const response = await createApp(db).request(
       `/v1/data-availability?state=${state}&year=2026`,
@@ -324,7 +331,8 @@ it("NY and VT 2026 ICHRA availability explains the state-rules refusal over HTTP
     expect(response.status).toBe(200);
     const rows = (await response.json()) as Record<string, unknown>[];
     expect(rows.length).toBeGreaterThan(0);
-    for (const row of rows) expect(row).toMatchObject(ichraDisclosure(2026));
+    for (const row of rows)
+      expect(row).toMatchObject(ichraDisclosure(2026, state));
     await checkMcpAvailability(db, state, 2026);
   }
 });
@@ -342,13 +350,13 @@ it("NY and VT 2027 availability and look-back stay unknown over HTTP and MCP", a
       expect(response.status).toBe(200);
       const rows = (await response.json()) as Record<string, unknown>[];
       expect(rows).toHaveLength(1);
-      expect(rows[0]).toMatchObject(ichraDisclosure(2027));
+      expect(rows[0]).toMatchObject(ichraDisclosure(2027, state));
       await checkMcpAvailability(tx, state, 2027);
     }
   });
 });
 
-it("NY affordability response bytes stay at the recorded 2026 fixture answer", async () => {
+it("NY without supplemental metal evidence reports incomplete LCSP", async () => {
   // SYNTHETIC employee over the existing, unmodified NY filed-rate fixture.
   const response = await createApp(db).request("/v1/ichra/affordability", {
     method: "POST",
@@ -365,7 +373,7 @@ it("NY affordability response bytes stay at the recorded 2026 fixture answer", a
   expect(await response.text()).toMatchSnapshot();
 });
 
-it("planted mutant: dropping the NY/VT refusal fails the availability assertions", async () => {
+it("planted mutant: dropping the NY/VT branch fails the availability assertions", async () => {
   const original = new URL(
     "../../dist/services/availability.js",
     import.meta.url,
@@ -386,7 +394,7 @@ it("planted mutant: dropping the NY/VT refusal fails the availability assertions
       (r) => r.state === state,
     )!;
     const check = (row: Record<string, unknown>) =>
-      assert.equal(row.ichra_status, "requires_state_rules");
+      assert.equal(row.ichra_status, ichraDisclosure(2026, state).ichra_status);
     check(good);
     expect(() => check(bad)).toThrow(assert.AssertionError);
   }

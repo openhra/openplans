@@ -32,7 +32,10 @@ export function ichraRoutes(
   app.use("/ichra/affordability", household);
   app.post("/ichra/affordability", limit, async (c) => {
     const request = v.ichraRequest(await jsonBody(c));
-    const deadline = AbortSignal.timeout(DEADLINE_MS);
+    const deadline = AbortSignal.any([
+      c.req.raw.signal,
+      AbortSignal.timeout(DEADLINE_MS),
+    ]);
     try {
       return c.json(
         await ichraAffordability(boundedDatabase(db, deadline), request),

@@ -102,8 +102,9 @@ The default project is `openplans-local`; use `docker compose -p openplans-name`
 consistently to isolate an instance. `OPENPLANS_IMAGE` optionally selects a
 separate local API/worker image tag (default `openplans:local`).
 `docker compose down` preserves the DB volume; `docker compose down -v` deletes it.
-`worker status` prints the same manifest as `/v1/data-availability`. The API
-applies migrations at startup; `worker migrate` is safe to repeat.
+`worker status` prints the same manifest as `/v1/data-availability`. Run
+`docker compose run --rm --no-deps worker migrate` before starting the API.
+The API never migrates at startup. See [migration authoring and preflight](migrations.md).
 
 Household quotes at `POST /v1/premium-quotes`, the benchmark and ICHRA checks
 are open by default, with the same per-source limits as public quotes. Set
@@ -275,8 +276,9 @@ test copy**. Tests use small real source cuts with provenance and explicitly
 labelled synthetic records or mutations. The unreachable
 database test uses a nonexistent Unix socket, without TCP or external requests.
 
-Plain smoke builds the images, starts PostGIS and the API, checks health, migrates
-twice, and checks API/worker empty manifests, PostGIS and refusal of personalized
+Plain smoke builds the images, starts PostGIS, runs a one-off migration job,
+starts the API, checks health, repeats migration twice, and checks API/worker
+empty manifests, PostGIS and refusal of personalized
 requests when the server token is unconfigured. It needs no real-data cache.
 `--full` also imports cached rating rules, TX geography and TX PY2026 PUFs,
 checks exact row counts and all three plan-search pages, and verifies the 52928-cent
@@ -328,8 +330,11 @@ Missing evidence defaults to `not_yet_verified`; ingestion must preserve `unknow
 for incomplete provider or formulary evidence. No coverage is inferred or seeded.
 
 Add immutable numbered plain SQL files to `migrations/`. The migration runner locks the
-journal and applies the entire pending batch and its records in one transaction.
-A failure rolls back the batch. Repeated runs are no-ops. Changed or missing
+journal and applies ordinary pending batches and their records in one transaction.
+A failure rolls back that batch. Standalone concurrent index files require
+autocommit; a release containing them commits each file separately. See the
+[expand/contract rule and recovery steps](migrations.md).
+Repeated runs are no-ops. Changed or missing
 applied SQL and duplicate numbers are rejected. Previously unapplied lower-numbered
 migrations merged from another branch are applied in numeric order. Fix forward
 by adding a migration. PostGIS is enabled separately.

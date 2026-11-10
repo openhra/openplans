@@ -30,6 +30,13 @@ import type {
   SafeHarborChoices,
   Verdict,
 } from "../domain/ichra/index.js";
+import {
+  catalogRule,
+  nyLcspCatalog,
+  nyRatingCounties,
+  stateRatingArea,
+  stateSourceCell,
+} from "../ingest/state/catalog.js";
 import { checkedCents, dateParts } from "../domain/rating/rate-row.js";
 import { allocatePremium, lowestCostSilver } from "../domain/subsidy/index.js";
 import type {
@@ -88,8 +95,8 @@ const QUOTE = {
   quote_method: "puf_calculation",
   bindable_quote: false,
 } as const;
-/** Only the 50 states and DC have an Exchange LCSP in the CMS files used here. */
-const STATE_RULES = new Set(["NY", "VT"]);
+/** Vermont still needs a cited metal mapping for the filed publication. */
+const STATE_RULES = new Set(["VT"]);
 
 type LcspStatus =
   | "calculated"
@@ -123,8 +130,9 @@ interface LcspEvidence {
     readonly rating_area_id: string | null;
   };
   readonly coverage_month: string;
-  readonly identified_at_age: number;
-  readonly priced_at_age: number;
+  readonly identified_at_age: number | null;
+  readonly priced_at_age: number | null;
+  readonly age_rating?: "none";
   readonly silver_plan_count: number;
   readonly provenance: Record<string, unknown> | null;
   readonly issues: readonly string[];
@@ -212,7 +220,11 @@ async function rateCandidate(
     return {
       status:
         dateParts(question.month).month === 1 ? "incomplete_lcsp" : "unknown",
-      reason: `${plan.base_plan_id}: ${reason}`,
+      reason:
+        dateParts(question.month).month !== 1 &&
+        rated.estimate.status === "missing"
+          ? "month_rate_rows_missing"
+          : `${plan.base_plan_id}: ${reason}`,
     };
   }
   const fraction = agreedField(attributes, "EHBPercentTotalPremium");
@@ -237,6 +249,26 @@ async function rateCandidate(
         (rated.estimate.provenance.snapshot_ids as { rate?: string }).rate ??
         null,
       rate_rows_used: rated.estimate.rate_rows_used,
+      ...(dateParts(question.month).month !== 1 &&
+      premium.rowsUsed.every(
+        (row) => row.effectiveDate === `${plan.plan_year}-01-01`,
+      )
+        ? {
+            rate_basis: {
+              basis: "calendar_year_individual_rate",
+              coverage_month: question.month,
+              note: "The January 1 individual-market rate row is used for this coverage month within its filed effective and expiration dates.",
+              citation: {
+                source: "CMS Rate PUF",
+                fields: ["RateEffectiveDate", "RateExpirationDate"],
+                dates: premium.rowsUsed.map((row) => ({
+                  effective_date: row.effectiveDate,
+                  expiration_date: row.expirationDate,
+                })),
+              },
+            },
+          }
+        : {}),
       ehb_attribute_rows: attributes.map((r) => ({
         snapshot_id: plan.snapshot_id,
         source_row: r.source_row,
@@ -314,6 +346,7 @@ async function lcspEvidence(
   base.location.county_fips = county;
   const state = countyState(county);
   if (!state) return refuse("unsupported_state");
+  if (state === "NY") return nyLcspEvidence(db, question, base, county);
   if (STATE_RULES.has(state))
     return refuse("requires_state_rules", "state_filed_tier_pending");
   const year = dateParts(question.month).year;
@@ -324,8 +357,9 @@ async function lcspEvidence(
     );
   const rule = await ratingRule(db, state, year, "Individual");
   if (rule?.method !== "per_member") return refuse("unsupported_rating_method");
+  // Preserve January request behavior; annual-row use is approved for months after January.
   if (
-    dateParts(question.month).month !== 1 ||
+    dateParts(question.month).month === 1 &&
     dateParts(question.month).day !== 1
   )
     return refuse("unknown", "month_rate_rows_missing");
@@ -443,6 +477,182 @@ async function lcspEvidence(
       ...(question.basis === "gross" ? ehb.issues : gross.issues),
     ],
   };
+}
+
+/** Filed single-tier prices have no age or tobacco factors. */
+async function nyLcspEvidence(
+  db: SqlSession,
+  question: LcspQuestion,
+  base: Omit<LcspEvidence, "status">,
+  county: string,
+): Promise<LcspEvidence> {
+  const year = dateParts(question.month).year;
+  const area = stateRatingArea("NY", year, county);
+  const evidence = {
+    ...base,
+    identified_at_age: null,
+    priced_at_age: null,
+    age_rating: "none" as const,
+    location: {
+      ...base.location,
+      rating_area_id: area?.rating_area_id ?? null,
+    },
+  };
+  const catalog = await nyLcspCatalog(db, year, area?.rating_area_id);
+  const provenance = {
+    geography: area,
+    plans: catalog.map(({ row, exchange_evidence, attributes }) => ({
+      plan_key: row.plan_key,
+      hios_id: row.raw_record.plan_id,
+      single: stateSourceCell(row, "single"),
+      state_rule: catalogRule(row),
+      exchange_evidence,
+      attribute_rows: attributes.map((a) => ({
+        source_row: a.source_row,
+        metal: a.metal,
+        child_only_offering: a.raw.ChildOnlyOffering ?? null,
+        ehb_fraction: a.raw.EHBPercentTotalPremium ?? null,
+      })),
+    })),
+  };
+  const refuse = (status: LcspStatus, reason: string): LcspEvidence => ({
+    status,
+    ...evidence,
+    reason,
+    provenance,
+  });
+  if (!catalog.length || !area)
+    return refuse(
+      "unknown",
+      question.lookBack ? "lookback_catalog_not_loaded" : "catalog_not_loaded",
+    );
+  if (
+    dateParts(question.month).month !== 1 ||
+    dateParts(question.month).day !== 1
+  )
+    return refuse("unknown", "month_rate_rows_missing");
+  const candidates: { id: string; gross: number; ehb: number | null }[] = [];
+  const keys = new Set<string>();
+  for (const { row, attributes, exchange_evidence } of catalog) {
+    if (row.rate.childOnly) continue;
+    const metals = new Set(attributes.map((a) => a.metal.trim().toLowerCase()));
+    if (row.raw_record.metal)
+      metals.add(row.raw_record.metal.trim().toLowerCase());
+    if (
+      metals.size !== 1 ||
+      ![
+        "bronze",
+        "expanded bronze",
+        "silver",
+        "gold",
+        "platinum",
+        "catastrophic",
+      ].includes([...metals][0] ?? "")
+    )
+      return refuse("incomplete_lcsp", "metal_level_unknown");
+    if (!metals.has("silver")) continue;
+    if (!exchange_evidence)
+      return refuse("incomplete_lcsp", "exchange_offering_unverified");
+    const eligible = familyOffer(
+      attributes,
+      question.age >= 21,
+      question.age < 21,
+    );
+    if (eligible === false) continue;
+    if (eligible === null)
+      return refuse("incomplete_lcsp", "coverage_family_eligibility_unknown");
+    if (!catalogRule(row))
+      return refuse("requires_state_rules", "state_filed_tier_pending");
+    if (keys.has(row.plan_key))
+      return refuse("incomplete_lcsp", "conflicting_filed_tier_rows");
+    keys.add(row.plan_key);
+    const gross = row.rate.prices.single;
+    candidates.push({
+      id: row.plan_key,
+      gross,
+      ehb: allocatePremium(
+        gross,
+        agreedField(attributes, "EHBPercentTotalPremium"),
+      ),
+    });
+  }
+  if (!candidates.length) return refuse("no_silver_plans", "no_silver_plans");
+  const byBasis = Object.fromEntries(
+    BASES.map((basis) => {
+      const prices = candidates.map((c) =>
+        basis === "gross" ? c.gross : c.ehb,
+      );
+      if (prices.some((p) => p === null))
+        return [
+          basis,
+          {
+            status: "incomplete_lcsp",
+            plan_ids: [],
+            monthly_cents: null,
+            prices_at_age: [],
+            issues: ["ehb_allocation_unknown"],
+          },
+        ];
+      const minimum = Math.min(...(prices as number[]));
+      return [
+        basis,
+        {
+          status: "calculated",
+          monthly_cents: minimum,
+          plan_ids: candidates
+            .filter((_, i) => prices[i] === minimum)
+            .map((c) => c.id)
+            .sort(),
+          prices_at_age: [minimum],
+          issues: [],
+        },
+      ];
+    }),
+  ) as unknown as Record<PremiumBasis, BasisPick>;
+  const used = byBasis[question.basis];
+  return {
+    status: used.status as LcspStatus,
+    ...evidence,
+    reason: used.issues[0] ?? null,
+    by_basis: byBasis,
+    plan_ids: used.plan_ids,
+    monthly_cents: used.monthly_cents,
+    silver_plan_count: candidates.length,
+    provenance,
+    issues: [...byBasis.gross.issues, ...byBasis.ehb_portion.issues],
+  };
+}
+
+/** State-wide readiness is conservative when any loaded DFS region is incomplete. */
+export async function nyLcspAvailability(db: SqlSession, year: number) {
+  // One county for each DFS region. The same filed regional set serves every county in it.
+  const counties = nyRatingCounties(year);
+  let answered = false;
+  for (const county of counties) {
+    const result = await lcspEvidence(db, {
+      source: "residence",
+      location: { county },
+      month: `${year}-01-01`,
+      age: 40,
+      identificationAge: 40,
+      lookBack: false,
+      basis: "gross",
+    });
+    if (result.reason === "catalog_not_loaded") continue;
+    if (result.status !== "calculated")
+      return {
+        status: ["incomplete_lcsp", "requires_state_rules"].includes(
+          result.status,
+        )
+          ? result.status
+          : "unknown",
+        reason: result.reason,
+      };
+    answered = true;
+  }
+  return answered
+    ? { status: "available", reason: null }
+    : { status: "unknown", reason: "catalog_not_loaded" };
 }
 
 interface VerdictOut {
@@ -626,6 +836,9 @@ export async function ichraAffordability(
   if (failed)
     return {
       ...empty,
+      ...([ptc, employer].some((e) => e?.age_rating === "none")
+        ? { quote_method: "state_filed_tier" }
+        : {}),
       applicable_age,
       status: failed.status,
       reason: failed.reason,
@@ -680,6 +893,9 @@ export async function ichraAffordability(
   }
   return {
     ...QUOTE,
+    ...([ptc, employer].some((e) => e?.age_rating === "none")
+      ? { quote_method: "state_filed_tier" }
+      : {}),
     status: "calculated",
     plan_start: request.planStart,
     months_available: request.monthsAvailable,

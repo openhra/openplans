@@ -16,7 +16,7 @@ export async function runPufImport(
     if (
       args[at] === "--year" &&
       year === undefined &&
-      /^(2026|2027)$/.test(args[at + 1] ?? "")
+      /^(2025|2026|2027)$/.test(args[at + 1] ?? "")
     )
       year = Number(args[++at]);
     else if (
@@ -28,7 +28,7 @@ export async function runPufImport(
     else if (args[at] === "--all-states" && !allStates) allStates = true;
     else {
       output.error(
-        "Usage: worker ingest puf import --year 2026|2027 (--state XX | --all-states)",
+        "Usage: worker ingest puf import --year 2025|2026|2027 (--state XX | --all-states)",
       );
       return 1;
     }
@@ -39,7 +39,7 @@ export async function runPufImport(
     (state !== undefined && allStates)
   ) {
     output.error(
-      "Usage: worker ingest puf import --year 2026|2027 (--state XX | --all-states)",
+      "Usage: worker ingest puf import --year 2025|2026|2027 (--state XX | --all-states)",
     );
     return 1;
   }

@@ -69,7 +69,7 @@ export async function importPufs(
     { year, state } = options;
   const dataDir = options.dataDir ?? importDataDirectory();
   if (
-    ![2026, 2027].includes(year) ||
+    ![2025, 2026, 2027].includes(year) ||
     !/^[A-Z]{2}$/.test(state) ||
     !isAbsolute(dataDir)
   )

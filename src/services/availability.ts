@@ -18,15 +18,18 @@ import { federalCatalog } from "../api/repository.js";
 import { ichraParameters } from "../domain/ichra/index.js";
 import { cmsApiAvailability } from "../ingest/cms-api/fallback.js";
 
+import { nyLcspAvailability } from "./ichra.js";
+
 const ICHRA_STATE_RULES = new Set(["NY", "VT"]);
 /**
  * ICHRA fields for one availability row. `available` means the gross-premium LCSP can be computed:
- * premiums are available, the federal catalog for that year is loaded and the year's parameters
- * are confirmed. The EHB-portion figure can still be unknown for a county.
+ * premiums and the year's catalog and parameters are available. NY also requires
+ * complete filed-tier candidate evidence. The EHB-portion figure can still be unknown.
  */
 async function ichraAvailability(
   entry: Record<string, unknown>,
   loaded: (state: string, year: number) => Promise<boolean>,
+  ny: (year: number) => ReturnType<typeof nyLcspAvailability>,
 ) {
   const state = String(entry.state),
     year = Number(entry.plan_year);
@@ -41,8 +44,13 @@ async function ichraAvailability(
       : null;
   let status: string, reason: string | null;
   if (ICHRA_STATE_RULES.has(state)) {
-    status = year === 2026 ? "requires_state_rules" : "unknown";
-    reason = year === 2026 ? "state_filed_tier_pending" : "catalog_not_loaded";
+    if (state === "NY" && year === 2026) {
+      ({ status, reason } = await ny(year));
+    } else {
+      status = year === 2026 ? "requires_state_rules" : "unknown";
+      reason =
+        year === 2026 ? "state_filed_tier_pending" : "catalog_not_loaded";
+    }
   } else if (!rules) {
     status = "unknown";
     reason = "parameters_unconfirmed";
@@ -63,7 +71,9 @@ async function ichraAvailability(
     ichra_status: status,
     ichra_reason: reason,
     ichra_lookback_status:
-      status === "available" && (await loaded(state, year - 1))
+      !ICHRA_STATE_RULES.has(state) &&
+      status === "available" &&
+      (await loaded(state, year - 1))
         ? "available"
         : "unknown",
     ichra_rules: rules,
@@ -324,8 +334,14 @@ export async function dataAvailability(
         : {}),
     };
   });
+  const nyReadiness = new Map<number, ReturnType<typeof nyLcspAvailability>>();
+  const ny = (year: number) => {
+    if (!nyReadiness.has(year))
+      nyReadiness.set(year, nyLcspAvailability(db, year));
+    return nyReadiness.get(year)!;
+  };
   const result: Record<string, unknown>[] = [];
   for (const entry of withSources)
-    result.push({ ...entry, ...(await ichraAvailability(entry, loaded)) });
+    result.push({ ...entry, ...(await ichraAvailability(entry, loaded, ny)) });
   return result;
 }

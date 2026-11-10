@@ -1,0 +1,41 @@
+name: Feature request
+description: Propose a change to OpenPlans and explain what it would help you do.
+title: "[Feature] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Issues are public. Do not include personal health information, household details,
+        credentials or contact addresses. Describe your workflow without private records.
+        Data requests must use public sources. Missing evidence stays `unknown`.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: Describe the task and where OpenPlans falls short.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What should change?
+      description: Describe the behavior you want and how you would use it.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What have you tried?
+      description: Describe any workarounds or other approaches you considered.
+  - type: textarea
+    id: sources
+    attributes:
+      label: Public data sources
+      description: If this needs more data, link the public sources and note any access or licensing limits you know of.
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Before submitting
+      options:
+        - label: I removed personal health information, household details, credentials and contact addresses.
+          required: true

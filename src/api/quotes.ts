@@ -148,7 +148,10 @@ export function quoteRoutes(
     c.header("Cache-Control", "no-store");
     c.header("X-Quote-Tier", "public");
     const body = await jsonBody(c);
-    const deadline = AbortSignal.timeout(DEADLINE_MS);
+    const deadline = AbortSignal.any([
+      c.req.raw.signal,
+      AbortSignal.timeout(DEADLINE_MS),
+    ]);
     try {
       const scoped = boundedDatabase(db, deadline);
       return c.json(
@@ -176,7 +179,10 @@ export function quoteRoutes(
   app.use("/premium-quotes", household);
   app.post("/premium-quotes", jsonBodyLimit, async (c) => {
     const body = await jsonBody(c);
-    const deadline = AbortSignal.timeout(DEADLINE_MS);
+    const deadline = AbortSignal.any([
+      c.req.raw.signal,
+      AbortSignal.timeout(DEADLINE_MS),
+    ]);
     try {
       const { estimates } = await estimatePremiums(
         boundedDatabase(db, deadline),

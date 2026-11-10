@@ -64,7 +64,10 @@ if [ "$full" -eq 1 ] && ! docker run --rm --mount "type=bind,source=$OPENPLANS_D
   exit 1
 fi
 SECONDS=0
-"${compose[@]}" up -d --build db api
+"${compose[@]}" build db api worker
+"${compose[@]}" up -d --wait db
+"${compose[@]}" run --rm --no-deps -T worker migrate
+"${compose[@]}" up -d api
 for ((attempt = 0; attempt < 60; attempt++)); do
   if node tests/smoke/check.mjs health >/dev/null 2>&1; then break; fi
   sleep 1

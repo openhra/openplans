@@ -1,0 +1,57 @@
+name: Data problem
+description: Report a public-source record that looks wrong or is missing.
+title: "[Data] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Issues are public. Do not include personal health information, household details,
+        credentials or contact addresses. Remove them from requests, responses and screenshots.
+        OpenPlans reports missing evidence as `unknown` by design. It does not mean "not covered".
+        Include public source evidence when available so maintainers can trace the record.
+  - type: input
+    id: plan
+    attributes:
+      label: Plan identifier
+      description: Give the plan ID or HIOS ID. If unavailable or unrelated to a specific plan, say so.
+    validations:
+      required: true
+  - type: input
+    id: state
+    attributes:
+      label: State
+      description: Give the two-letter state code.
+    validations:
+      required: true
+  - type: input
+    id: year
+    attributes:
+      label: Plan year
+    validations:
+      required: true
+  - type: textarea
+    id: observed
+    attributes:
+      label: What does OpenPlans return?
+      description: Include the API endpoint or MCP tool, relevant field and value, and OpenPlans version if known. Remove private data.
+    validations:
+      required: true
+  - type: input
+    id: source
+    attributes:
+      label: Source file or field, if known
+      description: Link the public file and name the field, row or snapshot. Do not link private records.
+  - type: textarea
+    id: official-evidence
+    attributes:
+      label: What does the official source say?
+      description: Link the CMS, state or issuer source and quote the relevant public record. If you cannot find evidence, say it is unknown.
+    validations:
+      required: true
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Before submitting
+      options:
+        - label: I removed personal health information, household details, credentials and contact addresses.
+          required: true

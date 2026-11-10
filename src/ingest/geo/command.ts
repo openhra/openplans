@@ -1,7 +1,7 @@
 import type { Database } from "../../db/database.js";
 import { migrate, migrationsDirectory } from "../../db/migrate.js";
 import { ingestGeoNames } from "./geonames.js";
-import { ingestGeo } from "./index.js";
+import { ingestSbeGeography } from "../sbe/geography.js";
 import {
   cachedImportFiles,
   importDataDirectory,
@@ -83,7 +83,9 @@ export async function runGeo(
     for (const state of states) {
       try {
         output.out(
-          JSON.stringify(await ingestGeo(db, { state, planYear: year })),
+          JSON.stringify(
+            await ingestSbeGeography(db, { state, planYear: year }),
+          ),
         );
       } catch {
         output.error(

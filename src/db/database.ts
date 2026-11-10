@@ -16,6 +16,8 @@ export interface SqlSession {
 
 export interface Database extends SqlSession {
   transaction<T>(run: (session: SqlSession) => Promise<T>): Promise<T>;
+  /** Run on one connection, including autocommit statements. Discard it on failure. */
+  withSession?<T>(run: (session: SqlSession) => Promise<T>): Promise<T>;
   close(): Promise<void>;
 }
 
@@ -107,6 +109,18 @@ export function createDatabase(
       } finally {
         signal.removeEventListener("abort", cancel);
         await cancellation;
+        client.release(discard);
+      }
+    },
+    async withSession(run) {
+      const client = await pool.connect();
+      let discard = false;
+      try {
+        return await run(session(client));
+      } catch (error) {
+        discard = true;
+        throw error;
+      } finally {
         client.release(discard);
       }
     },

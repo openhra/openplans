@@ -3,7 +3,7 @@
 `POST /v1/ichra/affordability` estimates whether an individual coverage HRA (ICHRA) is
 affordable for one employee in the first month of the plan year. It answers the IRS premium tax
 credit rule and, on request, the employer safe harbors. Figures come from public filed rates in
-the CMS Exchange public use files. This is an estimate, not tax or legal advice, and never a
+the CMS Exchange public use files or New York DFS publications. This is an estimate, not tax or legal advice, and never a
 bindable quote: every answer carries `bindable_quote: false`.
 
 ## What it computes
@@ -151,6 +151,16 @@ safe-harbor LCSP for employer verdicts. Each is `null` when no verdict needs it.
 `identified_at_age`, `priced_at_age`, `silver_plan_count` and the rate rows used. Money is integer
 cents. Ratios are `{ numerator, denominator, display }` in cents.
 
+For a plan year starting after January in a per-member state, the service selects rate rows whose
+filed effective and expiration dates include the coverage month. When that is the January 1
+calendar-year row, `provenance.rate_rows_by_plan[].rate_basis` labels it
+`calendar_year_individual_rate` and names the coverage month. Its citation identifies the CMS
+Rate PUF's `RateEffectiveDate` and `RateExpirationDate` fields and their filed dates. The
+existing `rate_rows_used` entries identify the source snapshot and CSV row. An expired row, a
+row from another year, or a missing age rate cannot supply a price. SHOP rates are outside this
+calculation. January starts after the first day keep the existing `unknown` response with
+`month_rate_rows_missing`.
+
 Worked example, Harris County TX (Rating Area 10), PY2026, age 40: the LCSP is 27248TX0010019 at
 $586.21 a month. With a $3,400 HRA over 12 months the monthly HRA amount is $283.33 (85,000 / 3
 cents), and the required HRA contribution is 58,621 x 12 - 340,000 = 363,452 cents over 12 months,
@@ -163,20 +173,20 @@ HRA is affordable for the premium tax credit test. At $20.00 an hour the rate-of
 Without the evidence, the response gives a status and no verdicts. It never reports affordable
 or unaffordable in these cases:
 
-| `status`                    | `reason`                                             | Meaning                                                                           |
-| --------------------------- | ---------------------------------------------------- | --------------------------------------------------------------------------------- |
-| `unknown`                   | `catalog_not_loaded`                                 | No loaded catalog for that state and year; no other year is used                  |
-| `unknown`                   | `lookback_catalog_not_loaded`                        | The look-back January needs the prior year's catalog                              |
-| `unknown`                   | `month_rate_rows_missing`                            | Plan years that start after January need month-specific rates (not yet supported) |
-| `unknown`                   | `location_ambiguous`, `location_unknown`             | The ZIP spans counties without a county, or is not known                          |
-| `location_requires_zip`     | `zip_limited_service_area`, `sub_county_rating_area` | A ZIP is needed to know which plans are offered or which rating area applies      |
-| `requires_state_rules`      | `state_filed_tier_pending`                           | New York and Vermont use filed family tiers, not yet supported here               |
-| `unsupported_state`         |                                                      | Territories have no Exchange LCSP in these files                                  |
-| `unsupported_rating_method` |                                                      | The state's rating method is not supported                                        |
-| `incomplete_lcsp`           | plan and cause                                       | A silver plan is unrated, or its child-only offering is unknown                   |
-| `ambiguous_lcsp`            |                                                      | Conflicting duplicate prices for one plan                                         |
-| `no_silver_plans`           |                                                      | No on-Exchange silver plan is offered                                             |
-| `parameters_unconfirmed`    |                                                      | No cited parameters for the plan year                                             |
+| `status`                    | `reason`                                             | Meaning                                                                                |
+| --------------------------- | ---------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `unknown`                   | `catalog_not_loaded`                                 | No loaded catalog for that state and year; no other year is used                       |
+| `unknown`                   | `lookback_catalog_not_loaded`                        | The look-back January needs the prior year's catalog                                   |
+| `unknown`                   | `month_rate_rows_missing`                            | A silver plan lacks a rate row for that month and age, or the plan starts January 2-31 |
+| `unknown`                   | `location_ambiguous`, `location_unknown`             | The ZIP spans counties without a county, or is not known                               |
+| `location_requires_zip`     | `zip_limited_service_area`, `sub_county_rating_area` | A ZIP is needed to know which plans are offered or which rating area applies           |
+| `requires_state_rules`      | `state_filed_tier_pending`                           | Vermont LCSP selection or the required New York filed-tier rule is unavailable         |
+| `unsupported_state`         |                                                      | Territories have no Exchange LCSP in these files                                       |
+| `unsupported_rating_method` |                                                      | The state's rating method is not supported                                             |
+| `incomplete_lcsp`           | plan and cause                                       | A silver plan is unrated, or its child-only offering is unknown                        |
+| `ambiguous_lcsp`            |                                                      | Conflicting duplicate prices for one plan                                              |
+| `no_silver_plans`           |                                                      | No on-Exchange silver plan is offered                                                  |
+| `parameters_unconfirmed`    |                                                      | No cited parameters for the plan year                                                  |
 
 A single verdict can also be `unknown`. It still lists the rules it falls under, with citations.
 
@@ -207,16 +217,35 @@ the route computes them, and each rule's status with its citation URLs. It is ne
 ## Coverage
 
 `GET /v1/data-availability` rows carry `ichra_status` (`available`, `unknown`, `unsupported`,
-`requires_state_rules`), `ichra_reason`, `ichra_lookback_status` and `ichra_rules`. `available`
+`requires_state_rules`, `incomplete_lcsp`), `ichra_reason`, `ichra_lookback_status` and `ichra_rules`. `available`
 means premiums are available for the row, the year's catalog is loaded and the year's parameters
 are confirmed. The EHB-portion figure can still be unknown in some counties.
 
 ### New York and Vermont
 
-For 2026, both New York and Vermont return `requires_state_rules` with reason
-`state_filed_tier_pending` from the affordability check. The response has no LCSP price or
-affordability verdicts. Loaded filed premiums can support a premium quote without supporting
-an ICHRA check.
+For 2026, New York uses the lowest filed `single` price among eligible silver plans in the
+employee's DFS rating region. Each exact HIOS identity must appear in an active, complete
+[CMS SBE PUF Plan Attributes publication](https://www.cms.gov/marketplace/resources/data/state-based-public-use-files).
+The response labels this Exchange-offer evidence `cms_sbe_puf_plan_attributes` and cites its
+bundle URL, hash, snapshot and source rows. It also cites the filed price cell, county-to-region
+mapping and state rating rule. This evidence does not establish county-specific enrollment
+eligibility.
+
+A silver plan without that evidence makes the LCSP `incomplete_lcsp` with reason
+`exchange_offering_unverified`. Missing or conflicting metal evidence also makes the result
+`incomplete_lcsp`, with reason `metal_level_unknown`. The calculation never drops an unverified
+candidate to choose a more expensive plan. Unknown family eligibility and conflicting filed
+rows also prevent an answer.
+
+New York responses use `quote_method: state_filed_tier`, `age_rating: none` and null
+`identified_at_age` and `priced_at_age`. Both employee and employer checks use the same
+age-independent single-tier prices. The EHB-portion basis needs a published, consistent EHB
+fraction for every eligible silver plan. Missing fractions leave the gross calculation intact
+and the EHB-portion result incomplete.
+
+Vermont still returns `requires_state_rules` with reason `state_filed_tier_pending`.
+The staged on-Exchange publication has no explicit metal field or cited metal mapping, so it
+cannot establish the silver set. Off-Exchange reflective plan metal fields do not fill that gap.
 
 Both states use community-rated family tiers without age or tobacco factors. Self-only
 coverage uses the filed `single` tier. The state premium rules cite
@@ -228,28 +257,27 @@ For Vermont, they cite
 [DFR Docket 13-002-I, page 2](https://dfr.vermont.gov/sites/finreg/files/regbul/dfr-order-docket-13-002-i-vermont-health-benefits-exchange.pdf)
 and [DVHA 2026 issuer guidance, section 2.2](https://dvha.vermont.gov/sites/dvha/files/documents/IssuerGuidanceForParticipation2026.pdf).
 
-The ICHRA service does not yet select the lowest on-Exchange silver plan from these single-tier
-prices. In New York, verifying each plan's Exchange offering in the employee's DFS region is
-not yet supported. In Vermont, selecting an LCSP from the filed state publication is not yet
-supported. Neither state uses the federal per-member calculation as a substitute.
-
 NY and VT availability rows report these limits as follows:
 
-| Scope     | Status field            | Value                  | Reason                     |
-| --------- | ----------------------- | ---------------------- | -------------------------- |
-| 2026      | `ichra_status`          | `requires_state_rules` | `state_filed_tier_pending` |
-| 2027      | `ichra_status`          | `unknown`              | `catalog_not_loaded`       |
-| Look-back | `ichra_lookback_status` | `unknown`              | `catalog_not_loaded`       |
+| Scope                                      | `ichra_status`         | Reason                                                                       |
+| ------------------------------------------ | ---------------------- | ---------------------------------------------------------------------------- |
+| NY 2026, complete loaded regional evidence | `available`            | null                                                                         |
+| NY 2026, incomplete candidate evidence     | `incomplete_lcsp`      | `exchange_offering_unverified`, `metal_level_unknown` or the candidate issue |
+| NY 2026, no loaded filed catalog           | `unknown`              | `catalog_not_loaded`                                                         |
+| VT 2026                                    | `requires_state_rules` | `state_filed_tier_pending`                                                   |
+| NY/VT 2027                                 | `unknown`              | `catalog_not_loaded`                                                         |
 
-`ichra_reason` explains the row's year. `ichra_lookback_reason` explains the look-back gap.
-`ichra_documentation` points to this section for both. The MCP tool `get_data_status` and
-resource `openplans://availability` include the same fields on their NY and VT datasets.
-Rows describe the catalog manifest, so a state and year with no manifest entry has no row.
+NY readiness checks every loaded DFS region. It describes gross-premium calculation readiness;
+a particular request may still lack an EHB fraction or family eligibility evidence.
+Both states retain `ichra_lookback_status: unknown` and
+`ichra_lookback_reason: catalog_not_loaded`. No prior-year filed catalog is supported.
+NY requests for 2027 or a missing look-back catalog return `unknown`; a non-January coverage
+month returns `unknown` with `month_rate_rows_missing`.
 
-The 2027 and look-back statuses describe catalog readiness. They do not change the
-affordability check, which still returns `requires_state_rules` with `state_filed_tier_pending`
-for either state before checking the requested year's catalog. Confirmed 2027 affordability
-parameters alone do not supply a state LCSP or a look-back catalog.
+`ichra_reason` explains the row's year. `ichra_documentation` points to this section.
+The MCP tool `get_data_status` and resource `openplans://availability` include the same
+fields. A state and year with no manifest entry has no availability row. Confirmed 2027
+affordability parameters alone do not supply a state LCSP or a look-back catalog.
 
 Not covered: the employer's section 4980H payment, QSEHRA, class rules, months after the first one,
 a required contribution that changes during the offered months, and part-year periods across

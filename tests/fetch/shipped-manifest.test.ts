@@ -249,6 +249,74 @@ describe("shipped federal publisher manifests", () => {
     expect(derived).toEqual(original);
   });
 
+  it("admits exactly the matching PY2025 CMS paths with the existing review and pacing", async () => {
+    const manifest = admissionManifestSchema.parse(
+      JSON.parse(await readFile(shipped, "utf8")),
+    );
+    const publisher = manifest.publishers.find(
+      (p) => p.host === "download.cms.gov",
+    )!;
+    const paths = (year: number) =>
+      publisher.permittedPaths.filter((path) =>
+        path.startsWith(`/marketplace-puf/${year}/`),
+      );
+    expect(paths(2025)).toHaveLength(8);
+    expect(paths(2025)).toEqual(
+      paths(2026).map((path) => path.replace("/2026/", "/2025/")),
+    );
+    expect(paths(2025)).toEqual(
+      paths(2027).map((path) => path.replace("/2027/", "/2025/")),
+    );
+    expect(publisher.scope.years).toEqual([2025, 2026, 2027]);
+    expect(publisher.delayMs).toBe(5000);
+    expect(publisher.jobCaps).toEqual({
+      maxRequests: 20,
+      maxTransferBytes: 2147483648,
+    });
+    expect(publisher.robots).toMatchObject({
+      status: 404,
+      sha256: null,
+      country: "CO",
+    });
+    expect(publisher.terms).toMatchObject({
+      url: cmsTerms,
+      disposition: "allowed",
+      reviewer: "OpenPlans maintainers",
+    });
+    for (const path of paths(2025)) {
+      const url = `https://download.cms.gov${path}`;
+      data.set(url, {
+        status: 200,
+        body: `synthetic PY2025 path probe ${path}`,
+        type: "application/octet-stream",
+      });
+      const fetched = await fetchToCache(url, {
+        source: "synthetic-py2025",
+        allowHosts: ["download.cms.gov"],
+        expectedContent: "binary",
+        dataDir: directory,
+      });
+      expect(fetched).toMatchObject({ metadata: { url } });
+    }
+  });
+
+  it.each([
+    "/marketplace-puf/2024/rate-puf.zip",
+    "/marketplace-puf/2028/rate-puf.zip",
+    "/marketplace-puf/2025/unreviewed.zip",
+    "/marketplace-puf/2025-other/rate-puf.zip",
+  ])("negative control: PY2025 admission does not clear %s", async (path) => {
+    await expect(
+      fetchToCache(`https://download.cms.gov${path}`, {
+        source: "synthetic-unreviewed",
+        allowHosts: ["download.cms.gov"],
+        expectedContent: "binary",
+        dataDir: directory,
+      }),
+    ).rejects.toMatchObject({ code: "admission_denied" });
+    expect(state.requests).toEqual([]);
+  });
+
   it("bootstraps a fresh install with an empty cache through the shipped manifests alone", async () => {
     const pg = new PGlite(),
       db = testDatabase(pg),

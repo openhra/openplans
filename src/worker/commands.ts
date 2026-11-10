@@ -14,14 +14,18 @@ import { runPufImport, runPufLineage } from "../ingest/puf/import-command.js";
 import { runGeo } from "../ingest/geo/command.js";
 import { coverageManifest } from "../db/availability.js";
 import type { Database } from "../db/database.js";
-import { migrate, migrationsDirectory } from "../db/migrate.js";
+import {
+  checkMigrations,
+  migrate,
+  migrationsDirectory,
+} from "../db/migrate.js";
 import { backfillRowProvenance } from "../db/row-provenance.js";
 import { runPufAcquire } from "../ingest/puf/acquire.js";
 import { runRatingRules } from "../ingest/rating-rules/command.js";
 import { runTaxonomy } from "../ingest/taxonomy/command.js";
 
 const usage =
-  "Usage: worker migrate | status | record-policy list|set|expire | backfill row-provenance [--table NAME] [--blocks N] | ingest puf|qhp|nppes|rxnorm|taxonomy|geo|medicare";
+  "Usage: worker migrate [--check] | status | record-policy list|set|expire | backfill row-provenance [--table NAME] [--blocks N] | ingest puf|qhp|nppes|rxnorm|taxonomy|geo|medicare";
 const ingesters = new Set(["puf", "qhp", "nppes", "rxnorm", "taxonomy", "geo"]);
 
 export interface WorkerOutput {
@@ -116,7 +120,12 @@ export async function runWorker(
     return 1;
   }
   const command = args[0];
-  if (args.length !== 1 || (command !== "migrate" && command !== "status")) {
+  const check =
+    command === "migrate" && args.length === 2 && args[1] === "--check";
+  if (
+    !check &&
+    (args.length !== 1 || (command !== "migrate" && command !== "status"))
+  ) {
     output.error(usage);
     return 1;
   }
@@ -125,10 +134,12 @@ export async function runWorker(
   try {
     // Index builds on a populated database take minutes (740 on TX: 6m28s).
     db =
-      command === "migrate"
+      command === "migrate" && !check
         ? openWithQueryTimeout(openDatabase, 3_600_000)
         : openDatabase();
-    if (command === "migrate") {
+    if (check) {
+      output.out(JSON.stringify(await checkMigrations(db, directory)));
+    } else if (command === "migrate") {
       const applied = await migrate(db, directory);
       output.out(JSON.stringify({ applied }));
     } else {
