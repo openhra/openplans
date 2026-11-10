@@ -11,8 +11,8 @@ import {
 } from "vitest";
 import { createApp } from "../../src/api/app.js";
 import type { SqlSession } from "../../src/db/database.js";
+import type * as QuoteCoverage from "../../src/services/quote-coverage.js";
 import type * as QuoteRoutes from "../../src/api/quotes.js";
-import type * as QuoteService from "../../src/services/quotes.js";
 import { replaceSyntax } from "../source-mutation.js";
 import {
   PLAN,
@@ -235,9 +235,12 @@ describe("coverage honesty with no provider or formulary feeds (negative control
     expect(json.quotes[0].drugs[0]).toEqual(await drug.json());
   });
   it("negative control: a service copy that turns missing evidence into out_of_network fails", async () => {
-    const source = new URL("../../src/services/quotes.ts", import.meta.url);
+    const source = new URL(
+      "../../src/services/quote-coverage.ts",
+      import.meta.url,
+    );
     const temporary = new URL(
-      "../../src/services/.quotes-mutant-honesty.ts",
+      "../../src/services/.quote-coverage-mutant-honesty.ts",
       import.meta.url,
     );
     await writeFile(
@@ -251,9 +254,20 @@ describe("coverage honesty with no provider or formulary feeds (negative control
     try {
       const mutant = (await import(
         /* @vite-ignore */ temporary.href
-      )) as typeof QuoteService;
-      const json = await mutant.quotePlans(fixture.db, coverageBody);
-      expect(() => expectHonest(json)).toThrow();
+      )) as typeof QuoteCoverage;
+      const coverage = await mutant.readQuoteCoverage(
+        fixture.db,
+        PLAN,
+        ["1234567893", "1003000126"],
+        ["860975"],
+        2026,
+      );
+      expect(() =>
+        expectHonest({
+          quotes: [coverage],
+          data_availability: { providers: "unknown", drugs: "unknown" },
+        }),
+      ).toThrow();
     } finally {
       await rm(temporary, { force: true });
     }

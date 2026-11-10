@@ -6,7 +6,8 @@ import type { SqlSession } from "../db/database.js";
 import { boundedDatabase, DEADLINE_MS } from "../db/bounded.js";
 import { estimatePremiums } from "../services/catalog.js";
 import { quotePlans } from "../services/quotes.js";
-import { proxyList, sourceAdmission } from "./rate-limit.js";
+import { quoteFallbackContext } from "../services/quote-coverage.js";
+import { proxyList, requestSource, sourceAdmission } from "./rate-limit.js";
 import type { PeerAddress, SourceLimits } from "./rate-limit.js";
 import * as v from "./validation.js";
 
@@ -149,7 +150,23 @@ export function quoteRoutes(
     const body = await jsonBody(c);
     const deadline = AbortSignal.timeout(DEADLINE_MS);
     try {
-      return c.json(await quotePlans(boundedDatabase(db, deadline), body));
+      const scoped = boundedDatabase(db, deadline);
+      return c.json(
+        await quotePlans(
+          scoped,
+          body,
+          "public_quote",
+          quoteFallbackContext(
+            scoped,
+            requestSource(
+              c,
+              options.trustedProxies ??
+                proxyList(process.env.OPENPLANS_TRUST_PROXY),
+              options.peerAddress,
+            ),
+          ),
+        ),
+      );
     } catch (error) {
       if (deadline.aborted)
         return c.json({ error: { code: "REQUEST_DEADLINE" } }, 504);

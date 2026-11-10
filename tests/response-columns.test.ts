@@ -19,6 +19,9 @@ const row = {
   sourced_by: "cms-nppes",
   sourced_at: null,
   sourced_slug: "synthetic-snapshot",
+  record_policy: "source_snapshot",
+  record_ttl: null,
+  expired_at: null,
 };
 
 it("finds a row provenance column at any depth of a response", () => {
@@ -32,6 +35,9 @@ it("finds a row provenance column at any depth of a response", () => {
     }),
   ).toEqual([
     "identity/created_at",
+    "identity/expired_at",
+    "identity/record_policy",
+    "identity/record_ttl",
     "identity/sourced_at",
     "identity/sourced_by",
     "identity/sourced_slug",
@@ -84,11 +90,12 @@ it("checks every app the tests build through createApp", async () => {
   await pg.close();
 });
 
-it("rowJson drops exactly the five columns from a table row", async () => {
+it("rowJson drops exactly the eight columns from a table row", async () => {
   const pg = new PGlite();
   await pg.exec(`CREATE TABLE synthetic_row(npi text, city text,
     created_at timestamptz DEFAULT now(), updated_at timestamptz DEFAULT now(),
-    sourced_by text DEFAULT 'unknown', sourced_at timestamptz, sourced_slug text DEFAULT 'unknown');
+    sourced_by text DEFAULT 'unknown', sourced_at timestamptz, sourced_slug text DEFAULT 'unknown', record_policy text DEFAULT 'unknown',
+    record_ttl interval, expired_at timestamptz);
     INSERT INTO synthetic_row(npi,city) VALUES ('1000000000','HOUSTON')`);
   const { rows } = await pg.query<{ whole: object; published: object }>(
     `SELECT to_jsonb(a) AS whole, ${rowJson("a")} AS published FROM synthetic_row a`,
@@ -98,4 +105,16 @@ it("rowJson drops exactly the five columns from a table row", async () => {
   );
   expect(rows[0]!.published).toEqual({ npi: "1000000000", city: "HOUSTON" });
   await pg.close();
+});
+
+it("never exempts expiry columns inside fallback metadata", () => {
+  expect(
+    rowProvenanceLeaks({
+      cms_api: { record_policy: "unknown", record_ttl: null, expired_at: null },
+    }),
+  ).toEqual([
+    "cms_api/expired_at",
+    "cms_api/record_policy",
+    "cms_api/record_ttl",
+  ]);
 });

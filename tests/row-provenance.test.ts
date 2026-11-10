@@ -34,8 +34,10 @@ async function migrations(
   const core = await coreMigrations();
   cleanup = core.cleanup;
   const path = join(core.directory, MIGRATION);
-  if (omit) await rm(path);
-  else if (mutate) {
+  if (omit) {
+    await rm(path);
+    await rm(join(core.directory, "992_record_policy.sql"));
+  } else if (mutate) {
     const before = await readFile(path, "utf8");
     const after = mutate(before);
     expect(after).not.toBe(before);
@@ -153,7 +155,7 @@ afterEach(async () => {
 });
 
 describe("row provenance schema", () => {
-  it("gives every table the five columns and the trigger; other objects are listed with a reason", async () => {
+  it("gives every table the eight columns and the trigger; other objects are listed with a reason", async () => {
     await migrate(db, await migrations());
     expect(await schemaViolations(db)).toEqual([]);
     const { rows: views } = await db.query<{ name: string }>(
@@ -285,7 +287,10 @@ describe("row provenance values", () => {
        VALUES ('48001','Synthetic',30,31,-100,-99,'[]','synthetic-missing')`,
     );
     const full = await migrations();
-    expect(await migrate(db, full)).toEqual([MIGRATION]);
+    expect(await migrate(db, full)).toEqual([
+      MIGRATION,
+      "992_record_policy.sql",
+    ]);
     expect(await receiptViolations(db)).toEqual([]);
     const { rows } = await db.query(
       `SELECT count(*)::int AS rows, min(created_at)::text AS created, bool_and(updated_at=created_at) AS same
@@ -355,6 +360,10 @@ describe("row provenance mutants", () => {
       "out_of_band: missing sourced_by",
       "out_of_band: missing sourced_at",
       "out_of_band: missing sourced_slug",
+      "out_of_band: missing record_policy",
+      "out_of_band: missing record_ttl",
+      "out_of_band: missing expired_at",
+      "out_of_band: no zz_record_policy trigger",
       "out_of_band: no row_provenance trigger",
       "rate: missing sourced_at",
     ]);

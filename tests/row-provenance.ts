@@ -18,6 +18,9 @@ const COLUMNS = {
   sourced_by: { type: "text", notNull: true },
   sourced_at: { type: "timestamp with time zone", notNull: false },
   sourced_slug: { type: "text", notNull: true },
+  record_policy: { type: "text", notNull: true },
+  record_ttl: { type: "interval", notNull: false },
+  expired_at: { type: "timestamp with time zone", notNull: false },
 } as const;
 
 /** Every table needs the five columns and the row trigger; other objects need a reason. */
@@ -43,12 +46,24 @@ export async function schemaViolations(db: SqlSession): Promise<string[]> {
       AND column_name = ANY($1::text[])`,
     [Object.keys(COLUMNS)],
   );
-  const { rows: triggers } = await db.query<{ table_name: string }>(
-    `SELECT c.relname AS table_name FROM pg_trigger g JOIN pg_class c ON c.oid=g.tgrelid
-     WHERE g.tgname='row_provenance' AND g.tgenabled <> 'D'
+  const { rows: triggers } = await db.query<{
+    table_name: string;
+    tgname: string;
+  }>(
+    `SELECT c.relname AS table_name,g.tgname FROM pg_trigger g JOIN pg_class c ON c.oid=g.tgrelid
+     WHERE g.tgname IN ('row_provenance','zz_record_policy') AND g.tgenabled <> 'D'
        AND c.relnamespace=current_schema()::regnamespace`,
   );
-  const triggered = new Set(triggers.map((row) => row.table_name));
+  const triggered = new Set(
+    triggers
+      .filter((row) => row.tgname === "row_provenance")
+      .map((row) => row.table_name),
+  );
+  const policyTriggered = new Set(
+    triggers
+      .filter((row) => row.tgname === "zz_record_policy")
+      .map((row) => row.table_name),
+  );
   const { rows: unresolved } = await db.query<{ table_name: string }>(
     `SELECT table_name FROM row_provenance_rule
      WHERE reason LIKE 'inferred: no receipt reference%' ORDER BY table_name`,
@@ -73,6 +88,8 @@ export async function schemaViolations(db: SqlSession): Promise<string[]> {
       else if (expected.notNull && column.is_nullable !== "NO")
         problems.push(`${object.name}.${name}: nullable`);
     }
+    if (!policyTriggered.has(object.name))
+      problems.push(`${object.name}: no zz_record_policy trigger`);
     if (!triggered.has(object.name))
       problems.push(`${object.name}: no row_provenance trigger`);
   }

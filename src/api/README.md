@@ -407,3 +407,19 @@ same already-acquired cache archives. No eligibility calculation is performed.
 Sources: [CMS PY2026 Plan Attributes dictionary](https://www.cms.gov/files/document/planattributes-datadictionary-py26.pdf)
 and the immutable CMS archive URLs/hashes recorded in the fixture provenance and
 real-data report.
+
+### Optional CMS coverage in quotes
+
+`OPENPLANS_CMS_FALLBACK_QUOTES=on` lets `/v1/quotes` fill eligible unknown provider
+and drug cells through the [CMS coverage fallback](../ingest/cms-api/README.md).
+It defaults to off and also requires `OPENPLANS_CMS_FALLBACK=on` and `CMS_API_KEY`.
+It spends the shared daily budget faster. All plans and both coverage kinds share
+the existing two-call request cap. Pairs beyond it stay unknown with
+`cms_api_request_cap`. File evidence wins, and drug checks require local RxNorm.
+
+Each cell filled by the fallback carries the existing `cms_api` provenance object.
+Its `sourced_by` is `cms-marketplace-api`. Quote cells also include `freshness`,
+which is `fresh` for a stored unexpired answer, `stale` for a stored expired answer
+served within its policy window, or `refetched` for an answer retrieved during the
+request. `DataNotProvided` stays unknown. CMS coverage flags do not supply tiers,
+restrictions or patient prices.

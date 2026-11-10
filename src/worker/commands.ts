@@ -1,3 +1,4 @@
+import { runRecordPolicy } from "./record-policy.js";
 import { databaseErrorDiagnostic } from "./database-error.js";
 import { runSbe } from "../ingest/sbe/command.js";
 import { runState } from "../ingest/state/command.js";
@@ -20,7 +21,7 @@ import { runRatingRules } from "../ingest/rating-rules/command.js";
 import { runTaxonomy } from "../ingest/taxonomy/command.js";
 
 const usage =
-  "Usage: worker migrate | status | backfill row-provenance [--table NAME] [--blocks N] | ingest puf|qhp|nppes|rxnorm|taxonomy|geo|medicare";
+  "Usage: worker migrate | status | record-policy list|set|expire | backfill row-provenance [--table NAME] [--blocks N] | ingest puf|qhp|nppes|rxnorm|taxonomy|geo|medicare";
 const ingesters = new Set(["puf", "qhp", "nppes", "rxnorm", "taxonomy", "geo"]);
 
 export interface WorkerOutput {
@@ -34,6 +35,12 @@ export async function runWorker(
   output: WorkerOutput,
   directory = migrationsDirectory,
 ): Promise<number> {
+  if (args[0] === "record-policy")
+    return runRecordPolicy(
+      args.slice(1),
+      () => openWithQueryTimeout(openDatabase, 3_600_000),
+      output,
+    );
   if (args[0] === "ingest" && args[1] === "sbe")
     return runSbe(
       args.slice(2),

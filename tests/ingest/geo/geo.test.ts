@@ -13,7 +13,6 @@ import { relationships, ratingRows } from "../../../src/ingest/geo/parse.js";
 import { migrate } from "../../../src/db/migrate.js";
 import { coreMigrations, testDatabase } from "../../pglite.js";
 import { fixtureDirectory, fixtureFiles } from "./helpers.js";
-import { runWorker } from "../../../src/worker/commands.js";
 
 const pg = new PGlite(),
   db = testDatabase(pg);
@@ -221,27 +220,6 @@ describe("real Census/CMS source cuts imported into PGlite", () => {
     const files = await fixtureFiles();
     files.centroids.metadata.sha256 = "a".repeat(64);
     await expect(ingestGeo(db, { files })).rejects.toThrow("snapshot metadata");
-  });
-  it("validates CLI flags before opening a database", async () => {
-    for (const args of [
-      ["ingest", "geo", "--state", "XX"],
-      ["ingest", "geo", "--state"],
-      ["ingest", "geo", "extra"],
-    ]) {
-      const errors: string[] = [];
-      expect(
-        await runWorker(
-          args,
-          () => {
-            throw new Error("must not open");
-          },
-          { out: () => {}, error: (m) => errors.push(m) },
-        ),
-      ).toBe(1);
-      expect(errors).toEqual([
-        "Usage: worker ingest geo [--year 2026|2027] [--state XX | --all-states]",
-      ]);
-    }
   });
   it("fixture row numbers refer to exact physical source-cut lines", async () => {
     const lines = (

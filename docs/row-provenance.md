@@ -63,6 +63,12 @@ write `to_jsonb(alias)`, and pass a row selected with `alias.*` through
 `withoutRowProvenance(row)`. Both are in `src/db/row-provenance.ts`.
 
 The test setup in `tests/response-columns.setup.ts` reads every JSON response of every app the
-tests build with `createApp`. A request fails when its response has one of the five names. Two
+tests build with `createApp`. A request fails when its response has one of the eight internal names. Two
 documented fields share a name with a column and are allowed: the `cms_api` object of the CMS
 Marketplace API fallback, and `updated_at` on a compatibility plan.
+
+## Record expiry
+
+Every table also has `record_policy`, `record_ttl` and `expired_at`.
+[Record expiry policies](record-policy.md) describes the defaults, operator commands and coverage
+fallback behavior. The response helpers above remove all eight internal columns.

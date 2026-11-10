@@ -38,7 +38,6 @@ export const OPENING_REASONS: readonly string[] = [
 const servedYears = [2025, 2026, 2027];
 const maxPlansPerCall = 10;
 const maxIdsPerCall = 10;
-const staleDays = 30;
 
 export type CmsKind = "drug" | "provider";
 type Endpoint = "drugs/covered" | "providers/covered";
@@ -54,6 +53,8 @@ export interface CmsApiEvidence {
   sourced_at: string;
   sourced_slug: string;
   served_from: "live" | "absorbed" | "absorbed_stale";
+  /** Quote provenance label, derived from served_from. */
+  freshness?: "fresh" | "stale" | "refetched";
   source: string;
   terms_url: string;
   limits: string;
@@ -202,17 +203,16 @@ async function absorbed(
   const rows = (
     await db.query<AbsorbedRow>(
       `SELECT plan_id, ${column} AS identity, plan_year, coverage, ${extra}, snapshot_id,
-        sourced_by, sourced_at, sourced_slug, expires_at > now() AS fresh
-      FROM ${table}
+        c.sourced_by, c.sourced_at, c.sourced_slug, (c.expired_at IS NULL OR c.expired_at > now()) AS fresh
+      FROM ${table} c JOIN record_policy p ON p.name=c.record_policy
       WHERE (plan_id, ${column}, plan_year) IN (
         SELECT * FROM unnest($1::text[], $2::text[], $3::int[]))
-        AND expires_at > now() - ($4::int * interval '1 day')
-        AND sourced_by = '${CMS_API_SOURCE}'`,
+        AND (c.expired_at IS NULL OR c.expired_at + p.stale_window > now())
+        AND c.sourced_by = '${CMS_API_SOURCE}'`,
       [
         pairs.map((p) => p.plan),
         pairs.map((p) => p.id),
         pairs.map((p) => p.year),
-        staleDays,
       ],
     )
   ).rows;
@@ -446,7 +446,10 @@ async function liveCall(
       return "cms_api_unavailable";
     }
     const rows = parseBody(kind, text);
-    const snapshot = `${CMS_API_SOURCE}:${endpoint.replace("/", "-")}:${year}:${params}:${result.metadata.sha256.slice(0, 16)}`;
+    // The cache reuses identical bytes after a successful download. This receipt records
+    // the new observation, rather than inheriting the first download's time.
+    const retrievedAt = new Date().toISOString();
+    const snapshot = `${CMS_API_SOURCE}:${endpoint.replace("/", "-")}:${year}:${params}:${result.metadata.sha256.slice(0, 16)}:${sha(retrievedAt).slice(0, 16)}`;
     await db.query(
       `INSERT INTO snapshot(snapshot_id,source_id,requested_url,final_url,redirect_chain,
       retrieved_at,http_status,content_type,compressed_bytes,sha256,raw_path,schema_version,parser_version,
@@ -457,7 +460,7 @@ async function liveCall(
         snapshot,
         CMS_API_SOURCE,
         result.metadata.url,
-        result.metadata.fetched_at,
+        retrievedAt,
         status,
         result.metadata.content_type,
         result.metadata.bytes,
@@ -478,14 +481,17 @@ async function liveCall(
     const extraColumn = kind === "drug" ? "generic_rxcui" : "accepting";
     for (const [index, row] of rows.entries()) {
       if (!plans.includes(row.plan_id) || !ids.includes(row.identity)) continue;
-      const ttl = row.coverage === "DataNotProvided" ? "1 day" : "7 days";
+      const policy =
+        row.coverage === "DataNotProvided"
+          ? "cms_api_fallback_no_data"
+          : "cms_api_fallback";
       await db.query(
         `INSERT INTO ${table}(plan_id,${column},plan_year,coverage,${extraColumn},${kind === "provider" ? "addresses," : ""}
-          snapshot_id,source_row,expires_at,sourced_by,sourced_at,sourced_slug)
-        VALUES($1,$2,$3,$4,$5,${kind === "provider" ? "$10::jsonb," : ""}$6,$7,now()+$8::interval,'${CMS_API_SOURCE}',$9,$6)
+          snapshot_id,source_row,record_policy,sourced_by,sourced_at,sourced_slug)
+        VALUES($1,$2,$3,$4,$5,${kind === "provider" ? "$10::jsonb," : ""}$6,$7,$8,'${CMS_API_SOURCE}',$9,$6)
         ON CONFLICT (plan_id,${column},plan_year) DO UPDATE SET coverage=EXCLUDED.coverage,
           ${extraColumn}=EXCLUDED.${extraColumn},snapshot_id=EXCLUDED.snapshot_id,source_row=EXCLUDED.source_row,
-          expires_at=EXCLUDED.expires_at,sourced_by=EXCLUDED.sourced_by,sourced_at=EXCLUDED.sourced_at,
+          record_policy=EXCLUDED.record_policy,record_ttl=EXCLUDED.record_ttl,expired_at=EXCLUDED.expired_at,sourced_by=EXCLUDED.sourced_by,sourced_at=EXCLUDED.sourced_at,
           sourced_slug=EXCLUDED.sourced_slug,updated_at=now()`,
         [
           row.plan_id,
@@ -495,7 +501,7 @@ async function liveCall(
           kind === "drug" ? row.generic_rxcui : row.accepting,
           snapshot,
           index + 1,
-          ttl,
+          policy,
           retrieved,
           ...(kind === "provider" ? [JSON.stringify(row.addresses)] : []),
         ],
@@ -607,13 +613,16 @@ export async function applyCmsFallback<T extends Answer>(
   for (const [year, group] of byYear) {
     let rest = group;
     while (rest.length) {
-      const plans = [...new Set(rest.map((p) => p.plan))].slice(
-        0,
-        maxPlansPerCall,
-      );
+      // A rectangle may contain only eligible pairs, including its cross-product cells.
+      const firstPlan = rest[0]!.plan;
       const ids = [
-        ...new Set(rest.filter((p) => plans.includes(p.plan)).map((p) => p.id)),
+        ...new Set(rest.filter((p) => p.plan === firstPlan).map((p) => p.id)),
       ].slice(0, maxIdsPerCall);
+      const plans = [...new Set(rest.map((p) => p.plan))]
+        .filter((plan) =>
+          ids.every((id) => rest.some((p) => p.plan === plan && p.id === id)),
+        )
+        .slice(0, maxPlansPerCall);
       const batch = rest.filter(
         (p) => plans.includes(p.plan) && ids.includes(p.id),
       );
@@ -641,7 +650,7 @@ export async function applyCmsFallback<T extends Answer>(
   for (const pair of pairs) {
     const row = rows.get(keyOf(pair));
     const answer = out[pair.index]!;
-    if (row && (row.fresh || reasonFor.has(pair.index))) {
+    if (row && (row.fresh || reasonFor.has(pair.index) || !writer)) {
       let served: CmsApiEvidence["served_from"] = "absorbed";
       if (!row.fresh) served = "absorbed_stale";
       else if (pending.includes(pair) && !reasonFor.has(pair.index))

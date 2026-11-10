@@ -299,6 +299,15 @@ empty unless `OPENPLANS_CMS_FALLBACK=on`. If you run your own installation and w
 your backup, remove the six `--exclude-table-data` arguments and the tar `--exclude`. Do not
 publish or pass on a dump made that way.
 
+The coverage fallback requires `OPENPLANS_CMS_FALLBACK=on` and `CMS_API_KEY`.
+The separate `OPENPLANS_CMS_FALLBACK_QUOTES=on` switch also lets native quotes and
+compatibility medical searches use it. It defaults to off and spends the shared
+daily budget faster. Each request shares the two-call cap across all its plans,
+providers and drugs. Native quote cells label the source and freshness in `cms_api`;
+compatibility searches put those labels in `x-openplans-gaps`.
+Review [fallback limits and expiry policies](../src/ingest/cms-api/README.md)
+before enabling either switch.
+
 Record the application image/version, store the backup away from this host,
 and test it in a separate openplans-restore project with distinct loopback ports.
 The restore below replaces the selected destination's contents. Configure its

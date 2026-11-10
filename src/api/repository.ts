@@ -1,3 +1,4 @@
+import { IMPORT_KINDS } from "../ingest/puf/import-source.js";
 import { createHash } from "node:crypto";
 import { readFile, stat } from "node:fs/promises";
 import { Readable } from "node:stream";
@@ -383,7 +384,8 @@ export async function findPlan(
 }
 const SNAPSHOT_FILES_SQL = `SELECT f.kind,f.snapshot_id
     FROM puf_import_file anchor JOIN puf_import_file f ON f.import_id=anchor.import_id
-    WHERE anchor.kind='plan-attributes' AND anchor.snapshot_id=$1`;
+    WHERE anchor.kind='plan-attributes' AND anchor.snapshot_id=$1
+    ORDER BY array_position(ARRAY[${IMPORT_KINDS.map((kind) => `'${kind}'`).join(",")}],f.kind),f.kind`;
 const ISSUER_SQL = `SELECT issuer_id,marketing_names,snapshot_id,source_row FROM issuer WHERE snapshot_id=$1 AND issuer_id=$2`;
 const NETWORK_SQL = `SELECT network_id,network_name,network_url,snapshot_id,source_row FROM network
       WHERE snapshot_id=$1 AND issuer_id=$2 AND network_id=$3 AND market=$4 AND dental_only=$5 ORDER BY source_row`;

@@ -101,6 +101,12 @@ describe("household routes are open by default", () => {
     const offByEnv = createApp(h.db, {});
     for (const [path, payload] of routes) {
       expect((await send(token, path, payload)).status, path).toBe(401);
+      const wrong = await send(token, path, payload, {
+        authorization: "Bearer wrong",
+      });
+      expect(wrong.status, path).toBe(401);
+      expect(await wrong.json()).toEqual({ error: { code: "UNAUTHORIZED" } });
+      expect(wrong.headers.get("cache-control"), path).toBe("no-store");
       const authorized = await send(token, path, payload, {
         authorization: "Bearer synthetic-open-token",
       });

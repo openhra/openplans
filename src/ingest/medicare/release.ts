@@ -177,10 +177,3 @@ export async function insertRows(
   );
   batch.length = 0;
 }
-
-/** Newest ACTIVE release of a family for a year (or the newest year at or below it). */
-export const activeRelease = (
-  family: string,
-) => `(SELECT r.snapshot_id FROM medicare_release r
-  JOIN snapshot s USING(snapshot_id) WHERE s.validation_state='ACTIVE' AND r.family='${family}'
-  AND r.contract_year=$YEAR ORDER BY r.as_of DESC, r.imported_at DESC LIMIT 1)`;

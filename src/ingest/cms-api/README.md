@@ -8,13 +8,25 @@ their plans. With `OPENPLANS_CMS_FALLBACK=on` and `CMS_API_KEY` set, the drug an
 coverage endpoints ask the CMS Marketplace API (`drugs/covered`, `providers/covered`) about
 those pairs and store the answer, so the same question is answered locally next time.
 
+Set `OPENPLANS_CMS_FALLBACK_QUOTES=on` to include `/v1/quotes` and coverage fields in
+`/compat/v1/plans/medical/search`. This separate switch defaults to off and requires
+`OPENPLANS_CMS_FALLBACK=on` and `CMS_API_KEY`. Leaving it off preserves quote and
+compatibility responses. Turning it on spends the shared daily budget faster.
+All plans, providers and drugs in one request share the existing two-call cap.
+Loaded file answers still win, and drugs still require an exact local RxNorm match.
+Native quote cells keep their source in `cms_api.sourced_by` and add
+`cms_api.freshness`, one of `fresh`, `stale` or `refetched`.
+Compatibility source labels go in `x-openplans-gaps`, without new body keys.
+See [compatibility coverage inputs](../../compat/v1/README.md#optional-quote-coverage).
+
 When it calls:
 
 - Only after the answer from loaded files, and only when that answer is `unknown` for
   `source_set_not_available`, `source_access_denied`, `source_set_not_validated` or
   `source_set_not_active`. Any other answer, including `not_listed`, is returned as it is.
-- Only from the native coverage endpoints (`/plans/:id/drugs/:rxcui`, `/drug-coverage`,
-  `/plans/:id/providers/:npi`, `/provider-participation`). MCP tools serve rows stored earlier
+- From the native coverage endpoints (`/plans/:id/drugs/:rxcui`, `/drug-coverage`,
+  `/plans/:id/providers/:npi`, `/provider-participation`). Quotes and compatibility medical
+  searches also use it when `OPENPLANS_CMS_FALLBACK_QUOTES=on`. MCP tools serve rows stored earlier
   but never call. No job, worker or import calls the API.
 - At most 2 calls per inbound request, each for up to 10 plans and 10 codes. Every process on
   the database shares one allowance in `cms_api_budget`: 1 call per second and 500 per UTC day.
@@ -35,9 +47,11 @@ its share gets `cms_api_request_cap`; the log row says `cms_api_client_share`.
 
 What it stores:
 
-- `cms_api_drug_coverage` and `cms_api_provider_coverage`, one row per plan and code, kept 7 days
-  (`DataNotProvided`: 1 day). An expired row is still served, marked `absorbed_stale`, for up to
-  30 days when no call is possible.
+- `cms_api_drug_coverage` and `cms_api_provider_coverage`, one row per plan and code. The initial
+  policies keep answers fresh for 7 days, or 1 day for `DataNotProvided`, with a 30-day stale
+  window. Operators control these intervals in `record_policy`. Freshness uses `expired_at`;
+  `expires_at` is a deprecated alias. An expired row can be served as `absorbed_stale` within
+  its policy window when no refresh succeeds.
 - Each row carries `sourced_by = 'cms-marketplace-api'`, `sourced_at` = the receipt's retrieval
   time and `sourced_slug` = the receipt's snapshot id. A foreign key to the receipt makes the
   database refuse a row whose labels disagree with it.
@@ -66,3 +80,18 @@ reason `cms_api_data_not_provided`.
 The key reaches the API only through fetch admission (`accessMode: "api-key"`, see
 `src/fetch/README.md`). Admission refuses the host when the key is unset. A response that
 contains the key is discarded.
+
+
+## Choose expiry before switching on
+
+Run `worker migrate`, then `worker record-policy list`. Set the two coverage policies before
+turning on the fallback, for example:
+
+```sh
+docker compose run --rm worker record-policy set cms_api_fallback --ttl '7 days' --stale '30 days'
+docker compose run --rm worker record-policy set cms_api_fallback_no_data --ttl '1 day' --stale '30 days'
+```
+
+Use `worker record-policy expire cms_api_fallback` to make the next eligible question refresh
+stored answers without deleting them. See [record expiry policies](../../../docs/record-policy.md)
+for cutoff timestamps, batch behavior and checks after an interrupted command.

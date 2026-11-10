@@ -2,7 +2,8 @@
 
 This module is a compatibility API for existing quoting integrations. It maps results from
 native OpenPlans repositories and domain functions to the keys, primitive types and nesting
-those integrations expect. It reads only native data and calls no outside API. Remove
+those integrations expect. Coverage can use the optional CMS Marketplace API fallback
+when the operator enables it. Remove
 the single mount line in `src/api/app.ts` and delete this directory and its tests
 to remove the facade. There are no new dependencies or native schema changes.
 
@@ -394,3 +395,39 @@ fields null and adds `variant_cost_sharing_unknown`; defaulted selection adds
 Existing deductible/MOOP text fields label network tiers, accumulator scopes and any integrated
 medical/drug accumulator. Service fields retain publisher conditions. The facade adds no new
 response fields. Gross premiums continue to use base-plan rates.
+
+## Optional quote coverage
+
+`OPENPLANS_CMS_FALLBACK_QUOTES=on` enables coverage checks in medical plan searches.
+It defaults to off and also requires `OPENPLANS_CMS_FALLBACK=on` and `CMS_API_KEY`.
+It spends the shared daily budget faster. Only the returned page is checked.
+All its plans and both coverage kinds share the existing two-call cap.
+
+Send `providers` as objects with an exact ten-digit `npi`. Send `drug_packages`
+with a package `id` and an explicit numeric-string `rx_cui_id` from local RxNorm.
+`med_id` can identify a response row but cannot identify a drug for a coverage
+check. No package-to-drug translation runs. A missing, unknown or suppressed
+RxCUI cannot open a call. Each list accepts at most five entries, with at most
+100 plan/code pairs on the returned page when this switch is enabled.
+
+Provider rows use the existing `plans[].providers[]` keys `npi`, `in_network` and
+`addresses`. Unknown participation is null, never false. Addresses stay empty
+because a CMS plan coverage flag does not establish office participation.
+Drug rows use the existing `coverages[]` keys `plan_id`, `drug_package_id`, `tier`,
+`prior_authorization`, `step_therapy` and `quantity_limit`. CMS does not publish
+these tiers or restrictions, so they stay null. An explicit negative answer may
+set `tier` to `not_covered`. `DataNotProvided` stays unknown.
+
+Each pair has an entry in `x-openplans-gaps` with this format:
+
+```text
+coverage:<plan>:<provider|drug>:<code>:<status>[:<reason>][:sourced_by=cms-marketplace-api:freshness=<fresh|stale|refetched>]
+```
+
+For drugs, `<code>` is the echoed package identifier. The status and reason use
+native coverage values. Source and freshness appear only for CMS-sourced cells.
+`fresh` means a stored unexpired answer, `stale` means a stored expired answer
+within its policy window, and `refetched` means a retrieval during this request.
+The header also reports `drug_coverage_flag_does_not_supply_tier` for drug requests.
+No source fields are added to the compatibility body. With the switch off,
+existing bodies and headers stay unchanged.

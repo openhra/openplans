@@ -8,7 +8,11 @@ const columns = new Set<string>(ROW_PROVENANCE_COLUMNS);
  */
 function documented(key: string, path: string[], url: string): boolean {
   // The CMS Marketplace API fallback labels its answers. See src/ingest/cms-api/README.md.
-  if (path.includes("cms_api")) return true;
+  if (
+    path.includes("cms_api") &&
+    ["sourced_by", "sourced_at", "sourced_slug"].includes(key)
+  )
+    return true;
   // The compatibility plan object lists `updated_at`, always null.
   const parent = path.filter((part) => part !== "*").at(-1);
   return (

@@ -5,6 +5,9 @@ import { compatKeyHeader, credentialMatches } from "./auth.js";
 import { providerCompatRoutes } from "./providers.js";
 import { dentalHouseholdOffering, mapDentalPlan } from "./dental.js";
 import { countyDisplayNames, stateName } from "./geography.js";
+import { compatQuoteCoverage } from "./coverage.js";
+import { quoteFallbackContext } from "../../services/quote-coverage.js";
+import { proxyList, requestSource } from "../../api/rate-limit.js";
 import { orderPlans, pageWindow } from "./search.js";
 import type { SqlSession } from "../../db/database.js";
 import type { ApiOptions } from "../../api/routes.js";
@@ -512,6 +515,30 @@ export function compatRoutes(db: SqlSession, options: ApiOptions = {}) {
           );
         }
         orderPlans(plans, body.sort as string | undefined);
+        const page = plans.slice(start, start + size);
+        const cms =
+          product === "medical" &&
+          (body.providers !== undefined || body.drug_packages !== undefined)
+            ? quoteFallbackContext(
+                db,
+                requestSource(
+                  c,
+                  options.trustedProxies ??
+                    proxyList(process.env.OPENPLANS_TRUST_PROXY),
+                  options.peerAddress,
+                ),
+              )
+            : undefined;
+        const coverages = cms
+          ? await compatQuoteCoverage(
+              db,
+              page,
+              body,
+              request.year,
+              cms,
+              reasons,
+            )
+          : [];
         gaps(c, reasons);
         return c.json(
           product === "medical"
@@ -526,9 +553,8 @@ export function compatRoutes(db: SqlSession, options: ApiOptions = {}) {
                       ? null
                       : subsidy.estimated_monthly_tax_credit_cents / 100,
                 },
-                plans: plans
-                  .slice(start, start + size)
-                  .map((plan) => planResponse(plan)),
+                coverages,
+                plans: page.map((plan) => planResponse(plan)),
               }
             : {
                 meta: { total: plans.length },

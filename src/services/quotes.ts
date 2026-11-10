@@ -8,8 +8,8 @@ import {
   variantExists,
 } from "../api/repository.js";
 import * as v from "../api/validation.js";
-import { providerParticipation } from "../domain/providers/repository.js";
-import { drugCoverage } from "../domain/drugs/repository.js";
+import { applyQuoteFallback, readQuoteCoverage } from "./quote-coverage.js";
+import type { CmsFallbackContext } from "../ingest/cms-api/fallback.js";
 import { dataAvailability } from "./availability.js";
 import { estimatePremium } from "./premiums.js";
 import { ReadError } from "./errors.js";
@@ -78,13 +78,13 @@ async function quotePlan(
   request: QuoteRequest,
   location: Location,
 ) {
-  const year = request.premium.year,
-    providers = [],
-    drugs = [];
-  for (const code of request.npis)
-    providers.push(await providerParticipation(db, requestedId, code, year));
-  for (const code of request.rxcuis)
-    drugs.push(await drugCoverage(db, requestedId, code, year));
+  const { providers, drugs } = await readQuoteCoverage(
+    db,
+    requestedId,
+    request.npis,
+    request.rxcuis,
+    request.premium.year,
+  );
   return {
     ...(await estimatePremium(
       db,
@@ -148,6 +148,7 @@ export async function quotePlans(
   db: SqlSession,
   body: unknown,
   tier: QuoteTier = "public_quote",
+  cms?: CmsFallbackContext,
 ) {
   const request = v.publicQuoteRequest(body);
   const { premium } = request;
@@ -184,7 +185,7 @@ export async function quotePlans(
       premium.year,
       selection.plans,
     ),
-    quotes,
+    quotes: await applyQuoteFallback(quotes, cms),
     page: request.page,
     page_size: pageSize,
     total: selection.total,

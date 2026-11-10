@@ -21,16 +21,13 @@ describe("API", () => {
   });
   afterAll(() => db.close());
 
-  it("checks the database and returns an empty manifest before ingestion", async () => {
+  it("returns an empty manifest before ingestion and imported values after, without turning missing evidence into coverage", async () => {
     const health = await app.request("/healthz");
     expect(health.status).toBe(200);
     expect(await health.json()).toEqual({ status: "ok", db: "ok" });
-    const availability = await app.request("/v1/data-availability");
-    expect(availability.status).toBe(200);
-    expect(await availability.json()).toEqual([]);
-  });
-
-  it("returns imported manifest values without turning missing evidence into coverage", async () => {
+    const empty = await app.request("/v1/data-availability");
+    expect(empty.status).toBe(200);
+    expect(await empty.json()).toEqual([]);
     // Synthetic manifest fixture; these rows do not represent an actual plan or issuer.
     await pg.exec(`
       INSERT INTO source (source_id, publisher, source_kind) VALUES ('synthetic', 'Synthetic publisher', 'synthetic');

@@ -1,4 +1,5 @@
 // CMS Marketplace API coverage fallback. Synthetic responses, synthetic key, no network.
+import type * as QuoteCoverage from "../../../src/services/quote-coverage.js";
 import { createHash } from "node:crypto";
 import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -164,6 +165,7 @@ beforeEach(async () => {
   reply = covered();
   await h.db.exec(
     `DELETE FROM cms_api_conflict; DELETE FROM cms_api_drug_coverage; DELETE FROM cms_api_provider_coverage; DELETE FROM cms_api_attempt;
+     UPDATE record_policy SET default_ttl=CASE name WHEN 'cms_api_fallback' THEN interval '7 days' ELSE interval '1 day' END,stale_window='30 days' WHERE name IN ('cms_api_fallback','cms_api_fallback_no_data');
      UPDATE cms_api_budget SET next_request_at='epoch',daily_requests=0,blocked_until='epoch',min_interval_ms=1000,
        max_daily_requests=500,failure_count=0,failure_window_start='epoch',half_open=false`,
   );
@@ -693,4 +695,219 @@ describe("CMS API coverage fallback", () => {
     vi.stubEnv("OPENPLANS_CMS_FALLBACK", "");
     expect(await cmsApiAvailability(h.db)).toBeNull();
   });
+});
+
+it("uses expired_at for fresh answers and the policy stale window for stale serving", async () => {
+  const first = await applyCmsFallback("drug", [answer()], context());
+  expect(first[0]!.cms_api!.served_from).toBe("live");
+  sent = [];
+  expect(
+    (
+      await applyCmsFallback("drug", [answer()], context({ writer: undefined }))
+    )[0]!.cms_api!.served_from,
+  ).toBe("absorbed");
+  expect(dataCalls()).toHaveLength(0);
+  await h.db.exec(
+    "UPDATE cms_api_drug_coverage SET expired_at=now()-interval '2 days'",
+  );
+  const stale = await applyCmsFallback(
+    "drug",
+    [answer()],
+    context({ writer: undefined }),
+  );
+  expect(stale[0]!.cms_api!.served_from).toBe("absorbed_stale");
+  await h.db.exec(
+    "UPDATE record_policy SET stale_window='1 day' WHERE name='cms_api_fallback'",
+  );
+  const expired = await applyCmsFallback(
+    "drug",
+    [answer()],
+    context({ writer: undefined }),
+  );
+  expect(expired[0]!.status).toBe("unknown");
+  expect(expired[0]!.cms_api).toBeUndefined();
+  await spacing();
+  const refreshed = await applyCmsFallback("drug", [answer()], context());
+  expect(
+    (
+      await h.db.query(
+        "SELECT outcome,failure_code,refusal_reason FROM cms_api_attempt ORDER BY attempt_id DESC LIMIT 1",
+      )
+    ).rows[0],
+  ).toEqual({ outcome: "absorbed", failure_code: null, refusal_reason: null });
+  expect(refreshed[0]!.cms_api!.served_from).toBe("live");
+  expect(dataCalls()).toHaveLength(1);
+  expect(refreshed[0]!.cms_api!.snapshot_id).not.toBe(
+    first[0]!.cms_api!.snapshot_id,
+  );
+});
+
+it("does not use the legacy expires_at field for freshness", async () => {
+  await applyCmsFallback("drug", [answer()], context());
+  // Planted legacy-alias mutant. The source of truth still forces a refetch.
+  await h.db
+    .exec(`UPDATE cms_api_drug_coverage SET expired_at=now()-interval '1 day';
+    ALTER TABLE cms_api_drug_coverage DISABLE TRIGGER zz_record_policy;
+    UPDATE cms_api_drug_coverage SET expires_at=now()+interval '100 days';
+    ALTER TABLE cms_api_drug_coverage ENABLE TRIGGER zz_record_policy;`);
+  sent = [];
+  await spacing();
+  const refreshed = await applyCmsFallback("drug", [answer()], context());
+  expect(dataCalls()).toHaveLength(1);
+  expect(
+    (
+      await h.db.query(
+        "SELECT outcome,failure_code,refusal_reason FROM cms_api_attempt ORDER BY attempt_id DESC LIMIT 1",
+      )
+    ).rows[0],
+  ).toEqual({ outcome: "absorbed", failure_code: null, refusal_reason: null });
+  expect(refreshed[0]!.cms_api!.served_from).toBe("live");
+});
+
+it("operator no-data TTL changes govern new answers without changing unknown to not covered", async () => {
+  await h.db.exec(
+    "UPDATE record_policy SET default_ttl='2 hours' WHERE name='cms_api_fallback_no_data'",
+  );
+  reply = covered("DataNotProvided");
+  const out = await applyCmsFallback("drug", [answer()], context());
+  expect(out[0]!.status).toBe("unknown");
+  expect(
+    (
+      await h.db
+        .query(`SELECT record_policy,record_ttl::text,expired_at=sourced_at+interval '2 hours' AS correct
+    FROM cms_api_drug_coverage`)
+    ).rows[0],
+  ).toEqual({
+    record_policy: "cms_api_fallback_no_data",
+    record_ttl: "02:00:00",
+    correct: true,
+  });
+});
+
+describe("quote fallback request contracts", () => {
+  beforeEach(() => vi.stubEnv("OPENPLANS_CMS_FALLBACK_QUOTES", "on"));
+
+  async function callContext() {
+    const ctx = context({ client: "synthetic-quote-client" });
+    const original = ctx.fetchOptions!.transport!;
+    ctx.fetchOptions!.transport = async (url, options) => {
+      await spacing();
+      return original(url, options);
+    };
+    return ctx;
+  }
+
+  async function capContract(module: typeof QuoteCoverage) {
+    const input = [2025, 2026, 2027].map((plan_year) => ({
+      providers: [],
+      drugs: [answer({ plan_year })],
+    }));
+    const out = await module.applyQuoteFallback(input, await callContext());
+    expect(dataCalls()).toHaveLength(2);
+    expect(out[2]!.drugs[0]).toMatchObject({
+      status: "unknown",
+      reason: "cms_api_request_cap",
+    });
+  }
+
+  async function officialContract(module: typeof QuoteCoverage) {
+    const other = "00010TX0000002";
+    const established = answer({ status: "listed_covered", reason: null });
+    // Synthetic matrix: one established cell surrounded by three eligible missing-source cells.
+    const input = [
+      { providers: [], drugs: [established, answer({ rxcui: "999997" })] },
+      {
+        providers: [],
+        drugs: [
+          answer({ requested_plan_id: other }),
+          answer({ requested_plan_id: other, rxcui: "999997" }),
+        ],
+      },
+    ];
+    const out = await module.applyQuoteFallback(input, await callContext());
+    expect(out[0]!.drugs[0]).toEqual(established);
+    expect(out[0]!.drugs[1]!.status).toBe("listed_covered");
+    expect(dataCalls().length).toBeGreaterThan(0);
+    for (const url of dataCalls()) {
+      const asksKnown =
+        url.searchParams.get("planids")!.split(",").includes(plan) &&
+        url.searchParams.get("drugs")!.split(",").includes(rx);
+      expect(asksKnown).toBe(false);
+    }
+  }
+
+  it("keeps the issuer file answer when quote coverage reads an established pair", async () => {
+    await h.replace(await fixture("drugs"));
+    await importFormulary(h.db, scope);
+    const module = await import("../../../src/services/quote-coverage.js");
+    const local = await module.readQuoteCoverage(h.db, plan, [], [rx], 2026);
+    expect(local.drugs[0]!.status).toBe("listed_covered");
+    const [out] = await module.applyQuoteFallback([local], await callContext());
+    expect(out).toEqual(local);
+    expect(dataCalls()).toEqual([]);
+  });
+
+  it("keeps officially answered cells out of batch cross-products", async () => {
+    await officialContract(
+      await import("../../../src/services/quote-coverage.js"),
+    );
+  });
+  it("keeps one call cap across all quote plans", async () => {
+    await capContract(await import("../../../src/services/quote-coverage.js"));
+  });
+
+  it.each(["official-first", "cap"])(
+    "negative control: rejects a %s source mutant",
+    async (kind) => {
+      const fallbackSource = new URL(
+        "../../../src/ingest/cms-api/fallback.ts",
+        import.meta.url,
+      );
+      const fallbackMutant = new URL(
+        `../../../src/ingest/cms-api/.fallback-mutant-quote-${kind}.ts`,
+        import.meta.url,
+      );
+      const quoteSource = new URL(
+        "../../../src/services/quote-coverage.ts",
+        import.meta.url,
+      );
+      const quoteMutant = new URL(
+        `../../../src/services/.quote-coverage-mutant-${kind}.ts`,
+        import.meta.url,
+      );
+      let source = await readFile(fallbackSource, "utf8");
+      if (kind === "cap") {
+        expect(source).toContain("if (context.remaining <= 0)");
+        source = source.replace("if (context.remaining <= 0)", "if (false)");
+      } else {
+        // Expand an eligible batch to include all IDs for those plans, including settled pairs.
+        expect(source).toContain(
+          "const refused = await liveCall(context, writer!, kind, year, plans, ids);",
+        );
+        source = source.replace(
+          "const refused = await liveCall(context, writer!, kind, year, plans, ids);",
+          "const refused = await liveCall(context, writer!, kind, year, plans, [...new Set(answers.filter(a => plans.includes(parse_hios(a.requested_plan_id).base)).map(a => identityOf(kind, a)))]);",
+        );
+      }
+      await writeFile(fallbackMutant, source);
+      await writeFile(
+        quoteMutant,
+        (await readFile(quoteSource, "utf8")).replaceAll(
+          "../ingest/cms-api/fallback.js",
+          `../ingest/cms-api/.fallback-mutant-quote-${kind}.js`,
+        ),
+      );
+      try {
+        const mutant = (await import(
+          /* @vite-ignore */ quoteMutant.href
+        )) as typeof QuoteCoverage;
+        await expect(
+          kind === "cap" ? capContract(mutant) : officialContract(mutant),
+        ).rejects.toThrow();
+      } finally {
+        await rm(fallbackMutant, { force: true });
+        await rm(quoteMutant, { force: true });
+      }
+    },
+  );
 });

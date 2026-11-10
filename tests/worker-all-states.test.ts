@@ -52,10 +52,27 @@ it.each([[], ["--state", "TX"]])(
       planYear: 2026,
     });
     expect(await runWorker(["ingest", "geo", ...flags], () => db, log)).toBe(0);
+    expect(migrate).toHaveBeenCalledWith(db, "synthetic-migrations");
     expect(ingestGeo).toHaveBeenCalledWith(db, { state: "TX", planYear: 2026 });
+    expect(JSON.parse(log.out.mock.calls[0]![0]).state).toBe("TX");
+    expect(log.error).not.toHaveBeenCalled();
     expect(db.close).toHaveBeenCalledOnce();
   },
 );
+
+it("hides raw source and driver errors from a single-state geo import", async () => {
+  const db = database(),
+    log = output();
+  vi.mocked(ingestGeo).mockRejectedValue(
+    new Error("synthetic private driver details"),
+  );
+  expect(await runWorker(["ingest", "geo"], () => db, log)).toBe(1);
+  expect(log.out).not.toHaveBeenCalled();
+  expect(log.error).toHaveBeenCalledWith(
+    "Geography TX PY2026 failed; previous import preserved",
+  );
+  expect(db.close).toHaveBeenCalledOnce();
+});
 
 it.each(["AK", "FL", "NY"])(
   "dispatches explicit state %s and year through runGeo",
@@ -112,6 +129,8 @@ it("discovers geo batch states from the publication, continues past failures and
 it.each([
   ["--state", "AK", "--all-states"],
   ["--state", "XX"],
+  ["--state"],
+  ["extra"],
   ["--year", "2028"],
   ["--all-states", "--all-states"],
 ])("rejects invalid geo arguments before connecting: %j", async (...flags) => {
@@ -119,8 +138,29 @@ it.each([
     log = output();
   expect(await runWorker(["ingest", "geo", ...flags], open, log)).toBe(1);
   expect(open).not.toHaveBeenCalled();
-  expect(log.error).toHaveBeenCalledWith(expect.stringContaining("Usage:"));
+  expect(log.error).toHaveBeenCalledWith(
+    "Usage: worker ingest geo [--year 2026|2027] [--state XX | --all-states]",
+  );
 });
+
+it.each([["--state", "TX"], ["--year", "2026"], ["--all-states"]])(
+  "rejects %j on the national GeoNames source before connecting",
+  async (...extra) => {
+    const open = vi.fn(),
+      log = output();
+    expect(
+      await runWorker(
+        ["ingest", "geo", "--source", "geonames", ...extra],
+        open,
+        log,
+      ),
+    ).toBe(1);
+    expect(open).not.toHaveBeenCalled();
+    expect(log.error).toHaveBeenCalledWith(
+      "Usage: worker ingest geo --source geonames",
+    );
+  },
+);
 
 it("dispatches all-state PUF import, returning failure when any state failed", async () => {
   const db = database(),

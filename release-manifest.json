@@ -16,8 +16,8 @@
     {
       "path": ".env.example",
       "mode": "100644",
-      "size": 4051,
-      "sha256": "2d30838838ba5999576646edb284844a9c9113b77e976ee09b20e9307fa73eae"
+      "size": 4116,
+      "sha256": "a2ce640f205435f846a0e4d83cdd61d53c107b08c8c4ade7e9ec613b0a0138a7"
     },
     {
       "path": ".github/check-required.mjs",
@@ -142,8 +142,8 @@
     {
       "path": "compose.yml",
       "mode": "100644",
-      "size": 5849,
-      "sha256": "f12f57daf31be8e56bb3eaf37606a06ce9e61933fb4190c348410036c04795eb"
+      "size": 6021,
+      "sha256": "65dcc989ec47b4c0112298b8a37bd485b3ed9679c66ac817609ec9156f0671c1"
     },
     {
       "path": "data/access/README.md",
@@ -278,16 +278,22 @@
       "sha256": "f42373046a72724de81fd2e3670db48eed6ca49458de21438161fc67b2855bb3"
     },
     {
+      "path": "docs/record-policy.md",
+      "mode": "100644",
+      "size": 6228,
+      "sha256": "27670f6272e556a6866d65ba87622b55b5ff4cacdfaffacc1466a9f1c811173f"
+    },
+    {
       "path": "docs/row-provenance.md",
       "mode": "100644",
-      "size": 4876,
-      "sha256": "9045eef11a244df2fae98cb2e43aea1cda10a38220a2e77aecf77586e98e6d35"
+      "size": 5153,
+      "sha256": "099a594f57ebd2c9174a020cfe2db6eb62c4ad7d119eec8714ad007a3f5a7e63"
     },
     {
       "path": "docs/self-host.md",
       "mode": "100644",
-      "size": 31378,
-      "sha256": "f3832e24081e68d02f794a8e74aa046434b7c8057b34385fa74a40535dd2ad99"
+      "size": 31957,
+      "sha256": "6780194577baef015c35f5be0b4255e01f936ea13d9bb96f4905b30abc09bd11"
     },
     {
       "path": "docs/usage.md",
@@ -662,16 +668,22 @@
       "sha256": "0951733c024ed4da89219b3dd2f48c8a30d4097ab3c94e81e7d14df1f373ebe0"
     },
     {
+      "path": "migrations/992_record_policy.sql",
+      "mode": "100644",
+      "size": 8878,
+      "sha256": "8d5a4b81cc2c26f6fc6b2ed612c7f8d51fa4636d1fc12325e02ff068169c555b"
+    },
+    {
       "path": "package-lock.json",
       "mode": "100644",
       "size": 111804,
-      "sha256": "7c82addfd97ac7f0d05f711e10a130f4346f0c7db74e2e422902289aaea73c30"
+      "sha256": "1d7dee57ce4d9738036e369a871db1e6707e370ec19f9a3ffcf515f5df85e224"
     },
     {
       "path": "package.json",
       "mode": "100644",
       "size": 1891,
-      "sha256": "15b411fcf574d16d8bcb01223ecfcd1fde419a187a0e249fd4f287556c38838f"
+      "sha256": "492cf99473e823c4deefc6d1b959036c897529cdb58aec174e766a4011fe528a"
     },
     {
       "path": "scripts/check-extraction.mjs",
@@ -756,12 +768,6 @@
       "mode": "100644",
       "size": 9559,
       "sha256": "0a1fe1829f048fc4f4d64a33c5124b8a63e355d9e01a954b3ea1e6fd4eeefe32"
-    },
-    {
-      "path": "scripts/name-prose-check.mjs",
-      "mode": "100644",
-      "size": 1891,
-      "sha256": "470c3122f476efe9a352044f3243998194f4ea63cc18ca22266165d5b9561f5d"
     },
     {
       "path": "scripts/negative-controls.sh",
@@ -1012,8 +1018,8 @@
     {
       "path": "src/api/README.md",
       "mode": "100644",
-      "size": 26670,
-      "sha256": "3f93ef09b2aa49df00203caf32538344494eeaa8570014bb0086a191ab6bd3e2"
+      "size": 27635,
+      "sha256": "4f479d9972b103c1d98c32be4b774c1d6dc2bc606983415bd45e1442c36f4399"
     },
     {
       "path": "src/api/app.ts",
@@ -1120,8 +1126,8 @@
     {
       "path": "src/api/quotes.ts",
       "mode": "100644",
-      "size": 6819,
-      "sha256": "1149e5d33a3bb320c6bbcfb9e5f3a96f6e23527ddbbbd201e5d5782fe860f300"
+      "size": 7268,
+      "sha256": "097c0935fb3a917e2a0a0ede1268f0e7df9deb7c5f74ac1157ba4057e391a204"
     },
     {
       "path": "src/api/rate-limit.ts",
@@ -1132,8 +1138,8 @@
     {
       "path": "src/api/repository.ts",
       "mode": "100644",
-      "size": 33832,
-      "sha256": "3ab659cc5d62a4926558486893a0bc0f5b3b3a657418c8f4470732327cf2e4d3"
+      "size": 33998,
+      "sha256": "7281acefadd53df5cfbad01dc2659c64328820ac962c0202e87e70c44e46ea5e"
     },
     {
       "path": "src/api/routes.ts",
@@ -1162,14 +1168,20 @@
     {
       "path": "src/compat/v1/README.md",
       "mode": "100644",
-      "size": 25328,
-      "sha256": "af636784a9508d2ae586f2f18d84c81969181931f9896b121eb12830fa53dad5"
+      "size": 27449,
+      "sha256": "eabcfb521aa5cac149a58bd990a669206ab0236727fbfee69d3f8e574b896355"
     },
     {
       "path": "src/compat/v1/auth.ts",
       "mode": "100644",
       "size": 866,
       "sha256": "dfa6e8cc8632fb5e93347c36697396a0b69fb8d94cf50da4bcbb5527aadcd805"
+    },
+    {
+      "path": "src/compat/v1/coverage.ts",
+      "mode": "100644",
+      "size": 3891,
+      "sha256": "bc4955afe732f01997ee79b269f9046549a34c1021d437a321bdeaca3d7b5832"
     },
     {
       "path": "src/compat/v1/dental.ts",
@@ -1186,8 +1198,8 @@
     {
       "path": "src/compat/v1/index.ts",
       "mode": "100644",
-      "size": 29854,
-      "sha256": "3add53240149803e23a7f6807a08a5ada130a29eca3cf95ad6100cfe9680bf8e"
+      "size": 30740,
+      "sha256": "55554d2636c251b2333d423c827d436cacdf8c0f95d07d1172669ae9c9aeee86"
     },
     {
       "path": "src/compat/v1/mapping.ts",
@@ -1228,14 +1240,14 @@
     {
       "path": "src/db/migrate.ts",
       "mode": "100644",
-      "size": 3148,
-      "sha256": "b87981d86e9b7d3a707ab869883c227614166d8be951f12801bbea5bde273083"
+      "size": 3403,
+      "sha256": "200456fd80aaaaa1785b432cdb25d3088b375e5b3d114e215a5de5b551306928"
     },
     {
       "path": "src/db/row-provenance.ts",
       "mode": "100644",
-      "size": 3087,
-      "sha256": "89284d1aa43dba58900806083850e1940e5a33a182e8fbad86f844c3daa15d4d"
+      "size": 3155,
+      "sha256": "6a8cef661d7e47a66eccafe95c31b3903ad8a18115970dc3983ebcd1737ec1c4"
     },
     {
       "path": "src/db/scope.ts",
@@ -1348,8 +1360,8 @@
     {
       "path": "src/domain/medicare/money.ts",
       "mode": "100644",
-      "size": 1329,
-      "sha256": "72df3cae101e4bffed908e8377f1878123a2592dd1b6f3d85678bc0637609480"
+      "size": 1211,
+      "sha256": "e48fd5c08f9fa16de233c3b0b895ba50264b4e3cd7a086329d71cbdf42dc3378"
     },
     {
       "path": "src/domain/medicare/stars.ts",
@@ -1463,7 +1475,7 @@
       "path": "src/fetch/README.md",
       "mode": "100644",
       "size": 19688,
-      "sha256": "714a45803f3f435cdcc100ee7499b238b26e025bc68410926e0238cac6065676"
+      "sha256": "e3f19fb0847f620b4794971c7d7acc1197a8ea5bdc57831b34ddffa6ac5f2556"
     },
     {
       "path": "src/fetch/admission.ts",
@@ -1480,8 +1492,8 @@
     {
       "path": "src/fetch/cache.ts",
       "mode": "100644",
-      "size": 39784,
-      "sha256": "9eacddc25d67c1db41c3721f28e808d16419ddafe206ce532a1d0d74692aa1b1"
+      "size": 39848,
+      "sha256": "86a3e967bf508da8f55fd1bdde28337a2f6d10a89e3e6ecbd9695ff57c42e991"
     },
     {
       "path": "src/fetch/egress.ts",
@@ -1540,8 +1552,8 @@
     {
       "path": "src/ingest/cms-api/README.md",
       "mode": "100644",
-      "size": 4404,
-      "sha256": "c47cabd1a562fd280aae1697758aacb85b9db41c15061b26b54afb4d89690ff0"
+      "size": 6140,
+      "sha256": "b6ad403438adad277c9b1ce7c12ae6c322ba18f1f759f92811d78299d20a720e"
     },
     {
       "path": "src/ingest/cms-api/export.ts",
@@ -1552,8 +1564,8 @@
     {
       "path": "src/ingest/cms-api/fallback.ts",
       "mode": "100644",
-      "size": 26372,
-      "sha256": "79b4c80d4cfec1a6a0ec6d2542e924a08da31ca9f71cd61fc93588040a02b573"
+      "size": 27126,
+      "sha256": "bb3c7296aaf8d993962a131529ad5276a3df6de24cd45619990b9fd08cc96188"
     },
     {
       "path": "src/ingest/csv/index.ts",
@@ -1858,8 +1870,8 @@
     {
       "path": "src/ingest/medicare/release.ts",
       "mode": "100644",
-      "size": 6401,
-      "sha256": "8b028c81e3cd040f813ca3885dc4d639f37a5009bd507f893835ac250df17cd4"
+      "size": 6033,
+      "sha256": "ddc28db2204ffd2bd09878e70cf08b803d5ec317f145b88c94e1edddec252da7"
     },
     {
       "path": "src/ingest/medicare/sources.ts",
@@ -1870,8 +1882,8 @@
     {
       "path": "src/ingest/medicare/spuf.ts",
       "mode": "100644",
-      "size": 19996,
-      "sha256": "d567a4cb4d20bb95e089cd1b2fc15542a013087f998de0c00210a1e6614a8329"
+      "size": 19848,
+      "sha256": "459f7ccd35f5704f16fc7a9ed2cb0fae47e03d7b3e47ec0f1ee274c1d5091b27"
     },
     {
       "path": "src/ingest/medicare/stars.ts",
@@ -2039,7 +2051,7 @@
       "path": "src/ingest/qhp/discover-diagnose.ts",
       "mode": "100644",
       "size": 7715,
-      "sha256": "05010cc1036a4477fe4e9c651e957268c3095a4afc1e8411dffa39ac0338c524"
+      "sha256": "d02038948a416dbd722f4f9a6c95e03ff6ec6612cef069b0a92fccc56cc6166d"
     },
     {
       "path": "src/ingest/qhp/discover-pglite.ts",
@@ -2357,7 +2369,7 @@
       "path": "src/ingest/state/reflective.py",
       "mode": "100644",
       "size": 11147,
-      "sha256": "3c864ab72a2adb2cb216ad452f97b67f13a11c5e5287235c25bc0554c3e95638"
+      "sha256": "463560ce12981dfce8d456c432bf957aa4fa35ef35923e621270b61aa351e8f1"
     },
     {
       "path": "src/ingest/state/reflective.ts",
@@ -2534,10 +2546,16 @@
       "sha256": "7b85566f2d7269fc67fbee8333f41df555fdfec21d9e146313a4bd2090b481ed"
     },
     {
+      "path": "src/services/quote-coverage.ts",
+      "mode": "100644",
+      "size": 2588,
+      "sha256": "646c07f01994f125ddd4e3de1494dace31d56017aa4e93f9460a5ddb47154c4e"
+    },
+    {
       "path": "src/services/quotes.ts",
       "mode": "100644",
-      "size": 5961,
-      "sha256": "53be22f8cfb96e487e393e9fc93135e85547c804b9fe24ae04270a463104faa9"
+      "size": 5903,
+      "sha256": "34ab45d0a858fa1adcd7d935b4ad65958cd68518ef28d865f21a1d8b6971d0b9"
     },
     {
       "path": "src/services/subsidies.ts",
@@ -2560,8 +2578,8 @@
     {
       "path": "src/worker/commands.ts",
       "mode": "100644",
-      "size": 7492,
-      "sha256": "c5475114b238b8e8b0d052e4fe95adf3fbdaafabe3ae22f2eb83f8d9b7b8e38e"
+      "size": 7742,
+      "sha256": "dc5719c2f85c189628e28f56fc6e49134d9bbf5eaadd9fde2297fc5d2f1aeadd"
     },
     {
       "path": "src/worker/database-error.ts",
@@ -2576,10 +2594,16 @@
       "sha256": "02bc309ea154101adc985773a981c01e37d9db50b6dac234123c03e8ad1965e0"
     },
     {
+      "path": "src/worker/record-policy.ts",
+      "mode": "100644",
+      "size": 4604,
+      "sha256": "25b605b6192f92a038d1bee6f99a3938a3b32989c479ed8bb73b0c45bcef5b00"
+    },
+    {
       "path": "tests/api.test.ts",
       "mode": "100644",
-      "size": 3734,
-      "sha256": "275f705f5ad9a5840bbcb8ddbae4a43f767f3020db647b027c443cd0447deeed"
+      "size": 3654,
+      "sha256": "9b5cf0b208b9a6c0b1bff5e60101dd9c47cee78fdd4051355811bb4f1dd41f45"
     },
     {
       "path": "tests/api/__snapshots__/ichra.test.ts.snap",
@@ -2734,8 +2758,8 @@
     {
       "path": "tests/api/ichra.test.ts",
       "mode": "100644",
-      "size": 12185,
-      "sha256": "8919be3f423ba2013b02cbbb291154d32a1e47554ff6db4c1b0c10d5a831c552"
+      "size": 11445,
+      "sha256": "3058f92f42c406d226c028b22ac728e3c83b7760392aa169019644598435583e"
     },
     {
       "path": "tests/api/medicare-drug-names.test.ts",
@@ -2758,8 +2782,8 @@
     {
       "path": "tests/api/open-access.test.ts",
       "mode": "100644",
-      "size": 13007,
-      "sha256": "5442a743b9dec92280bb3fb5b23dae7c191138e10fd3962b388421701b36cf90"
+      "size": 13307,
+      "sha256": "6da428aa1ac642d3b73005fca5e905687d9c29c58cf4ee12d9d3347c44c4c968"
     },
     {
       "path": "tests/api/plan-view-columns.test.ts",
@@ -2812,8 +2836,8 @@
     {
       "path": "tests/api/quotes.test.ts",
       "mode": "100644",
-      "size": 18508,
-      "sha256": "0e464cf1ef43d4f974a5c416873effefb4f1cfb2a2bd530c75ed6634e7ed528c"
+      "size": 18779,
+      "sha256": "5fa54aa5c7d50fa8db1dade467d5cc6cb038c0ccf6bd51857fdfc3ca5d833e37"
     },
     {
       "path": "tests/api/realdata.mjs",
@@ -3138,6 +3162,12 @@
       "mode": "100644",
       "size": 29106,
       "sha256": "02bc925d712087838f12aae8aeb2f7701047aa48266654d5384d2d0eed8de9d8"
+    },
+    {
+      "path": "tests/compat/v1/quote-fallback.test.ts",
+      "mode": "100644",
+      "size": 14240,
+      "sha256": "8003aa8c968c9a349be435f75cf43b46e033a04790f7f2228346d66f841f397b"
     },
     {
       "path": "tests/compat/v1/refresh.test.ts",
@@ -4648,8 +4678,8 @@
     {
       "path": "tests/ingest/cms-api/fallback.test.ts",
       "mode": "100644",
-      "size": 25389,
-      "sha256": "1ac5dec4111682225c5250641481d61ad83e35c7d28a1967816e6fa797e15c92"
+      "size": 33803,
+      "sha256": "5243e5a4248b5ff6a4419d8bd11327757bcb9934e9ac5d18796bfa7d2ca02310"
     },
     {
       "path": "tests/ingest/csv/csv.test.ts",
@@ -4667,13 +4697,13 @@
       "path": "tests/ingest/geo/fallback.test.ts",
       "mode": "100644",
       "size": 17758,
-      "sha256": "e38e81e5f652617a573ce43488be337b123acae9f6a580e6b4a459ce892dacfe"
+      "sha256": "7644e724a1257c9aa8255c4f9087e1b42f9ac08886aeaddb6e41571591047f17"
     },
     {
       "path": "tests/ingest/geo/geo.test.ts",
       "mode": "100644",
-      "size": 9616,
-      "sha256": "94763de57e4df30e25b95cd2f98dc91ab9db731a297186b68109c320a47cd923"
+      "size": 8951,
+      "sha256": "bb6e982146c7d43b1fcce7012bc375406197fe2549a99a876fd89cc0397fd8c4"
     },
     {
       "path": "tests/ingest/geo/helpers.ts",
@@ -4686,12 +4716,6 @@
       "mode": "100644",
       "size": 5630,
       "sha256": "4dc0c3d7b05fcb0060076b015849b21edb74aa5c977e2edb231450e1b09d9f60"
-    },
-    {
-      "path": "tests/ingest/geo/worker.test.ts",
-      "mode": "100644",
-      "size": 2897,
-      "sha256": "b7c63a2cd93d87fa836854ad1e10de618d458da38581c1b4bd328a136d507c8a"
     },
     {
       "path": "tests/ingest/geocode/census.test.ts",
@@ -4865,7 +4889,7 @@
       "path": "tests/ingest/qhp/discover.test.ts",
       "mode": "100644",
       "size": 23712,
-      "sha256": "c1bda503152cb2fce082a9f39e7cbbfdb7e40940f6d87f695e262494d8d6e3b5"
+      "sha256": "babfd3158cca2a580d01eb58d796f1b4f09e93b34343ee533f4a092f88adeb34"
     },
     {
       "path": "tests/ingest/qhp/enrichment.test.ts",
@@ -5150,6 +5174,12 @@
       "sha256": "86dba890ec3b332388628eb8eeb982437482fd87e4e8fc6c828b4fae932e8589"
     },
     {
+      "path": "tests/record-policy.test.ts",
+      "mode": "100644",
+      "size": 11195,
+      "sha256": "d112e22e540d88c039b720b3573c39b0f59856901aae8b13eccf0e3882dcd91e"
+    },
+    {
       "path": "tests/response-columns.setup.ts",
       "mode": "100644",
       "size": 493,
@@ -5158,26 +5188,26 @@
     {
       "path": "tests/response-columns.test.ts",
       "mode": "100644",
-      "size": 3705,
-      "sha256": "02b2156923f83f4a4fe17a0f121f171b2025bad723be83e4cce06e26e94932ea"
+      "size": 4251,
+      "sha256": "19895b60bab1e18fcb2b65b3b88a8d185a04012c6541db2396769b43febd25e0"
     },
     {
       "path": "tests/response-columns.ts",
       "mode": "100644",
-      "size": 2315,
-      "sha256": "4601119eb3e59e27d2390114b7f8036061e9a682dfba01aee66303733aaf1934"
+      "size": 2393,
+      "sha256": "20f79d43084d79dcbc224d83097c7cc5e6f175a13c9e5d249e193d3d316e3de2"
     },
     {
       "path": "tests/row-provenance.test.ts",
       "mode": "100644",
-      "size": 13993,
-      "sha256": "5fdf92dbbaeff7bb6cd7942f885156c78271935b5cfd8f81a3f813a88986239f"
+      "size": 14283,
+      "sha256": "77b6a1996bc53ba1fb7976febedb865734b9ab90ea020cd1e4a88240095a2912"
     },
     {
       "path": "tests/row-provenance.ts",
       "mode": "100644",
-      "size": 6679,
-      "sha256": "62016aab7fe684070f0932376a971f9d132238ea953788f3f41b68490202d3e9"
+      "size": 7240,
+      "sha256": "43c9318897d3d1587ef28222f90ceb803af805051a92be669cf2f725f7697fa0"
     },
     {
       "path": "tests/services/__snapshots__/consistency.test.ts.snap",
@@ -5260,8 +5290,8 @@
     {
       "path": "tests/worker-all-states.test.ts",
       "mode": "100644",
-      "size": 6120,
-      "sha256": "8d89143498cac82ac4c162ddad7e03e29fac111385ca1de19adc187e2226d46f"
+      "size": 7383,
+      "sha256": "3b0e4dcef63e3cfda0395f1dac36220f40fa7f8baa9f369bd7b4a111216eed3a"
     },
     {
       "path": "tests/worker-bootstrap-realdata.json",

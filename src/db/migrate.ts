@@ -78,6 +78,11 @@ export async function migrate(
       );
       if (installed[0]?.present)
         await tx.query("SELECT install_row_provenance_all()");
+      const { rows: policies } = await tx.query<{ present: boolean }>(
+        "SELECT to_regproc('install_record_policy_all') IS NOT NULL AS present",
+      );
+      if (policies[0]?.present)
+        await tx.query("SELECT install_record_policy_all()");
     }
     return pending.map((migration) => migration.name);
   });

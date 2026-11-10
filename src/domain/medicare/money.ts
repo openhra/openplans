@@ -26,7 +26,3 @@ export function parseMoney(value: string | undefined): MoneyCell {
   if (!Number.isSafeInteger(cents)) return { status: "unknown" };
   return { status: "value", cents: open || minus ? -cents : cents };
 }
-
-export function moneyCents(cell: MoneyCell): number | null {
-  return cell.status === "value" ? cell.cents : null;
-}

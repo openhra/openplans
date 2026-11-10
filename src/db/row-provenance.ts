@@ -1,7 +1,7 @@
 import type { SqlSession } from "./database.js";
 
 /**
- * The columns migration 990 adds to every table. They describe the database row, so API
+ * The internal columns migrations 990 and 992 add to every table. They describe the database row, so API
  * responses leave them out.
  */
 export const ROW_PROVENANCE_COLUMNS = [
@@ -10,6 +10,9 @@ export const ROW_PROVENANCE_COLUMNS = [
   "sourced_by",
   "sourced_at",
   "sourced_slug",
+  "record_policy",
+  "record_ttl",
+  "expired_at",
 ] as const;
 
 /** SQL for one table row as JSON without the row provenance columns. */

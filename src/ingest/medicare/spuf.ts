@@ -12,7 +12,7 @@ import {
   streamZipMember,
 } from "../../fetch/index.js";
 import type { SnapshotMetadata, ZipLimits } from "../../fetch/index.js";
-import { parseMoney, planKeyFromParts } from "../../domain/medicare/index.js";
+import { planKeyFromParts } from "../../domain/medicare/index.js";
 import { dataDirectory } from "./acquire.js";
 import type { AcquireContext } from "./acquire.js";
 import { insertRows } from "./release.js";
@@ -667,6 +667,3 @@ export async function importSpuf(
     throw error;
   }
 }
-
-/** Money cell of a SPUF amount (plain decimal dollars). */
-export const spufCents = (value: string | undefined) => parseMoney(value);

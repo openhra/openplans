@@ -82,18 +82,6 @@ describe("POST /v1/ichra/affordability", () => {
     expect(json.lcsp.basis_used).toBe("ehb_portion");
     expect(json.verdicts[0].affordable).toBe(true);
   });
-  it("answers without a token by default, and refuses when switched off (503) or with a wrong token (401)", async () => {
-    const open = await post(body(), { token: "", auth: "" });
-    expect(open.response.status).toBe(200);
-    expect(open.response.headers.get("cache-control")).toBe("no-store");
-    const off = await post(body(), { token: "", open: false });
-    expect(off.response.status).toBe(503);
-    expect(off.json).toEqual({ error: { code: "AUTH_NOT_CONFIGURED" } });
-    const wrong = await post(body(), { auth: "Bearer wrong" });
-    expect(wrong.response.status).toBe(401);
-    expect(wrong.json).toEqual({ error: { code: "UNAUTHORIZED" } });
-    expect(wrong.response.headers.get("cache-control")).toBe("no-store");
-  });
   it.each([
     [
       "bad plan start",
