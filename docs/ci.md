@@ -27,7 +27,7 @@ Require these exact check names when activating branch protection and release
 validation:
 
 - `OpenPlans / Linux`, Ubuntu 24.04, clean install and offline project checks.
-- `OpenPlans / macOS`, macOS 14, the same commands.
+- `OpenPlans / macOS`, macOS 15 on Intel x64, the same commands.
 - `OpenPlans / Docker Linux`, Ubuntu 24.04, Docker build and compiled entry check.
 - `OpenPlans / required`, checks every prerequisite result, even after failure.
 

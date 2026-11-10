@@ -85,7 +85,9 @@ function commandContract(value) {
   for (const [id, name] of Object.entries(requiredJobs)) {
     const job = value.jobs[id];
     expect(job.name).toBe(name);
-    expect(job["runs-on"]).toBe(id === "macos" ? "macos-15" : "ubuntu-24.04");
+    expect(job["runs-on"]).toBe(
+      id === "macos" ? "macos-15-intel" : "ubuntu-24.04",
+    );
     expect(retiredRunnerLabels).not.toContain(job["runs-on"]);
     expect(job.if).toBeUndefined();
     expect(job.needs).toBeUndefined();

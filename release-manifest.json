@@ -34,8 +34,8 @@
     {
       "path": ".github/workflows/ci.yml",
       "mode": "100644",
-      "size": 4193,
-      "sha256": "4bbaec845a8ea24f1d6e23fe7108a0b8f827e13f5d91f773b2cdb694cf8b26f2"
+      "size": 4199,
+      "sha256": "fa1c743bf97dbd5e989e21d4b2ea65c4195b0f01e0f0222701374b963d73c5d4"
     },
     {
       "path": ".gitignore",
@@ -226,8 +226,8 @@
     {
       "path": "docs/ci.md",
       "mode": "100644",
-      "size": 2228,
-      "sha256": "93e7edc5113fde9ad1ece22c80e7b32a780b9c51ecff65687cc95d4c922740fc"
+      "size": 2241,
+      "sha256": "41de952fd268f75957c015637e8909f0464933da591b8a93f978248e3e280cbf"
     },
     {
       "path": "docs/development-tools.md",
@@ -2362,8 +2362,8 @@
     {
       "path": "tests/ci-contract.test.mjs",
       "mode": "100644",
-      "size": 10965,
-      "sha256": "a4506d0549d56f8d841dd0abcee253947bc8a4fedb1bcfe709e7c8fa23aceefb"
+      "size": 10984,
+      "sha256": "303005549b9971a77a703d851f41f30ef546f5928256c21a2c04ab40a479f028"
     },
     {
       "path": "tests/compat/v1/auth.test.ts",
