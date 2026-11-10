@@ -4,7 +4,7 @@ import { createMcpHttp } from "../../src/mcp/http.js";
 import { boundedDatabase, dependencies } from "../../src/mcp/policy.js";
 import type { SqlSession } from "../../src/db/database.js";
 import { cursorCodec } from "../../src/mcp/cursor.js";
-import { metadata, post } from "./transport-helpers.js";
+import { listedToolNames, metadata, post } from "./transport-helpers.js";
 import { expectCorsHeaders } from "./cors-helpers.js";
 
 const quiet = () => {};
@@ -142,18 +142,21 @@ describe("MCP boundary security", () => {
       }
     },
   );
-  it("valid MCP token exposes estimates, but unset token never grants access", async () => {
+  it("valid MCP token exposes household quotes; with no token they are open unless switched off", async () => {
     const app = setup({ OPENPLANS_MCP_TOKEN: "synthetic-mcp-token" });
-    const response = await app.fetch(
-      post("tools/list", {}, { authorization: "Bearer synthetic-mcp-token" }),
-    );
-    const listed = JSON.stringify(await response.json());
-    for (const name of ["quote_premiums", "quote_plans"])
+    const listed = await listedToolNames(app, {
+      authorization: "Bearer synthetic-mcp-token",
+    });
+    for (const name of [
+      "quote_premiums",
+      "quote_plans",
+      "check_ichra_affordability",
+    ])
       expect(listed).toContain(name);
     expect(listed).not.toContain("estimate_premiums");
     expect(
       await status(
-        setup(),
+        setup({ OPENPLANS_PUBLIC_HOUSEHOLD: "off" }),
         post(
           "tools/call",
           { name: "quote_premiums", arguments: {} },
@@ -161,6 +164,12 @@ describe("MCP boundary security", () => {
         ),
       ),
     ).toBe(401);
+    expect(
+      await status(
+        setup(),
+        post("tools/call", { name: "quote_premiums", arguments: {} }),
+      ),
+    ).toBe(200);
   });
   it.each([false, true])(
     "limits requests per source (authenticated=%s)",

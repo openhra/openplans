@@ -50,6 +50,40 @@ outpatient_ambulatory_care_center prenatal_care postnatal_care estimated_actuari
 essential_health_benefits_percentage abortion_rider plan_coinsurance inpatient_birth_physician
 infertility_treatment_rider telemedicine standardized_plan quoted_via_carrier_api network_size updated_at type`;
 
+const yesNo = (value: string | undefined) =>
+  (({ Yes: true, No: false }) as Record<string, boolean>)[
+    value?.trim() ?? ""
+  ] ?? null;
+
+/** Issuer-reported AV cells are published as percentages, e.g. "70.04%". */
+const percent = (value: string | undefined) => {
+  const match = /^(\d{1,3}(?:\.\d+)?)%$/.exec(value?.trim() ?? "");
+  return match ? Number(match[1]) : null;
+};
+
+/** EHBPercentTotalPremium is a fraction ("0.9609"); shift the decimal point without float error. */
+const fractionAsPercent = (value: string | undefined) => {
+  // State publications print the same share as a percentage ("99%").
+  if (value?.trim().endsWith("%")) {
+    const share = percent(value);
+    return share !== null && share <= 100 ? share : null;
+  }
+  const match = /^(\d+)(?:\.(\d+))?$/.exec(value?.trim() ?? "");
+  if (!match) return null;
+  const fraction = (match[2] ?? "").padEnd(2, "0");
+  const result = Number(
+    `${match[1]}${fraction.slice(0, 2)}.${fraction.slice(2) || "0"}`,
+  );
+  return result <= 100 ? result : null;
+};
+
+/** DesignType names a standardized plan option design ("Design 1"); "Not Applicable" means none. */
+const standardizedDesign = (value: string | undefined) => {
+  const design = value?.trim() ?? "";
+  if (/^Design \d+$/.test(design)) return true;
+  return design === "Not Applicable" ? false : null;
+};
+
 /** Exact conversions from one published variant row; never borrow another plan's URL. */
 export function mapPlanColumns(
   raw: PublishedPlanAttributes | undefined,
@@ -92,15 +126,48 @@ export function mapPlanColumns(
       return null;
     }
   };
-  const hsa = raw.IsHSAEligible?.trim();
   return {
     plan_type: raw.PlanType?.trim() || null,
-    hsa_eligible:
-      ({ Yes: true, No: false } as Record<string, boolean>)[hsa ?? ""] ?? null,
+    hsa_eligible: yesNo(raw.IsHSAEligible),
+    gated: yesNo(raw.IsReferralRequiredForSpecialist),
+    sbc_name: raw.PlanVariantMarketingName?.trim() || null,
+    actuarial_value: percent(raw.IssuerActuarialValue),
     effective_date: date(raw.PlanEffectiveDate),
     expiration_date: date(raw.PlanExpirationDate),
     drug_formulary_url: url(raw.FormularyURL),
+    // The issuer's own published document links, never a re-hosted copy.
+    benefits_summary_url: url(raw.URLForSummaryofBenefitsCoverage),
+    plan_documents: [
+      [
+        "summary_of_benefits_and_coverage",
+        url(raw.URLForSummaryofBenefitsCoverage),
+      ],
+      ["plan_brochure", url(raw.PlanBrochure)],
+    ]
+      .filter(([, link]) => link !== null)
+      .map(([type, link]) => ({ type, url: link })),
+    standardized_plan: standardizedDesign(raw.DesignType),
+    essential_health_benefits_percentage: fractionAsPercent(
+      raw.EHBPercentTotalPremium,
+    ),
+    plan_calendar: calendarYear(
+      raw.PlanEffectiveDate,
+      raw.PlanExpirationDate,
+      year,
+    ),
   };
+}
+
+/** A plan year that starts on January 1 and ends on December 31 of the business year. */
+function calendarYear(
+  effective: string | undefined,
+  expiration: string | undefined,
+  year: number,
+) {
+  return effective?.trim() === `1/1/${year}` &&
+    expiration?.trim() === `12/31/${year}`
+    ? "calendar_year"
+    : null;
 }
 
 export function mapPlan(
@@ -116,8 +183,26 @@ export function mapPlan(
     ? (names.find((n) => typeof n === "string" && n.length > 0) ?? null)
     : null;
   const stateFiled = "plan_key" in view;
-  const on = typeof view.on_exchange === "boolean" ? view.on_exchange : null;
-  const off = typeof view.off_exchange === "boolean" ? view.off_exchange : null;
+  // A state filing without metal or exchange cells uses the matched CMS state PUF row.
+  const supplemental =
+    "supplemental_plan" in view ? view.supplemental_plan : undefined;
+  const metal =
+    view.metal === "unknown" && supplemental ? supplemental.metal : view.metal;
+  const on =
+    typeof view.on_exchange === "boolean"
+      ? view.on_exchange
+      : (supplemental?.on_exchange ?? null);
+  const off =
+    typeof view.off_exchange === "boolean"
+      ? view.off_exchange
+      : (supplemental?.off_exchange ?? null);
+  const columns = mapPlanColumns(
+    view.cost_sharing[federalAttributes] ??
+      view.cost_sharing.published_attributes,
+    view.cost_sharing.selected_variant_id,
+    view.plan_year,
+    view.state,
+  );
   function marketplaceAvailability() {
     if (on === null || off === null) {
       return null;
@@ -135,13 +220,7 @@ export function mapPlan(
     ...Object.fromEntries(
       unknownPlanFields.split(/\s+/).map((key) => [key, null]),
     ),
-    ...mapPlanColumns(
-      view.cost_sharing[federalAttributes] ??
-        view.cost_sharing.published_attributes,
-      view.cost_sharing.selected_variant_id,
-      view.plan_year,
-      view.state,
-    ),
+    ...columns,
     id: requestedId,
     name: view.plan_name,
     display_name: view.plan_name,
@@ -154,7 +233,7 @@ export function mapPlan(
       name,
       logo_url: null,
     },
-    level: view.metal.toLowerCase().replaceAll(" ", "_"),
+    level: metal.toLowerCase().replaceAll(" ", "_"),
     on_market: on,
     off_market: off,
     plan_market: marketplaceAvailability(),
@@ -171,7 +250,7 @@ export function mapPlan(
               value: stateFiled ? view.base_plan_id : requestedId,
             },
           ],
-    plan_documents: [],
+    plan_documents: columns.plan_documents ?? [],
     ...(stateFiled
       ? {
           plan_key: view.plan_key,
@@ -187,29 +266,65 @@ export function mapPlan(
             : {}),
         }
       : {}),
-    networks: view.network.records.map((n) => ({
-      id: null,
-      name: n.network_name,
-      provider_directory_url: n.network_url ?? null,
-    })),
-    network_ids: [],
-    plan_ancestors: [],
+    // A blank NetworkURL cell publishes no directory, so the key is omitted, not "".
+    networks: view.network.records.map((n) => {
+      const directory =
+        typeof n.network_url === "string" ? n.network_url.trim() : "";
+      return {
+        id: cmsNetworkId(
+          view.issuer.issuer_id,
+          view.plan_year,
+          n.network_id,
+          view.market,
+        ),
+        name: n.network_name,
+        ...(directory ? { provider_directory_url: directory } : {}),
+      };
+    }),
+    network_ids: view.network.records.flatMap(
+      (n) =>
+        cmsNetworkId(
+          view.issuer.issuer_id,
+          view.plan_year,
+          n.network_id,
+          view.market,
+        ) ?? [],
+    ),
+    plan_ancestors:
+      "lineage" in view
+        ? view.lineage.ancestors.map((a) => ({ id: a.id, year: a.year }))
+        : [],
     ratings: [],
     providers: [],
   };
+}
+
+/**
+ * CMS network IDs (e.g. "TXN001") are unique only per issuer, year and market, so the
+ * served ID carries that scope, like service_area_id.
+ */
+export function cmsNetworkId(
+  issuerId: unknown,
+  year: number,
+  networkId: unknown,
+  market: string,
+): string | null {
+  if (typeof networkId !== "string" || !networkId) return null;
+  return `${String(issuerId)}-${year}-${networkId}-${market.toLowerCase().replaceAll(" ", "_")}`;
 }
 
 export function mapQuote(
   estimate: Estimate,
   requestedMembers: readonly HouseholdMember[] = [],
 ): Record<string, unknown> {
-  const unallocatedNyTier =
+  // NY and VT filings publish contract-tier totals, not per-member prices.
+  const unallocatedStateTier =
     "state" in estimate &&
-    estimate.state === "NY" &&
+    (estimate.state === "NY" || estimate.state === "VT") &&
     "quote_method" in estimate &&
     estimate.quote_method === "state_filed_tier" &&
     estimate.members.length === 0;
-  const applicants = unallocatedNyTier
+  const applicants = unallocatedStateTier
     ? requestedMembers.map((member) => ({
         age: member.age ?? null,
         child: member.relationship === "child",
@@ -260,6 +375,7 @@ export const PLAN_GAPS = [
   "plan_metadata_and_benefit_summaries_unmapped",
   "vendor_network_ids_unavailable",
   "carrier_ids_are_cms_issuer_ids",
+  "network_ids_are_cms_network_ids",
 ];
 
 export interface NativeBenefit {
@@ -268,7 +384,8 @@ export interface NativeBenefit {
   cost_sharing_raw: Record<string, string>;
   raw: Record<string, string>;
 }
-const benefitFields: Record<string, string> = {
+// Each wire field reads the named Benefits and Cost Sharing PUF row(s) of the variant.
+const benefitFields: Record<string, string | readonly string[]> = {
   primary_care_physician: "Primary Care Visit to Treat an Injury or Illness",
   specialist: "Specialist Visit",
   emergency_room: "Emergency Room Services",
@@ -289,6 +406,8 @@ const benefitFields: Record<string, string> = {
   inpatient_substance: "Substance Abuse Disorder Inpatient Services",
   outpatient_facility:
     "Outpatient Facility Fee (e.g., Ambulatory Surgery Center)",
+  outpatient_ambulatory_care_center:
+    "Outpatient Facility Fee (e.g., Ambulatory Surgery Center)",
   outpatient_physician: "Outpatient Surgery Physician/Surgical Services",
   outpatient_mental_health: "Mental/Behavioral Health Outpatient Services",
   outpatient_substance: "Substance Abuse Disorder Outpatient Services",
@@ -299,6 +418,18 @@ const benefitFields: Record<string, string> = {
   hospice_service: "Hospice Services",
   durable_medical_equipment: "Durable Medical Equipment",
   prenatal_postnatal_care: "Prenatal and Postnatal Care",
+  // One published row covers both prenatal and postnatal care.
+  prenatal_care: "Prenatal and Postnatal Care",
+  postnatal_care: "Prenatal and Postnatal Care",
+  // Issuers spell these optional rows differently; conflicting rows stay unknown.
+  nonpreferred_generic_drug_share: [
+    "Non-Preferred Generic",
+    "Non-Preferred Generic Drugs",
+  ],
+  nonpreferred_specialty_drug_share: [
+    "Non-Preferred Specialty Drugs",
+    "Non Preferred Specialty Drugs",
+  ],
   child_eye_exam: "Routine Eye Exam for Children",
   child_eyewear: "Eye Glasses for Children",
   child_dental: "Dental Check-Up for Children",
@@ -401,37 +532,96 @@ function benefitText(benefit: NativeBenefit): string | null {
   return summary + (conditions.length ? ` | ${conditions.join(" | ")}` : "");
 }
 /** Map only the selected variant's published service rows. */
+/** Opt-in compact rendering (owner policy pending); verbose text stays the default. */
+export interface BenefitTextOptions {
+  compact?: boolean;
+}
 export function mapVariantBenefits(
   benefits: NativeBenefit[],
   variant: string,
+  options: BenefitTextOptions = {},
 ): Record<string, unknown> {
   const rows = benefits.filter((row) => row.published_plan_id === variant),
     mapped: Record<string, unknown> = {};
   for (const [field, name] of Object.entries(benefitFields)) {
+    const names: readonly string[] = typeof name === "string" ? [name] : name;
     const values = rows
-      .filter((row) => row.benefit_name === name)
-      .map(benefitText);
+      .filter((row) => names.includes(row.benefit_name))
+      .map(options.compact ? compactBenefitText : benefitText);
     if (values.length && new Set(values).size === 1) mapped[field] = values[0];
   }
-  const chiro = rows
-    .filter((row) => row.benefit_name === "Chiropractic Care")
-    .map((row) => benefitCells(row.raw)?.IsCovered);
-  if (chiro.length && new Set(chiro).size === 1)
-    mapped.chiropractic_services =
-      (
-        { Yes: true, Covered: true, No: false, "Not Covered": false } as Record<
-          string,
-          boolean
-        >
-      )[chiro[0] ?? ""] ?? null;
+  const outOfNetwork = outOfNetworkCoverage(rows);
+  if (outOfNetwork) mapped.out_of_network_coverage = outOfNetwork;
+  for (const [field, name] of Object.entries(coverageFlags)) {
+    const covered = rows
+      .filter((row) => row.benefit_name === name)
+      .map((row) => benefitCells(row.raw)?.IsCovered);
+    if (covered.length && new Set(covered).size === 1)
+      mapped[field] = coveredFlag[covered[0] ?? ""] ?? null;
+  }
   return mapped;
 }
 
+// Office visits show out-of-network network design; emergency rows do not, because
+// emergency cost sharing follows in-network rules regardless of network.
+const outOfNetworkVisitRows = [
+  "Primary Care Visit to Treat an Injury or Illness",
+  "Specialist Visit",
+];
+/**
+ * True when a covered office-visit row publishes an out-of-network cost below 100%.
+ * A 100% coinsurance or "Not Applicable" cell is not evidence that coverage is absent,
+ * so the field is never set to false.
+ */
+function outOfNetworkCoverage(rows: NativeBenefit[]) {
+  const pays = (row: NativeBenefit) => {
+    const copay = row.cost_sharing_raw.CopayOutofNet?.trim() ?? "",
+      coins = row.cost_sharing_raw.CoinsOutofNet?.trim() ?? "";
+    const share = /^(\d{1,3}(?:\.\d+)?)%/.exec(coins);
+    if (share !== null && Number(share[1]) >= 100) return false;
+    return (
+      /^(?:\$\d|No Charge)/.test(copay) ||
+      share !== null ||
+      /^No Charge/.test(coins)
+    );
+  };
+  return rows.some(
+    (row) =>
+      outOfNetworkVisitRows.includes(row.benefit_name) &&
+      ["Yes", "Covered"].includes(benefitCells(row.raw)?.IsCovered ?? "") &&
+      pays(row),
+  )
+    ? true
+    : null;
+}
+
+// Boolean wire fields read the IsCovered cell of one named Benefits PUF row.
+const coverageFlags: Record<string, string> = {
+  chiropractic_services: "Chiropractic Care",
+  adult_dental: "Routine Dental Services (Adult)",
+  infertility_treatment_rider: "Infertility Treatment",
+};
+const coveredFlag: Record<string, boolean> = {
+  Yes: true,
+  Covered: true,
+  No: false,
+  "Not Covered": false,
+};
+
+/** Medical and drug accumulator column prefixes; an integrated design files both under TEHB. */
+const accumulatorScopes = (integrated: boolean) =>
+  [
+    ["medical", integrated ? "TEHB" : "MEHB"],
+    ["drug", integrated ? "TEHB" : "DEHB"],
+  ] as const;
 /** Existing wire summary fields retain publisher text, including accumulator scope. */
 export function mapVariantAccumulators(
   sharing: View["cost_sharing"],
+  options: BenefitTextOptions = {},
 ): Record<string, unknown> {
   if (sharing.status !== "available") return {};
+  if (options.compact)
+    return { ...deductibleDesign(sharing), ...compactAccumulators(sharing) };
   const text = (group: "deductibles" | "moop", key: string) =>
     sharing[group][key]?.raw.trim() || null;
   const summary = (
@@ -449,16 +639,13 @@ export function mapVariantAccumulators(
       ? `Per person: ${person ?? "unknown"}; per group: ${total ?? "unknown"}`
       : text(group, `${key}Family${suffix}`);
   };
-  const result: Record<string, unknown> = {};
+  const result: Record<string, unknown> = deductibleDesign(sharing);
   for (const group of ["deductibles", "moop"] as const) {
     const integrated =
       (group === "deductibles"
         ? sharing.medical_drug_deductibles_integrated
         : sharing.medical_drug_moop_integrated) === "Yes";
-    for (const [scope, prefix] of [
-      ["medical", integrated ? "TEHB" : "MEHB"],
-      ["drug", integrated ? "TEHB" : "DEHB"],
-    ] as const) {
+    for (const [scope, prefix] of accumulatorScopes(integrated)) {
       for (const family of [false, true]) {
         const values = (
           [
@@ -481,6 +668,156 @@ export function mapVariantAccumulators(
           : null;
       }
     }
+  }
+  return result;
+}
+
+/** Whole-dollar or cent amounts such as "$1,500" or "$7500.00"; anything else is unknown. */
+function dollarCents(value: string | undefined) {
+  const match = /^\$(\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d{1,2}))?$/.exec(
+    value?.trim() ?? "",
+  );
+  return match
+    ? Number(match[1]!.replaceAll(",", "")) * 100 +
+        Number((match[2] ?? "").padEnd(2, "0"))
+    : null;
+}
+
+/**
+ * Family per-person and per-group amounts. Federal rows publish two cells; state
+ * publications combine them as "$1500 per person | $3000 per group".
+ */
+function familyAmounts(sharing: View["cost_sharing"], key: string) {
+  const combined =
+    /^(.+?) per person \| (.+?) per group$/.exec(
+      sharing.deductibles[`${key}Family`]?.raw.trim() ?? "",
+    ) ?? [];
+  const cell = (scope: string) =>
+    sharing.deductibles[`${key}Family${scope}`]?.raw
+      .trim()
+      .replace(/ per (?:person|group)$/, "");
+  return {
+    person: dollarCents(cell("PerPerson") ?? combined[1]),
+    group: dollarCents(cell("PerGroup") ?? combined[2]),
+  };
+}
+
+/**
+ * Tier 1 deductible design of the scope that applies (combined when the row says medical
+ * and drug deductibles are integrated). The family deductible is embedded when the row
+ * publishes a positive per-person amount below the per-group amount; a zero, missing or
+ * equal amount is not evidence either way. `plan_coinsurance` repeats the published
+ * in-network tier cells; the PUFs publish no out-of-network deductible coinsurance.
+ */
+function deductibleDesign(sharing: View["cost_sharing"]) {
+  const integrated = sharing.medical_drug_deductibles_integrated?.trim();
+  if (integrated !== "Yes" && integrated !== "No") return {};
+  const prefix = integrated === "Yes" ? "TEHB" : "MEHB";
+  const { person, group } = familyAmounts(sharing, `${prefix}DedInnTier1`);
+  const tier = (network: string) =>
+    sharing.coinsurance_raw[`${prefix}Ded${network}Coinsurance`]?.trim() ||
+    null;
+  const tier1 = tier("InnTier1"),
+    tier2 = tier("InnTier2");
+  return {
+    coinsurance: percent(tier1 ?? undefined),
+    plan_coinsurance: tier1
+      ? `In-Network: ${tier1}` + (tier2 ? ` / In-Network-Tier-2: ${tier2}` : "")
+      : null,
+    embedded_deductible:
+      person !== null && group !== null && person > 0 && person < group
+        ? "embedded"
+        : null,
+  };
+}
+
+/**
+ * Compact phrase for one published cost cell: "$50.00 Copay after deductible" becomes
+ * "$50 after deductible", "40.00% Coinsurance after deductible" becomes "40% after
+ * deductible", "No Charge" becomes "$0". "Not Applicable" and blank cells are absent.
+ * Words the publisher wrote stay; nothing is inferred.
+ */
+function compactCell(value: string | undefined) {
+  const cell = value?.trim() ?? "";
+  if (!cell || /^(?:per (?:person|group) )?not applicable$/i.test(cell))
+    return null;
+  return cell
+    .replace(/^No Charge\b/, "$0")
+    .replace(
+      /\$(\d+(?:,\d{3})*)(?:\.(\d{2}))?/g,
+      (_, whole: string, cents) =>
+        `$${Number(whole.replaceAll(",", "")).toLocaleString("en-US")}` +
+        (cents && cents !== "00" ? `.${cents}` : ""),
+    )
+    .replace(/(\d+)\.(\d*?)0*%/g, (_, whole: string, fraction: string) =>
+      fraction ? `${whole}.${fraction}%` : `${whole}%`,
+    )
+    .replace(/ (?:Copay|Coinsurance)\b/g, "");
+}
+
+/** Tier 1 in-network or out-of-network phrase; tier 2 never stands in for tier 1. */
+function compactTier(
+  benefit: NativeBenefit,
+  copayKey: string,
+  coinsKey: string,
+) {
+  const parts = [
+    compactCell(benefit.cost_sharing_raw[copayKey]),
+    compactCell(benefit.cost_sharing_raw[coinsKey]),
+  ].filter((part): part is string => part !== null);
+  return parts.length ? parts.join(" plus ") : "Not Applicable";
+}
+
+/**
+ * "In-Network: $30 / Out-of-Network: 50% after deductible". An explicit "Not Covered"
+ * IsCovered cell is the only source of "Not Covered"; a 100% coinsurance cell renders
+ * as "100%". Only the quantity limit is kept from the row conditions.
+ */
+function compactBenefitText(benefit: NativeBenefit): string | null {
+  const raw = benefitCells(benefit.raw);
+  if (!raw) return null;
+  const limit = benefitConditions(raw).find((condition) =>
+    condition.startsWith("limit: "),
+  );
+  const suffix = limit ? ` | ${limit}` : "";
+  if (["No", "Not Covered"].includes(raw.IsCovered ?? ""))
+    return `In-Network: Not Covered / Out-of-Network: Not Covered${suffix}`;
+  const inside = compactTier(benefit, "CopayInnTier1", "CoinsInnTier1"),
+    outside = compactTier(benefit, "CopayOutofNet", "CoinsOutofNet");
+  if (inside === "Not Applicable" && outside === "Not Applicable") return null;
+  return `In-Network: ${inside} / Out-of-Network: ${outside}${suffix}`;
+}
+
+/** Individual cells, or the per-group family amount, of the tier 1 and out-of-network columns. */
+function compactAccumulators(sharing: View["cost_sharing"]) {
+  const result: Record<string, string | null> = {};
+  for (const group of ["deductibles", "moop"] as const) {
+    const integrated =
+      (group === "deductibles"
+        ? sharing.medical_drug_deductibles_integrated
+        : sharing.medical_drug_moop_integrated) === "Yes";
+    const suffix = group === "moop" ? "MOOP" : "";
+    for (const [scope, prefix] of accumulatorScopes(integrated))
+      for (const family of [false, true]) {
+        const cell = (network: string) => {
+          const key = `${prefix}${group === "deductibles" ? "Ded" : ""}${network}`;
+          const text = (name: string) =>
+            sharing[group][`${key}${name}${suffix}`]?.raw.trim() || undefined;
+          if (!family) return compactCell(text("Individual"));
+          const perGroup =
+            text("FamilyPerGroup") ??
+            /\| (.+) per group$/.exec(text("Family") ?? "")?.[1];
+          return compactCell(perGroup?.replace(/ per group$/, ""));
+        };
+        const inside = cell("InnTier1"),
+          outside = cell("OutOfNet");
+        result[
+          `${family ? "family" : "individual"}_${scope}_${group === "deductibles" ? "deductible" : "moop"}`
+        ] =
+          inside || outside
+            ? `In-Network: ${inside ?? "Not Applicable"} / Out-of-Network: ${outside ?? "Not Applicable"}`
+            : null;
+      }
   }
   return result;
 }

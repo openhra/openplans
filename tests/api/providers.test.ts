@@ -480,7 +480,7 @@ describe("provider API: record scope, distance and source evidence", () => {
   it("truncated shards and denied discovery cannot manufacture not_listed, and coverage is per issuer/year", async () => {
     const coverage = (
       await get("/v1/data-availability?state=TX&year=2026")
-    ).body.find((r: any) => r.issuer_id === "76589");
+    ).body.find((r: { issuer_id: string }) => r.issuer_id === "00010");
     expect(coverage).toMatchObject({
       provider_status: "available",
       provider_coverage: {
@@ -498,13 +498,13 @@ describe("provider API: record scope, distance and source evidence", () => {
     ).toBe("unknown");
     await h.db
       .exec(`INSERT INTO qhp_index(qhp_index_id,discovery_id,issuer_id,plan_year,state,registry_snapshot_id,registry_row,status,discovered_at)
-      VALUES ('synthetic-denied','synthetic-denied','76589',2026,'TX','registry',1,'access_denied',clock_timestamp())`);
+      VALUES ('synthetic-denied','synthetic-denied','00010',2026,'TX','registry',1,'access_denied',clock_timestamp())`);
     expect(
       (await get(`/v1/plans/${plan}/providers/${nearNpi}?year=2026`)).body,
     ).toMatchObject({ status: "unknown", reason: "source_access_denied" });
     expect(
       (await get("/v1/data-availability")).body.find(
-        (r: any) => r.issuer_id === "76589",
+        (r: { issuer_id: string }) => r.issuer_id === "00010",
       ).provider_coverage.status,
     ).toBe("access_denied");
   });

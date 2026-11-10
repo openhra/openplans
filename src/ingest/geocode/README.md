@@ -177,11 +177,15 @@ making a request. Existing pre-521 runs used geography responses; resume those w
 
 Requests default to Census `locations/addressbatch`, benchmark 4. The publisher limit remains
 10,000, with sequential submissions, one-second pacing and the existing error backoff. Matched
-coordinates are classified against independently acquired **2026 Census TIGERweb county polygons**
-(all 254 counties, WGS84), then checked against that county's bounding rectangle. This avoids a
-second publisher geography lookup for each point. Ohio, `(0,0)`, and a point outside every TX county
+coordinates are classified against the county outlines in the **Census 2024 cartographic boundary
+file** (`cb_2024_us_county_500k.zip` from www2.census.gov, every county in the 50 states and DC,
+NAD83 degrees), then checked against that county's bounding rectangle. This avoids a second
+publisher geography lookup for each point. Ohio, `(0,0)`, and a point outside every county of the
+run's state
 are rejected before publication without discarding valid sibling rows. `--geographies` selects `geographies/addressbatch` with vintage 4 instead;
-its returned county FIPS is the claim checked against the independent bounds. A missing publisher
+its returned county FIPS is the claim checked against the independent bounds. A returned code that
+the 2024 outlines do not have (Connecticut's former counties, replaced by planning regions) falls
+back to the outline that contains the point, labelled `point_in_county`. A missing publisher
 county is a structural failure that retains the pending batch. A coordinate outside that claimed county rejects only that row. Bounding rectangles alone do not prove
 polygon membership of a publisher-provided county claim. The exact raw county geometry and its
 SHA-256 are retained externally; results label `county_basis` and preserve the bounds snapshot.
@@ -246,25 +250,36 @@ a usable centroid, and adding that centroid later without a request. Structural 
 missing geography claims still retain the exact pending batch. Prior P3e reports remain intact.
 
 
-## FL and NC statewide runs
+## Statewide runs in every state
 
-The same queue now supports `TX`, `FL` and `NC`. Historical `geocode_tx_*` table names and
-`tx-cli.js` remain compatible with existing TX runs; a run now freezes its state as well as its
-request profile. Reusing a run ID with another state fails before submission. County snapshots
-are separate by state (254 TX, 67 FL, 100 NC counties), and every query, centroid fallback and
-publication audit uses the selected state. Migration 870 extends the bounds; 871 adds state
-keyset indexes for the larger shared address cache. Neither changes existing TX observations.
+The queue supports the 50 states and DC. Historical `geocode_tx_*` table names and `tx-cli.js`
+remain compatible with existing TX runs; a run freezes its state as well as its request profile.
+Reusing a run ID with another state fails before submission. Every query, centroid fallback and
+publication audit uses the selected state.
+
+County outlines come from one national file, downloaded once through fetch admission into
+`raw/census-county-outlines-2024/` and read by a small shapefile reader (`shapefile.ts`). Each
+state's outlines are checked against a hand-entered state extent plus 0.5 degrees and the state's
+county count in the 2024 file (`geocodeStates` in `counties.ts`). Alaska's Aleutians West outline
+crosses the antimeridian: its vertices east of 180 degrees are stored shifted by -360, and a query
+point east of 180 degrees is shifted the same way before the comparison. Stored result coordinates
+keep the longitude the geocoder returned.
+
+Migration 946 replaces the TX, FL and NC lists of migrations 870, 871 and 910 with all states, and
+checks county boxes and result points against the same per-state extents in the database. The next
+load replaces county rows that came from another outline source. Rows from the 2024 file stay
+frozen for resumed runs, and every result keeps its `bounds_snapshot_id`.
 
 ```sh
 # First import NPPES, ACTIVE issuer sets and geography for the selected state.
-node dist/worker/cli.js ingest geo --state FL --year 2026
-node dist/worker/cli.js ingest geo --state NC --year 2026
-node dist/ingest/geocode/tx-cli.js --state FL --run-id fl-20261108 --budget-minutes 100
-node dist/ingest/geocode/tx-cli.js --state NC --run-id nc-20261108 --budget-minutes 100
-# Resume with the same state/run ID. Report-only never changes the frozen selection.
-node dist/ingest/geocode/tx-cli.js --state NC --run-id nc-20261108 --report-only --http-check
+node dist/worker/cli.js ingest geo --state OH --year 2026
+node dist/ingest/geocode/tx-cli.js --state OH --run-id oh-20261110 --budget-minutes 100
+# Stop with Ctrl-C after the current atomic batch; resume with the same state and run ID.
+node dist/ingest/geocode/tx-cli.js --state OH --run-id oh-20261110 --budget-minutes 100
+# Report-only never changes the frozen selection. --max-batches N caps a trial run.
+node dist/ingest/geocode/tx-cli.js --state OH --run-id oh-20261110 --report-only
 # Bootstrap uses this bulk queue, including its row rejection and labelled fallback rules:
-node dist/worker/cli.js bootstrap --states FL,NC --years 2026 --with-geocode
+node dist/worker/cli.js bootstrap --states OH,AK --years 2026 --with-geocode
 ```
 
 The scoped single-county `worker ingest geocode` command and Harris developer runner retain

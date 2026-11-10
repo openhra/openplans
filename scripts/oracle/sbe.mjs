@@ -17,6 +17,12 @@ import { PGlite } from "@electric-sql/pglite";
 import { migrate } from "../../dist/db/migrate.js";
 import { importDataDirectory } from "../../dist/ingest/puf/import-source.js";
 import { cachedSbe, sbePublications } from "../../dist/ingest/sbe/source.js";
+import {
+  cachedGeorgiaAccess,
+  georgiaAccessSelectable,
+  georgiaQuoteRecovery,
+} from "../../dist/ingest/sbe/georgia.js";
+import { stateCatalogDigest } from "../../dist/ingest/puf/import-source.js";
 import { importSbe } from "../../dist/ingest/sbe/import.js";
 import { householdPremium } from "../../dist/domain/rating/index.js";
 import { storedRate } from "../../dist/api/premiums.js";
@@ -55,6 +61,50 @@ with zipfile.ZipFile(path) as z:
     out['rates'].append([count+1,row['PLAN ID'].strip(),row['RATING AREA ID'].strip(),date(row['RATE EFFECTIVE DATE']),date(row['RATE EXPIRATION']),row['TOBACCO'].strip(),age,'family_tier' if age=='Family Option' or any(v is not None for v in amounts[2:]) else 'per_member']+amounts)
   out['counts'][k]=count; out['members'][k]=member
   if k=='plan-attributes': out['base_ids']=sorted(bases)
+print(json.dumps(out,separators=(',',':')))
+`;
+// Georgia Access publishes six separate CSVs with CamelCase headers and "Tobaco".
+// Python's lenient csv reader does not share code with the importer. The oracle
+// re-splits each recovered row on '","' and compares it with the stored row.
+const georgiaPython = String.raw`
+import csv, json, sys, hashlib, decimal, re
+spec=json.loads(sys.argv[1])
+out={'counts':{},'base_ids':[],'rates':[],'members':{},'plan_scope':{},'recovered':{}}
+family=['Couple','PrimarySubscriberAndOneDependent','PrimarySubscriberAndTwoDependents','PrimarySubscriberAndThreeOrMoreDependents','CoupleAndOneDependent','CoupleAndTwoDependents','CoupleAndThreeOrMoreDependents']
+strict=re.compile(r'^(?:"(?:[^"]|"")*"|[^",]*)(?:,(?:"(?:[^"]|"")*"|[^",]*))*$')
+def cents(s):
+ if not s.strip(): return None
+ n=decimal.Decimal(s.strip())*100
+ assert n==n.to_integral_value() and n>=0
+ return int(n)
+for kind,path,sha in spec:
+ assert hashlib.sha256(open(path,'rb').read()).hexdigest()==sha
+ with open(path,newline='',encoding='utf-8-sig') as f:
+  reader=csv.reader(f); header=next(reader); count=0; bases=set()
+  for row in reader:
+   count+=1
+   if len(row)==len(header)+1 and row[-1]=='': row=row[:-1]
+   assert len(row)==len(header), (kind,count)
+   r=dict(zip(header,row))
+   if kind=='plan-attributes':
+    base=r['StandardComponentId'].strip(); bases.add(base)
+    scope=[r['MarketCoverage'].strip(),r['DentalOnlyPlan'].strip()]
+    assert base not in out['plan_scope'] or out['plan_scope'][base]==scope
+    out['plan_scope'][base]=scope
+   if kind=='rate':
+    amounts=[cents(r[k]) for k in ['IndividualRate','IndividualTobaccoRate']+family]
+    age=r['Age'].strip() or ('Family Option' if any(v is not None for v in amounts[2:]) else '')
+    out['rates'].append([count+1,r['PlanId'].strip(),r['RatingAreaId'].strip(),r['RateEffectiveDate'].strip(),r['RateExpirationDate'].strip(),r['Tobaco'].strip(),age,'family_tier' if age=='Family Option' or any(v is not None for v in amounts[2:]) else 'per_member']+amounts)
+  out['counts'][kind]=count; out['members'][kind]=path
+  if kind=='plan-attributes': out['base_ids']=sorted(bases)
+ if kind=='benefits-and-cost-sharing':
+  lines=open(path,encoding='utf-8-sig').read().split('\n')
+  for i,l in enumerate(lines[1:],2):
+   if not l or strict.match(l): continue
+   body=l[:-1] if l.endswith(',') else l
+   if body.startswith('"') and body.endswith('"'):
+    parts=body[1:-1].split('","')
+    if len(parts)==len(header): out['recovered'][str(i)]=dict(zip(header,parts))
 print(json.dumps(out,separators=(',',':')))
 `;
 const columns = [
@@ -129,268 +179,385 @@ try {
   for (const n of await readdir(join(project, "migrations")))
     if (n.endsWith(".sql") && n !== "002_postgis.sql")
       await cp(join(project, "migrations", n), join(directory, n));
-  const links = (await sbePublications(dataDir, false)).filter(
+  const published = await sbePublications(dataDir, false);
+  const links = published.filter(
     (l) => l.year === year && (!selected || selected.includes(l.state)),
   );
+  // Georgia Access's own files: only for a year CMS has not published for GA.
+  const recovery = georgiaQuoteRecovery();
+  if (
+    georgiaAccessSelectable(published, year) &&
+    (!selected || selected.includes("GA")) &&
+    year === 2027
+  )
+    links.push({ state: "GA", year, georgia: true });
   if (!links.length && year === 2026)
     throw new Error("No published SBE states selected");
   for (const link of links) {
     const report = {
       state: link.state,
       year,
-      source: "cms_sbe_puf",
+      source: link.georgia ? "georgia_access_puf" : "cms_sbe_puf",
       status: "FAIL",
       mismatches: 0,
     };
     let pg;
     try {
-      const files = await cachedSbe(link, dataDir);
-      const raw = spawnSync(
-        "python3",
-        ["-c", rawPython, files[0].path, files[0].sha256],
-        { encoding: "utf8", maxBuffer: 200 * 1024 ** 2 },
-      );
+      const files = link.georgia
+        ? await cachedGeorgiaAccess(dataDir, year, {
+            recoverUnescapedQuotes: recovery,
+          })
+        : await cachedSbe(link, dataDir);
+      const identity = link.georgia
+        ? stateCatalogDigest(files)
+        : files[0].sha256;
+      const raw = link.georgia
+        ? spawnSync(
+            "python3",
+            [
+              "-I",
+              "-c",
+              georgiaPython,
+              JSON.stringify(files.map((f) => [f.kind, f.path, f.sha256])),
+            ],
+            { encoding: "utf8", maxBuffer: 400 * 1024 ** 2 },
+          )
+        : spawnSync(
+            "python3",
+            ["-c", rawPython, files[0].path, files[0].sha256],
+            {
+              encoding: "utf8",
+              maxBuffer: 200 * 1024 ** 2,
+            },
+          );
       assert.equal(raw.status, 0, raw.stderr);
       const expected = JSON.parse(raw.stdout);
       if (mutant) expected.rates[0][8] = (expected.rates[0][8] ?? 0) + 1;
-      pg = new PGlite(join(dataDir, `sbe-pglite-${year}-${link.state}`));
-      const db = {
-        ...wrap(pg),
-        transaction: (run) => pg.transaction((tx) => run(wrap(tx))),
-        close: () => pg.close(),
-      };
-      await migrate(db, directory);
-      let catalog = (
-        await db.query(
-          `SELECT c.import_id FROM sbe_catalog c JOIN puf_import p USING(import_id) JOIN snapshot s ON s.snapshot_id=c.import_id
-        WHERE p.state=$1 AND p.plan_year=$2 AND c.bundle_sha256=$3 AND s.validation_state='ACTIVE' AND NOT EXISTS (SELECT 1 FROM issuer i WHERE i.snapshot_id=c.import_id||':plan-attributes' AND NOT EXISTS (SELECT 1 FROM sbe_issuer_status u WHERE u.import_id=c.import_id AND u.issuer_id=i.issuer_id)) ORDER BY p.started_at DESC LIMIT 1`,
-          [link.state, year, files[0].sha256],
-        )
-      ).rows[0];
-      if (!catalog || args.includes("--reload")) {
-        const imported = await importSbe(db, { ...link, dataDir, files });
-        assert.equal(
-          imported.passed,
-          true,
-          JSON.stringify(imported.checks.filter((c) => c.count)),
+      body: {
+        // Recovered Georgia rows never share a database with the default, held run.
+        pg = new PGlite(
+          join(
+            dataDir,
+            `sbe-pglite-${year}-${link.state}${link.georgia && recovery ? "-quote-recovery" : ""}`,
+          ),
         );
-        catalog = { import_id: imported.import_id };
-      }
-      const id = catalog.import_id;
-      const issuerCount = Number(
-        (
-          await db.query("SELECT count(*) n FROM issuer WHERE snapshot_id=$1", [
-            id + ":plan-attributes",
-          ])
-        ).rows[0].n,
-      );
-      assert.equal(
-        Number(
+        const db = {
+          ...wrap(pg),
+          transaction: (run) => pg.transaction((tx) => run(wrap(tx))),
+          close: () => pg.close(),
+        };
+        await migrate(db, directory);
+        let catalog = (
+          await db.query(
+            `SELECT c.import_id FROM sbe_catalog c JOIN puf_import p USING(import_id) JOIN snapshot s ON s.snapshot_id=c.import_id
+        WHERE p.state=$1 AND p.plan_year=$2 AND c.bundle_sha256=$3 AND s.validation_state='ACTIVE' AND NOT EXISTS (SELECT 1 FROM issuer i WHERE i.snapshot_id=c.import_id||':plan-attributes' AND NOT EXISTS (SELECT 1 FROM sbe_issuer_status u WHERE u.import_id=c.import_id AND u.issuer_id=i.issuer_id)) ORDER BY p.started_at DESC LIMIT 1`,
+            [link.state, year, identity],
+          )
+        ).rows[0];
+        if (!catalog || args.includes("--reload")) {
+          const imported = await importSbe(db, {
+            state: link.state,
+            year,
+            dataDir,
+            files,
+          });
+          if (link.georgia && !recovery) {
+            // Default: the publisher's unescaped quotes stop the benefits file, so
+            // the importer quarantines the catalog and it serves nothing.
+            const benefits = imported.files.find(
+              (f) => f.kind === "benefits-and-cost-sharing",
+            );
+            assert.equal(imported.passed, false);
+            assert.equal(imported.serving, false);
+            assert.equal(benefits.stored_rows, 0);
+            assert.equal(
+              imported.files.filter(
+                (f) =>
+                  f.kind !== "benefits-and-cost-sharing" &&
+                  f.stored_rows === expected.counts[f.kind],
+              ).length,
+              5,
+              "other five files load exactly",
+            );
+            Object.assign(report, {
+              status: "PASS",
+              catalog_status: "QUARANTINED",
+              reason: "publisher_csv_unescaped_quotes",
+              awaiting: `${"OPENPLANS_GA_QUOTE_RECOVERY"}=on (owner approval)`,
+              import_id: imported.import_id,
+              sha256: identity,
+              counts: expected.counts,
+              recoverable_rows: Object.keys(expected.recovered).length,
+              negative_control: "mutated_raw_rate_detected",
+            });
+            const mutatedRate = [...expected.rates[0]];
+            mutatedRate[8] = (mutatedRate[8] ?? 0) + 1;
+            assert.notDeepEqual(mutatedRate, expected.rates[0]);
+            break body;
+          }
+          assert.equal(
+            imported.passed,
+            true,
+            JSON.stringify(imported.checks.filter((c) => c.count)),
+          );
+          catalog = { import_id: imported.import_id };
+        }
+        const id = catalog.import_id;
+        const issuerCount = Number(
           (
             await db.query(
-              "SELECT count(*) n FROM sbe_issuer_status WHERE import_id=$1 AND reason='sbe_no_index_registry' AND drug_status='unknown' AND provider_status='unknown'",
-              [id],
+              "SELECT count(*) n FROM issuer WHERE snapshot_id=$1",
+              [id + ":plan-attributes"],
             )
           ).rows[0].n,
-        ),
-        issuerCount,
-        "issuer feed gaps recorded",
-      );
-      report.issuers = issuerCount;
-      const importFiles = (
-        await db.query(
-          "SELECT kind,snapshot_id FROM puf_import_file WHERE import_id=$1",
-          [id],
-        )
-      ).rows;
-      const snapshots = Object.fromEntries(
-        importFiles.map((f) => [f.kind, f.snapshot_id]),
-      );
-      for (const [kind, count] of Object.entries(expected.counts)) {
+        );
         assert.equal(
           Number(
             (
               await db.query(
-                `SELECT count(*) n FROM ${table[kind]} WHERE snapshot_id=$1`,
-                [snapshots[kind]],
+                "SELECT count(*) n FROM sbe_issuer_status WHERE import_id=$1 AND reason='sbe_no_index_registry' AND drug_status='unknown' AND provider_status='unknown'",
+                [id],
               )
             ).rows[0].n,
           ),
-          count,
-          `${kind} count`,
+          issuerCount,
+          "issuer feed gaps recorded",
         );
-      }
-      assert.deepEqual(
-        (
+        report.issuers = issuerCount;
+        const importFiles = (
           await db.query(
-            "SELECT base_plan_id FROM plan WHERE snapshot_id=$1 ORDER BY base_plan_id",
-            [snapshots["plan-attributes"]],
+            "SELECT kind,snapshot_id FROM puf_import_file WHERE import_id=$1",
+            [id],
           )
-        ).rows.map((r) => r.base_plan_id),
-        expected.base_ids,
-        "exact base plan set",
-      );
-      const stored = (
-        await db.query(
-          `SELECT *,effective_date::text effective_date,expiration_date::text expiration_date FROM rate WHERE snapshot_id=$1 ORDER BY source_row`,
-          [snapshots.rate],
-        )
-      ).rows;
-      assert.equal(stored.length, expected.rates.length);
-      const view = (row) =>
-        columns.map((key, index) =>
-          index >= 8 && row[key] !== null ? Number(row[key]) : row[key],
+        ).rows;
+        const snapshots = Object.fromEntries(
+          importFiles.map((f) => [f.kind, f.snapshot_id]),
         );
-      for (let i = 0; i < stored.length; i++)
+        for (const [kind, count] of Object.entries(expected.counts)) {
+          assert.equal(
+            Number(
+              (
+                await db.query(
+                  `SELECT count(*) n FROM ${table[kind]} WHERE snapshot_id=$1`,
+                  [snapshots[kind]],
+                )
+              ).rows[0].n,
+            ),
+            count,
+            `${kind} count`,
+          );
+        }
         assert.deepEqual(
-          view(stored[i]),
-          expected.rates[i],
-          `rate row ${i + 2}`,
+          (
+            await db.query(
+              "SELECT base_plan_id FROM plan WHERE snapshot_id=$1 ORDER BY base_plan_id",
+              [snapshots["plan-attributes"]],
+            )
+          ).rows.map((r) => r.base_plan_id),
+          expected.base_ids,
+          "exact base plan set",
         );
-      // Mutate one raw expectation by a cent. The exact same comparator must fail.
-      const mutatedRate = [...expected.rates[0]];
-      mutatedRate[8] = (mutatedRate[8] ?? 0) + 1;
-      assert.throws(() => assert.deepEqual(view(stored[0]), mutatedRate));
-      report.negative_control = "mutated_raw_rate_detected";
-      let singles = 0,
-        households = 0,
-        unsupportedGroups = 0,
-        separateScopeGroups = 0;
-      const groups = new Map();
-      for (const row of stored) {
-        const key = JSON.stringify([
-          row.base_plan_id,
-          row.rating_area_id,
-          row.effective_date,
-          row.expiration_date,
-          row.tobacco,
-        ]);
-        if (!groups.has(key)) groups.set(key, []);
-        groups.get(key).push(row);
-      }
-      for (const rows of groups.values()) {
-        const scope = expected.plan_scope[rows[0].base_plan_id];
-        if (scope[0] !== "Individual" || scope[1] === "Yes") {
-          separateScopeGroups++;
-          continue;
-        }
-        if (
-          rows.some((r) => r.rating_method !== "per_member") ||
-          !rules.has(link.state)
-        ) {
-          const result = householdPremium(
-            rows.map(storedRate),
-            rows[0].base_plan_id,
-            rows[0].rating_area_id,
-            {
-              coverageStartDate: rows[0].effective_date,
-              ratingMethod: "unsupported",
-              members: [
-                {
-                  id: "subscriber",
-                  age: 40,
-                  relationship: "subscriber",
-                  tobaccoUse: false,
-                },
-              ],
-            },
+        let recoveredChecked = 0,
+          unknownNames = 0;
+        if (link.georgia) {
+          const issues = new Set(
+            (
+              await db.query(
+                "SELECT source_record FROM quality_issue WHERE snapshot_id=$1 AND issue_code='csv_unescaped_quote_recovered'",
+                [snapshots["benefits-and-cost-sharing"]],
+              )
+            ).rows.map((r) => String(r.source_record)),
           );
-          assert.equal(result.status, "unsupported_rating_method");
-          assert.equal(result.totalCents, null);
-          unsupportedGroups++;
-          continue;
-        }
-        const parsed = rows.map(storedRate),
-          source = new Map(
-            rows.map((r) => [r.age_band, expected.rates[r.source_row - 2]]),
+          for (const [row, fields] of Object.entries(expected.recovered)) {
+            assert.ok(issues.has(row), `recovered row ${row} recorded`);
+            const stored = (
+              await db.query(
+                "SELECT raw FROM plan_benefit WHERE snapshot_id=$1 AND source_row=$2",
+                [snapshots["benefits-and-cost-sharing"], Number(row)],
+              )
+            ).rows[0];
+            for (const [key, value] of Object.entries(fields))
+              assert.equal(
+                stored.raw[key].trim(),
+                value.trim(),
+                `recovered row ${row} ${key}`,
+              );
+            recoveredChecked++;
+          }
+          unknownNames = Number(
+            (
+              await db.query(
+                "SELECT count(*) n FROM plan WHERE snapshot_id=$1 AND plan_name='unknown'",
+                [snapshots["plan-attributes"]],
+              )
+            ).rows[0].n,
           );
-        const first = rows[0];
-        for (const r of rows)
-          for (const tobaccoUse of [false, true]) {
-            let age;
-            if (r.age_band === "0-14") {
-              age = 0;
-            } else if (r.age_band === "64 and over") {
-              age = 64;
-            } else {
-              age = Number(r.age_band);
-            }
+        }
+        const stored = (
+          await db.query(
+            `SELECT *,effective_date::text effective_date,expiration_date::text expiration_date FROM rate WHERE snapshot_id=$1 ORDER BY source_row`,
+            [snapshots.rate],
+          )
+        ).rows;
+        assert.equal(stored.length, expected.rates.length);
+        const view = (row) =>
+          columns.map((key, index) =>
+            index >= 8 && row[key] !== null ? Number(row[key]) : row[key],
+          );
+        for (let i = 0; i < stored.length; i++)
+          assert.deepEqual(
+            view(stored[i]),
+            expected.rates[i],
+            `rate row ${i + 2}`,
+          );
+        // Mutate one raw expectation by a cent. The exact same comparator must fail.
+        const mutatedRate = [...expected.rates[0]];
+        mutatedRate[8] = (mutatedRate[8] ?? 0) + 1;
+        assert.throws(() => assert.deepEqual(view(stored[0]), mutatedRate));
+        report.negative_control = "mutated_raw_rate_detected";
+        let singles = 0,
+          households = 0,
+          unsupportedGroups = 0,
+          separateScopeGroups = 0;
+        const groups = new Map();
+        for (const row of stored) {
+          const key = JSON.stringify([
+            row.base_plan_id,
+            row.rating_area_id,
+            row.effective_date,
+            row.expiration_date,
+            row.tobacco,
+          ]);
+          if (!groups.has(key)) groups.set(key, []);
+          groups.get(key).push(row);
+        }
+        for (const rows of groups.values()) {
+          const scope = expected.plan_scope[rows[0].base_plan_id];
+          if (scope[0] !== "Individual" || scope[1] === "Yes") {
+            separateScopeGroups++;
+            continue;
+          }
+          if (
+            rows.some((r) => r.rating_method !== "per_member") ||
+            !rules.has(link.state)
+          ) {
             const result = householdPremium(
-              parsed,
-              r.base_plan_id,
-              r.rating_area_id,
+              rows.map(storedRate),
+              rows[0].base_plan_id,
+              rows[0].rating_area_id,
               {
-                coverageStartDate: r.effective_date,
-                ratingMethod: "per_member",
+                coverageStartDate: rows[0].effective_date,
+                ratingMethod: "unsupported",
                 members: [
                   {
                     id: "subscriber",
-                    age,
+                    age: 40,
                     relationship: "subscriber",
-                    tobaccoUse,
+                    tobaccoUse: false,
                   },
                 ],
               },
             );
-            const price = source.get(r.age_band)[tobaccoUse ? 9 : 8];
-            assert.equal(result.status, price === null ? "unknown" : "rated");
-            assert.equal(result.totalCents, price);
-            singles++;
+            assert.equal(result.status, "unsupported_rating_method");
+            assert.equal(result.totalCents, null);
+            unsupportedGroups++;
+            continue;
           }
-        const ages = [40, 38, 20, 17, 12, 8];
-        const result = householdPremium(
-          parsed,
-          first.base_plan_id,
-          first.rating_area_id,
-          {
-            coverageStartDate: first.effective_date,
-            ratingMethod: "per_member",
-            members: ages.map((age, at) => {
-              function householdRelationship() {
-                if (at === 0) {
-                  return "subscriber";
-                } else if (at === 1) {
-                  return "spouse";
-                } else {
-                  return "child";
-                }
+          const parsed = rows.map(storedRate),
+            source = new Map(
+              rows.map((r) => [r.age_band, expected.rates[r.source_row - 2]]),
+            );
+          const first = rows[0];
+          for (const r of rows)
+            for (const tobaccoUse of [false, true]) {
+              let age;
+              if (r.age_band === "0-14") {
+                age = 0;
+              } else if (r.age_band === "64 and over") {
+                age = 64;
+              } else {
+                age = Number(r.age_band);
               }
-              return {
-                id: String(at),
-                age,
-                relationship: householdRelationship(),
-                tobaccoUse: false,
-              };
-            }),
-          },
-        );
-        const prices = ages
-          .slice(0, 5)
-          .map(
-            (age) => source.get(age <= 14 ? "0-14" : String(age))?.[8] ?? null,
+              const result = householdPremium(
+                parsed,
+                r.base_plan_id,
+                r.rating_area_id,
+                {
+                  coverageStartDate: r.effective_date,
+                  ratingMethod: "per_member",
+                  members: [
+                    {
+                      id: "subscriber",
+                      age,
+                      relationship: "subscriber",
+                      tobaccoUse,
+                    },
+                  ],
+                },
+              );
+              const price = source.get(r.age_band)[tobaccoUse ? 9 : 8];
+              assert.equal(result.status, price === null ? "unknown" : "rated");
+              assert.equal(result.totalCents, price);
+              singles++;
+            }
+          const ages = [40, 38, 20, 17, 12, 8];
+          const result = householdPremium(
+            parsed,
+            first.base_plan_id,
+            first.rating_area_id,
+            {
+              coverageStartDate: first.effective_date,
+              ratingMethod: "per_member",
+              members: ages.map((age, at) => {
+                function householdRelationship() {
+                  if (at === 0) {
+                    return "subscriber";
+                  } else if (at === 1) {
+                    return "spouse";
+                  } else {
+                    return "child";
+                  }
+                }
+                return {
+                  id: String(at),
+                  age,
+                  relationship: householdRelationship(),
+                  tobaccoUse: false,
+                };
+              }),
+            },
           );
-        assert.equal(
-          result.status,
-          prices.some((p) => p === null) ? "unknown" : "rated",
-        );
-        assert.equal(
-          result.totalCents,
-          prices.some((p) => p === null)
-            ? null
-            : prices.reduce((a, b) => a + b, 0),
-        );
-        households++;
-      }
-      if (
-        link.state === "GA" &&
-        (await stat(join(dataDir, "reference", "cms.sqlite")).catch(() => null))
-      ) {
-        const referencePath = join(dataDir, "reference", "cms.sqlite");
-        const reference = spawnSync(
-          "python3",
-          [
-            "-c",
-            String.raw`
+          const prices = ages
+            .slice(0, 5)
+            .map(
+              (age) =>
+                source.get(age <= 14 ? "0-14" : String(age))?.[8] ?? null,
+            );
+          assert.equal(
+            result.status,
+            prices.some((p) => p === null) ? "unknown" : "rated",
+          );
+          assert.equal(
+            result.totalCents,
+            prices.some((p) => p === null)
+              ? null
+              : prices.reduce((a, b) => a + b, 0),
+          );
+          households++;
+        }
+        if (
+          link.state === "GA" &&
+          year === 2026 &&
+          (await stat(join(dataDir, "reference", "cms.sqlite")).catch(
+            () => null,
+          ))
+        ) {
+          const referencePath = join(dataDir, "reference", "cms.sqlite");
+          const reference = spawnSync(
+            "python3",
+            [
+              "-c",
+              String.raw`
 import sqlite3,json,sys,os
 p=sys.argv[1]; before=os.stat(p); db=sqlite3.connect('file:'+p+'?immutable=1',uri=True); db.execute('PRAGMA query_only=ON')
 ids=[r[0] for r in db.execute("SELECT DISTINCT substr(plan_id,1,14) FROM plan WHERE state_code='GA' AND business_year=2026 ORDER BY 1")]
@@ -398,36 +565,43 @@ db.close(); after=os.stat(p)
 assert (before.st_size,before.st_mtime_ns)==(after.st_size,after.st_mtime_ns)
 print(json.dumps(ids))
 `,
-            referencePath,
-          ],
-          { encoding: "utf8" },
-        );
-        assert.equal(reference.status, 0, reference.stderr);
-        assert.deepEqual(
-          expected.base_ids,
-          JSON.parse(reference.stdout),
-          "immutable GA reference plan set",
-        );
-        assert.equal(expected.base_ids.length, 249);
-        report.immutable_reference = {
-          plans: 249,
-          exact: true,
-          query_only: true,
-          unchanged: true,
-        };
+              referencePath,
+            ],
+            { encoding: "utf8" },
+          );
+          assert.equal(reference.status, 0, reference.stderr);
+          assert.deepEqual(
+            expected.base_ids,
+            JSON.parse(reference.stdout),
+            "immutable GA reference plan set",
+          );
+          assert.equal(expected.base_ids.length, 249);
+          report.immutable_reference = {
+            plans: 249,
+            exact: true,
+            query_only: true,
+            unchanged: true,
+          };
+        }
+        Object.assign(report, {
+          status: "PASS",
+          import_id: id,
+          sha256: identity,
+          counts: expected.counts,
+          base_plans: expected.base_ids.length,
+          rates_checked: stored.length,
+          single_member_comparisons: singles,
+          household_comparisons: households,
+          unsupported_medical_groups: unsupportedGroups,
+          dental_or_shop_groups_separate_scope: separateScopeGroups,
+          ...(link.georgia
+            ? {
+                recovered_rows_checked: recoveredChecked,
+                base_names_unknown: unknownNames,
+              }
+            : {}),
+        });
       }
-      Object.assign(report, {
-        status: "PASS",
-        import_id: id,
-        sha256: files[0].sha256,
-        counts: expected.counts,
-        base_plans: expected.base_ids.length,
-        rates_checked: stored.length,
-        single_member_comparisons: singles,
-        household_comparisons: households,
-        unsupported_medical_groups: unsupportedGroups,
-        dental_or_shop_groups_separate_scope: separateScopeGroups,
-      });
     } catch (e) {
       failed = true;
       report.error = String(e.message).slice(0, 2500);

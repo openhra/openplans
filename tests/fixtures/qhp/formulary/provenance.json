@@ -1,38 +1,23 @@
 {
-  "synthetic": false,
-  "lineage": [
-    {
-      "kind": "drugs",
-      "sha256": "af5f791fa5054825a5218156ebb1441a84851e52dc9a622aeb58d1e424cfde2b",
-      "url": "https://www.cigna.com/sites/json/drugs.json",
-      "source_record_indexes": [
-        1749,
-        1784,
-        2373
-      ]
+  "synthetic": true,
+  "notice": "Synthetic fixture. Every issuer, plan, NPI, RxCUI, name, address and phone number is invented and describes no real plan, provider or drug listing.",
+  "generator": "tests/fixtures/qhp/generate-issuer.mjs",
+  "files": {
+    "catalog.json": {
+      "synthetic": true,
+      "sha256": "f9eb3300118b8f108cb1b1d7ff094eaedac4d506fbc0c3174941bb05e6458281"
     },
-    {
-      "kind": "plan_definitions",
-      "sha256": "ee77e9179b632bb41f8cd50c581e7a8e7587586516f273a9dbcc9722a7884dfb",
-      "url": "https://www.cigna.com/sites/json/plans.json",
-      "projection": "plan_id, plan_id_type, years, formulary[].drug_tier; contact fields excluded"
+    "plans.json": {
+      "synthetic": true,
+      "sha256": "aaf886eebae0d44cfd9efed220c8d4201fd03abc54702d4dd67a77a84dd2da76"
     },
-    {
-      "kind": "catalog",
-      "snapshot_id": "puf-2026-TX-fd37dae9-e565-41d5-8495-b20acfe4ca71:plan-attributes",
-      "source": {
-        "sha256": "954e697885efcb709aed0be1de14075afe11704bf3447372960d08c879950af2",
-        "requested_url": "https://download.cms.gov/marketplace-puf/2026/plan-attributes-puf.zip"
-      }
+    "drugs.json": {
+      "synthetic": true,
+      "sha256": "30b038c7e11dfb0cdb178906eddeac1030c925a41ee32a55d59506e4ffc44c97"
     },
-    {
-      "kind": "rxnorm",
-      "snapshot_id": "rxnorm-2026-11-02-c742a6c4b2995194aa3479400e08a7c1ad707178bfc80fe9c8cd7afa693ae987",
-      "source": {
-        "sha256": "c742a6c4b2995194aa3479400e08a7c1ad707178bfc80fe9c8cd7afa693ae987",
-        "requested_url": "https://download.nlm.nih.gov/rxnorm/RxNorm_full_prescribe_11022026.zip"
-      }
+    "rxnorm.json": {
+      "synthetic": true,
+      "sha256": "c7e9e39570cde05be5333e761a655fe9cebce378a22b14f4debc0bb2092e8bc5"
     }
-  ],
-  "note": "Drugs retain all real TX and non-TX associations; indexes refer to original feed. Other files are stated projections."
+  }
 }

@@ -10,7 +10,8 @@ The production worker uses `DATABASE_URL` and runs the normal migrations. It rea
 only the newest `OPENPLANS_DATA_DIR/raw/cms-exchange-puf/manifest-*.json`, verifies
 each selected archive's SHA-256 and byte count against acquisition metadata, and
 streams its single CSV member. It never downloads. The observed 2026/2027 schema
-requires six catalog files; crosswalks and the XLSX MR URL file belong to later work.
+requires six catalog files; the XLSX MR URL file belongs to later work. The Plan ID
+Crosswalk PUF has its own command, described in the plan lineage section below.
 A changed archive layout or a missing critical column fails closed.
 
 Each invocation creates an immutable parent snapshot plus six file snapshots.
@@ -43,6 +44,14 @@ previous pointer and its ACTIVE snapshots remain unchanged. Earlier successful
 snapshots remain immutable historical ACTIVE evidence; the pointer defines which
 set is currently served. The importer writes JSON and Markdown reports under
 `OPENPLANS_DATA_DIR/reports/`.
+
+The importer stores rows of every market, including `SHOP (Small Group)` rows, and keeps the
+published value in each table's `market` column. Individual routes still filter on
+`Individual`. `puf_market_catalog` records which ACTIVE import serves each state, year and
+market. An import that publishes serves every market in its Plan Attributes rows. With
+`marketsWithoutPublish`, an import that holds only SHOP plans serves that market and leaves the
+individual pointer alone. `marketCatalogCensus(db, year, market?)` counts the stored base plans
+and variants per served market.
 
 PUF imports alone create `unsupported` state/year/market rules, including NY and VT.
 Separately ingest `data/rating-rules/2026.json` or `2027.json` for cited TX individual
@@ -136,3 +145,30 @@ Activate the cited state methods separately with
 rating-rules command intentionally retains the original TX PY2026 bootstrap;
 it replaces the active 2026 rule set with TX only. Use explicit year files after
 multi-state imports. The all-state oracle always selects these complete files.
+
+## Plan lineage from the Plan ID Crosswalk PUF
+
+```sh
+npm run worker -- ingest puf lineage --year 2026
+```
+
+The command reads the acquired `plan-id-crosswalk` archive named by the newest manifest and
+checks its SHA-256 and byte count. It stores every CSV row in `plan_lineage` as one immutable
+snapshot and keeps the original row in `raw`. The PY2026 file maps 2025 plan IDs to 2026
+plan IDs, county by county. CMS writes `00000XX0000000` when a row has no successor, and the
+importer stores that as `NULL`. Each plan ID must match its row's state and issuer columns.
+One rejected row, a missing column or a stored count that differs from the input count
+quarantines the snapshot. Otherwise the snapshot becomes ACTIVE and `plan_lineage_active`
+points the year at it. Reports go to `reports/puf-lineage-<year>-<UUID>.{json,md}`.
+
+`planLineage(db, planId, year, state)` returns the distinct prior-year IDs whose crosswalk
+rows name the plan, through every served year. A 2027 plan reaches both its 2026 and its
+2025 IDs. The function returns `unknown` when no served crosswalk covers the state, which is
+the case for state-based exchange states. It follows the primary crosswalk column only. The
+age-off and silver CSR destinations stay in their own columns and in `raw`.
+
+`scripts/oracle/lineage.mjs` imports both acquired years into a disposable database. It
+compares per-state row counts, the prior and successor ID sets, the pair set and every served
+ancestor chain with an independent stdlib parse in `lineage-reference.py`. A planted wrong
+prior-year ID must make that comparison fail. Offline tests use a real cut in
+`tests/fixtures/puf/lineage/`, which its `regenerate.py` rebuilds.

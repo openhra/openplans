@@ -14,7 +14,8 @@ cp package.json package-lock.json tsconfig*.json vitest.config.ts "$scratch/"
 # The copy runs the same format and lint gates, so it needs their configuration.
 cp .prettierignore .prettierrc.json .editorconfig eslint.config.mjs \
   eslint-baseline.json eslint-suppressions.json "$scratch/"
-cp -R src migrations scripts tests "$scratch/"
+# check-publisher-review.mjs reads the shipped manifests in data/access.
+cp -R src migrations scripts tests data "$scratch/"
 # Share only dependencies; the boundary checker deliberately rejects symlinks
 # outside the package except ignored generated node_modules.
 ln -s "$PWD/node_modules" "$scratch/node_modules"

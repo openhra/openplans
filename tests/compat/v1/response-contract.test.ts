@@ -283,3 +283,56 @@ it("uses verified retained Census labels outside loaded county rows and rejects 
     await rm(directory, { recursive: true, force: true });
   }
 });
+
+/** Unpublished flags stay null; a network without a published directory has no URL key.
+ * Federal plans carry no state filing keys. */
+function residualShapeContract(plan: Record<string, unknown>) {
+  assert.equal(plan.telemedicine, null);
+  assert.ok(Object.hasOwn(plan, "telemedicine"));
+  for (const network of plan.networks as Record<string, unknown>[]) {
+    assert.ok(Object.hasOwn(network, "name"));
+    if (Object.hasOwn(network, "provider_directory_url"))
+      assert.match(String(network.provider_directory_url), /^https?:\/\/\S+$/);
+  }
+  for (const key of ["plan_key", "hios_id", "hios_match"])
+    assert.ok(!Object.hasOwn(plan, key), key);
+}
+
+it("omits a blank network directory from the wire plan", async () => {
+  const { body } = await search();
+  residualShapeContract(body.plans[0]);
+  const view = (await (
+    await h.app.request("/v1/plans/87226TX0100013?year=2026")
+  ).json()) as Parameters<typeof mapPlan>[0];
+  const blank = {
+    ...view,
+    network: {
+      ...view.network,
+      records: view.network.records.map((record) => ({
+        ...record,
+        network_url: "  ",
+      })),
+    },
+  } as Parameters<typeof mapPlan>[0];
+  const mapped = planResponse(mapPlan(blank, "87226TX0100013"));
+  residualShapeContract(mapped);
+  for (const network of mapped.networks as Record<string, unknown>[])
+    expect(Object.hasOwn(network, "provider_directory_url")).toBe(false);
+});
+
+it("negative controls: an invented telehealth flag, an empty directory URL or filing keys on a federal plan fail the shape contract", async () => {
+  const { body } = await search();
+  const invented = structuredClone(body.plans[0]);
+  invented.telemedicine = true;
+  expect(() => residualShapeContract(invented)).toThrow();
+  const emptyUrl = structuredClone(body.plans[0]);
+  emptyUrl.networks[0].provider_directory_url = "";
+  expect(() => residualShapeContract(emptyUrl)).toThrow();
+  const leaked = structuredClone(body.plans[0]);
+  leaked.plan_key = "synthetic-native-key";
+  expect(() => residualShapeContract(leaked)).toThrow("plan_key");
+  // Removing a required wire key still fails the base contract.
+  const missing = structuredClone(body.plans[0]);
+  delete missing.networks;
+  expect(() => wirePlanContract(missing)).toThrow("networks");
+});

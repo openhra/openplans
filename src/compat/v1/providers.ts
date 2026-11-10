@@ -2,12 +2,20 @@ import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import type { SqlSession } from "../../db/database.js";
 import {
+  RADIUS_NOT_CHECKED,
   searchProviderLocations,
+  searchUnlocatedInState,
   taxonomyLoaded,
   taxonomyRelation,
 } from "../../api/provider-repository.js";
+import type {
+  UnlocatedStatePage,
+  UnlocatedStateSearch,
+} from "../../api/provider-repository.js";
 import * as v from "../../api/validation.js";
 import { zipCentroid } from "../../domain/geo/index.js";
+import { zipToCounties } from "../../ingest/geo/repository.js";
+import { STATE_FIPS } from "../../ingest/geo/states.js";
 
 interface ProviderAddress extends Record<string, unknown> {
   distance_miles?: number | null;
@@ -26,6 +34,7 @@ interface ProviderRecord extends Record<string, unknown> {
   specialties?: string[];
   warnings?: string[];
   distance_miles?: number | null;
+  location_check?: string;
 }
 interface ProviderSearchResponse {
   providers: ProviderRecord[];
@@ -104,6 +113,32 @@ function taxonomyGaps(rows: ProviderRecord[]) {
     : [];
 }
 
+const STATE_BY_FIPS = new Map(
+  Object.entries(STATE_FIPS).map(([state, fips]) => [fips, state]),
+);
+/** States of a ZIP from loaded Census/GeoNames/cached CMS geography; never a live call. */
+async function zipStates(db: SqlSession, zip: string): Promise<string[]> {
+  const result = await zipToCounties(db, zip, { allowCmsLive: false });
+  return [
+    ...new Set(
+      result.counties.flatMap((county) => {
+        const state = STATE_BY_FIPS.get(county.county_fips.slice(0, 2));
+        return state ? [state] : [];
+      }),
+    ),
+  ];
+}
+/** Name searches only: a statewide list without a name would not answer a local query. */
+async function unlocatedInState(
+  db: SqlSession,
+  zip: string,
+  filters: Omit<UnlocatedStateSearch, "states">,
+  page: UnlocatedStatePage,
+) {
+  const states = await zipStates(db, zip);
+  return searchUnlocatedInState(db, { ...filters, states }, page);
+}
+
 function providerTrace(record: ProviderRecord, address: ProviderAddress) {
   return {
     record_id: record.record_id,
@@ -120,6 +155,7 @@ function providerTrace(record: ProviderRecord, address: ProviderAddress) {
     participation: record.participation ?? "not_evaluated",
     participation_scope: record.participation_scope ?? null,
     evidence: record.evidence ?? record.plan_participations ?? [],
+    ...(record.location_check ? { location_check: record.location_check } : {}),
   };
 }
 function providerLocation(
@@ -213,6 +249,9 @@ export function providerDetailResponse(provider: Record<string, unknown>) {
   };
 }
 
+const individualFilter = (body: Record<string, unknown>) =>
+  body.type === "individual" ? ("INDIVIDUAL" as const) : undefined;
+
 export function providerCompatRoutes(db: SqlSession, native: Hono) {
   const app = new Hono();
   app.post(
@@ -249,6 +288,7 @@ export function providerCompatRoutes(db: SqlSession, native: Hono) {
         reasons.add("provider_radius_defaulted_to_25_miles");
       if (body.search_term !== undefined)
         params.set("name", text(body.search_term, "search_term"));
+      const name = params.get("name") ?? undefined;
       if (body.plan_id !== undefined) {
         params.set("plan_id", v.planId(body.plan_id).full);
         params.set("year", String(v.year(String(body.year ?? 2026))));
@@ -332,9 +372,25 @@ export function providerCompatRoutes(db: SqlSession, native: Hono) {
                 (a.distance_miles ?? Infinity) - (b.distance_miles ?? Infinity),
             );
             if (body.sort === "-distance") providers.reverse();
+            let total = result.total;
+            // Located rows page first; unlocated in-state name matches follow them.
+            if (name && result.unlocated) {
+              const fallback = await unlocatedInState(
+                db,
+                zip,
+                { name, taxonomy, specialty, type: individualFilter(body) },
+                {
+                  offset: Math.max(0, start - result.total),
+                  size: size - providers.length,
+                },
+              );
+              total += fallback.total;
+              if (fallback.total) reasons.add(RADIUS_NOT_CHECKED);
+              providers.push(...mapProviders(fallback.providers));
+            }
             header(c, reasons);
             return c.json({
-              meta: { total: result.total },
+              meta: { total },
               providers,
               states: [],
             });
@@ -342,7 +398,9 @@ export function providerCompatRoutes(db: SqlSession, native: Hono) {
         }
       }
       const rows: ProviderRecord[] = [];
-      let origin: { method?: string } | null = null;
+      let origin: { method?: string } | null = null,
+        unlocated = false,
+        originMissing = false;
       for (let page = 1; ; page++) {
         params.set("page", String(page));
         const response = await native.request(`/providers?${params}`);
@@ -354,8 +412,11 @@ export function providerCompatRoutes(db: SqlSession, native: Hono) {
         if (result.status === "unknown")
           reasons.add(result.reason ?? "provider_source_incomplete");
         if (result.warnings?.length) reasons.add("provider_source_incomplete");
-        if (result.meta?.unlocated)
+        if (result.meta?.unlocated) {
+          unlocated = true;
           reasons.add("provider_unlocated_addresses_excluded");
+        }
+        if (result.reason === "zip_centroid_unavailable") originMissing = true;
         if (
           result.providers.some((r: ProviderRecord) =>
             r.warnings?.includes("UNRESOLVED_NETWORK_TIER"),
@@ -364,6 +425,24 @@ export function providerCompatRoutes(db: SqlSession, native: Hono) {
           reasons.add("provider_unresolved_network_tier");
         rows.push(...result.providers);
         if (!result.next_page) break;
+      }
+      // Plan searches keep issuer-record semantics; identity name searches may add
+      // in-state NPPES locations that no radius could evaluate.
+      if (name && (unlocated || originMissing) && !body.plan_id) {
+        const fallback = await unlocatedInState(
+          db,
+          zip,
+          {
+            name,
+            taxonomy: params.get("taxonomy") ?? undefined,
+            specialty: params.get("specialty") ?? undefined,
+            type: individualFilter(body),
+            includeLocated: originMissing,
+          },
+          { offset: 0 },
+        );
+        if (fallback.total) reasons.add(RADIUS_NOT_CHECKED);
+        rows.push(...fallback.providers);
       }
       if (
         rows.some((r) =>

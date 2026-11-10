@@ -93,6 +93,8 @@ try {
       "871_geocode_state_cursors.sql",
       "872_geocode_bootstrap_scope.sql",
       "900_geocode_cleanup.sql",
+      "910_open_geocoder.sql",
+      "946_geocode_all_states.sql",
     ]) {
       const text = await readFile(join(migrationsDirectory, name), "utf8"),
         sha = createHash("sha256").update(text).digest("hex");

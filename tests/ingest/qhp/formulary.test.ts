@@ -8,9 +8,14 @@ import { drugCoverage } from "../../../src/domain/drugs/index.js";
 import { runWorker } from "../../../src/worker/commands.js";
 import { fixture, scope, setup } from "./formulary-helpers.js";
 
-describe("Cigna formulary — real cuts and labelled synthetic mutants", () => {
+/** Fixture JSON is untyped; the helper returns whatever the file holds. */
+type Fixture = Awaited<ReturnType<typeof fixture>>;
+type PlanEdge = { plan_id: string; years: number[]; network_tier: string };
+type BasePlan = { base_plan_id: string };
+
+describe("Synthetic issuer formulary and labelled mutants", () => {
   let h: Awaited<ReturnType<typeof setup>>,
-    drugs: any[],
+    drugs: Fixture[],
     plan: string,
     rxcui: string;
   beforeAll(async () => {
@@ -31,9 +36,10 @@ describe("Cigna formulary — real cuts and labelled synthetic mutants", () => {
         (sum, d) =>
           sum +
           d.plans.filter(
-            (p: any) =>
-              h.catalog.plans.some((c: any) => c.base_plan_id === p.plan_id) &&
-              p.years.includes(2026),
+            (p: PlanEdge) =>
+              h.catalog.plans.some(
+                (c: BasePlan) => c.base_plan_id === p.plan_id,
+              ) && p.years.includes(2026),
           ).length,
         0,
       ),
@@ -50,17 +56,18 @@ describe("Cigna formulary — real cuts and labelled synthetic mutants", () => {
     expect(result).toMatchObject({
       status: "listed_covered",
       patient_price: null,
-      drug_tier: drugs[0].plans.find((p: any) => p.plan_id === plan).drug_tier,
+      drug_tier: drugs[0].plans.find((p: PlanEdge) => p.plan_id === plan)
+        .drug_tier,
     });
     expect(result.evidence[0]).toMatchObject({
       source_record: 0,
       source_plan_index: expect.any(Number),
       raw_snapshot_id: expect.stringMatching(/^child-/),
       source_id: "synthetic-harness",
-      source_url: expect.stringContaining("cigna.com"),
+      source_url: expect.stringContaining("issuer.example"),
     });
     const variant = h.catalog.variants.find(
-      (v: any) => v.base_plan_id === plan,
+      (v: BasePlan) => v.base_plan_id === plan,
     ).variant_plan_id;
     expect((await drugCoverage(h.db, variant, rxcui, 2026)).status).toBe(
       "listed_covered",
@@ -68,7 +75,7 @@ describe("Cigna formulary — real cuts and labelled synthetic mutants", () => {
     expect(
       (await drugCoverage(h.db, plan, "99999999999999", 2026)).reason,
     ).toBe("rxcui_not_in_rxnorm");
-    expect((await drugCoverage(h.db, plan, "6809", 2026)).status).toBe(
+    expect((await drugCoverage(h.db, plan, "990000101", 2026)).status).toBe(
       "not_listed",
     );
   });
@@ -92,8 +99,8 @@ describe("Cigna formulary — real cuts and labelled synthetic mutants", () => {
     const report = await importFormulary(h.db, scope);
     expect(report.status).toBe("QUARANTINED");
     expect(report.issues.invalid_restriction_boolean).toBe(
-      mutant[0].plans.filter((p: any) =>
-        h.catalog.plans.some((c: any) => c.base_plan_id === p.plan_id),
+      mutant[0].plans.filter((p: PlanEdge) =>
+        h.catalog.plans.some((c: BasePlan) => c.base_plan_id === p.plan_id),
       ).length,
     );
     const bad = await h.db.query(
@@ -102,7 +109,7 @@ describe("Cigna formulary — real cuts and labelled synthetic mutants", () => {
       [report.snapshot_id, rxcui],
     );
     expect(bad.rows).toEqual([{ count: 0 }]);
-    expect((await drugCoverage(h.db, plan, "6809", 2026)).status).toBe(
+    expect((await drugCoverage(h.db, plan, "990000101", 2026)).status).toBe(
       "unknown",
     );
     expect((await drugCoverage(h.db, plan, rxcui, 2026)).status).toBe(
@@ -128,7 +135,7 @@ describe("Cigna formulary — real cuts and labelled synthetic mutants", () => {
       status: "listed_covered",
       snapshot_id: baseline.snapshot_id,
     });
-    expect((await drugCoverage(h.db, plan, "6809", 2026)).status).toBe(
+    expect((await drugCoverage(h.db, plan, "990000101", 2026)).status).toBe(
       "unknown",
     );
     expect(
@@ -162,22 +169,22 @@ describe("Cigna formulary — real cuts and labelled synthetic mutants", () => {
       status: "listed_covered",
       snapshot_id: baseline.snapshot_id,
     });
-    expect((await drugCoverage(h.db, plan, "6809", 2026)).status).toBe(
+    expect((await drugCoverage(h.db, plan, "990000101", 2026)).status).toBe(
       "unknown",
     );
     await h.db.query("DELETE FROM formulary_active_set");
     expect((await drugCoverage(h.db, plan, rxcui, 2026)).status).toBe(
       "unknown",
     );
-    expect((await drugCoverage(h.db, plan, "6809", 2026)).status).toBe(
+    expect((await drugCoverage(h.db, plan, "990000101", 2026)).status).toBe(
       "unknown",
     );
   });
   it("negative control: unknown target plan produces counted issues and no edge", async () => {
     const mutant = structuredClone(drugs);
     mutant[0].plans.push({
-      ...mutant[0].plans.find((p: any) => p.plan_id === plan),
-      plan_id: "76589TX9999999",
+      ...mutant[0].plans.find((p: PlanEdge) => p.plan_id === plan),
+      plan_id: "00010TX9999999",
     });
     await h.replace(mutant);
     const report = await importFormulary(h.db, scope);
@@ -185,7 +192,7 @@ describe("Cigna formulary — real cuts and labelled synthetic mutants", () => {
     expect(
       (
         await h.db.query(
-          `SELECT * FROM formulary_edge WHERE base_hios_id='76589TX9999999'`,
+          `SELECT * FROM formulary_edge WHERE base_hios_id='00010TX9999999'`,
         )
       ).rows,
     ).toEqual([]);
@@ -207,11 +214,11 @@ describe("Cigna formulary — real cuts and labelled synthetic mutants", () => {
     await h.replace(mutant);
     const report = await importFormulary(h.db, scope);
     expect(report.status).toBe("ACTIVE");
-    const pairs = mutant[0].plans.filter((p: any) =>
-      h.catalog.plans.some((c: any) => c.base_plan_id === p.plan_id),
+    const pairs = mutant[0].plans.filter((p: PlanEdge) =>
+      h.catalog.plans.some((c: BasePlan) => c.base_plan_id === p.plan_id),
     );
     expect(report.issues.unresolved_drug_tier).toBe(
-      new Set(pairs.map((p: any) => p.plan_id)).size,
+      new Set(pairs.map((p: PlanEdge) => p.plan_id)).size,
     );
     expect(await drugCoverage(h.db, plan, rxcui, 2026)).toMatchObject({
       status: "listed_covered",
@@ -253,7 +260,7 @@ describe("Cigna formulary — real cuts and labelled synthetic mutants", () => {
     await h.child(alternate);
     // Distinct query shards can have identical redacted public URLs. Identity is the URL hash.
     await h.db
-      .query(`UPDATE qhp_child_url SET url='https://www.cigna.com/synthetic?shard=REDACTED'
+      .query(`UPDATE qhp_child_url SET url='https://issuer.example/synthetic?shard=REDACTED'
       WHERE kind='formulary_urls' AND qhp_index_id=(SELECT qhp_index_id FROM qhp_index ORDER BY discovered_at DESC LIMIT 1)`);
     const report = await importFormulary(h.db, scope);
     expect(report).toMatchObject({
@@ -311,7 +318,7 @@ describe("Cigna formulary — real cuts and labelled synthetic mutants", () => {
     expect(
       (
         await h.db.query(
-          `SELECT status,reason FROM qhp_coverage_manifest WHERE issuer_id='76589' AND plan_year=2027`,
+          `SELECT status,reason FROM qhp_coverage_manifest WHERE issuer_id='00010' AND plan_year=2027`,
         )
       ).rows[0],
     ).toMatchObject({
@@ -367,7 +374,7 @@ describe("Cigna formulary — real cuts and labelled synthetic mutants", () => {
           "--state",
           "TX",
           "--issuer",
-          "76589",
+          "00010",
         ],
         () => ({
           ...h.db,
@@ -408,7 +415,7 @@ describe("Cigna formulary — real cuts and labelled synthetic mutants", () => {
       edges: 0,
       issues: { catalog_plan_year_not_in_definitions: 1 },
     });
-    expect((await drugCoverage(h.db, plan, "6809", 2026)).status).toBe(
+    expect((await drugCoverage(h.db, plan, "990000101", 2026)).status).toBe(
       "unknown",
     );
   });
@@ -424,7 +431,7 @@ describe("Cigna formulary — real cuts and labelled synthetic mutants", () => {
       status: "listed_covered",
       tier_status: "unresolved",
     });
-    expect((await drugCoverage(h.db, plan, "6809", 2026)).status).toBe(
+    expect((await drugCoverage(h.db, plan, "990000101", 2026)).status).toBe(
       "unknown",
     );
   });

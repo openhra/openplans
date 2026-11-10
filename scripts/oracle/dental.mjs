@@ -1,10 +1,14 @@
 #!/usr/bin/env node
 import { mutateSource, sourceControls } from "./source-controls.mjs";
 import { homedir } from "node:os";
-/** npm run build && node scripts/oracle/dental.mjs (cache only; owns its P5e DB). */
+/**
+ * npm run build && node scripts/oracle/dental.mjs [--year 2026|2027] [--state XX | --all-states]
+ * Cache only. TX PY2026 owns the P5e DB and adds county HTTP examples; every other
+ * publication-listed state/year owns its own DB, seeded from the all-states DB when present.
+ */
 import { PGlite } from "@electric-sql/pglite";
 import { spawn } from "node:child_process";
-import { createReadStream } from "node:fs";
+import { createReadStream, existsSync } from "node:fs";
 import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { join, isAbsolute } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -13,6 +17,7 @@ import { database, portableMigrations } from "./negative-controls.mjs";
 import { migrate } from "../../dist/db/migrate.js";
 import { importPufs } from "../../dist/ingest/puf/import.js";
 import { cachedImportFiles } from "../../dist/ingest/puf/import-source.js";
+import { pufStates } from "../../dist/ingest/puf/import-batch.js";
 import { ingestGeo } from "../../dist/ingest/geo/index.js";
 import { storedRate } from "../../dist/api/premiums.js";
 import { createApp } from "../../dist/api/app.js";
@@ -29,12 +34,78 @@ const cache =
 if (!isAbsolute(cache)) throw new Error("Absolute OPENPLANS_DATA_DIR required");
 const reports = join(cache, "reports");
 await mkdir(reports, { recursive: true });
+const args = process.argv.slice(2);
+const option = (name, fallback) =>
+  args.includes(name) ? args[args.indexOf(name) + 1] : fallback;
+const year = Number(option("--year", "2026")),
+  state = option("--state", "TX");
+if (![2026, 2027].includes(year) || !/^[A-Z]{2}$/.test(state ?? ""))
+  throw new Error(
+    "Usage: dental.mjs [--year 2026|2027] [--state XX | --all-states]",
+  );
+if (args.includes("--all-states")) {
+  process.exitCode = await allStates(year);
+  process.exit();
+}
+/** The original P5e scope keeps its DB, report names and Harris HTTP examples. */
+const p5e = state === "TX" && year === 2026;
+const HARRIS = "48201";
+const reportStem = p5e ? "p5e-dental" : `a6-dental-${year}-${state}`;
+
+/** Runs every publication-listed state in its own process; one result per state. */
+async function allStates(year) {
+  const acquired = await cachedImportFiles(cache, year);
+  const states = await pufStates(acquired.files, year);
+  const results = [];
+  for (const s of states) {
+    const code = await new Promise((resolve, reject) => {
+      const p = spawn(
+        process.execPath,
+        [fileURLToPath(import.meta.url), "--year", String(year), "--state", s],
+        { stdio: ["ignore", "inherit", "inherit"] },
+      );
+      p.once("error", reject);
+      p.once("exit", resolve);
+    });
+    const stem =
+      s === "TX" && year === 2026 ? "p5e-dental" : `a6-dental-${year}-${s}`;
+    let summary = null;
+    try {
+      summary = JSON.parse(
+        await readFile(join(reports, `${stem}.json`), "utf8"),
+      );
+    } catch {
+      // No summary file: the run counts as failed below.
+    }
+    results.push({
+      state: s,
+      exit_code: code,
+      passed: code === 0 && summary?.passed === true,
+      checked_rate_rows: summary?.checked_rate_rows ?? null,
+      comparisons: summary?.comparisons ?? null,
+      household_comparisons: summary?.household_comparisons ?? null,
+      mismatches: summary?.mismatches?.length ?? null,
+      negative_controls: summary
+        ? `${summary.negative_controls.filter((c) => c.passed).length}/${summary.negative_controls.length}`
+        : null,
+    });
+  }
+  const passed = results.every((r) => r.passed);
+  await writeFile(
+    join(reports, `a6-dental-all-states-${year}.json`),
+    JSON.stringify({ year, states, passed, results }, null, 2) + "\n",
+  );
+  console.log(
+    `${passed ? "PASS" : "FAIL"}: dental PY${year} ${results.filter((r) => r.passed).length}/${results.length} states`,
+  );
+  return passed ? 0 : 1;
+}
 const scratch = await mkdtemp(join(reports, ".p5e-dental-"));
 const report = {
   passed: false,
   generated_at: new Date().toISOString(),
-  state: "TX",
-  year: 2026,
+  state,
+  year,
   comparisons: 0,
   checked_rate_rows: 0,
   mismatches: [],
@@ -49,7 +120,7 @@ const check = (condition, message) => {
 };
 let db;
 try {
-  const acquired = await cachedImportFiles(cache, 2026);
+  const acquired = await cachedImportFiles(cache, year);
   const expectedPath = join(scratch, "expected.jsonl"),
     rawPath = join(scratch, "raw.json");
   console.log("dental oracle: independent raw CSV/Decimal expectations");
@@ -66,6 +137,11 @@ try {
         expectedPath,
         "--summary",
         rawPath,
+        "--state",
+        state,
+        "--year",
+        String(year),
+        ...(p5e ? ["--county", HARRIS] : []),
       ],
       { stdio: ["ignore", "inherit", "inherit"] },
     );
@@ -81,11 +157,20 @@ try {
   report.raw_counts = Object.fromEntries(
     Object.entries(raw).filter(([key]) => key.includes("rows")),
   );
-  db = database(new PGlite(join(cache, "puf-pglite-p5e-dental")));
+  const dbPath = join(
+    cache,
+    p5e ? "puf-pglite-p5e-dental" : `puf-pglite-a6-dental-${year}-${state}`,
+  );
+  // Seed from the all-states DB of the same state/year; the hash check below still decides reuse.
+  const seed = join(cache, `puf-pglite-p6d-${year}-${state}`);
+  if (!p5e && !existsSync(dbPath) && existsSync(seed))
+    await cp(seed, dbPath, { recursive: true });
+  db = database(new PGlite(dbPath));
   await migrate(db, await portableMigrations(join(scratch, "migrations")));
   let active = (
     await db.query(
-      "SELECT import_id FROM puf_active_catalog WHERE state='TX' AND plan_year=2026",
+      "SELECT import_id FROM puf_active_catalog WHERE state=$1 AND plan_year=$2",
+      [state, year],
     )
   ).rows[0];
   if (active) {
@@ -105,11 +190,11 @@ try {
   }
   if (!active) {
     console.log(
-      "dental oracle: importing acquired TX catalog into isolated P5e database",
+      `dental oracle: importing acquired ${state} PY${year} catalog into an isolated database`,
     );
     const imported = await importPufs(db, {
-      year: 2026,
-      state: "TX",
+      year,
+      state,
       dataDir: cache,
       files: acquired.files,
       manifestPath: acquired.manifestPath,
@@ -152,17 +237,19 @@ try {
     rules.get(row.base_plan_id).push(row);
   }
   check(
-    stored.length === raw.tx_rate_rows,
-    `SADP row count ${stored.length} != raw ${raw.tx_rate_rows}`,
+    stored.length === raw.state_rate_rows,
+    `SADP row count ${stored.length} != raw ${raw.state_rate_rows}`,
   );
-  console.log(`dental oracle: comparing all ${stored.length} TX SADP rows`);
+  console.log(
+    `dental oracle: comparing all ${stored.length} ${state} PY${year} SADP rows`,
+  );
   let familySample;
   for await (const line of createInterface({
     input: createReadStream(expectedPath),
     crlfDelay: Infinity,
   })) {
     const expected = JSON.parse(line),
-      isTx = expected.state === "TX";
+      isTx = expected.state === state;
     const rows = isTx
       ? (groups.get(key(expected.plan, expected.area)) ?? [])
       : [
@@ -190,8 +277,8 @@ try {
       familySample = { expected, rows, br };
   }
   check(
-    report.checked_rate_rows === raw.tx_rate_rows,
-    "Not every raw TX SADP row was checked",
+    report.checked_rate_rows === raw.state_rate_rows,
+    `Not every raw ${state} SADP row was checked`,
   );
   for (const expected of raw.household_cases) {
     const result = dentalPremium(
@@ -264,7 +351,7 @@ try {
     mutant_mismatches: broken.mismatches.length,
     example: broken.mismatches[0],
     scope:
-      "temporary compiled source copy; unmodified published non-TX Family Option row",
+      "temporary compiled source copy; unmodified published Family Option row from another state",
   });
   for (const state of ["NY", "VT"]) {
     const r = familySample.rows.map((r) => ({ ...r, stateCode: state })),
@@ -287,69 +374,78 @@ try {
       scope: "synthetic state relabelling of raw federal rows",
     });
   }
-  console.log("dental oracle: Harris HTTP examples");
-  if (
-    !(
-      await db.query(
-        "SELECT 1 FROM geo_import WHERE state='TX' AND plan_year=2026",
-      )
-    ).rows.length
-  )
-    await ingestGeo(db, { dataDir: cache, state: "TX", planYear: 2026 });
-  const token = "synthetic-oracle-request-token",
-    app = createApp(db, { premiumToken: token });
-  const examplePlan = raw.harris_ids.find(
-    (id) =>
-      raw.household_cases.filter(
-        (c) => c.plan === id && c.area === "Rating Area 10",
-      ).length === 5 &&
-      raw.plans[id].attributes.every(
-        (a) => a.raw.ChildOnlyOffering === "Allows Adult and Child-Only",
-      ) &&
-      raw.household_cases
-        .filter((c) => c.plan === id && c.area === "Rating Area 10")
-        .slice(0, 3)
-        .every(
-          (c) => !unsupportedMembership(c, c.members, rules.get(id) ?? []),
-        ),
-  );
-  if (!examplePlan) throw new Error("No eligible raw Harris example plan");
-  for (const expected of raw.household_cases
-    .filter((c) => c.plan === examplePlan && c.area === "Rating Area 10")
-    .slice(0, 3)) {
-    const response = await app.request("/v1/premium-quotes", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        plan_ids: [examplePlan],
-        county: "48201",
-        coverage_start: expected.effective,
-        members: expected.members.map(({ age, relationship, tobaccoUse }) => ({
-          age,
-          relationship,
-          tobacco: tobaccoUse,
-        })),
-      }),
-    });
-    const body = await response.json(),
-      actual = body.quotes?.[0];
-    const passed =
-      response.status === 200 &&
-      actual?.coverage === "dental" &&
-      actual.status === "rated" &&
-      actual.total_cents === expected.expected_cents &&
-      actual.bindable_quote === false &&
-      actual.pediatric_ehb.monthly_cents === expected.pediatric_ehb_cents;
-    report.harris_examples.push({ passed, expected, response: actual ?? body });
+  // County HTTP examples need the cached geography; they run for the original P5e scope.
+  if (p5e) {
+    console.log("dental oracle: Harris HTTP examples");
+    if (
+      !(
+        await db.query(
+          "SELECT 1 FROM geo_import WHERE state='TX' AND plan_year=2026",
+        )
+      ).rows.length
+    )
+      await ingestGeo(db, { dataDir: cache, state: "TX", planYear: 2026 });
+    const token = "synthetic-oracle-request-token",
+      app = createApp(db, { premiumToken: token });
+    const examplePlan = raw.harris_ids.find(
+      (id) =>
+        raw.household_cases.filter(
+          (c) => c.plan === id && c.area === "Rating Area 10",
+        ).length === 5 &&
+        raw.plans[id].attributes.every(
+          (a) => a.raw.ChildOnlyOffering === "Allows Adult and Child-Only",
+        ) &&
+        raw.household_cases
+          .filter((c) => c.plan === id && c.area === "Rating Area 10")
+          .slice(0, 3)
+          .every(
+            (c) => !unsupportedMembership(c, c.members, rules.get(id) ?? []),
+          ),
+    );
+    if (!examplePlan) throw new Error("No eligible raw Harris example plan");
+    for (const expected of raw.household_cases
+      .filter((c) => c.plan === examplePlan && c.area === "Rating Area 10")
+      .slice(0, 3)) {
+      const response = await app.request("/v1/premium-quotes", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          plan_ids: [examplePlan],
+          county: "48201",
+          coverage_start: expected.effective,
+          members: expected.members.map(
+            ({ age, relationship, tobaccoUse }) => ({
+              age,
+              relationship,
+              tobacco: tobaccoUse,
+            }),
+          ),
+        }),
+      });
+      const body = await response.json(),
+        actual = body.quotes?.[0];
+      const passed =
+        response.status === 200 &&
+        actual?.coverage === "dental" &&
+        actual.status === "rated" &&
+        actual.total_cents === expected.expected_cents &&
+        actual.bindable_quote === false &&
+        actual.pediatric_ehb.monthly_cents === expected.pediatric_ehb_cents;
+      report.harris_examples.push({
+        passed,
+        expected,
+        response: actual ?? body,
+      });
+    }
+    check(
+      report.harris_examples.length === 3 &&
+        report.harris_examples.every((e) => e.passed),
+      "Harris HTTP examples differ from independent raw arithmetic",
+    );
   }
-  check(
-    report.harris_examples.length === 3 &&
-      report.harris_examples.every((e) => e.passed),
-    "Harris HTTP examples differ from independent raw arithmetic",
-  );
   check(
     report.negative_controls.length === 3 &&
       report.negative_controls.every((c) => c.passed),
@@ -365,7 +461,7 @@ try {
   await db?.close();
   report.passed = !report.failures.length;
   await writeFile(
-    join(reports, "p5e-dental.json"),
+    join(reports, `${reportStem}.json`),
     JSON.stringify(report, null, 2) + "\n",
   );
   const exampleLines = report.harris_examples.map(
@@ -373,12 +469,15 @@ try {
       `${i + 1}. ${e.expected.plan}, Rating Area 10, ages ${e.expected.members.map((m) => m.age).join(", ")}: gross ${e.response.total_cents} cents, pediatric EHB ${e.response.pediatric_ehb?.monthly_cents} cents; ${e.passed ? "PASS" : "FAIL"}.`,
   );
   await writeFile(
-    join(reports, "p5e-dental.md"),
-    `# P5e dental — ${report.passed ? "PASS" : "FAIL"}\n\nGenerated ${report.generated_at}.\n\n` +
-      `Raw TX SADP rows: ${report.raw_counts?.tx_rate_rows}; checked ${report.checked_rate_rows}. Comparisons: ${report.comparisons}; mixed households: ${report.household_comparisons}; non-TX Family Option comparisons: ${report.family_option_comparisons}; mismatches: ${report.mismatches.length}.\n\n` +
-      `All raw SADP rows are checked, including explicit unsupported SHOP rows. TX has ${report.raw_counts?.tx_family_option_rows} Family Option rows. The oracle also checks every published non-TX SADP Family Option row.\n\n` +
+    join(reports, `${reportStem}.md`),
+    `# ${p5e ? "P5e" : "A6"} dental ${state} PY${year} — ${report.passed ? "PASS" : "FAIL"}\n\nGenerated ${report.generated_at}.\n\n` +
+      `Raw ${state} SADP rows: ${report.raw_counts?.state_rate_rows}; checked ${report.checked_rate_rows}. Comparisons: ${report.comparisons}; mixed households: ${report.household_comparisons}; non-${state} Family Option comparisons: ${report.family_option_comparisons}; mismatches: ${report.mismatches.length}.\n\n` +
+      `All raw SADP rows are checked, including explicit unsupported SHOP rows. ${state} has ${report.raw_counts?.state_family_option_rows} Family Option rows. The oracle also checks every published non-${state} SADP Family Option row.\n\n` +
       `Finite equivalence basis: every 0–63 age, 64/65/80/120 terminal-band probes, both tobacco flags, both effective/expiration boundaries; all eight family columns with three and four dependents; five mixed-age households per age-rate group. Arbitrarily large households are not literally enumerated: additive member selection and child-cap composition are checked separately.\n\n` +
-      `## Harris examples (county 48201)\n\n${exampleLines.join("\n")}\n\n## Negative controls\n\n${report.negative_controls.map((c) => `- ${c.name}: ${c.passed ? "detected / PASS" : "FAIL"}`).join("\n")}\n\n` +
+      (p5e
+        ? `## Harris examples (county 48201)\n\n${exampleLines.join("\n")}\n\n`
+        : "") +
+      `## Negative controls\n\n${report.negative_controls.map((c) => `- ${c.name}: ${c.passed ? "detected / PASS" : "FAIL"}`).join("\n")}\n\n` +
       `## Scope and assumptions\n\nIndividual SADPs in explicitly listed federal PUF state/year scopes only; SHOP, NY/VT dental, unproved relationships/cohabitation, dependent age extensions, conflicting evidence and unknown family membership are unsupported. Filed age rows use the plan's Business Rules maximum underage-dependent count; medical Part 147 policy does not authorize dental. No inferred age curve or fabricated premium. No Preference uses IndividualRate for either tobacco input. Family totals are not split among members; pediatric EHB is unknown without a supported allocation.\n\n` +
       `The HTTP examples use real imported rates and Plan Attributes apportionment, not synthetic rates. The method is a nonbinding estimate, not enrollment eligibility or a Marketplace application. Subsidy allocation between medical and dental enrollment is not implemented by this task.\n\n` +
       `## Sources\n\n${Object.entries(report.sources ?? {})
@@ -391,6 +490,6 @@ try {
   await rm(scratch, { recursive: true, force: true });
 }
 console.log(
-  `${report.passed ? "PASS" : "FAIL"}: dental ${report.checked_rate_rows} TX rows; ${report.comparisons} comparisons; ${report.household_comparisons} households; ${report.mismatches.length} mismatches; controls ${report.negative_controls.filter((c) => c.passed).length}/3`,
+  `${report.passed ? "PASS" : "FAIL"}: dental ${report.checked_rate_rows} ${state} PY${year} rows; ${report.comparisons} comparisons; ${report.household_comparisons} households; ${report.mismatches.length} mismatches; controls ${report.negative_controls.filter((c) => c.passed).length}/3`,
 );
 if (!report.passed) process.exitCode = 1;

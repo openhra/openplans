@@ -1,0 +1,51 @@
+{
+  "source": "georgia_access_puf",
+  "plans": [
+    "58081GA0010005",
+    "13535GA0140001"
+  ],
+  "files": [
+    {
+      "kind": "plan-attributes",
+      "name": "PLAN-PUF_20261015105252_2027.csv",
+      "url": "https://georgiaaccess.gov/wp-content/uploads/sites/4/2026/10/PLAN-PUF_20261015105252_2027.csv",
+      "sha256": "5160028a1f62a45005bb8ec170e86afaaad9577f89c4f213aaab3dc3a7456e6d",
+      "rows": 4
+    },
+    {
+      "kind": "service-area",
+      "name": "SA-PUF_20261001161627_2027.csv",
+      "url": "https://georgiaaccess.gov/wp-content/uploads/sites/4/2026/10/SA-PUF_20261001161627_2027.csv",
+      "sha256": "f07312e1191dbd7b6d780690b1f61dd3ed25213835cf3a5277e149bfc2ce661e",
+      "rows": 128
+    },
+    {
+      "kind": "network",
+      "name": "NTWRK-PUF_20261001161630_2027-1.csv",
+      "url": "https://georgiaaccess.gov/wp-content/uploads/sites/4/2026/10/NTWRK-PUF_20261001161630_2027-1.csv",
+      "sha256": "48a366f3d6307058b6328b4c309dfd52f53a0967892b6cbf2fbaf243e3eae721",
+      "rows": 2
+    },
+    {
+      "kind": "business-rules",
+      "name": "BR-PUF_20261001161624_2027-1.csv",
+      "url": "https://georgiaaccess.gov/wp-content/uploads/sites/4/2026/10/BR-PUF_20261001161624_2027-1.csv",
+      "sha256": "1c172842c10d239bfa8030a7aae855af1119d2a7f04ffd9dabdc24079f5234a8",
+      "rows": 2
+    },
+    {
+      "kind": "rate",
+      "name": "RATE-PUF_20261001161618_2027.csv",
+      "url": "https://georgiaaccess.gov/wp-content/uploads/sites/4/2026/10/RATE-PUF_20261001161618_2027.csv",
+      "sha256": "7414bdf18d4d6a30ee9d4dcbc56a7b426814f1d57cfe06a623779df6ba9b9c9c",
+      "rows": 102
+    },
+    {
+      "kind": "benefits-and-cost-sharing",
+      "name": "BENCS-PUF_20261001161616_2027-1.csv",
+      "url": "https://georgiaaccess.gov/wp-content/uploads/sites/4/2026/10/BENCS-PUF_20261001161616_2027-1.csv",
+      "sha256": "c5888113c30420afc99a8910032eb1d5c24dc0cc87278741eaffbc6c6920d266",
+      "rows": 210
+    }
+  ]
+}

@@ -356,7 +356,7 @@ export async function importNppes(
               selected.flatMap((r) => r.taxonomies as RecordValue[]),
             );
             await tx.query(
-              `INSERT INTO npi_address(${addressColumns.join(",")}) SELECT a.* FROM npi_secondary s,
+              `INSERT INTO npi_address(${addressColumns.join(",")}) SELECT ${addressColumns.map((c) => `a.${c}`).join(",")} FROM npi_secondary s,
               LATERAL jsonb_populate_record(NULL::npi_address,s.address || jsonb_build_object('npi',s.npi,'snapshot_id',$2::text)) a
               WHERE s.npi=ANY($1::text[])`,
               [ids, snapshot],

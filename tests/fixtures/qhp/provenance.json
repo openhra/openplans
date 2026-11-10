@@ -1,0 +1,20 @@
+{
+  "files": {
+    "dishonest-size.zip.hex": {
+      "synthetic": true,
+      "sha256": "d478fc184e472a74eb7fdb4479f74946e4d1067b466992bff04115fcd70cd202",
+      "generator": "tests/fixtures/qhp/generate.mjs"
+    },
+    "synthetic.xlsx.hex": {
+      "synthetic": true,
+      "sha256": "006ffede7ee9a1dc12ef4382116eac72a3bf5836bb74ed90f15a2885a1dba8db",
+      "generator": "tests/fixtures/qhp/generate.mjs"
+    },
+    "tx-2026-registry.xlsx.hex": {
+      "synthetic": false,
+      "sha256": "0d96f451682613f4b0c5735c413adb37989ce5511ce89ef4d89f7f08c8bdb356",
+      "source_url": "https://download.cms.gov/marketplace-puf/2026/machine-readable-url-puf.zip",
+      "provenance": "tx-2026-registry.provenance.json"
+    }
+  }
+}

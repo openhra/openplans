@@ -20,6 +20,11 @@ export interface PovertyTable {
   readonly annualDollarsBySize: Cited<readonly number[]>;
   readonly additionalPersonDollars: Cited<number>;
 }
+export type MedicaidExpansionStatus = "expanded" | "not_expanded";
+export const EXPANSION_STATUSES: readonly MedicaidExpansionStatus[] = [
+  "expanded",
+  "not_expanded",
+];
 export interface SubsidyParameters {
   readonly schemaVersion: 1;
   readonly year: Cited<number>;
@@ -36,6 +41,13 @@ export interface SubsidyParameters {
   readonly maximumFplPercent: Cited<number | null>;
   /** Conservative review screen, not a Medicaid eligibility rule. */
   readonly stateRulesReviewThroughFplPercent: Cited<number>;
+  /**
+   * Optional cited adult Medicaid expansion status per state. A state marked
+   * `not_expanded` skips the review screen from 100% FPL; a missing state keeps it.
+   */
+  readonly medicaidAdultExpansion?: Cited<
+    Readonly<Record<string, MedicaidExpansionStatus>>
+  >;
   readonly rounding: Cited<{
     readonly fpl: "truncate_whole_percent_exact_cliff";
     readonly applicablePercentage: "nearest_basis_point_half_up";
@@ -57,7 +69,12 @@ const PRIMARY_HOSTS = new Set([
   "www.healthcare.gov",
   "www.cms.gov",
 ]);
-function cited(value: unknown, path: string, failures: string[]): unknown {
+/** Checks one `{ value, citations }` wrapper and returns its value; failures are appended. */
+export function citedValue(
+  value: unknown,
+  path: string,
+  failures: string[],
+): unknown {
   if (
     !record(value) ||
     !("value" in value) ||
@@ -102,6 +119,7 @@ function cited(value: unknown, path: string, failures: string[]): unknown {
   }
   return value.value;
 }
+const cited = citedValue;
 const positiveInteger = (value: unknown): value is number =>
   typeof value === "number" && Number.isSafeInteger(value) && value > 0;
 
@@ -199,6 +217,25 @@ export function parameterErrors(value: unknown): string[] {
     }
     if (max !== null && previousUpper !== max)
       failures.push("applicablePercentageBands: must end at cliff");
+  }
+  if (value.medicaidAdultExpansion !== undefined) {
+    const table = cited(
+      value.medicaidAdultExpansion,
+      "medicaidAdultExpansion",
+      failures,
+    );
+    if (
+      !record(table) ||
+      !Object.keys(table).length ||
+      Object.entries(table).some(
+        ([state, status]) =>
+          !/^[A-Z]{2}$/.test(state) ||
+          !EXPANSION_STATUSES.includes(status as MedicaidExpansionStatus),
+      )
+    )
+      failures.push(
+        "medicaidAdultExpansion: state codes mapped to expanded or not_expanded required",
+      );
   }
   const rounding = cited(value.rounding, "rounding", failures);
   if (

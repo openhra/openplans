@@ -70,6 +70,32 @@ redirect. A robots file served as HTML holds too, because it is not directives. 
 the daily recheck, the session parses and obeys it. Receipts record the egress country and whether
 robots was absent.
 
+### Keyed APIs
+
+Some publishers serve data only through an API that needs a key, and such a host answers every
+request without the key with 401, `/robots.txt` included. A 401 at robots normally holds
+collection. An entry with `accessMode: "api-key"` changes that for one host:
+
+- `robots` records the observed 401 with a null hash and a `notApplicable` reason. A live 401 then
+  counts as "robots not applicable". A robots file served with 200 is still parsed and obeyed, and
+  any other status still holds.
+- Admission rests on the published API documentation, which goes in `terms` (URL, reviewed
+  disposition, SHA-256). The session checks that hash before the first keyed request and daily
+  after that, like any terms document.
+- `apiKey: { env, queryParam }` names the environment variable that holds the key and the query
+  parameter the publisher documents for it. Without the key the session refuses the host before
+  any request. `AdmissionOptions.apiKeys` can pass the key for one host instead.
+- The fetcher adds the key only to the URL it hands the transport for a data request. Robots and terms
+  reads never carry it. Evidence, metadata, receipts and errors use the URL without the key, and
+  query values are redacted anyway. Receipts record `accessMode: "api-key"`, the parameter name
+  and `robots.notApplicable: true`, never the key.
+- `delayMs` may go down to 1000 ms for a keyed entry; every other entry stays at 5000 ms or more.
+  The host lease uses the same 1 s floor plus up to 1 s of jitter.
+
+`data/access/cms-marketplace-api.json` is such an entry for the CMS Marketplace API. The fetcher
+loads it with the shipped manifests only when `OPENPLANS_CMS_FALLBACK=on`. By default the host
+has no reviewed entry and every request to it is refused.
+
 ### Egress records
 
 A collection wrapper that routes a job through a chosen country can hand the job an egress
@@ -157,7 +183,7 @@ response stays refused. `onRequest` is called before each data request, not befo
 Defaults: three attempts, five redirect hops, 10-second DNS/connect timeout, 30-second response/read inactivity timeout, 1 GiB transfer limit and 60-second maximum retry delay. Transient connection failures, truncation, 408/429 and 500/502/503/504 may retry with jitter. Retry-After accepts seconds and HTTP dates; a value beyond the delay budget stops retries rather than retrying too soon. 401/403 and policy/content/cache rejections never retry. Requests still ask for identity encoding. If the publisher sends HTTP `Content-Encoding: gzip`, `deflate` (zlib-wrapped) or `br`, a streaming decoder enforces `maxDecompressedBytes` on actual emitted bytes before writing them. This cap defaults to `maxBytes`, so existing callers also bound decoded output. `maxBytes` independently bounds transfer bytes, and Content-Length is checked against that transfer count. Unsupported or stacked encodings fail with `unsupported_encoding`; invalid/incomplete compressed streams fail with `truncated`. Crossing either byte cap fails with `too_large`, destroys the streams and removes the staging directory and `payload.part` without publishing a snapshot. Stream backpressure bounds decoder buffering. The fetcher never writes the first chunk that crosses the cap.
 
 JSON requests send `Accept: application/json, */*;q=0.1` (some publishers answer 406 to a strict JSON-only Accept, e.g. issuer 66252 serves its index as text/plain). The client identifies itself as
-`openplans/0.2 (public health-plan source discovery; +<project URL>)`. Configure the public
+`openplans/0.3 (public health-plan source discovery; +<project URL>)`. Configure the public
 contact page with `OPENPLANS_PROJECT_URL` (or `FetchOptions.projectUrl`); the default is
 `https://plans.openhra.com/`, which contains the captcha-protected contact form. A self-hoster may point it at their own contact page. Credentials, contact-email literals, query
 values and fragments are rejected in this identity URL. It does not identify itself as a browser.

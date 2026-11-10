@@ -56,7 +56,11 @@ import {
 } from "../ingest/qhp/discover-registry.js";
 import { discoverQhp } from "../ingest/qhp/discover.js";
 import { ingestQhpBatch } from "../ingest/qhp/formulary-batch.js";
-import { acquireCounties, geocodeState } from "../ingest/geocode/counties.js";
+import {
+  acquireCounties,
+  geocodeState,
+  geocodeStates,
+} from "../ingest/geocode/counties.js";
 import {
   createRun,
   stageStatewide,
@@ -127,10 +131,6 @@ const heldSourceActions: [RegExp, string][] = [
   [
     /^qhp-/,
     "Issuer hosts are not shipped: add a reviewed operator manifest entry for each issuer host through OPENPLANS_ACCESS_MANIFEST.",
-  ],
-  [
-    /^geocode-/,
-    "Geocoding is unavailable: the Census TIGERweb county host answers its robots.txt with an HTML rejection page, so county bounds cannot be collected.",
   ],
 ];
 function operatorAction(stepId: string): string {
@@ -930,7 +930,7 @@ export async function bootstrapPlan(
         ],
         async () => {
           // Preserve the existing unsupported-state reason for callers that key on it.
-          if (!["TX", "FL", "NC"].includes(state))
+          if (!Object.hasOwn(geocodeStates, state))
             fail("geocode_currently_supports_TX_only");
           const selectedState = geocodeState(state),
             db = database();

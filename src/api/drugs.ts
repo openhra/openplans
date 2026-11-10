@@ -8,6 +8,13 @@ import {
   checkDrugCoverages,
 } from "../services/drugs.js";
 import * as v from "./validation.js";
+import { cmsFallbackContext } from "../ingest/cms-api/fallback.js";
+import type { Context } from "hono";
+import { proxyList, requestSource } from "./rate-limit.js";
+
+/** The name the rate limiter gives the caller; bounds one client's share of fallback calls. */
+const client = (c: Context) =>
+  requestSource(c, proxyList(process.env.OPENPLANS_TRUST_PROXY));
 
 export function drugRoutes(db: SqlSession) {
   const app = new Hono();
@@ -22,6 +29,7 @@ export function drugRoutes(db: SqlSession) {
         c.req.param("id"),
         c.req.param("rxcui"),
         c.req.query("year"),
+        cmsFallbackContext(db, db, { client: client(c) }),
       ),
     ),
   );
@@ -39,7 +47,13 @@ export function drugRoutes(db: SqlSession) {
       } catch {
         return v.fail("body", "INVALID_JSON");
       }
-      return c.json(await checkDrugCoverages(db, body));
+      return c.json(
+        await checkDrugCoverages(
+          db,
+          body,
+          cmsFallbackContext(db, db, { client: client(c) }),
+        ),
+      );
     },
   );
   return app;

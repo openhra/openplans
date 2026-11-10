@@ -2,9 +2,6 @@
   "tests/api/csr.test.ts": {
     "@typescript-eslint/no-explicit-any": { "count": 7 }
   },
-  "tests/api/drugs.test.ts": {
-    "@typescript-eslint/no-explicit-any": { "count": 10 }
-  },
   "tests/api/premiums-location.test.ts": {
     "@typescript-eslint/no-explicit-any": { "count": 7 }
   },
@@ -18,7 +15,7 @@
     "@typescript-eslint/no-explicit-any": { "count": 4 }
   },
   "tests/api/providers.test.ts": {
-    "@typescript-eslint/no-explicit-any": { "count": 38 }
+    "@typescript-eslint/no-explicit-any": { "count": 36 }
   },
   "tests/api/routes.test.ts": {
     "@typescript-eslint/no-explicit-any": { "count": 14 }
@@ -48,7 +45,7 @@
     "@typescript-eslint/no-explicit-any": { "count": 22 }
   },
   "tests/compat/v1/refresh.test.ts": {
-    "@typescript-eslint/no-explicit-any": { "count": 8 }
+    "@typescript-eslint/no-explicit-any": { "count": 7 }
   },
   "tests/compat/v1/response-contract.test.ts": {
     "@typescript-eslint/no-explicit-any": { "count": 5 }
@@ -63,13 +60,7 @@
     "@typescript-eslint/no-explicit-any": { "count": 2 }
   },
   "tests/ingest/qhp/formulary-batch.test.ts": {
-    "@typescript-eslint/no-explicit-any": { "count": 3 }
-  },
-  "tests/ingest/qhp/formulary.test.ts": {
-    "@typescript-eslint/no-explicit-any": { "count": 11 }
-  },
-  "tests/ingest/qhp/provider.test.ts": {
-    "@typescript-eslint/no-explicit-any": { "count": 13 }
+    "@typescript-eslint/no-explicit-any": { "count": 2 }
   },
   "tests/ingest/state/hios.test.ts": {
     "@typescript-eslint/no-explicit-any": { "count": 1 }

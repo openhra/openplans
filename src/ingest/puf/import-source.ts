@@ -23,9 +23,27 @@ export const IMPORT_KINDS = [
   "benefits-and-cost-sharing",
 ] as const;
 export type ImportKind = (typeof IMPORT_KINDS)[number];
+/** State-exchange catalog publications: CMS's SBE bundles and Georgia Access's own PUF CSVs. */
+export const STATE_CATALOG_SOURCES = [
+  "cms_sbe_puf",
+  "georgia_access_puf",
+] as const;
+export type StateCatalogSource = (typeof STATE_CATALOG_SOURCES)[number];
+export const isStateCatalogSource = (
+  source: string | undefined,
+): source is StateCatalogSource =>
+  (STATE_CATALOG_SOURCES as readonly string[]).includes(source ?? "");
+/** One identity for a set of separately published state CSVs, as Georgia Access issues. */
+export function stateCatalogDigest(
+  files: Pick<ImportFile, "kind" | "url" | "sha256">[],
+): string {
+  return createHash("sha256")
+    .update(JSON.stringify(files.map((f) => [f.kind, f.url, f.sha256])))
+    .digest("hex");
+}
 export interface ImportFile {
   kind: ImportKind;
-  source?: "cms_sbe_puf";
+  source?: StateCatalogSource;
   member?: string;
   path: string;
   format: "csv" | "zip";
@@ -36,16 +54,17 @@ export interface ImportFile {
   metadata?: SnapshotMetadata;
   /** Internal, hash-verified temporary partition; original source identity is unchanged. */
   rowCache?: { path: string; sha256: string; bytes: number; count: number };
+  /** Georgia Access only. Read unescaped quotes literally. Owner-gated, off by default. */
+  recoverUnescapedQuotes?: boolean;
 }
 export const importDataDirectory = () =>
   process.env.OPENPLANS_DATA_DIR ??
   join(homedir(), ".local", "share", "openplans");
 
-/** Reads only the newest acquired manifest. Never downloads or falls back to older publications. */
-export async function cachedImportFiles(
+/** The newest acquired manifest. Never downloads or falls back to older publications. */
+export async function newestPufManifest(
   dataDir: string,
-  year: number,
-): Promise<{ files: ImportFile[]; manifestPath: string }> {
+): Promise<{ manifest: PufManifest; manifestPath: string; directory: string }> {
   if (!isAbsolute(dataDir))
     throw new Error("An absolute data directory is required");
   const directory = join(dataDir, "raw", "cms-exchange-puf");
@@ -60,48 +79,69 @@ export async function cachedImportFiles(
   ) as PufManifest;
   if (manifest.schema_version !== 1 || manifest.dry_run)
     throw new Error("Invalid PUF manifest");
+  return { manifest, manifestPath, directory };
+}
+
+/** Exactly one hash-verified archive per year and kind, or the source set is incomplete. */
+export async function manifestArchive(
+  directory: string,
+  manifest: PufManifest,
+  year: number,
+  kind: string,
+): Promise<Omit<ImportFile, "kind">> {
+  const candidates = manifest.files.filter(
+    (file) => file.year === year && file.kind === kind,
+  );
+  const file = candidates[0];
+  if (
+    candidates.length !== 1 ||
+    !file ||
+    file.status !== "ok" ||
+    !file.snapshot_id ||
+    !/^[a-f0-9]{64}$/.test(file.snapshot_id) ||
+    file.sha256 !== file.snapshot_id ||
+    !file.url
+  ) {
+    throw new Error("Incomplete acquired PUF source set");
+  }
+  const metadata = JSON.parse(
+    await readFile(join(directory, `${file.snapshot_id}.meta.json`), "utf8"),
+  ) as SnapshotMetadata;
+  if (
+    metadata.sha256 !== file.sha256 ||
+    metadata.url !== file.url ||
+    metadata.bytes !== file.bytes
+  )
+    throw new Error("Manifest metadata mismatch");
+  return {
+    path: join(directory, file.snapshot_id, "payload"),
+    format: "zip",
+    sha256: file.sha256,
+    bytes: file.bytes!,
+    retrievedAt: metadata.fetched_at,
+    url: file.url,
+    metadata,
+  };
+}
+
+export async function cachedImportFiles(
+  dataDir: string,
+  year: number,
+): Promise<{ files: ImportFile[]; manifestPath: string }> {
+  const { manifest, manifestPath, directory } =
+    await newestPufManifest(dataDir);
   const files: ImportFile[] = [];
-  for (const kind of IMPORT_KINDS) {
-    const candidates = manifest.files.filter(
-      (file) => file.year === year && file.kind === kind,
-    );
-    const file = candidates[0];
-    if (
-      candidates.length !== 1 ||
-      !file ||
-      file.status !== "ok" ||
-      !file.snapshot_id ||
-      !/^[a-f0-9]{64}$/.test(file.snapshot_id) ||
-      file.sha256 !== file.snapshot_id ||
-      !file.url
-    ) {
-      throw new Error("Incomplete acquired PUF source set");
-    }
-    const path = join(directory, file.snapshot_id, "payload");
-    const metadata = JSON.parse(
-      await readFile(join(directory, `${file.snapshot_id}.meta.json`), "utf8"),
-    ) as SnapshotMetadata;
-    if (
-      metadata.sha256 !== file.sha256 ||
-      metadata.url !== file.url ||
-      metadata.bytes !== file.bytes
-    )
-      throw new Error("Manifest metadata mismatch");
+  for (const kind of IMPORT_KINDS)
     files.push({
       kind,
-      path,
-      format: "zip",
-      sha256: file.sha256,
-      bytes: file.bytes!,
-      retrievedAt: metadata.fetched_at,
-      url: file.url,
-      metadata,
+      ...(await manifestArchive(directory, manifest, year, kind)),
     });
-  }
   return { files, manifestPath };
 }
 
-export async function verifyImportFile(file: ImportFile): Promise<void> {
+export async function verifyImportFile(
+  file: Pick<ImportFile, "path" | "sha256" | "bytes" | "rowCache">,
+): Promise<void> {
   const hash = createHash("sha256");
   let bytes = 0;
   for await (const chunk of createReadStream(file.path)) {
@@ -138,13 +178,18 @@ export async function* importRows(file: ImportFile): AsyncGenerator<CsvRow> {
     }
     return;
   }
-  if (file.source === "cms_sbe_puf") {
+  if (isStateCatalogSource(file.source)) {
     const stream =
       file.format === "csv"
         ? createReadStream(file.path)
         : Readable.from(streamZipMember(file.path, file.member!));
+    // Georgia Access ends benefit, network and rule rows with one trailing comma.
+    const georgia = file.source === "georgia_access_puf";
     try {
-      for await (const row of readCsv(stream))
+      for await (const row of readCsv(stream, {
+        trailingEmptyField: georgia,
+        recoverUnescapedQuotes: georgia && file.recoverUnescapedQuotes === true,
+      }))
         yield normalizeSbeRow(file.kind, row);
     } finally {
       stream.destroy();
@@ -155,7 +200,12 @@ export async function* importRows(file: ImportFile): AsyncGenerator<CsvRow> {
     yield* readCsv(createReadStream(file.path));
     return;
   }
-  const members = await inspectPufArchive(file.path);
+  yield* csvArchiveRows(file.path);
+}
+
+/** Streams the single CSV member of an acquired CMS archive. */
+export async function* csvArchiveRows(path: string): AsyncGenerator<CsvRow> {
+  const members = await inspectPufArchive(path);
   const member = members[0];
   if (
     members.length !== 1 ||
@@ -165,7 +215,7 @@ export async function* importRows(file: ImportFile): AsyncGenerator<CsvRow> {
   ) {
     throw new Error("PUF import requires a single CSV archive member");
   }
-  const handle = await open(file.path, "r");
+  const handle = await open(path, "r");
   let start: number;
   try {
     const header = Buffer.alloc(30);
@@ -182,7 +232,7 @@ export async function* importRows(file: ImportFile): AsyncGenerator<CsvRow> {
   } finally {
     await handle.close();
   }
-  const source = createReadStream(file.path, {
+  const source = createReadStream(path, {
     start,
     end: start + member.compressedBytes - 1,
   });

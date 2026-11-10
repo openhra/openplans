@@ -1,0 +1,13 @@
+PREVIOUS_CONTRACT_ID	PREVIOUS_PLAN_ID	PREVIOUS_PLAN_NAME	PREVIOUS_SNP_TYPE	PREVIOUS_SNP_INSTITUTIONAL	CURRENT_CONTRACT_ID	CURRENT_PLAN_ID	CURRENT_PLAN_NAME	CURRENT_SNP_TYPE	CURRENT_SNP_INSTITUTIONAL	STATUS
+H0028	031	Humana Gold Plus SNP-DE H0028-031 (HMO D-SNP)	Dual-Eligible		H0028	032	Humana Gold Plus SNP-DE H0028-032 (HMO D-SNP)	Dual-Eligible		Consolidated Renewal Plan
+H0028	032	Humana Gold Plus SNP-DE H0028-032 (HMO D-SNP)	Dual-Eligible		H0028	032	Humana Gold Plus SNP-DE H0028-032 (HMO D-SNP)	Dual-Eligible		Consolidated Renewal Plan
+H0028	033	Humana Gold Plus SNP-DE H0028-033 (HMO D-SNP)	Dual-Eligible		H0028	032	Humana Gold Plus SNP-DE H0028-032 (HMO D-SNP)	Dual-Eligible		Consolidated Renewal Plan
+H0028	044	Humana Gold Plus SNP-DE H0028-044 (HMO D-SNP)	Dual-Eligible		H0028	032	Humana Gold Plus SNP-DE H0028-032 (HMO D-SNP)	Dual-Eligible		Consolidated Renewal Plan
+H0028	042	Humana Gold Plus H0028-042 (HMO)			H0028	042	Humana Gold Plus H0028-042 (HMO)			Renewal Plan
+H0504	015	Blue Shield 65 Plus (HMO)			H0504	015	Blue Shield 65 Plus (HMO)			Renewal Plan
+H7678	001	Molina Medicare Complete Care (HMO D-SNP)	Dual-Eligible		H6515	001	Molina Medicare Complete Care Plus (HMO D-SNP)	Dual-Eligible		Consolidated Renewal Plan
+H8197	002	Molina Dual Options (Medicare-Medicaid Plan)			H6515	001	Molina Medicare Complete Care Plus (HMO D-SNP)	Dual-Eligible		Consolidated Renewal Plan
+R4182	001	HumanaChoice R4182-001 (Regional PPO)			R4182	001	HumanaChoice R4182-001 (Regional PPO)			Renewal Plan
+S4802	013	Wellcare Classic (PDP)			S4802	013	Wellcare Classic (PDP)			Renewal Plan
+S4802	155	Wellcare Value Script (PDP)			S4802	155	Wellcare Value Script (PDP)			Consolidated Renewal Plan
+S4802	225	Wellcare Medicare Rx Value Plus (PDP)			S4802	155	Wellcare Value Script (PDP)			Consolidated Renewal Plan

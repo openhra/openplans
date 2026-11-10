@@ -38,7 +38,7 @@ export async function radiusHttpChecks(
         ["Charlotte", "28202"],
         ["Raleigh", "27601"],
       ],
-    }[state]) {
+    }[state as "TX" | "FL" | "NC"] ?? []) {
       for (const attempt of ["first", "repeat"] as const) {
         const path = `/v1/providers?zip=${zip}&radius_miles=10`,
           start = Date.now();
@@ -314,7 +314,7 @@ export async function statewideReport(
     "",
     `Counts are distinct normalized five-field addresses across NPPES practice locations and the ${state} ACTIVE issuer shards captured when this run was created. A suite remains part of the address identity. Source-row counts below retain every attribution.`,
     "",
-    `County is taken from the Census geography response when present; location-only matches are classified against the independently retained Census TIGERweb county polygons. All point coordinates are checked against their claimed county extent. Fallback county is the county containing the published ZCTA internal point. Unlocated/pending addresses use the largest published ${state} ZCTA overlap as a scheduling/report candidate only; they have no confirmed address county. Unknown ZIPs remain in the unknown bucket. Bounding rectangles are rejection checks; they do not independently prove polygon membership of a publisher-provided county claim.`,
+    `County is taken from the Census geography response when present; location-only matches are classified against the independently retained Census 2024 cartographic boundary county outlines. All point coordinates are checked against their claimed county extent. Fallback county is the county containing the published ZCTA internal point. Unlocated/pending addresses use the largest published ${state} ZCTA overlap as a scheduling/report candidate only; they have no confirmed address county. Unknown ZIPs remain in the unknown bucket. Bounding rectangles are rejection checks; they do not independently prove polygon membership of a publisher-provided county claim.`,
     "",
     `Input staging: ${JSON.stringify(staging)}. Both staged flags must be true before these totals describe the whole captured scope.`,
     "",
@@ -374,7 +374,7 @@ export async function statewideReport(
     "",
     "## Sources",
     "",
-    "[Census batch contract](https://geocoding.geo.census.gov/geocoder/Geocoding_Services_API.html); [Census TIGERweb](https://www.census.gov/data/developers/data-sets/TIGERweb-map-service.html). Raw requests, response hashes and bounds snapshots are retained in the external data cache. Sequential requests contain at most 10,000 distinct addresses, with one-second pacing and the existing capped retry/backoff policy.",
+    "[Census batch contract](https://geocoding.geo.census.gov/geocoder/Geocoding_Services_API.html); [Census cartographic boundary files](https://www.census.gov/geographies/mapping-files/time-series/geo/cartographic-boundary.html). Raw requests, response hashes and bounds snapshots are retained in the external data cache. Sequential requests contain at most 10,000 distinct addresses, with one-second pacing and the existing capped retry/backoff policy.",
     "",
     "## Remaining work",
     "",

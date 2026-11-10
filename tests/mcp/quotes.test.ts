@@ -6,7 +6,7 @@ import { estimatePremiums } from "../../src/services/catalog.js";
 import { quotePlans } from "../../src/services/quotes.js";
 import { quoteFixture } from "../api/quote-fixture.js";
 import { connect } from "./client.js";
-import { post } from "./transport-helpers.js";
+import { listedToolNames, post } from "./transport-helpers.js";
 
 /** Mutated outputs are asserted structurally. */
 type Json = ReturnType<typeof JSON.parse>;
@@ -25,7 +25,7 @@ beforeAll(async () => {
 });
 afterAll(async () => fixture?.close());
 
-const personalized = ["quote_premiums"];
+const personalized = ["quote_premiums", "check_ichra_affordability"];
 /** Removed name of quote_premiums; it must behave like any tool that never existed. */
 const REMOVED_TOOL = "estimate_premiums";
 
@@ -155,7 +155,7 @@ describe("MCP quote_plans public tier", () => {
 });
 
 describe("MCP tool listing and grants (negative control 7)", () => {
-  it("lists 12 tools anonymously, 13 with a grant, 11 with quoting off", async () => {
+  it("lists 13 tools anonymously, 15 with a grant, 12 with quoting off", async () => {
     const anonymous = await connect({ db: fixture.db });
     const granted = await connect({
       db: fixture.db,
@@ -167,13 +167,13 @@ describe("MCP tool listing and grants (negative control 7)", () => {
       const names = async (h: typeof anonymous) =>
         (await h.client.listTools()).tools.map((t) => t.name);
       const open = await names(anonymous);
-      expect(open).toHaveLength(12);
+      expect(open).toHaveLength(13);
       expect(open).toContain("quote_plans");
       for (const name of personalized) expect(open).not.toContain(name);
       expect(await names(granted)).toEqual(toolNames);
-      expect(toolNames).toHaveLength(13);
+      expect(toolNames).toHaveLength(15);
       const closed = await names(off);
-      expect(closed).toHaveLength(11);
+      expect(closed).toHaveLength(12);
       expect(closed).not.toContain("quote_plans");
       const disabled = await off.call("quote_plans", publicInput, true);
       expect(disabled.error?.code).toBe("QUOTING_DISABLED");
@@ -255,9 +255,8 @@ describe("MCP tool listing and grants (negative control 7)", () => {
       log: quiet,
     });
     const auth = { authorization: "Bearer synthetic-mcp-token" };
-    const list = await app.fetch(post("tools/list", {}, auth));
-    const listed = JSON.stringify(await list.json());
-    expect(listed).toContain('"quote_premiums"');
+    const listed = await listedToolNames(app, auth);
+    expect(listed).toContain("quote_premiums");
     expect(listed).not.toContain(REMOVED_TOOL);
     const answer = async (name: string) => {
       const response = await app.fetch(
@@ -276,9 +275,12 @@ describe("MCP tool listing and grants (negative control 7)", () => {
     );
   });
 
-  it("over HTTP: public quote_plans answers, personalized names return 401, OPENPLANS_PUBLIC_QUOTING=off hides quote_plans", async () => {
+  it("over HTTP: public quote_plans answers, household names return 401 when switched off, OPENPLANS_PUBLIC_QUOTING=off hides quote_plans", async () => {
     const quiet = () => {};
-    const app = createMcpHttp(fixture.db, { env: {}, log: quiet });
+    const app = createMcpHttp(fixture.db, {
+      env: { OPENPLANS_PUBLIC_HOUSEHOLD: "off" },
+      log: quiet,
+    });
     const list = await app.fetch(post("tools/list"));
     const listed = JSON.stringify(await list.json());
     expect(listed).toContain('"quote_plans"');

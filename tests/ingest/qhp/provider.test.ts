@@ -13,27 +13,32 @@ import {
 import { runWorker } from "../../../src/worker/commands.js";
 import { fixture, scope, setup } from "./provider-helpers.js";
 
-describe("Cigna providers — real cuts, labelled synthetic mutants", () => {
+/** Fixture JSON is untyped; the helper returns whatever the file holds. */
+type Fixture = Awaited<ReturnType<typeof fixture>>;
+type PlanEdge = { plan_id: string; years: number[]; network_tier: string };
+type BasePlan = { base_plan_id: string };
+
+describe("Synthetic issuer providers and labelled mutants", () => {
   let h: Awaited<ReturnType<typeof setup>>,
-    providers: any[],
+    providers: Fixture[],
     plan: string,
     npi: string;
   beforeAll(async () => {
     h = await setup();
     providers = await fixture("records");
-    plan = providers[0].plans.find((p: any) =>
-      h.catalog.plans.some((c: any) => c.base_plan_id === p.plan_id),
+    plan = providers[0].plans.find((p: PlanEdge) =>
+      h.catalog.plans.some((c: BasePlan) => c.base_plan_id === p.plan_id),
     ).plan_id;
     npi = providers[0].npi;
   });
   afterAll(async () => {
     await h?.close();
   });
-  const edgesFor = (r: any) =>
+  const edgesFor = (r: { plans: PlanEdge[] }) =>
     r.plans.filter(
-      (p: any) =>
+      (p: PlanEdge) =>
         p.years.includes(2026) &&
-        h.catalog.plans.some((c: any) => c.base_plan_id === p.plan_id),
+        h.catalog.plans.some((c: BasePlan) => c.base_plan_id === p.plan_id),
     );
   it("keeps full source address lists, original spelling, scoped catalog associations and provenance", async () => {
     await h.replace(providers);
@@ -84,13 +89,13 @@ describe("Cigna providers — real cuts, labelled synthetic mutants", () => {
       providers.flatMap((p) => p.addresses),
     );
     const lookup = await providerParticipation(h.db, plan, npi, 2026);
-    // Cigna publishes PREFERRED while its plan definitions declare TEXASCONNECTNETWORK.
+    // Records say PREFERRED while the plan definitions declare SYNTHETICCONNECTNETWORK.
     const declared = (await fixture("plans"))
-      .find((p: any) => p.plan_id === plan)
-      .network.map((n: any) => n.network_tier);
+      .find((p: PlanEdge) => p.plan_id === plan)
+      .network.map((n: { network_tier: string }) => n.network_tier);
     const resolved = providers[0].plans
-      .filter((p: any) => p.plan_id === plan)
-      .some((p: any) => declared.includes(p.network_tier));
+      .filter((p: PlanEdge) => p.plan_id === plan)
+      .some((p: PlanEdge) => declared.includes(p.network_tier));
     expect(lookup.status).toBe("listed_participating");
     expect(lookup.evidence[0]?.tier_status).toBe(
       resolved ? "resolved" : "unresolved",
@@ -136,7 +141,7 @@ describe("Cigna providers — real cuts, labelled synthetic mutants", () => {
     mutant.plans = [edgesFor(mutant)[0]];
     await h.replace([mutant]);
     const prior = await importProviders(h.db, scope);
-    // Synthetic truncation of a real cut, written only into the harness temporary directory.
+    // Truncation of the synthetic records, written only into the harness temporary directory.
     await h.replace(
       null,
       JSON.stringify(
@@ -497,13 +502,13 @@ describe("Cigna providers — real cuts, labelled synthetic mutants", () => {
       )
     ).rows[0]!;
     await h.db.query(
-      `UPDATE qhp_index SET child_hosts='["www.cigna.com"]' WHERE issuer_id='76589'`,
+      `UPDATE qhp_index SET child_hosts='["issuer.example"]' WHERE issuer_id='00010'`,
     );
     const lookup = async () => [{ address: "8.8.8.8", family: 4 as const }];
     const cached = await fetchToCache(String(child.url), {
       dataDir: h.directory,
       source: "qhp-child-provider_urls-" + child.url_sha256,
-      allowHosts: ["www.cigna.com"],
+      allowHosts: ["issuer.example"],
       expectedContent: "json",
       lookup,
       transport: async () => ({
@@ -684,7 +689,7 @@ describe("Cigna providers — real cuts, labelled synthetic mutants", () => {
     mutant.plans = [edgesFor(mutant)[0]];
     const definitions = await fixture("plans");
     mutant.plans[0].network_tier = definitions.find(
-      (p: any) => p.plan_id === plan,
+      (p: PlanEdge) => p.plan_id === plan,
     ).network[0].network_tier;
     await h.replace([mutant]);
     const baseline = await importProviders(h.db, scope);
@@ -733,7 +738,7 @@ describe("Cigna providers — real cuts, labelled synthetic mutants", () => {
     mutant.plans = [edgesFor(mutant)[0]];
     const definitions = await fixture("plans");
     mutant.plans[0].network_tier = definitions.find(
-      (p: any) => p.plan_id === plan,
+      (p: PlanEdge) => p.plan_id === plan,
     ).network[0].network_tier;
     await h.replace([mutant]);
     await h.child([mutant]);
@@ -751,7 +756,7 @@ describe("Cigna providers — real cuts, labelled synthetic mutants", () => {
       (await providerParticipation(h.db, plan, recordId, 2026)).status,
     ).toBe("listed_participating");
     const variant = h.catalog.variants.find(
-      (v: any) => v.base_plan_id === plan,
+      (v: BasePlan) => v.base_plan_id === plan,
     ).variant_plan_id;
     expect((await providerParticipation(h.db, variant, npi, 2026)).status).toBe(
       "listed_participating",
@@ -776,9 +781,12 @@ describe("Cigna providers — real cuts, labelled synthetic mutants", () => {
     lookup = await providerParticipation(h.db, plan, npi, 2026);
     expect(lookup.status).toBe("explicitly_not_participating");
   });
-  it("D1: real Sanford tail yields truncated, quarantines and never manufactures not_listed", async () => {
+  it("D1: synthetic truncated tail yields truncated, quarantines and never manufactures not_listed", async () => {
     const tail = await readFile(
-      new URL("../../fixtures/qhp/provider/sanford-tail.json", import.meta.url),
+      new URL(
+        "../../fixtures/qhp/provider/truncated-tail.json",
+        import.meta.url,
+      ),
       "utf8",
     );
     await h.replace(null, tail);
@@ -906,7 +914,7 @@ describe("Cigna providers — real cuts, labelled synthetic mutants", () => {
           "--state",
           "TX",
           "--issuer",
-          "76589",
+          "00010",
         ],
         () => ({
           ...h.db,

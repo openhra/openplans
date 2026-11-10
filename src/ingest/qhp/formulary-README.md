@@ -52,27 +52,27 @@ listings: no undocumented source field or tier label is interpreted as an exclus
 
 ```sh
 npm run build
-node tests/fixtures/qhp/formulary/regenerate.mjs
+node tests/fixtures/qhp/generate-issuer.mjs
 npx vitest run tests/ingest/qhp/formulary.test.ts tests/domain/drugs
-node dist/ingest/qhp/formulary-pglite.js ingest qhp formulary --year 2026 --state TX --issuer 76589
+node dist/ingest/qhp/formulary-pglite.js ingest qhp formulary --year 2026 --state TX --issuer <issuer-id>
 python3 src/ingest/qhp/formulary-compare.py
 ```
 
-Regeneration uses cached real Cigna files plus the real active PUF and RxNorm PGlite databases;
-it retains selected drug objects, projects only tier fields from plans, and excludes contact
-fields. Source hashes and original drug indexes are in fixture provenance. Mutants and their
-acquisition/catalog identity test setups are labelled synthetic in tests. Every fixture is below
-200 KB. CI needs neither the data cache nor network access.
+The fixtures in `tests/fixtures/qhp/formulary/` are synthetic. `generate-issuer.mjs` writes
+them from invented issuer, plan and RxCUI identifiers, and `tests/fixture-lineage.test.ts`
+fails if they drift from the generator or lose their synthetic label. They keep the edge
+cases the tests need: repeated associations, plans outside TX, defined plans missing from
+the catalog, catalog plans with no listing, and plans whose tier list repeats a label. CI
+needs neither the data cache nor network access.
 
 The developer runner clones `qhp-pglite-p2b-integrated` into `formulary-pglite-p2c` on first run,
-copies the real active Cigna catalog and exact RxNorm atoms for the feed's codes (plus 6809 for
-an absence query), and omits only the PostGIS extension migration. Set `OPENPLANS_DATA_DIR`
+copies the issuer's active catalog and the exact RxNorm atoms for the feed's codes (plus one
+unlisted ingredient for an absence query), and omits only the PostGIS extension migration. Set `OPENPLANS_DATA_DIR`
 for the cache and `OPENPLANS_FORMULARY_DB` for an alternate isolated output DB. Reports stay in
 `$OPENPLANS_DATA_DIR/reports/p2c-formulary-{realdata,comparison}.json` and the comparison Markdown.
 Archive-dependent comparisons are omitted from public releases.
 
-The measured live Cigna file has two tier labels absent from its plan definitions. Under the
-2026-11-07 tier policy it is ACTIVE with 44 warnings, covering 35,226 unresolved associations.
+A drug tier that a plan definition does not declare is a warning, not a quarantine.
 Truncated/missing shards, malformed records, unknown years and string booleans still quarantine.
 This validation did not run production PostgreSQL/Docker.
 

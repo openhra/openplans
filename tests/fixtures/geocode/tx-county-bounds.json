@@ -1,61 +1,61 @@
 {
-  "source": "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/State_County/MapServer/1/query?where=STATE%3D%2748%27&outFields=GEOID%2CNAME&returnGeometry=true&outSR=4326&f=json",
-  "sha256": "b9539e6217dbec4b904af7d75e0ecef6f59a10713b739d81629ef24e92748e89",
+  "source": "https://www2.census.gov/geo/tiger/GENZ2024/shp/cb_2024_us_county_500k.zip",
+  "sha256": "da4051717caec55c75e3748c3608c2a3dbde8d1ff401bbaf4f952e3c3fb63ef1",
   "generated_by": "regenerate-statewide.mjs",
   "counties": [
     {
-      "county_fips": "48141",
-      "name": "El Paso County",
-      "south": 31.387229999799555,
-      "north": 32.0026500003734,
-      "west": -106.64564599964328,
-      "east": -105.95432799996868,
-      "snapshot_id": "census-tx-county-bounds:b9539e6217dbec4b904af7d75e0ecef6f59a10713b739d81629ef24e92748e89"
+      "county_fips": "48339",
+      "name": "Montgomery",
+      "south": 30.027905,
+      "north": 30.630284,
+      "west": -95.83024,
+      "east": -95.096708,
+      "snapshot_id": "census-county-outlines-2024:da4051717caec55c75e3748c3608c2a3dbde8d1ff401bbaf4f952e3c3fb63ef1"
     },
     {
       "county_fips": "48225",
-      "name": "Houston County",
-      "south": 30.925879000357355,
-      "north": 31.5928859998222,
-      "west": -95.77703900029192,
-      "east": -94.95811000007492,
-      "snapshot_id": "census-tx-county-bounds:b9539e6217dbec4b904af7d75e0ecef6f59a10713b739d81629ef24e92748e89"
-    },
-    {
-      "county_fips": "48339",
-      "name": "Montgomery County",
-      "south": 30.02774800033273,
-      "north": 30.63028399970069,
-      "west": -95.83024000002519,
-      "east": -95.09670800020997,
-      "snapshot_id": "census-tx-county-bounds:b9539e6217dbec4b904af7d75e0ecef6f59a10713b739d81629ef24e92748e89"
+      "name": "Houston",
+      "south": 30.925879,
+      "north": 31.592886,
+      "west": -95.776881,
+      "east": -94.95811,
+      "snapshot_id": "census-county-outlines-2024:da4051717caec55c75e3748c3608c2a3dbde8d1ff401bbaf4f952e3c3fb63ef1"
     },
     {
       "county_fips": "48453",
-      "name": "Travis County",
-      "south": 30.02345099999651,
-      "north": 30.628249000174232,
-      "west": -98.17297700000218,
-      "east": -97.36953900039711,
-      "snapshot_id": "census-tx-county-bounds:b9539e6217dbec4b904af7d75e0ecef6f59a10713b739d81629ef24e92748e89"
+      "name": "Travis",
+      "south": 30.023451,
+      "north": 30.628249,
+      "west": -98.172977,
+      "east": -97.369539,
+      "snapshot_id": "census-county-outlines-2024:da4051717caec55c75e3748c3608c2a3dbde8d1ff401bbaf4f952e3c3fb63ef1"
     },
     {
-      "county_fips": "48113",
-      "name": "Dallas County",
-      "south": 32.54521399978215,
-      "north": 32.989691000038256,
-      "west": -97.03868499956096,
-      "east": -96.5168700003541,
-      "snapshot_id": "census-tx-county-bounds:b9539e6217dbec4b904af7d75e0ecef6f59a10713b739d81629ef24e92748e89"
+      "county_fips": "48141",
+      "name": "El Paso",
+      "south": 31.387246427542,
+      "north": 32.002533,
+      "west": -106.645646,
+      "east": -105.954328,
+      "snapshot_id": "census-county-outlines-2024:da4051717caec55c75e3748c3608c2a3dbde8d1ff401bbaf4f952e3c3fb63ef1"
     },
     {
       "county_fips": "48201",
-      "name": "Harris County",
-      "south": 29.49729699962755,
-      "north": 30.170606000217358,
-      "west": -95.96073299991662,
-      "east": -94.90849200002265,
-      "snapshot_id": "census-tx-county-bounds:b9539e6217dbec4b904af7d75e0ecef6f59a10713b739d81629ef24e92748e89"
+      "name": "Harris",
+      "south": 29.49752,
+      "north": 30.170606,
+      "west": -95.960733,
+      "east": -94.908498,
+      "snapshot_id": "census-county-outlines-2024:da4051717caec55c75e3748c3608c2a3dbde8d1ff401bbaf4f952e3c3fb63ef1"
+    },
+    {
+      "county_fips": "48113",
+      "name": "Dallas",
+      "south": 32.545214,
+      "north": 32.989691,
+      "west": -97.038685,
+      "east": -96.516977,
+      "snapshot_id": "census-county-outlines-2024:da4051717caec55c75e3748c3608c2a3dbde8d1ff401bbaf4f952e3c3fb63ef1"
     }
   ]
 }

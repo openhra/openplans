@@ -7,9 +7,17 @@ import {
 } from "@modelcontextprotocol/server/stdio";
 import { createDatabase } from "../db/database.js";
 import { buildServer } from "./server.js";
-import { dependencies } from "./policy.js";
+import { dependencies, householdOpen } from "./policy.js";
+import type { McpEnvironment } from "./policy.js";
 import { limits, MAX_OUTPUT_BYTES } from "./tools.js";
 
+/** Local stdio grants household tools by default; OPENPLANS_MCP_ALLOW_PERSONALIZED=0 withholds them. */
+export function stdioGranted(env: McpEnvironment): boolean {
+  const allow = env.OPENPLANS_MCP_ALLOW_PERSONALIZED;
+  if (allow === "1") return true;
+  if (allow === "0") return false;
+  return householdOpen(env);
+}
 export function startStdio() {
   const db = createDatabase();
   const transport = new StdioServerTransport(process.stdin, process.stdout, {
@@ -22,14 +30,7 @@ export function startStdio() {
     await send(message);
   };
   const handle = serveStdio(
-    () =>
-      buildServer(
-        dependencies(
-          db,
-          process.env,
-          process.env.OPENPLANS_MCP_ALLOW_PERSONALIZED === "1",
-        ),
-      ),
+    () => buildServer(dependencies(db, process.env, stdioGranted(process.env))),
     {
       legacy: "serve",
       maxSubscriptions: 0,

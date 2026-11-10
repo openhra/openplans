@@ -7,13 +7,14 @@ import pg from "pg";
 import type { Database } from "../../db/database.js";
 import { migrationsDirectory } from "../../db/migrate.js";
 import { dataDirectory } from "./census.js";
-import { acquireCounties, geocodeState } from "./counties.js";
+import { acquireCounties } from "./counties.js";
 import {
   openGeocoder,
   validateOpenDataset,
   assertOpenServerDate,
   validateOpenIndexDate,
   openImportProfile,
+  openState,
 } from "./open.js";
 import type { OpenDataset } from "./open.js";
 import { retryOpenGeocoder } from "./open-retry.js";
@@ -41,7 +42,7 @@ if (
   throw new Error(
     "Usage: open-cli --state TX|FL|NC --source-run ID --cleanup-run ID --run-id ID --snapshot YYMMDD [--limit N] [--budget-minutes N]",
   );
-const state = geocodeState(get("--state")!),
+const state = openState(get("--state")!),
   snapshot = get("--snapshot")!,
   limit = Number(get("--limit") ?? 0),
   minutes = Number(get("--budget-minutes") ?? 60);

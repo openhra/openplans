@@ -1,0 +1,3 @@
+"BusinessYear","StateCode","IssuerId","SourceName","ImportDate","NetworkName","NetworkId","NetworkURL","MarketCoverage","DentalOnlyPlan"
+"2027","GA","13535","SERFF","2026-10-01 16:16:30","Smile Now Georgia PPO","GAN011","https://www.solsticecare.com/provider-search.aspx","Individual","Yes",
+"2027","GA","58081","SERFF","2026-10-01 16:16:30","Individual Georgia HMO Open Access","GAN001","https://www.hioscar.com/search/?networkId=065&year=2027","Individual","No",

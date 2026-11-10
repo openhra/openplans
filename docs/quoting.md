@@ -1,14 +1,14 @@
 # Quoting guide
 
-OpenPlans answers two kinds of quote request. Both return gross monthly
+OpenPlans answers two kinds of quote request, and both are on by default. Both return gross monthly
 premiums from imported CMS rate tables. Neither is a bindable quote, so every answer carries
 `bindable_quote: false`. Enrollment, carrier acceptance and final eligibility
 belong to the marketplace or the issuer.
 
-| Tier            | Route                     | Access                                        | Accepts                                                                                           |
-| --------------- | ------------------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| Public quote    | `POST /v1/quotes`         | Anonymous. **On by default.**                 | Ages, ZIP and/or county, optional tobacco flag, plans, NPIs, RxCUIs                               |
-| Household quote | `POST /v1/premium-quotes` | `Authorization: Bearer <OPENPLANS_API_TOKEN>` | Everything above plus dates of birth, income, household size and tax filing for subsidy estimates |
+| Tier            | Route                     | Access                                                                                     | Accepts                                                                                           |
+| --------------- | ------------------------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------- |
+| Public quote    | `POST /v1/quotes`         | Anonymous. **On by default.**                                                              | Ages, ZIP and/or county, optional tobacco flag, plans, NPIs, RxCUIs                               |
+| Household quote | `POST /v1/premium-quotes` | Anonymous. **On by default.** A set `OPENPLANS_API_TOKEN` requires `Authorization: Bearer` | Everything above plus dates of birth, income, household size and tax filing for subsidy estimates |
 
 > **Public quoting is on for every install unless you turn it off.** A server
 > started without `OPENPLANS_PUBLIC_QUOTING` answers anonymous `POST /v1/quotes`
@@ -176,9 +176,10 @@ The MCP endpoint offers the same two tiers.
   `check_provider_network` and `check_drug_coverage`. A catalog quote pages with
   `next_cursor`. With `OPENPLANS_PUBLIC_QUOTING=off` the tool is not listed and a
   call returns `QUOTING_DISABLED`.
-- `quote_premiums` is the household quote. It needs `OPENPLANS_MCP_TOKEN` over
-  HTTP, or `OPENPLANS_MCP_ALLOW_PERSONALIZED=1` over stdio, and answers under
-  `quotes`.
+- `quote_premiums` is the household quote and answers under `quotes`. It is open
+  by default. A set `OPENPLANS_MCP_TOKEN` restricts it to Bearer callers over HTTP,
+  `OPENPLANS_MCP_ALLOW_PERSONALIZED=0` withholds it over stdio, and
+  `OPENPLANS_PUBLIC_HOUSEHOLD=off` withholds it everywhere.
 
 `get_data_status` reports `public_quoting: "enabled"` or `"disabled"`. No quoting
 tool result is cached.
@@ -201,14 +202,16 @@ This route takes the full household request described in the
 [native API guide](../src/api/README.md): age or date of birth, an explicit
 tobacco flag and relationship per member, a coverage start date, and optional
 income, household size and tax filing for subsidy estimates. It answers
-`{ "quotes": [...] }`. Without `OPENPLANS_API_TOKEN` it returns 503
-`AUTH_NOT_CONFIGURED`; a missing or wrong bearer token returns 401
-`UNAUTHORIZED`.
+`{ "quotes": [...] }`. Anyone may call it. Each source may send 30 household
+requests per minute, 2 at a time, shared with `/v1/benchmark` and
+`/v1/ichra/affordability`. Responses are never cached, and income, ages and ZIP codes
+never reach a log. If you set `OPENPLANS_API_TOKEN`, a missing or wrong bearer token
+returns 401 `UNAUTHORIZED`. With no token, `OPENPLANS_PUBLIC_HOUSEHOLD=off` returns 503
+`AUTH_NOT_CONFIGURED`. Subsidy figures are checked against source for Texas 2026 so far.
 
 ```sh
 curl -s http://127.0.0.1:3000/v1/premium-quotes \
   -H 'content-type: application/json' \
-  -H "authorization: Bearer $OPENPLANS_API_TOKEN" \
   -d '{"plan_ids":["87226TX0100013"],"zip":"77002","coverage_start":"2026-01-01","members":[{"age":35,"tobacco":false,"relationship":"subscriber"}]}'
 ```
 

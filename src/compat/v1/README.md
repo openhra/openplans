@@ -43,7 +43,9 @@ single RFC 7230 token: ASCII letters, digits, or `!#$%&'*+-.^_` plus backtick,
 `|` and `~`. Whitespace, commas, colons and other characters prevent API startup.
 Header names are case insensitive.
 
-Missing server key configuration returns 503; missing/wrong keys return 401.
+With no key set the facade is open, limited to 30 requests per minute and 2 in flight per
+source, and the response cache skips it. `OPENPLANS_PUBLIC_COMPAT=off` with no key returns 503.
+With a key set, missing/wrong keys return 401.
 `Accept-Version` is tolerated. CORS allows origin `*`, methods `GET, POST, OPTIONS`
 and request headers `Content-Type, X-Api-Key, Accept-Version`, plus the configured
 extra header (without duplicating a default header). Preflight returns
@@ -74,6 +76,36 @@ The retired compatibility path has no alias and returns 404.
 
 The PGlite runner binds to 127.0.0.1. `OPENPLANS_API_TOKEN` remains a separate native API
 credential. Fields without public evidence stay null and are listed in `x-openplans-gaps`.
+
+## Catastrophic plan eligibility, off by default
+
+Under 45 CFR 156.155(a), a catastrophic plan may enroll only people who were under
+30 when the plan year began, or who hold a hardship or affordability exemption.
+Search requests carry no exemption evidence, so the search does not apply this rule
+unless an operator sets `OPENPLANS_COMPAT_CATASTROPHIC_AGE_RULE=on`.
+
+With the rule on, a medical search drops catastrophic plans when any applicant was
+30 or older on January 1 of the plan year. An age given for a later coverage start
+counts as one year younger, because the person may have had a birthday since
+January 1. Sending `catastrophic_exemption: true` keeps the plans. Each dropped plan
+adds `catastrophic_requires_exemption` to `x-openplans-gaps`, and a plan asked for by
+id shows up as `public_plan_unavailable:<id>`.
+
+## Compact benefit text, off by default
+
+By default, benefit, deductible and MOOP fields repeat the publisher's cells word
+for word, with every row condition. For example, `In-Network: Copay: $15.00;
+Coinsurance: Not Applicable / ...`. An operator can set
+`OPENPLANS_COMPAT_BENEFIT_TEXT=compact` to get a short phrase built from the tier 1
+in-network and out-of-network cells instead, such as
+`In-Network: $15 / Out-of-Network: 100%`.
+
+The compact phrase drops `.00`, adds thousands separators, drops the words "Copay"
+and "Coinsurance", and writes "No Charge" as `$0`. The publisher's deductible
+wording stays. "Not Covered" appears only when the row's `IsCovered` cell says so. A
+100% coinsurance cell stays `100%`. Tier 2 never fills in for tier 1, and the only
+row condition kept is the quantity limit. Native routes always return the full
+cells.
 
 ## Conditional subsidies
 
@@ -116,8 +148,9 @@ NY/VT gross premiums select the native approved contract tier, with `state_filed
 in `x-openplans-gaps`. Medical plan `source` and `premium_source` use `state` for these
 filings and `cms` for federal PUFs. Native routes retain their full source vocabulary.
 `plan_market` uses `both_markets`, `on_market`, `off_market` or null, based on native flags.
-Per-applicant allocations stay empty
-because the state filings supply contract totals. Native state-rule/subsidy limitations remain
+`premiums_by_applicant` lists each requested
+member with a null `premium` and `waived_for_total`, because the state filings supply
+contract totals, not per-member prices. Native state-rule/subsidy limitations remain
 in the gaps; no age/tobacco factors or subsidy amounts are invented. Full source-cell/rule
 provenance remains available through native premium quotes.
 
@@ -156,6 +189,43 @@ and allow these nulls and empty collections.
   label their scope. Unmapped plan metadata and benefits with no evidence stay
   null. These are implementation/native-view gaps, not claims that CMS lacks
   those fields.
+* Plan columns come from the selected variant's Plan Attributes PUF row.
+  * `standardized_plan` reads `DesignType`. "Design 1" and the other numbered
+    designs are standardized options. "Not Applicable" means the plan is not one.
+  * `essential_health_benefits_percentage` reads `EHBPercentTotalPremium`. The
+    federal file prints a fraction such as 0.9609, which becomes 96.09. State
+    files print a percentage in `EHB PERCENT PREMIUM`. State files also name the
+    design column `PLAN DESIGN TYPE`.
+  * `plan_calendar` is `calendar_year` only when the row runs from January 1 to
+    December 31 of its business year.
+  * `coinsurance` is the tier 1 deductible coinsurance cell. The mapper reads the
+    `TEHB` cells when the row says medical and drug deductibles are integrated, and
+    the `MEHB` cells otherwise.
+  * `plan_coinsurance` repeats the in-network tier 1 cell, plus the tier 2 cell
+    when one exists. The PUFs have no out-of-network deductible coinsurance column.
+  * `embedded_deductible` is `embedded` when the same scope lists a per-person
+    family amount above $0 and below the per-group amount. Otherwise it is null.
+    State files put both amounts in one family cell, and the mapper splits it.
+  * `out_of_network_coverage` is `true` when a covered primary care or specialist
+    row lists an out-of-network cost below 100%. It is never `false`. A 100%
+    coinsurance cell tells you the cost, not that coverage is missing.
+  * `sbc_name` is the published variant marketing name. Other document titles
+    are not in any public cell.
+* `benefits_summary_url` is the row's `URLForSummaryofBenefitsCoverage` link,
+  unchanged. `plan_documents` lists that link as `summary_of_benefits_and_coverage`
+  and the `PlanBrochure` link as `plan_brochure`. A blank or non-HTTP cell adds
+  nothing. OpenPlans links to the issuer's file and never hosts a copy.
+* Benefits and Cost Sharing PUF rows fill these fields:
+  * `adult_dental` from Routine Dental Services (Adult).
+  * `infertility_treatment_rider` from Infertility Treatment.
+  * `prenatal_care` and `postnatal_care` from Prenatal and Postnatal Care.
+  * `outpatient_ambulatory_care_center` from the Outpatient Facility Fee row.
+  * The non-preferred generic and specialty drug shares, when an issuer
+    publishes those rows.
+* Some fields stay null on purpose. The PUFs do not split imaging or maternity
+  physician fees from facility fees, so `imaging_center`, `imaging_physician` and
+  `inpatient_birth_physician` stay null. The abortion row says whether the service
+  is covered, not whether a rider is offered, so `abortion_rider` stays null too.
 * Carrier IDs are CMS issuer IDs (strings), scoped to loaded state/year sources.
   Markets/lines come from the native Network PUF census. Issuer crosswalk
   arrays stay empty. Geographic numeric IDs remain public FIPS/ZIP aliases so
@@ -169,7 +239,8 @@ and allow these nulls and empty collections.
   are never inferred. Postal attribution/source fields remain present.
 * External network IDs are unavailable: `networks[].id` is null and `network_ids`
   is empty. Network names and published directory URLs come from the native
-  catalog; no arbitrary numeric surrogate is advertised. Import dates are null.
+  catalog. When the `NetworkURL` cell is blank, the network has no
+  `provider_directory_url` key. OpenPlans never makes up a numeric ID. Import dates are null.
 
 ## Drug identity and counts
 

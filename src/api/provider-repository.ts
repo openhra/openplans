@@ -789,3 +789,150 @@ export async function providerDetail(
     provider_coverage: coverage,
   };
 }
+
+export interface UnlocatedStateSearch {
+  name: string;
+  /** Practice-address states of the requested ZIP, from published geography only. */
+  states: string[];
+  taxonomy?: string;
+  specialty?: string;
+  type?: "INDIVIDUAL";
+  /** True when the ZIP has no origin: no address can be radius-checked, located or not. */
+  includeLocated?: boolean;
+}
+export interface UnlocatedStatePage {
+  offset: number;
+  /** Omitted: every matching location (the facade's native-mapping path pages in memory). */
+  size?: number;
+}
+/** Same labels as radius results for the public point methods. */
+function pointQuality(a: Record<string, unknown>) {
+  if (a.method === "census_geocoder")
+    return {
+      geocode_label: a.normalization
+        ? "census_match_after_normalisation"
+        : "census_match",
+      precision: a.match_quality === "Exact" ? "exact" : "non_exact",
+    };
+  if (a.method === "zcta_centroid")
+    return { geocode_label: "zcta_fallback", precision: "approximate" };
+  return { geocode_label: null, precision: null };
+}
+/** Marks NPPES locations returned without a radius evaluation. */
+export const RADIUS_NOT_CHECKED = "provider_radius_not_checked";
+
+/**
+ * Name matches at in-state practice addresses that no radius could evaluate:
+ * addresses without a current point, or every in-state address when the ZIP has
+ * no origin. Distance is always null and rows carry the radius-not-checked flag.
+ * Coordinates come only from a current public geocode point, never inferred.
+ */
+export async function searchUnlocatedInState(
+  db: SqlSession,
+  q: UnlocatedStateSearch,
+  page: UnlocatedStatePage,
+) {
+  const states = q.states.filter((state) => /^[A-Z]{2}$/.test(state));
+  if (!states.length || !q.name.trim()) return { providers: [], total: 0 };
+  const taxonomy = await taxonomyRelation(db);
+  const operatorHashes = (await searchOperatorPoints(db)).map(
+    (p) => p.address_hash,
+  );
+  // The longest literal word feeds the optional trigram index; ILIKE stays authoritative.
+  const words = q.name.trim().split(/\s+/);
+  const longest = words.reduce((a, b) =>
+    [...b].length > [...a].length ? b : a,
+  );
+  const indexed = !/[%_\\]/.test(q.name) && [...longest].length >= 4;
+  const limit =
+    page.size === undefined
+      ? ""
+      : `LIMIT ${Math.max(0, Math.floor(page.size))}`;
+  const { rows } = await db.query<{
+    total: number;
+    providers: SearchRow[];
+  }>(
+    `WITH names AS MATERIALIZED (
+    SELECT n.npi FROM npi_provider n WHERE n.in_scope
+      ${
+        indexed
+          ? `AND provider_search_trigrams(coalesce(n.organization_name,'')||' '||coalesce(n.first_name,'')||' '||coalesce(n.last_name,''))
+        @> provider_search_trigrams($6::text)`
+          : "AND $6::text IS NULL"
+      }
+      AND concat_ws(' ',n.organization_name,n.first_name,n.last_name) ILIKE '%'||$1||'%'
+      AND ($2::text IS NULL OR EXISTS (SELECT 1 FROM npi_taxonomy t WHERE t.npi=n.npi AND t.code=$2))
+      AND ($3::text IS NULL OR EXISTS (SELECT 1 FROM npi_taxonomy t LEFT JOIN ${taxonomy} nt ON nt.code=t.code
+        WHERE t.npi=n.npi AND (t.code ILIKE '%'||$3||'%' OR nt.display_name ILIKE '%'||$3||'%'
+          OR nt.classification ILIKE '%'||$3||'%' OR nt.specialization ILIKE '%'||$3||'%')))
+      AND ($4::text IS NULL OR CASE WHEN n.entity_type='1' THEN 'INDIVIDUAL' ELSE 'GROUP' END=$4)
+  ), candidates AS MATERIALIZED (
+    SELECT a.npi,a.snapshot_id,a.ordinal,${wireKey("a")} AS address_key
+    FROM names JOIN npi_address a ON a.npi=names.npi
+    WHERE a.kind='practice' AND a.state=ANY($5::text[])
+      AND ($8::boolean OR NOT EXISTS (SELECT 1 FROM address_point p WHERE p.source_table='npi_address'
+        AND split_part(p.source_row,':',1)=a.npi
+        AND p.source_row=a.npi||':practice:'||a.ordinal::text AND p.source_snapshot_id=a.snapshot_id)
+      AND NOT EXISTS (SELECT 1 FROM geocode_attempt g WHERE g.source_table='npi_address'
+        AND g.source_row=a.npi||':practice:'||a.ordinal::text AND g.source_snapshot_id=a.snapshot_id
+        AND g.match_status IN ('Tie','No_Match') AND g.address_hash=ANY($7::text[])))
+  ), locations AS MATERIALIZED (
+    SELECT DISTINCT ON (npi,address_key) * FROM candidates ORDER BY npi,address_key,ordinal
+  ), paged AS MATERIALIZED (
+    SELECT * FROM locations ORDER BY npi,ordinal ${limit} OFFSET ${Math.max(0, Math.floor(page.offset))}
+  )
+  SELECT (SELECT count(*)::int FROM locations) AS total,
+    coalesce((SELECT jsonb_agg(to_jsonb(n)||jsonb_build_object(
+      'record_id',n.npi,'type',CASE WHEN n.entity_type='1' THEN 'INDIVIDUAL' ELSE 'GROUP' END,
+      'evidence','[]'::jsonb,'distance_miles',NULL,
+      'addresses',(SELECT jsonb_agg(jsonb_build_object('record_id',a.npi,'snapshot_id',a.snapshot_id,
+        'address_index',a.ordinal,'source_row',a.npi||':practice:'||a.ordinal::text,
+        'line_1',a.line_1,'line_2',a.line_2,'city',a.city,'state',a.state,'zip',a.zip5,'phone',a.phone,
+        'latitude',p.latitude,'longitude',p.longitude,'method',p.method,'match_quality',p.match_quality,
+        'normalization',p.normalization,'distance_miles',NULL) ORDER BY a.ordinal)
+        FROM paged k JOIN npi_address a ON a.npi=k.npi AND a.kind='practice' AND a.ordinal=k.ordinal
+          AND a.snapshot_id=k.snapshot_id
+        LEFT JOIN LATERAL (SELECT p.* FROM address_point p WHERE p.source_table='npi_address'
+          AND split_part(p.source_row,':',1)=a.npi AND p.source_row=a.npi||':practice:'||a.ordinal::text
+          AND p.source_snapshot_id=a.snapshot_id ORDER BY p.geocoded_at DESC LIMIT 1) p ON true
+        WHERE k.npi=n.npi),
+      'taxonomy',coalesce((SELECT jsonb_agg(jsonb_build_object('code',t.code,'is_primary',t.is_primary,'snapshot_id',t.snapshot_id,
+        'display_name',nt.display_name,'taxonomy_display_name',nt.display_name,
+        'taxonomy_source',CASE WHEN nt.code IS NULL THEN 'nppes_code_only' ELSE 'nucc' END,
+        'classification',nt.classification,'specialization',nt.specialization,
+        'taxonomy_status',CASE WHEN nt.code IS NULL THEN 'unknown_code' ELSE 'known' END)
+        ORDER BY t.ordinal) FROM npi_taxonomy t LEFT JOIN ${taxonomy} nt ON nt.code=t.code WHERE t.npi=n.npi),'[]'::jsonb))
+      ORDER BY n.npi)
+    FROM npi_provider n WHERE n.npi IN (SELECT npi FROM paged)),'[]'::jsonb) AS providers`,
+    [
+      q.name.trim(),
+      q.taxonomy ?? null,
+      q.specialty ?? null,
+      q.type ?? null,
+      states,
+      indexed ? longest : null,
+      operatorHashes,
+      q.includeLocated === true,
+    ],
+  );
+  const row = rows[0]!;
+  return {
+    total: Number(row.total),
+    providers: row.providers.map((provider) => ({
+      ...provider,
+      participation: "not_evaluated",
+      participation_scope: null,
+      warnings: [],
+      specialties: [],
+      location_check: RADIUS_NOT_CHECKED,
+      addresses: provider.addresses.map((a) => ({
+        ...a,
+        source: "npi_address",
+        participation: "not_evaluated",
+        participation_scope: null,
+        ...pointQuality(a),
+        geocode_as_of: null,
+      })),
+    })),
+  };
+}

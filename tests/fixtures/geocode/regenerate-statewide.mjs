@@ -8,39 +8,31 @@ import {
 } from "../../../dist/ingest/geocode/census.js";
 import { batchCsv } from "../../../dist/ingest/geocode/address.js";
 import {
+  buildCounties,
+  countySource,
   countyUrl,
-  parseCounties,
+  readCountyArchive,
 } from "../../../dist/ingest/geocode/counties.js";
 const root = dataDirectory(),
   directory = new URL("./", import.meta.url);
-const names = await readdir(join(root, "raw", "census-tx-county-bounds"));
-const metadata = JSON.parse(
-  await readFile(
-    join(
-      root,
-      "raw",
-      "census-tx-county-bounds",
-      names
-        .filter((n) => n.endsWith(".meta.json"))
-        .sort()
-        .at(-1),
-    ),
-    "utf8",
-  ),
-);
-const rawPath = join(
-  root,
-  "raw",
-  "census-tx-county-bounds",
-  metadata.snapshot_id,
-  "payload",
-);
+const sourceDir = join(root, "raw", countySource);
+const metadata = (
+  await Promise.all(
+    (await readdir(sourceDir))
+      .filter((n) => n.endsWith(".meta.json"))
+      .map(async (n) => JSON.parse(await readFile(join(sourceDir, n), "utf8"))),
+  )
+)
+  .filter((m) => m.url === countyUrl)
+  .sort((a, b) => a.fetched_at.localeCompare(b.fetched_at))
+  .at(-1);
+const rawPath = join(sourceDir, metadata.snapshot_id, "payload");
 const countyRaw = await readFile(rawPath);
 if (createHash("sha256").update(countyRaw).digest("hex") !== metadata.sha256)
   throw new Error("County cache hash mismatch");
-const counties = parseCounties(
-  countyRaw.toString("utf8"),
-  `census-tx-county-bounds:${metadata.sha256}`,
+const counties = buildCounties(
+  (await readCountyArchive(rawPath)).get("48"),
+  `${countySource}:${metadata.sha256}`,
 );
 const cut = {
   source: countyUrl,

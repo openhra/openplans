@@ -1,4 +1,5 @@
 import { applicationVersion } from "./version.js";
+import { cmsFallbackContext } from "../ingest/cms-api/fallback.js";
 import { sharedResponseCache } from "../api/cache/index.js";
 import type { ResponseCache, CacheOutcome } from "../api/cache/index.js";
 import type { SqlSession } from "../db/database.js";
@@ -11,6 +12,8 @@ import * as catalog from "../services/catalog.js";
 import * as providers from "../services/providers.js";
 import * as drugs from "../services/drugs.js";
 import * as quotes from "../services/quotes.js";
+import { searchMedicarePlans } from "../services/medicare.js";
+import { ichraAffordability } from "../services/ichra.js";
 import { getDataStatus, getSnapshot } from "../services/provenance.js";
 import {
   discoverDrugs,
@@ -674,6 +677,93 @@ async function quoteAnswer(
   };
 }
 
+const medicareStatus: Record<string, "ok" | "ambiguous"> = {
+  available: "ok",
+  multiple_counties: "ambiguous",
+};
+const ICHRA_ENVELOPE: Readonly<Record<string, Answer["status"]>> = {
+  calculated: "ok",
+  ambiguous_lcsp: "ambiguous",
+  location_requires_zip: "ambiguous",
+  requires_state_rules: "unsupported",
+  unsupported_state: "unsupported",
+  unsupported_rating_method: "unsupported",
+};
+/** Projects a calculated LCSP with its rate evidence; any other LCSP is left out (see status). */
+function ichraLcsp(
+  value: unknown,
+  use: "premium_tax_credit" | "employer",
+  p: Awaited<ReturnType<typeof projector>>,
+): Row[] {
+  const r = row(value);
+  if (r.status !== "calculated") return [];
+  const location = row(r.location),
+    byBasis = row(r.by_basis);
+  const pickOf = (basis: unknown) => {
+    const b = row(basis);
+    return b.status === "calculated"
+      ? { plan_ids: b.plan_ids, monthly_cents: b.monthly_cents }
+      : null;
+  };
+  return [
+    {
+      use,
+      status: "calculated",
+      basis_used: r.basis_used,
+      plan_ids: r.plan_ids,
+      monthly_cents: r.monthly_cents,
+      by_basis: {
+        gross: pickOf(byBasis.gross),
+        ehb_portion: pickOf(byBasis.ehb_portion),
+      },
+      location_source: location.source,
+      county_fips: location.county_fips,
+      zip: location.zip,
+      rating_area_id: location.rating_area_id,
+      coverage_month: r.coverage_month,
+      identified_at_age: r.identified_at_age,
+      priced_at_age: r.priced_at_age,
+      silver_plan_count: r.silver_plan_count,
+      ...p.evidence(r.provenance),
+    },
+  ];
+}
+async function ichraAnswer(db: SqlSession, input: Row): Promise<Answer> {
+  const native = row(await ichraAffordability(db, v.ichraRequest(input)));
+  const p = await projector(db, [native.lcsp, native.employer_lcsp]);
+  return {
+    data: {
+      status: native.status,
+      reason: native.reason ?? null,
+      plan_start: native.plan_start,
+      applicable_age: native.applicable_age ?? null,
+      basis_sensitive: native.basis_sensitive ?? null,
+      lcsps: [
+        ...ichraLcsp(native.lcsp, "premium_tax_credit", p),
+        ...ichraLcsp(native.employer_lcsp, "employer", p),
+      ],
+      monthly_hra_cents: native.monthly_hra_cents ?? null,
+      required_contribution_percentage_bp:
+        native.required_contribution_percentage_bp ?? null,
+      verdicts: rows(native.verdicts),
+      safe_harbors_applied: native.safe_harbors_applied ?? [],
+      rules: rows(native.rules).map((rule) => ({
+        id: rule.id,
+        status: rule.status,
+        citations: rows(rule.citations).map((c) => c.url),
+      })),
+      bindable_quote: false,
+    },
+    p,
+    status: ICHRA_ENVELOPE[String(native.status)] ?? "unknown",
+    context: { ...p.context, ichra: native },
+    notes: [
+      "Not a bindable quote; affordability is an estimate from public filed rates, not tax or legal advice.",
+      "Employer safe-harbor verdicts apply to section 4980H only; rules marked proposed_reliance_permitted come from a proposed rule.",
+    ],
+  };
+}
+
 async function dispatch(
   deps: McpDependencies,
   tool: ToolName,
@@ -751,6 +841,9 @@ async function dispatch(
     }
     case "quote_plans":
       return quoteAnswer(db, parseToolInput(tool, value), offset);
+    case "check_ichra_affordability":
+      if (!mayEstimate(deps)) throw new ToolError("AUTH_REQUIRED");
+      return ichraAnswer(db, parseToolInput(tool, value));
     case "search_providers": {
       const input = parseToolInput(tool, value);
       if (input.npi) {
@@ -823,8 +916,16 @@ async function dispatch(
       const input = parseToolInput(tool, value),
         native =
           tool === "check_drug_coverage"
-            ? await drugs.checkDrugCoverages(db, input)
-            : await providers.checkProviderNetworks(db, input);
+            ? await drugs.checkDrugCoverages(
+                db,
+                input,
+                cmsFallbackContext(db, undefined),
+              )
+            : await providers.checkProviderNetworks(
+                db,
+                input,
+                cmsFallbackContext(db, undefined),
+              );
       const completeness = await sourceCompleteness(db, input.year);
       const p = await projector(db, native);
       const results = native.results.map((value) => {
@@ -847,6 +948,70 @@ async function dispatch(
         },
         p,
         status: status(native.status),
+      };
+    }
+    case "search_medicare_plans": {
+      const input = parseToolInput(tool, value);
+      let native: Awaited<ReturnType<typeof searchMedicarePlans>> | undefined;
+      const page = await nativeWindow(offset, input.limit, async (page) => {
+        native = await searchMedicarePlans(
+          db,
+          params({
+            ...(input.location.county
+              ? { county_fips: input.location.county }
+              : {}),
+            ...(input.location.zip && !input.location.county
+              ? { zip: input.location.zip }
+              : {}),
+            year: input.year,
+            type: input.type,
+            page,
+          }),
+        );
+        return { items: native.plans, total: native.total };
+      });
+      const found = native!;
+      const p = await projector(db, page.items);
+      const cents = (cell: { status: string; cents: number | null }) =>
+        cell.status === "value" ? cell.cents : null;
+      return {
+        data: {
+          location_status:
+            found.location.status === "multiple_counties"
+              ? "multiple_counties"
+              : found.location.status,
+          county_fips: found.location.county_fips,
+          contract_year: found.contract_year,
+          as_of: "as_of" in found ? (found.as_of ?? null) : null,
+          plans: page.items.map((plan) => ({
+            kind: "medicare_plan" as const,
+            plan_key: plan.plan_key,
+            name: plan.name,
+            plan_type: plan.plan_type,
+            contract_category: plan.contract_category,
+            organization: plan.organization.marketing_name,
+            parent_organization: plan.organization.parent,
+            consolidated_premium_cents: cents(
+              plan.premiums_monthly.consolidated,
+            ),
+            part_d_deductible_cents: cents(plan.part_d.deductible),
+            moop_in_network_cents: cents(plan.moop_in_network),
+            overall_stars: plan.stars.overall.stars,
+            star_status: plan.stars.overall.status,
+            snp_type: plan.snp?.type ?? null,
+            provider_network: "unknown" as const,
+            ...p.evidence(plan.provenance),
+          })),
+          part_d_drug_data:
+            found.part_d_drug_data.status === "available"
+              ? "available"
+              : (found.part_d_drug_data.reason ?? "unknown"),
+        },
+        p,
+        list: "plans",
+        total: page.total,
+        more: page.more,
+        status: medicareStatus[found.status] ?? "unknown",
       };
     }
     case "get_data_status": {

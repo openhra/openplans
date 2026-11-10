@@ -30,6 +30,7 @@ release-manifest.json
 **/*.snap
 tests/**/*.json
 src/domain/subsidy/generated.ts
+src/domain/ichra/generated.ts
 
 # Imported scaffold hashes and research/history are outside the migration.
 public-scaffold/**

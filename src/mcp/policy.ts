@@ -2,7 +2,7 @@ import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import type { SqlSession } from "../db/database.js";
 import type { McpDependencies } from "./server.js";
 import { boundedDatabase, DEADLINE_MS } from "../db/bounded.js";
-import { publicQuotingFromEnv } from "../api/quotes.js";
+import { publicHouseholdFromEnv, publicQuotingFromEnv } from "../api/quotes.js";
 
 export { boundedDatabase, DEADLINE_MS };
 
@@ -15,6 +15,16 @@ export function authenticated(
   if (!token || !header?.startsWith("Bearer ")) return false;
   const digest = (s: string) => createHash("sha256").update(s).digest();
   return timingSafeEqual(digest(header.slice(7)), digest(token));
+}
+/**
+ * Household tools (quote_premiums, check_ichra_affordability) are open to anonymous callers
+ * unless the operator sets OPENPLANS_MCP_TOKEN or OPENPLANS_PUBLIC_HOUSEHOLD=off.
+ */
+export function householdOpen(env: McpEnvironment): boolean {
+  return (
+    !env.OPENPLANS_MCP_TOKEN &&
+    publicHouseholdFromEnv(env.OPENPLANS_PUBLIC_HOUSEHOLD)
+  );
 }
 export function dependencies(
   db: SqlSession,

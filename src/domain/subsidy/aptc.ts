@@ -177,9 +177,13 @@ export function estimateAptc(
     };
   }
   // This does not decide Medicaid: states use current guidelines, monthly income, age and other rules.
+  // A cited non-expansion state has no adult expansion group to review from 100% FPL.
+  const notExpanded =
+    parameters.medicaidAdultExpansion?.value[input.state] === "not_expanded";
   if (
+    !notExpanded &&
     incomeCents * 100n <=
-    povertyCents * BigInt(parameters.stateRulesReviewThroughFplPercent.value)
+      povertyCents * BigInt(parameters.stateRulesReviewThroughFplPercent.value)
   ) {
     return {
       ...empty,

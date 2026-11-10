@@ -34,8 +34,10 @@ export async function sbeRulesFile(
   const original = fileURLToPath(
     new URL(`../../../data/rating-rules/${year}.json`, import.meta.url),
   );
-  if (year !== 2026) return original;
+  if (year !== 2026 && year !== 2027) return original;
   const document = JSON.parse(await readFile(original, "utf8"));
+  if (year === 2027)
+    return writeRules(dataDir, year, withGeorgia2027(document));
   for (const state of supportedSbeStates)
     if (!document.rules.some((r: { state: string }) => r.state === state))
       document.rules.push({
@@ -58,6 +60,38 @@ export async function sbeRulesFile(
     ...(document.notes ?? []),
     "Extended with the CMS PY2026 SBE publication-listed individual medical states. Only filed per-member rows are authorized; no dental or SHOP policy is inferred. NY/VT keep their separate cited filed-tier path.",
   ];
+  return writeRules(dataDir, year, document);
+}
+/**
+ * PY2027: only Georgia has a state-exchange individual catalog, from Georgia Access's
+ * own files. Its row has its own PY2027 review. PY2026 rows never carry over.
+ */
+function withGeorgia2027(document: {
+  rules: { state: string }[];
+  notes?: string[];
+  reviewed_on?: string;
+}) {
+  if (!document.rules.some((r) => r.state === "GA"))
+    document.rules.push({
+      state: "GA",
+      market: "individual",
+      method: "per_member",
+      citation:
+        "Georgia: CMS Market Rating Reforms state table (Updated December 10, 2021; page last modified 09/10/2024), Georgia individual-market cells blank, so the federal defaults apply; 45 CFR 147.102(c)(1), (d), (e), current through 2026-11-05; reviewed for PY2027 on 2026-11-09. Use each filed Georgia Access age/area/date/tobacco row verbatim, never an inferred curve.",
+      references: [
+        "https://www.cms.gov/cciio/programs-and-initiatives/health-insurance-market-reforms/state-rating",
+        "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-B/part-147/section-147.102",
+      ],
+      member_rate_basis: "filed_rate_rows",
+      child_rule: "three_oldest_covered_children_under_21",
+    } as { state: string });
+  document.notes = [
+    ...(document.notes ?? []),
+    "Extended with Georgia for PY2027 (Georgia Access PUF catalog). Only filed per-member rows are authorized; no dental or SHOP policy is inferred.",
+  ];
+  return document;
+}
+async function writeRules(dataDir: string, year: number, document: object) {
   const directory = join(dataDir, "derived", "sbe");
   await mkdir(directory, { recursive: true });
   const path = join(directory, `rating-rules-${year}.json`);

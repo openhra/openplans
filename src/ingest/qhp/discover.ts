@@ -14,11 +14,13 @@ import { provenanceUrl } from "../../fetch/policy.js";
 import { JsonStreamError, readJsonValue } from "../json/index.js";
 import {
   cachedRegistry,
+  readGeorgiaRegistry,
   readRegistry,
   registryWorkbook,
   verifyRegistry,
 } from "./discover-registry.js";
 import type { RegistryInput } from "./discover-registry.js";
+import { cachedGeorgiaRegistry } from "../sbe/georgia.js";
 import {
   saveDiscoveryIndex,
   saveDiscoverySnapshot,
@@ -36,6 +38,10 @@ export interface DiscoverOptions {
   dataDir?: string;
   /** Trusted test dependencies. Production always uses P1a's manifest and fetchToCache. */
   registry?: RegistryInput;
+  /** Georgia Access's own MR-PUF instead of the federal workbook. GA only. */
+  registrySource?: "cms" | "georgia_access";
+  /** Read only snapshots already in the cache; a miss is recorded as `not_cached`. */
+  offline?: boolean;
   fetcher?: typeof fetchToCache;
   fetchOptions?: Pick<
     FetchOptions,
@@ -67,6 +73,8 @@ export interface DiscoveryReport {
   issuers: IssuerDiscoveryReport[];
 }
 function errorStatus(error: unknown): string {
+  if (error instanceof FetchError && /^not_cached/.test(error.message))
+    return "not_cached";
   if (
     error instanceof FetchError &&
     error.code === "http_status" &&
@@ -114,6 +122,40 @@ function publisherMetadata(
 }
 
 /** Conditional refresh; a 304 re-verifies the content hash through fetchToCache. */
+/**
+ * Offline discovery reopens the newest cached snapshot for this exact URL. The hash,
+ * admission and quarantine checks still run. It never sends a request.
+ */
+export async function cacheOnlyFetch(
+  input: string | URL,
+  options: FetchOptions,
+): Promise<FetchResult> {
+  const url = safeUrl(String(input));
+  const directory = join(options.dataDir!, "raw", options.source);
+  let newest: SnapshotMetadata | undefined;
+  for (const entry of (await readdir(directory).catch(() => [])).filter(
+    (name) => name.endsWith(".meta.json"),
+  )) {
+    const metadata = JSON.parse(
+      await readFile(join(directory, entry), "utf8"),
+    ) as SnapshotMetadata;
+    if (
+      metadata.url === url &&
+      (!newest || metadata.fetched_at > newest.fetched_at)
+    )
+      newest = metadata;
+  }
+  if (!newest)
+    throw new FetchError("cache_error", "not_cached: offline discovery");
+  const { conditional: _conditional, ...rest } = options;
+  return fetchToCache(input, {
+    ...rest,
+    expectedSha256: newest.sha256,
+    transport: async () => {
+      throw new FetchError("cache_error", "offline discovery sends no request");
+    },
+  });
+}
 async function cachedFetch(
   url: string,
   options: FetchOptions,
@@ -229,13 +271,25 @@ export async function discoverQhp(
     throw new Error("Invalid discovery scope");
   const dataDir = options.dataDir ?? qhpDataDirectory();
   if (!isAbsolute(dataDir)) throw new Error("Absolute data directory required");
+  const georgia = options.registrySource === "georgia_access";
+  if (georgia && options.state !== "GA")
+    throw new Error("Georgia Access registry covers GA only");
   const registry =
-    options.registry ?? (await cachedRegistry(dataDir, options.year));
+    options.registry ??
+    (georgia
+      ? {
+          ...(await cachedGeorgiaRegistry(dataDir, options.year)),
+          format: "georgia-access-csv" as const,
+        }
+      : await cachedRegistry(dataDir, options.year));
   await verifyRegistry(registry);
-  const rows = await readRegistry(
-    await registryWorkbook(registry, dataDir),
-    options.state,
-  );
+  const rows =
+    registry.format === "georgia-access-csv"
+      ? await readGeorgiaRegistry(registry.path, options.state)
+      : await readRegistry(
+          await registryWorkbook(registry, dataDir),
+          options.state,
+        );
   const registryId = `qhp:registry:${registry.metadata.sha256}`;
   await saveDiscoverySnapshot(
     db,
@@ -249,7 +303,8 @@ export async function discoverQhp(
     [host(registry.metadata.url)!],
   );
   const discovery = randomUUID(),
-    fetcher = options.fetcher ?? fetchToCache;
+    fetcher =
+      options.fetcher ?? (options.offline ? cacheOnlyFetch : fetchToCache);
   const report: DiscoveryReport = {
     discovery_id: discovery,
     year: options.year,

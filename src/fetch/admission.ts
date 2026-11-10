@@ -12,6 +12,9 @@ import type { RobotsPolicy } from "./robots.js";
 const dailyRecheckMs = 24 * 60 * 60 * 1000;
 /** RFC 9309 2.3.1.3, narrowed: only Not Found and Gone, received without a redirect, mean no robots rules. */
 export const absentRobotsStatuses: readonly number[] = [404, 410];
+/** Pacing floor for ordinary hosts, and for documented keyed APIs (`accessMode: "api-key"`). */
+export const minimumDelayMs = 5000;
+export const minimumApiKeyDelayMs = 1000;
 const sha256 = z.string().regex(/^[a-f0-9]{64}$/);
 const countryCode = z.string().regex(/^[A-Z]{2}$/);
 const robotsObservation = z
@@ -22,11 +25,25 @@ const robotsObservation = z
     checkedAt: z.iso.datetime(),
     /** Egress country the observation was made from; required for an absent robots file. */
     country: countryCode.optional(),
+    /**
+     * Why robots does not apply: a keyed API answers every unauthenticated path, `/robots.txt`
+     * included, with 401. Only valid with status 401 on an `accessMode: "api-key"` entry.
+     */
+    notApplicable: z.string().min(1).optional(),
   })
   .strict()
   .superRefine((robots, context) => {
     const absent = absentRobotsStatuses.includes(robots.status);
-    if (absent !== (robots.sha256 === null))
+    if (robots.notApplicable !== undefined && robots.status !== 401)
+      context.addIssue({
+        code: "custom",
+        message: "Robots can be not applicable only for a recorded 401",
+      });
+    if (
+      absent || robots.notApplicable !== undefined
+        ? robots.sha256 !== null
+        : robots.sha256 === null
+    )
       context.addIssue({
         code: "custom",
         message: "Robots hash must be null exactly when the file is absent",
@@ -89,7 +106,21 @@ const publisherSchema = z
     delegates: z.array(z.string().regex(/^[a-z0-9.-]+$/)),
     attribution: z.string().min(1),
     updatePolicy: z.string().min(1),
-    delayMs: z.number().finite().min(5000),
+    /**
+     * `api-key`: a documented API that requires a key. Admission rests on the published API
+     * documentation (the `terms` entry) because the host answers robots with 401. The key comes
+     * from the environment variable named in `apiKey` and is added only to data requests.
+     */
+    accessMode: z.enum(["public", "api-key"]).optional(),
+    apiKey: z
+      .object({
+        env: z.string().regex(/^[A-Z][A-Z0-9_]{1,63}$/),
+        queryParam: z.string().regex(/^[a-z][a-z0-9_]{0,31}$/),
+      })
+      .strict()
+      .optional(),
+    /** At least 5000 ms; a keyed API entry may go down to 1000 ms. */
+    delayMs: z.number().finite().min(minimumApiKeyDelayMs),
     jobCaps: z
       .object({
         maxRequests: z.number().int().positive(),
@@ -130,11 +161,29 @@ export const admissionManifestSchema = z
     if (new Set(hosts).size !== hosts.length)
       context.addIssue({ code: "custom", message: "Duplicate publisher host" });
     for (const publisher of manifest.publishers) {
+      const keyed = publisher.accessMode === "api-key";
+      if (keyed !== (publisher.apiKey !== undefined))
+        context.addIssue({
+          code: "custom",
+          message: "An API key entry needs accessMode api-key, and only it",
+        });
+      if (!keyed && publisher.delayMs < minimumDelayMs)
+        context.addIssue({
+          code: "custom",
+          message: `Publisher delay below ${minimumDelayMs} ms needs accessMode api-key`,
+        });
+      if (!keyed && publisher.robots?.notApplicable !== undefined)
+        context.addIssue({
+          code: "custom",
+          message: "Only an api-key entry can record robots as not applicable",
+        });
+      const robotsReviewed =
+        publisher.robots &&
+        ([200, ...absentRobotsStatuses].includes(publisher.robots.status) ||
+          (keyed && publisher.robots.notApplicable !== undefined));
       if (
         publisher.state === "allowed" &&
-        (publisher.terms?.disposition !== "allowed" ||
-          !publisher.robots ||
-          ![200, ...absentRobotsStatuses].includes(publisher.robots.status))
+        (publisher.terms?.disposition !== "allowed" || !robotsReviewed)
       )
         context.addIssue({
           code: "custom",
@@ -152,6 +201,10 @@ export interface PolicyDocument {
   text: string;
   /** True only for a direct 404/410 at /robots.txt: the host publishes no robots rules. */
   absent?: boolean;
+  /** True only for a direct 401 at /robots.txt. Holds unless the entry is a reviewed keyed API. */
+  unauthorized?: boolean;
+  /** The original 401 failure, rethrown when the entry is not a reviewed keyed API. */
+  failure?: FetchError;
   contentType?: string | null;
 }
 export interface AdmissionOptions {
@@ -161,6 +214,11 @@ export interface AdmissionOptions {
   egressFile?: string;
   /** SHA-256 of the egress record; defaults to `OPENPLANS_EGRESS_SHA256`. */
   egressSha256?: string;
+  /**
+   * API keys by host, for keyed API entries. Without one, the entry's `apiKey.env` variable is
+   * read. The value is only ever added to a data request URL; it is never stored or reported.
+   */
+  apiKeys?: Readonly<Record<string, string>>;
 }
 export interface AdmissionReceipt {
   manifestSha256: string;
@@ -176,11 +234,17 @@ export interface AdmissionReceipt {
     egressCountry?: string | null;
     /** The validated egress record, or null without one. Absent from receipts written before it. */
     egress?: EgressReceipt | null;
+    /** Present for a keyed API: admitted on its API documentation (`termsUrl`, `termsSha256`). */
+    accessMode?: "api-key";
+    /** Name of the query parameter that carried the key. Never the key itself. */
+    apiKeyParam?: string;
     robots: {
       url: string;
       status: number;
       sha256: string | null;
       absent?: boolean;
+      /** True when a keyed API answered robots with the reviewed 401. */
+      notApplicable?: boolean;
       checkedAt: string;
     };
   }[];
@@ -283,6 +347,7 @@ export class AdmissionSession {
   private hostBytes = new Map<string, number>();
   private hostCaps = new Map<string, PublisherPolicy["jobCaps"]>();
   private receipts = new Map<string, AdmissionReceipt["hosts"][number]>();
+  private reviewedKeyed = new Map<string, PublisherPolicy>();
   /** Set when an egress record was given; its country is then the session's egress country. */
   readonly egress?: EgressBinding;
   readonly egressCountry?: string;
@@ -331,6 +396,46 @@ export class AdmissionSession {
 
   stop(): void {
     this.stopped = true;
+  }
+
+  /** True after any refusal or failure; a long-lived caller starts a new session. */
+  get isStopped(): boolean {
+    return this.stopped;
+  }
+
+  private apiKey(publisher: PublisherPolicy): string | undefined {
+    if (!publisher.apiKey) return undefined;
+    const key =
+      this.options.apiKeys?.[publisher.host] ??
+      process.env[publisher.apiKey.env];
+    return key && /^[\x21-\x7e]{8,256}$/.test(key) ? key : undefined;
+  }
+
+  /** Pacing floor for this host: lower only for a reviewed keyed API. */
+  pacingFloorMs(url: URL): number {
+    return this.reviewedKeyed.has(url.hostname)
+      ? minimumApiKeyDelayMs
+      : minimumDelayMs;
+  }
+
+  /**
+   * The URL actually sent for a data request: a keyed API gets its key as the reviewed query
+   * parameter. Callers keep using the key-free URL for evidence, metadata and errors.
+   */
+  credentialUrl(url: URL): URL {
+    const publisher = this.reviewedKeyed.get(url.hostname);
+    if (!publisher) return url;
+    const key = this.apiKey(publisher);
+    if (!key) {
+      this.stop();
+      throw new FetchError(
+        "admission_denied",
+        `Publisher requires an API key in ${publisher.apiKey!.env}`,
+      );
+    }
+    const sent = new URL(url);
+    sent.searchParams.set(publisher.apiKey!.queryParam, key);
+    return sent;
   }
 
   reserveRequest(url: URL): void {
@@ -435,6 +540,13 @@ export class AdmissionSession {
       return denied("Publisher terms review is missing or expired");
     if (!permitsPath(publisher, url))
       return denied("Path is outside the publisher's reviewed permitted paths");
+    if (publisher.accessMode === "api-key") {
+      if (!this.apiKey(publisher))
+        return denied(
+          `Publisher requires an API key in ${publisher.apiKey!.env}; none is set`,
+        );
+      this.reviewedKeyed.set(publisher.host, publisher);
+    } else this.reviewedKeyed.delete(publisher.host);
     this.hostCaps.set(publisher.host, publisher.jobCaps);
     return publisher;
   }
@@ -552,11 +664,16 @@ export class AdmissionSession {
         ...(termsHost && { termsRobots: termsHost.observation }),
         egressCountry: this.egressCountry ?? null,
         egress: this.egress?.receipt ?? null,
+        ...(publisher.accessMode === "api-key" && {
+          accessMode: "api-key" as const,
+          apiKeyParam: publisher.apiKey!.queryParam,
+        }),
         robots: {
           url: robotsUrl.href,
           status: document.status,
           sha256: document.sha256,
           absent: document.absent === true,
+          ...(document.unauthorized && { notApplicable: true }),
           checkedAt: new Date(checkedAt).toISOString(),
         },
       };
@@ -610,6 +727,24 @@ export class AdmissionSession {
     publisher: PublisherPolicy,
     document: PolicyDocument,
   ): void {
+    if (document.unauthorized) {
+      // A keyed API answers every unauthenticated path with 401. It counts as "robots not
+      // applicable" only when the reviewed entry is a keyed API and recorded that 401 itself.
+      if (
+        publisher.accessMode !== "api-key" ||
+        publisher.robots?.status !== 401 ||
+        publisher.robots.notApplicable === undefined
+      )
+        throw (
+          document.failure ??
+          new FetchError(
+            "http_status",
+            "Publisher returned an unsuccessful HTTP status",
+            401,
+          )
+        );
+      return;
+    }
     if (!document.absent) return assertNotHtml(document);
     const reviewed = publisher.robots;
     if (!reviewed || !absentRobotsStatuses.includes(reviewed.status))

@@ -4,6 +4,8 @@ import { drugCoverage } from "../domain/drugs/repository.js";
 import { drugConcept, normalizeNdc } from "../domain/drugs/concepts.js";
 import * as v from "../api/validation.js";
 import { ReadError } from "./errors.js";
+import { applyCmsFallback } from "../ingest/cms-api/fallback.js";
+import type { CmsFallbackContext } from "../ingest/cms-api/fallback.js";
 
 function rxcui(value: unknown): string {
   if (typeof value !== "string" || !/^\d{1,20}$/.test(value))
@@ -76,19 +78,33 @@ export async function getDrug(db: SqlSession, value: unknown) {
   if (!concept) throw new ReadError({ code: "DRUG_NOT_FOUND" });
   return concept;
 }
-export const checkDrugCoverage = (
+/** `cms` is the per-request CMS API fallback context; absent unless the operator enabled it. */
+export async function checkDrugCoverage(
   db: SqlSession,
   plan: unknown,
   code: unknown,
   year: unknown,
-) => drugCoverage(db, v.planId(plan).full, rxcui(code), drugYear(year));
-export async function checkDrugCoverages(db: SqlSession, body: unknown) {
+  cms?: CmsFallbackContext,
+) {
+  const answer = await drugCoverage(
+    db,
+    v.planId(plan).full,
+    rxcui(code),
+    drugYear(year),
+  );
+  return (await applyCmsFallback("drug", [answer], cms))[0]!;
+}
+export async function checkDrugCoverages(
+  db: SqlSession,
+  body: unknown,
+  cms?: CmsFallbackContext,
+) {
   const request = coverageRequest(body),
     results = [];
   for (const plan of request.plans)
     for (const code of request.codes)
       results.push(await drugCoverage(db, plan, code, request.year));
-  return { results };
+  return { results: await applyCmsFallback("drug", results, cms) };
 }
 /** Terminology availability is separate from a successful empty candidate search. */
 export const drugTerminology = (db: SqlSession) =>

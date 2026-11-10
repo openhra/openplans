@@ -1,4 +1,8 @@
-import { activeCatalog, directoryRows } from "../api/repository.js";
+import {
+  activeCatalog,
+  directoryRows,
+  planPageScope,
+} from "../api/repository.js";
 import type { SqlSession } from "../db/database.js";
 import {
   countyPlans,
@@ -60,6 +64,7 @@ export async function searchPlans(
   ).filter((p) => metal === undefined || p.metal.toLowerCase() === metal);
   const active = await activeCatalog(db, year, countyState(location.county));
   const start = (page - 1) * 50;
+  const scoped = planPageScope(db);
   return {
     status: active.rows.length ? "available" : "unknown",
     year,
@@ -67,7 +72,7 @@ export async function searchPlans(
     location,
     plans: await Promise.all(
       plans.slice(start, start + 50).map(async (plan) => ({
-        ...(await planView(db, plan, { csrVariant })),
+        ...(await planView(scoped, plan, { csrVariant })),
         availability: {
           zip_restricted: plan.zip_restricted,
           zip_codes: plan.zip_codes,

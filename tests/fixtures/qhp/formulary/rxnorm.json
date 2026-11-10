@@ -1,110 +1,110 @@
 [
   {
-    "snapshot_id": "rxnorm-2026-11-02-c742a6c4b2995194aa3479400e08a7c1ad707178bfc80fe9c8cd7afa693ae987",
-    "rxcui": "6809",
-    "rxaui": "12251601",
-    "name": "metformin",
+    "snapshot_id": "rxnorm-synthetic-2026-11-02",
+    "rxcui": "990000101",
+    "rxaui": "990100001",
+    "name": "synthetic metformin",
     "tty": "IN",
     "suppress": "N",
-    "source_record": 1665
+    "source_record": 1
   },
   {
-    "snapshot_id": "rxnorm-2026-11-02-c742a6c4b2995194aa3479400e08a7c1ad707178bfc80fe9c8cd7afa693ae987",
-    "rxcui": "311354",
-    "rxaui": "12325651",
-    "name": "lisinopril 5 MG Oral Tablet",
+    "snapshot_id": "rxnorm-synthetic-2026-11-02",
+    "rxcui": "990000201",
+    "rxaui": "990100002",
+    "name": "synthetic lisinopril 5 MG Oral Tablet",
     "tty": "SCD",
     "suppress": "N",
-    "source_record": 40195
+    "source_record": 2
   },
   {
-    "snapshot_id": "rxnorm-2026-11-02-c742a6c4b2995194aa3479400e08a7c1ad707178bfc80fe9c8cd7afa693ae987",
-    "rxcui": "860975",
-    "rxaui": "12348417",
-    "name": "24 HR metformin hydrochloride 500 MG Extended Release Oral Tablet",
+    "snapshot_id": "rxnorm-synthetic-2026-11-02",
+    "rxcui": "990000401",
+    "rxaui": "990100003",
+    "name": "24 HR synthetic metformin hydrochloride 500 MG Extended Release Oral Tablet",
     "tty": "SCD",
     "suppress": "N",
-    "source_record": 97764
+    "source_record": 3
   },
   {
-    "snapshot_id": "rxnorm-2026-11-02-c742a6c4b2995194aa3479400e08a7c1ad707178bfc80fe9c8cd7afa693ae987",
-    "rxcui": "259255",
-    "rxaui": "1305832",
-    "name": "atorvastatin 80 MG Oral Tablet",
+    "snapshot_id": "rxnorm-synthetic-2026-11-02",
+    "rxcui": "990000301",
+    "rxaui": "990100004",
+    "name": "synthetic atorvastatin 80 MG Oral Tablet",
     "tty": "SCD",
     "suppress": "N",
-    "source_record": 29556
+    "source_record": 4
   },
   {
-    "snapshot_id": "rxnorm-2026-11-02-c742a6c4b2995194aa3479400e08a7c1ad707178bfc80fe9c8cd7afa693ae987",
-    "rxcui": "259255",
-    "rxaui": "3625512",
-    "name": "atorvastatin (as atorvastatin calcium) 80 MG Oral Tablet",
+    "snapshot_id": "rxnorm-synthetic-2026-11-02",
+    "rxcui": "990000301",
+    "rxaui": "990100005",
+    "name": "synthetic atorvastatin (as atorvastatin calcium) 80 MG Oral Tablet",
     "tty": "SY",
     "suppress": "N",
-    "source_record": 29559
+    "source_record": 5
   },
   {
-    "snapshot_id": "rxnorm-2026-11-02-c742a6c4b2995194aa3479400e08a7c1ad707178bfc80fe9c8cd7afa693ae987",
-    "rxcui": "6809",
-    "rxaui": "3737123",
-    "name": "metFORMIN",
+    "snapshot_id": "rxnorm-synthetic-2026-11-02",
+    "rxcui": "990000101",
+    "rxaui": "990100006",
+    "name": "synthetic metFORMIN",
     "tty": "TMSY",
     "suppress": "N",
-    "source_record": 1666
+    "source_record": 6
   },
   {
-    "snapshot_id": "rxnorm-2026-11-02-c742a6c4b2995194aa3479400e08a7c1ad707178bfc80fe9c8cd7afa693ae987",
-    "rxcui": "311354",
-    "rxaui": "6359510",
-    "name": "lisinopril 5 MG Oral Tablet",
+    "snapshot_id": "rxnorm-synthetic-2026-11-02",
+    "rxcui": "990000201",
+    "rxaui": "990100007",
+    "name": "synthetic lisinopril 5 MG Oral Tablet",
     "tty": "PSN",
     "suppress": "N",
-    "source_record": 40231
+    "source_record": 7
   },
   {
-    "snapshot_id": "rxnorm-2026-11-02-c742a6c4b2995194aa3479400e08a7c1ad707178bfc80fe9c8cd7afa693ae987",
-    "rxcui": "259255",
-    "rxaui": "6371356",
-    "name": "atorvastatin calcium 80 MG Oral Tablet",
+    "snapshot_id": "rxnorm-synthetic-2026-11-02",
+    "rxcui": "990000301",
+    "rxaui": "990100008",
+    "name": "synthetic atorvastatin calcium 80 MG Oral Tablet",
     "tty": "PSN",
     "suppress": "N",
-    "source_record": 29561
+    "source_record": 8
   },
   {
-    "snapshot_id": "rxnorm-2026-11-02-c742a6c4b2995194aa3479400e08a7c1ad707178bfc80fe9c8cd7afa693ae987",
-    "rxcui": "860975",
-    "rxaui": "6375453",
-    "name": "24 HR metFORMIN hydrochloride 500 MG Extended Release Oral Tablet",
+    "snapshot_id": "rxnorm-synthetic-2026-11-02",
+    "rxcui": "990000401",
+    "rxaui": "990100009",
+    "name": "24 HR synthetic metFORMIN hydrochloride 500 MG Extended Release Oral Tablet",
     "tty": "TMSY",
     "suppress": "N",
-    "source_record": 97830
+    "source_record": 9
   },
   {
-    "snapshot_id": "rxnorm-2026-11-02-c742a6c4b2995194aa3479400e08a7c1ad707178bfc80fe9c8cd7afa693ae987",
-    "rxcui": "860975",
-    "rxaui": "6810708",
-    "name": "metFORMIN HCl 500 MG 24HR Extended Release Oral Tablet",
+    "snapshot_id": "rxnorm-synthetic-2026-11-02",
+    "rxcui": "990000401",
+    "rxaui": "990100010",
+    "name": "synthetic metFORMIN HCl 500 MG 24HR Extended Release Oral Tablet",
     "tty": "PSN",
     "suppress": "N",
-    "source_record": 97831
+    "source_record": 10
   },
   {
-    "snapshot_id": "rxnorm-2026-11-02-c742a6c4b2995194aa3479400e08a7c1ad707178bfc80fe9c8cd7afa693ae987",
-    "rxcui": "860975",
-    "rxaui": "8714196",
-    "name": "metformin HCl 500 MG 24 HR Extended Release Oral Tablet",
+    "snapshot_id": "rxnorm-synthetic-2026-11-02",
+    "rxcui": "990000401",
+    "rxaui": "990100011",
+    "name": "synthetic metformin HCl 500 MG 24 HR Extended Release Oral Tablet",
     "tty": "SY",
     "suppress": "N",
-    "source_record": 97837
+    "source_record": 11
   },
   {
-    "snapshot_id": "rxnorm-2026-11-02-c742a6c4b2995194aa3479400e08a7c1ad707178bfc80fe9c8cd7afa693ae987",
-    "rxcui": "860975",
-    "rxaui": "8714721",
-    "name": "metFORMIN HCl 500 MG 24 HR Extended Release Oral Tablet",
+    "snapshot_id": "rxnorm-synthetic-2026-11-02",
+    "rxcui": "990000401",
+    "rxaui": "990100012",
+    "name": "synthetic metFORMIN HCl 500 MG 24 HR Extended Release Oral Tablet",
     "tty": "TMSY",
     "suppress": "N",
-    "source_record": 97838
+    "source_record": 12
   }
 ]

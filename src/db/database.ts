@@ -1,4 +1,5 @@
 import pg from "pg";
+import { POOL_MAX } from "./scope.js";
 
 export interface SqlSession {
   query<Row extends Record<string, unknown> = Record<string, unknown>>(
@@ -45,7 +46,7 @@ export function createDatabase(
     connectionString,
     connectionTimeoutMillis: 2_000,
     query_timeout: 5_000,
-    max: 5,
+    max: POOL_MAX,
   });
   // Cancellation must not queue behind the work it needs to stop.
   const cancelPool = new pg.Pool({

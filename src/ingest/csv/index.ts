@@ -24,6 +24,14 @@ export interface CsvOptions {
   headerMap?:
     | Readonly<Record<string, string>>
     | ((header: string, index: number) => string);
+  /** Drop one extra empty field after the last header column, left by a trailing comma. */
+  trailingEmptyField?: boolean;
+  /**
+   * Read a quote followed by anything other than a delimiter, quote or newline as a
+   * literal quote inside the quoted field. Off by default. Callers must record
+   * every recovered record and still enforce the header's field count.
+   */
+  recoverUnescapedQuotes?: boolean;
 }
 export interface CsvRecord {
   /** Physical starting line (1-based), including the header. */
@@ -31,6 +39,8 @@ export interface CsvRecord {
   /** Logical record number (1-based), including the header. */
   recordNumber: number;
   fields: string[];
+  /** Quotes read literally under recoverUnescapedQuotes; absent when none. */
+  recoveredQuotes?: number;
 }
 export interface CsvRow extends CsvRecord {
   values: Record<string, string>;
@@ -53,20 +63,32 @@ export async function* readRecords(
   const decoder = new StringDecoder("utf8");
   let field = "",
     fields: string[] = [];
-  let state: "start" | "plain" | "quoted" | "closed" = "start";
+  // loose*: inside a quoted field after an unescaped quote, in recovery mode only.
+  // Here a quote closes the field only when a delimiter or newline follows it.
+  let state:
+    | "start"
+    | "plain"
+    | "quoted"
+    | "closed"
+    | "loose"
+    | "looseQuote"
+    | "looseQuote2" = "start";
   let line = 1,
     startLine = 1,
     recordNumber = 1,
     length = 0;
   let first = true,
     skipLf = false,
-    previousCr = false;
+    previousCr = false,
+    recovered = 0;
   function finish(): CsvRecord {
-    const record = {
+    const record: CsvRecord = {
       rowNumber: startLine,
       recordNumber: recordNumber++,
       fields: [...fields, field],
+      ...(recovered ? { recoveredQuotes: recovered } : {}),
     };
+    recovered = 0;
     field = "";
     fields = [];
     state = "start";
@@ -88,7 +110,8 @@ export async function* readRecords(
         }
       }
       const newline = char === "\r" || char === "\n";
-      if (newline && state !== "quoted") {
+      if (newline && state === "looseQuote2") field += '"';
+      if (newline && state !== "quoted" && state !== "loose") {
         const record = finish();
         if (char === "\r" || !previousCr) line++;
         previousCr = char === "\r";
@@ -115,12 +138,34 @@ export async function* readRecords(
           fields.push(field);
           field = "";
           state = "start";
+        } else if (options.recoverUnescapedQuotes) {
+          field += `"${char}`;
+          state = "loose";
+          recovered++;
         } else
           throw new CsvError(
             "invalid_quote",
             startLine,
             "unexpected character after closing quote",
           );
+      } else if (state === "loose") {
+        if (char === '"') state = "looseQuote";
+        else field += char;
+      } else if (state === "looseQuote" || state === "looseQuote2") {
+        if (char === delimiter) {
+          if (state === "looseQuote2") field += '"';
+          fields.push(field);
+          field = "";
+          state = "start";
+        } else if (char === '"') {
+          if (state === "looseQuote2") field += '"';
+          state = state === "looseQuote" ? "looseQuote2" : "looseQuote";
+        } else {
+          // A doubled quote is one escaped quote; a single one was unescaped.
+          if (state === "looseQuote") recovered++;
+          field += `"${char}`;
+          state = "loose";
+        }
       } else if (char === delimiter) {
         fields.push(field);
         field = "";
@@ -149,7 +194,8 @@ export async function* readRecords(
     );
   }
   yield* consume(decoder.end());
-  if ((state as string) === "quoted")
+  if ((state as string) === "looseQuote2") field += '"';
+  if ((state as string) === "quoted" || (state as string) === "loose")
     throw new CsvError(
       "unterminated_quote",
       startLine,
@@ -189,6 +235,12 @@ export async function* readCsv(
         );
       }
     } else {
+      if (
+        options.trailingEmptyField &&
+        record.fields.length === headers.length + 1 &&
+        record.fields.at(-1) === ""
+      )
+        record.fields.pop();
       if (record.fields.length !== headers.length)
         throw new CsvError(
           "column_count",

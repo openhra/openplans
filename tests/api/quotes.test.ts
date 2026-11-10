@@ -279,10 +279,10 @@ describe("personalized premium quotes; the old premium-estimates name is gone (n
     });
     expect(currentJson).not.toHaveProperty("estimates");
   });
-  it("keeps 503 AUTH_NOT_CONFIGURED and 401 UNAUTHORIZED", async () => {
+  it("keeps 503 AUTH_NOT_CONFIGURED when switched off and 401 UNAUTHORIZED with a token", async () => {
     const path = "/v1/premium-quotes";
     const unconfigured = await postJson(
-      createApp(fixture.db, {}),
+      createApp(fixture.db, { publicHousehold: false }),
       path,
       premiumBody,
       headers,
@@ -359,8 +359,8 @@ describe("personalized premium quotes; the old premium-estimates name is gone (n
       temporary,
       replaceSyntax(
         await readFile(source, "utf8"),
-        'app.use("/premium-quotes", personalizedOnly(options));',
-        'app.use("/premium-quotes", personalizedOnly(options)); app.use("/premium-estimates", personalizedOnly(options)); app.post("/premium-estimates", async (c) => c.json(await estimatePremiums(db, await jsonBody(c))));',
+        'app.use("/premium-quotes", household);',
+        'app.use("/premium-quotes", household); app.use("/premium-estimates", household); app.post("/premium-estimates", async (c) => c.json(await estimatePremiums(db, await jsonBody(c))));',
       ),
     );
     try {

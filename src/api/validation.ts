@@ -478,3 +478,191 @@ export function publicQuoteRequest(value: unknown) {
     page,
   };
 }
+
+const ICHRA_FIELDS = {
+  body: new Set([
+    "plan_start",
+    "months_available",
+    "employee",
+    "residence",
+    "worksite",
+    "hra",
+    "income",
+    "safe_harbors",
+    "lcsp_premium_basis",
+  ]),
+  employee: new Set(["date_of_birth", "eligible_from"]),
+  residence: new Set(["zip", "county"]),
+  worksite: new Set(["zip", "county", "remote"]),
+  hra: new Set(["self_only_annual_cents"]),
+  safe_harbors: new Set(["location", "look_back"]),
+} as const;
+const ICHRA_INCOME_AMOUNT = {
+  household: "annual_cents",
+  w2: "annual_cents",
+  rate_of_pay_hourly: "hourly_cents",
+  rate_of_pay_salary: "monthly_cents",
+  fpl: null,
+} as const;
+const ICHRA_MAX_INCOME_MEASURES = 4;
+/** Upper bound for any cents input: $100 million, far above any wage or HRA amount. */
+const ICHRA_MAX_CENTS = 10_000_000_000;
+
+function onlyFields(
+  value: Record<string, unknown>,
+  allowed: ReadonlySet<string>,
+  prefix: string,
+) {
+  const unknown = Object.keys(value).find((key) => !allowed.has(key));
+  if (unknown !== undefined)
+    fail(`${prefix}${unknown}`.slice(0, MAX_FIELD_ECHO), "UNKNOWN_FIELD");
+}
+function isoDate(value: unknown, field: string): string {
+  try {
+    if (typeof value === "string") {
+      dateParts(value);
+      return value;
+    }
+  } catch {
+    /* Reported below. */
+  }
+  return fail(field, "INVALID_DATE");
+}
+function cents(value: unknown, field: string): number {
+  if (
+    typeof value !== "number" ||
+    !Number.isSafeInteger(value) ||
+    value < 0 ||
+    value > ICHRA_MAX_CENTS
+  )
+    return fail(field);
+  return value;
+}
+function ichraLocation(
+  value: unknown,
+  field: string,
+  allowed: ReadonlySet<string>,
+) {
+  const body = record(value, field);
+  onlyFields(body, allowed, `${field}.`);
+  if (body.zip === undefined && body.county === undefined)
+    return fail(field, "LOCATION_REQUIRED");
+  return {
+    ...(body.zip === undefined ? {} : { zip: zip(body.zip) }),
+    ...(body.county === undefined ? {} : { county: county(body.county) }),
+  };
+}
+function ichraIncome(value: unknown, index: number) {
+  const field = `income.${index}`,
+    item = record(value, field);
+  const measure = item.measure as keyof typeof ICHRA_INCOME_AMOUNT;
+  if (typeof measure !== "string" || !(measure in ICHRA_INCOME_AMOUNT))
+    return fail(`${field}.measure`);
+  const amount = ICHRA_INCOME_AMOUNT[measure];
+  onlyFields(
+    item,
+    new Set(amount ? ["measure", amount] : ["measure"]),
+    `${field}.`,
+  );
+  if (measure === "fpl") return { measure };
+  const amountCents = cents(item[amount!], `${field}.${amount}`);
+  switch (measure) {
+    case "household":
+    case "w2":
+      return { measure, annualCents: amountCents };
+    case "rate_of_pay_hourly":
+      return { measure, hourlyCents: amountCents };
+    case "rate_of_pay_salary":
+      return { measure, monthlyCents: amountCents };
+  }
+}
+function flag(value: unknown, field: string): boolean {
+  if (value === undefined) return false;
+  if (typeof value !== "boolean") return fail(field);
+  return value;
+}
+
+/** POST /v1/ichra/affordability body. Unknown fields are refused; income is never echoed. */
+export function ichraRequest(value: unknown) {
+  const body = record(value, "body");
+  onlyFields(body, ICHRA_FIELDS.body, "");
+  const planStart = isoDate(body.plan_start, "plan_start");
+  if (dateParts(planStart).year < 2014)
+    return fail("plan_start", "INVALID_DATE");
+  const months = body.months_available ?? 12;
+  if (
+    typeof months !== "number" ||
+    !Number.isInteger(months) ||
+    months < 1 ||
+    months > 12
+  )
+    return fail("months_available");
+  const employee = record(body.employee, "employee");
+  onlyFields(employee, ICHRA_FIELDS.employee, "employee.");
+  const dateOfBirth = isoDate(employee.date_of_birth, "employee.date_of_birth");
+  if (dateOfBirth > planStart)
+    return fail("employee.date_of_birth", "INVALID_DATE");
+  const eligibleFrom =
+    employee.eligible_from === undefined || employee.eligible_from === null
+      ? null
+      : isoDate(employee.eligible_from, "employee.eligible_from");
+  const residence = ichraLocation(
+    body.residence,
+    "residence",
+    ICHRA_FIELDS.residence,
+  );
+  const worksite =
+    body.worksite === undefined || body.worksite === null
+      ? null
+      : {
+          ...ichraLocation(body.worksite, "worksite", ICHRA_FIELDS.worksite),
+          remote: flag(
+            record(body.worksite, "worksite").remote,
+            "worksite.remote",
+          ),
+        };
+  const hra = record(body.hra, "hra");
+  onlyFields(hra, ICHRA_FIELDS.hra, "hra.");
+  const hraAnnualCents = cents(
+    hra.self_only_annual_cents,
+    "hra.self_only_annual_cents",
+  );
+  if (
+    !Array.isArray(body.income) ||
+    body.income.length < 1 ||
+    body.income.length > ICHRA_MAX_INCOME_MEASURES
+  )
+    return fail("income");
+  const income = body.income.map(ichraIncome);
+  distinct(
+    income.map((i) => i.measure),
+    "income",
+    "DUPLICATE_MEASURE",
+  );
+  const harbors =
+    body.safe_harbors === undefined
+      ? {}
+      : record(body.safe_harbors, "safe_harbors");
+  onlyFields(harbors, ICHRA_FIELDS.safe_harbors, "safe_harbors.");
+  const safeHarbors = {
+    location: flag(harbors.location, "safe_harbors.location"),
+    lookBack: flag(harbors.look_back, "safe_harbors.look_back"),
+  };
+  if (safeHarbors.location && !worksite)
+    return fail("safe_harbors.location", "SAFE_HARBOR_INPUT_MISSING");
+  const basis = body.lcsp_premium_basis ?? null;
+  if (basis !== null && basis !== "gross" && basis !== "ehb_portion")
+    return fail("lcsp_premium_basis");
+  return {
+    planStart,
+    monthsAvailable: months,
+    dateOfBirth,
+    eligibleFrom,
+    residence,
+    worksite,
+    hraAnnualCents,
+    income,
+    safeHarbors,
+    lcspPremiumBasis: basis as "gross" | "ehb_portion" | null,
+  };
+}

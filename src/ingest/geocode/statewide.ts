@@ -112,7 +112,7 @@ export async function stagePage(
       const previous = shard === cursor[0] ? cursor : [shard, "", "-1"];
       const found = (
         await db.query(
-          `SELECT 1 FROM qhp_provider_address WHERE snapshot_id=$1 AND state=$4 AND state IN ('TX','FL','NC')
+          `SELECT 1 FROM qhp_provider_address WHERE snapshot_id=$1 AND state=$4
         AND (record_id,address_index)>($2,$3) ORDER BY record_id,address_index LIMIT 1`,
           [shard, previous[1] ?? "", Number(previous[2] ?? -1), run.state],
         )
@@ -147,7 +147,7 @@ export async function stagePage(
         : `SELECT 'qhp_provider_address'::text AS source_table,a.snapshot_id||':'||a.record_id||':'||a.address_index::text AS source_row,
     NULL::text AS npi,'issuer'::text AS kind,a.address_index AS ordinal,a.address AS line_1,a.address_2 AS line_2,a.city,a.state,
     CASE WHEN btrim(a.zip) ~ '^[0-9]{5}([- ]?[0-9]{4})?$' THEN substring(btrim(a.zip),1,5) END AS zip5,a.snapshot_id,a.record_id
-    FROM qhp_provider_address a WHERE a.snapshot_id=$5 AND a.state=$6 AND a.state IN ('TX','FL','NC')
+    FROM qhp_provider_address a WHERE a.snapshot_id=$5 AND a.state=$6
     AND (a.snapshot_id,a.record_id,a.address_index)>($1,$2,$3) ORDER BY a.snapshot_id,a.record_id,a.address_index LIMIT $4`,
       npi
         ? [
@@ -498,7 +498,9 @@ export async function geocodeStatewide(
         row.status === "Match"
           ? countyAt(row.latitude!, row.longitude!, counties)
           : undefined;
-      const matchedCounty = row.countyFips ? claimedCounty : containingCounty;
+      // A claimed code missing from the outline vintage (Connecticut's former counties, for
+      // example) falls back to the county that contains the point.
+      const matchedCounty = claimedCounty ?? containingCounty;
       // Census matched-address state is evidence too: reject even an in-state coordinate with another state label.
       const returnedState = row.matchedAddress
         ?.split(",")
@@ -561,7 +563,7 @@ export async function geocodeStatewide(
       }
       const county = pointCounty?.county_fips ?? work.selection_county;
       let basis;
-      if (status === "Match" && row.countyFips) {
+      if (status === "Match" && claimedCounty) {
         basis = "census_response";
       } else if (pointCounty) {
         basis = "point_in_county";

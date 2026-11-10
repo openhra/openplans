@@ -43,13 +43,13 @@ def rows(path):
                 yield line, row
 
 
-def collect(cache, manifest, output, summary_path):
+def collect(cache, manifest, output, summary_path, state='TX', year=2026, county=None):
     source = json.loads(manifest.read_text())
-    summary = {'year': 2026, 'state': 'TX', 'sources': {}, 'tx_rate_rows': 0, 'tx_individual_rate_rows': 0,
-               'tx_shop_rate_rows': 0, 'tx_family_option_rows': 0, 'family_option_rows_other_states': 0, 'plans': {}, 'harris_ids': []}
+    summary = {'year': year, 'state': state, 'county': county, 'sources': {}, 'state_rate_rows': 0, 'state_individual_rate_rows': 0,
+               'state_shop_rate_rows': 0, 'state_family_option_rows': 0, 'family_option_rows_other_states': 0, 'plans': {}, 'harris_ids': []}
     paths = {}
     for kind in ['plan-attributes', 'business-rules', 'service-area', 'rate']:
-        candidates = [r for r in source['files'] if r['kind'] == kind and r['year'] == 2026 and r['status'] == 'ok']
+        candidates = [r for r in source['files'] if r['kind'] == kind and r['year'] == year and r['status'] == 'ok']
         if len(candidates) != 1:
             raise ValueError('Missing or ambiguous acquired archive')
         metadata = candidates[0]
@@ -73,11 +73,12 @@ def collect(cache, manifest, output, summary_path):
         if r['DentalOnlyPlan'] == 'Yes':
             business[r['StandardComponentId']].append({'raw': r, 'source_row': line})
     for line, r in rows(paths['service-area']):
-        if r['StateCode'] == 'TX' and r['DentalOnlyPlan'] == 'Yes' and (r['County'] == '48201' or r['CoverEntireState'] == 'Yes'):
+        # County offer set for the HTTP examples; only collected when a county is named.
+        if county and r['StateCode'] == state and r['DentalOnlyPlan'] == 'Yes' and (r['County'] == county or r['CoverEntireState'] == 'Yes'):
             areas.append(r)
     for pid, records in attributes.items():
         r = records[0]['raw']
-        if r['StateCode'] != 'TX':
+        if r['StateCode'] != state:
             continue
         summary['plans'][pid] = {'market': r['MarketCoverage'], 'attributes': records, 'business': business[pid]}
         if r['MarketCoverage'] == 'Individual' and any(a['IssuerId'] == r['IssuerId'] and a['ServiceAreaId'] == r['ServiceAreaId'] and a['MarketCoverage'] == 'Individual' for a in areas):
@@ -88,20 +89,20 @@ def collect(cache, manifest, output, summary_path):
             attrs = attributes.get(r['PlanId'])
             if not attrs:
                 continue
-            is_tx = r['StateCode'] == 'TX'
-            if not is_tx and r['Age'] != 'Family Option':
+            in_state = r['StateCode'] == state
+            if not in_state and r['Age'] != 'Family Option':
                 continue
-            if is_tx:
-                summary['tx_rate_rows'] += 1
-                summary['tx_individual_rate_rows' if attrs[0]['raw']['MarketCoverage'] == 'Individual' else 'tx_shop_rate_rows'] += 1
-                summary['tx_family_option_rows'] += int(r['Age'] == 'Family Option')
+            if in_state:
+                summary['state_rate_rows'] += 1
+                summary['state_individual_rate_rows' if attrs[0]['raw']['MarketCoverage'] == 'Individual' else 'state_shop_rate_rows'] += 1
+                summary['state_family_option_rows'] += int(r['Age'] == 'Family Option')
             else:
                 summary['family_option_rows_other_states'] += 1
             item = {'source_row': line, 'plan': r['PlanId'], 'state': r['StateCode'], 'area': r['RatingAreaId'],
                     'age': r['Age'], 'tobacco': r['Tobacco'], 'effective': r['RateEffectiveDate'], 'expiration': r['RateExpirationDate'],
                     'market': attrs[0]['raw']['MarketCoverage'], 'prices': {k: cents(r[k]) for k in FIELDS},
                     'tobacco_price': cents(r['IndividualTobaccoRate'])}
-            if not is_tx:
+            if not in_state:
                 item.update(raw=r, business=business[r['PlanId']])
             else:
                 groups[(r['PlanId'], r['RatingAreaId'], r['RateEffectiveDate'], r['RateExpirationDate'])].append(r)
@@ -136,7 +137,7 @@ def collect(cache, manifest, output, summary_path):
             fractions = {r['raw']['EHBPediatricDentalApportionmentQuantity'] for r in attributes[pid]}
             fraction = next(iter(fractions)) if len(fractions) == 1 else ''
             ehb = int((Decimal(pediatric) * Decimal(fraction)).quantize(Decimal('1'), rounding='ROUND_HALF_UP')) if re.fullmatch(r'(?:0(?:\.\d+)?|1(?:\.0+)?)', fraction) else None
-            cases.append({'plan':pid,'state':'TX','market':attributes[pid][0]['raw']['MarketCoverage'],'area':area,
+            cases.append({'plan':pid,'state':state,'market':attributes[pid][0]['raw']['MarketCoverage'],'area':area,
                           'age':'mixed','tobacco':'No Preference','effective':effective,'expiration':expiration,'members':members,
                           'expected_cents':total,'pediatric_gross_cents':pediatric,'pediatric_ehb_cents':ehb,'charged_ids':charged})
     summary['household_cases'] = cases
@@ -148,5 +149,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     for name in ['cache', 'manifest', 'output', 'summary']:
         parser.add_argument('--' + name, type=Path, required=True)
+    parser.add_argument('--state', default='TX')
+    parser.add_argument('--year', type=int, choices=[2026, 2027], default=2026)
+    parser.add_argument('--county')
     args = parser.parse_args()
-    collect(args.cache, args.manifest, args.output, args.summary)
+    collect(args.cache, args.manifest, args.output, args.summary, args.state, args.year, args.county)

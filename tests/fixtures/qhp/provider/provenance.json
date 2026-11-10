@@ -1,35 +1,19 @@
 {
-  "synthetic": false,
-  "cigna": {
-    "snapshot_id": "dbeeab5b60df5544b06c7d0ae894e1e5471334693a992558d34ae2ac4ce98d00",
-    "source": "qhp-76589-2026-provider_urls",
-    "url": "https://www.cigna.com/sites/json/providers.json",
-    "final_url": "https://www.cigna.com/sites/json/providers.json",
-    "redirect_chain": [],
-    "status": 200,
-    "content_type": "application/json",
-    "etag": "\"bf3e8f95bf5cf10b9fbb61dd39f551be-49\"",
-    "last_modified": "Thu, 05 Nov 2026 23:17:40 GMT",
-    "sha256": "dbeeab5b60df5544b06c7d0ae894e1e5471334693a992558d34ae2ac4ce98d00",
-    "bytes": 838576012,
-    "fetched_at": "2026-11-07T09:37:04.690Z",
-    "source_record_indexes": [
-      6302,
-      6317,
-      6318,
-      6323,
-      60682,
-      72343
-    ],
-    "total_records": 293597
-  },
-  "sanford": {
-    "member": "files/issuer-files/tools.sanfordhealthplan.com/40f355cb43db-JSON_Providers_SANHP_HIX.json",
-    "member_bytes": 1000079360,
-    "tail_offset": 1000075264,
-    "tail_bytes": 4096,
-    "tail_sha256": "e0c7fbe5c3ad6dab9e9ad6d12d24613acf40108a278dd288d2adce82b43da90b",
-    "projection": "prepend [ and begin at first complete association in last 4096 bytes; original EOF retained; CRLF normalized to LF"
-  },
-  "note": "Whitelisted published fields only; no email fields. All source addresses and plan associations of selected records retained."
+  "synthetic": true,
+  "notice": "Synthetic fixture. Every issuer, plan, NPI, RxCUI, name, address and phone number is invented and describes no real plan, provider or drug listing.",
+  "generator": "tests/fixtures/qhp/generate-issuer.mjs",
+  "files": {
+    "plans.json": {
+      "synthetic": true,
+      "sha256": "ebff4cd556b33a0a4b879bc809967145dad4e2444b44721d559a02896ca8a4e6"
+    },
+    "records.json": {
+      "synthetic": true,
+      "sha256": "5d075fd45a09e2b40b6d949138277cf01e03822a4fdb60a53bed86b9f15aa2b4"
+    },
+    "truncated-tail.json": {
+      "synthetic": true,
+      "sha256": "59fd4a53af4e5e888d1adfa7891bd864515b9b666c1933f653a92959288b6d7b"
+    }
+  }
 }

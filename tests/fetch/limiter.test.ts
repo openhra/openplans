@@ -127,3 +127,14 @@ it("holds an abandoned lease without deleting another process's lock", async () 
     clock.mockRestore();
   }
 });
+
+it("paces a keyed API at 1 s or more, and never below 1 s even if asked", async () => {
+  const first = await leaseHost(directory, "api.test", 0, 1000);
+  const started = Date.now();
+  await first();
+  const second = await leaseHost(directory, "api.test", 0, 10);
+  const waited = Date.now() - started;
+  await second();
+  expect(waited).toBeGreaterThanOrEqual(990);
+  expect(waited).toBeLessThan(4000);
+});

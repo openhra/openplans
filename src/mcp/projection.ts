@@ -263,6 +263,22 @@ export async function projector(db: SqlSession, native: unknown) {
       ...evidence({ ...r, ...detail }),
     };
   }
+  /** Labels an answer that came from the CMS Marketplace API fallback. */
+  function cmsApi(r: Record<string, unknown>) {
+    const c = r.cms_api as Record<string, unknown> | undefined;
+    if (!c || c.sourced_by !== "cms-marketplace-api") return {};
+    return {
+      cms_api: {
+        sourced_by: "cms-marketplace-api",
+        coverage: String(c.coverage),
+        sourced_at: String(c.sourced_at),
+        snapshot_id: String(c.snapshot_id),
+        served_from: String(c.served_from),
+        source: String(c.source),
+        limits: String(c.limits),
+      },
+    };
+  }
   function coverage(value: unknown, completeness: unknown) {
     const r = row(value);
     return {
@@ -278,6 +294,7 @@ export async function projector(db: SqlSession, native: unknown) {
       quantity_limit: nullable(r.quantity_limit),
       patient_price: null,
       source_completeness: completeness ?? "unknown",
+      ...cmsApi(r),
       evidence: rows(r.evidence).map((e) => ({
         status: e.evidence_status,
         tier: nullable(e.drug_tier),
@@ -301,6 +318,7 @@ export async function projector(db: SqlSession, native: unknown) {
       scope: "provider_record",
       address_participation: "not_evaluated",
       source_completeness: completeness ?? "unknown",
+      ...cmsApi(r),
       evidence: rows(r.evidence).map((e) => ({
         status: e.evidence_status,
         record_id: e.record_id,

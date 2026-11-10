@@ -68,7 +68,7 @@ describe("all readable issuers: synthetic isolation and acquisition mutants", ()
       `UPDATE qhp_child_url SET status='discovered',snapshot_id=NULL WHERE kind='provider_urls'`,
     );
     await h.db.query(
-      `UPDATE qhp_child_url SET url='https://www.cigna.com/synthetic-html.json',url_sha256=$1
+      `UPDATE qhp_child_url SET url='https://issuer.example/synthetic-html.json',url_sha256=$1
       WHERE issuer_id='00001' AND kind='provider_urls'`,
       ["b".repeat(64)],
     );
@@ -85,7 +85,7 @@ describe("all readable issuers: synthetic isolation and acquisition mutants", ()
           return fetchToCache(url, {
             ...options,
             dataDir: h.directory,
-            allowHosts: ["www.cigna.com"],
+            allowHosts: ["issuer.example"],
             lookup: async () => [{ address: "8.8.8.8", family: 4 }],
             transport: async () => ({
               status: 200,
@@ -122,14 +122,14 @@ describe("all readable issuers: synthetic isolation and acquisition mutants", ()
       JOIN qhp_child_url c ON c.snapshot_id=r.snapshot_id WHERE c.kind='provider_urls' AND c.status='downloaded'`)
     ).rows;
     expect(provenance).toEqual([
-      { issuer_scope: expect.arrayContaining(["12345", "76589"]) },
+      { issuer_scope: expect.arrayContaining(["12345", "00010"]) },
     ]);
     expect(batch.issuers.find((r) => r.issuer === "00001")).toMatchObject({
       status: "QUARANTINED",
       completeness: "failed",
       issues: { html_error_page: 1 },
     });
-    for (const issuer of ["12345", "76589"]) {
+    for (const issuer of ["12345", "00010"]) {
       const report = batch.issuers.find((r) => r.issuer === issuer)!;
       expect(report).toMatchObject({ status: "ACTIVE", edges: 1 });
       const plans = (
@@ -151,17 +151,17 @@ describe("all readable issuers: synthetic isolation and acquisition mutants", ()
       ).rows,
     ).toEqual([
       { issuer_id: "00001", status: "failed" },
+      { issuer_id: "00010", status: "complete" },
       { issuer_id: "12345", status: "complete" },
-      { issuer_id: "76589", status: "complete" },
     ]);
   });
   it("D1: real fetcher rejects an over-cap provider file before ingestion, records too_large and partial", async () => {
     await h.replace(await fixture("records"));
     await h.db.query(
-      `UPDATE qhp_child_url SET status='discovered',snapshot_id=NULL WHERE issuer_id='76589' AND kind='provider_urls'`,
+      `UPDATE qhp_child_url SET status='discovered',snapshot_id=NULL WHERE issuer_id='00010' AND kind='provider_urls'`,
     );
     await h.db.query(
-      `UPDATE qhp_index SET child_hosts='["www.cigna.com"]' WHERE issuer_id='76589'`,
+      `UPDATE qhp_index SET child_hosts='["issuer.example"]' WHERE issuer_id='00010'`,
     );
     let calls = 0;
     await acquireProviders(h.db, scope, {
@@ -204,7 +204,7 @@ describe("all readable issuers: synthetic isolation and acquisition mutants", ()
     expect(() => contract(1)).toThrow();
   });
   it("CLI all-readable records denied indexes and unknown absent kinds without fetching or losing healthy issuers", async () => {
-    for (const issuer of ["76589", "00001"])
+    for (const issuer of ["00010", "00001"])
       await h.db.query(
         `INSERT INTO qhp_index
       (qhp_index_id,discovery_id,issuer_id,plan_year,state,registry_snapshot_id,registry_row,status,discovered_at)
@@ -246,7 +246,9 @@ describe("all readable issuers: synthetic isolation and acquisition mutants", ()
     expect(batch.issuers.find((r: any) => r.issuer === "12345").status).toBe(
       "ACTIVE",
     );
-    expect(batch.issuers.find((r: any) => r.issuer === "76589")).toMatchObject({
+    expect(
+      batch.issuers.find((r: { issuer: string }) => r.issuer === "00010"),
+    ).toMatchObject({
       completeness: "access_denied",
       reason: expect.stringContaining("index_access_denied"),
     });
@@ -319,10 +321,10 @@ describe("all readable issuers: synthetic isolation and acquisition mutants", ()
   it("a run budget interrupts a stalled body and parsing, quarantining rather than publishing a short feed", async () => {
     await h.replace(await fixture("records"));
     await h.db.query(
-      `UPDATE qhp_child_url SET status='discovered',snapshot_id=NULL WHERE issuer_id='76589' AND kind='provider_urls'`,
+      `UPDATE qhp_child_url SET status='discovered',snapshot_id=NULL WHERE issuer_id='00010' AND kind='provider_urls'`,
     );
     await h.db.query(
-      `UPDATE qhp_index SET child_hosts='["www.cigna.com"]' WHERE issuer_id='76589'`,
+      `UPDATE qhp_index SET child_hosts='["issuer.example"]' WHERE issuer_id='00010'`,
     );
     const deadline = Date.now() + 500;
     let stalled: Readable | undefined;
@@ -405,7 +407,7 @@ describe("all readable issuers: synthetic isolation and acquisition mutants", ()
       deadline: Date.now() - 1,
     });
     expect(run.issuers).toEqual([]);
-    expect(run.not_run.sort()).toEqual(["00001", "12345", "76589"]);
+    expect(run.not_run.sort()).toEqual(["00001", "00010", "12345"]);
     expect(
       (
         await h.db.query(

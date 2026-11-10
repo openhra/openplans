@@ -1,0 +1,4 @@
+pbp_a_hnumber	pbp_a_plan_identifier	segment_id	pbp_a_ben_cov	pbp_a_plan_type	orgtype	bid_id	contract_id	plan_id	segment_id	pending_flag	partial_flag	contract_year	eghp_flag	region_type	ma_or_pdp_region_code	region
+R4182	001	0	1	31	11	R4182_001_0	R4182	001	0	0		2026	0	MA	17	Texas
+S4802	013	0		29	10	S4802_013_0	S4802	013	0	0		2026	0	PD	22	Texas
+S4802	155	0		29	10	S4802_155_0	S4802	155	0	0		2026	0	PD	22	Texas

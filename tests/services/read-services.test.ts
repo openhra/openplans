@@ -18,7 +18,7 @@ import { importFormulary } from "../../src/ingest/qhp/formulary.js";
 import * as providers from "../ingest/qhp/provider-helpers.js";
 import * as drugs from "../ingest/qhp/formulary-helpers.js";
 
-// Reuse real publisher cuts with the existing explicitly synthetic registration harness.
+// Reuse the synthetic issuer fixtures with the explicitly synthetic registration harness.
 describe("provider read use cases preserve native preconditions without HTTP", () => {
   let h: Awaited<ReturnType<typeof providers.setup>>, plan: string;
   beforeAll(async () => {
@@ -78,7 +78,7 @@ describe("provider read use cases preserve native preconditions without HTTP", (
   it("blocks old active positive evidence after a newer source denial", async () => {
     await h.db
       .exec(`INSERT INTO qhp_index(qhp_index_id,discovery_id,issuer_id,plan_year,state,registry_snapshot_id,registry_row,status,discovered_at)
-      VALUES ('synthetic-denied','synthetic-denied','76589',2026,'TX','registry',1,'access_denied',clock_timestamp())`);
+      VALUES ('synthetic-denied','synthetic-denied','00010',2026,'TX','registry',1,'access_denied',clock_timestamp())`);
     const result = await findProviders(h.db, { plan_id: plan, year: "2026" });
     expect(result).toMatchObject({
       status: "unknown",
@@ -109,8 +109,8 @@ describe("drug, freshness and provenance services", () => {
     );
     expect(await response.text()).toBe(JSON.stringify(result));
     expect(await drugTerminology(h.db)).toMatchObject({ snapshot_id: "rx" });
-    expect(await getDrug(h.db, "860975")).toMatchObject({
-      rxcui: "860975",
+    expect(await getDrug(h.db, "990000401")).toMatchObject({
+      rxcui: "990000401",
       patient_price: null,
     });
     const body = { plan_ids: [plan], rxcuis: [rxcui], year: 2026 };
@@ -164,7 +164,7 @@ describe("drug, freshness and provenance services", () => {
     const current = await getDataStatus(h.db, {
       state: "TX",
       year: "2026",
-      issuer_id: "76589",
+      issuer_id: "00010",
     });
     expect(current.entries.length).toBeGreaterThan(0);
     expect(current.data_generation).toMatch(/^[a-f0-9]{32}$/);

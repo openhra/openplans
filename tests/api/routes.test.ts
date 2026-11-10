@@ -494,11 +494,20 @@ describe("native v1 household gross premiums", () => {
     expect(await response.json()).toEqual({ error: { code: "UNAUTHORIZED" } });
     expect(
       (
+        await createApp(db, { publicHousehold: false }).request(
+          "/v1/premium-quotes",
+          { method: "POST" },
+        )
+      ).status,
+    ).toBe(503);
+    // With no token the route is open; a malformed body is a 400, not an auth error.
+    expect(
+      (
         await createApp(db, {}).request("/v1/premium-quotes", {
           method: "POST",
         })
       ).status,
-    ).toBe(503);
+    ).toBe(400);
   });
 
   it("rejects malformed query, body, date, member and IDs with machine-readable errors", async () => {

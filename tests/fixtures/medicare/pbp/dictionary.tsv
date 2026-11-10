@@ -1,0 +1,1192 @@
+FILE	NAME	TYPE	LENGTH	SERVICE CATEGORY	FIELD_TITLE	JSON QUESTION	TITLE	CODES	CODE_VALUES	SERVICE CATEGORY DERIVED
+pbp_b4_emerg_urgent	pbp_a_hnumber	CHAR	5		H Number		H Number			
+pbp_b4_emerg_urgent	pbp_a_plan_identifier	CHAR	3		Plan ID		Plan ID			
+pbp_b4_emerg_urgent	segment_id	NUM	3		Segment ID		Segment ID			
+pbp_b4_emerg_urgent	pbp_a_ben_cov	CHAR	1		Coverage Criteria		Coverage Criteria	1	Part A and Part B	
+pbp_b4_emerg_urgent	pbp_a_ben_cov							2	Part B Only	
+pbp_b4_emerg_urgent	pbp_a_plan_type	CHAR	2		Plan Type		Plan Type	01	HMO	
+pbp_b4_emerg_urgent	pbp_a_plan_type							02	HMOPOS	
+pbp_b4_emerg_urgent	pbp_a_plan_type							04	Local PPO	
+pbp_b4_emerg_urgent	pbp_a_plan_type							05	PSO (State License)	
+pbp_b4_emerg_urgent	pbp_a_plan_type							07	MSA	
+pbp_b4_emerg_urgent	pbp_a_plan_type							08	RFB PFFS	
+pbp_b4_emerg_urgent	pbp_a_plan_type							09	PFFS	
+pbp_b4_emerg_urgent	pbp_a_plan_type							18	1876 Cost	
+pbp_b4_emerg_urgent	pbp_a_plan_type							19	HCPP - 1833 Cost	
+pbp_b4_emerg_urgent	pbp_a_plan_type							20	National Pace	
+pbp_b4_emerg_urgent	pbp_a_plan_type							29	Medicare Prescription Drug Plan	
+pbp_b4_emerg_urgent	pbp_a_plan_type							30	Employer/Union Only Direct Contract PDP	
+pbp_b4_emerg_urgent	pbp_a_plan_type							31	Regional PPO	
+pbp_b4_emerg_urgent	pbp_a_plan_type							32	Fallback	
+pbp_b4_emerg_urgent	pbp_a_plan_type							40	Employer/Union Only Direct Contract PFFS	
+pbp_b4_emerg_urgent	pbp_a_plan_type							42	RFB HMO	
+pbp_b4_emerg_urgent	pbp_a_plan_type							43	RFB HMOPOS	
+pbp_b4_emerg_urgent	pbp_a_plan_type							44	RFB Local PPO	
+pbp_b4_emerg_urgent	pbp_a_plan_type							45	RFB PSO (State License)	
+pbp_b4_emerg_urgent	pbp_a_plan_type							47	Employer Direct PPO	
+pbp_b4_emerg_urgent	orgtype	CHAR	2		Organization Type		Organization Type	01	Local CCP	
+pbp_b4_emerg_urgent	orgtype							02	MSA	
+pbp_b4_emerg_urgent	orgtype							03	RFB	
+pbp_b4_emerg_urgent	orgtype							04	PFFS	
+pbp_b4_emerg_urgent	orgtype							05	Demo	
+pbp_b4_emerg_urgent	orgtype							06	1876 Cost	
+pbp_b4_emerg_urgent	orgtype							07	HCPP - 1833 Cost	
+pbp_b4_emerg_urgent	orgtype							08	National PACE	
+pbp_b4_emerg_urgent	orgtype							10	PDP	
+pbp_b4_emerg_urgent	orgtype							11	Regional CCP	
+pbp_b4_emerg_urgent	orgtype							12	Fallback	
+pbp_b4_emerg_urgent	orgtype							13	Employer/Union Only Direct Contract PDP	
+pbp_b4_emerg_urgent	orgtype							14	Employer/Union Only Direct Contract PFFS	
+pbp_b4_emerg_urgent	orgtype							15	RFB Local CCP	
+pbp_b4_emerg_urgent	orgtype							17	Employer/Union Only Direct Contract Local CCP	
+pbp_b4_emerg_urgent	bid_id	CHAR	13		BID ID (H-number, Plan ID, Segment ID)		Bid ID			
+pbp_b4_emerg_urgent	version	NUM	3		Version Number		Version Number			
+pbp_b4_emerg_urgent	pbp_b4a_maxenr_yn	CHAR	1	4a	Does this plan have a service specific maximum enrollee out-of-pocket cost (MOOP)?	Does this plan have a service specific maximum enrollee out-of-pocket cost (MOOP)?	Emerg Care Max Enr YN	1	Yes	
+pbp_b4_emerg_urgent	pbp_b4a_maxenr_yn							2	No	
+pbp_b4_emerg_urgent	pbp_b4a_coins_yn	CHAR	1	4a	Is there a coinsurance?	Is there a coinsurance?	Emerg Care Coinsurance YN	1	Yes	
+pbp_b4_emerg_urgent	pbp_b4a_coins_yn							2	No	
+pbp_b4_emerg_urgent	pbp_b4a_coins_yn							3	Yes with a min & max	
+pbp_b4_emerg_urgent	pbp_b4a_coins_pct_mc_min	NUM	3	4a	Minimum coinsurance	Minimum coinsurance	Emerg Care MC Min Coins Pct			
+pbp_b4_emerg_urgent	pbp_b4a_coins_pct_mc_max	NUM	3	4a	Maximum coinsurance	Maximum coinsurance	Emerg Care MC Max Coins Pct			
+pbp_b4_emerg_urgent	pbp_b4a_max_visit	NUM	7	4a	Maximum per visit amount	Maximum per visit amount	Emerg Care Max Visit Amount			
+pbp_b4_emerg_urgent	pbp_b4a_coins_wavdia_yn	CHAR	1	4a	Is the coinsurance for Medicare-covered benefits waived if admitted to hospital?	Is the coinsurance for Medicare-covered benefits waived if admitted to hospital?	Emerg Care MC Coins Waived YN	1	Yes	
+pbp_b4_emerg_urgent	pbp_b4a_coins_wavdia_yn							2	No	
+pbp_b4_emerg_urgent	pbp_b4a_copay_yn	CHAR	1	4a	Is there a copayment?	Is there a copayment?	Emerg Care Copayment YN	1	Yes	
+pbp_b4_emerg_urgent	pbp_b4a_copay_yn							2	No	
+pbp_b4_emerg_urgent	pbp_b4a_copay_yn							3	Yes with a min & max	
+pbp_b4_emerg_urgent	pbp_b4a_copay_amt_mc_min	NUM	6	4a	Minimum copayment	Minimum copayment	Emerg Care MC Min Copay Amt			
+pbp_b4_emerg_urgent	pbp_b4a_copay_amt_mc_max	NUM	6	4a	Maximum copayment	Maximum copayment	Emerg Care MC Max Copay Amt			
+pbp_b4_emerg_urgent	pbp_b4a_copay_wavdia_yn	CHAR	1	4a	Is the copayment for Medicare-covered benefits waived if admitted to hospital?	Is the copayment for Medicare-covered benefits waived if admitted to hospital?	Emerg Care MC Copay Waived YN	1	Yes	
+pbp_b4_emerg_urgent	pbp_b4a_copay_wavdia_yn							2	No	
+pbp_b4_emerg_urgent	pbp_b4a_copay_wavdia_mi_dh	CHAR	1	4a	Select either days or hours within which admission must occur for waiver	Select either days or hours within which admission must occur for waiver	Emerg Care Copay Waived D/H	1	Days	
+pbp_b4_emerg_urgent	pbp_b4a_copay_wavdia_mi_dh							2	Hours	
+pbp_b4_emerg_urgent	pbp_b4a_copay_wavd_dh	NUM	3	4a	Enter number of days or hours	Enter number of days or hours	Emerg Care Copay Waived D/H			
+pbp_b4_emerg_urgent	pbp_b4a_deduct_yn	CHAR	1	4a	Does the cost sharing count towards any plan-level deductible?	Does the cost sharing count towards any plan-level deductible?	Emerg Care Deductible YN	1	Yes	
+pbp_b4_emerg_urgent	pbp_b4a_deduct_yn							2	No	
+pbp_b4_emerg_urgent	pbp_b4b_maxenr_yn	CHAR	1	4b	Does this plan have a service specific maximum enrollee out-of-pocket cost (MOOP)?	Does this plan have a service specific maximum enrollee out-of-pocket cost (MOOP)?	Urg Care Max Enr YN	1	Yes	
+pbp_b4_emerg_urgent	pbp_b4b_maxenr_yn							2	No	
+pbp_b4_emerg_urgent	pbp_b4b_coins_yn	CHAR	1	4b	Is there a coinsurance?	Is there a coinsurance?	Urg Care Coinsurance YN	1	Yes	
+pbp_b4_emerg_urgent	pbp_b4b_coins_yn							2	No	
+pbp_b4_emerg_urgent	pbp_b4b_coins_yn							3	Yes with a min & max	
+pbp_b4_emerg_urgent	pbp_b4b_coins_pct_mc_min	NUM	3	4b	Minimum coinsurance	Minimum coinsurance	Urg Care MC Min Coins Pct			
+pbp_b4_emerg_urgent	pbp_b4b_coins_pct_mc_max	NUM	3	4b	Maximum coinsurance	Maximum coinsurance	Urg Care MC Max Coins Pct			
+pbp_b4_emerg_urgent	pbp_b4b_max_visit	NUM	7	4b	Maximum per visit amount	Maximum per visit amount	Urg Care Max Visit			
+pbp_b4_emerg_urgent	pbp_b4b_coins_wavdmc_yn	CHAR	1	4b	Is the coinsurance for Medicare-covered benefits waived if admitted to hospital?	Is the coinsurance for Medicare-covered benefits waived if admitted to hospital?	Urg Care MC Coins Waived YN	1	Yes	
+pbp_b4_emerg_urgent	pbp_b4b_coins_wavdmc_yn							2	No	
+pbp_b4_emerg_urgent	pbp_b4b_copay_yn	CHAR	1	4b	Is there a copayment?	Is there a copayment?	Urg Care Copayment YN	1	Yes	
+pbp_b4_emerg_urgent	pbp_b4b_copay_yn							2	No	
+pbp_b4_emerg_urgent	pbp_b4b_copay_yn							3	Yes with a min & max	
+pbp_b4_emerg_urgent	pbp_b4b_copay_amt_mc_min	NUM	7	4b	Minimum copayment	Minimum copayment	Urg Care MC Min Copay Amt			
+pbp_b4_emerg_urgent	pbp_b4b_copay_amt_mc_max	NUM	7	4b	Maximum copayment	Maximum copayment	Urg Care MC Max Copay Amt			
+pbp_b4_emerg_urgent	pbp_b4b_deduct_yn	CHAR	1	4b	Does the cost sharing count towards any plan-level deductible?	Does the cost sharing count towards any plan-level deductible?	Urg Care Deductible YN	1	Yes	
+pbp_b4_emerg_urgent	pbp_b4b_deduct_yn							2	No	
+pbp_b4_emerg_urgent	pbp_b4b_copay_wavdia_yn	CHAR	1	4b	Is the copayment for Medicare-covered benefits waived if admitted to hospital?	Is the copayment for Medicare-covered benefits waived if admitted to hospital?	Urg Care Copay Waived (IA) YN	1	Yes	
+pbp_b4_emerg_urgent	pbp_b4b_copay_wavdia_yn							2	No	
+pbp_b4_emerg_urgent	pbp_b4c_bendesc_yn	CHAR	1	4c(NMC)	Does the plan provide Worldwide Emergency/Urgent Coverage as a supplemental benefit under Part C?	DERIVED	Worldwide Cov Desc YN	1	Yes	
+pbp_b4_emerg_urgent	pbp_b4c_bendesc_yn							2	No	
+pbp_b4_emerg_urgent	pbp_b4c_bendesc_ehc	CHAR	3	4c(NMC)	Enhanced benefits (4c)	DERIVED	Worldwide supp ben desc	1 in 2	Worldwide Emergency Coverage	
+pbp_b4_emerg_urgent	pbp_b4c_bendesc_ehc							1 in 3	Worldwide Urgent Coverage	
+pbp_b4_emerg_urgent	pbp_b4c_bendesc_ehc							1 in 1	Worldwide Emergency Transportation	
+pbp_b4_emerg_urgent	pbp_b4c_bendesc_amo_wec	CHAR	1	4c1(NMC)	Type of benefit for Worldwide Emergency Coverage	DERIVED	Worldwide Emerg cov AMO	2	Mandatory	
+pbp_b4_emerg_urgent	pbp_b4c_bendesc_amo_wec							3	Optional	
+pbp_b4_emerg_urgent	pbp_b4c_bendesc_amo_wec							4	Both	
+pbp_b4_emerg_urgent	pbp_b4c_bendesc_amo_wuc	CHAR	1	4c2(NMC)	Type of benefit for Worldwide Urgent Coverage	DERIVED	Worldwide Urgent cov AMO	2	Mandatory	
+pbp_b4_emerg_urgent	pbp_b4c_bendesc_amo_wuc							3	Optional	
+pbp_b4_emerg_urgent	pbp_b4c_bendesc_amo_wuc							4	Both	
+pbp_b4_emerg_urgent	pbp_b4c_bendesc_amo_wet	CHAR	1	4c3(NMC)	Type of benefit for Worldwide Emergency Transportation	DERIVED	Worldwide Emerg transp AMO	2	Mandatory	
+pbp_b4_emerg_urgent	pbp_b4c_bendesc_amo_wet							3	Optional	
+pbp_b4_emerg_urgent	pbp_b4c_bendesc_amo_wet							4	Both	
+pbp_b4_emerg_urgent	pbp_b4c_wwc_maxplan_yn	CHAR	1	4c(NMC)	Is there a maximum plan benefit coverage?	Is there a maximum plan benefit coverage?	Worldwide Cov MaxPlan YN	1	Yes	
+pbp_b4_emerg_urgent	pbp_b4c_wwc_maxplan_yn							2	No	
+pbp_b4_emerg_urgent	pbp_b4c_wwc_maxplan_svcs_yn	CHAR	1	4c(NMC)	Is the maximum plan benefit coverage amount unlimited?	Is the maximum plan benefit coverage amount unlimited?	Worldwide Cov MaxPlan Limit	1	Yes	
+pbp_b4_emerg_urgent	pbp_b4c_wwc_maxplan_svcs_yn							2	No	
+pbp_b4_emerg_urgent	pbp_b4c_wwc_maxplan_amt	NUM	10	4c(NMC)	Maximum Plan Benefit Coverage amount	Maximum amount	Worldwide Cov MaxPlan Amt			
+pbp_b4_emerg_urgent	pbp_b4c_maxenr_yn	CHAR	1	4c(NMC)	Does this plan have a service specific maximum enrollee out-of-pocket cost (MOOP)?	Does this plan have a service specific maximum enrollee out-of-pocket cost (MOOP)?	Worldwide Emerg Max Enr YN	1	Yes	
+pbp_b4_emerg_urgent	pbp_b4c_maxenr_yn							2	No	
+pbp_b4_emerg_urgent	pbp_b4c_coins_yn	CHAR	1	4c(NMC)	Is there an enrollee Coinsurance?	DERIVED	Worldwide Emerg Care Coins YN	1	Yes	
+pbp_b4_emerg_urgent	pbp_b4c_coins_yn							2	No	
+pbp_b4_emerg_urgent	pbp_b4c_coins_yn							3	Yes with a min & max	
+pbp_b4_emerg_urgent	pbp_b4c_copay_yn	CHAR	1	4c(NMC)	Is there an enrollee Copayment?	DERIVED	Worldwide Emerg Care Copay YN	1	Yes	
+pbp_b4_emerg_urgent	pbp_b4c_copay_yn							2	No	
+pbp_b4_emerg_urgent	pbp_b4c_copay_yn							3	Yes with a min & max	
+pbp_b4_emerg_urgent	pbp_b4c_copay_ehc	CHAR	3	4c(NMC)	Which Worldwide Services have a Copayment	DERIVED	Worldwide copay ehc	1 in 2	Worldwide Emergency Coverage	
+pbp_b4_emerg_urgent	pbp_b4c_copay_ehc							1 in 3	Worldwide Urgent Coverage	
+pbp_b4_emerg_urgent	pbp_b4c_copay_ehc							1 in 1	Worldwide Emergency Transportation	
+pbp_b4_emerg_urgent	pbp_b4c_copay_amt_wec_min	NUM	7	4c1(NMC)	Minimum Copayment amount for Worldwide Emergency Coverage	Minimum copayment	Worldwide emerg cov Min Copay			
+pbp_b4_emerg_urgent	pbp_b4c_copay_amt_wec_max	NUM	7	4c1(NMC)	Maximum Copayment amount for Worldwide Emergency Coverage	Maximum copayment	Worldwide emerg cov Max Copay			
+pbp_b4_emerg_urgent	pbp_b4c_copay_wav_wec_yn	CHAR	1	4c1(NMC)	Is this Copayment waived for Worldwide Emergency Coverage if admitted to hospital?	Is this Copayment waived if admitted to hospital?	Worldwide emerg copay waiv	1	Yes	
+pbp_b4_emerg_urgent	pbp_b4c_copay_wav_wec_yn							2	No	
+pbp_b4_emerg_urgent	pbp_b4c_copay_amt_wuc_min	NUM	7	4c2(NMC)	Minimum Copayment amount for Worldwide Urgent Coverage	Minimum copayment	Worldwide urgent Min Copay			
+pbp_b4_emerg_urgent	pbp_b4c_copay_amt_wuc_max	NUM	7	4c2(NMC)	Maximum Copayment amount for Worldwide Urgent Coverage	Maximum copayment	Worldwide urgent Max Copay			
+pbp_b4_emerg_urgent	pbp_b4c_copay_wav_wuc_yn	CHAR	1	4c2(NMC)	Is this Copayment waived for Worldwide Urgent Coverage if admitted to hospital?	Is this Copayment waived if admitted to hospital?	Worldwide urgent copay waiv	1	Yes	
+pbp_b4_emerg_urgent	pbp_b4c_copay_wav_wuc_yn							2	No	
+pbp_b4_emerg_urgent	pbp_b4c_copay_amt_wet_min	NUM	7	4c3(NMC)	Minimum Copayment amount for Worldwide Emergency Transportation	Minimum copayment	Worldwide emerg tran Min Copay			
+pbp_b4_emerg_urgent	pbp_b4c_copay_amt_wet_max	NUM	7	4c3(NMC)	Maximum Copayment amount for Worldwide Emergency Transportation	Maximum copayment	Worldwide emerg tran Max Copay			
+pbp_b4_emerg_urgent	pbp_b4c_copay_wav_wet_yn	CHAR	1	4c3(NMC)	Is this Copayment waived for Worldwide Emergency Transportation if admitted to hospital?	Is this Copayment waived if admitted to hospital?	Worldwide emerg trn copay waiv	1	Yes	
+pbp_b4_emerg_urgent	pbp_b4c_copay_wav_wet_yn							2	No	
+pbp_b4_emerg_urgent	pbp_b4c_ded_yn	CHAR	1	4c(NMC)	Is there a deductible?	Is there a deductible?	Worldwide Emerg Deductible YN	1	Yes	
+pbp_b4_emerg_urgent	pbp_b4c_ded_yn							2	No	
+pbp_b7_health_prof	pbp_a_hnumber	CHAR	5		H Number		H Number			
+pbp_b7_health_prof	pbp_a_plan_identifier	CHAR	3		Plan ID		Plan ID			
+pbp_b7_health_prof	segment_id	NUM	3		Segment ID		Segment ID			
+pbp_b7_health_prof	pbp_a_ben_cov	CHAR	1		Coverage Criteria		Coverage Criteria	1	Part A and Part B	
+pbp_b7_health_prof	pbp_a_ben_cov							2	Part B Only	
+pbp_b7_health_prof	pbp_a_plan_type	CHAR	2		Plan Type		Plan Type	01	HMO	
+pbp_b7_health_prof	pbp_a_plan_type							02	HMOPOS	
+pbp_b7_health_prof	pbp_a_plan_type							04	Local PPO	
+pbp_b7_health_prof	pbp_a_plan_type							05	PSO (State License)	
+pbp_b7_health_prof	pbp_a_plan_type							07	MSA	
+pbp_b7_health_prof	pbp_a_plan_type							08	RFB PFFS	
+pbp_b7_health_prof	pbp_a_plan_type							09	PFFS	
+pbp_b7_health_prof	pbp_a_plan_type							18	1876 Cost	
+pbp_b7_health_prof	pbp_a_plan_type							19	HCPP - 1833 Cost	
+pbp_b7_health_prof	pbp_a_plan_type							20	National Pace	
+pbp_b7_health_prof	pbp_a_plan_type							29	Medicare Prescription Drug Plan	
+pbp_b7_health_prof	pbp_a_plan_type							30	Employer/Union Only Direct Contract PDP	
+pbp_b7_health_prof	pbp_a_plan_type							31	Regional PPO	
+pbp_b7_health_prof	pbp_a_plan_type							32	Fallback	
+pbp_b7_health_prof	pbp_a_plan_type							40	Employer/Union Only Direct Contract PFFS	
+pbp_b7_health_prof	pbp_a_plan_type							42	RFB HMO	
+pbp_b7_health_prof	pbp_a_plan_type							43	RFB HMOPOS	
+pbp_b7_health_prof	pbp_a_plan_type							44	RFB Local PPO	
+pbp_b7_health_prof	pbp_a_plan_type							45	RFB PSO (State License)	
+pbp_b7_health_prof	pbp_a_plan_type							47	Employer Direct PPO	
+pbp_b7_health_prof	orgtype	CHAR	2		Organization Type		Organization Type	01	Local CCP	
+pbp_b7_health_prof	orgtype							02	MSA	
+pbp_b7_health_prof	orgtype							03	RFB	
+pbp_b7_health_prof	orgtype							04	PFFS	
+pbp_b7_health_prof	orgtype							05	Demo	
+pbp_b7_health_prof	orgtype							06	1876 Cost	
+pbp_b7_health_prof	orgtype							07	HCPP - 1833 Cost	
+pbp_b7_health_prof	orgtype							08	National PACE	
+pbp_b7_health_prof	orgtype							10	PDP	
+pbp_b7_health_prof	orgtype							11	Regional CCP	
+pbp_b7_health_prof	orgtype							12	Fallback	
+pbp_b7_health_prof	orgtype							13	Employer/Union Only Direct Contract PDP	
+pbp_b7_health_prof	orgtype							14	Employer/Union Only Direct Contract PFFS	
+pbp_b7_health_prof	orgtype							15	RFB Local CCP	
+pbp_b7_health_prof	orgtype							17	Employer/Union Only Direct Contract Local CCP	
+pbp_b7_health_prof	bid_id	CHAR	13		BID ID (H-number, Plan ID, Segment ID)		Bid ID			
+pbp_b7_health_prof	version	NUM	3		Version Number		Version Number			
+pbp_b7_health_prof	pbp_b7a_maxenr_yn	CHAR	1	7a	Does this plan have a service specific maximum enrollee out-of-pocket cost (MOOP)?	Does this plan have a service specific maximum enrollee out-of-pocket cost (MOOP)?	Primary Care Max Enr YN	1	Yes	
+pbp_b7_health_prof	pbp_b7a_maxenr_yn							2	No	
+pbp_b7_health_prof	pbp_b7a_coins_yn	CHAR	1	7a	Is there a coinsurance?	Is there a coinsurance?	Primary Care Coinsurance YN	1	Yes	
+pbp_b7_health_prof	pbp_b7a_coins_yn							2	No	
+pbp_b7_health_prof	pbp_b7a_coins_yn							3	Yes with a min & max	
+pbp_b7_health_prof	pbp_b7a_coins_pct_mc_min	NUM	3	7a	Minimum coinsurance	Minimum coinsurance	Primary Care MC Min Coins Pct			
+pbp_b7_health_prof	pbp_b7a_coins_pct_mc_max	NUM	3	7a	Maximum coinsurance	Maximum coinsurance	Primary Care MC Max Coins Pct			
+pbp_b7_health_prof	pbp_b7a_ded_yn	CHAR	1	7a	Is there a deductible?	Is there a deductible?	Primary Care Deductible YN	1	Yes	
+pbp_b7_health_prof	pbp_b7a_ded_yn							2	No	
+pbp_b7_health_prof	pbp_b7a_copay_yn	CHAR	1	7a	Is there a copayment ?	Is there a copayment ?	Primary Care Copayment YN	1	Yes	
+pbp_b7_health_prof	pbp_b7a_copay_yn							2	No	
+pbp_b7_health_prof	pbp_b7a_copay_yn							3	Yes with a min & max	
+pbp_b7_health_prof	pbp_b7a_copay_amt_mc_min	NUM	7	7a	Minimum copayment	Minimum copayment	Primary Care MC Min Copay Amt			
+pbp_b7_health_prof	pbp_b7a_copay_amt_mc_max	NUM	7	7a	Maximum copayment	Maximum copayment	Primary Care MC Max Copay Amt			
+pbp_b7_health_prof	pbp_b7b_bendesc_yn	CHAR	1	7b	Does the plan provide Chiropractic Services as a supplemental benefit under Part C?	DERIVED	Chiropractic Ben Desc YN	1	Yes	
+pbp_b7_health_prof	pbp_b7b_bendesc_yn							2	No	
+pbp_b7_health_prof	pbp_b7b_bendesc_ehc	CHAR	2	7b	Enhanced benefits (7b)	DERIVED	Chiropractic Supp Ben Desc	1 in 2	Routine Care	
+pbp_b7_health_prof	pbp_b7b_bendesc_ehc							1 in 1	Other	
+pbp_b7_health_prof	pbp_b7b_bendesc_amo_rc	CHAR	1	7b1(NMC)	Type of benefit for Routine Care	DERIVED	Routine care Ben AMO	2	Mandatory	
+pbp_b7_health_prof	pbp_b7b_bendesc_amo_rc							3	Optional	
+pbp_b7_health_prof	pbp_b7b_bendesc_amo_rc							4	Both	
+pbp_b7_health_prof	pbp_b7b_bendesc_lim_rc	CHAR	1	7b1(NMC)	Is this benefit unlimited for Routine Care?	Is this benefit unlimited?	Routine care Limit	1	Yes	
+pbp_b7_health_prof	pbp_b7b_bendesc_lim_rc							2	No, indicate number	
+pbp_b7_health_prof	pbp_b7b_bendesc_num_rc	NUM	4	7b1(NMC)	Number of visits for Routine Care	Visits	Routine care Limit Num			
+pbp_b7_health_prof	pbp_b7b_bendesc_per_rc	CHAR	1	7b1(NMC)	Routine Care periodicity	Periodicity	Routine care Per	1	Every three years	
+pbp_b7_health_prof	pbp_b7b_bendesc_per_rc							2	Every two years	
+pbp_b7_health_prof	pbp_b7b_bendesc_per_rc							3	Every year	
+pbp_b7_health_prof	pbp_b7b_bendesc_per_rc							4	Every six months	
+pbp_b7_health_prof	pbp_b7b_bendesc_per_rc							5	Every three months	
+pbp_b7_health_prof	pbp_b7b_bendesc_per_rc							6	Other, Describe	
+pbp_b7_health_prof	pbp_b7b_bendesc_per_rc							7	Every month	
+pbp_b7_health_prof	pbp_b7b_maxplan_yn	CHAR	1	7b(NMC)	Is there a maximum plan benefit coverage amount?	Is there a maximum plan benefit coverage amount?	Chiropractic Max Plan YN	1	Yes	
+pbp_b7_health_prof	pbp_b7b_maxplan_yn							2	No	
+pbp_b7_health_prof	pbp_b7b_maxenr_yn	CHAR	1	7b	Does this plan have a service specific maximum enrollee out-of-pocket cost (MOOP)?	Does this plan have a service specific maximum enrollee out-of-pocket cost (MOOP)?	Chiropractic Max Enr YN	1	Yes	
+pbp_b7_health_prof	pbp_b7b_maxenr_yn							2	No	
+pbp_b7_health_prof	pbp_b7b_coins_yn	CHAR	1	7b	Is there a coinsurance?	DERIVED	Chiropractic Coinsurance YN	1	Yes	
+pbp_b7_health_prof	pbp_b7b_coins_yn							2	No	
+pbp_b7_health_prof	pbp_b7b_coins_yn							3	Yes with a min & max	
+pbp_b7_health_prof	pbp_b7b_coins_ehc	CHAR	3	7b	Which Chiropractic Services have a Coinsurance	DERIVED	Chiro Coins Enhance Benefits	1 in 2	Medicare-covered Chiropractic Services	
+pbp_b7_health_prof	pbp_b7b_coins_ehc							1 in 3	Routine Care	
+pbp_b7_health_prof	pbp_b7b_coins_ehc							1 in 1	Other	
+pbp_b7_health_prof	pbp_b7b_coins_pct_mc_min	NUM	3	7b	Minimum Coinsurance percentage per visit for Medicare-covered Benefits	Minimum coinsurance	Chiropractic MC Min Coins Pct			
+pbp_b7_health_prof	pbp_b7b_coins_pct_mc_max	NUM	3	7b	Maximum Coinsurance percentage per visit for Medicare-covered Benefits	Maximum coinsurance	Chiropractic MC Max Coins Pct			
+pbp_b7_health_prof	pbp_b7b_copay_yn	CHAR	1	7b	Is there copayment?	DERIVED	Chiropractic Copayment YN	1	Yes	
+pbp_b7_health_prof	pbp_b7b_copay_yn							2	No	
+pbp_b7_health_prof	pbp_b7b_copay_yn							3	Yes with a min & max	
+pbp_b7_health_prof	pbp_b7b_copay_ehc	CHAR	3	7b	Which Chiropractic Services have a Copayment	DERIVED	Chiro Copay Enhanc Benefits	1 in 2	Medicare-covered Chiropractic Services	
+pbp_b7_health_prof	pbp_b7b_copay_ehc							1 in 3	Routine Care	
+pbp_b7_health_prof	pbp_b7b_copay_ehc							1 in 1	Other	
+pbp_b7_health_prof	pbp_b7b_copay_mc_amt_min	NUM	7	7b	Minimum Copayment amount for Medicare-covered Benefits	Minimum copayment	Chiropractic MC Min Copay Amt			
+pbp_b7_health_prof	pbp_b7b_copay_mc_amt_max	NUM	7	7b	Maximum Copayment amount for Medicare-covered Benefits	Maximum copayment	Chiropractic MC Max Copay Amt			
+pbp_b7_health_prof	pbp_b7b_copay_rc_amt_min	NUM	7	7b1(NMC)	Minimum Copayment amount per visit for Routine Care	Minimum copayment	Routine care Min Copay Amt			
+pbp_b7_health_prof	pbp_b7b_copay_rc_amt_max	NUM	7	7b1(NMC)	Maximum Copayment amount per visit for Routine Care	Maximum copayment	Routine care Max Copay Amt			
+pbp_b7_health_prof	pbp_b7b_ded_yn	CHAR	1	7b	Is there a deductible?	Is there a deductible?	Chiropractic Deductible YN	1	Yes	
+pbp_b7_health_prof	pbp_b7b_ded_yn							2	No	
+pbp_b7_health_prof	pbp_b7b_auth_yn	CHAR	1	7b	Authorization required for this benefit?	DERIVED	Chiropractic Auth YN	1	Yes	
+pbp_b7_health_prof	pbp_b7b_auth_yn							2	No	
+pbp_b7_health_prof	pbp_b7b_refer_yn	CHAR	1	7b	Referral required for this benefit?	DERIVED	Chiropractic Referral YN	1	Yes	
+pbp_b7_health_prof	pbp_b7b_refer_yn							2	No	
+pbp_b7_health_prof	pbp_b7c_maxenr_yn	CHAR	1	7c	Does this plan have a service specific maximum enrollee out-of-pocket cost (MOOP)?	Does this plan have a service specific maximum enrollee out-of-pocket cost (MOOP)?	Occ Therapy Max Enr YN	1	Yes	
+pbp_b7_health_prof	pbp_b7c_maxenr_yn							2	No	
+pbp_b7_health_prof	pbp_b7c_coins_yn	CHAR	1	7c	Is there a coinsurance?	Is there a coinsurance?	Occ Therapy Coinsurance YN	1	Yes	
+pbp_b7_health_prof	pbp_b7c_coins_yn							2	No	
+pbp_b7_health_prof	pbp_b7c_coins_yn							3	Yes with a min & max	
+pbp_b7_health_prof	pbp_b7c_coins_pct_mc_min	NUM	3	7c	Minimum coinsurance	Minimum coinsurance	Occ Ther MC MIN Coins Pct			
+pbp_b7_health_prof	pbp_b7c_coins_pct_mc_max	NUM	3	7c	Maximum coinsurance	Maximum coinsurance	Occ Ther MC MAX Coins Pct			
+pbp_b7_health_prof	pbp_b7c_ded_yn	CHAR	1	7c	Is there a deductible?	Is there a deductible?	Occ Therapy Deductible YN	1	Yes	
+pbp_b7_health_prof	pbp_b7c_ded_yn							2	No	
+pbp_b7_health_prof	pbp_b7c_copay_yn	CHAR	1	7c	Is there a copayment ?	Is there a copayment ?	Occ Therapy Copayment YN	1	Yes	
+pbp_b7_health_prof	pbp_b7c_copay_yn							2	No	
+pbp_b7_health_prof	pbp_b7c_copay_yn							3	Yes with a min & max	
+pbp_b7_health_prof	pbp_b7c_copay_mc_amt_min	NUM	7	7c	Minimum copayment	Minimum copayment	Occ Ther MC MIN Copay Amt			
+pbp_b7_health_prof	pbp_b7c_copay_mc_amt_max	NUM	7	7c	Maximum copayment	Maximum copayment	Occ Ther MC MAX Copay Amt			
+pbp_b7_health_prof	pbp_b7c_auth_yn	CHAR	1	7c	Authorization required for this benefit?	Authorization required for this benefit?	Occ Therapy Auth YN	1	Yes	
+pbp_b7_health_prof	pbp_b7c_auth_yn							2	No	
+pbp_b7_health_prof	pbp_b7c_refer_yn	CHAR	1	7c	Referral required for this benefit?	Referral required for this benefit?	Occ Therapy Referral YN	1	Yes	
+pbp_b7_health_prof	pbp_b7c_refer_yn							2	No	
+pbp_b7_health_prof	pbp_b7d_maxenr_yn	CHAR	1	7d	Does this plan have a service specific maximum enrollee out-of-pocket cost (MOOP)?	Does this plan have a service specific maximum enrollee out-of-pocket cost (MOOP)?	Phys Spclist Max Enr YN	1	Yes	
+pbp_b7_health_prof	pbp_b7d_maxenr_yn							2	No	
+pbp_b7_health_prof	pbp_b7d_coins_yn	CHAR	1	7d	Is there a coinsurance?	Is there a coinsurance?	Phys Spclist Coinsurance YN	1	Yes	
+pbp_b7_health_prof	pbp_b7d_coins_yn							2	No	
+pbp_b7_health_prof	pbp_b7d_coins_yn							3	Yes with a min & max	
+pbp_b7_health_prof	pbp_b7d_coins_pct_mc_min	NUM	3	7d	Minimum coinsurance	Minimum coinsurance	Phys Spclist Min MC Coins Pct			
+pbp_b7_health_prof	pbp_b7d_coins_pct_mc_max	NUM	3	7d	Maximum coinsurance	Maximum coinsurance	Phys Spclist Max MC Coins Pct			
+pbp_b7_health_prof	pbp_b7d_ded_yn	CHAR	1	7d	Is there a deductible?	Is there a deductible?	Phys Spclist Deductible YN	1	Yes	
+pbp_b7_health_prof	pbp_b7d_ded_yn							2	No	
+pbp_b7_health_prof	pbp_b7d_copay_yn	CHAR	1	7d	Is there a copayment ?	Is there a copayment ?	Phys Spclist Copayment YN	1	Yes	
+pbp_b7_health_prof	pbp_b7d_copay_yn							2	No	
+pbp_b7_health_prof	pbp_b7d_copay_yn							3	Yes with a min & max	
+pbp_b7_health_prof	pbp_b7d_copay_amt_mc_min	NUM	7	7d	Minimum copayment	Minimum copayment	Phys Spclist Min MC Copay Amt			
+pbp_b7_health_prof	pbp_b7d_copay_amt_mc_max	NUM	7	7d	Maximum copayment	Maximum copayment	Phys Spclist Max MC Copay Amt			
+pbp_b7_health_prof	pbp_b7d_auth_yn	CHAR	1	7d	Authorization required for this benefit?	Authorization required for this benefit?	Phys Spclist Auth	1	Yes	
+pbp_b7_health_prof	pbp_b7d_auth_yn							2	No	
+pbp_b7_health_prof	pbp_b7d_refer_yn	CHAR	1	7d	Referral required for this benefit?	Referral required for this benefit?	Phys Spclist Referral YN	1	Yes	
+pbp_b7_health_prof	pbp_b7d_refer_yn							2	No	
+pbp_b7_health_prof	pbp_b7e_maxenr_yn	CHAR	1	7e	Does this plan have a service specific maximum enrollee out-of-pocket cost (MOOP)?	Does this plan have a service specific maximum enrollee out-of-pocket cost (MOOP)?	MH Max Enr YN	1	Yes	
+pbp_b7_health_prof	pbp_b7e_maxenr_yn							2	No	
+pbp_b7_health_prof	pbp_b7e_coins_yn	CHAR	1	7e	Is there a coinsurance?	DERIVED	MH Coinsurance YN	1	Yes	
+pbp_b7_health_prof	pbp_b7e_coins_yn							2	No	
+pbp_b7_health_prof	pbp_b7e_coins_yn							3	Yes with a min & max	
+pbp_b7_health_prof	pbp_b7e_coins_ehc	CHAR	2	7e	Which Mental Health Specialty Services have a Coinsurance	DERIVED	MH Specialty Coins	1 in 2	Medicare-covered Individual Sessions	
+pbp_b7_health_prof	pbp_b7e_coins_ehc							1 in 1	Medicare-covered Group Sessions	
+pbp_b7_health_prof	pbp_b7e_coins_mcis_minpct	NUM	3	7e1	Minimum Coinsurance percentage for Medicare-covered Individual Sessions	Minimum coinsurance	MH MC Min Coins Individual			
+pbp_b7_health_prof	pbp_b7e_coins_mcis_maxpct	NUM	3	7e1	Maximum Coinsurance percentage for Medicare-covered Individual Sessions	Maximum coinsurance	MH MC Max Coins Individual			
+pbp_b7_health_prof	pbp_b7e_coins_mcgs_minpct	NUM	3	7e2	Minimum Coinsurance percentage for Medicare-covered Group Sessions	Minimum coinsurance	MH MC Min Coins Group			
+pbp_b7_health_prof	pbp_b7e_coins_mcgs_maxpct	NUM	3	7e2	Maximum Coinsurance percentage for Medicare-covered Group Sessions	Maximum coinsurance	MH MC Max Coins Group			
+pbp_b7_health_prof	pbp_b7e_ded_yn	CHAR	1	7e	Is there a deductible?	Is there a deductible?	MH Deductible YN	1	Yes	
+pbp_b7_health_prof	pbp_b7e_ded_yn							2	No	
+pbp_b7_health_prof	pbp_b7e_copay_yn	CHAR	1	7e	Is there a copayment ?	DERIVED	MH Copayment YN	1	Yes	
+pbp_b7_health_prof	pbp_b7e_copay_yn							2	No	
+pbp_b7_health_prof	pbp_b7e_copay_yn							3	Yes with a min & max	
+pbp_b7_health_prof	pbp_b7e_copay_ehc	CHAR	2	7e	Which Mental Health Specialty Services have a Copayment	DERIVED	MH Specialty Copays	1 in 2	Medicare-covered Individual Sessions	
+pbp_b7_health_prof	pbp_b7e_copay_ehc							1 in 1	Medicare-covered Group Sessions	
+pbp_b7_health_prof	pbp_b7e_copay_mcis_minamt	NUM	7	7e1	Minimum Copayment amount for Medicare-covered Individual Sessions	Minimum copayment	MH MC Min Copay Individual			
+pbp_b7_health_prof	pbp_b7e_copay_mcis_maxamt	NUM	7	7e1	Maximum Copayment amount for Medicare-covered Individual Sessions	Maximum copayment	MH MC Max Copay Individual			
+pbp_b7_health_prof	pbp_b7e_copay_mcgs_minamt	NUM	7	7e2	Minimum Copayment amount for Medicare-covered Group Sessions	Minimum copayment	MH MC Min Copay Group			
+pbp_b7_health_prof	pbp_b7e_copay_mcgs_maxamt	NUM	7	7e2	Maximum Copayment amount for Medicare-covered Group Sessions	Maximum copayment	MH MC Max Copay Group			
+pbp_b7_health_prof	pbp_b7e_auth_yn	CHAR	1	7e	Authorization required for this benefit?	DERIVED	MH Auth YN	1	Yes	
+pbp_b7_health_prof	pbp_b7e_auth_yn							2	No	
+pbp_b7_health_prof	pbp_b7e_refer_yn	CHAR	1	7e	Referral required for this benefit?	DERIVED	MH Referral YN	1	Yes	
+pbp_b7_health_prof	pbp_b7e_refer_yn							2	No	
+pbp_b7_health_prof	pbp_b7f_bendesc_yn	CHAR	1	7f	Does the plan provide Podiatry Services as a supplemental benefit under Part C?	DERIVED	Podiatrist Ben Desc YN	1	Yes	
+pbp_b7_health_prof	pbp_b7f_bendesc_yn							2	No	
+pbp_b7_health_prof	pbp_b7f_bendesc_rf	CHAR	1	7f	Enhanced benefits (7f)	DERIVED	Podiatrist RF Ben Desc Enhance	1 in 1	Routine Foot Care	
+pbp_b7_health_prof	pbp_b7f_bendesc_amo_rf	CHAR	1	7f(NMC)	Type of benefit for Routine Foot Care	DERIVED	Podiatrist RF Ben Desc AMO	2	Mandatory	
+pbp_b7_health_prof	pbp_b7f_bendesc_amo_rf							3	Optional	
+pbp_b7_health_prof	pbp_b7f_bendesc_amo_rf							4	Both	
+pbp_b7_health_prof	pbp_b7f_bendesc_lim_rf	CHAR	1	7f(NMC)	Is this benefit unlimited for Routine Foot Care?	Is this benefit unlimited?	Podiatrist RF Ben Desc Lim YN	1	Yes	
+pbp_b7_health_prof	pbp_b7f_bendesc_lim_rf							2	No	
+pbp_b7_health_prof	pbp_b7f_bendesc_amt_rf	NUM	4	7f(NMC)	Number of Routine Foot Care visits	Visits	Podiatrist RF Ben Desc Amt			
+pbp_b7_health_prof	pbp_b7f_bendesc_per_rf	CHAR	1	7f(NMC)	Routine Foot Care periodicity	Periodicity	Podiatrist RF Ben Desc Per	1	Every three years	
+pbp_b7_health_prof	pbp_b7f_bendesc_per_rf							2	Every two years	
+pbp_b7_health_prof	pbp_b7f_bendesc_per_rf							3	Every year	
+pbp_b7_health_prof	pbp_b7f_bendesc_per_rf							4	Every six months	
+pbp_b7_health_prof	pbp_b7f_bendesc_per_rf							5	Every three months	
+pbp_b7_health_prof	pbp_b7f_bendesc_per_rf							6	Other, Describe	
+pbp_b7_health_prof	pbp_b7f_bendesc_per_rf							7	Every month	
+pbp_b7_health_prof	pbp_b7f_maxplan_yn	CHAR	1	7f(NMC)	Is there a maximum plan benefit coverage amount?	Is there a maximum plan benefit coverage amount?	Podiatrist Max Plan YN	1	Yes	
+pbp_b7_health_prof	pbp_b7f_maxplan_yn							2	No	
+pbp_b7_health_prof	pbp_b7f_maxenr_yn	CHAR	1	7f	Does this plan have a service specific maximum enrollee out-of-pocket cost (MOOP)?	Does this plan have a service specific maximum enrollee out-of-pocket cost (MOOP)?	Podiatrist Max Enr YN	1	Yes	
+pbp_b7_health_prof	pbp_b7f_maxenr_yn							2	No	
+pbp_b7_health_prof	pbp_b7f_coins_yn	CHAR	1	7f	Is there a coinsurance?	DERIVED	Podiatrist Coinsurance YN	1	Yes	
+pbp_b7_health_prof	pbp_b7f_coins_yn							2	No	
+pbp_b7_health_prof	pbp_b7f_coins_yn							3	Yes with a min & max	
+pbp_b7_health_prof	pbp_b7f_coins_ehc	CHAR	2	7f	Which Podiatry Services have a Coinsurance	DERIVED	Podiatry Services Coinsurance	1 in 2	Medicare-covered Podiatry Services	
+pbp_b7_health_prof	pbp_b7f_coins_ehc							1 in 1	Routine Foot Care	
+pbp_b7_health_prof	pbp_b7f_coins_pct_mc_min	NUM	3	7f	Minimum Coinsurance percentage for Medicare-covered Benefits	Minimum coinsurance	Podiatrist MC Min Coins Pct			
+pbp_b7_health_prof	pbp_b7f_coins_pct_mc_max	NUM	3	7f	Maximum Coinsurance percentage for Medicare-covered Benefits	Maximum coinsurance	Podiatrist MC Max Coins Pct			
+pbp_b7_health_prof	pbp_b7f_ded_yn	CHAR	1	7f	Is there a deductible?	Is there a deductible?	Podiatrist Deductible YN	1	Yes	
+pbp_b7_health_prof	pbp_b7f_ded_yn							2	No	
+pbp_b7_health_prof	pbp_b7f_copay_yn	CHAR	1	7f	Is there a copayment?	DERIVED	Podiatrist Copayment YN	1	Yes	
+pbp_b7_health_prof	pbp_b7f_copay_yn							2	No	
+pbp_b7_health_prof	pbp_b7f_copay_yn							3	Yes with a min & max	
+pbp_b7_health_prof	pbp_b7f_copay_ehc	CHAR	2	7f	Which Podiatry Services have a Copayment	DERIVED	Podiatry Services have a Copay	1 in 2	Medicare-covered Podiatry Services	
+pbp_b7_health_prof	pbp_b7f_copay_ehc							1 in 1	Routine Foot Care	
+pbp_b7_health_prof	pbp_b7f_copay_mc_amt_min	NUM	7	7f	Minimum Copayment amount per visit for Medicare-covered Benefits	Minimum copayment	Podiatrist MC Min Copay Amt			
+pbp_b7_health_prof	pbp_b7f_copay_mc_amt_max	NUM	7	7f	Maximum Copayment amount per visit for Medicare-covered Benefits	Maximum copayment	Podiatrist MC Max Copay Amt			
+pbp_b7_health_prof	pbp_b7f_auth_yn	CHAR	1	7f	Authorization required for this benefit?	DERIVED	Podiatrist Auth YN	1	Yes	
+pbp_b7_health_prof	pbp_b7f_auth_yn							2	No	
+pbp_b7_health_prof	pbp_b7f_refer_yn	CHAR	1	7f	Referral required for this benefit?	DERIVED	Podiatrist Referral YN	1	Yes	
+pbp_b7_health_prof	pbp_b7f_refer_yn							2	No	
+pbp_b7_health_prof	pbp_b7g_maxenr_yn	CHAR	1	7g	Does this plan have a service specific maximum enrollee out-of-pocket cost (MOOP)?	Does this plan have a service specific maximum enrollee out-of-pocket cost (MOOP)?	Oth Hlth Care Max Enr YN	1	Yes	
+pbp_b7_health_prof	pbp_b7g_maxenr_yn							2	No	
+pbp_b7_health_prof	pbp_b7g_coins_yn	CHAR	1	7g	Is there a coinsurance?	Is there a coinsurance?	Oth Hlth Care Coinsurance YN	1	Yes	
+pbp_b7_health_prof	pbp_b7g_coins_yn							2	No	
+pbp_b7_health_prof	pbp_b7g_coins_yn							3	Yes with a min & max	
+pbp_b7_health_prof	pbp_b7g_coins_pct_mc	NUM	3	7g	Minimum coinsurance	Minimum coinsurance	Oth Hlth Care MC Min Coins Pct			
+pbp_b7_health_prof	pbp_b7g_coins_max_pct_mc	NUM	3	7g	Maximum coinsurance	Maximum coinsurance	Oth Hlth Care MC Max Coins Pct			
+pbp_b7_health_prof	pbp_b7g_ded_yn	CHAR	1	7g	Is there a deductible?	Is there a deductible?	Oth Hlth Care Deductible YN	1	Yes	
+pbp_b7_health_prof	pbp_b7g_ded_yn							2	No	
+pbp_b7_health_prof	pbp_b7g_copay_yn	CHAR	1	7g	Is there a copayment ?	Is there a copayment ?	Oth Hlth Care Copayment YN	1	Yes	
+pbp_b7_health_prof	pbp_b7g_copay_yn							2	No	
+pbp_b7_health_prof	pbp_b7g_copay_yn							3	Yes with a min & max	
+pbp_b7_health_prof	pbp_b7g_copay_mc_amt	NUM	7	7g	Minimum copayment	Minimum copayment	Oth Hlth Care MC Min Copay Amt			
+pbp_b7_health_prof	pbp_b7g_copay_mc_max_amt	NUM	7	7g	Maximum copayment	Maximum copayment	Oth Hlth Care MC Max Copay Amt			
+pbp_b7_health_prof	pbp_b7g_auth_yn	CHAR	1	7g	Authorization required for this benefit?	Authorization required for this benefit?	Oth Hlth Care Enrollee Auth	1	Yes	
+pbp_b7_health_prof	pbp_b7g_auth_yn							2	No	
+pbp_b7_health_prof	pbp_b7g_refer_yn	CHAR	1	7g	Referral required for this benefit?	Referral required for this benefit?	Oth Hlth Care Referral YN	1	Yes	
+pbp_b7_health_prof	pbp_b7g_refer_yn							2	No	
+pbp_b7_health_prof	pbp_b7h_maxenr_yn	CHAR	1	7h	Does this plan have a service specific maximum enrollee out-of-pocket cost (MOOP)?	Does this plan have a service specific maximum enrollee out-of-pocket cost (MOOP)?	Psych Max Enr YN	1	Yes	
+pbp_b7_health_prof	pbp_b7h_maxenr_yn							2	No	
+pbp_b7_health_prof	pbp_b7h_coins_yn	CHAR	1	7h	Is there a coinsurance?	DERIVED	Psych Coinsurance YN	1	Yes	
+pbp_b7_health_prof	pbp_b7h_coins_yn							2	No	
+pbp_b7_health_prof	pbp_b7h_coins_yn							3	Yes with a min & max	
+pbp_b7_health_prof	pbp_b7h_coins_ehc	CHAR	2	7h	Which Psychiatric Services have a Coinsurance	DERIVED	Psychiatric Services Coins	1 in 2	Medicare-covered Individual Sessions	
+pbp_b7_health_prof	pbp_b7h_coins_ehc							1 in 1	Medicare-covered Group Sessions	
+pbp_b7_health_prof	pbp_b7h_coins_mcis_minpct	NUM	3	7h1	Minimum Coinsurance percentage for Medicare-covered Individual Sessions	Minimum coinsurance	Psych Min Coins Individual			
+pbp_b7_health_prof	pbp_b7h_coins_mcis_maxpct	NUM	3	7h1	Maximum Coinsurance percentage for Medicare-covered Individual Sessions	Maximum coinsurance	Psych Max Coins Individual			
+pbp_b7_health_prof	pbp_b7h_coins_mcgs_minpct	NUM	3	7h2	Minimum Coinsurance percentage for Medicare-covered Group Sessions	Minimum coinsurance	Psych Min Coins Group			
+pbp_b7_health_prof	pbp_b7h_coins_mcgs_maxpct	NUM	3	7h2	Maximum Coinsurance percentage for Medicare-covered Group Sessions	Maximum coinsurance	Psych Max Coins Group			
+pbp_b7_health_prof	pbp_b7h_ded_yn	CHAR	1	7h	Is there a deductible?	Is there a deductible?	Psych Deductible YN	1	Yes	
+pbp_b7_health_prof	pbp_b7h_ded_yn							2	No	
+pbp_b7_health_prof	pbp_b7h_copay_yn	CHAR	1	7h	Is there a copayment ?	DERIVED	Psych Copayment YN	1	Yes	
+pbp_b7_health_prof	pbp_b7h_copay_yn							2	No	
+pbp_b7_health_prof	pbp_b7h_copay_yn							3	Yes with a min & max	
+pbp_b7_health_prof	pbp_b7h_copay_ehc	CHAR	2	7h	Which Psychiatric Services have a Copayment	DERIVED	Psychiatric Services Copay	1 in 2	Medicare-covered Individual Sessions	
+pbp_b7_health_prof	pbp_b7h_copay_ehc							1 in 1	Medicare-covered Group Sessions	
+pbp_b7_health_prof	pbp_b7h_copay_mcis_minamt	NUM	7	7h1	Minimum Copayment amount for Medicare-covered Individual Sessions	Minimum copayment	Psych Min Copay Individual			
+pbp_b7_health_prof	pbp_b7h_copay_mcis_maxamt	NUM	7	7h1	Maximum Copayment amount for Medicare-covered Individual Sessions	Maximum copayment	Psych Max Copay Individual			
+pbp_b7_health_prof	pbp_b7h_copay_mcgs_minamt	NUM	7	7h2	Minimum Copayment amount for Medicare-covered Group Sessions	Minimum copayment	Psych Min Copay Group			
+pbp_b7_health_prof	pbp_b7h_copay_mcgs_maxamt	NUM	7	7h2	Maximum Copayment amount for Medicare-covered Group Sessions	Maximum copayment	Psych Max Copay Group			
+pbp_b7_health_prof	pbp_b7h_auth_yn	CHAR	1	7h	Authorization required for this benefit?	DERIVED	Psych Auth YN	1	Yes	
+pbp_b7_health_prof	pbp_b7h_auth_yn							2	No	
+pbp_b7_health_prof	pbp_b7h_refer_yn	CHAR	1	7h	Referral required for this benefit?	DERIVED	Psych Referral YN	1	Yes	
+pbp_b7_health_prof	pbp_b7h_refer_yn							2	No	
+pbp_b7_health_prof	pbp_b7i_maxenr_yn	CHAR	1	7i	Does this plan have a service specific maximum enrollee out-of-pocket cost (MOOP)?	Does this plan have a service specific maximum enrollee out-of-pocket cost (MOOP)?	PT/SP Srvs Max Enr YN	1	Yes	
+pbp_b7_health_prof	pbp_b7i_maxenr_yn							2	No	
+pbp_b7_health_prof	pbp_b7i_coins_yn	CHAR	1	7i	Is there a coinsurance?	Is there a coinsurance?	PT/SP Srvs Coinsurance YN	1	Yes	
+pbp_b7_health_prof	pbp_b7i_coins_yn							2	No	
+pbp_b7_health_prof	pbp_b7i_coins_yn							3	Yes with a min & max	
+pbp_b7_health_prof	pbp_b7i_coins_pct_mc_min	NUM	3	7i	Minimum coinsurance	Minimum coinsurance	PT/SP Coins MC Min			
+pbp_b7_health_prof	pbp_b7i_coins_pct_mc_max	NUM	3	7i	Maximum coinsurance	Maximum coinsurance	PT/SP Coins MC Max			
+pbp_b7_health_prof	pbp_b7i_ded_yn	CHAR	1	7i	Is there a deductible?	Is there a deductible?	PT/SP Srvs Deductible YN	1	Yes	
+pbp_b7_health_prof	pbp_b7i_ded_yn							2	No	
+pbp_b7_health_prof	pbp_b7i_copay_yn	CHAR	1	7i	Is there a copayment ?	Is there a copayment ?	PT/SP Srvs Copayment YN	1	Yes	
+pbp_b7_health_prof	pbp_b7i_copay_yn							2	No	
+pbp_b7_health_prof	pbp_b7i_copay_yn							3	Yes with a min & max	
+pbp_b7_health_prof	pbp_b7i_copay_mc_amt_min	NUM	7	7i	Minimum copayment	Minimum copayment	PT/SP Copay MC Min			
+pbp_b7_health_prof	pbp_b7i_copay_mc_amt_max	NUM	7	7i	Maximum copayment	Maximum copayment	PT/SP Copay MC Max			
+pbp_b7_health_prof	pbp_b7i_auth_yn	CHAR	1	7i	Authorization required for this benefit?	Authorization required for this benefit?	PT/SP Srvs Enrollee Auth	1	Yes	
+pbp_b7_health_prof	pbp_b7i_auth_yn							2	No	
+pbp_b7_health_prof	pbp_b7i_refer_yn	CHAR	1	7i	Referral required for this benefit?	Referral required for this benefit?	PT/SP Srvs Referral YN	1	Yes	
+pbp_b7_health_prof	pbp_b7i_refer_yn							2	No	
+pbp_b7_health_prof	pbp_b7j_bendesc_yn	CHAR	1	7j	Do you offer an Additional Telehealth benefit for Part B services?	DERIVED	Telehealth Ben Desc YN	1	Yes	
+pbp_b7_health_prof	pbp_b7j_bendesc_yn							2	No	
+pbp_b7_health_prof	pbp_b7j_mc_bendesc_cats	CHAR	4000	7j	Medicare-covered benefits that may have Additional Telehealth Benefits available	Medicare-covered benefits that may have Additional Telehealth Benefits available	Telehealth services	1a	1a: Inpatient Hospital-Acute	
+pbp_b7_health_prof	pbp_b7j_mc_bendesc_cats							1b	1b: Inpatient Hospital Psychiatric	
+pbp_b7_health_prof	pbp_b7j_mc_bendesc_cats							2	2: Skilled Nursing Facility (SNF)	
+pbp_b7_health_prof	pbp_b7j_mc_bendesc_cats							3-1	3-1: Cardiac Rehabilitation Services	
+pbp_b7_health_prof	pbp_b7j_mc_bendesc_cats							3-2	3-2: Intensive Cardiac Rehabilitation Services	
+pbp_b7_health_prof	pbp_b7j_mc_bendesc_cats							3-3	3-3: Pulmonary Rehabilitation Services	
+pbp_b7_health_prof	pbp_b7j_mc_bendesc_cats							3-4	3-4: SET for PAD Services	
+pbp_b7_health_prof	pbp_b7j_mc_bendesc_cats							4a	4a: Emergency Services	
+pbp_b7_health_prof	pbp_b7j_mc_bendesc_cats							4b	4b: Urgently Needed Services	
+pbp_b7_health_prof	pbp_b7j_mc_bendesc_cats							5a	5a: Partial Hospitalization Program	
+pbp_b7_health_prof	pbp_b7j_mc_bendesc_cats							5b	5b: Intensive Outpatient Program Services	
+pbp_b7_health_prof	pbp_b7j_mc_bendesc_cats							6	6: Home Health Services	
+pbp_b7_health_prof	pbp_b7j_mc_bendesc_cats							7a	7a: Primary Care Physician Services	
+pbp_b7_health_prof	pbp_b7j_mc_bendesc_cats							7b	7b: Chiropractic Services	
+pbp_b7_health_prof	pbp_b7j_mc_bendesc_cats							7c	7c: Occupational Therapy Services	
+pbp_b7_health_prof	pbp_b7j_mc_bendesc_cats							7d	7d: Physician Specialist Services	
+pbp_b7_health_prof	pbp_b7j_mc_bendesc_cats							7e1	7e1: Individual Sessions for Mental Health Specialty Services	
+pbp_b7_health_prof	pbp_b7j_mc_bendesc_cats							7e2	7e2: Group Sessions for Mental Health Specialty Services	
+pbp_b7_health_prof	pbp_b7j_mc_bendesc_cats							7f	7f: Podiatry Services	
+pbp_b7_health_prof	pbp_b7j_mc_bendesc_cats							7g	7g: Other Health Care Professional	
+pbp_b7_health_prof	pbp_b7j_mc_bendesc_cats							7h1	7h1: Individual Sessions for Psychiatric Services	
+pbp_b7_health_prof	pbp_b7j_mc_bendesc_cats							7h2	7h2: Group Sessions for Psychiatric Services	
+pbp_b7_health_prof	pbp_b7j_mc_bendesc_cats							7i	7i: Physical Therapy and Speech-Language Pathology Services	
+pbp_b7_health_prof	pbp_b7j_mc_bendesc_cats							7k	7k: Opioid Treatment Program Services	
+pbp_b7_health_prof	pbp_b7j_mc_bendesc_cats							8a1	8a1: Diagnostic Procedures/Tests	
+pbp_b7_health_prof	pbp_b7j_mc_bendesc_cats							8a2	8a2: Lab Services	
+pbp_b7_health_prof	pbp_b7j_mc_bendesc_cats							8b1	8b1: Diagnostic Radiological Services	
+pbp_b7_health_prof	pbp_b7j_mc_bendesc_cats							8b2	8b2: Therapeutic Radiological Services	
+pbp_b7_health_prof	pbp_b7j_mc_bendesc_cats							8b3	8b3: Outpatient X-Ray Services	
+pbp_b7_health_prof	pbp_b7j_mc_bendesc_cats							9a1	9a1: Outpatient Hospital Services	
+pbp_b7_health_prof	pbp_b7j_mc_bendesc_cats							9a2	9a2: Observation Services	
+pbp_b7_health_prof	pbp_b7j_mc_bendesc_cats							9b	9b: Ambulatory Surgical Center (ASC) Services	
+pbp_b7_health_prof	pbp_b7j_mc_bendesc_cats							9c1	9c1: Individual Sessions for Outpatient Substance Abuse	
+pbp_b7_health_prof	pbp_b7j_mc_bendesc_cats							9c2	9c2: Group Sessions for Outpatient Substance Abuse	
+pbp_b7_health_prof	pbp_b7j_mc_bendesc_cats							9d	9d: Outpatient Blood Services	
+pbp_b7_health_prof	pbp_b7j_mc_bendesc_cats							10a1	10a1: Ground Ambulance Services	
+pbp_b7_health_prof	pbp_b7j_mc_bendesc_cats							10a2	10a2: Air Ambulance Services	
+pbp_b7_health_prof	pbp_b7j_mc_bendesc_cats							11a	11a: Durable Medical Equipment (DME)	
+pbp_b7_health_prof	pbp_b7j_mc_bendesc_cats							11b1	11b1: Prosthetic Devices	
+pbp_b7_health_prof	pbp_b7j_mc_bendesc_cats							11b2	11b2: Medical Supplies	
+pbp_b7_health_prof	pbp_b7j_mc_bendesc_cats							11c1	11c1: Diabetic Supplies	
+pbp_b7_health_prof	pbp_b7j_mc_bendesc_cats							11c2	11c2: Diabetic Therapeutic Shoes/Inserts	
+pbp_b7_health_prof	pbp_b7j_mc_bendesc_cats							12	12: Dialysis Services	
+pbp_b7_health_prof	pbp_b7j_mc_bendesc_cats							14a	14a: Medicare-covered Zero Dollar Preventive Services	
+pbp_b7_health_prof	pbp_b7j_mc_bendesc_cats							14d	14d: Kidney Disease Education Services	
+pbp_b7_health_prof	pbp_b7j_mc_bendesc_cats							14e1	14e1: Glaucoma Screening	
+pbp_b7_health_prof	pbp_b7j_mc_bendesc_cats							14e2	14e2: Diabetes Self-Management Training	
+pbp_b7_health_prof	pbp_b7j_mc_bendesc_cats							14e4	14e4: Digital Rectal Exams	
+pbp_b7_health_prof	pbp_b7j_mc_bendesc_cats							14e5	14e5: EKG following Welcome Visit	
+pbp_b7_health_prof	pbp_b7j_mc_bendesc_cats							15-1-I	15-1-I: Medicare Part B Insulin Drugs	
+pbp_b7_health_prof	pbp_b7j_mc_bendesc_cats							15-2	15-2: Medicare Part B Chemotherapy/Radiation Drugs	
+pbp_b7_health_prof	pbp_b7j_mc_bendesc_cats							15-3	15-3: Other Medicare Part B Drugs	
+pbp_b7_health_prof	pbp_b7j_mc_bendesc_cats							16a	16a: Medicare Dental Services	
+pbp_b7_health_prof	pbp_b7j_mc_bendesc_cats							17a	17a: Eye Exams	
+pbp_b7_health_prof	pbp_b7j_mc_bendesc_cats							17b	17b: Eyewear	
+pbp_b7_health_prof	pbp_b7j_mc_bendesc_cats							18a	18a: Hearing Exams	
+pbp_b7_health_prof	pbp_b7j_mc_bendesc_cats							20	20: Prescription Drugs (Cost Plans Only)	
+pbp_b7_health_prof	pbp_b7j_maxenr_yn	CHAR	1	7j	Does this plan have a service specific maximum enrollee out-of-pocket cost (MOOP)?	Does this plan have a service specific maximum enrollee out-of-pocket cost (MOOP)?	Telehealth Max Enr YN	1	Yes	
+pbp_b7_health_prof	pbp_b7j_maxenr_yn							2	No	
+pbp_b7_health_prof	pbp_b7j_coins_yn	CHAR	1	7j	Is there a coinsurance?	Is there a coinsurance?	Telehealth Coinsurance YN	1	Yes	
+pbp_b7_health_prof	pbp_b7j_coins_yn							2	No	
+pbp_b7_health_prof	pbp_b7j_coins_yn							3	Yes with a min & max	
+pbp_b7_health_prof	pbp_b7j_coins_pct_mc_min	NUM	3	7j	Minimum coinsurance	Minimum coinsurance	Telehealth MC Min Coins Pct			
+pbp_b7_health_prof	pbp_b7j_coins_pct_mc_max	NUM	3	7j	Maximum coinsurance	Maximum coinsurance	Telehealth MC Max Coins Pct			
+pbp_b7_health_prof	pbp_b7j_ded_yn	CHAR	1	7j	Is there a deductible?	Is there a deductible?	Telehealth Deductible YN	1	Yes	
+pbp_b7_health_prof	pbp_b7j_ded_yn							2	No	
+pbp_b7_health_prof	pbp_b7j_copay_yn	CHAR	1	7j	Is there a copayment ?	Is there a copayment ?	Telehealth Copayment YN	1	Yes	
+pbp_b7_health_prof	pbp_b7j_copay_yn							2	No	
+pbp_b7_health_prof	pbp_b7j_copay_yn							3	Yes with a min & max	
+pbp_b7_health_prof	pbp_b7j_copay_mc_amt_min	NUM	7	7j	Minimum copayment	Minimum copayment	Telehealth MC Min Copay Amt			
+pbp_b7_health_prof	pbp_b7j_copay_mc_amt_max	NUM	7	7j	Maximum copayment	Maximum copayment	Telehealth MC Max Copay Amt			
+pbp_b7_health_prof	pbp_b7j_auth_yn	CHAR	1	7j	Authorization required for this benefit?	Authorization required for this benefit?	Telehealth Auth YN	1	Yes	
+pbp_b7_health_prof	pbp_b7j_auth_yn							2	No	
+pbp_b7_health_prof	pbp_b7j_refer_yn	CHAR	1	7j	Referral required for this benefit?	Referral required for this benefit?	Telehealth Referral YN	1	Yes	
+pbp_b7_health_prof	pbp_b7j_refer_yn							2	No	
+pbp_b7_health_prof	pbp_b7k_maxenr_yn	CHAR	1	7k	Does this plan have a service specific maximum enrollee out-of-pocket cost (MOOP)?	Does this plan have a service specific maximum enrollee out-of-pocket cost (MOOP)?	Opi Treat Max Enr YN	1	Yes	
+pbp_b7_health_prof	pbp_b7k_maxenr_yn							2	No	
+pbp_b7_health_prof	pbp_b7k_coins_yn	CHAR	1	7k	Is there a coinsurance?	Is there a coinsurance?	Opi Treat Coinsurance YN	1	Yes	
+pbp_b7_health_prof	pbp_b7k_coins_yn							2	No	
+pbp_b7_health_prof	pbp_b7k_coins_yn							3	Yes with a min & max	
+pbp_b7_health_prof	pbp_b7k_coins_pct_mc	NUM	3	7k	Minimum coinsurance	Minimum coinsurance	Opi Treat MC Min Coins Pct			
+pbp_b7_health_prof	pbp_b7k_coins_max_pct_mc	NUM	3	7k	Maximum coinsurance	Maximum coinsurance	Opi Treat MC Max Coins Pct			
+pbp_b7_health_prof	pbp_b7k_ded_yn	CHAR	1	7k	Is there a deductible?	Is there a deductible?	Opi Treat Deductible YN	1	Yes	
+pbp_b7_health_prof	pbp_b7k_ded_yn							2	No	
+pbp_b7_health_prof	pbp_b7k_copay_yn	CHAR	1	7k	Is there a copayment ?	Is there a copayment ?	Opi Treat Copayment YN	1	Yes	
+pbp_b7_health_prof	pbp_b7k_copay_yn							2	No	
+pbp_b7_health_prof	pbp_b7k_copay_yn							3	Yes with a min & max	
+pbp_b7_health_prof	pbp_b7k_copay_mc_amt	NUM	7	7k	Minimum copayment	Minimum copayment	Opi Treat MC Min Copay Amt			
+pbp_b7_health_prof	pbp_b7k_copay_mc_max_amt	NUM	7	7k	Maximum copayment	Maximum copayment	Opi Treat MC Max Copay Amt			
+pbp_b7_health_prof	pbp_b7k_auth_yn	CHAR	1	7k	Authorization required for this benefit?	Authorization required for this benefit?	Opi Treat Enrollee Auth	1	Yes	
+pbp_b7_health_prof	pbp_b7k_auth_yn							2	No	
+pbp_b7_health_prof	pbp_b7k_refer_yn	CHAR	1	7k	Referral required for this benefit?	Referral required for this benefit?	Opi Treat Referral YN	1	Yes	
+pbp_b7_health_prof	pbp_b7k_refer_yn							2	No	
+pbp_Section_D	pbp_a_hnumber	CHAR	5		H Number		H Number			
+pbp_Section_D	pbp_a_plan_identifier	CHAR	3		Plan ID		Plan ID			
+pbp_Section_D	segment_id	NUM	3		Segment ID		Segment ID			
+pbp_Section_D	pbp_a_ben_cov	CHAR	1		Coverage Criteria		Coverage Criteria	1	Part A and Part B	
+pbp_Section_D	pbp_a_ben_cov							2	Part B Only	
+pbp_Section_D	pbp_a_plan_type	CHAR	2		Plan Type		Plan Type	01	HMO	
+pbp_Section_D	pbp_a_plan_type							02	HMOPOS	
+pbp_Section_D	pbp_a_plan_type							04	Local PPO	
+pbp_Section_D	pbp_a_plan_type							05	PSO (State License)	
+pbp_Section_D	pbp_a_plan_type							07	MSA	
+pbp_Section_D	pbp_a_plan_type							08	RFB PFFS	
+pbp_Section_D	pbp_a_plan_type							09	PFFS	
+pbp_Section_D	pbp_a_plan_type							18	1876 Cost	
+pbp_Section_D	pbp_a_plan_type							19	HCPP - 1833 Cost	
+pbp_Section_D	pbp_a_plan_type							20	National Pace	
+pbp_Section_D	pbp_a_plan_type							29	Medicare Prescription Drug Plan	
+pbp_Section_D	pbp_a_plan_type							30	Employer/Union Only Direct Contract PDP	
+pbp_Section_D	pbp_a_plan_type							31	Regional PPO	
+pbp_Section_D	pbp_a_plan_type							32	Fallback	
+pbp_Section_D	pbp_a_plan_type							40	Employer/Union Only Direct Contract PFFS	
+pbp_Section_D	pbp_a_plan_type							42	RFB HMO	
+pbp_Section_D	pbp_a_plan_type							43	RFB HMOPOS	
+pbp_Section_D	pbp_a_plan_type							44	RFB Local PPO	
+pbp_Section_D	pbp_a_plan_type							45	RFB PSO (State License)	
+pbp_Section_D	pbp_a_plan_type							47	Employer Direct PPO	
+pbp_Section_D	orgtype	CHAR	2		Organization Type		Organization Type	01	Local CCP	
+pbp_Section_D	orgtype							02	MSA	
+pbp_Section_D	orgtype							03	RFB	
+pbp_Section_D	orgtype							04	PFFS	
+pbp_Section_D	orgtype							05	Demo	
+pbp_Section_D	orgtype							06	1876 Cost	
+pbp_Section_D	orgtype							07	HCPP - 1833 Cost	
+pbp_Section_D	orgtype							08	National PACE	
+pbp_Section_D	orgtype							10	PDP	
+pbp_Section_D	orgtype							11	Regional CCP	
+pbp_Section_D	orgtype							12	Fallback	
+pbp_Section_D	orgtype							13	Employer/Union Only Direct Contract PDP	
+pbp_Section_D	orgtype							14	Employer/Union Only Direct Contract PFFS	
+pbp_Section_D	orgtype							15	RFB Local CCP	
+pbp_Section_D	orgtype							17	Employer/Union Only Direct Contract Local CCP	
+pbp_Section_D	bid_id	CHAR	13		BID ID (H-number, Plan ID, Segment ID)		Bid ID			
+pbp_Section_D	version	NUM	3		Version Number		Version Number			
+pbp_Section_D	pbp_d_ann_deduct_yn	CHAR	1		Do you offer a Deductible?	Do you offer a Deductible?	Deductible YN?	1	Yes	
+pbp_Section_D	pbp_d_ann_deduct_yn							2	No	
+pbp_Section_D	pbp_d_nmc_deduct_yn	CHAR	1		Do you offer a mandatory enhanced benefit enrollee deductible amount?	Do you offer a mandatory enhanced benefit enrollee deductible amount?	Mandatory enhanced deduct YN	1	Yes	
+pbp_Section_D	pbp_d_nmc_deduct_yn							2	No	
+pbp_Section_D	pbp_d_inn_deduct_yn	CHAR	1		Does this plan have an In-Network plan deductible?	Does this plan have an In-Network plan deductible?	In-Ntwk Plan Deductible YN	1	Yes	
+pbp_Section_D	pbp_d_inn_deduct_yn							2	No	
+pbp_Section_D	pbp_d_inn_deduct_partb_yn	CHAR	1		Does this plan charge the Medicare-defined Part B deductible amount?	Does this plan charge the Medicare-defined Part B deductible amount?	In-Ntwk Ded Mdcr PartB YN	1	Yes	
+pbp_Section_D	pbp_d_inn_deduct_partb_yn							2	No	
+pbp_Section_D	pbp_d_inn_deduct_bens	CHAR	2		In-Network Non-Medicare-covered benefits	In-Network Non-Medicare-covered benefits	In-Ntwk Ded benefit	1 in 2	In-Network Medicare-covered benefits	
+pbp_Section_D	pbp_d_inn_deduct_bens							1 in 1	In-Network Non-Medicare-covered benefits	
+pbp_Section_D	pbp_d_inn_deduct_m_yn	CHAR	1		Does the In-Network Deductible apply to all In-Network Medicare-covered plan services?	Does the In-Network Deductible apply to all In-Network Medicare-covered plan services?	In-Ntwk Ded All Inn Mdcr YN	1	Yes	
+pbp_Section_D	pbp_d_inn_deduct_m_yn							2	No	
+pbp_Section_D	pbp_d_inn_deduct_m_cats	CHAR	4000		Medicare service categories that are subject to each plan-level deductible type	Medicare service categories that are subject to each plan-level deductible type	In-Ntwk Ded Serv Cats Med-Cov	1a	1a: Inpatient Hospital-Acute	
+pbp_Section_D	pbp_d_inn_deduct_m_cats							1b	1b: Inpatient Hospital Psychiatric	
+pbp_Section_D	pbp_d_inn_deduct_m_cats							2	2: Skilled Nursing Facility (SNF)	
+pbp_Section_D	pbp_d_inn_deduct_m_cats							3-1	3-1: Cardiac Rehabilitation Services	
+pbp_Section_D	pbp_d_inn_deduct_m_cats							3-2	3-2: Intensive Cardiac Rehabilitation Services	
+pbp_Section_D	pbp_d_inn_deduct_m_cats							3-3	3-3: Pulmonary Rehabilitation Services	
+pbp_Section_D	pbp_d_inn_deduct_m_cats							3-4	3-4: SET for PAD Services	
+pbp_Section_D	pbp_d_inn_deduct_m_cats							4a	4a: Emergency Services	
+pbp_Section_D	pbp_d_inn_deduct_m_cats							4b	4b: Urgently Needed Services	
+pbp_Section_D	pbp_d_inn_deduct_m_cats							5a	5a: Partial Hospitalization Program	
+pbp_Section_D	pbp_d_inn_deduct_m_cats							5b	5b: Intensive Outpatient Program Services	
+pbp_Section_D	pbp_d_inn_deduct_m_cats							6	6: Home Health Services	
+pbp_Section_D	pbp_d_inn_deduct_m_cats							7a	7a: Primary Care Physician Services	
+pbp_Section_D	pbp_d_inn_deduct_m_cats							7b	7b: Chiropractic Services	
+pbp_Section_D	pbp_d_inn_deduct_m_cats							7c	7c: Occupational Therapy Services	
+pbp_Section_D	pbp_d_inn_deduct_m_cats							7d	7d: Physician Specialist Services	
+pbp_Section_D	pbp_d_inn_deduct_m_cats							7e1	7e1: Individual Sessions for Mental Health Specialty Services	
+pbp_Section_D	pbp_d_inn_deduct_m_cats							7e2	7e2: Group Sessions for Mental Health Specialty Services	
+pbp_Section_D	pbp_d_inn_deduct_m_cats							7f	7f: Podiatry Services	
+pbp_Section_D	pbp_d_inn_deduct_m_cats							7g	7g: Other Health Care Professional	
+pbp_Section_D	pbp_d_inn_deduct_m_cats							7h1	7h1: Individual Sessions for Psychiatric Services	
+pbp_Section_D	pbp_d_inn_deduct_m_cats							7h2	7h2: Group Sessions for Psychiatric Services	
+pbp_Section_D	pbp_d_inn_deduct_m_cats							7i	7i: Physical Therapy and Speech-Language Pathology Services	
+pbp_Section_D	pbp_d_inn_deduct_m_cats							7j	7j: Additional Telehealth Benefits	
+pbp_Section_D	pbp_d_inn_deduct_m_cats							7k	7k: Opioid Treatment Program Services	
+pbp_Section_D	pbp_d_inn_deduct_m_cats							8a1	8a1: Diagnostic Procedures/Tests	
+pbp_Section_D	pbp_d_inn_deduct_m_cats							8a2	8a2: Lab Services	
+pbp_Section_D	pbp_d_inn_deduct_m_cats							8b1	8b1: Diagnostic Radiological Services	
+pbp_Section_D	pbp_d_inn_deduct_m_cats							8b2	8b2: Therapeutic Radiological Services	
+pbp_Section_D	pbp_d_inn_deduct_m_cats							8b3	8b3: Outpatient X-Ray Services	
+pbp_Section_D	pbp_d_inn_deduct_m_cats							9a1	9a1: Outpatient Hospital Services	
+pbp_Section_D	pbp_d_inn_deduct_m_cats							9a2	9a2: Observation Services	
+pbp_Section_D	pbp_d_inn_deduct_m_cats							9b	9b: Ambulatory Surgical Center (ASC) Services	
+pbp_Section_D	pbp_d_inn_deduct_m_cats							9c1	9c1: Individual Sessions for Outpatient Substance Abuse	
+pbp_Section_D	pbp_d_inn_deduct_m_cats							9c2	9c2: Group Sessions for Outpatient Substance Abuse	
+pbp_Section_D	pbp_d_inn_deduct_m_cats							9d	9d: Outpatient Blood Services	
+pbp_Section_D	pbp_d_inn_deduct_m_cats							10a1	10a1: Ground Ambulance Services	
+pbp_Section_D	pbp_d_inn_deduct_m_cats							10a2	10a2: Air Ambulance Services	
+pbp_Section_D	pbp_d_inn_deduct_m_cats							11a	11a: Durable Medical Equipment (DME)	
+pbp_Section_D	pbp_d_inn_deduct_m_cats							11b1	11b1: Prosthetic Devices	
+pbp_Section_D	pbp_d_inn_deduct_m_cats							11b2	11b2: Medical Supplies	
+pbp_Section_D	pbp_d_inn_deduct_m_cats							11c1	11c1: Diabetic Supplies	
+pbp_Section_D	pbp_d_inn_deduct_m_cats							11c2	11c2: Diabetic Therapeutic Shoes/Inserts	
+pbp_Section_D	pbp_d_inn_deduct_m_cats							12	12: Dialysis Services	
+pbp_Section_D	pbp_d_inn_deduct_m_cats							14a	14a: Medicare-covered Zero Dollar Preventive Services	
+pbp_Section_D	pbp_d_inn_deduct_m_cats							14d	14d: Kidney Disease Education Services	
+pbp_Section_D	pbp_d_inn_deduct_m_cats							14e1	14e1: Glaucoma Screening	
+pbp_Section_D	pbp_d_inn_deduct_m_cats							14e2	14e2: Diabetes Self-Management Training	
+pbp_Section_D	pbp_d_inn_deduct_m_cats							14e4	14e4: Digital Rectal Exams	
+pbp_Section_D	pbp_d_inn_deduct_m_cats							14e5	14e5: EKG following Welcome Visit	
+pbp_Section_D	pbp_d_inn_deduct_m_cats							15-1-I	15-1-I: Medicare Part B Insulin Drugs	
+pbp_Section_D	pbp_d_inn_deduct_m_cats							15-2	15-2: Medicare Part B Chemotherapy/Radiation Drugs	
+pbp_Section_D	pbp_d_inn_deduct_m_cats							15-3	15-3: Other Medicare Part B Drugs	
+pbp_Section_D	pbp_d_inn_deduct_m_cats							16a	16a: Medicare Dental Services	
+pbp_Section_D	pbp_d_inn_deduct_m_cats							17a	17a: Eye Exams	
+pbp_Section_D	pbp_d_inn_deduct_m_cats							17b	17b: Eyewear	
+pbp_Section_D	pbp_d_inn_deduct_m_cats							18a	18a: Hearing Exams	
+pbp_Section_D	pbp_d_inn_deduct_m_cats							20	20: Prescription Drugs (Cost Plans Only)	
+pbp_Section_D	pbp_d_out_pocket_amt_yn	CHAR	1		Does this plan have an In-Network MOOP?	Does this plan have an In-Network MOOP?	In-Ntwk Max Enr Amt YN	1	Yes	
+pbp_Section_D	pbp_d_out_pocket_amt_yn							2	No	
+pbp_Section_D	pbp_d_out_pocket_amt_type	CHAR	1		What type of In-Network MOOP does your plan offer?	What type of In-Network MOOP does your plan offer?	In-Ntwk Max Enr Amt Type	1	Lower	
+pbp_Section_D	pbp_d_out_pocket_amt_type							2	Mandatory	
+pbp_Section_D	pbp_d_out_pocket_amt_type							3	Intermediate	
+pbp_Section_D	pbp_d_out_pocket_amt	NUM	9		In Network MOOP Amount	In Network MOOP Amount	In-Ntwk Max Enr Amt			
+pbp_Section_D	pbp_d_inn_max_enr_oopc_bens	CHAR	2		Benefits that apply to the In-Network Maximum Enrollee Out-of-Pocket cost	Benefits that apply to the In-Network Maximum Enrollee Out-of-Pocket cost	In-Ntwk Max Enr In Net benefit	1 in 2	In-Network Medicare-covered benefits	
+pbp_Section_D	pbp_d_inn_max_enr_oopc_bens							1 in 1	In-Network Non-Medicare-covered benefits	
+pbp_Section_D	pbp_d_inn_max_enr_m_yn	CHAR	1		Does the In-Network Maximum Enrollee Out-of-Pocket Cost apply to all In-Network Medicare-covered plan services?	Does the In-Network Maximum Enrollee Out-of-Pocket Cost apply to all In-Network Medicare-covered plan services?	In-Ntwk Max Enr In-Net OOP	1	Yes	
+pbp_Section_D	pbp_d_inn_max_enr_m_yn							2	No	
+pbp_Section_D	pbp_d_inn_max_enr_m_cat_ex	CHAR	4000		Medicare service categories that are subject to each MOOP type	Medicare service categories that are subject to each MOOP type	In-Ntwk Max Enr Inn Inn M Cats	1a	1a: Inpatient Hospital-Acute	
+pbp_Section_D	pbp_d_inn_max_enr_m_cat_ex							1b	1b: Inpatient Hospital Psychiatric	
+pbp_Section_D	pbp_d_inn_max_enr_m_cat_ex							2	2: Skilled Nursing Facility (SNF)	
+pbp_Section_D	pbp_d_inn_max_enr_m_cat_ex							3-1	3-1: Cardiac Rehabilitation Services	
+pbp_Section_D	pbp_d_inn_max_enr_m_cat_ex							3-2	3-2: Intensive Cardiac Rehabilitation Services	
+pbp_Section_D	pbp_d_inn_max_enr_m_cat_ex							3-3	3-3: Pulmonary Rehabilitation Services	
+pbp_Section_D	pbp_d_inn_max_enr_m_cat_ex							3-4	3-4: SET for PAD Services	
+pbp_Section_D	pbp_d_inn_max_enr_m_cat_ex							4a	4a: Emergency Services	
+pbp_Section_D	pbp_d_inn_max_enr_m_cat_ex							4b	4b: Urgently Needed Services	
+pbp_Section_D	pbp_d_inn_max_enr_m_cat_ex							5a	5a: Partial Hospitalization Program	
+pbp_Section_D	pbp_d_inn_max_enr_m_cat_ex							5b	5b: Intensive Outpatient Program Services	
+pbp_Section_D	pbp_d_inn_max_enr_m_cat_ex							6	6: Home Health Services	
+pbp_Section_D	pbp_d_inn_max_enr_m_cat_ex							7a	7a: Primary Care Physician Services	
+pbp_Section_D	pbp_d_inn_max_enr_m_cat_ex							7b	7b: Chiropractic Services	
+pbp_Section_D	pbp_d_inn_max_enr_m_cat_ex							7c	7c: Occupational Therapy Services	
+pbp_Section_D	pbp_d_inn_max_enr_m_cat_ex							7d	7d: Physician Specialist Services	
+pbp_Section_D	pbp_d_inn_max_enr_m_cat_ex							7e1	7e1: Individual Sessions for Mental Health Specialty Services	
+pbp_Section_D	pbp_d_inn_max_enr_m_cat_ex							7e2	7e2: Group Sessions for Mental Health Specialty Services	
+pbp_Section_D	pbp_d_inn_max_enr_m_cat_ex							7f	7f: Podiatry Services	
+pbp_Section_D	pbp_d_inn_max_enr_m_cat_ex							7g	7g: Other Health Care Professional	
+pbp_Section_D	pbp_d_inn_max_enr_m_cat_ex							7h1	7h1: Individual Sessions for Psychiatric Services	
+pbp_Section_D	pbp_d_inn_max_enr_m_cat_ex							7h2	7h2: Group Sessions for Psychiatric Services	
+pbp_Section_D	pbp_d_inn_max_enr_m_cat_ex							7i	7i: Physical Therapy and Speech-Language Pathology Services	
+pbp_Section_D	pbp_d_inn_max_enr_m_cat_ex							7j	7j: Additional Telehealth Benefits	
+pbp_Section_D	pbp_d_inn_max_enr_m_cat_ex							7k	7k: Opioid Treatment Program Services	
+pbp_Section_D	pbp_d_inn_max_enr_m_cat_ex							8a1	8a1: Diagnostic Procedures/Tests	
+pbp_Section_D	pbp_d_inn_max_enr_m_cat_ex							8a2	8a2: Lab Services	
+pbp_Section_D	pbp_d_inn_max_enr_m_cat_ex							8b1	8b1: Diagnostic Radiological Services	
+pbp_Section_D	pbp_d_inn_max_enr_m_cat_ex							8b2	8b2: Therapeutic Radiological Services	
+pbp_Section_D	pbp_d_inn_max_enr_m_cat_ex							8b3	8b3: Outpatient X-Ray Services	
+pbp_Section_D	pbp_d_inn_max_enr_m_cat_ex							9a1	9a1: Outpatient Hospital Services	
+pbp_Section_D	pbp_d_inn_max_enr_m_cat_ex							9a2	9a2: Observation Services	
+pbp_Section_D	pbp_d_inn_max_enr_m_cat_ex							9b	9b: Ambulatory Surgical Center (ASC) Services	
+pbp_Section_D	pbp_d_inn_max_enr_m_cat_ex							9c1	9c1: Individual Sessions for Outpatient Substance Abuse	
+pbp_Section_D	pbp_d_inn_max_enr_m_cat_ex							9c2	9c2: Group Sessions for Outpatient Substance Abuse	
+pbp_Section_D	pbp_d_inn_max_enr_m_cat_ex							9d	9d: Outpatient Blood Services	
+pbp_Section_D	pbp_d_inn_max_enr_m_cat_ex							10a1	10a1: Ground Ambulance Services	
+pbp_Section_D	pbp_d_inn_max_enr_m_cat_ex							10a2	10a2: Air Ambulance Services	
+pbp_Section_D	pbp_d_inn_max_enr_m_cat_ex							11a	11a: Durable Medical Equipment (DME)	
+pbp_Section_D	pbp_d_inn_max_enr_m_cat_ex							11b1	11b1: Prosthetic Devices	
+pbp_Section_D	pbp_d_inn_max_enr_m_cat_ex							11b2	11b2: Medical Supplies	
+pbp_Section_D	pbp_d_inn_max_enr_m_cat_ex							11c1	11c1: Diabetic Supplies	
+pbp_Section_D	pbp_d_inn_max_enr_m_cat_ex							11c2	11c2: Diabetic Therapeutic Shoes/Inserts	
+pbp_Section_D	pbp_d_inn_max_enr_m_cat_ex							12	12: Dialysis Services	
+pbp_Section_D	pbp_d_inn_max_enr_m_cat_ex							14a	14a: Medicare-covered Zero Dollar Preventive Services	
+pbp_Section_D	pbp_d_inn_max_enr_m_cat_ex							14d	14d: Kidney Disease Education Services	
+pbp_Section_D	pbp_d_inn_max_enr_m_cat_ex							14e1	14e1: Glaucoma Screening	
+pbp_Section_D	pbp_d_inn_max_enr_m_cat_ex							14e2	14e2: Diabetes Self-Management Training	
+pbp_Section_D	pbp_d_inn_max_enr_m_cat_ex							14e4	14e4: Digital Rectal Exams	
+pbp_Section_D	pbp_d_inn_max_enr_m_cat_ex							14e5	14e5: EKG following Welcome Visit	
+pbp_Section_D	pbp_d_inn_max_enr_m_cat_ex							15-1-I	15-1-I: Medicare Part B Insulin Drugs	
+pbp_Section_D	pbp_d_inn_max_enr_m_cat_ex							15-2	15-2: Medicare Part B Chemotherapy/Radiation Drugs	
+pbp_Section_D	pbp_d_inn_max_enr_m_cat_ex							15-3	15-3: Other Medicare Part B Drugs	
+pbp_Section_D	pbp_d_inn_max_enr_m_cat_ex							16a	16a: Medicare Dental Services	
+pbp_Section_D	pbp_d_inn_max_enr_m_cat_ex							17a	17a: Eye Exams	
+pbp_Section_D	pbp_d_inn_max_enr_m_cat_ex							17b	17b: Eyewear	
+pbp_Section_D	pbp_d_inn_max_enr_m_cat_ex							18a	18a: Hearing Exams	
+pbp_Section_D	pbp_d_inn_max_enr_m_cat_ex							20	20: Prescription Drugs (Cost Plans Only)	
+pbp_Section_D	pbp_d_inn_max_enr_nm_yn	CHAR	1		Does the In-Network Maximum Enrollee Out-of-Pocket Cost apply to all In-Network Non-Medicare-covered plan services?	Does the In-Network Maximum Enrollee Out-of-Pocket Cost apply to all In-Network Non-Medicare-covered plan services?	In-Ntwk Max Enr In-Net Non	1	Yes	
+pbp_Section_D	pbp_d_inn_max_enr_nm_yn							2	No	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex	CHAR	4000		Non-Medicare service categories that are subject to each MOOP type	Non-Medicare service categories that are subject to each MOOP type	In-Ntwk Max Enr Serv Cats	1a-B	1a: Inpatient Hospital-Acute (B Only)	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							1a1	1a1: Additional Days for Inpatient Hospital-Acute	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							1a2	1a2: Non-Medicare-covered Stay for Inpatient Hospital-Acute	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							1a3	1a3: Upgrades for Inpatient Hospital-Acute	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							1b-B	1b: Inpatient Hospital Psychiatric (B Only)	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							1b1	1b1: Additional Days for Inpatient Hospital Psychiatric	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							1b2	1b2: Non-Medicare-covered Stay for Inpatient Hospital Psychiatric	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							2-B	2: Skilled Nursing Facility (SNF) (B Only)	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							2-1	2-1: Additional Days beyond Medicare-covered for Skilled Nursing Facility (SNF)	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							3-1_2	3-1: Additional Cardiac Rehabilitation Services	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							3-2_2	3-2: Additional Intensive Cardiac Rehabilitation Services	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							3-3_2	3-3: Additional Pulmonary Rehabilitation Services	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							3-4_2	3-4: Additional SET for PAD Services	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							4c1	4c1: Worldwide Emergency Coverage	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							4c2	4c2: Worldwide Urgent Coverage	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							4c3	4c3: Worldwide Emergency Transportation	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							7b1	7b1: Routine Chiropractic Care	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							7b2	7b2: Other Chiropractic Services	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							7f_2	7f: Podiatry Services - Routine Foot Care	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							10b1	10b1: Transportation Services - Plan Approved Health-related Location	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							10b2	10b2: Transportation Services - Any Health-related Location	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							13a	13a: Acupuncture Treatments	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							13b	13b: Over-the-Counter (OTC) Items	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							13c	13c: Meal Benefit	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							13d	13d: Other 1	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							13e	13e: Other 2	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							13f	13f: Other 3	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							13g	13g: Dual Eligible SNPs with Highly Integrated Services	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							14b	14b: Annual Physical Exam	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							14c1	14c1: Health Education	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							14c2	14c2: Nutritional/Dietary Benefit	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							14c3	14c3: Additional Sessions of Smoking and Tobacco Cessation Counseling	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							14c4	14c4: Fitness Benefit	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							14c5	14c5: Enhanced Disease Management	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							14c6	14c6: Telemonitoring Services	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							14c7	14c7: Remote Access Technologies (including Web/Phone-based technologies and Nursing Hotline)	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							14c8	14c8: Home and Bathroom Safety Devices and Modifications	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							14c9	14c9: Counseling Services	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							14c10	14c10: In-Home Safety Assessment	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							14c11	14c11: Personal Emergency Response System (PERS)	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							14c12	14c12: Medical Nutrition Therapy (MNT)	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							14c13	14c13: Post discharge In-Home Medication Reconciliation	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							14c14	14c14: Re-admission Prevention	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							14c15	14c15: Wigs for Hair Loss Related to Chemotherapy	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							14c16	14c16: Weight Management Programs	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							14c17	14c17: Alternative Therapies	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							14c18	14c18: Therapeutic Massage	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							14c19	14c19: Adult Day Health Services	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							14c20	14c20: Home-Based Palliative Care	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							14c21	14c21: In-Home Support Services	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							14c22	14c22: Support for Caregivers of Enrollees	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							15	15: Home Infusion bundled Services	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							16b1	16b1: Oral Exams	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							16b2	16b2: Dental X-Rays	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							16b3	16b3: Other Diagnostic Dental Services	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							16b4	16b4: Prophylaxis (Cleaning)	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							16b5	16b5: Fluoride Treatment	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							16b6	16b6: Other Preventive Dental Services	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							16c1	16c1: Restorative Services	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							16c2	16c2: Endodontics	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							16c3	16c3: Periodontics	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							16c4	16c4: Prosthodontics, removable	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							16c5	16c5: Maxillofacial Prosthetics	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							16c6	16c6: Implant Services	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							16c7	16c7: Prosthodontics, fixed	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							16c8	16c8: Oral and Maxillofacial Surgery	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							16c9	16c9: Orthodontics	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							16c10	16c10: Adjunctive General Services	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							17a1	17a1: Routine Eye Exams	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							17a2	17a2: Other Eye Exam Services	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							17b1	17b1: Contact Lenses	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							17b2	17b2: Eyeglasses (lenses and frames)	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							17b3	17b3: Eyeglass lenses	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							17b4	17b4: Eyeglass frames	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							17b5	17b5: Upgrades	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							18a1	18a1: Routine Hearing Exams	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							18a2	18a2: Fitting/Evaluation for Hearing Aid	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							18b1	18b1: Prescription Hearing Aids (all types)	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							18b2	18b2: Prescription Hearing Aids - Inner Ear	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							18b3	18b3: Prescription Hearing Aids - Outer Ear	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							18b4	18b4: Prescription Hearing Aids - Over the Ear	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							18c	18c: OTC Hearing Aids	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							19a	19a: Reduction in Costs VBID/UF/SSBCI	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							19b	19b: Additional Benefits for VBID/UF/SSBCI	
+pbp_Section_D	pbp_d_inn_max_enr_nm_cat_ex							20-S	20: Prescription Drugs Supplemental (Cost Plans Only)	
+pbp_Section_D	pbp_d_comb_max_enr_amt_yn	CHAR	1		Does this plan have an Combined (In-Network and Out-of-Network) MOOP?	Does this plan have an Combined (In-Network and Out-of-Network) MOOP?	Comb Max Enrolee OON YN?	1	Yes	
+pbp_Section_D	pbp_d_comb_max_enr_amt_yn							2	No	
+pbp_Section_D	pbp_d_comb_max_enr_amt	NUM	9		Combined (In-Network and Out-of-Network) MOOP Amount	Combined (In-Network and Out-of-Network) MOOP Amount	Comb Max Enr Amt			
+pbp_Section_D	pbp_d_comb_max_enr_oopc_bens	CHAR	4		In-Network Medicare-covered benefits	In-Network Medicare-covered benefits	Comb Max Enr benefit	1 in 2	In-Network Medicare-covered benefits	
+pbp_Section_D	pbp_d_comb_max_enr_oopc_bens							1 in 3	In-Network Non-Medicare-covered benefits	
+pbp_Section_D	pbp_d_comb_max_enr_oopc_bens							1 in 4	Out-of-Network Medicare-covered benefits	
+pbp_Section_D	pbp_d_comb_max_enr_oopc_bens							1 in 1	Out-of-Network Non-Medicare-covered benefits	
+pbp_Section_D	pbp_d_comb_max_enr_inn_m_yn	CHAR	1		Does the Combined Maximum Enrollee Out-of-Pocket Cost apply to all In-Network Medicare-covered plan services?	Does the Combined Maximum Enrollee Out-of-Pocket Cost apply to all In-Network Medicare-covered plan services?	Comb Max Enr In-Net	1	Yes	
+pbp_Section_D	pbp_d_comb_max_enr_inn_m_yn							2	No	
+pbp_Section_D	pbp_d_comb_max_enr_inn_mcat_ex	CHAR	4000		Medicare service categories that are subject to each MOOP type	Medicare service categories that are subject to each MOOP type	Comb Max Enr INN M Cats	1a	1a: Inpatient Hospital-Acute	
+pbp_Section_D	pbp_d_comb_max_enr_inn_mcat_ex							1b	1b: Inpatient Hospital Psychiatric	
+pbp_Section_D	pbp_d_comb_max_enr_inn_mcat_ex							2	2: Skilled Nursing Facility (SNF)	
+pbp_Section_D	pbp_d_comb_max_enr_inn_mcat_ex							3-1	3-1: Cardiac Rehabilitation Services	
+pbp_Section_D	pbp_d_comb_max_enr_inn_mcat_ex							3-2	3-2: Intensive Cardiac Rehabilitation Services	
+pbp_Section_D	pbp_d_comb_max_enr_inn_mcat_ex							3-3	3-3: Pulmonary Rehabilitation Services	
+pbp_Section_D	pbp_d_comb_max_enr_inn_mcat_ex							3-4	3-4: SET for PAD Services	
+pbp_Section_D	pbp_d_comb_max_enr_inn_mcat_ex							4a	4a: Emergency Services	
+pbp_Section_D	pbp_d_comb_max_enr_inn_mcat_ex							4b	4b: Urgently Needed Services	
+pbp_Section_D	pbp_d_comb_max_enr_inn_mcat_ex							5a	5a: Partial Hospitalization Program	
+pbp_Section_D	pbp_d_comb_max_enr_inn_mcat_ex							5b	5b: Intensive Outpatient Program Services	
+pbp_Section_D	pbp_d_comb_max_enr_inn_mcat_ex							6	6: Home Health Services	
+pbp_Section_D	pbp_d_comb_max_enr_inn_mcat_ex							7a	7a: Primary Care Physician Services	
+pbp_Section_D	pbp_d_comb_max_enr_inn_mcat_ex							7b	7b: Chiropractic Services	
+pbp_Section_D	pbp_d_comb_max_enr_inn_mcat_ex							7c	7c: Occupational Therapy Services	
+pbp_Section_D	pbp_d_comb_max_enr_inn_mcat_ex							7d	7d: Physician Specialist Services	
+pbp_Section_D	pbp_d_comb_max_enr_inn_mcat_ex							7e1	7e1: Individual Sessions for Mental Health Specialty Services	
+pbp_Section_D	pbp_d_comb_max_enr_inn_mcat_ex							7e2	7e2: Group Sessions for Mental Health Specialty Services	
+pbp_Section_D	pbp_d_comb_max_enr_inn_mcat_ex							7f	7f: Podiatry Services	
+pbp_Section_D	pbp_d_comb_max_enr_inn_mcat_ex							7g	7g: Other Health Care Professional	
+pbp_Section_D	pbp_d_comb_max_enr_inn_mcat_ex							7h1	7h1: Individual Sessions for Psychiatric Services	
+pbp_Section_D	pbp_d_comb_max_enr_inn_mcat_ex							7h2	7h2: Group Sessions for Psychiatric Services	
+pbp_Section_D	pbp_d_comb_max_enr_inn_mcat_ex							7i	7i: Physical Therapy and Speech-Language Pathology Services	
+pbp_Section_D	pbp_d_comb_max_enr_inn_mcat_ex							7j	7j: Additional Telehealth Benefits	
+pbp_Section_D	pbp_d_comb_max_enr_inn_mcat_ex							7k	7k: Opioid Treatment Program Services	
+pbp_Section_D	pbp_d_comb_max_enr_inn_mcat_ex							8a1	8a1: Diagnostic Procedures/Tests	
+pbp_Section_D	pbp_d_comb_max_enr_inn_mcat_ex							8a2	8a2: Lab Services	
+pbp_Section_D	pbp_d_comb_max_enr_inn_mcat_ex							8b1	8b1: Diagnostic Radiological Services	
+pbp_Section_D	pbp_d_comb_max_enr_inn_mcat_ex							8b2	8b2: Therapeutic Radiological Services	
+pbp_Section_D	pbp_d_comb_max_enr_inn_mcat_ex							8b3	8b3: Outpatient X-Ray Services	
+pbp_Section_D	pbp_d_comb_max_enr_inn_mcat_ex							9a1	9a1: Outpatient Hospital Services	
+pbp_Section_D	pbp_d_comb_max_enr_inn_mcat_ex							9a2	9a2: Observation Services	
+pbp_Section_D	pbp_d_comb_max_enr_inn_mcat_ex							9b	9b: Ambulatory Surgical Center (ASC) Services	
+pbp_Section_D	pbp_d_comb_max_enr_inn_mcat_ex							9c1	9c1: Individual Sessions for Outpatient Substance Abuse	
+pbp_Section_D	pbp_d_comb_max_enr_inn_mcat_ex							9c2	9c2: Group Sessions for Outpatient Substance Abuse	
+pbp_Section_D	pbp_d_comb_max_enr_inn_mcat_ex							9d	9d: Outpatient Blood Services	
+pbp_Section_D	pbp_d_comb_max_enr_inn_mcat_ex							10a1	10a1: Ground Ambulance Services	
+pbp_Section_D	pbp_d_comb_max_enr_inn_mcat_ex							10a2	10a2: Air Ambulance Services	
+pbp_Section_D	pbp_d_comb_max_enr_inn_mcat_ex							11a	11a: Durable Medical Equipment (DME)	
+pbp_Section_D	pbp_d_comb_max_enr_inn_mcat_ex							11b1	11b1: Prosthetic Devices	
+pbp_Section_D	pbp_d_comb_max_enr_inn_mcat_ex							11b2	11b2: Medical Supplies	
+pbp_Section_D	pbp_d_comb_max_enr_inn_mcat_ex							11c1	11c1: Diabetic Supplies	
+pbp_Section_D	pbp_d_comb_max_enr_inn_mcat_ex							11c2	11c2: Diabetic Therapeutic Shoes/Inserts	
+pbp_Section_D	pbp_d_comb_max_enr_inn_mcat_ex							12	12: Dialysis Services	
+pbp_Section_D	pbp_d_comb_max_enr_inn_mcat_ex							14a	14a: Medicare-covered Zero Dollar Preventive Services	
+pbp_Section_D	pbp_d_comb_max_enr_inn_mcat_ex							14d	14d: Kidney Disease Education Services	
+pbp_Section_D	pbp_d_comb_max_enr_inn_mcat_ex							14e1	14e1: Glaucoma Screening	
+pbp_Section_D	pbp_d_comb_max_enr_inn_mcat_ex							14e2	14e2: Diabetes Self-Management Training	
+pbp_Section_D	pbp_d_comb_max_enr_inn_mcat_ex							14e4	14e4: Digital Rectal Exams	
+pbp_Section_D	pbp_d_comb_max_enr_inn_mcat_ex							14e5	14e5: EKG following Welcome Visit	
+pbp_Section_D	pbp_d_comb_max_enr_inn_mcat_ex							15-1-I	15-1-I: Medicare Part B Insulin Drugs	
+pbp_Section_D	pbp_d_comb_max_enr_inn_mcat_ex							15-2	15-2: Medicare Part B Chemotherapy/Radiation Drugs	
+pbp_Section_D	pbp_d_comb_max_enr_inn_mcat_ex							15-3	15-3: Other Medicare Part B Drugs	
+pbp_Section_D	pbp_d_comb_max_enr_inn_mcat_ex							16a	16a: Medicare Dental Services	
+pbp_Section_D	pbp_d_comb_max_enr_inn_mcat_ex							17a	17a: Eye Exams	
+pbp_Section_D	pbp_d_comb_max_enr_inn_mcat_ex							17b	17b: Eyewear	
+pbp_Section_D	pbp_d_comb_max_enr_inn_mcat_ex							18a	18a: Hearing Exams	
+pbp_Section_D	pbp_d_comb_max_enr_inn_mcat_ex							20	20: Prescription Drugs (Cost Plans Only)	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nm_yn	CHAR	1		Does the Combined Maximum Enrollee Out-of-Pocket Cost apply to all In-Network Non-Medicare-covered plan services?	Does the Combined Maximum Enrollee Out-of-Pocket Cost apply to all In-Network Non-Medicare-covered plan services?	Comb Max Enr OOPC In-Net Non	1	Yes	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nm_yn							2	No	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex	CHAR	4000		Non-Medicare service categories that are subject to each MOOP type	Non-Medicare service categories that are subject to each MOOP type	Comb Max Enr Serv Cats	1a-B	1a: Inpatient Hospital-Acute (B Only)	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							1a1	1a1: Additional Days for Inpatient Hospital-Acute	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							1a2	1a2: Non-Medicare-covered Stay for Inpatient Hospital-Acute	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							1a3	1a3: Upgrades for Inpatient Hospital-Acute	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							1b-B	1b: Inpatient Hospital Psychiatric (B Only)	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							1b1	1b1: Additional Days for Inpatient Hospital Psychiatric	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							1b2	1b2: Non-Medicare-covered Stay for Inpatient Hospital Psychiatric	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							2-B	2: Skilled Nursing Facility (SNF) (B Only)	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							2-1	2-1: Additional Days beyond Medicare-covered for Skilled Nursing Facility (SNF)	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							3-1_2	3-1: Additional Cardiac Rehabilitation Services	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							3-2_2	3-2: Additional Intensive Cardiac Rehabilitation Services	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							3-3_2	3-3: Additional Pulmonary Rehabilitation Services	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							3-4_2	3-4: Additional SET for PAD Services	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							4c1	4c1: Worldwide Emergency Coverage	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							4c2	4c2: Worldwide Urgent Coverage	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							4c3	4c3: Worldwide Emergency Transportation	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							7b1	7b1: Routine Chiropractic Care	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							7b2	7b2: Other Chiropractic Services	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							7f_2	7f: Podiatry Services - Routine Foot Care	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							10b1	10b1: Transportation Services - Plan Approved Health-related Location	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							10b2	10b2: Transportation Services - Any Health-related Location	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							13a	13a: Acupuncture Treatments	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							13b	13b: Over-the-Counter (OTC) Items	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							13c	13c: Meal Benefit	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							13d	13d: Other 1	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							13e	13e: Other 2	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							13f	13f: Other 3	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							13g	13g: Dual Eligible SNPs with Highly Integrated Services	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							14b	14b: Annual Physical Exam	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							14c1	14c1: Health Education	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							14c2	14c2: Nutritional/Dietary Benefit	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							14c3	14c3: Additional Sessions of Smoking and Tobacco Cessation Counseling	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							14c4	14c4: Fitness Benefit	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							14c5	14c5: Enhanced Disease Management	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							14c6	14c6: Telemonitoring Services	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							14c7	14c7: Remote Access Technologies (including Web/Phone-based technologies and Nursing Hotline)	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							14c8	14c8: Home and Bathroom Safety Devices and Modifications	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							14c9	14c9: Counseling Services	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							14c10	14c10: In-Home Safety Assessment	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							14c11	14c11: Personal Emergency Response System (PERS)	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							14c12	14c12: Medical Nutrition Therapy (MNT)	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							14c13	14c13: Post discharge In-Home Medication Reconciliation	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							14c14	14c14: Re-admission Prevention	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							14c15	14c15: Wigs for Hair Loss Related to Chemotherapy	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							14c16	14c16: Weight Management Programs	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							14c17	14c17: Alternative Therapies	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							14c18	14c18: Therapeutic Massage	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							14c19	14c19: Adult Day Health Services	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							14c20	14c20: Home-Based Palliative Care	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							14c21	14c21: In-Home Support Services	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							14c22	14c22: Support for Caregivers of Enrollees	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							15	15: Home Infusion bundled Services	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							16b1	16b1: Oral Exams	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							16b2	16b2: Dental X-Rays	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							16b3	16b3: Other Diagnostic Dental Services	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							16b4	16b4: Prophylaxis (Cleaning)	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							16b5	16b5: Fluoride Treatment	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							16b6	16b6: Other Preventive Dental Services	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							16c1	16c1: Restorative Services	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							16c2	16c2: Endodontics	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							16c3	16c3: Periodontics	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							16c4	16c4: Prosthodontics, removable	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							16c5	16c5: Maxillofacial Prosthetics	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							16c6	16c6: Implant Services	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							16c7	16c7: Prosthodontics, fixed	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							16c8	16c8: Oral and Maxillofacial Surgery	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							16c9	16c9: Orthodontics	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							16c10	16c10: Adjunctive General Services	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							17a1	17a1: Routine Eye Exams	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							17a2	17a2: Other Eye Exam Services	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							17b1	17b1: Contact Lenses	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							17b2	17b2: Eyeglasses (lenses and frames)	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							17b3	17b3: Eyeglass lenses	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							17b4	17b4: Eyeglass frames	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							17b5	17b5: Upgrades	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							18a1	18a1: Routine Hearing Exams	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							18a2	18a2: Fitting/Evaluation for Hearing Aid	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							18b1	18b1: Prescription Hearing Aids (all types)	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							18b2	18b2: Prescription Hearing Aids - Inner Ear	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							18b3	18b3: Prescription Hearing Aids - Outer Ear	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							18b4	18b4: Prescription Hearing Aids - Over the Ear	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							18c	18c: OTC Hearing Aids	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							19a	19a: Reduction in Costs VBID/UF/SSBCI	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							19b	19b: Additional Benefits for VBID/UF/SSBCI	
+pbp_Section_D	pbp_d_comb_max_enr_inn_nmcatex							20-S	20: Prescription Drugs Supplemental (Cost Plans Only)	
+pbp_Section_D	pbp_d_comb_max_enr_oon_m_yn	CHAR	1		Does the Combined Maximum Enrollee Out-of-Pocket Cost apply to all Out-of-Network Medicare-covered plan services?	Does the Combined Maximum Enrollee Out-of-Pocket Cost apply to all Out-of-Network Medicare-covered plan services?	Comb Max Enr Out-Net	1	Yes	
+pbp_Section_D	pbp_d_comb_max_enr_oon_m_yn							2	No	
+pbp_Section_D	pbp_d_comb_max_enr_oon_mcat_ex	CHAR	4000		Medicare service categories that are subject to each MOOP type	Medicare service categories that are subject to each MOOP type	Comb Max Enr OON M Cats	1a	1a: Inpatient Hospital-Acute	
+pbp_Section_D	pbp_d_comb_max_enr_oon_mcat_ex							1b	1b: Inpatient Hospital Psychiatric	
+pbp_Section_D	pbp_d_comb_max_enr_oon_mcat_ex							2	2: Skilled Nursing Facility (SNF)	
+pbp_Section_D	pbp_d_comb_max_enr_oon_mcat_ex							3-1	3-1: Cardiac Rehabilitation Services	
+pbp_Section_D	pbp_d_comb_max_enr_oon_mcat_ex							3-2	3-2: Intensive Cardiac Rehabilitation Services	
+pbp_Section_D	pbp_d_comb_max_enr_oon_mcat_ex							3-3	3-3: Pulmonary Rehabilitation Services	
+pbp_Section_D	pbp_d_comb_max_enr_oon_mcat_ex							3-4	3-4: SET for PAD Services	
+pbp_Section_D	pbp_d_comb_max_enr_oon_mcat_ex							4a	4a: Emergency Services	
+pbp_Section_D	pbp_d_comb_max_enr_oon_mcat_ex							4b	4b: Urgently Needed Services	
+pbp_Section_D	pbp_d_comb_max_enr_oon_mcat_ex							5a	5a: Partial Hospitalization Program	
+pbp_Section_D	pbp_d_comb_max_enr_oon_mcat_ex							5b	5b: Intensive Outpatient Program Services	
+pbp_Section_D	pbp_d_comb_max_enr_oon_mcat_ex							6	6: Home Health Services	
+pbp_Section_D	pbp_d_comb_max_enr_oon_mcat_ex							7a	7a: Primary Care Physician Services	
+pbp_Section_D	pbp_d_comb_max_enr_oon_mcat_ex							7b	7b: Chiropractic Services	
+pbp_Section_D	pbp_d_comb_max_enr_oon_mcat_ex							7c	7c: Occupational Therapy Services	
+pbp_Section_D	pbp_d_comb_max_enr_oon_mcat_ex							7d	7d: Physician Specialist Services	
+pbp_Section_D	pbp_d_comb_max_enr_oon_mcat_ex							7e1	7e1: Individual Sessions for Mental Health Specialty Services	
+pbp_Section_D	pbp_d_comb_max_enr_oon_mcat_ex							7e2	7e2: Group Sessions for Mental Health Specialty Services	
+pbp_Section_D	pbp_d_comb_max_enr_oon_mcat_ex							7f	7f: Podiatry Services	
+pbp_Section_D	pbp_d_comb_max_enr_oon_mcat_ex							7g	7g: Other Health Care Professional	
+pbp_Section_D	pbp_d_comb_max_enr_oon_mcat_ex							7h1	7h1: Individual Sessions for Psychiatric Services	
+pbp_Section_D	pbp_d_comb_max_enr_oon_mcat_ex							7h2	7h2: Group Sessions for Psychiatric Services	
+pbp_Section_D	pbp_d_comb_max_enr_oon_mcat_ex							7i	7i: Physical Therapy and Speech-Language Pathology Services	
+pbp_Section_D	pbp_d_comb_max_enr_oon_mcat_ex							7j	7j: Additional Telehealth Benefits	
+pbp_Section_D	pbp_d_comb_max_enr_oon_mcat_ex							7k	7k: Opioid Treatment Program Services	
+pbp_Section_D	pbp_d_comb_max_enr_oon_mcat_ex							8a1	8a1: Diagnostic Procedures/Tests	
+pbp_Section_D	pbp_d_comb_max_enr_oon_mcat_ex							8a2	8a2: Lab Services	
+pbp_Section_D	pbp_d_comb_max_enr_oon_mcat_ex							8b1	8b1: Diagnostic Radiological Services	
+pbp_Section_D	pbp_d_comb_max_enr_oon_mcat_ex							8b2	8b2: Therapeutic Radiological Services	
+pbp_Section_D	pbp_d_comb_max_enr_oon_mcat_ex							8b3	8b3: Outpatient X-Ray Services	
+pbp_Section_D	pbp_d_comb_max_enr_oon_mcat_ex							9a1	9a1: Outpatient Hospital Services	
+pbp_Section_D	pbp_d_comb_max_enr_oon_mcat_ex							9a2	9a2: Observation Services	
+pbp_Section_D	pbp_d_comb_max_enr_oon_mcat_ex							9b	9b: Ambulatory Surgical Center (ASC) Services	
+pbp_Section_D	pbp_d_comb_max_enr_oon_mcat_ex							9c1	9c1: Individual Sessions for Outpatient Substance Abuse	
+pbp_Section_D	pbp_d_comb_max_enr_oon_mcat_ex							9c2	9c2: Group Sessions for Outpatient Substance Abuse	
+pbp_Section_D	pbp_d_comb_max_enr_oon_mcat_ex							9d	9d: Outpatient Blood Services	
+pbp_Section_D	pbp_d_comb_max_enr_oon_mcat_ex							10a1	10a1: Ground Ambulance Services	
+pbp_Section_D	pbp_d_comb_max_enr_oon_mcat_ex							10a2	10a2: Air Ambulance Services	
+pbp_Section_D	pbp_d_comb_max_enr_oon_mcat_ex							11a	11a: Durable Medical Equipment (DME)	
+pbp_Section_D	pbp_d_comb_max_enr_oon_mcat_ex							11b1	11b1: Prosthetic Devices	
+pbp_Section_D	pbp_d_comb_max_enr_oon_mcat_ex							11b2	11b2: Medical Supplies	
+pbp_Section_D	pbp_d_comb_max_enr_oon_mcat_ex							11c1	11c1: Diabetic Supplies	
+pbp_Section_D	pbp_d_comb_max_enr_oon_mcat_ex							11c2	11c2: Diabetic Therapeutic Shoes/Inserts	
+pbp_Section_D	pbp_d_comb_max_enr_oon_mcat_ex							12	12: Dialysis Services	
+pbp_Section_D	pbp_d_comb_max_enr_oon_mcat_ex							14a	14a: Medicare-covered Zero Dollar Preventive Services	
+pbp_Section_D	pbp_d_comb_max_enr_oon_mcat_ex							14d	14d: Kidney Disease Education Services	
+pbp_Section_D	pbp_d_comb_max_enr_oon_mcat_ex							14e1	14e1: Glaucoma Screening	
+pbp_Section_D	pbp_d_comb_max_enr_oon_mcat_ex							14e2	14e2: Diabetes Self-Management Training	
+pbp_Section_D	pbp_d_comb_max_enr_oon_mcat_ex							14e4	14e4: Digital Rectal Exams	
+pbp_Section_D	pbp_d_comb_max_enr_oon_mcat_ex							14e5	14e5: EKG following Welcome Visit	
+pbp_Section_D	pbp_d_comb_max_enr_oon_mcat_ex							15-1-I	15-1-I: Medicare Part B Insulin Drugs	
+pbp_Section_D	pbp_d_comb_max_enr_oon_mcat_ex							15-2	15-2: Medicare Part B Chemotherapy/Radiation Drugs	
+pbp_Section_D	pbp_d_comb_max_enr_oon_mcat_ex							15-3	15-3: Other Medicare Part B Drugs	
+pbp_Section_D	pbp_d_comb_max_enr_oon_mcat_ex							16a	16a: Medicare Dental Services	
+pbp_Section_D	pbp_d_comb_max_enr_oon_mcat_ex							17a	17a: Eye Exams	
+pbp_Section_D	pbp_d_comb_max_enr_oon_mcat_ex							17b	17b: Eyewear	
+pbp_Section_D	pbp_d_comb_max_enr_oon_mcat_ex							18a	18a: Hearing Exams	
+pbp_Section_D	pbp_d_comb_max_enr_oon_mcat_ex							20	20: Prescription Drugs (Cost Plans Only)	
+pbp_Section_D	pbp_d_oon_max_enr_oopc_yn	CHAR	1		Does this plan have an Out-of-Network MOOP?	Does this plan have an Out-of-Network MOOP?	OON Max Enr Amt YN	1	Yes	
+pbp_Section_D	pbp_d_oon_max_enr_oopc_yn							2	No	
+pbp_Section_D	pbp_d_mplusc_premium	NUM	7		Plan Premium Amount (A/B)	Plan Premium Amount (A/B)	Premium Indicate Plan Amt (AB)			
+pbp_Section_D	pbp_d_mco_pay_reduct_yn	CHAR	1		Are you using any of your plan's MA rebates to reduce the Part B Premium?	Are you using any of your plan's MA rebates to reduce the Part B Premium?	Premium MA Reduce Part B YN	1	Yes	
+pbp_Section_D	pbp_d_mco_pay_reduct_yn							2	No	
+pbp_Section_D	pbp_d_mco_pay_reduct_amt	NUM	7		Part B Premium reduction amount	Part B Premium reduction amount	Premium Part B Reduction Amt			
+pbp_Section_D	pbp_d_rics_yn	CHAR	1		Does your plan offer Reductions in Cost Sharing?	Does your plan offer Reductions in Cost Sharing?	D RICS Reduce Cst Shr YN	1	Yes	
+pbp_Section_D	pbp_d_rics_yn							2	No	
+pbp_Section_D	pbp_d_combo_supp_ben_yn	CHAR	1		Do you offer Combined Supplemental Benefits with uniform cost sharing?	Do you offer Combined Supplemental Benefits with uniform cost sharing?	Combined Bene Offered YN	1	Yes	
+pbp_Section_D	pbp_d_combo_supp_ben_yn							2	No	
+pbp_Section_D	pbp_d_combo_num_grps	CHAR	1		Number of Combined Supplemental Benefit packages you are offering?	DERIVED	Combined Bene Num Groups			
+pbp_Section_D	pbp_d_combo_grp_name_1	CHAR	4000		Combined Benefits Group 1 Name	Group Name	Comb Grp 1 Name			
+pbp_Section_D	pbp_d_combo_nmc_cats_1	CHAR	4000		Which non-Medicare covered benefits are included in your Combined Supplemental Benefit package	This variable lists all the Non-Medicare covered benefits selected by the plan as part of Combined Supplemental Benefit package.	Comb Grp 1 NMC Category	1a-B	1a: Inpatient Hospital-Acute (B Only)	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							1a1	1a1: Additional Days for Inpatient Hospital-Acute	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							1a2	1a2: Non-Medicare-covered Stay for Inpatient Hospital-Acute	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							1a3	1a3: Upgrades for Inpatient Hospital-Acute	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							1b-B	1b: Inpatient Hospital Psychiatric (B Only)	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							1b1	1b1: Additional Days for Inpatient Hospital Psychiatric	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							1b2	1b2: Non-Medicare-covered Stay for Inpatient Hospital Psychiatric	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							2-B	2: Skilled Nursing Facility (SNF) (B Only)	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							2-1	2-1: Additional Days beyond Medicare-covered for Skilled Nursing Facility (SNF)	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							3-1_2	3-1: Additional Cardiac Rehabilitation Services	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							3-2_2	3-2: Additional Intensive Cardiac Rehabilitation Services	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							3-3_2	3-3: Additional Pulmonary Rehabilitation Services	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							3-4_2	3-4: Additional SET for PAD Services	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							4c1	4c1: Worldwide Emergency Coverage	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							4c2	4c2: Worldwide Urgent Coverage	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							4c3	4c3: Worldwide Emergency Transportation	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							7b1	7b1: Routine Chiropractic Care	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							7b2	7b2: Other Chiropractic Services	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							7f_2	7f: Podiatry Services - Routine Foot Care	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							10b1	10b1: Transportation Services - Plan Approved Health-related Location	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							10b2	10b2: Transportation Services - Any Health-related Location	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							13a	13a: Acupuncture Treatments	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							13b	13b: Over-the-Counter (OTC) Items	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							13c	13c: Meal Benefit	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							13d	13d: Other 1	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							13e	13e: Other 2	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							13f	13f: Other 3	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							13g	13g: Dual Eligible SNPs with Highly Integrated Services	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							14b	14b: Annual Physical Exam	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							14c1	14c1: Health Education	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							14c2	14c2: Nutritional/Dietary Benefit	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							14c3	14c3: Additional Sessions of Smoking and Tobacco Cessation Counseling	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							14c4	14c4: Fitness Benefit	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							14c5	14c5: Enhanced Disease Management	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							14c6	14c6: Telemonitoring Services	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							14c7	14c7: Remote Access Technologies (including Web/Phone-based technologies and Nursing Hotline)	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							14c8	14c8: Home and Bathroom Safety Devices and Modifications	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							14c9	14c9: Counseling Services	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							14c10	14c10: In-Home Safety Assessment	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							14c11	14c11: Personal Emergency Response System (PERS)	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							14c12	14c12: Medical Nutrition Therapy (MNT)	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							14c13	14c13: Post discharge In-Home Medication Reconciliation	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							14c14	14c14: Re-admission Prevention	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							14c15	14c15: Wigs for Hair Loss Related to Chemotherapy	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							14c16	14c16: Weight Management Programs	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							14c17	14c17: Alternative Therapies	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							14c18	14c18: Therapeutic Massage	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							14c19	14c19: Adult Day Health Services	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							14c20	14c20: Home-Based Palliative Care	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							14c21	14c21: In-Home Support Services	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							14c22	14c22: Support for Caregivers of Enrollees	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							15	15: Home Infusion bundled Services	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							16b1	16b1: Oral Exams	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							16b2	16b2: Dental X-Rays	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							16b3	16b3: Other Diagnostic Dental Services	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							16b4	16b4: Prophylaxis (Cleaning)	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							16b5	16b5: Fluoride Treatment	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							16b6	16b6: Other Preventive Dental Services	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							16c1	16c1: Restorative Services	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							16c2	16c2: Endodontics	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							16c3	16c3: Periodontics	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							16c4	16c4: Prosthodontics, removable	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							16c5	16c5: Maxillofacial Prosthetics	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							16c6	16c6: Implant Services	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							16c7	16c7: Prosthodontics, fixed	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							16c8	16c8: Oral and Maxillofacial Surgery	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							16c9	16c9: Orthodontics	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							16c10	16c10: Adjunctive General Services	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							17a1	17a1: Routine Eye Exams	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							17a2	17a2: Other Eye Exam Services	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							17b1	17b1: Contact Lenses	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							17b2	17b2: Eyeglasses (lenses and frames)	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							17b3	17b3: Eyeglass lenses	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							17b4	17b4: Eyeglass frames	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							17b5	17b5: Upgrades	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							18a1	18a1: Routine Hearing Exams	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							18a2	18a2: Fitting/Evaluation for Hearing Aid	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							18b1	18b1: Prescription Hearing Aids (all types)	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							18b2	18b2: Prescription Hearing Aids - Inner Ear	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							18b3	18b3: Prescription Hearing Aids - Outer Ear	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							18b4	18b4: Prescription Hearing Aids - Over the Ear	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							18c	18c: OTC Hearing Aids	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							19b1	19b1: Additional Benefits for VBID	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							19b2	19b2: Additional Benefits for MA UF	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							19b3	19b3: Additional Benefits for SSBCI	
+pbp_Section_D	pbp_d_combo_nmc_cats_1							20-S	20: Prescription Drugs Supplemental (Cost Plans Only)	
+pbp_Section_D	pbp_d_combo_mode_1	CHAR	5		What is your combined supplemental benefits mode of delivery?	What is your combined supplemental benefits mode of delivery?	Comb Grp 1 Deliver Mode	1 in 2	Catalogue Purchase	
+pbp_Section_D	pbp_d_combo_mode_1							1 in 3	Claims Processing	
+pbp_Section_D	pbp_d_combo_mode_1							1 in 4	Debit Card	
+pbp_Section_D	pbp_d_combo_mode_1							1 in 5	Reimbursement	
+pbp_Section_D	pbp_d_combo_mode_1							1 in 1	Other	
+pbp_Section_D	pbp_d_combo_enrollee_lim_yn_1	CHAR	1		Is the enrollee limited to one or more of the Combined Supplemental Benefits from the group which they must select in advance?	Is the enrollee limited to one or more of the Combined Supplemental Benefits from the group which they must select in advance?	Comb Grp 1 Enrollee Limit	1	Yes	
+pbp_Section_D	pbp_d_combo_enrollee_lim_yn_1							2	No	
+pbp_Section_D	pbp_d_combo_max_plan_ben_yn_1	CHAR	1		Do you offer Combined Supplemental Benefits with a shared maximum plan benefit amount?	Do you offer Combined Supplemental Benefits with a shared maximum plan benefit amount?	Comb Grp 1 Max Bene YN	1	Yes	
+pbp_Section_D	pbp_d_combo_max_plan_ben_yn_1							2	No	
+pbp_Section_D	pbp_d_combo_max_plan_ben_amt_1	NUM	10		Maximum plan benefit coverage amount	Maximum plan benefit coverage amount	Comb Grp 1 Max Bene Amt			
+pbp_Section_D	pbp_d_combo_max_plan_period_1	CHAR	1		Maximum Plan Benefit Coverage Amount Periodicity	Periodicity	Comb Grp 1 Max Bene Period	1	Every 3 years	
+pbp_Section_D	pbp_d_combo_max_plan_period_1							2	Every 2 years	
+pbp_Section_D	pbp_d_combo_max_plan_period_1							3	Every year	
+pbp_Section_D	pbp_d_combo_max_plan_period_1							4	Every six months	
+pbp_Section_D	pbp_d_combo_max_plan_period_1							5	Every three months	
+pbp_Section_D	pbp_d_combo_max_plan_period_1							6	Other	
+pbp_Section_D	pbp_d_combo_max_plan_period_1							7	Every one month	
+pbp_Section_D	pbp_d_combo_share_visit_yn_1	CHAR	1		Do you offer Combined Supplemental Benefits with a shared visit limits?	Do you offer Combined Supplemental Benefits with a shared visit limits?	Comb Grp 1 Share Visit/Trip	1	Yes	
+pbp_Section_D	pbp_d_combo_share_visit_yn_1							2	No	
+pbp_Section_D	pbp_d_combo_grp_name_2	CHAR	4000		Combined Benefits Group 2 Name	Group Name	Comb Grp 2 Name			
+pbp_Section_D	pbp_d_combo_nmc_cats_2	CHAR	4000		Which non-Medicare covered benefits are included in your Combined Supplemental Benefit package	This variable lists all the Non-Medicare covered benefits selected by the plan as part of Combined Supplemental Benefit package.	Comb Grp 2 NMC Category	1a-B	1a: Inpatient Hospital-Acute (B Only)	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							1a1	1a1: Additional Days for Inpatient Hospital-Acute	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							1a2	1a2: Non-Medicare-covered Stay for Inpatient Hospital-Acute	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							1a3	1a3: Upgrades for Inpatient Hospital-Acute	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							1b-B	1b: Inpatient Hospital Psychiatric (B Only)	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							1b1	1b1: Additional Days for Inpatient Hospital Psychiatric	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							1b2	1b2: Non-Medicare-covered Stay for Inpatient Hospital Psychiatric	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							2-B	2: Skilled Nursing Facility (SNF) (B Only)	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							2-1	2-1: Additional Days beyond Medicare-covered for Skilled Nursing Facility (SNF)	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							3-1_2	3-1: Additional Cardiac Rehabilitation Services	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							3-2_2	3-2: Additional Intensive Cardiac Rehabilitation Services	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							3-3_2	3-3: Additional Pulmonary Rehabilitation Services	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							3-4_2	3-4: Additional SET for PAD Services	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							4c1	4c1: Worldwide Emergency Coverage	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							4c2	4c2: Worldwide Urgent Coverage	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							4c3	4c3: Worldwide Emergency Transportation	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							7b1	7b1: Routine Chiropractic Care	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							7b2	7b2: Other Chiropractic Services	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							7f_2	7f: Podiatry Services - Routine Foot Care	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							10b1	10b1: Transportation Services - Plan Approved Health-related Location	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							10b2	10b2: Transportation Services - Any Health-related Location	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							13a	13a: Acupuncture Treatments	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							13b	13b: Over-the-Counter (OTC) Items	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							13c	13c: Meal Benefit	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							13d	13d: Other 1	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							13e	13e: Other 2	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							13f	13f: Other 3	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							13g	13g: Dual Eligible SNPs with Highly Integrated Services	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							14b	14b: Annual Physical Exam	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							14c1	14c1: Health Education	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							14c2	14c2: Nutritional/Dietary Benefit	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							14c3	14c3: Additional Sessions of Smoking and Tobacco Cessation Counseling	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							14c4	14c4: Fitness Benefit	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							14c5	14c5: Enhanced Disease Management	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							14c6	14c6: Telemonitoring Services	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							14c7	14c7: Remote Access Technologies (including Web/Phone-based technologies and Nursing Hotline)	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							14c8	14c8: Home and Bathroom Safety Devices and Modifications	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							14c9	14c9: Counseling Services	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							14c10	14c10: In-Home Safety Assessment	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							14c11	14c11: Personal Emergency Response System (PERS)	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							14c12	14c12: Medical Nutrition Therapy (MNT)	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							14c13	14c13: Post discharge In-Home Medication Reconciliation	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							14c14	14c14: Re-admission Prevention	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							14c15	14c15: Wigs for Hair Loss Related to Chemotherapy	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							14c16	14c16: Weight Management Programs	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							14c17	14c17: Alternative Therapies	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							14c18	14c18: Therapeutic Massage	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							14c19	14c19: Adult Day Health Services	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							14c20	14c20: Home-Based Palliative Care	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							14c21	14c21: In-Home Support Services	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							14c22	14c22: Support for Caregivers of Enrollees	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							15	15: Home Infusion bundled Services	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							16b1	16b1: Oral Exams	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							16b2	16b2: Dental X-Rays	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							16b3	16b3: Other Diagnostic Dental Services	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							16b4	16b4: Prophylaxis (Cleaning)	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							16b5	16b5: Fluoride Treatment	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							16b6	16b6: Other Preventive Dental Services	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							16c1	16c1: Restorative Services	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							16c2	16c2: Endodontics	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							16c3	16c3: Periodontics	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							16c4	16c4: Prosthodontics, removable	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							16c5	16c5: Maxillofacial Prosthetics	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							16c6	16c6: Implant Services	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							16c7	16c7: Prosthodontics, fixed	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							16c8	16c8: Oral and Maxillofacial Surgery	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							16c9	16c9: Orthodontics	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							16c10	16c10: Adjunctive General Services	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							17a1	17a1: Routine Eye Exams	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							17a2	17a2: Other Eye Exam Services	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							17b1	17b1: Contact Lenses	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							17b2	17b2: Eyeglasses (lenses and frames)	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							17b3	17b3: Eyeglass lenses	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							17b4	17b4: Eyeglass frames	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							17b5	17b5: Upgrades	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							18a1	18a1: Routine Hearing Exams	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							18a2	18a2: Fitting/Evaluation for Hearing Aid	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							18b1	18b1: Prescription Hearing Aids (all types)	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							18b2	18b2: Prescription Hearing Aids - Inner Ear	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							18b3	18b3: Prescription Hearing Aids - Outer Ear	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							18b4	18b4: Prescription Hearing Aids - Over the Ear	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							18c	18c: OTC Hearing Aids	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							19b1	19b1: Additional Benefits for VBID	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							19b2	19b2: Additional Benefits for MA UF	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							19b3	19b3: Additional Benefits for SSBCI	
+pbp_Section_D	pbp_d_combo_nmc_cats_2							20-S	20: Prescription Drugs Supplemental (Cost Plans Only)	
+pbp_Section_D	pbp_d_combo_mode_2	CHAR	5		What is your combined supplemental benefits mode of delivery?	What is your combined supplemental benefits mode of delivery?	Comb Grp 2 Deliver Mode	1 in 2	Catalogue Purchase	
+pbp_Section_D	pbp_d_combo_mode_2							1 in 3	Claims Processing	
+pbp_Section_D	pbp_d_combo_mode_2							1 in 4	Debit Card	
+pbp_Section_D	pbp_d_combo_mode_2							1 in 5	Reimbursement	
+pbp_Section_D	pbp_d_combo_mode_2							1 in 1	Other	
+pbp_Section_D	pbp_d_combo_enrollee_lim_yn_2	CHAR	1		Is the enrollee limited to one or more of the Combined Supplemental Benefits from the group which they must select in advance?	Is the enrollee limited to one or more of the Combined Supplemental Benefits from the group which they must select in advance?	Comb Grp 2 Enrollee Limit	1	Yes	
+pbp_Section_D	pbp_d_combo_enrollee_lim_yn_2							2	No	
+pbp_Section_D	pbp_d_combo_max_plan_ben_yn_2	CHAR	1		Do you offer Combined Supplemental Benefits with a shared maximum plan benefit amount?	Do you offer Combined Supplemental Benefits with a shared maximum plan benefit amount?	Comb Grp 2 Max Bene YN	1	Yes	
+pbp_Section_D	pbp_d_combo_max_plan_ben_yn_2							2	No	
+pbp_Section_D	pbp_d_combo_max_plan_ben_amt_2	NUM	10		Maximum plan benefit coverage amount	Maximum plan benefit coverage amount	Comb Grp 2 Max Bene Amt			
+pbp_Section_D	pbp_d_combo_max_plan_period_2	CHAR	1		Maximum Plan Benefit Coverage Amount Periodicity	Periodicity	Comb Grp 2 Max Bene Period	1	Every 3 years	
+pbp_Section_D	pbp_d_combo_max_plan_period_2							2	Every 2 years	
+pbp_Section_D	pbp_d_combo_max_plan_period_2							3	Every year	
+pbp_Section_D	pbp_d_combo_max_plan_period_2							4	Every six months	
+pbp_Section_D	pbp_d_combo_max_plan_period_2							5	Every three months	
+pbp_Section_D	pbp_d_combo_max_plan_period_2							6	Other	
+pbp_Section_D	pbp_d_combo_max_plan_period_2							7	Every one month	
+pbp_Section_D	pbp_d_combo_share_visit_yn_2	CHAR	1		Do you offer Combined Supplemental Benefits with a shared visit limits?	Do you offer Combined Supplemental Benefits with a shared visit limits?	Comb Grp 2 Share Visit YN	1	Yes	
+pbp_Section_D	pbp_d_combo_share_visit_yn_2							2	No	

@@ -1,0 +1,625 @@
+// Generated from data/ichra/*.json by scripts/ichra/build.mjs. Do not edit.
+export const ichraRegistry: Readonly<Record<number, unknown>> = {
+  "2026": {
+    "schemaVersion": 1,
+    "year": {
+      "value": 2026,
+      "citations": [
+        {
+          "url": "https://www.irs.gov/pub/irs-drop/rp-25-25.pdf",
+          "title": "IRS Revenue Procedure 2025-25",
+          "retrievedOn": "2026-11-09",
+          "section": "Section 3.02: required contribution percentage for plan years beginning in calendar year 2026"
+        }
+      ]
+    },
+    "status": "confirmed",
+    "statusReason": "Rules read from eCFR (current through 2026-11-05), the 2019 proposed section 4980H rule and IRS Rev. Proc. 2025-25 on 2026-11-09. The paragraph (f) safe harbors are proposed rules on which taxpayers may rely; they are labelled as such in every response.",
+    "lcspPremiumBasisDefault": {
+      "value": "gross",
+      "citations": [
+        {
+          "url": "https://www.ecfr.gov/current/title-26/section-1.36B-2",
+          "title": "26 CFR 1.36B-2 (eCFR, up to date as of 2026-11-05)",
+          "retrievedOn": "2026-11-09",
+          "section": "(c)(5)(ii)(A) 'monthly premium for the lowest cost silver plan for self-only coverage'; (c)(5)(iii)(A) lists the only premium adjustments (wellness incentives, non-tobacco premium, closed plans) and has no essential-health-benefits allocation"
+        }
+      ]
+    },
+    "rateOfPayHours": {
+      "value": 130,
+      "citations": [
+        {
+          "url": "https://www.ecfr.gov/current/title-26/section-54.4980H-5",
+          "title": "26 CFR 54.4980H-5 (eCFR, up to date as of 2026-11-05)",
+          "retrievedOn": "2026-11-09",
+          "section": "(e)(2)(iii)(A): 130 hours multiplied by the hourly rate of pay"
+        }
+      ]
+    },
+    "lowestAgeBand": {
+      "value": {
+        "label": "0-14",
+        "ratingAge": 14
+      },
+      "citations": [
+        {
+          "url": "https://www.federalregister.gov/documents/2019/09/30/2019-20034/application-of-the-employer-shared-responsibility-provisions-and-certain-nondiscrimination-rules-to",
+          "title": "Proposed rule REG-136401-18, 84 FR 51471 (2019-09-30)",
+          "retrievedOn": "2026-11-09",
+          "section": "Prop. 26 CFR 54.4980H-5(f)(7)(iii)(C): lowest cost silver plan for the lowest age band in the individual market"
+        },
+        {
+          "url": "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-B/part-147/section-147.102",
+          "title": "45 CFR 147.102 (eCFR, up to date as of 2026-11-05)",
+          "retrievedOn": "2026-11-09",
+          "section": "(d): uniform age bands; a single age band for individuals age 0 through 14"
+        }
+      ]
+    },
+    "fplSafeHarbor": {
+      "guidelines": {
+        "value": [
+          {
+            "guidelineYear": 2025,
+            "effectiveDate": "2025-01-15"
+          },
+          {
+            "guidelineYear": 2026,
+            "effectiveDate": "2026-01-13"
+          }
+        ],
+        "citations": [
+          {
+            "url": "https://www.govinfo.gov/content/pkg/FR-2025-01-17/html/2025-01377.htm",
+            "title": "HHS 2025 Annual Update of Poverty Guidelines, 90 FR 5917, 2025-01377",
+            "retrievedOn": "2026-11-09",
+            "section": "DATES: effective January 15, 2025"
+          },
+          {
+            "url": "https://www.govinfo.gov/content/pkg/FR-2026-01-15/html/2026-00755.htm",
+            "title": "HHS 2026 Annual Update of Poverty Guidelines, 91 FR 1797, 2026-00755",
+            "retrievedOn": "2026-11-09",
+            "section": "DATES: effective January 13, 2026"
+          }
+        ]
+      },
+      "selection": {
+        "value": "latest_in_effect_on_plan_start",
+        "citations": [
+          {
+            "url": "https://www.govinfo.gov/content/pkg/FR-2014-02-12/html/2014-03082.htm",
+            "title": "Shared Responsibility for Employers Regarding Health Coverage, final rule, 79 FR 8544 (2014-02-12)",
+            "retrievedOn": "2026-11-09",
+            "section": "Preamble VIII.D, page 8565: an employer may use the poverty guidelines in effect within six months before the first day of the plan year"
+          },
+          {
+            "url": "https://www.ecfr.gov/current/title-26/section-54.4980H-5",
+            "title": "26 CFR 54.4980H-5 (eCFR, up to date as of 2026-11-05)",
+            "retrievedOn": "2026-11-09",
+            "section": "(e)(2)(iv): one-person poverty line for the state in which the employee is employed"
+          }
+        ]
+      }
+    },
+    "rules": {
+      "affordability": {
+        "value": {
+          "status": "final",
+          "summary": "Affordable for a month if the required HRA contribution does not exceed 1/12 of household income multiplied by the required contribution percentage."
+        },
+        "citations": [
+          {
+            "url": "https://www.ecfr.gov/current/title-26/section-1.36B-2",
+            "title": "26 CFR 1.36B-2 (eCFR, up to date as of 2026-11-05)",
+            "retrievedOn": "2026-11-09",
+            "section": "(c)(5)(i)"
+          }
+        ]
+      },
+      "required_hra_contribution": {
+        "value": {
+          "status": "final",
+          "summary": "Monthly premium of the lowest cost silver plan for self-only coverage in the rating area where the employee resides, minus the monthly self-only HRA amount, not below zero."
+        },
+        "citations": [
+          {
+            "url": "https://www.ecfr.gov/current/title-26/section-1.36B-2",
+            "title": "26 CFR 1.36B-2 (eCFR, up to date as of 2026-11-05)",
+            "retrievedOn": "2026-11-09",
+            "section": "(c)(5)(ii)(A)-(B)"
+          }
+        ]
+      },
+      "lcsp_premium": {
+        "value": {
+          "status": "final",
+          "summary": "Non-tobacco premium; wellness incentives other than tobacco ones are ignored; a plan that later closes stays the lowest cost silver plan."
+        },
+        "citations": [
+          {
+            "url": "https://www.ecfr.gov/current/title-26/section-1.36B-2",
+            "title": "26 CFR 1.36B-2 (eCFR, up to date as of 2026-11-05)",
+            "retrievedOn": "2026-11-09",
+            "section": "(c)(5)(iii)(A)"
+          }
+        ]
+      },
+      "monthly_hra_amount": {
+        "value": {
+          "status": "final",
+          "summary": "Amount newly made available for the plan year divided by the months in the plan year the HRA is available to the employee; carryovers are ignored."
+        },
+        "citations": [
+          {
+            "url": "https://www.ecfr.gov/current/title-26/section-1.36B-2",
+            "title": "26 CFR 1.36B-2 (eCFR, up to date as of 2026-11-05)",
+            "retrievedOn": "2026-11-09",
+            "section": "(c)(5)(iii)(B), (c)(5)(v)"
+          }
+        ]
+      },
+      "required_contribution_percentage": {
+        "value": {
+          "status": "final",
+          "summary": "Required contribution percentage for plan years beginning in calendar year 2026."
+        },
+        "citations": [
+          {
+            "url": "https://www.irs.gov/pub/irs-drop/rp-25-25.pdf",
+            "title": "IRS Revenue Procedure 2025-25",
+            "retrievedOn": "2026-11-09",
+            "section": "Section 3.02"
+          },
+          {
+            "url": "https://www.ecfr.gov/current/title-26/section-1.36B-2",
+            "title": "26 CFR 1.36B-2 (eCFR, up to date as of 2026-11-05)",
+            "retrievedOn": "2026-11-09",
+            "section": "(c)(3)(v)(C)"
+          }
+        ]
+      },
+      "employer_safe_harbors": {
+        "value": {
+          "status": "proposed_reliance_permitted",
+          "summary": "Paragraph (f) applies the employer affordability safe harbors to individual coverage HRAs for section 4980H(b) only; it does not change premium tax credit eligibility."
+        },
+        "citations": [
+          {
+            "url": "https://www.federalregister.gov/documents/2019/09/30/2019-20034/application-of-the-employer-shared-responsibility-provisions-and-certain-nondiscrimination-rules-to",
+            "title": "Proposed rule REG-136401-18, 84 FR 51471 (2019-09-30)",
+            "retrievedOn": "2026-11-09",
+            "section": "Prop. 54.4980H-5(f)(1)-(3), (f)(7)(vii); reliance statement at 84 FR 51484: taxpayers may rely on the proposed section 4980H rules for plan years beginning before six months after final rules; eCFR 54.4980H-5 has no paragraph (f) as of 2026-11-05"
+          }
+        ]
+      },
+      "location_safe_harbor": {
+        "value": {
+          "status": "proposed_reliance_permitted",
+          "summary": "The lowest cost silver plan may be taken for the rating area of the employee's primary site of employment; a remote employee with no site to report to uses the residence."
+        },
+        "citations": [
+          {
+            "url": "https://www.federalregister.gov/documents/2019/09/30/2019-20034/application-of-the-employer-shared-responsibility-provisions-and-certain-nondiscrimination-rules-to",
+            "title": "Proposed rule REG-136401-18, 84 FR 51471 (2019-09-30)",
+            "retrievedOn": "2026-11-09",
+            "section": "Prop. 54.4980H-5(f)(6)(i)-(ii), (f)(7)(ii)"
+          }
+        ]
+      },
+      "age_safe_harbor": {
+        "value": {
+          "status": "proposed_reliance_permitted",
+          "summary": "Applicable age is the age on the first day of the plan year, or on the date the HRA can first take effect for an employee who becomes eligible later."
+        },
+        "citations": [
+          {
+            "url": "https://www.federalregister.gov/documents/2019/09/30/2019-20034/application-of-the-employer-shared-responsibility-provisions-and-certain-nondiscrimination-rules-to",
+            "title": "Proposed rule REG-136401-18, 84 FR 51471 (2019-09-30)",
+            "retrievedOn": "2026-11-09",
+            "section": "Prop. 54.4980H-5(f)(7)(i)"
+          }
+        ]
+      },
+      "lowest_age_band": {
+        "value": {
+          "status": "proposed_reliance_permitted",
+          "summary": "For the paragraph (f) safe harbors the plan is identified at the lowest age band and priced at the employee's applicable age."
+        },
+        "citations": [
+          {
+            "url": "https://www.federalregister.gov/documents/2019/09/30/2019-20034/application-of-the-employer-shared-responsibility-provisions-and-certain-nondiscrimination-rules-to",
+            "title": "Proposed rule REG-136401-18, 84 FR 51471 (2019-09-30)",
+            "retrievedOn": "2026-11-09",
+            "section": "Prop. 54.4980H-5(f)(7)(iii)(C), (f)(7)(vii)"
+          }
+        ]
+      },
+      "look_back_month": {
+        "value": {
+          "status": "proposed_reliance_permitted",
+          "summary": "Calendar-year plan: January of the prior calendar year; other plan years: January of the current calendar year."
+        },
+        "citations": [
+          {
+            "url": "https://www.federalregister.gov/documents/2019/09/30/2019-20034/application-of-the-employer-shared-responsibility-provisions-and-certain-nondiscrimination-rules-to",
+            "title": "Proposed rule REG-136401-18, 84 FR 51471 (2019-09-30)",
+            "retrievedOn": "2026-11-09",
+            "section": "Prop. 54.4980H-5(f)(4)(i)(A)-(B)"
+          }
+        ]
+      },
+      "w2_safe_harbor": {
+        "value": {
+          "status": "proposed_reliance_permitted",
+          "summary": "Required HRA contribution for the calendar year does not exceed the required contribution percentage of Form W-2 box 1 wages from the employer."
+        },
+        "citations": [
+          {
+            "url": "https://www.ecfr.gov/current/title-26/section-54.4980H-5",
+            "title": "26 CFR 54.4980H-5 (eCFR, up to date as of 2026-11-05)",
+            "retrievedOn": "2026-11-09",
+            "section": "(e)(2)(ii) (final rule for employer coverage)"
+          },
+          {
+            "url": "https://www.federalregister.gov/documents/2019/09/30/2019-20034/application-of-the-employer-shared-responsibility-provisions-and-certain-nondiscrimination-rules-to",
+            "title": "Proposed rule REG-136401-18, 84 FR 51471 (2019-09-30)",
+            "retrievedOn": "2026-11-09",
+            "section": "Prop. 54.4980H-5(f)(5)(i) (application to individual coverage HRAs)"
+          }
+        ]
+      },
+      "rate_of_pay_safe_harbor": {
+        "value": {
+          "status": "proposed_reliance_permitted",
+          "summary": "Monthly required HRA contribution does not exceed the required contribution percentage of 130 hours times the hourly rate, or of the monthly salary."
+        },
+        "citations": [
+          {
+            "url": "https://www.ecfr.gov/current/title-26/section-54.4980H-5",
+            "title": "26 CFR 54.4980H-5 (eCFR, up to date as of 2026-11-05)",
+            "retrievedOn": "2026-11-09",
+            "section": "(e)(2)(iii) (final rule for employer coverage)"
+          },
+          {
+            "url": "https://www.federalregister.gov/documents/2019/09/30/2019-20034/application-of-the-employer-shared-responsibility-provisions-and-certain-nondiscrimination-rules-to",
+            "title": "Proposed rule REG-136401-18, 84 FR 51471 (2019-09-30)",
+            "retrievedOn": "2026-11-09",
+            "section": "Prop. 54.4980H-5(f)(5)(ii) (application to individual coverage HRAs)"
+          }
+        ]
+      },
+      "fpl_safe_harbor": {
+        "value": {
+          "status": "proposed_reliance_permitted",
+          "summary": "Monthly required HRA contribution does not exceed the required contribution percentage of the one-person poverty line for the state of employment, divided by 12."
+        },
+        "citations": [
+          {
+            "url": "https://www.ecfr.gov/current/title-26/section-54.4980H-5",
+            "title": "26 CFR 54.4980H-5 (eCFR, up to date as of 2026-11-05)",
+            "retrievedOn": "2026-11-09",
+            "section": "(e)(2)(iv) (final rule for employer coverage)"
+          },
+          {
+            "url": "https://www.federalregister.gov/documents/2019/09/30/2019-20034/application-of-the-employer-shared-responsibility-provisions-and-certain-nondiscrimination-rules-to",
+            "title": "Proposed rule REG-136401-18, 84 FR 51471 (2019-09-30)",
+            "retrievedOn": "2026-11-09",
+            "section": "Prop. 54.4980H-5(f)(5)(iii) (application to individual coverage HRAs)"
+          }
+        ]
+      }
+    }
+  },
+  "2027": {
+    "schemaVersion": 1,
+    "year": {
+      "value": 2027,
+      "citations": [
+        {
+          "url": "https://www.irs.gov/pub/irs-drop/rp-26-26.pdf",
+          "title": "IRS Revenue Procedure 2026-26",
+          "retrievedOn": "2026-11-09",
+          "section": "Section 3.02: required contribution percentage for plan years beginning in calendar year 2027"
+        }
+      ]
+    },
+    "status": "confirmed",
+    "statusReason": "Rules read from eCFR (current through 2026-11-05), the 2019 proposed section 4980H rule and IRS Rev. Proc. 2026-26 on 2026-11-09. The paragraph (f) safe harbors are proposed rules on which taxpayers may rely; they are labelled as such in every response.",
+    "lcspPremiumBasisDefault": {
+      "value": "gross",
+      "citations": [
+        {
+          "url": "https://www.ecfr.gov/current/title-26/section-1.36B-2",
+          "title": "26 CFR 1.36B-2 (eCFR, up to date as of 2026-11-05)",
+          "retrievedOn": "2026-11-09",
+          "section": "(c)(5)(ii)(A) 'monthly premium for the lowest cost silver plan for self-only coverage'; (c)(5)(iii)(A) lists the only premium adjustments (wellness incentives, non-tobacco premium, closed plans) and has no essential-health-benefits allocation"
+        }
+      ]
+    },
+    "rateOfPayHours": {
+      "value": 130,
+      "citations": [
+        {
+          "url": "https://www.ecfr.gov/current/title-26/section-54.4980H-5",
+          "title": "26 CFR 54.4980H-5 (eCFR, up to date as of 2026-11-05)",
+          "retrievedOn": "2026-11-09",
+          "section": "(e)(2)(iii)(A): 130 hours multiplied by the hourly rate of pay"
+        }
+      ]
+    },
+    "lowestAgeBand": {
+      "value": {
+        "label": "0-14",
+        "ratingAge": 14
+      },
+      "citations": [
+        {
+          "url": "https://www.federalregister.gov/documents/2019/09/30/2019-20034/application-of-the-employer-shared-responsibility-provisions-and-certain-nondiscrimination-rules-to",
+          "title": "Proposed rule REG-136401-18, 84 FR 51471 (2019-09-30)",
+          "retrievedOn": "2026-11-09",
+          "section": "Prop. 26 CFR 54.4980H-5(f)(7)(iii)(C): lowest cost silver plan for the lowest age band in the individual market"
+        },
+        {
+          "url": "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-B/part-147/section-147.102",
+          "title": "45 CFR 147.102 (eCFR, up to date as of 2026-11-05)",
+          "retrievedOn": "2026-11-09",
+          "section": "(d): uniform age bands; a single age band for individuals age 0 through 14"
+        }
+      ]
+    },
+    "fplSafeHarbor": {
+      "guidelines": {
+        "value": [
+          {
+            "guidelineYear": 2025,
+            "effectiveDate": "2025-01-15"
+          },
+          {
+            "guidelineYear": 2026,
+            "effectiveDate": "2026-01-13"
+          }
+        ],
+        "citations": [
+          {
+            "url": "https://www.govinfo.gov/content/pkg/FR-2025-01-17/html/2025-01377.htm",
+            "title": "HHS 2025 Annual Update of Poverty Guidelines, 90 FR 5917, 2025-01377",
+            "retrievedOn": "2026-11-09",
+            "section": "DATES: effective January 15, 2025"
+          },
+          {
+            "url": "https://www.govinfo.gov/content/pkg/FR-2026-01-15/html/2026-00755.htm",
+            "title": "HHS 2026 Annual Update of Poverty Guidelines, 91 FR 1797, 2026-00755",
+            "retrievedOn": "2026-11-09",
+            "section": "DATES: effective January 13, 2026"
+          }
+        ]
+      },
+      "selection": {
+        "value": "latest_in_effect_on_plan_start",
+        "citations": [
+          {
+            "url": "https://www.govinfo.gov/content/pkg/FR-2014-02-12/html/2014-03082.htm",
+            "title": "Shared Responsibility for Employers Regarding Health Coverage, final rule, 79 FR 8544 (2014-02-12)",
+            "retrievedOn": "2026-11-09",
+            "section": "Preamble VIII.D, page 8565: an employer may use the poverty guidelines in effect within six months before the first day of the plan year"
+          },
+          {
+            "url": "https://www.ecfr.gov/current/title-26/section-54.4980H-5",
+            "title": "26 CFR 54.4980H-5 (eCFR, up to date as of 2026-11-05)",
+            "retrievedOn": "2026-11-09",
+            "section": "(e)(2)(iv): one-person poverty line for the state in which the employee is employed"
+          }
+        ]
+      }
+    },
+    "rules": {
+      "affordability": {
+        "value": {
+          "status": "final",
+          "summary": "Affordable for a month if the required HRA contribution does not exceed 1/12 of household income multiplied by the required contribution percentage."
+        },
+        "citations": [
+          {
+            "url": "https://www.ecfr.gov/current/title-26/section-1.36B-2",
+            "title": "26 CFR 1.36B-2 (eCFR, up to date as of 2026-11-05)",
+            "retrievedOn": "2026-11-09",
+            "section": "(c)(5)(i)"
+          }
+        ]
+      },
+      "required_hra_contribution": {
+        "value": {
+          "status": "final",
+          "summary": "Monthly premium of the lowest cost silver plan for self-only coverage in the rating area where the employee resides, minus the monthly self-only HRA amount, not below zero."
+        },
+        "citations": [
+          {
+            "url": "https://www.ecfr.gov/current/title-26/section-1.36B-2",
+            "title": "26 CFR 1.36B-2 (eCFR, up to date as of 2026-11-05)",
+            "retrievedOn": "2026-11-09",
+            "section": "(c)(5)(ii)(A)-(B)"
+          }
+        ]
+      },
+      "lcsp_premium": {
+        "value": {
+          "status": "final",
+          "summary": "Non-tobacco premium; wellness incentives other than tobacco ones are ignored; a plan that later closes stays the lowest cost silver plan."
+        },
+        "citations": [
+          {
+            "url": "https://www.ecfr.gov/current/title-26/section-1.36B-2",
+            "title": "26 CFR 1.36B-2 (eCFR, up to date as of 2026-11-05)",
+            "retrievedOn": "2026-11-09",
+            "section": "(c)(5)(iii)(A)"
+          }
+        ]
+      },
+      "monthly_hra_amount": {
+        "value": {
+          "status": "final",
+          "summary": "Amount newly made available for the plan year divided by the months in the plan year the HRA is available to the employee; carryovers are ignored."
+        },
+        "citations": [
+          {
+            "url": "https://www.ecfr.gov/current/title-26/section-1.36B-2",
+            "title": "26 CFR 1.36B-2 (eCFR, up to date as of 2026-11-05)",
+            "retrievedOn": "2026-11-09",
+            "section": "(c)(5)(iii)(B), (c)(5)(v)"
+          }
+        ]
+      },
+      "required_contribution_percentage": {
+        "value": {
+          "status": "final",
+          "summary": "Required contribution percentage for plan years beginning in calendar year 2027."
+        },
+        "citations": [
+          {
+            "url": "https://www.irs.gov/pub/irs-drop/rp-26-26.pdf",
+            "title": "IRS Revenue Procedure 2026-26",
+            "retrievedOn": "2026-11-09",
+            "section": "Section 3.02"
+          },
+          {
+            "url": "https://www.ecfr.gov/current/title-26/section-1.36B-2",
+            "title": "26 CFR 1.36B-2 (eCFR, up to date as of 2026-11-05)",
+            "retrievedOn": "2026-11-09",
+            "section": "(c)(3)(v)(C)"
+          }
+        ]
+      },
+      "employer_safe_harbors": {
+        "value": {
+          "status": "proposed_reliance_permitted",
+          "summary": "Paragraph (f) applies the employer affordability safe harbors to individual coverage HRAs for section 4980H(b) only; it does not change premium tax credit eligibility."
+        },
+        "citations": [
+          {
+            "url": "https://www.federalregister.gov/documents/2019/09/30/2019-20034/application-of-the-employer-shared-responsibility-provisions-and-certain-nondiscrimination-rules-to",
+            "title": "Proposed rule REG-136401-18, 84 FR 51471 (2019-09-30)",
+            "retrievedOn": "2026-11-09",
+            "section": "Prop. 54.4980H-5(f)(1)-(3), (f)(7)(vii); reliance statement at 84 FR 51484: taxpayers may rely on the proposed section 4980H rules for plan years beginning before six months after final rules; eCFR 54.4980H-5 has no paragraph (f) as of 2026-11-05"
+          }
+        ]
+      },
+      "location_safe_harbor": {
+        "value": {
+          "status": "proposed_reliance_permitted",
+          "summary": "The lowest cost silver plan may be taken for the rating area of the employee's primary site of employment; a remote employee with no site to report to uses the residence."
+        },
+        "citations": [
+          {
+            "url": "https://www.federalregister.gov/documents/2019/09/30/2019-20034/application-of-the-employer-shared-responsibility-provisions-and-certain-nondiscrimination-rules-to",
+            "title": "Proposed rule REG-136401-18, 84 FR 51471 (2019-09-30)",
+            "retrievedOn": "2026-11-09",
+            "section": "Prop. 54.4980H-5(f)(6)(i)-(ii), (f)(7)(ii)"
+          }
+        ]
+      },
+      "age_safe_harbor": {
+        "value": {
+          "status": "proposed_reliance_permitted",
+          "summary": "Applicable age is the age on the first day of the plan year, or on the date the HRA can first take effect for an employee who becomes eligible later."
+        },
+        "citations": [
+          {
+            "url": "https://www.federalregister.gov/documents/2019/09/30/2019-20034/application-of-the-employer-shared-responsibility-provisions-and-certain-nondiscrimination-rules-to",
+            "title": "Proposed rule REG-136401-18, 84 FR 51471 (2019-09-30)",
+            "retrievedOn": "2026-11-09",
+            "section": "Prop. 54.4980H-5(f)(7)(i)"
+          }
+        ]
+      },
+      "lowest_age_band": {
+        "value": {
+          "status": "proposed_reliance_permitted",
+          "summary": "For the paragraph (f) safe harbors the plan is identified at the lowest age band and priced at the employee's applicable age."
+        },
+        "citations": [
+          {
+            "url": "https://www.federalregister.gov/documents/2019/09/30/2019-20034/application-of-the-employer-shared-responsibility-provisions-and-certain-nondiscrimination-rules-to",
+            "title": "Proposed rule REG-136401-18, 84 FR 51471 (2019-09-30)",
+            "retrievedOn": "2026-11-09",
+            "section": "Prop. 54.4980H-5(f)(7)(iii)(C), (f)(7)(vii)"
+          }
+        ]
+      },
+      "look_back_month": {
+        "value": {
+          "status": "proposed_reliance_permitted",
+          "summary": "Calendar-year plan: January of the prior calendar year; other plan years: January of the current calendar year."
+        },
+        "citations": [
+          {
+            "url": "https://www.federalregister.gov/documents/2019/09/30/2019-20034/application-of-the-employer-shared-responsibility-provisions-and-certain-nondiscrimination-rules-to",
+            "title": "Proposed rule REG-136401-18, 84 FR 51471 (2019-09-30)",
+            "retrievedOn": "2026-11-09",
+            "section": "Prop. 54.4980H-5(f)(4)(i)(A)-(B)"
+          }
+        ]
+      },
+      "w2_safe_harbor": {
+        "value": {
+          "status": "proposed_reliance_permitted",
+          "summary": "Required HRA contribution for the calendar year does not exceed the required contribution percentage of Form W-2 box 1 wages from the employer."
+        },
+        "citations": [
+          {
+            "url": "https://www.ecfr.gov/current/title-26/section-54.4980H-5",
+            "title": "26 CFR 54.4980H-5 (eCFR, up to date as of 2026-11-05)",
+            "retrievedOn": "2026-11-09",
+            "section": "(e)(2)(ii) (final rule for employer coverage)"
+          },
+          {
+            "url": "https://www.federalregister.gov/documents/2019/09/30/2019-20034/application-of-the-employer-shared-responsibility-provisions-and-certain-nondiscrimination-rules-to",
+            "title": "Proposed rule REG-136401-18, 84 FR 51471 (2019-09-30)",
+            "retrievedOn": "2026-11-09",
+            "section": "Prop. 54.4980H-5(f)(5)(i) (application to individual coverage HRAs)"
+          }
+        ]
+      },
+      "rate_of_pay_safe_harbor": {
+        "value": {
+          "status": "proposed_reliance_permitted",
+          "summary": "Monthly required HRA contribution does not exceed the required contribution percentage of 130 hours times the hourly rate, or of the monthly salary."
+        },
+        "citations": [
+          {
+            "url": "https://www.ecfr.gov/current/title-26/section-54.4980H-5",
+            "title": "26 CFR 54.4980H-5 (eCFR, up to date as of 2026-11-05)",
+            "retrievedOn": "2026-11-09",
+            "section": "(e)(2)(iii) (final rule for employer coverage)"
+          },
+          {
+            "url": "https://www.federalregister.gov/documents/2019/09/30/2019-20034/application-of-the-employer-shared-responsibility-provisions-and-certain-nondiscrimination-rules-to",
+            "title": "Proposed rule REG-136401-18, 84 FR 51471 (2019-09-30)",
+            "retrievedOn": "2026-11-09",
+            "section": "Prop. 54.4980H-5(f)(5)(ii) (application to individual coverage HRAs)"
+          }
+        ]
+      },
+      "fpl_safe_harbor": {
+        "value": {
+          "status": "proposed_reliance_permitted",
+          "summary": "Monthly required HRA contribution does not exceed the required contribution percentage of the one-person poverty line for the state of employment, divided by 12."
+        },
+        "citations": [
+          {
+            "url": "https://www.ecfr.gov/current/title-26/section-54.4980H-5",
+            "title": "26 CFR 54.4980H-5 (eCFR, up to date as of 2026-11-05)",
+            "retrievedOn": "2026-11-09",
+            "section": "(e)(2)(iv) (final rule for employer coverage)"
+          },
+          {
+            "url": "https://www.federalregister.gov/documents/2019/09/30/2019-20034/application-of-the-employer-shared-responsibility-provisions-and-certain-nondiscrimination-rules-to",
+            "title": "Proposed rule REG-136401-18, 84 FR 51471 (2019-09-30)",
+            "retrievedOn": "2026-11-09",
+            "section": "Prop. 54.4980H-5(f)(5)(iii) (application to individual coverage HRAs)"
+          }
+        ]
+      }
+    }
+  }
+};

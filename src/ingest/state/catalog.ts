@@ -240,7 +240,8 @@ export async function stateDetailSource(
 export function stateDetailColumns(raw: Record<string, string>) {
   const names =
     `BusinessYear StateCode StandardComponentId PlanId PlanType IsHSAEligible
-    PlanEffectiveDate PlanExpirationDate FormularyURL MedicalDrugDeductiblesIntegrated
+    PlanEffectiveDate PlanExpirationDate FormularyURL IsReferralRequiredForSpecialist
+    PlanVariantMarketingName IssuerActuarialValue MedicalDrugDeductiblesIntegrated
     MedicalDrugMaximumOutofPocketIntegrated IsCovered QuantLimitOnSvc LimitQty LimitUnit
     Exclusions Explanation EHBVarReason IsExclFromInnMOOP IsExclFromOonMOOP
     MinimumStay IsSubjectedToDedTier1 IsSubjectedToDedTier2
@@ -271,6 +272,14 @@ export function stateDetailColumns(raw: Record<string, string>) {
       compact(`${prefix}DedInnTier1Coinsurnace`),
       `${prefix}DedInnTier1Coinsurance`,
     );
+  // State publications name the federal design and EHB share columns differently.
+  aliases.set("plandesigntype", "DesignType");
+  aliases.set("ehbpercentpremium", "EHBPercentTotalPremium");
+  aliases.set(
+    "urlforsummaryofbenefitscoverage",
+    "URLForSummaryofBenefitsCoverage",
+  );
+  aliases.set("planbrochure", "PlanBrochure");
   aliases.set("quantitylimitonsvc", "QuantLimitOnSvc");
   aliases.set("limitquantity", "LimitQty");
   aliases.set("isexcludedfrominnmoop", "IsExclFromInnMOOP");

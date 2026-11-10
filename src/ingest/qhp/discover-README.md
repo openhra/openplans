@@ -64,6 +64,21 @@ selected headers and relevant root-page links in `reports/p2e-discovery-diagnosi
 The diagnostic processes root HTML in bounded memory and discards it. No alternate URL is substituted
 into discovery; a changed 2027 PUF URL is evidence to review, not proof of 2026 membership.
 
+## Georgia Access registry and offline runs
+
+`worker ingest qhp discover --year 2027 --state GA --registry georgia-access` reads
+Georgia Access's own machine-readable URL PUF, the MR-PUF, instead of the federal
+workbook. It takes the one admitted MR-PUF CSV for that year from the Georgia Access
+cache, as described in `../sbe/README.md`. The CSV has the federal columns `State`,
+`Issuer ID` and `URL Submitted` plus a contact column. Discovery never reads the
+contact column into records, reports or fixtures. The option covers Georgia only.
+
+`--offline` reopens only snapshots already cached for each exact index URL. Hash,
+admission and quarantine checks still run, and no request goes out. Discovery records
+an index missing from the cache as `not_cached`, not as a publisher failure. A cached
+index counts only under the source it was fetched for, `qhp-<issuer>-<year>-index`.
+Discovery does not reuse a snapshot cached under another year.
+
 ## Readers and limits
 
 - `streamZipMember` supports stored/deflated ZIP and ZIP64. It reuses archive structural

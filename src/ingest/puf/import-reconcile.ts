@@ -1,5 +1,5 @@
 import type { SqlSession } from "../../db/database.js";
-import type { ImportKind } from "./import-source.js";
+import type { ImportKind, StateCatalogSource } from "./import-source.js";
 import { importTables } from "./import-parse.js";
 
 const RECONCILIATION_SAMPLE_SIZE = 20;
@@ -8,7 +8,7 @@ const PER_MEMBER_AGE_BAND_COUNT = 51;
 export interface FileReconciliation {
   error?: string;
   expected_rows?: number;
-  source?: "cms_sbe_puf";
+  source?: StateCatalogSource;
   member?: string;
   bundle_url?: string;
   kind: ImportKind;

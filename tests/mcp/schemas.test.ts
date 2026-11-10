@@ -29,6 +29,20 @@ const payloads: Record<ToolName, unknown> = {
   },
   get_plan: { plan: shellPlan, section: "summary", records: [] },
   quote_premiums: { quotes: [], bindable_quote: false },
+  check_ichra_affordability: {
+    status: "unknown",
+    reason: "catalog_not_loaded",
+    plan_start: "2027-01-01",
+    applicable_age: 40,
+    basis_sensitive: null,
+    lcsps: [],
+    monthly_hra_cents: null,
+    required_contribution_percentage_bp: null,
+    verdicts: [],
+    safe_harbors_applied: [],
+    rules: [],
+    bindable_quote: false,
+  },
   quote_plans: {
     quotes: [],
     bindable_quote: false,
@@ -58,6 +72,14 @@ const payloads: Record<ToolName, unknown> = {
     loaded: false,
   },
   list_carriers_networks: { rows: [] },
+  search_medicare_plans: {
+    location_status: "unknown",
+    county_fips: null,
+    contract_year: 2026,
+    as_of: null,
+    plans: [],
+    part_d_drug_data: "pending_terms_review",
+  },
 };
 const validInputs: Record<ToolName, unknown> = {
   search: { query: "77002" },
@@ -69,6 +91,16 @@ const validInputs: Record<ToolName, unknown> = {
     location: { county: "48201" },
     coverage_start: "2026-01-01",
     members: [{ age: 35, tobacco: false, relationship: "subscriber" }],
+  },
+  check_ichra_affordability: {
+    plan_start: "2026-01-01",
+    employee: { date_of_birth: "1985-10-01" },
+    residence: { zip: "77002" },
+    hra: { self_only_annual_cents: 300_000 },
+    income: [
+      { measure: "household", annual_cents: 4_118_000 },
+      { measure: "fpl" },
+    ],
   },
   quote_plans: {
     year: 2026,
@@ -92,11 +124,12 @@ const validInputs: Record<ToolName, unknown> = {
   lookup_geography: { zip: "75034" },
   get_data_status: {},
   list_carriers_networks: { state: "TX" },
+  search_medicare_plans: { location: { county: "48201" }, year: 2026 },
 };
 const validator = new AjvJsonSchemaValidator();
-describe("thirteen closed MCP tool contracts (no transport)", () => {
+describe("fifteen closed MCP tool contracts (no transport)", () => {
   it("compiles all input/output schemas with the pinned SDK validator and round-trips JSON", () => {
-    expect(toolNames).toHaveLength(13);
+    expect(toolNames).toHaveLength(15);
     expect(toolNames).not.toContain("estimate_premiums");
     expect(toolNames).toEqual([...toolNames].sort());
     expect(toolNames).not.toContain("benchmark_silver");

@@ -19,6 +19,8 @@ const setup = (env: Record<string, string> = {}) =>
   createMcpHttp(unused, {
     env: {
       OPENPLANS_MCP_ALLOWED_ORIGINS: `${allowedOrigin},https://second.example`,
+      // A token restricts household tools, so the 401 challenge stays reachable.
+      OPENPLANS_MCP_TOKEN: "synthetic-cors-token",
       ...env,
     },
     log: () => {},

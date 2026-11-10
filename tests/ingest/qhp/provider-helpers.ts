@@ -8,7 +8,7 @@ import { coreMigrations, testDatabase } from "../../pglite.js";
 import { migrate, migrationsDirectory } from "../../../src/db/migrate.js";
 import type { SqlSession, Database } from "../../../src/db/database.js";
 
-export const scope = { issuer: "76589", state: "TX", year: 2026 };
+export const scope = { issuer: "00010", state: "TX", year: 2026 };
 const fixtures = fileURLToPath(
   new URL("../../fixtures/qhp/provider/", import.meta.url),
 );
@@ -69,11 +69,11 @@ export async function setup(database?: Database) {
       snapshot_id: "catalog",
       state: "TX",
       plan_year: 2026,
-      issuer_id: "76589",
+      issuer_id: "00010",
       raw: {},
     });
   await db.query(`INSERT INTO qhp_index(qhp_index_id,discovery_id,issuer_id,plan_year,state,registry_snapshot_id,registry_row,snapshot_id,status)
-    VALUES ('index-row','discovery','76589',2026,'TX','registry',1,'index','ok')`);
+    VALUES ('index-row','discovery','00010',2026,'TX','registry',1,'index','ok')`);
   let childNumber = 0,
     indexId = "index-row";
   async function child(value: unknown, kind = "provider_urls", text?: string) {
@@ -90,17 +90,17 @@ export async function setup(database?: Database) {
         snapshot,
         path,
         sha,
-        `https://www.cigna.com/synthetic-harness-${number}.json`,
+        `https://issuer.example/synthetic-harness-${number}.json`,
       ],
     );
     await db.query(
       `INSERT INTO qhp_child_url(qhp_index_id,issuer_id,plan_year,kind,url,published_url,url_sha256,host_evidence,
-      index_snapshot_id,snapshot_id,status) VALUES ($5,'76589',2026,$1,$2,$2,$3,'index_child','index',$4,'downloaded')`,
+      index_snapshot_id,snapshot_id,status) VALUES ($5,'00010',2026,$1,$2,$2,$3,'index_child','index',$4,'downloaded')`,
       [
         kind,
-        `https://www.cigna.com/synthetic-harness-${number}.json`,
+        `https://issuer.example/synthetic-harness-${number}.json`,
         createHash("sha256")
-          .update(`https://www.cigna.com/synthetic-harness-${number}.json`)
+          .update(`https://issuer.example/synthetic-harness-${number}.json`)
           .digest("hex"),
         snapshot,
         indexId,
@@ -114,7 +114,7 @@ export async function setup(database?: Database) {
     indexId = `index-${childNumber}`;
     await db.query(
       `INSERT INTO qhp_index(qhp_index_id,discovery_id,issuer_id,plan_year,state,registry_snapshot_id,
-      registry_row,snapshot_id,status,discovered_at) VALUES ($1,$1,'76589',2026,'TX','registry',1,'index','ok',clock_timestamp())`,
+      registry_row,snapshot_id,status,discovered_at) VALUES ($1,$1,'00010',2026,'TX','registry',1,'index','ok',clock_timestamp())`,
       [indexId],
     );
     await db.query(

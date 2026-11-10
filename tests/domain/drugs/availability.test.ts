@@ -31,12 +31,14 @@ it("requires validation after a new discovery before permitting not_listed", asy
   await h.replace(drugs);
   await importFormulary(h.db, scope);
   expect((await drugAvailability(h.db, scope))[0]?.status).toBe("complete");
-  expect((await drugCoverage(h.db, plan, "6809", 2026)).status).toBe(
+  expect((await drugCoverage(h.db, plan, "990000101", 2026)).status).toBe(
     "not_listed",
   );
   await h.replace(drugs);
   expect((await drugAvailability(h.db, scope))[0]?.status).toBe("unknown");
-  expect((await drugCoverage(h.db, plan, "6809", 2026)).status).toBe("unknown");
+  expect((await drugCoverage(h.db, plan, "990000101", 2026)).status).toBe(
+    "unknown",
+  );
   expect(
     (await drugCoverage(h.db, plan, drugs[0].rxnorm_id, 2026)).status,
   ).toBe("listed_covered");

@@ -14,6 +14,61 @@ import { drugAvailability } from "../domain/drugs/availability.js";
 import { coverageManifest } from "../db/availability.js";
 import type { SqlSession } from "../db/database.js";
 import { ratingRule } from "../ingest/rating-rules/index.js";
+import { federalCatalog } from "../api/repository.js";
+import { ichraParameters } from "../domain/ichra/index.js";
+import { cmsApiAvailability } from "../ingest/cms-api/fallback.js";
+
+const ICHRA_STATE_RULES = new Set(["NY", "VT"]);
+/**
+ * ICHRA fields for one availability row. `available` means the gross-premium LCSP can be computed:
+ * premiums are available, the federal catalog for that year is loaded and the year's parameters
+ * are confirmed. The EHB-portion figure can still be unknown for a county.
+ */
+async function ichraAvailability(
+  entry: Record<string, unknown>,
+  loaded: (state: string, year: number) => Promise<boolean>,
+) {
+  const state = String(entry.state),
+    year = Number(entry.plan_year);
+  const parameters = ichraParameters(year);
+  const rules =
+    parameters.status === "confirmed"
+      ? {
+          affordability: parameters.parameters.rules.affordability.status,
+          employer_safe_harbors:
+            parameters.parameters.rules.employer_safe_harbors.status,
+        }
+      : null;
+  let status: string, reason: string | null;
+  if (ICHRA_STATE_RULES.has(state)) {
+    status = "requires_state_rules";
+    reason = "state_filed_tier_pending";
+  } else if (!rules) {
+    status = "unknown";
+    reason = "parameters_unconfirmed";
+  } else if (entry.premium_status === "unsupported") {
+    status = "unsupported";
+    reason = "rating_method_unsupported";
+  } else if (entry.premium_status !== "available") {
+    status = "unknown";
+    reason = "premium_not_available";
+  } else if (!(await loaded(state, year))) {
+    status = "unknown";
+    reason = "catalog_not_loaded";
+  } else {
+    status = "available";
+    reason = null;
+  }
+  return {
+    ichra_status: status,
+    ichra_reason: reason,
+    ichra_lookback_status:
+      status === "available" && (await loaded(state, year - 1))
+        ? "available"
+        : "unknown",
+    ichra_rules: rules,
+  };
+}
 
 /** Imported rate evidence and supported rating policy are separate requirements. */
 export async function dataAvailability(
@@ -93,6 +148,17 @@ export async function dataAvailability(
       ...(await Promise.all(manifest.slice(at, at + 4).map(entryAvailability))),
     );
   }
+  // Only with the CMS API fallback on: how many stored API answers each entry has.
+  const cms = await cmsApiAvailability(db);
+  if (cms)
+    for (const entry of entries)
+      (entry as Record<string, unknown>).cms_api = cms.byIssuer.get(
+        `${entry.issuer_id}|${entry.state}|${entry.plan_year}`,
+      ) ?? {
+        configured: cms.configured,
+        absorbed_rows: 0,
+        last_absorbed_at: null,
+      };
   // Discovery has issuer/year evidence even when catalog data has not been imported.
   const additional = drugs
     .filter(
@@ -209,13 +275,23 @@ export async function dataAvailability(
       });
     }
   }
-  return combined.map((entry) => {
+  const catalogs = new Map<string, Promise<boolean>>();
+  const loaded = (state: string, year: number) => {
+    const key = `${state}:${year}`;
+    if (!catalogs.has(key))
+      catalogs.set(
+        key,
+        federalCatalog(db, state, year).then((r) => r.rows.length > 0),
+      );
+    return catalogs.get(key)!;
+  };
+  const withSources = combined.map((entry) => {
     const source = sbe.find((s) => s.import_id === entry.snapshot_id);
     if (!source) return entry;
     const gap = { status: "unknown", reason: "sbe_no_index_registry" };
     return {
       ...entry,
-      source: "cms_sbe_puf",
+      source: source.source,
       source_provenance: {
         bundle_url: source.bundle_url,
         sha256: source.bundle_sha256,
@@ -242,4 +318,8 @@ export async function dataAvailability(
         : {}),
     };
   });
+  const result: Record<string, unknown>[] = [];
+  for (const entry of withSources)
+    result.push({ ...entry, ...(await ichraAvailability(entry, loaded)) });
+  return result;
 }

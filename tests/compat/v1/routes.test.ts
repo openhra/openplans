@@ -217,14 +217,18 @@ describe("public catalog facade, native repository integration", () => {
     );
   });
 
-  it("preserves unknowns for unmapped metadata and never substitutes an arbitrary vendor network ID", async () => {
+  it("preserves unknowns for unmapped metadata and serves scoped CMS network IDs, never a vendor ID", async () => {
     const { body, response } = await get("/plans/87226TX0100013");
     expect(body.plan.network_size).toBeNull();
-    expect(body.plan.network_ids).toEqual([]);
+    const cmsId = /^87226-2026-TXN\d{3}-individual$/;
+    expect(body.plan.network_ids).toEqual([expect.stringMatching(cmsId)]);
     expect(body.plan.networks[0]).toMatchObject({
-      id: null,
+      id: body.plan.network_ids[0],
       name: expect.any(String),
     });
+    expect(response.headers.get("x-openplans-gaps")).toContain(
+      "network_ids_are_cms_network_ids",
+    );
     expect(body.plan.plan_documents).toEqual([]);
     expect(body.plan.adult_dental).toBeNull();
     expect(response.headers.get("x-openplans-gaps")).toContain(
@@ -284,7 +288,7 @@ describe("public catalog facade, native repository integration", () => {
     const networks = await get("/networks?per_page=2&page=1");
     expect(networks.body.networks).toHaveLength(2);
     expect(networks.body.networks[0]).toMatchObject({
-      id: null,
+      id: expect.stringMatching(/^\d{5}-2026-[A-Z]{2}N\d{3}-[a-z_()]+$/),
       name: expect.any(String),
       source: "cms_puf",
       last_imported_at: null,
@@ -304,11 +308,21 @@ describe("public catalog facade, native repository integration", () => {
     delete process.env.OPENPLANS_COMPAT_API_KEY;
     expect(
       (
-        await createApp(h.db, {}).request(`${BASE}/plans/medical/search`, {
-          method: "POST",
-        })
+        await createApp(h.db, { publicCompat: false }).request(
+          `${BASE}/plans/medical/search`,
+          { method: "POST" },
+        )
       ).status,
     ).toBe(503);
+    // With no key the facade is open by default; a malformed body is a 400.
+    expect(
+      (
+        await createApp(h.db, {}).request(`${BASE}/plans/medical/search`, {
+          method: "POST",
+          body: "{bad",
+        })
+      ).status,
+    ).toBe(400);
     process.env.OPENPLANS_COMPAT_API_KEY = configured;
     expect(
       (

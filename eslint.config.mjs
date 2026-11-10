@@ -18,6 +18,7 @@ export default defineConfig([
     "!**/fixtures/**/*.{js,mjs,cjs,ts,mts,cts}",
     "**/__snapshots__/**",
     "src/domain/subsidy/generated.ts",
+    "src/domain/ichra/generated.ts",
     "public-scaffold/**",
     "brand/**",
     "docs/PLAN.md",

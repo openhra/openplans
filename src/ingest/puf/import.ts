@@ -4,12 +4,14 @@ import { isAbsolute, join } from "node:path";
 import type { Database } from "../../db/database.js";
 import {
   cachedImportFiles,
+  isStateCatalogSource,
+  stateCatalogDigest,
   IMPORT_KINDS,
   importDataDirectory,
   importRows,
   verifyImportFile,
 } from "./import-source.js";
-import type { ImportFile } from "./import-source.js";
+import type { ImportFile, StateCatalogSource } from "./import-source.js";
 import {
   MissingPufColumnsError,
   parseImportRow,
@@ -23,6 +25,9 @@ import {
 } from "./import-repository.js";
 import { reconcileImport } from "./import-reconcile.js";
 import type { FileReconciliation, Reconciliation } from "./import-reconcile.js";
+/** The listing page that links every Georgia Access PUF CSV. */
+export const GEORGIA_ACCESS_LISTING =
+  "https://georgiaaccess.gov/public-use-files/";
 export { createPufRepository, plansForCounty } from "./import-repository.js";
 export type { CountyPlan } from "./import-repository.js";
 export type { ImportFile, ImportKind } from "./import-source.js";
@@ -36,13 +41,19 @@ export interface PufImportOptions {
   manifestPath?: string | null;
   /** Stage protected supplemental catalogs without changing their serving pointer. */
   publish?: boolean;
+  /**
+   * Markets this import serves in `puf_market_catalog` when it does not publish the
+   * individual pointer, e.g. an SBE bundle that holds only SHOP plans. A publishing
+   * import serves every market its Plan Attributes rows contain.
+   */
+  marketsWithoutPublish?: readonly string[];
 }
 export interface PufImportReport extends Reconciliation {
   import_id: string;
   state: string;
   year: number;
   status: "ACTIVE" | "QUARANTINED";
-  source?: "cms_sbe_puf";
+  source?: StateCatalogSource;
   serving?: boolean;
   manifest_path: string | null;
   wall_seconds: number;
@@ -78,17 +89,24 @@ export async function importPufs(
     acquired.files.find((file) => file.kind === kind)!,
   );
   const id = `puf-${year}-${state}-${randomUUID()}`;
-  const sbe = files.every((file) => file.source === "cms_sbe_puf");
-  if (files.some((file) => file.source === "cms_sbe_puf") && !sbe)
+  const stateSource = files[0]!.source;
+  const sbe =
+    isStateCatalogSource(stateSource) &&
+    files.every((file) => file.source === stateSource);
+  if (files.some((file) => isStateCatalogSource(file.source)) && !sbe)
     throw new Error("Mixed catalog sources");
-  const source = `${sbe ? "cms_sbe_puf" : "cms-exchange-puf"}:${year}:${state}`;
+  const source = `${sbe ? stateSource : "cms-exchange-puf"}:${year}:${state}`;
+  const bundleSha256 =
+    stateSource === "georgia_access_puf"
+      ? stateCatalogDigest(files)
+      : files[0]!.sha256;
   const reconciliationFiles: FileReconciliation[] = files.map((file) => ({
     kind: file.kind,
     snapshot_id: `${id}:${file.kind}`,
     sha256: file.sha256,
     ...(sbe
       ? {
-          source: "cms_sbe_puf" as const,
+          source: stateSource,
           member: file.member,
           bundle_url: file.url,
         }
@@ -105,17 +123,30 @@ export async function importPufs(
       [id, state, year],
     );
     if (sbe) {
+      await tx.query("UPDATE source SET source_kind=$2 WHERE source_id=$1", [
+        source,
+        stateSource,
+      ]);
       await tx.query(
-        "UPDATE source SET source_kind='cms_sbe_puf' WHERE source_id=$1",
-        [source],
+        "UPDATE snapshot SET parser_version='sbe-import-v1',schema_version=$2 WHERE snapshot_id=$1",
+        [
+          id,
+          stateSource === "georgia_access_puf"
+            ? "georgia-access-puf-2027-observed"
+            : "cms-sbe-puf-2026-observed",
+        ],
       );
       await tx.query(
-        "UPDATE snapshot SET parser_version='sbe-import-v1',schema_version='cms-sbe-puf-2026-observed' WHERE snapshot_id=$1",
-        [id],
-      );
-      await tx.query(
-        "INSERT INTO sbe_catalog(import_id,bundle_url,bundle_sha256,serving) VALUES($1,$2,$3,$4)",
-        [id, files[0]!.url, files[0]!.sha256, options.publish !== false],
+        "INSERT INTO sbe_catalog(import_id,bundle_url,bundle_sha256,serving,source) VALUES($1,$2,$3,$4,$5)",
+        [
+          id,
+          stateSource === "georgia_access_puf"
+            ? GEORGIA_ACCESS_LISTING
+            : files[0]!.url,
+          bundleSha256,
+          options.publish !== false,
+          stateSource,
+        ],
       );
     }
     for (const file of files) {
@@ -136,11 +167,20 @@ export async function importPufs(
           headerValidated = false;
         for await (const row of importRows(file)) {
           if (!headerValidated) {
-            validateImportHeader(file.kind, row.values, year);
+            validateImportHeader(file.kind, row.values, year, !sbe);
             headerValidated = true;
           }
           if (row.values.StateCode !== state) continue;
           count.input_rows++;
+          if (row.recoveredQuotes)
+            await importIssue(
+              tx,
+              count.snapshot_id,
+              "csv_unescaped_quote_recovered",
+              `${row.recoveredQuotes} unescaped quote(s) read literally; the header field count still held.`,
+              row.rowNumber,
+              "warning",
+            );
           try {
             if (row.values.BusinessYear !== String(year))
               throw new Error("Mismatched publication year");
@@ -161,7 +201,12 @@ export async function importPufs(
           }
         }
         await insertImportRows(tx, file.kind, batch);
-        await deriveCatalogRows(tx, file.kind, count.snapshot_id);
+        await deriveCatalogRows(
+          tx,
+          file.kind,
+          count.snapshot_id,
+          stateSource === "georgia_access_puf",
+        );
         await tx.query(
           "UPDATE puf_import_file SET input_rows=$2 WHERE snapshot_id=$1",
           [count.snapshot_id, count.input_rows],
@@ -224,6 +269,18 @@ export async function importPufs(
           `INSERT INTO sbe_issuer_status(import_id,issuer_id) SELECT $1,issuer_id FROM issuer WHERE snapshot_id=$2`,
           [id, `${id}:plan-attributes`],
         );
+      const servedMarkets =
+        options.publish !== false
+          ? null
+          : (options.marketsWithoutPublish ?? []);
+      if (servedMarkets === null || servedMarkets.length)
+        await tx.query(
+          `INSERT INTO puf_market_catalog(state,plan_year,market,import_id)
+          SELECT $1,$2,market,$3 FROM plan WHERE snapshot_id=$4 AND ($5::text[] IS NULL OR market=ANY($5::text[]))
+          GROUP BY market
+          ON CONFLICT(state,plan_year,market) DO UPDATE SET import_id=EXCLUDED.import_id`,
+          [state, year, id, `${id}:plan-attributes`, servedMarkets],
+        );
       if (options.publish !== false) {
         await tx.query(
           `INSERT INTO puf_active_catalog(state,plan_year,import_id) VALUES($1,$2,$3)
@@ -249,7 +306,7 @@ export async function importPufs(
     ...reconciliation,
     ...(sbe
       ? {
-          source: "cms_sbe_puf" as const,
+          source: stateSource,
           serving: reconciliation.passed && options.publish !== false,
         }
       : {}),

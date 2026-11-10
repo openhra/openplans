@@ -123,12 +123,12 @@ afterEach(async () => {
 
 describe("NPPES V2 public identity import", () => {
   it("resolves a missing public NPI over HTTP after import without inventing participation", async () => {
-    vi.stubEnv("OPENPLANS_COMPAT_API_KEY", "synthetic-parity-test-key");
+    vi.stubEnv("OPENPLANS_COMPAT_API_KEY", "synthetic-consistency-test-key");
     const npi = provenance.labels.secondary_tx_only!;
     const app = createApp(db, {});
     const detail = () =>
       app.request(`/compat/v1/providers/${npi}?year=2026`, {
-        headers: { "X-Api-Key": "synthetic-parity-test-key" },
+        headers: { "X-Api-Key": "synthetic-consistency-test-key" },
       });
     expect((await detail()).status).toBe(404);
 

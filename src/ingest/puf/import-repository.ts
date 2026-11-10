@@ -1,6 +1,7 @@
 import { STATE_FIPS } from "../geo/states.js";
 import type { SqlSession } from "../../db/database.js";
 import type { ImportFile, ImportKind } from "./import-source.js";
+import { isStateCatalogSource } from "./import-source.js";
 import { importColumns, importTables } from "./import-parse.js";
 
 export async function insertImportRows(
@@ -24,16 +25,22 @@ export async function insertImportRows(
     values,
   );
 }
+function stateSchema(source: string | undefined): string {
+  if (source === "georgia_access_puf")
+    return "georgia-access-puf-2027-observed";
+  if (source === "cms_sbe_puf") return "cms-sbe-puf-2026-observed";
+  return "cms-puf-2026-2027-observed";
+}
 export async function saveImportSnapshot(
   tx: SqlSession,
   id: string,
   source: string,
-  file?: ImportFile,
+  file?: Omit<ImportFile, "kind">,
 ): Promise<void> {
   const m = file?.metadata;
   function registryEvidence() {
     if (file) {
-      if (file.source === "cms_sbe_puf") {
+      if (isStateCatalogSource(file.source)) {
         return { url: file.url, member: file.member, sha256: file.sha256 };
       } else {
         return [file.url];
@@ -44,11 +51,14 @@ export async function saveImportSnapshot(
   }
   await tx.query(
     `INSERT INTO source(source_id,publisher,source_kind,registry_evidence)
-    VALUES ($1,'Centers for Medicare & Medicaid Services',$3,$2) ON CONFLICT DO NOTHING`,
+    VALUES ($1,$4,$3,$2) ON CONFLICT DO NOTHING`,
     [
       source,
       JSON.stringify(registryEvidence()),
       file?.source ?? "exchange-puf",
+      file?.source === "georgia_access_puf"
+        ? "Georgia Access (Georgia Office of Commissioner of Insurance and Safety Fire)"
+        : "Centers for Medicare & Medicaid Services",
     ],
   );
   await tx.query(
@@ -71,10 +81,8 @@ export async function saveImportSnapshot(
       file?.sha256 ?? null,
       file?.path ?? null,
       file ? 0 : 6,
-      file?.source === "cms_sbe_puf"
-        ? "cms-sbe-puf-2026-observed"
-        : "cms-puf-2026-2027-observed",
-      file?.source === "cms_sbe_puf" ? "sbe-import-v1" : "puf-import-v1",
+      stateSchema(file?.source),
+      isStateCatalogSource(file?.source) ? "sbe-import-v1" : "puf-import-v1",
     ],
   );
 }
@@ -101,6 +109,11 @@ export async function deriveCatalogRows(
   tx: SqlSession,
   kind: ImportKind,
   snapshot: string,
+  /**
+   * Georgia Access publishes only per-variant names in PlanMarketingName. A base
+   * plan keeps a name only when every variant agrees; otherwise it is "unknown".
+   */
+  variantNamesOnly = false,
 ): Promise<void> {
   if (kind === "plan-attributes") {
     await tx.query(
@@ -111,12 +124,13 @@ export async function deriveCatalogRows(
     );
     await tx.query(
       `INSERT INTO plan
-      SELECT snapshot_id,min(source_row),plan_year,state,issuer_id,base_plan_id,market,metal,dental_only,network_id,service_area_id,plan_name,
+      SELECT snapshot_id,min(source_row),plan_year,state,issuer_id,base_plan_id,market,metal,dental_only,network_id,service_area_id,
+        ${variantNamesOnly ? "CASE WHEN count(DISTINCT plan_name)=1 THEN min(plan_name) ELSE 'unknown' END" : "plan_name"},
         CASE WHEN bool_or(on_exchange) AND bool_or(off_exchange) THEN 'Both'
           WHEN bool_or(on_exchange) THEN 'On the Exchange' ELSE 'Off the Exchange' END,
         bool_or(on_exchange),bool_or(off_exchange)
       FROM plan_attribute WHERE snapshot_id=$1
-      GROUP BY snapshot_id,plan_year,state,issuer_id,base_plan_id,market,metal,dental_only,network_id,service_area_id,plan_name`,
+      GROUP BY snapshot_id,plan_year,state,issuer_id,base_plan_id,market,metal,dental_only,network_id,service_area_id${variantNamesOnly ? "" : ",plan_name"}`,
       [snapshot],
     );
     await tx.query(
@@ -215,4 +229,79 @@ export async function plansForCounty(
   market: string,
 ): Promise<CountyPlan[]> {
   return createPufRepository(db).plansForCounty(countyFips, year, market);
+}
+
+export interface PlanAncestor extends Record<string, unknown> {
+  id: string;
+  year: number;
+  snapshot_id: string;
+}
+export interface PlanLineage {
+  /** `unknown` when no served crosswalk covers this plan's state and year. */
+  status: "available" | "unknown";
+  ancestors: PlanAncestor[];
+}
+/** Longest chain followed; each served crosswalk adds one prior year. */
+const MAX_LINEAGE_DEPTH = 10;
+
+/** Prior-year plan IDs whose published crosswalk names this plan, through every served year. */
+export async function planLineage(
+  db: SqlSession,
+  planId: string,
+  year: number,
+  state: string,
+): Promise<PlanLineage> {
+  const coverage = await db.query(
+    `SELECT 1 FROM plan_lineage_active a JOIN plan_lineage l ON l.snapshot_id=a.snapshot_id
+    WHERE a.plan_year=$1 AND l.state=$2 LIMIT 1`,
+    [year, state],
+  );
+  if (!coverage.rows.length) return { status: "unknown", ancestors: [] };
+  const { rows } = await db.query<PlanAncestor>(
+    `WITH RECURSIVE chain(id,year,snapshot_id,depth) AS (
+      SELECT $1::text,$2::integer,NULL::text,0
+      UNION
+      SELECT l.prior_plan_id,l.prior_year,l.snapshot_id,c.depth+1 FROM chain c
+      JOIN plan_lineage_active a ON a.plan_year=c.year
+      JOIN plan_lineage l ON l.snapshot_id=a.snapshot_id AND l.plan_id=c.id
+      WHERE c.depth<$3
+    ) SELECT DISTINCT id,year,snapshot_id FROM chain WHERE depth>0 ORDER BY year DESC,id`,
+    [planId, year, MAX_LINEAGE_DEPTH],
+  );
+  return { status: "available", ancestors: rows };
+}
+
+/** The published MarketCoverage value of small-group (SHOP) rows. */
+export const SHOP_MARKET = "SHOP (Small Group)";
+
+export interface MarketCatalogCount extends Record<string, unknown> {
+  state: string;
+  plan_year: number;
+  market: string;
+  import_id: string;
+  base_plans: number;
+  medical_base_plans: number;
+  variants: number;
+}
+/** Stored plans per served state/year/market: the denominator for a market's completeness. */
+export async function marketCatalogCensus(
+  db: SqlSession,
+  year: number,
+  market?: string,
+): Promise<MarketCatalogCount[]> {
+  const { rows } = await db.query<MarketCatalogCount>(
+    `SELECT m.state,m.plan_year,m.market,m.import_id,
+      count(DISTINCT p.base_plan_id)::int AS base_plans,
+      count(DISTINCT p.base_plan_id) FILTER (WHERE NOT p.dental_only)::int AS medical_base_plans,
+      (SELECT count(*)::int FROM plan_variant v JOIN plan q ON q.snapshot_id=v.snapshot_id AND q.base_plan_id=v.base_plan_id
+        WHERE v.snapshot_id=f.snapshot_id AND q.market=m.market) AS variants
+    FROM puf_market_catalog m
+    JOIN puf_import_file f ON f.import_id=m.import_id AND f.kind='plan-attributes'
+    JOIN plan p ON p.snapshot_id=f.snapshot_id AND p.market=m.market
+    WHERE m.plan_year=$1 AND ($2::text IS NULL OR m.market=$2)
+    GROUP BY m.state,m.plan_year,m.market,m.import_id,f.snapshot_id
+    ORDER BY m.state,m.market`,
+    [year, market ?? null],
+  );
+  return rows;
 }

@@ -314,7 +314,17 @@ it("VT plan_key is an opaque plan.id, never a HIOS identifier; aliases and ids f
       id: vt,
       premium: 1345.45,
       identifiers: [],
-      premiums_by_applicant: [],
+      // The filed tier total has no per-member price; the requested member stays listed.
+      premiums_by_applicant: [
+        {
+          age: 35,
+          child: false,
+          smoker: false,
+          premium: null,
+          composite_rated: false,
+          waived_for_total: null,
+        },
+      ],
     });
     expect(result.gaps).toContain("hios_ids_unavailable");
     expect(result.gaps).toContain("plan_ids_are_native_plan_keys");
@@ -325,7 +335,9 @@ it("VT plan_key is an opaque plan.id, never a HIOS identifier; aliases and ids f
       { headers },
     );
     expect(response.status).toBe(200);
-    expect(((await response.json()) as any).plan).toMatchObject({
+    expect(
+      ((await response.json()) as { plan: Record<string, unknown> }).plan,
+    ).toMatchObject({
       id: vt,
       identifiers: [],
     });

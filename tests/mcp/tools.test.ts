@@ -71,7 +71,7 @@ describe("in-process MCP public catalog and estimates", () => {
     await rm(dir, { recursive: true, force: true });
   });
 
-  it("discovers all thirteen tools in fixed order when granted, closed contracts, annotations and instructions", async () => {
+  it("discovers all fifteen tools in fixed order when granted, closed contracts, annotations and instructions", async () => {
     const list = await h.client.listTools();
     expect(list.tools.map((t) => t.name)).toEqual(toolNames);
     for (const tool of list.tools) {

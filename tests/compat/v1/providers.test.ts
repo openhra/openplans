@@ -562,6 +562,224 @@ describe("provider facade native integration", () => {
   });
 });
 
+// Synthetic NPPES identities for the in-state fallback. Galleria is located inside
+// the radius, Dallas is located outside it, Houston has no point and Shreveport
+// practises in another state without a point.
+const FALLBACK_FIXTURE = `INSERT INTO zcta_county VALUES ('77030','48201','Harris County',1,0,1,0,1,0,'catalog',5);
+  INSERT INTO geonames_import(snapshot_id) VALUES ('catalog');
+  INSERT INTO zip_county_fallback VALUES ('geonames','77001','48201','Harris','TX','catalog',1);
+  INSERT INTO npi_provider(npi,entity_type,organization_name,in_scope,state_filter,data_date,snapshot_id) VALUES
+    ('1000000010','2','ZEPHYRINE CLINIC HOUSTON',true,'TX','2026-11-07','catalog'),
+    ('1000000028','2','ZEPHYRINE CLINIC SHREVEPORT',true,'TX','2026-11-07','catalog'),
+    ('1000000036','2','ZEPHYRINE CLINIC DALLAS',true,'TX','2026-11-07','catalog'),
+    ('1000000044','2','ZEPHYRINE CLINIC GALLERIA',true,'TX','2026-11-07','catalog');
+  INSERT INTO npi_address(npi,kind,ordinal,line_1,city,state,zip5,snapshot_id) VALUES
+    ('1000000010','practice',0,'Synthetic unlocated suite','HOUSTON','TX','77002','catalog'),
+    ('1000000028','practice',0,'Synthetic out-of-state suite','SHREVEPORT','LA','71101','catalog'),
+    ('1000000036','practice',0,'Synthetic far suite','DALLAS','TX','75201','catalog'),
+    ('1000000044','practice',0,'Synthetic near suite','HOUSTON','TX','77030','catalog');`;
+async function locate(
+  tx: Parameters<typeof saveResult>[0],
+  npi: string,
+  line: string,
+  city: string,
+  zip: string,
+  latitude: number,
+  longitude: number,
+) {
+  await saveResult(
+    tx,
+    {
+      npi,
+      kind: "practice",
+      ordinal: 0,
+      line_1: line,
+      line_2: null,
+      city,
+      state: "TX",
+      zip5: zip,
+      snapshot_id: "catalog",
+      source_table: "npi_address",
+      source_row: `${npi}:practice:0`,
+    },
+    { id: "1", status: "Match", quality: "Exact", latitude, longitude },
+    "catalog",
+  );
+}
+async function withFallbackFixture(
+  run: (search: (body: unknown) => Promise<Response>) => Promise<void>,
+) {
+  const rollback = new Error("rollback synthetic fallback identities");
+  await expect(
+    h.db.transaction(async (tx) => {
+      await tx.exec(FALLBACK_FIXTURE);
+      await locate(
+        tx,
+        "1000000036",
+        "Synthetic far suite",
+        "DALLAS",
+        "75201",
+        32.787,
+        -96.799,
+      );
+      await locate(
+        tx,
+        "1000000044",
+        "Synthetic near suite",
+        "HOUSTON",
+        "77030",
+        29.7105,
+        -95.3973,
+      );
+      const api = createApp(tx);
+      await run(async (body) =>
+        api.request(BASE + "/providers/search", {
+          method: "POST",
+          headers,
+          body: JSON.stringify(body),
+        }),
+      );
+      throw rollback;
+    }),
+  ).rejects.toBe(rollback);
+}
+interface WireLocation extends Record<string, unknown> {
+  id: number;
+  latitude: number | null;
+  distance_miles: number | null;
+  provenance: Record<string, unknown>[];
+}
+interface WireSearch {
+  meta: { total: number };
+  providers: WireLocation[];
+}
+const wire = async (response: Response) =>
+  (await response.json()) as WireSearch;
+const ids = (body: WireSearch) => body.providers.map((p) => p.id);
+
+describe("in-state name fallback for locations no radius could check", () => {
+  it("appends unlocated in-state name matches after located rows, never with a coordinate", async () => {
+    await withFallbackFixture(async (search) => {
+      const response = await search({
+        zip_code: "77030",
+        search_term: "Zephyrine",
+      });
+      expect(response.status).toBe(200);
+      const body = await wire(response);
+      expect(body.meta.total).toBe(2);
+      expect(ids(body)).toEqual([1000000044, 1000000010]);
+      expect(body.providers[0]).toMatchObject({
+        distance_miles: 0,
+        latitude: 29.7105,
+      });
+      expect(body.providers[0]?.provenance[0]?.location_check).toBeUndefined();
+      expect(body.providers[1]).toMatchObject({
+        state: "TX",
+        zip_code: "77002",
+        latitude: null,
+        longitude: null,
+        distance_miles: null,
+      });
+      expect(body.providers[1]?.provenance[0]).toMatchObject({
+        location_check: "provider_radius_not_checked",
+        participation: "not_evaluated",
+        nppes_snapshot_id: null,
+        snapshot_id: "catalog",
+      });
+      expect(response.headers.get("x-openplans-gaps")).toContain(
+        "provider_radius_not_checked",
+      );
+      // The same rows through the native-mapping path (name sort).
+      const sorted = await wire(
+        await search({
+          zip_code: "77030",
+          search_term: "Zephyrine",
+          sort: "name",
+        }),
+      );
+      expect(ids(sorted).sort()).toEqual([1000000010, 1000000044]);
+    });
+  });
+  it("pages located rows first and the fallback after them with one total", async () => {
+    await withFallbackFixture(async (search) => {
+      const page = async (n: number) =>
+        await wire(
+          await search({
+            zip_code: "77030",
+            search_term: "Zephyrine",
+            per_page: 1,
+            page: n,
+          }),
+        );
+      const [first, second, third] = [
+        await page(1),
+        await page(2),
+        await page(3),
+      ];
+      expect([first.meta.total, second.meta.total, third.meta.total]).toEqual([
+        2, 2, 2,
+      ]);
+      expect(ids(first)).toEqual([1000000044]);
+      expect(ids(second)).toEqual([1000000010]);
+      expect(ids(third)).toEqual([]);
+    });
+  });
+  it("serves every in-state name match for a ZIP without a centroid, radius not checked", async () => {
+    await withFallbackFixture(async (search) => {
+      const response = await search({
+        zip_code: "77001",
+        search_term: "Zephyrine",
+      });
+      const body = await wire(response);
+      expect(ids(body).sort()).toEqual([1000000010, 1000000036, 1000000044]);
+      expect(body.providers.every((p) => p.distance_miles === null)).toBe(true);
+      // Located rows keep their real public point; the unlocated row stays null.
+      const byId = new Map(body.providers.map((p) => [p.id, p]));
+      expect(byId.get(1000000036)?.latitude).toBe(32.787);
+      expect(byId.get(1000000010)?.latitude).toBeNull();
+      const gaps = response.headers.get("x-openplans-gaps");
+      expect(gaps).toContain("zip_centroid_unavailable");
+      expect(gaps).toContain("provider_radius_not_checked");
+    });
+  });
+  it("negative controls: absent names, other states, plan searches and nameless searches add nothing", async () => {
+    await withFallbackFixture(async (search) => {
+      for (const zip_code of ["77030", "77001"]) {
+        const response = await search({
+          zip_code,
+          search_term: "Absentname Clinic",
+        });
+        expect((await wire(response)).providers).toEqual([]);
+        expect(response.headers.get("x-openplans-gaps")).not.toContain(
+          "provider_radius_not_checked",
+        );
+      }
+      const all = await wire(
+        await search({ zip_code: "77001", search_term: "Zephyrine" }),
+      );
+      expect(ids(all)).not.toContain(1000000028);
+      const planned = await wire(
+        await search({
+          zip_code: "77030",
+          search_term: "Zephyrine",
+          plan_id: plan,
+        }),
+      );
+      expect(planned.providers).toEqual([]);
+      const nameless = await wire(
+        await search({ zip_code: "77030", radius: 25 }),
+      );
+      expect(ids(nameless)).not.toContain(1000000010);
+      // A ZIP whose state is unknown stays empty rather than guessing a state.
+      const unknown = await search({
+        zip_code: "55401",
+        search_term: "Zephyrine",
+      });
+      expect((await wire(unknown)).providers).toEqual([]);
+    });
+  });
+});
+
 // Four provider request cases. Exact MN requests honestly return no loaded public
 // evidence; TX equivalents exercise positive shapes.
 describe("compatibility provider request list (4 cases)", () => {

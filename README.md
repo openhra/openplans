@@ -18,7 +18,8 @@ Project page: <https://plans.openhra.com/> · Part of [OpenHRA](https://www.open
 > **Public quoting is on by default.** Every install answers anonymous quotes by age and ZIP at
 > `POST /v1/quotes` and through the MCP tool `quote_plans`. Set `OPENPLANS_PUBLIC_QUOTING=off` to
 > turn both off. Household quotes with income, at `POST /v1/premium-quotes` and through
-> `quote_premiums`, need a token.
+> `quote_premiums`, are on by default too. Set a token to restrict them, or
+> `OPENPLANS_PUBLIC_HOUSEHOLD=off` to turn them off.
 
 [Get started with Docker, call the API and check coverage](docs/usage.md) ·
 [quoting guide](docs/quoting.md) · [self-hosting guide](docs/self-host.md).

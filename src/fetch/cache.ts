@@ -466,7 +466,7 @@ async function requestChain(
     evidence.address = address.address;
     const headers: Record<string, string> = {
       "accept-encoding": "identity",
-      "user-agent": `openplans/0.2 (public health-plan source discovery; +${projectUrl(options)})`,
+      "user-agent": `openplans/0.3 (public health-plan source discovery; +${projectUrl(options)})`,
     };
     if (options.expectedContent === "json")
       headers.accept = "application/json, */*;q=0.1";
@@ -479,7 +479,12 @@ async function requestChain(
     }
     let response: FetchResponse;
     const release = admission
-      ? await leaseHost(dataDir, url.hostname, delayMs)
+      ? await leaseHost(
+          dataDir,
+          url.hostname,
+          delayMs,
+          policyProbe ? undefined : admission.pacingFloorMs(url),
+        )
       : undefined;
     try {
       if (admission && !policyProbe) await admission.assertCurrent(url);
@@ -487,7 +492,10 @@ async function requestChain(
       const upload = policyProbe ? undefined : options.requestBody;
       if (upload) headers["content-type"] = upload.contentType;
       if (!policyProbe) options.onRequest?.(url);
-      response = await (options.transport ?? httpsTransport)(url, {
+      // Only the transport sees a keyed API's credential; `url` stays key-free for evidence.
+      const sent =
+        admission && !policyProbe ? admission.credentialUrl(url) : url;
+      response = await (options.transport ?? httpsTransport)(sent, {
         address,
         headers,
         connectTimeoutMs: options.connectTimeoutMs ?? 10_000,
@@ -586,6 +594,21 @@ async function readPublisherPolicy(
       error.evidence?.redirect_chain.length === 0
     )
       return { status: error.status!, sha256: null, text: "", absent: true };
+    // A keyed API answers robots with 401; the session decides whether its manifest recorded that.
+    if (
+      url.pathname === "/robots.txt" &&
+      error instanceof FetchError &&
+      error.code === "http_status" &&
+      error.status === 401 &&
+      error.evidence?.redirect_chain.length === 0
+    )
+      return {
+        status: 401,
+        sha256: null,
+        text: "",
+        unauthorized: true,
+        failure: error,
+      };
     throw error;
   }
 }

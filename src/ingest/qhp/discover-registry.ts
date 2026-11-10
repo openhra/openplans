@@ -6,10 +6,13 @@ import { FetchError, inspectZip, streamZipMember } from "../../fetch/index.js";
 import type { SnapshotMetadata } from "../../fetch/index.js";
 import type { PufManifest } from "../puf/acquire.js";
 import { readXlsxRows } from "../xlsx/index.js";
+import { readCsv } from "../csv/index.js";
 
 export interface RegistryInput {
   path: string;
   metadata: SnapshotMetadata;
+  /** Georgia Access publishes its MR-PUF as CSV with the same three columns. */
+  format?: "cms-xlsx" | "georgia-access-csv";
 }
 export interface RegistryIssuer {
   issuer: string;
@@ -151,6 +154,38 @@ export async function readRegistry(
       url: row[headers.indexOf("URL Submitted")]?.trim() ?? "",
       row: rowNumber,
     });
+  }
+  return issuers;
+}
+
+/**
+ * Georgia Access MR-PUF CSV: State, Issuer ID, URL Submitted and a contact column.
+ * The contact column is never read into records, reports or fixtures.
+ */
+export async function readGeorgiaRegistry(
+  path: string,
+  state: string,
+): Promise<RegistryIssuer[]> {
+  const issuers: RegistryIssuer[] = [];
+  const input = createReadStream(path);
+  try {
+    for await (const row of readCsv(input, { trailingEmptyField: true })) {
+      if (
+        !["State", "Issuer ID", "URL Submitted"].every((k) => k in row.values)
+      )
+        throw new Error("Unexpected MR-PUF columns");
+      if (row.values.State!.trim() !== state) continue;
+      const issuer = row.values["Issuer ID"]!.trim();
+      if (!/^\d{5}$/.test(issuer))
+        throw new Error("Invalid registry issuer ID");
+      issuers.push({
+        issuer,
+        url: row.values["URL Submitted"]!.trim(),
+        row: row.rowNumber,
+      });
+    }
+  } finally {
+    input.destroy();
   }
   return issuers;
 }

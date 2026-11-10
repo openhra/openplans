@@ -53,9 +53,8 @@ describe("HTTP transport official clients", () => {
         expect(client.getProtocolEra()).toBe(legacy ? "legacy" : "modern");
         const tools = await client.listTools();
         expect(tools.tools.some((t) => t.name === "search_plans")).toBe(true);
-        expect(tools.tools.some((t) => t.name === "quote_premiums")).toBe(
-          false,
-        );
+        // Household quotes are open by default (no OPENPLANS_MCP_TOKEN).
+        expect(tools.tools.some((t) => t.name === "quote_premiums")).toBe(true);
         const result = await client.callTool({
           name: "lookup_geography",
           arguments: { zip: "00000" },
@@ -212,8 +211,8 @@ it.each([undefined, "SIGTERM", "SIGINT"] as const)(
     expect(
       messages
         .find((m) => m.id === 2)
-        .result.tools.some(
-          (t: { name: string }) => t.name === "quote_premiums",
+        .result.tools.some((t: { name: string }) =>
+          ["quote_premiums", "check_ichra_affordability"].includes(t.name),
         ),
     ).toBe(false);
     expect(code).toBe(0);
@@ -225,10 +224,13 @@ it("stdio personalized grant is explicit", async () => {
     .trim()
     .split("\n")
     .map((line) => JSON.parse(line));
+  // The first page holds the earliest names; the bundle continues on later pages.
   expect(
     messages
       .find((m) => m.id === 2)
-      .result.tools.some((t: { name: string }) => t.name === "quote_premiums"),
+      .result.tools.some(
+        (t: { name: string }) => t.name === "check_ichra_affordability",
+      ),
   ).toBe(true);
 });
 

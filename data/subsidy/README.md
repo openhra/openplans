@@ -99,6 +99,20 @@ Above the screen, `estimated` is conditional arithmetic assuming the caller has 
 resolved Medicaid/CHIP, other minimum essential coverage, filing status and immigration eligibility.
 The screen does not establish eligibility above 138%, including at the changed 2027 rules.
 
+### Adult Medicaid expansion status, not yet shipped
+
+A year file may add `medicaidAdultExpansion`, a cited map from state code to `expanded` or
+`not_expanded`. A state marked `not_expanded` has no adult expansion group, so a household
+from 100% FPL through the review screen gets the ordinary conditional estimate there.
+Below 100% still returns `below_100_fpl`. Expansion states and states missing from the map
+keep `medicaid_expansion_review`. An uncited or malformed map makes the whole year
+`parameters_unconfirmed`.
+
+Neither shipped year file has the map yet. We add it only with a per-state table retrieved
+from a primary CMS or HHS publication and cited like every other value in this file. Until
+then the 138% review screen applies in every state. The engine still does not evaluate CSR
+variant eligibility.
+
 ## Domain contracts and integration
 
 ```ts

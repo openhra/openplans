@@ -601,7 +601,7 @@ describe("shipped manifest release check", () => {
     const real = JSON.parse(
       await readFile(join(shipped, "..", "review-policy.json"), "utf8"),
     );
-    expect(reviewProblems(manifest, real, at("2026-11-10T00:00:00Z"))).toEqual(
+    expect(reviewProblems(manifest, real, at("2026-11-10T12:00:00Z"))).toEqual(
       [],
     );
     expect(
@@ -628,7 +628,7 @@ describe("shipped manifest release check", () => {
     const problems = reviewProblems(
       manifest,
       policy,
-      at("2026-11-10T00:00:00Z"),
+      at("2026-11-10T12:00:00Z"),
     );
     expect(problems).toEqual([
       "www.cms.gov: terms reviewer must be OpenPlans maintainers",

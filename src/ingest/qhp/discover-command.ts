@@ -8,7 +8,10 @@ export async function runQhpDiscover(
   output: { out(message: string): void; error(message: string): void },
   directory = migrationsDirectory,
 ): Promise<number> {
-  let year: number | undefined, state: string | undefined;
+  let year: number | undefined,
+    state: string | undefined,
+    offline = false,
+    registrySource: "cms" | "georgia_access" = "cms";
   for (let at = 0; at < args.length; at++) {
     if (
       args[at] === "--year" &&
@@ -22,7 +25,11 @@ export async function runQhpDiscover(
       /^[A-Z]{2}$/.test(args[at + 1] ?? "")
     )
       state = args[++at];
-    else {
+    else if (args[at] === "--offline" && !offline) offline = true;
+    else if (args[at] === "--registry" && args[at + 1] === "georgia-access") {
+      registrySource = "georgia_access";
+      at++;
+    } else {
       output.error("Usage: worker ingest qhp discover --year YYYY --state ST");
       return 1;
     }
@@ -36,7 +43,11 @@ export async function runQhpDiscover(
   try {
     db = openDatabase();
     await migrate(db, directory);
-    output.out(JSON.stringify(await discoverQhp(db, { year, state })));
+    output.out(
+      JSON.stringify(
+        await discoverQhp(db, { year, state, offline, registrySource }),
+      ),
+    );
   } catch {
     output.error(
       "worker ingest qhp discover failed; check acquired registry, cache and database",

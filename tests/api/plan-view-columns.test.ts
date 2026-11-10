@@ -233,3 +233,54 @@ it("negative control: empty columns remain unknown instead of false, a date, or 
       );
   });
 });
+it("projects CA spaced plan headers from the selected state row", async () => {
+  const fixture = JSON.parse(
+    await readFile(
+      new URL("../compat/v1/plan-columns-public.json", import.meta.url),
+      "utf8",
+    ),
+  ) as {
+    rows: {
+      label: string;
+      source_row: number;
+      values: Record<string, string>;
+    }[];
+  };
+  const row = fixture.rows.find((r) => r.label === "ca-av-referral-yes-hsa")!;
+  const variant = row.values["PLAN ID"]!,
+    base = variant.slice(0, 14);
+  await rollback(async (tx) => {
+    // The real CA row keeps its spaced headers; only this disposable snapshot holds it.
+    await tx.query(
+      `INSERT INTO plan_variant (snapshot_id,source_row,plan_year,state,issuer_id,variant_plan_id,
+        base_plan_id,csr_suffix,csr_variation_type,variant_name,exchange_status,raw)
+      VALUES ($1,$2,2026,'CA',$3,$4,$5,'01',$6,$7,'On Exchange',$8::jsonb)`,
+      [
+        plan.snapshot_id,
+        row.source_row,
+        base.slice(0, 5),
+        variant,
+        base,
+        row.values["CSR VARIATION TYPE"],
+        row.values["PLAN VARIANT MARKETING NAME"],
+        JSON.stringify(row.values),
+      ],
+    );
+    const view = await planView(tx, {
+      ...plan,
+      state: "CA",
+      base_plan_id: base,
+      issuer_id: base.slice(0, 5),
+    });
+    expect(view.cost_sharing.status).toBe("available");
+    expect(mapPlan(view, base)).toMatchObject({
+      plan_type: "HMO",
+      hsa_eligible: true,
+      gated: true,
+      sbc_name: "Bronze 60 HMO",
+      actuarial_value: 63.7,
+      effective_date: "2026-01-01T00:00:00.000Z",
+      drug_formulary_url: null,
+    });
+  });
+});

@@ -8,6 +8,13 @@ import {
   checkProviderNetworks,
 } from "../services/providers.js";
 import * as v from "./validation.js";
+import { cmsFallbackContext } from "../ingest/cms-api/fallback.js";
+import type { Context } from "hono";
+import { proxyList, requestSource } from "./rate-limit.js";
+
+/** The name the rate limiter gives the caller; bounds one client's share of fallback calls. */
+const client = (c: Context) =>
+  requestSource(c, proxyList(process.env.OPENPLANS_TRUST_PROXY));
 
 export function providerRoutes(db: SqlSession) {
   const app = new Hono();
@@ -24,6 +31,7 @@ export function providerRoutes(db: SqlSession) {
         c.req.param("id"),
         c.req.param("npi"),
         c.req.query("year"),
+        cmsFallbackContext(db, db, { client: client(c) }),
       ),
     ),
   );
@@ -41,7 +49,13 @@ export function providerRoutes(db: SqlSession) {
       } catch {
         return v.fail("body", "INVALID_JSON");
       }
-      return c.json(await checkProviderNetworks(db, value));
+      return c.json(
+        await checkProviderNetworks(
+          db,
+          value,
+          cmsFallbackContext(db, db, { client: client(c) }),
+        ),
+      );
     },
   );
   return app;

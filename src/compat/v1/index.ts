@@ -1,3 +1,4 @@
+import { catastrophicEligibility } from "../../domain/eligibility/catastrophic.js";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { compatKeyHeader, credentialMatches } from "./auth.js";
@@ -8,6 +9,7 @@ import { orderPlans, pageWindow } from "./search.js";
 import type { SqlSession } from "../../db/database.js";
 import type { ApiOptions } from "../../api/routes.js";
 import { nativeRoutes } from "../../api/routes.js";
+import { anonymousAdmission, publicCompatEnabled } from "../../api/quotes.js";
 import {
   countyPlans,
   countyState,
@@ -22,6 +24,7 @@ import { householdSubsidy, withSubsidy } from "../../api/subsidies.js";
 import * as v from "../../api/validation.js";
 import { createRxnormRepository } from "../../ingest/rxnorm/repository.js";
 import {
+  cmsNetworkId,
   emptySearch,
   mapPlan,
   mapQuote,
@@ -37,6 +40,11 @@ function gaps(
 ) {
   c.header("x-openplans-gaps", [...new Set(reasons)].join(", "));
 }
+/** Owner-gated (default off): compact benefit phrases instead of the verbose cells. */
+const benefitTextOptions = () => ({
+  compact: process.env.OPENPLANS_COMPAT_BENEFIT_TEXT === "compact",
+});
+
 function object(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value))
     return v.fail("body");
@@ -119,7 +127,8 @@ export function compatRoutes(db: SqlSession, options: ApiOptions = {}) {
   )
     allowedHeaders.push(extraHeader);
   const app = new Hono().basePath(BASE),
-    native = nativeRoutes(db, options);
+    native = nativeRoutes(db, options),
+    anonymous = anonymousAdmission(options);
   app.onError((error, c) =>
     error instanceof v.InputError
       ? c.json({ error: { code: error.code, field: error.field } }, 400)
@@ -134,7 +143,11 @@ export function compatRoutes(db: SqlSession, options: ApiOptions = {}) {
     c.header("Cache-Control", "no-store");
     if (c.req.method === "OPTIONS") return c.body(null, 204);
     const token = process.env.OPENPLANS_COMPAT_API_KEY;
-    if (!token) return c.json({ error: { code: "AUTH_NOT_CONFIGURED" } }, 503);
+    // No key: open to everyone with per-source limits, unless OPENPLANS_PUBLIC_COMPAT=off.
+    if (!token)
+      return publicCompatEnabled(options)
+        ? anonymous(c, next)
+        : c.json({ error: { code: "AUTH_NOT_CONFIGURED" } }, 503);
     const primaryMatches = credentialMatches(c.req.header("X-Api-Key"), token);
     const extraMatches = extraHeader
       ? credentialMatches(c.req.header(extraHeader), token)
@@ -350,6 +363,27 @@ export function compatRoutes(db: SqlSession, options: ApiOptions = {}) {
           gaps(c, [...reasons, "market_not_supported"]);
           return c.json(emptySearch());
         }
+        if (
+          body.catastrophic_exemption !== undefined &&
+          typeof body.catastrophic_exemption !== "boolean"
+        )
+          return v.fail("catastrophic_exemption");
+        // Owner-gated (default off): 45 CFR 156.155(a) age rule for catastrophic plans.
+        const catastrophicRule =
+          product === "medical" &&
+          process.env.OPENPLANS_COMPAT_CATASTROPHIC_AGE_RULE === "on" &&
+          catastrophicEligibility(
+            request.members,
+            request.coverage,
+            request.year,
+            body.catastrophic_exemption === true,
+          ) === "requires_exemption";
+        const excludedCatastrophic = (plan: { metal: string }) => {
+          if (!catastrophicRule || plan.metal.toLowerCase() !== "catastrophic")
+            return false;
+          reasons.add("catastrophic_requires_exemption");
+          return true;
+        };
         const location = await resolveLocation(db, request.location);
         if (location.status !== "available" || !location.county) {
           gaps(c, [...reasons, "zip_not_in_loaded_zcta_data"]);
@@ -364,7 +398,9 @@ export function compatRoutes(db: SqlSession, options: ApiOptions = {}) {
             product,
           )
         ).filter(
-          (p) => product === "dental" || p.on_exchange || p.state_catalog,
+          (p) =>
+            (product === "dental" || p.on_exchange || p.state_catalog) &&
+            !excludedCatastrophic(p),
         );
         if (product === "dental") reasons.add("dental_benefits_unmapped");
         const targets: { plan: (typeof offered)[number]; id: string }[] = [];
@@ -462,10 +498,14 @@ export function compatRoutes(db: SqlSession, options: ApiOptions = {}) {
               ? { ...mapDentalPlan(view, id), premium: mapQuote(quote).premium }
               : {
                   ...mapPlan(view, id, plan.service_area_id || null),
-                  ...mapVariantAccumulators(view.cost_sharing),
+                  ...mapVariantAccumulators(
+                    view.cost_sharing,
+                    benefitTextOptions(),
+                  ),
                   ...mapVariantBenefits(
                     view.cost_sharing.benefits,
                     view.cost_sharing.selected_variant_id ?? "",
+                    benefitTextOptions(),
                   ),
                   ...mapQuote(quote, request.members),
                 },
@@ -522,10 +562,11 @@ export function compatRoutes(db: SqlSession, options: ApiOptions = {}) {
     if (!plan.dental_only)
       Object.assign(
         mapped,
-        mapVariantAccumulators(view.cost_sharing),
+        mapVariantAccumulators(view.cost_sharing, benefitTextOptions()),
         mapVariantBenefits(
           view.cost_sharing.benefits,
           view.cost_sharing.selected_variant_id ?? "",
+          benefitTextOptions(),
         ),
       );
     return {
@@ -704,7 +745,13 @@ export function compatRoutes(db: SqlSession, options: ApiOptions = {}) {
               ),
             ],
             states: [row.state],
-            issuers: [],
+            issuers: [
+              {
+                id: row.issuer_id,
+                name: names.find((n) => typeof n === "string" && n) ?? null,
+                state: row.state,
+              },
+            ],
           });
         }
         reasons.push("carrier_markets_and_lines_limited_to_network_puf");
@@ -724,7 +771,12 @@ export function compatRoutes(db: SqlSession, options: ApiOptions = {}) {
           carriers: { issuer_id: string; marketing_names: unknown[] }[];
         };
         records = rows.map((row) => ({
-          id: null,
+          id: cmsNetworkId(
+            row.issuer_id,
+            Number(row.plan_year),
+            row.network_id,
+            String(row.market),
+          ),
           name: row.network_name,
           carriers: [
             {
@@ -741,6 +793,7 @@ export function compatRoutes(db: SqlSession, options: ApiOptions = {}) {
         }));
         reasons.push(
           "vendor_network_ids_unavailable",
+          "network_ids_are_cms_network_ids",
           "network_import_dates_unavailable",
         );
       }

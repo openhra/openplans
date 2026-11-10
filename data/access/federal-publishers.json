@@ -205,13 +205,13 @@
       "evidence": [
         {
           "url": "https://www2.census.gov/robots.txt",
-          "observedAt": "2026-11-09T17:18:00.000Z",
+          "observedAt": "2026-11-10T00:12:39.000Z",
           "status": 200,
           "country": "CO"
         },
         {
           "url": "https://www.usa.gov/government-copyright",
-          "observedAt": "2026-11-09T17:20:00.000Z",
+          "observedAt": "2026-11-10T00:12:40.000Z",
           "status": 200,
           "country": "CO"
         }
@@ -219,7 +219,8 @@
       "scope": {
         "products": [
           "Census 2020 ZCTA to county relationship file",
-          "Census 2021 ZCTA Gazetteer"
+          "Census 2021 ZCTA Gazetteer",
+          "Census 2024 cartographic boundary county file (1:500,000)"
         ],
         "states": ["US"],
         "years": [2026, 2027]
@@ -229,10 +230,11 @@
       ],
       "permittedPaths": [
         "/geo/docs/maps-data/data/rel2020/zcta520/tab20_zcta520_county20_natl.txt",
-        "/geo/docs/maps-data/data/gazetteer/2021_Gazetteer/2021_Gaz_zcta_national.zip"
+        "/geo/docs/maps-data/data/gazetteer/2021_Gazetteer/2021_Gaz_zcta_national.zip",
+        "/geo/tiger/GENZ2024/shp/cb_2024_us_county_500k.zip"
       ],
       "delegates": [],
-      "attribution": "U.S. Census Bureau, 2020 ZCTA to County Relationship File and 2021 ZCTA Gazetteer File. Original bytes retained.",
+      "attribution": "U.S. Census Bureau, 2020 ZCTA to County Relationship File, 2021 ZCTA Gazetteer File and 2024 Cartographic Boundary File (counties, 1:500,000). Original bytes retained.",
       "updatePolicy": "Shipped with OpenPlans. Reviewed by the OpenPlans maintainers at each release; robots is read and the terms hash checked live before every collection, and a changed terms document stops collection. Robots has no group for openplans or *, so nothing is disallowed; OpenPlans adopts the 30 s Crawl-delay it gives named crawlers. The Census policy pages sit behind a bot-management script, so the USAGov federal copyright page is the pinned terms document.",
       "delayMs": 30000,
       "jobCaps": {
@@ -243,14 +245,14 @@
         "url": "https://www2.census.gov/robots.txt",
         "status": 200,
         "sha256": "556079bfdc70dd9a582e93f15d6ce906c00338960ece05ef6126e29ada018627",
-        "checkedAt": "2026-11-09T17:18:00.000Z"
+        "checkedAt": "2026-11-10T00:12:39.000Z"
       },
       "terms": {
         "url": "https://www.usa.gov/government-copyright",
         "disposition": "allowed",
         "sha256": "6ad1c49001d97cc58fb56ddd01bdebca3a944bc6014cf6f8d57ce3d84a8babb0",
-        "reviewedAt": "2026-11-09T17:25:00.000Z",
-        "expiresAt": "2027-05-08T17:25:00.000Z",
+        "reviewedAt": "2026-11-10T00:15:00.000Z",
+        "expiresAt": "2027-05-09T00:15:00.000Z",
         "reviewer": "OpenPlans maintainers",
         "basis": "USAGov, \"Learn about copyright and federal government materials\", which cites \"Copyright Law of the United States of America, Sections 101 and 105\"; 17 U.S.C. 105(a): \"Copyright protection under this title is not available for any work of the United States Government\". Census citation guidance: \"Data users who create their own estimates using data from disseminated tables and other data should cite the Census Bureau as the source of the original data only.\""
       }
@@ -422,7 +424,7 @@
       ],
       "delegates": [],
       "attribution": "U.S. Census Bureau, TIGERweb.",
-      "updatePolicy": "Held by the OpenPlans maintainers: no shipped clearance. robots.txt answers 200 text/html \"Request Rejected\" (a firewall page, not directives), which holds collection. Geocoding needs these county bounds, so --with-geocode stays unavailable.",
+      "updatePolicy": "Held by the OpenPlans maintainers: no shipped clearance. robots.txt answers 200 text/html \"Request Rejected\" (a firewall page, not directives), which holds collection. Geocoding reads county outlines from the www2.census.gov cartographic boundary file instead.",
       "delayMs": 5000,
       "jobCaps": {
         "maxRequests": 1,

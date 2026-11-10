@@ -19,6 +19,8 @@ const aliases: Record<string, string> = {
   zipcode: "ZipCodes",
   hiosproductid: "ProductId",
   issuername: "IssuerMarketPlaceMarketingName",
+  // Georgia Access's RATE-PUF spells this header "Tobaco".
+  tobaco: "Tobacco",
 };
 const costs = [
   "CopayInnTier1",

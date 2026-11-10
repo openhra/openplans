@@ -1,3 +1,4 @@
+import type { CmsApiEvidence } from "../../ingest/cms-api/fallback.js";
 export type DrugStatus =
   | "listed_covered"
   | "explicitly_not_covered"
@@ -38,6 +39,9 @@ export interface DrugCoverage {
   evidence: DrugEvidence[];
   snapshot_id: string | null;
   manifest_snapshot_id: string | null;
+  /** Present only when the answer came from the CMS Marketplace API fallback. */
+  covered?: boolean;
+  cms_api?: CmsApiEvidence;
 }
 /** Compare published facts, retaining every source rather than choosing a shard by order. */
 export function classifyDrugEvidence(

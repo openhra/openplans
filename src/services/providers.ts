@@ -1,5 +1,7 @@
 import type { SqlSession } from "../db/database.js";
 import { providerParticipation } from "../domain/providers/repository.js";
+import { applyCmsFallback } from "../ingest/cms-api/fallback.js";
+import type { CmsFallbackContext } from "../ingest/cms-api/fallback.js";
 import { providerAvailability } from "../domain/providers/availability.js";
 import { zipCentroid } from "../domain/geo/index.js";
 import {
@@ -170,15 +172,28 @@ export async function getProvider(
   if (!result) throw new ReadError({ code: "PROVIDER_NOT_FOUND" });
   return result;
 }
-export const checkProviderNetwork = (
+/** `cms` is the per-request CMS API fallback context; absent unless the operator enabled it. */
+export async function checkProviderNetwork(
   db: SqlSession,
   plan: unknown,
   code: unknown,
   year: unknown,
-) =>
-  providerParticipation(db, v.planId(plan).full, npi(code), providerYear(year));
+  cms?: CmsFallbackContext,
+) {
+  const answer = await providerParticipation(
+    db,
+    v.planId(plan).full,
+    npi(code),
+    providerYear(year),
+  );
+  return (await applyCmsFallback("provider", [answer], cms))[0]!;
+}
 
-export async function checkProviderNetworks(db: SqlSession, value: unknown) {
+export async function checkProviderNetworks(
+  db: SqlSession,
+  value: unknown,
+  cms?: CmsFallbackContext,
+) {
   if (!value || typeof value !== "object" || Array.isArray(value))
     return v.fail("body");
   const body = value as Record<string, unknown>;
@@ -209,5 +224,5 @@ export async function checkProviderNetworks(db: SqlSession, value: unknown) {
   for (const plan of plans)
     for (const code of npis)
       results.push(await providerParticipation(db, plan, code, year));
-  return { results };
+  return { results: await applyCmsFallback("provider", results, cms) };
 }

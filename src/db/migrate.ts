@@ -68,6 +68,15 @@ export async function migrate(
         [migration.name, migration.sha256],
       );
     }
+    // A lane's table can land below 990 after 990 has run on this database. Give every
+    // table the row provenance columns and trigger, whatever order the migrations ran in.
+    if (pending.length > 0) {
+      const { rows: installed } = await tx.query<{ present: boolean }>(
+        "SELECT to_regproc('install_row_provenance_all') IS NOT NULL AS present",
+      );
+      if (installed[0]?.present)
+        await tx.query("SELECT install_row_provenance_all()");
+    }
     return pending.map((migration) => migration.name);
   });
 }

@@ -47,7 +47,8 @@ rule snapshots or API answers. Bootstrap reuses an existing ACTIVE P8 catalog; o
 fresh deployment it loads the already prepared, hash-verified state publication
 JSON, or reports `state_filed_tier_publications_not_prepared` if preparation has
 not run. Oregon's SBE bundle contains only SHOP plans; it
-never replaces the federal individual catalog. Every other reviewed bundle serves
+never replaces the federal individual catalog. The importer records it as the SHOP
+catalog in `puf_market_catalog` instead. Every other reviewed bundle serves
 through the existing native plan and premium repositories. Family tiers remain
 `unsupported_rating_method`. Massachusetts uses its filed per-age rows, including
 its state age-rating limits; no federal age curve is applied. Missing tobacco cells stay
@@ -72,10 +73,52 @@ age curve. NY/VT retain their existing citations. PY2026 rules never authorize
 PY2027. Reports and availability distinguish rate evidence from supported policy
 and resolved rating-area geography.
 
+## Georgia Access PUFs (PY2027)
+
+CMS lists no PY2027 SBE bundles. Georgia Access publishes its own PUF CSVs on
+[georgiaaccess.gov/public-use-files](https://georgiaaccess.gov/public-use-files/).
+`importSbe` reads them only for a Georgia year that CMS has not published, and only
+from the cache. Each of the six kinds needs exactly one admitted file for that year,
+meaning a fetch receipt that marks georgiaaccess.gov as allowed. When CMS lists a
+bundle, the bundle stays the catalog.
+
+PY2026 shows why. Georgia Access re-issued its PY2026 PLAN-PUF on 2026-08-28 with
+723 individual variants. The CMS bundle has 887. The 164 missing variants belong to
+43 base plans of issuers 15105, 43802 and 89942. Georgia Access's own PY2026 rate
+file and 2025-to-2026 crosswalk still list them, and so does its benefits file for
+15105 and 43802. That set fails the `rates_without_plan` check, so the importer
+never picks it.
+
+The Georgia Access files differ from the CMS layout in five ways. None changes a value.
+
+- Benefits, network and business-rule rows end with one trailing comma. The reader
+  drops exactly one extra empty field. Any other extra field still fails.
+- The rate header is spelled `Tobaco`. It maps to `Tobacco`.
+- The PY2027 PLAN-PUF lacks the federal waiting-period columns. This source does not
+  require them.
+- `PlanMarketingName` holds each variant's own name. A base plan keeps a name only
+  when all its variants agree. Otherwise its name is `unknown`. Variant names stay.
+- The catalog records `source = georgia_access_puf`, the listing page as its URL, and
+  a digest of the six kind, URL and SHA-256 entries as its identity.
+
+The PY2027 benefits file has 282 records with unescaped quotes inside quoted text,
+such as `the "Schedule of Benefits."`. The strict reader rejects them. By default the
+whole catalog is QUARANTINED and serves nothing. `OPENPLANS_GA_QUOTE_RECOVERY=on`
+makes the reader take such a quote literally. A quote then closes the field only
+when a delimiter or newline follows it, and the header's field count must still
+hold. The importer stores a `csv_unescaped_quote_recovered` warning with the source
+row for every recovered record. The option is off by default and awaits the owner's
+approval.
+
+PY2027 rating uses a Georgia row reviewed for PY2027 on its own. The CMS state rating
+table leaves Georgia's individual-market cells blank, so the federal defaults apply.
+Only filed per-member rows are used.
+
 ## Checks
 
 `npm test -- tests/ingest/sbe` runs offline real cuts and labelled synthetic
-controls. `python3 tests/fixtures/sbe/regenerate.py` reproduces the catalog cuts from the
+controls. `python3 tests/fixtures/sbe/georgia-2027/regenerate.py` copies the Georgia
+Access PY2027 cuts line for line from the admitted cache. `python3 tests/fixtures/sbe/regenerate.py` reproduces the catalog cuts from the
 cached Georgia SHA-256 recorded in `provenance.json` (each CSV under 200 KB). `geography-regenerate.py` reproduces
 the CA/MA fact-only geography cuts from the same external cache. Their provenance
 records every original row and source hash; site chrome and contact fields are excluded.

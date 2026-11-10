@@ -1,3 +1,4 @@
+import type { CmsApiEvidence } from "../../ingest/cms-api/fallback.js";
 export type ProviderStatus =
   | "listed_participating"
   | "explicitly_not_participating"
@@ -33,6 +34,9 @@ export interface ProviderParticipation {
   manifest_snapshot_id: string | null;
   evidence: ProviderEvidence[];
   warnings: string[];
+  /** Present only when the answer came from the CMS Marketplace API fallback. */
+  covered?: boolean;
+  cms_api?: CmsApiEvidence;
 }
 /** Multiple positive tiers are legitimate; positive and explicit negative evidence conflict. */
 export function classifyProviderEvidence(

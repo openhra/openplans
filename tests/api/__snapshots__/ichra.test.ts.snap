@@ -1,0 +1,383 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`POST /v1/ichra/affordability > answers behind the premium token, never cached, never a bindable quote 1`] = `
+{
+  "applicable_age": 40,
+  "basis_sensitive": true,
+  "bindable_quote": false,
+  "employer_lcsp": {
+    "basis_used": "gross",
+    "by_basis": {
+      "ehb_portion": {
+        "issues": [],
+        "monthly_cents": 59176,
+        "plan_ids": [
+          "87226TX0140004",
+        ],
+        "prices_at_age": [
+          59176,
+        ],
+        "status": "calculated",
+      },
+      "gross": {
+        "issues": [],
+        "monthly_cents": 59205,
+        "plan_ids": [
+          "87226TX0100011",
+        ],
+        "prices_at_age": [
+          59205,
+        ],
+        "status": "calculated",
+      },
+    },
+    "coverage_month": "2026-01-01",
+    "identified_at_age": 14,
+    "issues": [],
+    "location": {
+      "county_fips": "48201",
+      "rating_area_id": "Rating Area 10",
+      "source": "residence",
+      "zip": "77002",
+    },
+    "monthly_cents": 59205,
+    "plan_ids": [
+      "87226TX0100011",
+    ],
+    "priced_at_age": 40,
+    "provenance": {
+      "rate_rows_by_plan": [
+        {
+          "ehb_attribute_rows": [
+            {
+              "snapshot_id": "puf-2026-TX-<import>:plan-attributes",
+              "source_row": 40,
+            },
+          ],
+          "ehb_fraction": "1",
+          "ehb_monthly_cents": 59205,
+          "gross_monthly_cents": 59205,
+          "plan_id": "87226TX0100011",
+          "rate_rows_used": [
+            {
+              "age_band": 40,
+              "effective_date": "2026-01-01",
+              "expiration_date": "2026-12-31",
+              "individual_rate_cents": 59205,
+              "individual_tobacco_rate_cents": 68085,
+              "provenance": {
+                "snapshot_id": "puf-2026-TX-<import>:rate",
+                "source_file": "rate",
+                "source_row": 1966,
+              },
+              "tobacco": "Tobacco User/Non-Tobacco User",
+            },
+          ],
+          "rate_snapshot_id": "puf-2026-TX-<import>:rate",
+        },
+      ],
+    },
+    "reason": null,
+    "silver_plan_count": 20,
+    "status": "calculated",
+  },
+  "issues": [],
+  "lcsp": {
+    "basis_used": "gross",
+    "by_basis": {
+      "ehb_portion": {
+        "issues": [],
+        "monthly_cents": 59176,
+        "plan_ids": [
+          "87226TX0140004",
+        ],
+        "prices_at_age": [
+          59176,
+        ],
+        "status": "calculated",
+      },
+      "gross": {
+        "issues": [],
+        "monthly_cents": 59205,
+        "plan_ids": [
+          "87226TX0100011",
+        ],
+        "prices_at_age": [
+          59205,
+        ],
+        "status": "calculated",
+      },
+    },
+    "coverage_month": "2026-01-01",
+    "identified_at_age": 40,
+    "issues": [],
+    "location": {
+      "county_fips": "48201",
+      "rating_area_id": "Rating Area 10",
+      "source": "residence",
+      "zip": "77002",
+    },
+    "monthly_cents": 59205,
+    "plan_ids": [
+      "87226TX0100011",
+    ],
+    "priced_at_age": 40,
+    "provenance": {
+      "rate_rows_by_plan": [
+        {
+          "ehb_attribute_rows": [
+            {
+              "snapshot_id": "puf-2026-TX-<import>:plan-attributes",
+              "source_row": 40,
+            },
+          ],
+          "ehb_fraction": "1",
+          "ehb_monthly_cents": 59205,
+          "gross_monthly_cents": 59205,
+          "plan_id": "87226TX0100011",
+          "rate_rows_used": [
+            {
+              "age_band": 40,
+              "effective_date": "2026-01-01",
+              "expiration_date": "2026-12-31",
+              "individual_rate_cents": 59205,
+              "individual_tobacco_rate_cents": 68085,
+              "provenance": {
+                "snapshot_id": "puf-2026-TX-<import>:rate",
+                "source_file": "rate",
+                "source_row": 1966,
+              },
+              "tobacco": "Tobacco User/Non-Tobacco User",
+            },
+          ],
+          "rate_snapshot_id": "puf-2026-TX-<import>:rate",
+        },
+      ],
+    },
+    "reason": null,
+    "silver_plan_count": 20,
+    "status": "calculated",
+  },
+  "monthly_hra_cents": {
+    "denominator": 1,
+    "display": 25000,
+    "numerator": 25000,
+  },
+  "months_available": 12,
+  "plan_start": "2026-01-01",
+  "poverty_line": {
+    "annual_dollars": 15650,
+    "citations": [
+      {
+        "retrievedOn": "2026-11-07",
+        "section": "2025 48 contiguous states and DC table, family sizes 1–8 and additional-person note",
+        "title": "HHS 2025 Annual Update of Poverty Guidelines, 90 FR 5917–5918, 2025-01377",
+        "url": "https://www.govinfo.gov/content/pkg/FR-2025-01-17/html/2025-01377.htm",
+      },
+    ],
+    "guideline_year": 2025,
+    "state": "TX",
+  },
+  "quote_method": "puf_calculation",
+  "required_contribution_percentage_bp": 996,
+  "required_contribution_percentage_citations": [
+    {
+      "retrievedOn": "2026-11-07",
+      "section": "Section 3.02: required contribution percentage for 2026 (employer affordability)",
+      "title": "IRS Revenue Procedure 2025-25",
+      "url": "https://www.irs.gov/pub/irs-drop/rp-25-25.pdf",
+    },
+  ],
+  "rules": [
+    {
+      "citations": [
+        {
+          "retrievedOn": "2026-11-09",
+          "section": "(c)(5)(ii)(A)-(B)",
+          "title": "26 CFR 1.36B-2 (eCFR, up to date as of 2026-11-05)",
+          "url": "https://www.ecfr.gov/current/title-26/section-1.36B-2",
+        },
+      ],
+      "id": "required_hra_contribution",
+      "status": "final",
+      "summary": "Monthly premium of the lowest cost silver plan for self-only coverage in the rating area where the employee resides, minus the monthly self-only HRA amount, not below zero.",
+    },
+    {
+      "citations": [
+        {
+          "retrievedOn": "2026-11-09",
+          "section": "(c)(5)(iii)(A)",
+          "title": "26 CFR 1.36B-2 (eCFR, up to date as of 2026-11-05)",
+          "url": "https://www.ecfr.gov/current/title-26/section-1.36B-2",
+        },
+      ],
+      "id": "lcsp_premium",
+      "status": "final",
+      "summary": "Non-tobacco premium; wellness incentives other than tobacco ones are ignored; a plan that later closes stays the lowest cost silver plan.",
+    },
+    {
+      "citations": [
+        {
+          "retrievedOn": "2026-11-09",
+          "section": "(c)(5)(iii)(B), (c)(5)(v)",
+          "title": "26 CFR 1.36B-2 (eCFR, up to date as of 2026-11-05)",
+          "url": "https://www.ecfr.gov/current/title-26/section-1.36B-2",
+        },
+      ],
+      "id": "monthly_hra_amount",
+      "status": "final",
+      "summary": "Amount newly made available for the plan year divided by the months in the plan year the HRA is available to the employee; carryovers are ignored.",
+    },
+    {
+      "citations": [
+        {
+          "retrievedOn": "2026-11-09",
+          "section": "Section 3.02",
+          "title": "IRS Revenue Procedure 2025-25",
+          "url": "https://www.irs.gov/pub/irs-drop/rp-25-25.pdf",
+        },
+        {
+          "retrievedOn": "2026-11-09",
+          "section": "(c)(3)(v)(C)",
+          "title": "26 CFR 1.36B-2 (eCFR, up to date as of 2026-11-05)",
+          "url": "https://www.ecfr.gov/current/title-26/section-1.36B-2",
+        },
+      ],
+      "id": "required_contribution_percentage",
+      "status": "final",
+      "summary": "Required contribution percentage for plan years beginning in calendar year 2026.",
+    },
+    {
+      "citations": [
+        {
+          "retrievedOn": "2026-11-09",
+          "section": "(c)(5)(i)",
+          "title": "26 CFR 1.36B-2 (eCFR, up to date as of 2026-11-05)",
+          "url": "https://www.ecfr.gov/current/title-26/section-1.36B-2",
+        },
+      ],
+      "id": "affordability",
+      "status": "final",
+      "summary": "Affordable for a month if the required HRA contribution does not exceed 1/12 of household income multiplied by the required contribution percentage.",
+    },
+    {
+      "citations": [
+        {
+          "retrievedOn": "2026-11-09",
+          "section": "Prop. 54.4980H-5(f)(1)-(3), (f)(7)(vii); reliance statement at 84 FR 51484: taxpayers may rely on the proposed section 4980H rules for plan years beginning before six months after final rules; eCFR 54.4980H-5 has no paragraph (f) as of 2026-11-05",
+          "title": "Proposed rule REG-136401-18, 84 FR 51471 (2019-09-30)",
+          "url": "https://www.federalregister.gov/documents/2019/09/30/2019-20034/application-of-the-employer-shared-responsibility-provisions-and-certain-nondiscrimination-rules-to",
+        },
+      ],
+      "id": "employer_safe_harbors",
+      "status": "proposed_reliance_permitted",
+      "summary": "Paragraph (f) applies the employer affordability safe harbors to individual coverage HRAs for section 4980H(b) only; it does not change premium tax credit eligibility.",
+    },
+    {
+      "citations": [
+        {
+          "retrievedOn": "2026-11-09",
+          "section": "(e)(2)(iii) (final rule for employer coverage)",
+          "title": "26 CFR 54.4980H-5 (eCFR, up to date as of 2026-11-05)",
+          "url": "https://www.ecfr.gov/current/title-26/section-54.4980H-5",
+        },
+        {
+          "retrievedOn": "2026-11-09",
+          "section": "Prop. 54.4980H-5(f)(5)(ii) (application to individual coverage HRAs)",
+          "title": "Proposed rule REG-136401-18, 84 FR 51471 (2019-09-30)",
+          "url": "https://www.federalregister.gov/documents/2019/09/30/2019-20034/application-of-the-employer-shared-responsibility-provisions-and-certain-nondiscrimination-rules-to",
+        },
+      ],
+      "id": "rate_of_pay_safe_harbor",
+      "status": "proposed_reliance_permitted",
+      "summary": "Monthly required HRA contribution does not exceed the required contribution percentage of 130 hours times the hourly rate, or of the monthly salary.",
+    },
+    {
+      "citations": [
+        {
+          "retrievedOn": "2026-11-09",
+          "section": "Prop. 54.4980H-5(f)(7)(i)",
+          "title": "Proposed rule REG-136401-18, 84 FR 51471 (2019-09-30)",
+          "url": "https://www.federalregister.gov/documents/2019/09/30/2019-20034/application-of-the-employer-shared-responsibility-provisions-and-certain-nondiscrimination-rules-to",
+        },
+      ],
+      "id": "age_safe_harbor",
+      "status": "proposed_reliance_permitted",
+      "summary": "Applicable age is the age on the first day of the plan year, or on the date the HRA can first take effect for an employee who becomes eligible later.",
+    },
+    {
+      "citations": [
+        {
+          "retrievedOn": "2026-11-09",
+          "section": "Prop. 54.4980H-5(f)(7)(iii)(C), (f)(7)(vii)",
+          "title": "Proposed rule REG-136401-18, 84 FR 51471 (2019-09-30)",
+          "url": "https://www.federalregister.gov/documents/2019/09/30/2019-20034/application-of-the-employer-shared-responsibility-provisions-and-certain-nondiscrimination-rules-to",
+        },
+      ],
+      "id": "lowest_age_band",
+      "status": "proposed_reliance_permitted",
+      "summary": "For the paragraph (f) safe harbors the plan is identified at the lowest age band and priced at the employee's applicable age.",
+    },
+  ],
+  "safe_harbors_applied": [
+    "age_safe_harbor",
+    "lowest_age_band",
+  ],
+  "status": "calculated",
+  "verdicts": [
+    {
+      "affordable": false,
+      "affordable_by_basis": {
+        "ehb_portion": true,
+        "gross": false,
+      },
+      "lcsp": "premium_tax_credit",
+      "measure": "household",
+      "purpose": "premium_tax_credit",
+      "reason": null,
+      "required_hra_contribution_cents": {
+        "denominator": 1,
+        "display": 34205,
+        "numerator": 34205,
+      },
+      "rule_ids": [
+        "affordability",
+        "required_contribution_percentage",
+      ],
+      "status": "calculated",
+      "threshold_cents": {
+        "denominator": 5,
+        "display": 34179,
+        "numerator": 170897,
+      },
+    },
+    {
+      "affordable": false,
+      "affordable_by_basis": {
+        "ehb_portion": false,
+        "gross": false,
+      },
+      "lcsp": "employer",
+      "measure": "rate_of_pay_hourly",
+      "purpose": "employer_4980H",
+      "reason": null,
+      "required_hra_contribution_cents": {
+        "denominator": 1,
+        "display": 34205,
+        "numerator": 34205,
+      },
+      "rule_ids": [
+        "employer_safe_harbors",
+        "rate_of_pay_safe_harbor",
+        "required_contribution_percentage",
+      ],
+      "status": "calculated",
+      "threshold_cents": {
+        "denominator": 1,
+        "display": 25896,
+        "numerator": 25896,
+      },
+    },
+  ],
+}
+`;

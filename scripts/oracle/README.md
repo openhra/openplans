@@ -14,10 +14,25 @@ state/year has a resumable developer database and reports under `reports/` in
 the external cache. Production migrations are unchanged; only PostGIS is omitted
 in disposable PGlite migration copies.
 
-The TX PY2026 dental check also compares filed family and age-based
-premiums against raw CMS CSVs and requires its temporary mutant to fail.
+The dental check compares filed family and age-based premiums against raw CMS CSVs
+for every publication-listed state and year. Run `dental.mjs --all-states --year 2026`, or
+pass `--state XX` for one state. Each state must catch three planted defects, and TX PY2026
+also checks county HTTP examples. `csr.mjs` takes the same options. It compares every
+silver variant's accumulators and benefit rows and must catch two planted defects per
+state. Each state gets its own developer database, copied from the all-states database
+when one exists. Per-state reports and an `a6-{dental,csr}-all-states-<year>.json`
+summary go under `reports/`.
 `year-over-year.py` compares the two cached Texas catalogs using raw CMS files;
 its premium changes are cross-sectional medians, not renewal quotes.
+
+The lowest cost silver plan check has two parts. `ichra-reference.py` reads the plan for a
+county, rating area, age and month from the raw Plan Attributes, Service Area and Rate CSVs.
+It prices the plan on the filed premium and on its EHB portion, and the caller supplies the
+county's rating area. `ichra-logic.mjs` compares those answers with the application's.
+`tests/oracle/ichra.test.mjs` runs both offline on a synthetic catalog and must catch four
+planted defects: one cent on a rate row, the second lowest plan in place of the lowest, the
+two premium bases swapped, and a case only one side answers. `scripts/realdata.sh` does not
+run this check yet, so it has not run on a cached catalog yet.
 
 Geocode bounds and disposable point controls are available in `geocode.mjs`;
 `geocode-statewide-controls.mjs` exercises transaction and resume behavior with

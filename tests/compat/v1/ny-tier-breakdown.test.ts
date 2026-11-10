@@ -38,12 +38,16 @@ function breakdownContract(value: Record<string, unknown>) {
   assert.equal(value.premium, 1234.56);
   assert.deepEqual(value.premiums_by_applicant, expected);
 }
-it("keeps requested NY applicant identities while leaving unpublished tier allocations and waivers unknown", () => {
+it("keeps requested NY and VT applicant identities while leaving unpublished tier allocations and waivers unknown", () => {
   breakdownContract(mapQuote(quote, members));
+  breakdownContract(mapQuote({ ...quote, state: "VT" } as Estimate, members));
   expect(mapQuote(quote).premiums_by_applicant).toEqual([]);
+  // A federal rating quote never borrows request identities.
   expect(
-    mapQuote({ ...quote, state: "VT" } as Estimate, members)
-      .premiums_by_applicant,
+    mapQuote(
+      { ...quote, state: "TX", quote_method: "rate_puf" } as Estimate,
+      members,
+    ).premiums_by_applicant,
   ).toEqual([]);
 });
 it("preserves a published member price rather than substituting a request-derived allocation", () => {

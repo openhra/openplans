@@ -106,7 +106,7 @@ afterAll(async () => {
 });
 
 describe("MCP uses the existing public DTO cache", () => {
-  it("shares the API backend and preserves cached/uncached schema, text and cursor parity", async () => {
+  it("shares the API backend and preserves cached/uncached schema, text and cursor consistency", async () => {
     expect(sharedResponseCache(db)).toBe(cache);
     const cold = await callTool(deps(), "search_plans", planInput);
     const warm = await callTool(deps(), "search_plans", planInput);

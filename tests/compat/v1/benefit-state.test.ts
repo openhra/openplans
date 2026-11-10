@@ -1,9 +1,12 @@
 import { mappingFixture as fixture } from "./mapping-fixture.js";
 import { PGlite } from "@electric-sql/pglite";
+import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import ts from "typescript";
 import { afterAll, beforeAll, expect, it } from "vitest";
 import { findPlan, planView } from "../../../src/api/repository.js";
 import { mapPlan, mapVariantBenefits } from "../../../src/compat/v1/mapping.js";
@@ -18,6 +21,7 @@ import {
 import { normalizeSbeRow } from "../../../src/ingest/sbe/normalize.js";
 import { ingestStateRates } from "../../../src/ingest/state/index.js";
 import { coreMigrations, testDatabase } from "../../pglite.js";
+import { replaceSyntax } from "../../source-mutation.js";
 
 const db = testDatabase(new PGlite());
 let directory: string, core: Awaited<ReturnType<typeof coreMigrations>>;
@@ -201,4 +205,133 @@ it("serves explicit selected state variants over native and compatibility HTTP w
       )
     ).rows,
   ).toEqual(before);
+});
+
+type View = Awaited<ReturnType<typeof planView>>;
+type Mapper = { mapPlan: typeof mapPlan };
+/** Expected values are the matched CMS state PUF cells: METAL LEVEL Gold, QHP NONQHP TYPE ID Both. */
+async function stateFactsContract(m: Mapper) {
+  const ny = (await findPlan(db, "11177NY0220001", 2026))!;
+  const view = await planView(db, ny);
+  // Native filed-tier values stay as filed; the PUF row is additive evidence.
+  assert.equal(view.metal, "unknown");
+  assert.equal(view.on_exchange, "unknown");
+  assert.ok("supplemental_plan" in view && view.supplemental_plan);
+  assert.equal(
+    view.supplemental_plan.snapshot_id,
+    "synthetic-mapping-NY:plan-attributes",
+  );
+  const nyPlan = m.mapPlan(view, "11177NY0220001");
+  assert.equal(nyPlan.level, "gold");
+  assert.equal(nyPlan.on_market, true);
+  assert.equal(nyPlan.off_market, true);
+  assert.equal(nyPlan.plan_market, "both");
+  const vt = (await findPlan(db, "BCBSVT:Gold Plan", 2026))!;
+  assert.equal(
+    m.mapPlan(await planView(db, vt), "BCBSVT:Gold Plan").level,
+    "gold",
+  );
+  // A filed metal wins over the supplemental row.
+  assert.equal(
+    m.mapPlan({ ...view, metal: "Silver" } as View, "11177NY0220001").level,
+    "silver",
+  );
+  // Without a resolved HIOS identity nothing is borrowed.
+  const unresolved = m.mapPlan(
+    await planView(db, { ...ny, hios_id: null }),
+    "11177NY0220001",
+  );
+  assert.equal(unresolved.level, "unknown");
+  assert.equal(unresolved.on_market, null);
+  assert.equal(unresolved.off_market, null);
+  assert.equal(unresolved.plan_market, null);
+  // Expanded Bronze is its own public metal level.
+  const expanded = {
+    ...view,
+    supplemental_plan: { ...view.supplemental_plan, metal: "Expanded Bronze" },
+  } as View;
+  assert.equal(m.mapPlan(expanded, "11177NY0220001").level, "expanded_bronze");
+}
+
+it("fills NY/VT compatibility metal and market flags from the matched state PUF row", async () => {
+  await stateFactsContract({ mapPlan });
+  const marker = new Error("rollback synthetic supplemental mutation");
+  await expect(
+    db.transaction(async (tx) => {
+      // Two plan-level rows for one HIOS are ambiguous and supply nothing.
+      await tx.exec(`INSERT INTO plan_attribute SELECT snapshot_id,source_row+1000,plan_year,state,
+        issuer_id,base_plan_id,published_plan_id,market,'Silver',dental_only,network_id,service_area_id,
+        plan_name,exchange_status,on_exchange,off_exchange,raw FROM plan_attribute
+        WHERE snapshot_id='synthetic-mapping-NY:plan-attributes'`);
+      const ny = (await findPlan(tx, "11177NY0220001", 2026))!;
+      const view = await planView(tx, ny);
+      expect(view).not.toHaveProperty("supplemental_plan");
+      expect(mapPlan(view, "11177NY0220001")).toMatchObject({
+        level: "unknown",
+        on_market: null,
+        plan_market: null,
+      });
+      throw marker;
+    }),
+  ).rejects.toBe(marker);
+});
+
+it("reads plan-level facts across all published variant rows of the matched plan", async () => {
+  const marker = new Error("rollback synthetic variant row");
+  await expect(
+    db.transaction(async (tx) => {
+      // A synthetic off-exchange-only variant row with the same metal joins the plan.
+      await tx.exec(`INSERT INTO plan_attribute SELECT snapshot_id,source_row+1000,plan_year,state,
+        issuer_id,base_plan_id,base_plan_id||'-99',market,metal,dental_only,network_id,service_area_id,
+        plan_name,'Off the Exchange',false,true,raw FROM plan_attribute
+        WHERE snapshot_id='synthetic-mapping-NY:plan-attributes'`);
+      const ny = (await findPlan(tx, "11177NY0220001", 2026))!;
+      const view = await planView(tx, ny);
+      expect(view).toHaveProperty("supplemental_plan.metal", "Gold");
+      expect(mapPlan(view, "11177NY0220001")).toMatchObject({
+        level: "gold",
+        on_market: true,
+        off_market: true,
+      });
+      throw marker;
+    }),
+  ).rejects.toBe(marker);
+});
+
+it("negative controls: collapsed metal, overridden filings and dropped PUF flags fail the contract", async () => {
+  const source = await readFile(
+    new URL("../../../src/compat/v1/mapping.ts", import.meta.url),
+    "utf8",
+  );
+  const directory = await mkdtemp(join(tmpdir(), "openplans-state-facts-"));
+  try {
+    for (const [name, before, after] of [
+      [
+        "expanded-bronze",
+        'metal.toLowerCase().replaceAll(" ", "_")',
+        'metal.toLowerCase().replace("expanded ", "").replaceAll(" ", "_")',
+      ],
+      [
+        "override-filing",
+        'view.metal === "unknown" && supplemental',
+        "supplemental",
+      ],
+      ["drop-on", "(supplemental?.on_exchange ?? null)", "null"],
+    ] as const) {
+      const path = join(directory, name + ".cjs");
+      await writeFile(
+        path,
+        ts.transpileModule(replaceSyntax(source, before, after), {
+          compilerOptions: {
+            module: ts.ModuleKind.CommonJS,
+            target: ts.ScriptTarget.ES2022,
+          },
+        }).outputText,
+      );
+      const mutant = createRequire(import.meta.url)(path) as Mapper;
+      await expect(stateFactsContract(mutant), name).rejects.toThrow();
+    }
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
 });

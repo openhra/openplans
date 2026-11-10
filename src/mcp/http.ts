@@ -17,6 +17,7 @@ import {
   boundedDatabase,
   dependencies,
   DEADLINE_MS,
+  householdOpen,
 } from "./policy.js";
 import type { McpEnvironment } from "./policy.js";
 
@@ -68,6 +69,8 @@ export function createMcpHttp(db: SqlSession, options: HttpOptions = {}) {
     locals.map((h) => `http://${h}:${port}`),
   );
   const proxies = list(env.OPENPLANS_TRUST_PROXY);
+  // Anonymous callers share the 60 per minute bucket whether or not household tools are open.
+  const open = householdOpen(env);
   const log = options.log ?? ((entry) => console.error(JSON.stringify(entry)));
   const limiter = createSourceLimiter(now);
   let active = 0;
@@ -213,7 +216,8 @@ export function createMcpHttp(db: SqlSession, options: HttpOptions = {}) {
       const needsGrant =
         parsed.method === "tools/call" &&
         PERSONALIZED_TOOLS.has(params?.name as ToolName) &&
-        !granted;
+        !granted &&
+        !open;
       const heavy =
         parsed.method === "tools/call" || parsed.method === "resources/read";
       if (heavy && active >= 4) {
@@ -229,7 +233,7 @@ export function createMcpHttp(db: SqlSession, options: HttpOptions = {}) {
       handler = createMcpHandler(
         () =>
           buildServer({
-            ...dependencies(boundedDatabase(db, signal), env, granted),
+            ...dependencies(boundedDatabase(db, signal), env, granted || open),
             cache,
             onCache: (outcome) => {
               cacheOutcome = outcome;

@@ -19,8 +19,15 @@ explicitly; it does not become an empty supported catalog.
 > **Public quoting is on by default.** Once the API runs, anyone who can reach it can
 > request quotes by age and ZIP (`POST /v1/quotes`, MCP `quote_plans`) without a token.
 > These quotes take no income or identity data. Set `OPENPLANS_PUBLIC_QUOTING=off` in
-> `.env` before starting the API if you do not want this. Household quotes with income
-> always need `OPENPLANS_API_TOKEN` or `OPENPLANS_MCP_TOKEN`.
+> `.env` before starting the API if you do not want this.
+>
+> **Household quotes and the compatibility API are on by default too.** With no
+> `OPENPLANS_API_TOKEN`, anyone can send income and ages to `POST /v1/premium-quotes`,
+> `/v1/benchmark` and `/v1/ichra/affordability`, and the MCP tools `quote_premiums` and
+> `check_ichra_affordability` are listed. With no `OPENPLANS_COMPAT_API_KEY`, `/compat/v1/*` is
+> open. These routes are rate-limited per source, never cached, and never log request values.
+> Set a token or key to require it, or set `OPENPLANS_PUBLIC_HOUSEHOLD=off` or
+> `OPENPLANS_PUBLIC_COMPAT=off` to turn them off.
 
 ## Options and completion
 
@@ -30,7 +37,7 @@ explicitly; it does not become an empty supported catalog.
 | --with-drugs | Public RxNorm CPC, issuer discovery and all-readable formularies | Cannot collect today. The RxNorm download host disallows automated access, so the rxnorm step fails with `admission_denied` (see [publisher access](#publisher-access)). Issuer feeds need operator manifests. Incomplete or blocked feeds stay unknown and can make the batch exit 1. |
 | --with-providers | NPPES full/weekly/deactivation codes, discovery and participation | NPPES works with the shipped manifests. Issuer discovery and participation need an operator manifest entry per issuer host. NPPES memberships are state-scoped, so several states share one database (P6h); a step that would overwrite another state's rows still fails. |
 | --with-nucc-taxonomy | Optional NUCC specialty display names (also usable without --with-providers) | Explicit acceptance of operator responsibility for NUCC terms; commercial use requires a NUCC licence. Also needs your own manifest entry for www.nucc.org. |
-| --with-geocode | Provider inputs above, then incremental Census batch geocoding | Cannot collect today. The county-bounds host rejects automated requests. The geocoder itself is shipped. TX, FL and NC only; other states fail explicitly and no points are substituted. |
+| --with-geocode | Provider inputs above, then incremental Census batch geocoding | Any of the 50 states and DC. County outlines come from one national Census boundary file, downloaded once. |
 | --dry-run | Dependency plan and observed artifact sizes | No database, network, ingestion or writes. Unknown sizes stay unknown. |
 
 NUCC taxonomy is off by default, including with --with-providers or --with-geocode.
@@ -119,7 +126,7 @@ Insurer hosts are never shipped. You review and add them yourself.
 | --with-providers | NPPES works. Issuer index and feed requests are refused until you add issuer hosts; refused indexes stay unknown coverage gaps. | Add a reviewed entry per issuer host (below). |
 | --with-drugs | The rxnorm step fails with `admission_denied`. The RxNorm download host, download.nlm.nih.gov, publishes `User-agent: *` / `Disallow: /`. NLM provides this subset "without any licensing restrictions", but its other download route, the UMLS download API, needs a UMLS account API key. The RxNav APIs return concepts, not the release files the importer reads. | None yet. Run without --with-drugs. Formulary steps also need issuer hosts. |
 | --with-nucc-taxonomy | The taxonomy step fails with `admission_denied`. www.nucc.org is held because NUCC says "For commercial use, including sales or licensing, a license must be obtained from this web site." | Review the NUCC terms for your use, add your own entry for www.nucc.org, and still pass the flag. |
-| --with-geocode | The geocode step fails with `admission_denied`. The county bounds come from tigerweb.geo.census.gov, whose robots.txt is an HTML "Request Rejected" page, and an HTML robots response holds collection. | None yet. The geocoder host itself is shipped. |
+| --with-geocode | Works. County outlines come from the Census 2024 cartographic boundary file on www2.census.gov, and the Census geocoder host is shipped. | Nothing. |
 
 The GeoNames postal-code fallback is also held: download.geonames.org publishes
 `Disallow: /` for every agent. It is not a bootstrap step.
@@ -174,18 +181,13 @@ Cache-backed timings exclude downloads.
 | DE PY2026 base bootstrap | 44,637,207-byte DB; 135,438,336-byte volume; 38,361,673-byte raw cache | 62.87 s worker; repeat 0.15 s (both from cache) | 157,646,848 bytes (150.3 MiB); DB/API RAM excluded | p8b-bootstrap/, [committed evidence](../tests/worker-bootstrap-realdata.json) |
 | TX PY2026 catalog + geography | 649,878,551-byte DB | 54 s catalog + 1 s geo; 94 s including startup/checks | Not recorded | h1-smoke-20261107T083344Z/summary.json |
 | RxNorm national CPC, added to TX | About 394 MiB additional DB; release archive additional | 60 s on Postgres; 70.952 s independent PGlite import | Not recorded | h2-smoke-20261107T102924Z/{times.tsv,rxnorm-metrics.json}; p2a-rxnorm-realdata.json |
-| Drug evidence, Cigna TX only | About 75 MiB additional DB | 5 s from cache | Not recorded | Same H2 qhp-formulary-metrics.json and times.tsv |
 | NPPES TX identities/status | About 846 MiB additional DB; 1,130,479,129-byte national monthly ZIP additional | 805 s on Postgres; 800.149 s monthly + 6.759 s deactivation on PGlite | Not recorded | Same H2 nppes-metrics.json; p3a-nppes-validation.json; [NPPES measurements](../src/ingest/nppes/README.md) |
-| Provider evidence, Cigna TX only | About 2.28 GiB additional DB | 101 s from cache | Not recorded | Same H2 qhp-providers-metrics.json and times.tsv |
 | Census geocode, Harris County | About 202 MiB additional DB for 145,584 points/attempts | 83 s using cached replies; original live run 628.398 s / 15 successful requests | Not recorded | Same H2 geocode-metrics.json; p3c-geocode-harris-first-run.json; [live run](../src/ingest/geocode/README.md#harris-county-real-run--2026-11-07) |
 | NUCC taxonomy | Not separately measured | Not separately measured | Not recorded | [Importer and terms](../src/ingest/taxonomy/README.md) |
 
-The single-issuer H2 stack finished at 4,687,248,407 database bytes, before raw
-downloads, Docker images and WAL. A 3 GB Docker disk budget is insufficient for
-that option set. All-readable bootstrap attempts more issuers than this pilot:
-p6c-tx-providers.md records one issuer at 5,180,962 provider records / 1,820.1 s
-and another with 162,977,400 logical associations. These observations do not
-establish a universal per-state estimate. Older optional-source reports do not
+Issuer drug and provider evidence is not in this table. Its size depends on which issuers
+you load, so measure your own set.
+These observations do not establish a universal per-state estimate. Older optional-source reports do not
 record peak RAM; the table labels those measurements missing. Measure the
 intended issuer/state set and monitor both host-cache and Docker-VM disk.
 
@@ -264,10 +266,20 @@ export OPENPLANS_BACKUP_DIR="$HOME/openplans-backups/$(date -u +%Y%m%dT%H%M%SZ)"
 umask 077
 mkdir -p "$OPENPLANS_BACKUP_DIR"
 docker compose stop api
-docker compose exec -T db sh -c 'exec pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --format=custom --no-owner' > "$OPENPLANS_BACKUP_DIR/catalog.dump"
-tar -C "$OPENPLANS_DATA_DIR" -czf "$OPENPLANS_BACKUP_DIR/cache.tar.gz" raw reports
+docker compose exec -T db sh -c 'exec pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --format=custom --no-owner \
+  --exclude-table-data=cms_api_attempt --exclude-table-data=cms_api_conflict \
+  --exclude-table-data=cms_api_drug_coverage --exclude-table-data=cms_api_provider_coverage \
+  --exclude-table-data=cms_zip_attempt --exclude-table-data=cms_zip_lookup' > "$OPENPLANS_BACKUP_DIR/catalog.dump"
+tar -C "$OPENPLANS_DATA_DIR" --exclude='raw/cms-marketplace-*' -czf "$OPENPLANS_BACKUP_DIR/cache.tar.gz" raw reports
 docker compose up -d api
 ~~~
+
+The `--exclude` arguments keep answers stored from the CMS Marketplace API, and the log of
+calls to it, out of the dump and the archive. Those answers were fetched for one question
+each and expire; a restored installation asks again when it needs them. The tables stay
+empty unless `OPENPLANS_CMS_FALLBACK=on`. If you run your own installation and want them in
+your backup, remove the six `--exclude-table-data` arguments and the tar `--exclude`. Do not
+publish or pass on a dump made that way.
 
 Record the application image/version, store the backup away from this host,
 and test it in a separate openplans-restore project with distinct loopback ports.
@@ -348,8 +360,8 @@ MCP caches successful public DTOs for 60 seconds, or 300 seconds for geography
 lookups. Keys include the tool, normalized filters, page offset, output-size budget,
 data generation and application version from `package.json`. Entries share the
 existing 2 MiB cap and backend memory limit. Requests check authorization and cursor
-validity before a lookup. Quoting tools (`quote_plans` and `quote_premiums`) bypass
-cache reads and writes.
+validity before a lookup. Quoting tools (`quote_plans`, `quote_premiums` and
+`check_ichra_affordability`) bypass cache reads and writes.
 Credentials, household fields, errors and signed cursors never enter MCP entries.
 The server signs a new cursor and computes the access label for each caller.
 Old-generation cursors return `CURSOR_EXPIRED`; restart the search.
@@ -360,7 +372,8 @@ credentials, invalidation, metrics, bounds, and operator inspection commands.
 ## MCP endpoint
 
 Send Streamable HTTP requests to `POST /mcp`. GET and DELETE return 405.
-Catalog tools and `quote_plans` need no credential. To enable `quote_premiums`, set a private
+Every tool needs no credential by default, `quote_premiums` and
+`check_ichra_affordability` included. To restrict those two, set a private
 `OPENPLANS_MCP_TOKEN` and send it as a bearer token. REST and compatibility credentials do not grant MCP access. Set
 `OPENPLANS_MCP=off` to remove the endpoint.
 
@@ -401,8 +414,8 @@ Without it, each process generates its own secret.
 For subprocess clients, build and run `node dist/mcp/stdio.js` with `DATABASE_URL`.
 The image also provides the `openplans-mcp` command. Attach stdin when running it in a
 container. Stdout contains protocol JSON only; diagnostics go to stderr. The process closes
-on EOF or signals. Set `OPENPLANS_MCP_ALLOW_PERSONALIZED=1` to grant local household
-quotes. HTTP tokens do not grant stdio household quotes. `OPENPLANS_PUBLIC_QUOTING`
+on EOF or signals. Local stdio offers household quotes by default; set
+`OPENPLANS_MCP_ALLOW_PERSONALIZED=0` to withhold them. HTTP tokens play no part over stdio. `OPENPLANS_PUBLIC_QUOTING`
 applies to stdio too.
 
 ## Optional second geocoder

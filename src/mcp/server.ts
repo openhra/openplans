@@ -40,7 +40,7 @@ export const instructions =
   "OpenPlans reads imported public data only. Call get_data_status first to inspect loaded scopes and gaps. " +
   "Use search for literal discovery and fetch with returned typed IDs for full records; arbitrary URLs and paths are refused. " +
   "Every answer carries provenance and an evidence status. Unknown means missing or incomplete evidence, never not covered or not in network. " +
-  "quote_plans quotes plans by age and ZIP without income or subsidies. Household quotes with income need authorization. " +
+  "quote_plans quotes plans by age and ZIP without income or subsidies. quote_premiums adds income and subsidy estimates; an operator may require a token for it. " +
   "Quotes are not bindable and never determine CSR eligibility. " +
   "Follow next_cursor with the same filters; restart after CURSOR_EXPIRED. Results describe the current local data generation, not a live publisher check.";
 
@@ -63,7 +63,11 @@ const descriptions: Record<ToolName, [string, string]> = {
   ],
   quote_premiums: [
     "Quote household premiums",
-    "Authorized household quote with gross, estimated credit/net and full rate evidence. Not a bindable quote; CSR eligibility is not evaluated.",
+    "Household quote with gross, estimated credit/net and full rate evidence. Income and ages are never logged. Not a bindable quote; CSR eligibility is not evaluated.",
+  ],
+  check_ichra_affordability: [
+    "Check ICHRA affordability",
+    "Check whether an individual coverage HRA is affordable for one employee. Returns the lowest cost silver plan on gross and EHB-portion premiums, the required HRA contribution and one verdict per income measure, with cited rules. Not a bindable quote. Employer safe harbors come from a proposed rule and say so.",
   ],
   quote_plans: [
     "Quote plans by age and ZIP",
@@ -88,6 +92,10 @@ const descriptions: Record<ToolName, [string, string]> = {
   lookup_geography: [
     "Resolve ZIP counties",
     "Resolve imported ZIP/county evidence, preserving multi-county ambiguity and labelled approximate fallbacks.",
+  ],
+  search_medicare_plans: [
+    "Search Medicare plans",
+    "List the Medicare Advantage, Part D and SNP plans CMS lists for one county and contract year, with their filed premiums, MOOP and stars. Provider networks stay unknown because CMS publishes no central file.",
   ],
   get_data_status: [
     "Inspect loaded data",

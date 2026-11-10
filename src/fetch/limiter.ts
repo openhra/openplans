@@ -14,6 +14,8 @@ export async function leaseHost(
   dataDir: string,
   hostname: string,
   publishedDelayMs = 0,
+  /** Lower floor for a reviewed keyed API (1000 ms); never below that. */
+  floorMs = minimumIntervalMs,
 ): Promise<() => Promise<void>> {
   if (
     !Number.isFinite(publishedDelayMs) ||
@@ -46,7 +48,10 @@ export async function leaseHost(
   }
   try {
     let nextRequestAt = 0;
-    const interval = Math.max(minimumIntervalMs, publishedDelayMs);
+    const interval = Math.max(
+      Math.max(1000, Math.min(floorMs, minimumIntervalMs)),
+      publishedDelayMs,
+    );
     try {
       const state: unknown = JSON.parse(await readFile(schedule, "utf8"));
       if (

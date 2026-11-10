@@ -1,19 +1,25 @@
 #!/usr/bin/env node
-/** Cache-only TX PY2026 CSR oracle. Independent Python csv/Decimal -> native HTTP. */
+/**
+ * Cache-only CSR oracle. Independent Python csv/Decimal -> native HTTP.
+ * node scripts/oracle/csr.mjs [--year 2026|2027] [--state XX | --all-states]
+ * TX PY2026 keeps its P5f DB; every other publication-listed state/year owns its own DB,
+ * seeded from the all-states DB when present.
+ */
 import { mutateSource, sourceControls } from "./source-controls.mjs";
 import { rebaseImports } from "../source-mutation.mjs";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { createReadStream } from "node:fs";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { createReadStream, existsSync } from "node:fs";
+import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { isAbsolute, join } from "node:path";
 import { createInterface } from "node:readline";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { PGlite } from "@electric-sql/pglite";
 import { database, portableMigrations } from "./negative-controls.mjs";
 import { migrate } from "../../dist/db/migrate.js";
 import { cachedImportFiles } from "../../dist/ingest/puf/import-source.js";
+import { pufStates } from "../../dist/ingest/puf/import-batch.js";
 import { importPufs } from "../../dist/ingest/puf/import.js";
 import { createApp } from "../../dist/api/app.js";
 import { premiumRequest } from "../../dist/api/validation.js";
@@ -25,12 +31,77 @@ const cache =
 if (!isAbsolute(cache)) throw new Error("Absolute OPENPLANS_DATA_DIR required");
 const reports = join(cache, "reports");
 await mkdir(reports, { recursive: true });
-const scratch = await mkdtemp(join(reports, ".p5f-csr-"));
+const args = process.argv.slice(2);
+const option = (name, fallback) =>
+  args.includes(name) ? args[args.indexOf(name) + 1] : fallback;
+const year = Number(option("--year", "2026")),
+  state = option("--state", "TX");
+if (![2026, 2027].includes(year) || !/^[A-Z]{2}$/.test(state ?? ""))
+  throw new Error(
+    "Usage: csr.mjs [--year 2026|2027] [--state XX | --all-states]",
+  );
+const stemFor = (s) =>
+  s === "TX" && year === 2026 ? "p5f-csr" : `a6-csr-${year}-${s}`;
+if (args.includes("--all-states")) {
+  process.exitCode = await allStates();
+  process.exit();
+}
+const p5f = state === "TX" && year === 2026;
+
+/** Runs every publication-listed state in its own process; one result per state. */
+async function allStates() {
+  const acquired = await cachedImportFiles(cache, year);
+  const states = await pufStates(acquired.files, year);
+  const results = [];
+  for (const s of states) {
+    const code = await new Promise((resolve, reject) => {
+      const p = spawn(
+        process.execPath,
+        [fileURLToPath(import.meta.url), "--year", String(year), "--state", s],
+        { stdio: ["ignore", "inherit", "inherit"] },
+      );
+      p.once("error", reject);
+      p.once("exit", resolve);
+    });
+    let summary = null;
+    try {
+      summary = JSON.parse(
+        await readFile(join(reports, `${stemFor(s)}.json`), "utf8"),
+      );
+    } catch {
+      // No summary file: the run counts as failed below.
+    }
+    results.push({
+      state: s,
+      exit_code: code,
+      passed: code === 0 && summary?.passed === true,
+      silver_plans: summary?.silver_plans ?? null,
+      variants_compared: summary?.variants_compared ?? null,
+      missing_variants: summary?.missing_variants ?? null,
+      benefit_rows_compared: summary?.benefit_rows_compared ?? null,
+      mismatches: summary?.mismatches?.length ?? null,
+      negative_controls: summary
+        ? `${summary.negative_controls.filter((c) => c.passed).length}/${summary.negative_controls.length}`
+        : null,
+      failures: summary?.failures?.map((f) => f.split("\n")[0]) ?? null,
+    });
+  }
+  const passed = results.every((r) => r.passed);
+  await writeFile(
+    join(reports, `a6-csr-all-states-${year}.json`),
+    JSON.stringify({ year, states, passed, results }, null, 2) + "\n",
+  );
+  console.log(
+    `${passed ? "PASS" : "FAIL"}: CSR PY${year} ${results.filter((r) => r.passed).length}/${results.length} states`,
+  );
+  return passed ? 0 : 1;
+}
+const scratch = await mkdtemp(join(reports, `.${stemFor(state)}-`));
 const report = {
   passed: false,
   generated_at: new Date().toISOString(),
-  state: "TX",
-  year: 2026,
+  state,
+  year,
   silver_plans: 0,
   variants_compared: 0,
   benefit_rows_compared: 0,
@@ -46,9 +117,10 @@ const python = String.raw`
 import csv, hashlib, io, json, re, sys, zipfile
 from decimal import Decimal
 from pathlib import Path
-cache, manifest_path, output = map(Path, sys.argv[1:])
+cache, manifest_path, output = map(Path, sys.argv[1:4])
+state, year = sys.argv[4], int(sys.argv[5])
 manifest = json.loads(manifest_path.read_text())
-files = {f['kind']: f for f in manifest['files'] if f['year'] == 2026}
+files = {f['kind']: f for f in manifest['files'] if f['year'] == year}
 sources = {}
 def records(kind):
     f = files[kind]; path = cache / 'raw/cms-exchange-puf' / f['snapshot_id'] / 'payload'
@@ -64,8 +136,8 @@ def records(kind):
                 start = reader.line_num + 1
                 row = next(reader, None)
                 if row is None: break
-                if row['StateCode'] == 'TX':
-                    assert row['BusinessYear'] == '2026'
+                if row['StateCode'] == state:
+                    assert row['BusinessYear'] == str(year)
                     yield start, row
 
 def amount(raw):
@@ -108,7 +180,7 @@ output.with_suffix('.summary.json').write_text(json.dumps(summary))
 `;
 let db;
 try {
-  const acquired = await cachedImportFiles(cache, 2026),
+  const acquired = await cachedImportFiles(cache, year),
     expectedPath = join(scratch, "expected.jsonl");
   console.log(
     "CSR oracle: independent raw Plan Attributes, Benefits and Rate CSV parser",
@@ -116,7 +188,15 @@ try {
   await new Promise((resolve, reject) => {
     const child = spawn(
       "python3",
-      ["-c", python, cache, acquired.manifestPath, expectedPath],
+      [
+        "-c",
+        python,
+        cache,
+        acquired.manifestPath,
+        expectedPath,
+        state,
+        String(year),
+      ],
       { stdio: ["ignore", "inherit", "inherit"] },
     );
     child.once("error", reject);
@@ -132,18 +212,27 @@ try {
   assert.equal(
     raw.variant_rate_rows,
     0,
-    "TX Rate PUF IDs must all be base IDs",
+    `${state} Rate PUF IDs must all be base IDs`,
   );
   assert.equal(
     raw.silver_bases_with_rates,
     raw.silver_plans,
     "Every silver base must have filed rate evidence",
   );
-  db = database(new PGlite(join(cache, "puf-pglite-p5f-csr")));
+  const dbPath = join(
+    cache,
+    p5f ? "puf-pglite-p5f-csr" : `puf-pglite-a6-csr-${year}-${state}`,
+  );
+  // Seed from the all-states DB of the same state/year; the hash check below still decides reuse.
+  const seed = join(cache, `puf-pglite-p6d-${year}-${state}`);
+  if (!p5f && !existsSync(dbPath) && existsSync(seed))
+    await cp(seed, dbPath, { recursive: true });
+  db = database(new PGlite(dbPath));
   await migrate(db, await portableMigrations(join(scratch, "migrations")));
   let active = (
     await db.query(
-      "SELECT import_id FROM puf_active_catalog WHERE state='TX' AND plan_year=2026",
+      "SELECT import_id FROM puf_active_catalog WHERE state=$1 AND plan_year=$2",
+      [state, year],
     )
   ).rows[0];
   if (active) {
@@ -162,10 +251,12 @@ try {
       active = undefined;
   }
   if (!active) {
-    console.log("CSR oracle: importing TX 2026 into isolated P5f database");
+    console.log(
+      `CSR oracle: importing ${state} PY${year} into an isolated database`,
+    );
     const result = await importPufs(db, {
-      year: 2026,
-      state: "TX",
+      year,
+      state,
       dataDir: cache,
       files: acquired.files,
       manifestPath: acquired.manifestPath,
@@ -209,7 +300,7 @@ try {
     const plan = JSON.parse(line);
     expectedBases.push(plan.base);
     report.silver_plans++;
-    const response = await app.request(`/v1/plans/${plan.base}?year=2026`),
+    const response = await app.request(`/v1/plans/${plan.base}?year=${year}`),
       detail = await response.json();
     assert.equal(response.status, 200, plan.base);
     compare(
@@ -224,7 +315,7 @@ try {
       const id = `${plan.base}-${suffix}`,
         expected = plan.variants[id];
       const selectedResponse = await app.request(
-        `/v1/plans/${plan.base}?year=2026&csr_variant=${suffix}`,
+        `/v1/plans/${plan.base}?year=${year}&csr_variant=${suffix}`,
       );
       const selected = (await selectedResponse.json()).cost_sharing;
       assert.equal(selectedResponse.status, 200);
@@ -304,7 +395,7 @@ try {
     if (report.silver_plans % 50 === 0)
       console.log(`CSR oracle: ${report.silver_plans} silver plans checked`);
   }
-  compare(actualBases, expectedBases, "TX", "silver_base_set");
+  compare(actualBases, expectedBases, state, "silver_base_set");
   assert.equal(report.silver_plans, raw.silver_plans);
   assert.ok(report.variants_compared > 0);
   assert.ok(
@@ -319,7 +410,7 @@ try {
         [attributes, `${example.base}-06`],
       );
       const response = await createApp(tx).request(
-        `/v1/plans/${example.base}?year=2026&csr_variant=csr94`,
+        `/v1/plans/${example.base}?year=${year}&csr_variant=csr94`,
       );
       const result = (await response.json()).cost_sharing;
       const unknown = (value) => {
@@ -402,17 +493,17 @@ try {
   report.passed =
     report.failures.length === 0 && report.mismatches.length === 0;
   await writeFile(
-    join(reports, "p5f-csr.json"),
+    join(reports, `${stemFor(state)}.json`),
     JSON.stringify(report, null, 2) + "\n",
   );
   await writeFile(
-    join(reports, "p5f-csr.md"),
-    `# P5f CSR — ${report.passed ? "PASS" : "FAIL"}\n\nGenerated ${report.generated_at}. TX PY2026.\n\n` +
+    join(reports, `${stemFor(state)}.md`),
+    `# ${p5f ? "P5f" : "A6"} CSR — ${report.passed ? "PASS" : "FAIL"}\n\nGenerated ${report.generated_at}. ${state} PY${year}.\n\n` +
       `Silver base plans: ${report.silver_plans}; requested -04/-05/-06 variants: ${report.variants_compared}; absent variants reported unknown: ${report.missing_variants}. ` +
       `Benefit rows compared: ${report.benefit_rows_compared}; deductible/MOOP cells compared: ${report.amount_cells_compared}; mismatches: ${report.mismatches.length}.\n\n` +
-      `Every silver base in the raw Plan Attributes CSV is compared with the ACTIVE native HTTP catalog, including the available variant set and every -04/-05/-06 raw attribute accumulator and benefit row. ` +
+      `Every silver base in the raw Plan Attributes CSV is checked against the ACTIVE native HTTP catalog, including the available variant set and every -04/-05/-06 raw attribute accumulator and benefit row. ` +
       `Python csv/Decimal independently parses immutable archive hashes, physical source row numbers, exact-dollar values and publisher conditions; it does not import the application parser. Native detail enumeration and explicit CSR selection are both compared.\n\n` +
-      `Rate PUF: ${report.rate_evidence?.rate_rows} TX rows; ${report.rate_evidence?.silver_rate_rows} silver rate rows; ${report.rate_evidence?.variant_rate_rows} variant IDs. ` +
+      `Rate PUF: ${report.rate_evidence?.rate_rows} ${state} rows; ${report.rate_evidence?.silver_rate_rows} silver rate rows; ${report.rate_evidence?.variant_rate_rows} variant IDs. ` +
       `All ${report.rate_evidence?.silver_bases_with_rates} silver bases have filed rates. Premiums attach to the base plan, so selecting a cost-sharing variant leaves the gross premium unchanged. ` +
       `Offline HTTP tests separately quote all seven real variants and both alias/suffix selections with identical gross cents. Eligibility is never inferred from income or tribal status.\n\n` +
       `## Negative controls\n\n${report.negative_controls.map((c) => `- ${c.name}: ${c.passed ? "PASS (defect detected)" : "FAIL"}; ${c.scope}`).join("\n")}\n\n` +
@@ -425,6 +516,6 @@ try {
   await rm(scratch, { recursive: true, force: true });
 }
 console.log(
-  `${report.passed ? "PASS" : "FAIL"}: CSR TX 2026 ${report.silver_plans} silver plans; ${report.variants_compared} variants; ${report.benefit_rows_compared} benefit rows; ${report.mismatches.length} mismatches; controls ${report.negative_controls.filter((c) => c.passed).length}/2`,
+  `${report.passed ? "PASS" : "FAIL"}: CSR ${state} PY${year} ${report.silver_plans} silver plans; ${report.variants_compared} variants; ${report.benefit_rows_compared} benefit rows; ${report.mismatches.length} mismatches; controls ${report.negative_controls.filter((c) => c.passed).length}/2`,
 );
 if (!report.passed) process.exitCode = 1;

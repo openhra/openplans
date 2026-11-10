@@ -32,53 +32,25 @@ import {
 } from "../api/repository.js";
 import { plansForCounty } from "../ingest/puf/import-repository.js";
 import { ratePremium } from "./premiums.js";
+import { agreedField, familyOffer } from "./coverage-family.js";
 import type { estimatePremium } from "./premiums.js";
 import type { premiumRequest } from "../api/validation.js";
 
 type Request = ReturnType<typeof premiumRequest>;
 type Location = Awaited<ReturnType<typeof resolveLocation>>;
 
-type Attribute = { raw: Record<string, string>; source_row: number };
 const CHILD_DENTAL_BENEFITS = [
   "Dental Check-Up for Children",
   "Basic Dental Care - Child",
   "Major Dental Care - Child",
   "Orthodontia - Child",
 ];
-function agreedField(
-  rows: readonly Attribute[],
-  field: string,
-): string | undefined {
-  const values = new Set(rows.map((r) => r.raw[field]?.trim()));
-  return values.size === 1 ? [...values][0] : undefined;
-}
 function attributes(
   db: SqlSession,
   plan: Pick<Plan, "snapshot_id" | "base_plan_id">,
 ) {
   return exchangeAttributeRows(db, plan.snapshot_id, plan.base_plan_id);
 }
-function familyOffer(
-  rows: readonly Attribute[],
-  hasAdult: boolean,
-  hasChild: boolean,
-): boolean | null {
-  const value = agreedField(rows, "ChildOnlyOffering");
-  if (
-    !value ||
-    ![
-      "Allows Adult and Child-Only",
-      "Allows Adult-Only",
-      "Allows Child-Only",
-    ].includes(value)
-  )
-    return null;
-  return (
-    (!hasAdult || value !== "Allows Child-Only") &&
-    (!hasChild || value !== "Allows Adult-Only")
-  );
-}
-
 async function dentalOffers(
   db: SqlSession,
   request: Request,

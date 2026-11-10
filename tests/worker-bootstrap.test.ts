@@ -745,9 +745,10 @@ describe("one-command bootstrap", () => {
         forbidden,
         directory,
       );
+      // Every state now has county outlines, so DE geocoding goes on to open the database.
       await expect(
         de.find((step) => step.id === "geocode-DE")!.run(),
-      ).rejects.toThrow("geocode_currently_supports_TX_only");
+      ).rejects.toThrow("must not connect");
     } finally {
       await rm(directory, { recursive: true, force: true });
     }

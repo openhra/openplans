@@ -1,5 +1,5 @@
 export { assertSnapshotAdmissible, fetchToCache } from "./cache.js";
-export { shippedManifestPaths } from "./shipped.js";
+export { cmsFallbackEnabled, shippedManifestPaths } from "./shipped.js";
 export type {
   FetchOptions,
   FetchResult,

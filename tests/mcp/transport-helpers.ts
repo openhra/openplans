@@ -33,6 +33,24 @@ export function post(
     }),
   });
 }
+/** Every tool name over HTTP, following nextCursor: the full schema bundle exceeds one page. */
+export async function listedToolNames(
+  app: { fetch: (request: Request) => Response | Promise<Response> },
+  extra: Record<string, string> = {},
+): Promise<string[]> {
+  const names: string[] = [];
+  let cursor: string | undefined;
+  for (let page = 0; page < 10; page++) {
+    const response = await app.fetch(
+      post("tools/list", cursor ? { cursor } : {}, extra),
+    );
+    const body = (await response.json()) as ReturnType<typeof JSON.parse>;
+    names.push(...body.result.tools.map((t: { name: string }) => t.name));
+    cursor = body.result.nextCursor;
+    if (!cursor) break;
+  }
+  return names;
+}
 export async function runStdio(
   file = "dist/mcp/stdio.js",
   grant = false,

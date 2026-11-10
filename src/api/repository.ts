@@ -12,6 +12,7 @@ import {
 import type { StateCatalogRow } from "../ingest/state/catalog.js";
 import type { CmsRateRow } from "../domain/rating/index.js";
 import type { SqlSession } from "../db/database.js";
+import { POOL_MAX, requestScope } from "../db/scope.js";
 import {
   ratingAreaForLocation,
   zipToCounties,
@@ -22,11 +23,18 @@ import { relationships } from "../ingest/geo/parse.js";
 import { GEO_SOURCES } from "../ingest/geo/sources.js";
 import { ratingRule } from "../ingest/rating-rules/index.js";
 import { dentalRatingRule } from "../domain/rating/index.js";
-import { plansForCounty } from "../ingest/puf/import-repository.js";
+import {
+  planLineage,
+  plansForCounty,
+} from "../ingest/puf/import-repository.js";
 import type { CountyPlan } from "../ingest/puf/import-repository.js";
 import type { LocationInput } from "./validation.js";
 import { fail } from "./validation.js";
-import { FEDERAL_PLAN_ATTRIBUTES, PLAN_COLUMN_KEYS } from "./plan-view.js";
+import {
+  FEDERAL_PLAN_ATTRIBUTES,
+  PLAN_COLUMN_KEYS,
+  publishedPlanColumns,
+} from "./plan-view.js";
 import type { PublishedPlanAttributes } from "./plan-view.js";
 
 // Stable Census identifiers, independent of state rating policy.
@@ -373,15 +381,32 @@ export async function findPlan(
   const stateRows = await stateCatalog(db, year, undefined, base);
   return stateRows.length ? statePlan(stateRows) : (rows[0] ?? null);
 }
+const SNAPSHOT_FILES_SQL = `SELECT f.kind,f.snapshot_id
+    FROM puf_import_file anchor JOIN puf_import_file f ON f.import_id=anchor.import_id
+    WHERE anchor.kind='plan-attributes' AND anchor.snapshot_id=$1`;
+const ISSUER_SQL = `SELECT issuer_id,marketing_names,snapshot_id,source_row FROM issuer WHERE snapshot_id=$1 AND issuer_id=$2`;
+const NETWORK_SQL = `SELECT network_id,network_name,network_url,snapshot_id,source_row FROM network
+      WHERE snapshot_id=$1 AND issuer_id=$2 AND network_id=$3 AND market=$4 AND dental_only=$5 ORDER BY source_row`;
+/** Lookups that many plans in one catalog page share. */
+export const SHARED_PLAN_LOOKUPS: ReadonlySet<string> = new Set([
+  SNAPSHOT_FILES_SQL,
+  ISSUER_SQL,
+  NETWORK_SQL,
+]);
+/** A catalog page's database view: shared lookups once, at most a pool's worth of queries at a time. */
+export function planPageScope(db: SqlSession): SqlSession {
+  return requestScope(db, {
+    concurrency: POOL_MAX,
+    shared: SHARED_PLAN_LOOKUPS,
+  });
+}
 export async function snapshots(
   db: SqlSession,
   plan: Plan,
 ): Promise<Record<string, string>> {
   if (plan.state_catalog) return { "state-rates": plan.snapshot_id };
   const { rows } = await db.query<{ kind: string; snapshot_id: string }>(
-    `SELECT f.kind,f.snapshot_id
-    FROM puf_import_file anchor JOIN puf_import_file f ON f.import_id=anchor.import_id
-    WHERE anchor.kind='plan-attributes' AND anchor.snapshot_id=$1`,
+    SNAPSHOT_FILES_SQL,
     [plan.snapshot_id],
   );
   return Object.fromEntries(rows.map((row) => [row.kind, row.snapshot_id]));
@@ -467,7 +492,11 @@ export async function planCostSharing(
         ),
       ]);
   if (detailPlan.state === "CA")
-    for (const row of attributes.rows) row.raw = stateDetailColumns(row.raw);
+    for (const row of attributes.rows) {
+      row.raw = stateDetailColumns(row.raw);
+      // The CA state file spells plan columns with spaced headers.
+      row.published_attributes = publishedPlanColumns(row.raw);
+    }
   if (supplement) {
     for (const row of attributes.rows) row.raw = stateDetailColumns(row.raw);
     for (const row of benefits.rows) {
@@ -560,13 +589,45 @@ export async function planCostSharing(
     },
   };
 }
+/** Metal and exchange cells of the matched CMS state PUF plan, across its variant rows. */
+async function supplementalPlanFacts(
+  db: SqlSession,
+  plan: Plan,
+  source: { snapshot_id: string } | undefined,
+) {
+  if (!source || !plan.hios_id) return null;
+  // Same aggregation as the VT exchange evidence: the plan is offered on (off)
+  // the exchange when any published variant is. Conflicting metals supply nothing.
+  const { rows } = await db.query<{
+    metal: string;
+    on_exchange: boolean;
+    off_exchange: boolean;
+    source_rows: number[];
+  }>(
+    `SELECT min(metal) AS metal,bool_or(on_exchange) AS on_exchange,
+      bool_or(off_exchange) AS off_exchange,
+      array_agg(source_row ORDER BY source_row) AS source_rows
+    FROM plan_attribute
+    WHERE snapshot_id=$1 AND base_plan_id=$2 AND state=$3 AND plan_year=$4
+      AND market='Individual' AND NOT dental_only
+    HAVING count(*)>0 AND count(DISTINCT metal)=1`,
+    [source.snapshot_id, plan.hios_id, plan.state, plan.plan_year],
+  );
+  return rows[0] ? { ...rows[0], snapshot_id: source.snapshot_id } : null;
+}
 export async function planView(
   db: SqlSession,
   plan: Plan,
   options: CostSharingOptions = {},
 ) {
   const sharing = await planCostSharing(db, plan, options);
-  if (plan.state_catalog)
+  if (plan.state_catalog) {
+    // Additive evidence: the filed tier keeps its own metal and exchange values.
+    const supplemental = await supplementalPlanFacts(
+      db,
+      plan,
+      sharing.cost_sharing.supplemental_source,
+    );
     return {
       base_plan_id: plan.hios_id,
       hios_id: plan.hios_id,
@@ -589,6 +650,7 @@ export async function planView(
       ...(plan.premium_availability
         ? { premium_availability: plan.premium_availability }
         : {}),
+      ...(supplemental ? { supplemental_plan: supplemental } : {}),
       provenance: {
         snapshot_ids: { "state-rates": plan.snapshot_id },
         ...(plan.exchange_provenance
@@ -596,24 +658,19 @@ export async function planView(
           : {}),
       },
     };
+  }
 
   const files = await snapshots(db, plan);
-  const [issuer, networks] = await Promise.all([
-    db.query(
-      `SELECT issuer_id,marketing_names,snapshot_id,source_row FROM issuer WHERE snapshot_id=$1 AND issuer_id=$2`,
-      [plan.snapshot_id, plan.issuer_id],
-    ),
-    db.query(
-      `SELECT network_id,network_name,network_url,snapshot_id,source_row FROM network
-      WHERE snapshot_id=$1 AND issuer_id=$2 AND network_id=$3 AND market=$4 AND dental_only=$5 ORDER BY source_row`,
-      [
-        files.network,
-        plan.issuer_id,
-        plan.network_id,
-        plan.market,
-        plan.dental_only,
-      ],
-    ),
+  const [issuer, networks, lineage] = await Promise.all([
+    db.query(ISSUER_SQL, [plan.snapshot_id, plan.issuer_id]),
+    db.query(NETWORK_SQL, [
+      files.network,
+      plan.issuer_id,
+      plan.network_id,
+      plan.market,
+      plan.dental_only,
+    ]),
+    planLineage(db, plan.base_plan_id, plan.plan_year, plan.state),
   ]);
   return {
     base_plan_id: plan.base_plan_id,
@@ -629,6 +686,7 @@ export async function planView(
       status: networks.rows.length ? "available" : "unknown",
       records: networks.rows,
     },
+    lineage,
     on_exchange: plan.on_exchange,
     off_exchange: plan.off_exchange,
     ...(plan.premium_availability
@@ -782,8 +840,9 @@ export function sbeAvailabilitySources(db: SqlSession) {
     import_id: string;
     bundle_url: string;
     bundle_sha256: string;
+    source: string;
   }>(
-    `SELECT p.state,p.plan_year,c.import_id,c.bundle_url,c.bundle_sha256 FROM sbe_catalog c JOIN puf_import p USING(import_id) JOIN puf_active_catalog a USING(import_id) JOIN snapshot s ON s.snapshot_id=c.import_id AND s.validation_state='ACTIVE'`,
+    `SELECT p.state,p.plan_year,c.import_id,c.bundle_url,c.bundle_sha256,c.source FROM sbe_catalog c JOIN puf_import p USING(import_id) JOIN puf_active_catalog a USING(import_id) JOIN snapshot s ON s.snapshot_id=c.import_id AND s.validation_state='ACTIVE'`,
   );
 }
 

@@ -5,8 +5,17 @@ export {
   applicablePercentageForFpl,
 } from "./aptc.js";
 export type { AptcInput, AptcEstimate, AptcStatus } from "./aptc.js";
-export { slcsp } from "./slcsp.js";
-export type { SlcspCandidate, SlcspHousehold, SlcspResult } from "./slcsp.js";
+export { slcsp, rankSilverPlans, lowestCostSilver } from "./slcsp.js";
+export type {
+  LcspResult,
+  RankedSilverPlan,
+  SilverPremiumBasis,
+  SilverRanking,
+  SilverRankingStatus,
+  SlcspCandidate,
+  SlcspHousehold,
+  SlcspResult,
+} from "./slcsp.js";
 export { parameterErrors, isSubsidyParameters } from "./parameters.js";
 export type {
   SubsidyParameters,

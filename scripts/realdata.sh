@@ -26,16 +26,29 @@ fi
 for year in "${years[@]}"; do
   node scripts/oracle/all-states.mjs --year "$year"
 done
-# SADP filed rates: TX PY2026 independent raw-CSV oracle (P5e), with its own mutant.
-if [[ " ${years[*]} " == *" 2026 "* ]]; then
-  node scripts/oracle/dental.mjs
-fi
+# SADP filed rates: independent raw-CSV oracle for every publication-listed state, with
+# three controls per state; TX PY2026 adds the county HTTP examples (P5e).
+for year in "${years[@]}"; do
+  node scripts/oracle/dental.mjs --all-states --year "$year"
+done
 echo 'PASS'
-# CSR variant evidence: TX PY2026 independent raw Plan Attributes/Benefits/Rate oracle.
-if [[ " ${years[*]} " == *" 2026 "* ]]; then
-  node scripts/oracle/csr.mjs
-fi
+# CSR variant evidence: independent raw Plan Attributes/Benefits/Rate oracle for every
+# publication-listed state, with two controls per state.
+for year in "${years[@]}"; do
+  node scripts/oracle/csr.mjs --all-states --year "$year"
+done
 echo 'PASS'
+# Medicare (CMS Landscape, PBP, contract service areas): every county listing and plan service
+# area against an independent raw-file reading, with planted mutants. Skips when not cached.
+for year in "${years[@]}"; do
+  node scripts/oracle/medicare.mjs --year "$year"
+done
+# Medicare Part D public use files: every imported row group, each plan's formulary and a sample
+# of drug lookups against an independent raw-file reading, with planted mutants. Skips when not
+# cached.
+for year in "${years[@]}"; do
+  node --max-old-space-size=8192 scripts/oracle/medicare-part-d.mjs --year "$year"
+done
 # CMS SBE: independent CSV/Decimal counts, exact filed rates and households.
 for year in "${years[@]}"; do
   node scripts/oracle/sbe.mjs --year "$year"

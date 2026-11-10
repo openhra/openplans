@@ -40,6 +40,12 @@ export function assertOpenAttribution(readme: string): void {
   )
     throw new Error("Open geocoder attribution missing from README");
 }
+/** Open geocoder extracts are prepared for these states only. */
+export function openState(state: string): OpenDataset["state"] {
+  if (!["TX", "FL", "NC"].includes(state))
+    throw new TypeError("The open geocoder supports TX, FL and NC");
+  return state as OpenDataset["state"];
+}
 export function validateOpenDataset(dataset: OpenDataset): void {
   if (
     !/^[a-f0-9]{64}$/.test(dataset.sha256) ||

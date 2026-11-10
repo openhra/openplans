@@ -1,0 +1,76 @@
+{
+  "crosswalk": {
+    "member": "PlanCrosswalk2026_10012025.txt",
+    "rows": 12,
+    "sha256": "8444385799ffc73ad73983d9baac6811ed8443df0166fe008b17dde1284ece11",
+    "url": "https://www.cms.gov/files/zip/plan-crosswalk-2026.zip"
+  },
+  "landscape": {
+    "member": "CY2026_Landscape_202609/CY2026_Landscape_202609.csv",
+    "rows": 12,
+    "sha256": "75f2797b510449fc0d376bbbbeb3c129f6091a697555281559ca28e6e4b8d882",
+    "url": "https://www.cms.gov/files/zip/cy2026-landscape-202609.zip"
+  },
+  "ma": {
+    "member": "MA_Cnty_SA_2026_10/MA_Cnty_SA_2026_10.csv",
+    "rows": 406,
+    "sha256": "85f8e2e7a9f3f95dd3f67ea77328a02ccabb3d61b24822605af046934223e4b9",
+    "url": "https://www.cms.gov/files/zip/ma-contract-service-area-state-county-october-2026.zip"
+  },
+  "partd": {
+    "note": "Pharmacy network parts 3-6 are not cut (time); parts 1-2 hold the fixture plans.",
+    "rows": {
+      "basic drugs formulary file  PPUF_2026Q3.zip": 15,
+      "beneficiary cost file  PPUF_2026Q3.zip": 198,
+      "excluded drugs formulary file  PPUF_2026Q3.zip": 0,
+      "geographic locator file  PPUF_2026Q3.zip": 254,
+      "indication based coverage formulary file  PPUF_2026Q3.zip": 0,
+      "insulin beneficiary cost file  PPUF_2026Q3.zip": 43,
+      "pharmacy networks file  PPUF_2026Q3 part 1.zip": 53,
+      "pharmacy networks file  PPUF_2026Q3 part 2.zip": 0,
+      "plan information  PPUF_2026Q3.zip": 63,
+      "pricing file PPUF_2026Q3.zip": 48
+    },
+    "sha256": "16315ea97f043eea8f8539dc2ac2d8343b8054890e12615953767a8b6688d82b",
+    "url": "https://data.cms.gov/sites/default/files/2026-10/062e9434-ed9d-4e83-abbd-4d64eb375949/SPUF_2026_20261007.zip"
+  },
+  "pbp": {
+    "dictionary": "PBP_Benefits_2026_dictionary.xlsx",
+    "rows": {
+      "PlanArea": 64,
+      "PlanRegionArea": 3,
+      "pbp_Section_A": 7,
+      "pbp_Section_D": 5,
+      "pbp_b10_amb_trans": 5,
+      "pbp_b11_dme_prosth_orth_sup": 5,
+      "pbp_b14_preventive": 5,
+      "pbp_b16_dental": 5,
+      "pbp_b17_eye_exams_wear": 5,
+      "pbp_b18_hearing_exams_aids": 5,
+      "pbp_b1a_inpat_hosp": 5,
+      "pbp_b1b_inpat_hosp": 5,
+      "pbp_b2_snf": 5,
+      "pbp_b4_emerg_urgent": 5,
+      "pbp_b6_home_health": 5,
+      "pbp_b7_health_prof": 5,
+      "pbp_b8_clin_diag_ther": 5,
+      "pbp_b9_outpat_hosp": 5,
+      "pbp_mrx": 7,
+      "pbp_mrx_tier": 32
+    },
+    "sha256": "1720048e668f6c9e4abc47c512e537c013600de12860d28aea4f8308b5e51de4",
+    "url": "https://www.cms.gov/files/zip/pbp-benefits-2026.zip"
+  },
+  "pdp": {
+    "member": "PDP_Cnty_SA_2026_10/PDP_Cnty_SA_2026_10.csv",
+    "rows": 405,
+    "sha256": "d68e6713a44be0a47cf5a77255dfc692e4087a5de83041d0c6598e0c6c5d5459",
+    "url": "https://www.cms.gov/files/zip/pdp-contract-service-area-state-county-october-2026.zip"
+  },
+  "stars": {
+    "member": "Master Tables Individual Files 8 17 26/2026 Star Ratings Data Table - Summary Ratings (July 22 2026).xlsx",
+    "rows": 5,
+    "sha256": "a72f4f4965239e12b3b264c843a71ea6bbd9c655547be5b1f95b3b0df4d1cde7",
+    "url": "https://www.cms.gov/files/zip/2026-star-ratings-data-tables.zip"
+  }
+}

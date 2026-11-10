@@ -10,8 +10,9 @@ GET  /v1/plans?zip=77002&year=2026&market=individual&metal=silver&page=1
 GET  /v1/plans?county=48201&year=2026
 GET  /v1/plans/87226TX0100013?year=2026
 POST /v1/quotes                (public, on unless OPENPLANS_PUBLIC_QUOTING=off)
-POST /v1/premium-quotes        (personalized)
+POST /v1/premium-quotes        (household, on unless OPENPLANS_PUBLIC_HOUSEHOLD=off)
 GET  /v1/benchmark?zip=77002&year=2026&ages=40
+POST /v1/ichra/affordability  (household)
 GET  /v1/carriers?state=TX[&year=2026]
 GET  /v1/networks?state=TX[&year=2026]
 GET  /v1/drugs?q=metformin[&limit=50]
@@ -20,7 +21,17 @@ GET  /v1/drugs/860975
 GET  /v1/plans/76589TX0010015/drugs/860975?year=2026
 POST /v1/drug-coverage
 GET  /v1/data-availability[?state=TX&year=2026]
+GET  /v1/medicare/plans?county_fips=48201&year=2026[&type=ma|ma_pd|pdp|snp|cost&snp_type=&page=]
+GET  /v1/medicare/plans/H0028-042-0?year=2026
+GET  /v1/medicare/plans/H0028-042-0/benefits?year=2026[&table=pbp_section_d]
+GET  /v1/medicare/plans/H0028-042-0/service-area?year=2026
+GET  /v1/medicare/plans/H0028-042-0/lineage?year=2026
+GET  /v1/medicare/plans/H0028-042-0/drugs?year=2026&rxcui=860975     (off by default)
+GET  /v1/medicare/plans/H0028-042-0/pharmacies?year=2026&zip=77002   (off by default)
+GET  /v1/medicare/data-availability
 ```
+
+Medicare routes are described in the [Medicare guide](../../docs/medicare.md).
 
 Plan search and detail require an explicit year. Premium coverage_start supplies
 the year. Carriers/networks can list all imported years, with plan_year on each row.
@@ -46,10 +57,12 @@ Only TX/2026/individual is currently supported. NY/VT per-member rules are rejec
 The API looks up the cited method for each plan's state, year and market, independently
 of PUF catalog snapshots. Unsupported methods never return total_cents.
 
-Personalized requests (`/v1/premium-quotes` and `/v1/benchmark`) require
-`Authorization: Bearer <configured token>` with OPENPLANS_API_TOKEN set in the API
-process. Unconfigured servers return 503; missing/incorrect credentials return 401.
-The API adds Cache-Control: no-store and does not install access/body logging.
+Household requests (`/v1/premium-quotes`, `/v1/benchmark` and
+`/v1/ichra/affordability`) are open by default. They share one per-source bucket of
+30 requests per minute with 2 in flight, and the response cache skips them. With
+OPENPLANS_API_TOKEN set they require `Authorization: Bearer <configured token>`, and
+missing/incorrect credentials return 401. With no token, OPENPLANS_PUBLIC_HOUSEHOLD=off
+returns 503. The API adds Cache-Control: no-store and does not install access/body logging.
 Configure any reverse proxy to exclude household requests and authorization headers
 from logs (spec section 14).
 
@@ -66,7 +79,7 @@ contract and error codes.
   "plan_ids": ["87226TX0100013"],
   "zip": "77002",
   "coverage_start": "2026-01-01",
-  "members": [{"age": 35, "tobacco": false, "relationship": "subscriber"}]
+  "members": [{ "age": 35, "tobacco": false, "relationship": "subscriber" }]
 }
 ```
 
@@ -116,8 +129,8 @@ applied credit/net. Off-exchange and catastrophic plans receive no estimated
 credit (`plan_ineligible_for_tax_credit`). CSR variant eligibility is not inferred.
 
 `GET /v1/benchmark?zip=77002&year=2026&ages=40` also accepts `county=48201`
-instead of ZIP, or county plus ZIP to disambiguate. It requires the same Bearer
-authentication as premiums and returns `Cache-Control: no-store`. Do not log its
+instead of ZIP, or county plus ZIP to disambiguate. It follows the same
+access rule as premiums and returns `Cache-Control: no-store`. Do not log its
 query string. Ages are comma-separated completed ages (0–120, up to 100 members),
 with the first member as subscriber and subsequent under-21 members as children.
 This convenience route rates January 1; use premium-quotes for an explicit date,
@@ -185,6 +198,16 @@ OPENPLANS_PGLITE_DIR=/absolute/private/prepared/pglite node tests/api/subsidy-re
 It binds only to 127.0.0.1, uses an unlogged in-memory token, checks the benchmark
 and three income-bearing plan estimates for both a single adult and a two-adult/one-child
 family in 77002, closes its listener/database, and writes `reports/p5c-subsidy-http.json` under `OPENPLANS_DATA_DIR` (or the database's parent).
+
+## ICHRA affordability
+
+`POST /v1/ichra/affordability` estimates whether an individual coverage HRA is affordable for one
+employee under 26 CFR 1.36B-2(c)(5) and, for employer measures, the safe harbors of 26 CFR
+54.4980H-5(e)(2) as applied by proposed 54.4980H-5(f). It takes the lowest cost silver plan
+from the same silver ranking as the benchmark, picking the first plan instead of the second. The
+gross premium is the default, and the EHB-portion figure is returned next to it. Missing evidence
+returns a status and no verdict.
+The [ICHRA guide](../../docs/ichra.md) gives the request, response, statuses and sources.
 
 ## Local PGlite verification
 
@@ -278,7 +301,7 @@ spatial hits, and address-less identities do not add an unlocated address. There
 no cached count or estimate. A point from an older address snapshot does not locate a
 current address. Without PostGIS the existing spherical-distance filter still runs
 before pagination. Ten-mile statewide TX checks for Dallas, Austin and El Paso, and
-the Cigna Harris check, were measured on the retained external PostgreSQL volume;
+the Harris County provider check, were measured on the retained external PostgreSQL volume;
 these are quiet-database measurements, not a concurrent-load guarantee.
 
 Filters: exact NPPES `taxonomy`, or issuer `specialty` text (either source spelling); `name` text;
@@ -320,7 +343,7 @@ For `tests/api/providers-radius.test.ts`, use `P3I_POSTGIS_URL` pointing to a se
 empty disposable database; it also asserts that the indexed PostGIS path is active.
 The external-cache real runner is `node dist/api/provider-realdata.js prepare`, then `geocode`,
 then `check`; prepare requires completed P3b/P3c caches and creates its own `provider-pglite-p3d`
-copy. Check starts a temporary localhost HTTP listener, records the Cigna family-medicine query
+copy. Check starts a temporary localhost HTTP listener, records a family-medicine provider query
 and nearest five in `OPENPLANS_DATA_DIR/reports/p3d-provider-http.json`, then closes the listener.
 
 ## Explicit cost-sharing variants

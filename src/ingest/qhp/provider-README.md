@@ -1,6 +1,6 @@
 # QHP provider source sets
 
-`worker ingest qhp providers --year 2026 --state TX --issuer 76589` uses the latest
+`worker ingest qhp providers --year 2026 --state TX --issuer <issuer-id>` uses the latest
 registry-backed discovery run and the active PUF catalog. Run discovery and catalog import
 first. The importer acquires missing provider children through `fetchToCache`, restricted to the
 index's evidenced child hosts, with a 4 GiB bound. Existing downloaded children are streamed
@@ -47,26 +47,23 @@ runner also reports a distinct-NPI match rate restricted to records with TX edge
 
 ## Offline checks and fixture regeneration
 
-Run `scripts/ci.sh` or the repository's `tools/gate.sh`. Tests use cuts of the real Cigna
-publication and the final 4 KB of the real truncated Sanford tar member. Synthetic mutants
-are labelled in tests. To regenerate, first build, then run:
+Run `scripts/ci.sh` or the repository's `tools/gate.sh`. The fixtures in
+`tests/fixtures/qhp/provider/` are synthetic: invented NPIs that fail the NPI check digit,
+invented plan IDs, names, addresses and phone numbers. `truncated-tail.json` is a synthetic
+provider feed cut mid-array, as an interrupted download leaves it. To regenerate:
 
 ```sh
-ISSUER_TAR=/path/to/issuer-files.tar node tests/fixtures/qhp/provider/regenerate.mjs
+node tests/fixtures/qhp/generate-issuer.mjs
 ```
 
-`ISSUER_TAR` is required; when unset the script exits with usage before reading the cache or writing fixtures.
-The script verifies Cigna's full hash, selects source records, projects only documented
-public fields, retains all of each record's addresses/associations, and records source ordinals.
-It seeks over unrelated tar members and reads only the last 4 KB of Sanford. Its truncated
-fixture begins at a complete association inside that tail, prepended with an array opener;
-the original incomplete EOF remains, with CRLF normalized to LF. Each committed fixture is below 200 KB.
+`tests/fixture-lineage.test.ts` fails if a committed fixture drifts from the generator or
+loses its synthetic label.
 
 ## Real-data verification
 
 ```sh
 npm run build
-node dist/ingest/qhp/provider-pglite.js ingest qhp providers --year 2026 --state TX --issuer 76589
+node dist/ingest/qhp/provider-pglite.js ingest qhp providers --year 2026 --state TX --issuer <issuer-id>
 ```
 
 The runner creates `provider-pglite-p3b` under `OPENPLANS_DATA_DIR`, with PostGIS omitted only
@@ -100,7 +97,7 @@ rows as findings, independently of participation.
 ## Consolidated native runs and slow later children
 
 Provider batches acquire plan definitions first, then acquire and parse each provider child
-before waiting for the next download. Waiting for all downloads before parsing had exhausted P6a's Best Life and Centene budgets. `acquireQhpChildren` also accepts
+before waiting for the next download. Waiting for all downloads before parsing can exhaust an issuer's download budget. `acquireQhpChildren` also accepts
 `childIds` for bounded acquisition. Acquisition inside a provider transaction uses that same
 SQL session, including on PGlite; it must not query the outer single-connection database.
 
@@ -144,7 +141,7 @@ locally or treat missing evidence as negative coverage.
 
 ## Dense association lists (migration 480)
 
-The BCBSTX PY2026 cache contains 604,871 records and 162,977,400 published associations.
+Some issuer files list the same long run of plan associations on most of their records.
 Parser `qhp-provider-v4` factors lists of at least 8 associations into immutable
 `provider_plan_group_edge` lists plus `provider_record_plan_group` links. The hash includes
 every original association ordinal, plan, year, exact tier and resolution status. Repeated
@@ -189,11 +186,9 @@ A matching server statement limit cancels abandoned audit SQL. A timeout fails t
 parallel query to fit small Docker shared-memory allocations. API search performance on large
 ACTIVE sources remains a separately reported result, not an ingestion success condition.
 
-Florida PY2026 also publishes repeated 27/34-entry lists. The eight-entry threshold captures
-those medium catalogs using the same exact group keys, original ordinals and sparse override
-semantics. A complete cached UHC child has 233,598 records and 5,728,286 scoped associations,
-all represented by one 34-entry list linked to 168,479 records. No published associations are
-removed; the expanded view and shard counters continue to count all 5,728,286. The offline
+Medium-sized repeated lists are common too. The eight-entry threshold captures them using
+the same exact group keys, original ordinals and sparse override semantics. No published
+associations are removed; the expanded view and shard counters still count every one. The offline
 controls cover lists of 8, 27, 34, 63 and 100 entries, duplicate ordinals and isolated overrides.
 
 Provider ingestion uses transaction-local generic plans. A newly allocated shard ID can be
@@ -269,7 +264,7 @@ and `plan_outside_state_scope` with the requested NC scope and excluded FL plan.
 the state guard in a temporary source copy makes that assertion fail. NC NPPES membership
 uses the normal state-scoped importer and does not establish plan participation.
 
-On the four-core validation database, issuer 77264's saved provider-name query times out
+On the four-core validation database, a saved provider-name query for a large issuer times out
 with the default parallel-query setting. API connections using PostgreSQL's
 `options=-c max_parallel_workers_per_gather=0` retain the five-second query limit and
 use a serial plan. The external report keeps both the default-setting failures and

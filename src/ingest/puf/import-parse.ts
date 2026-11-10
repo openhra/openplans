@@ -75,11 +75,13 @@ export function validateImportHeader(
   kind: ImportKind,
   values: Record<string, string>,
   year = 2026,
+  /** State-exchange files do not carry the federal PY2027 waiting-period columns. */
+  federal = true,
 ): void {
   const columns = [
     ...common,
     ...required[kind],
-    ...(year === 2027 && kind === "plan-attributes"
+    ...(federal && year === 2027 && kind === "plan-attributes"
       ? PY2027_ATTRIBUTE_COLUMNS
       : []),
   ];

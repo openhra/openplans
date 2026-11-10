@@ -29,40 +29,17 @@ publication and take their existing partial/quarantine path. Exhaust the iterato
 publishing. The reader may yield complete records before a later failure. Failure or early cancellation closes
 the input iterator. No JSON record content is included in error messages.
 
-## Measured TX cache and default headroom
+## Default limits and how to measure your cache
 
-Read-only scan on 2026-11-07 of all cached TX provider/formulary child namespaces, including
-legacy `qhp-76589-2026-*` and `qhp-child-*-<URL hash>` snapshots. Deduplicated by kind and
-payload SHA-256, across issuer/year runs; no downloads or cache writes. All 463 payloads
-were root arrays, so none were skipped.
+The reader defaults to a depth limit of 64, 8 MiB per record and 64 KiB per string token.
+These are per-record guards, separate from whole-download limits, and a reviewed feed that
+needs more can override them. The 20-million-record limit is unchanged. Depth counts
+containers from the root. Record sizes exclude separators and surrounding whitespace;
+string sizes include quotes and escapes. The scanner below reads cached payloads without
+changing them and prints the observed maxima, so you can check the defaults against the
+feeds you load. It never repairs or activates a snapshot.
 
-| Child kind | Distinct payloads | Payload bytes scanned | Complete records observed | Max depth | Max record bytes | Max string token bytes |
-|---|---:|---:|---:|---:|---:|---:|
-| Provider | 413 | 79,157,796,612 | 9,732,017 | 5 | 2,744,224 | 241 |
-| Formulary | 50 | 3,312,163,739 | 294,317 | 5 | 202,595 | 2,406 |
-
-Depth counts containers from the root, matching the reader. Record sizes exclude separators
-and surrounding whitespace; string sizes include quotes/escapes, matching the reader's byte
-limits. This scan measures structure. Ingestion must still validate JSON syntax and records. Two provider payloads ended with incomplete tails; their complete preceding
-records and observed depths/complete strings contribute to the table, while unfinished
-records/strings do not contribute length maxima. No formulary tail was incomplete. The
-scan never repairs or activates these snapshots.
-
-The retained depth-64 and 8 MiB record defaults provide 12.8× and about 3.06× headroom over
-the observed maxima. The new 64 KiB string default provides about 27.2× headroom over the
-largest observed string. These are finite per-record guards independent of whole-download
-limits; larger reviewed feeds can override them explicitly. The existing 20-million-record
-limit is unchanged.
-
-The table lists the largest-record payload fingerprints. The scanner prints source namespaces
-and SHA-256s for all three maxima, without URLs or record contents:
-
-| Kind | Payload SHA-256 |
-|---|---|
-| Provider | `bc3f294aa4e673c347c704871ac3137d317ae0c47262e77dbee48ca985b97323` |
-| Formulary | `03050b57b334494f92f065ee5ef88bd1f7b8cbad5026a867359284cfb208b790` |
-
-Reproduce from the standalone `openplans/` directory, using an absolute external cache path:
+Run it from the standalone `openplans/` directory, with an absolute external cache path:
 
 ```sh
 node tests/ingest/json/measure-cache.mjs "$OPENPLANS_DATA_DIR"

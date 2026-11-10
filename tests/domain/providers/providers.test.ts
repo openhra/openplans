@@ -41,7 +41,7 @@ describe("provider evidence boundary", () => {
       ),
     ).toBe("listed_participating");
   });
-  it("maps published speciality at the boundary, supporting the observed Cigna specialty spelling", () => {
+  it("maps published speciality at the boundary, supporting the speciality spelling some feeds use", () => {
     expect(
       providerSpecialties({ speciality: ["Cardiology"], specialty: ["Other"] }),
     ).toEqual(["Cardiology"]);

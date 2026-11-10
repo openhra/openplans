@@ -215,7 +215,7 @@ describe("plan radius: batched current-point counts preserve record scope", () =
       }),
     ).rejects.toBe(rollback);
   });
-  it("negative control: dropping the plan predicate changes results and fails parity", async () => {
+  it("negative control: dropping the plan predicate changes results and fails the consistency check", async () => {
     const expected = await searchProviders(h.db, query(1));
     let mutated = false;
     const mutant: SqlSession = {
@@ -238,7 +238,7 @@ describe("plan radius: batched current-point counts preserve record scope", () =
   });
   it("returns the same complete response when the covering indexes are removed", async () => {
     const expected = await searchProviders(h.db, query(1)),
-      rollback = new Error("rollback index parity control");
+      rollback = new Error("rollback index consistency control");
     await expect(
       h.db.transaction(async (tx) => {
         await tx.exec(`DROP INDEX provider_record_plan_group_search;

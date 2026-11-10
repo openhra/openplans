@@ -48,6 +48,20 @@ const household = z.strictObject({
   tax_filing: z.enum(v.TAX_FILINGS),
 });
 const ids = <S extends z.ZodType>(schema: S) => z.array(schema).min(1).max(10);
+const ichraCents = z.int().min(0).max(10_000_000_000);
+const ichraIncome = z.discriminatedUnion("measure", [
+  z.strictObject({ measure: z.literal("household"), annual_cents: ichraCents }),
+  z.strictObject({ measure: z.literal("w2"), annual_cents: ichraCents }),
+  z.strictObject({
+    measure: z.literal("rate_of_pay_hourly"),
+    hourly_cents: ichraCents,
+  }),
+  z.strictObject({
+    measure: z.literal("rate_of_pay_salary"),
+    monthly_cents: ichraCents,
+  }),
+  z.strictObject({ measure: z.literal("fpl") }),
+]);
 export const inputSchemas = {
   search: z.strictObject({
     query: text,
@@ -114,6 +128,31 @@ export const inputSchemas = {
     household: household.optional(),
     csr_variant: csr.optional(),
   }),
+  check_ichra_affordability: z.strictObject({
+    plan_start: z.iso.date(),
+    months_available: z.int().min(1).max(12).optional(),
+    employee: z.strictObject({
+      date_of_birth: z.iso.date(),
+      eligible_from: z.iso.date().nullable().optional(),
+    }),
+    residence: location,
+    worksite: z
+      .strictObject({
+        zip: zip.optional(),
+        county: zip.optional(),
+        remote: z.boolean().optional(),
+      })
+      .optional(),
+    hra: z.strictObject({ self_only_annual_cents: ichraCents }),
+    income: z.array(ichraIncome).min(1).max(4),
+    safe_harbors: z
+      .strictObject({
+        location: z.boolean().optional(),
+        look_back: z.boolean().optional(),
+      })
+      .optional(),
+    lcsp_premium_basis: z.enum(["gross", "ehb_portion"]).optional(),
+  }),
   quote_plans: z.strictObject({
     year,
     location,
@@ -166,6 +205,12 @@ export const inputSchemas = {
     year,
   }),
   lookup_geography: z.strictObject({ zip, county: zip.optional() }),
+  search_medicare_plans: z.strictObject({
+    location,
+    year,
+    type: z.enum(["ma", "ma_pd", "pdp", "snp", "cost"]).optional(),
+    ...paging,
+  }),
   get_data_status: z.strictObject({
     state: state.optional(),
     year: year.optional(),
@@ -341,6 +386,18 @@ export const drugEvidenceSchema = z.strictObject({
   quantity_limit: z.boolean().nullable(),
   ...evidenceFields,
 });
+/** Present only when the answer came from the CMS Marketplace API fallback. */
+const cmsApiSchema = z
+  .strictObject({
+    sourced_by: z.literal("cms-marketplace-api"),
+    coverage: label,
+    sourced_at: z.iso.datetime({ offset: true }),
+    snapshot_id: z.string().min(1).max(1024),
+    served_from: z.enum(["live", "absorbed", "absorbed_stale"]),
+    source: label,
+    limits: z.string().min(1).max(240),
+  })
+  .optional();
 export const drugCoverageSchema = z.strictObject({
   kind: z.literal("drug_coverage"),
   plan_id: hios,
@@ -354,6 +411,7 @@ export const drugCoverageSchema = z.strictObject({
   quantity_limit: z.boolean().nullable(),
   patient_price: z.null(),
   source_completeness: sourceCompleteness,
+  cms_api: cmsApiSchema,
   evidence: z.array(drugEvidenceSchema).max(100),
   ...evidenceFields,
 });
@@ -373,6 +431,7 @@ export const participationSchema = z.strictObject({
   scope: z.literal("provider_record"),
   address_participation: z.literal("not_evaluated"),
   source_completeness: sourceCompleteness,
+  cms_api: cmsApiSchema,
   evidence: z.array(participationEvidence).max(100),
   ...evidenceFields,
 });
@@ -384,6 +443,23 @@ export const geographySchema = z.strictObject({
   source_method: label,
   centroid: point.nullable(),
   approximate: z.boolean(),
+  ...evidenceFields,
+});
+export const medicarePlanSchema = z.strictObject({
+  kind: z.literal("medicare_plan"),
+  plan_key: z.string().regex(/^[EHRS]\d{4}-\d{3}-\d{1,3}$/),
+  name: label.nullable(),
+  plan_type: label.nullable(),
+  contract_category: label.nullable(),
+  organization: label.nullable(),
+  parent_organization: label.nullable(),
+  consolidated_premium_cents: z.int().nullable(),
+  part_d_deductible_cents: z.int().nullable(),
+  moop_in_network_cents: z.int().nullable(),
+  overall_stars: z.number().min(1).max(5).nullable(),
+  star_status: label,
+  snp_type: label.nullable(),
+  provider_network: z.literal("unknown"),
   ...evidenceFields,
 });
 export const directorySchema = z.strictObject({
@@ -679,6 +755,66 @@ const records = z
     ]),
   )
   .max(25);
+const centsRatio = z.strictObject({
+  numerator: cents,
+  denominator: z.int().min(1).max(Number.MAX_SAFE_INTEGER),
+  display: cents,
+});
+/** null when that basis could not be computed. */
+const ichraBasisPick = z
+  .strictObject({
+    plan_ids: z.array(hios).max(100),
+    monthly_cents: nullableCents,
+  })
+  .nullable();
+/** Only a calculated LCSP is projected; it always carries rate-row evidence. */
+const ichraLcspSchema = z.strictObject({
+  use: z.enum(["premium_tax_credit", "employer"]),
+  status: z.literal("calculated"),
+  basis_used: z.enum(["gross", "ehb_portion"]),
+  plan_ids: z.array(hios).max(100),
+  monthly_cents: nullableCents,
+  by_basis: z.strictObject({
+    gross: ichraBasisPick,
+    ehb_portion: ichraBasisPick,
+  }),
+  location_source: z.enum(["residence", "worksite"]),
+  county_fips: zip.nullable(),
+  zip: zip.nullable(),
+  rating_area_id: label.nullable(),
+  coverage_month: z.iso.date(),
+  identified_at_age: z.int().min(0).max(120),
+  priced_at_age: z.int().min(0).max(120),
+  silver_plan_count: nonnegative,
+  ...evidenceFields,
+});
+const ichraVerdictSchema = z.strictObject({
+  measure: z.enum([
+    "household",
+    "w2",
+    "rate_of_pay_hourly",
+    "rate_of_pay_salary",
+    "fpl",
+  ]),
+  purpose: z.enum(["premium_tax_credit", "employer_4980H"]),
+  lcsp: z.enum(["premium_tax_credit", "employer"]),
+  status: z.enum(["calculated", "unknown", "ambiguous_lcsp"]),
+  reason: label.nullable(),
+  required_hra_contribution_cents: centsRatio.nullable(),
+  threshold_cents: centsRatio.nullable(),
+  affordable: z.boolean().nullable(),
+  affordable_by_basis: z.strictObject({
+    gross: z.boolean().nullable(),
+    ehb_portion: z.boolean().nullable(),
+  }),
+  rule_ids: z.array(text).max(10),
+  fpl_guideline_year: year.optional(),
+});
+const ichraRuleSchema = z.strictObject({
+  id: text,
+  status: z.enum(["final", "proposed_reliance_permitted"]),
+  citations: z.array(publicUrl).min(1).max(5),
+});
 const payloadSchemas = {
   search: z.strictObject({ results: z.array(hit).max(25), scope_gaps: gaps }),
   fetch: z.strictObject({
@@ -720,6 +856,20 @@ const payloadSchemas = {
     quotes: z.array(estimateSchema).max(10),
     bindable_quote: z.literal(false),
   }),
+  check_ichra_affordability: z.strictObject({
+    status: text,
+    reason: label.nullable(),
+    plan_start: z.iso.date(),
+    applicable_age: z.int().min(0).max(120).nullable(),
+    basis_sensitive: z.boolean().nullable(),
+    lcsps: z.array(ichraLcspSchema).max(2),
+    monthly_hra_cents: centsRatio.nullable(),
+    required_contribution_percentage_bp: z.int().min(1).max(10_000).nullable(),
+    verdicts: z.array(ichraVerdictSchema).max(4),
+    safe_harbors_applied: z.array(text).max(10),
+    rules: z.array(ichraRuleSchema).max(20),
+    bindable_quote: z.literal(false),
+  }),
   quote_plans: z.strictObject({
     quotes: z.array(quoteSchema).max(v.PUBLIC_QUOTE_LIMITS.plans),
     bindable_quote: z.literal(false),
@@ -752,6 +902,14 @@ const payloadSchemas = {
     zip,
     resolution: z.enum(["available", "ambiguous", "unknown"]),
     counties: z.array(geographySchema).max(25),
+  }),
+  search_medicare_plans: z.strictObject({
+    location_status: z.enum(["available", "unknown", "multiple_counties"]),
+    county_fips: zip.nullable(),
+    contract_year: year,
+    as_of: label.nullable(),
+    plans: z.array(medicarePlanSchema).max(25),
+    part_d_drug_data: label,
   }),
   get_data_status: z.strictObject({
     datasets: z.array(datasetSchema).max(25),
@@ -787,12 +945,14 @@ export const outputSchemas = {
   search_plans: output(payloadSchemas.search_plans),
   get_plan: output(payloadSchemas.get_plan),
   quote_premiums: output(payloadSchemas.quote_premiums),
+  check_ichra_affordability: output(payloadSchemas.check_ichra_affordability),
   quote_plans: output(payloadSchemas.quote_plans),
   search_providers: output(payloadSchemas.search_providers),
   search_drugs: output(payloadSchemas.search_drugs),
   check_drug_coverage: output(payloadSchemas.check_drug_coverage),
   check_provider_network: output(payloadSchemas.check_provider_network),
   lookup_geography: output(payloadSchemas.lookup_geography),
+  search_medicare_plans: output(payloadSchemas.search_medicare_plans),
   get_data_status: output(payloadSchemas.get_data_status),
   list_carriers_networks: output(payloadSchemas.list_carriers_networks),
 } as const;
@@ -862,6 +1022,7 @@ export function parseToolInput<T extends ToolName>(
       v.fail(field, "DUPLICATE_IDENTIFIER");
   }
   if (tool === "quote_plans") v.publicQuoteRequest(quoteBody(input, 1));
+  if (tool === "check_ichra_affordability") v.ichraRequest(input);
   if (tool === "quote_premiums") {
     const refs = input.plan_refs as string[],
       scope = input.location as Record<string, unknown>;
@@ -990,11 +1151,13 @@ export const outputJsonSchemas = Object.fromEntries(
 
 /** Tools that compute premiums; none is cached and all reject personal identifiers. */
 export const QUOTING_TOOLS: ReadonlySet<ToolName> = new Set([
+  "check_ichra_affordability",
   "quote_premiums",
   "quote_plans",
 ]);
 /** Personalized names; transports require a grant before dispatch. */
 export const PERSONALIZED_TOOLS: ReadonlySet<ToolName> = new Set([
+  "check_ichra_affordability",
   "quote_premiums",
 ]);
 
@@ -1013,6 +1176,8 @@ export interface HonestyContext {
   snapshotIds?: ReadonlySet<string>;
   /** Unprojected terminology rows; plausible invented identifiers/names must fail too. */
   drugs?: readonly Record<string, unknown>[];
+  /** Service output for check_ichra_affordability; projected figures must match it. */
+  ichra?: Record<string, unknown>;
 }
 function object(value: unknown): Record<string, unknown> | null {
   return value !== null && typeof value === "object" && !Array.isArray(value)
@@ -1345,4 +1510,40 @@ export function assertHonest<T extends ToolName>(
     for (const child of Object.values(record)) walk(child);
   }
   walk(result.data);
+  if (tool === "check_ichra_affordability" && context.ichra)
+    assertIchraHonest(object(result.data)!, context.ichra);
+}
+
+/** Every projected LCSP figure and verdict must equal the service output it came from. */
+function assertIchraHonest(
+  data: Record<string, unknown>,
+  native: Record<string, unknown>,
+) {
+  if (data.status !== native.status) reject("changed ICHRA status");
+  for (const projected of (data.lcsps as Record<string, unknown>[]) ?? []) {
+    const source = object(
+      native[projected.use === "employer" ? "employer_lcsp" : "lcsp"],
+    );
+    if (
+      !source ||
+      projected.monthly_cents !== source.monthly_cents ||
+      JSON.stringify(projected.plan_ids) !== JSON.stringify(source.plan_ids)
+    )
+      reject("changed ICHRA LCSP");
+  }
+  const verdicts = (data.verdicts as Record<string, unknown>[]) ?? [],
+    sources = (native.verdicts as Record<string, unknown>[] | undefined) ?? [];
+  if (verdicts.length !== sources.length) reject("changed ICHRA verdicts");
+  verdicts.forEach((verdict, i) => {
+    const source = sources[i]!;
+    if (
+      verdict.measure !== source.measure ||
+      verdict.affordable !== source.affordable ||
+      JSON.stringify(verdict.required_hra_contribution_cents) !==
+        JSON.stringify(source.required_hra_contribution_cents) ||
+      JSON.stringify(verdict.threshold_cents) !==
+        JSON.stringify(source.threshold_cents)
+    )
+      reject("changed ICHRA verdict");
+  });
 }

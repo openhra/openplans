@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "publishers": [
+    {
+      "host": "marketplace.api.healthcare.gov",
+      "state": "allowed",
+      "accessMode": "api-key",
+      "apiKey": { "env": "CMS_API_KEY", "queryParam": "apikey" },
+      "apiVersion": "v1",
+      "evidence": [
+        {
+          "url": "https://marketplace.api.healthcare.gov/robots.txt",
+          "observedAt": "2026-11-09T23:46:00.000Z",
+          "status": 401,
+          "country": "CO"
+        },
+        {
+          "url": "https://developer.cms.gov/marketplace-api/",
+          "observedAt": "2026-11-09T23:47:00.000Z",
+          "status": 200,
+          "country": "CO"
+        }
+      ],
+      "scope": {
+        "products": ["Marketplace API per-question coverage lookups"],
+        "states": ["US"],
+        "years": [2025, 2026, 2027]
+      },
+      "discoveryUrls": ["https://developer.cms.gov/marketplace-api/"],
+      "permittedPaths": [
+        "/api/v1/counties/by/zip",
+        "/api/v1/drugs/covered",
+        "/api/v1/providers/covered"
+      ],
+      "delegates": [],
+      "attribution": "Centers for Medicare & Medicaid Services, Marketplace API (HealthCare.gov). Coverage flags are served as returned, with the retrieval time.",
+      "updatePolicy": "Loaded only when OPENPLANS_CMS_FALLBACK=on and CMS_API_KEY is set. One live call per user question that has no answer from loaded files; no enumeration or pre-warming. The host answers robots.txt with 401 like every unauthenticated path, so admission rests on the API documentation, whose hash is checked before the first call and daily after that. Paced at 1 s.",
+      "delayMs": 1000,
+      "jobCaps": { "maxRequests": 600, "maxTransferBytes": 67108864 },
+      "robots": {
+        "url": "https://marketplace.api.healthcare.gov/robots.txt",
+        "status": 401,
+        "sha256": null,
+        "checkedAt": "2026-11-09T23:46:00.000Z",
+        "country": "CO",
+        "notApplicable": "Keyed API: the host answers every unauthenticated path, robots.txt included, with 401 \"No API key found in request\"."
+      },
+      "terms": {
+        "url": "https://developer.cms.gov/marketplace-api/",
+        "disposition": "allowed",
+        "sha256": "f3e500b2dda00a9724b3625da2e3cb2254d575a588f30507e1e2e20b8c820e5f",
+        "reviewedAt": "2026-11-09T23:48:00.000Z",
+        "expiresAt": "2027-05-08T23:48:00.000Z",
+        "reviewer": "OpenPlans maintainers",
+        "basis": "\"The Marketplace API is designed to support live access by front-end applications, it's not designed to be scraped or for the whole data set to be extracted.\" \"API keys can be issued to anyone who requests access and is granted a key.\""
+      }
+    }
+  ]
+}

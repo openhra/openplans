@@ -8,9 +8,11 @@ and other technical identifiers keep their defined forms.
 OpenPlans is a self-hosted, open-source health-plan data service built from CMS plan files,
 Census geography, NPPES provider identities, NLM RxNorm and issuer QHP files.
 Its native HTTP API and MCP endpoint support plan search, premium quotes, drugs,
-providers and data availability. It uses PostgreSQL 16 and PostGIS. Texas PY2026 and
-PY2027 catalogs and per-member medical premiums work; issuer feed
-completeness varies. Read `/v1/data-availability` before relying on an answer.
+providers and data availability. It uses PostgreSQL 16 and PostGIS. Catalogs and
+per-member premiums load for every federal-platform state in the CMS files and for
+the state exchanges in the 2026 CMS state-exchange files. Texas has the deepest
+checks. Issuer feed completeness varies by insurer. Read `/v1/data-availability`
+before relying on an answer.
 A fresh database is empty. Load public-source snapshots before searching.
 
 Every result keeps its source evidence. Missing evidence stays `unknown`, not
@@ -103,13 +105,15 @@ separate local API/worker image tag (default `openplans:local`).
 `worker status` prints the same manifest as `/v1/data-availability`. The API
 applies migrations at startup; `worker migrate` is safe to repeat.
 
-Set `OPENPLANS_API_TOKEN` in `.env` to enable household quotes at
-`POST /v1/premium-quotes` and benchmarks, and send `Authorization: Bearer <token>`. Missing/incorrect credentials return 401;
-an unconfigured server token returns 503 (`AUTH_NOT_CONFIGURED`). Premium
-responses use `Cache-Control: no-store`. The DB image installs PostGIS on native
+Household quotes at `POST /v1/premium-quotes`, the benchmark and ICHRA checks
+are open by default, with the same per-source limits as public quotes. Set
+`OPENPLANS_API_TOKEN` in `.env` to require `Authorization: Bearer <token>`; a missing or
+wrong token then returns 401. With no token, `OPENPLANS_PUBLIC_HOUSEHOLD=off` closes
+them with 503 (`AUTH_NOT_CONFIGURED`). Premium responses use `Cache-Control: no-store`,
+and the API never logs income, ages or ZIP codes. The DB image installs PostGIS on native
 arm64 or amd64 PostgreSQL 16; no emulation override is required.
 
-## Load the cached Texas catalog
+## Load a cached catalog, Texas walkthrough
 
 Set `OPENPLANS_DATA_DIR` in `.env` to an absolute cache directory outside the repo
 (Docker default `/var/lib/openplans`). It must contain the acquired PUF
@@ -171,7 +175,11 @@ conditional subsidy estimates.
 
 ## Scope and limits
 
-- Texas is the validated state. NY and VT PY2026 family-tier rates load through
+- Texas is the most thoroughly validated state. Release checks compare the rate
+  tables for every federal-platform state, and for the 22 states in the 2026
+  state-exchange files, against source. Checks of cost-sharing variants, household
+  premiums and dental rates have run for Texas only so far.
+  NY and VT PY2026 family-tier rates load through
   a separate [state import](../src/ingest/state/README.md); other NY and VT years
   are unsupported. Unsupported rating methods return `unsupported_rating_method`;
   the service does not substitute a federal default price.
@@ -180,7 +188,7 @@ conditional subsidy estimates.
   issuer. Gross premium, estimated credit and net premium are separate.
 - Public quotes take ages and a ZIP or county only. They refuse income,
   household size, tax filing, dates of birth and names, and never estimate a
-  subsidy. Household quotes with income need `OPENPLANS_API_TOKEN`.
+  subsidy. Household quotes with income use `POST /v1/premium-quotes`.
 - A public quote member may set `tobacco: true`; the plan's filed tobacco rate
   then applies. One request takes at most 10 members, 10 plans, 5 NPIs and
   5 RxCUIs. Each source may send 30 quote requests per minute, 2 at a time.
@@ -223,8 +231,8 @@ NLM's complete requested acknowledgement. No publisher endorsement is implied.
 
 The native API is `/v1/*`. The isolated module at `src/compat/v1/` exposes
 `/compat/v1/*`, a compatibility API for existing quoting integrations.
-Set `OPENPLANS_COMPAT_API_KEY` in `.env`; clients send the `X-Api-Key`
-header. Optionally set `OPENPLANS_COMPAT_KEY_HEADER` to one additional credential
+It is open by default. Set `OPENPLANS_COMPAT_API_KEY` in `.env` to require a key in
+the `X-Api-Key` header, or `OPENPLANS_PUBLIC_COMPAT=off` with no key to close it. Optionally set `OPENPLANS_COMPAT_KEY_HEADER` to one additional credential
 header name (a single RFC 7230 token; invalid names prevent startup). Both headers
 accept the same key. These settings are separate from the native bearer token. The facade
 reports unsupported or unavailable fields through nulls and `x-openplans-gaps`.
@@ -325,6 +333,9 @@ A failure rolls back the batch. Repeated runs are no-ops. Changed or missing
 applied SQL and duplicate numbers are rejected. Previously unapplied lower-numbered
 migrations merged from another branch are applied in numeric order. Fix forward
 by adding a migration. PostGIS is enabled separately.
+
+Every table row carries `created_at`, `updated_at`, `sourced_by`, `sourced_at` and
+`sourced_slug`, filled from the row's snapshot. See [row provenance](row-provenance.md).
 
 All build and runtime dependencies stay inside this directory so it can become
 an independent repository. The extraction checker validates static/dynamic

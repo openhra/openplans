@@ -55,6 +55,14 @@ describe("API", () => {
           status: "unknown",
           reason: "source_set_not_available",
         },
+        // Missing premium evidence never makes ICHRA available.
+        ichra_status: "unknown",
+        ichra_reason: "premium_not_available",
+        ichra_lookback_status: "unknown",
+        ichra_rules: {
+          affordability: "final",
+          employer_safe_harbors: "proposed_reliance_permitted",
+        },
       },
     ]);
   });

@@ -13,7 +13,6 @@ import {
 } from "../../../src/ingest/geocode/statewide.js";
 import * as countySources from "../../../src/ingest/geocode/counties.js";
 import {
-  countyQuery,
   parseCounties,
   geocodeStates,
 } from "../../../src/ingest/geocode/counties.js";
@@ -388,24 +387,22 @@ describe("FL and NC statewide geocoding", () => {
     },
   );
   it.each(["FL", "NC"] as const)(
-    "%s validates county count, FIPS, extent and separate cache query",
+    "%s validates county count, FIPS and extent",
     (state) => {
       const s = scopes[state];
       const data = {
-        spatialReference: { wkid: 4326 },
         features: [
           {
-            attributes: { GEOID: s.county, NAME: "Synthetic" },
-            geometry: {
-              rings: [
-                [
-                  [s.lon - 0.1, s.lat - 0.1],
-                  [s.lon + 0.1, s.lat - 0.1],
-                  [s.lon + 0.1, s.lat + 0.1],
-                  [s.lon - 0.1, s.lat - 0.1],
-                ],
+            GEOID: s.county,
+            NAME: "Synthetic",
+            rings: [
+              [
+                [s.lon - 0.1, s.lat - 0.1],
+                [s.lon + 0.1, s.lat - 0.1],
+                [s.lon + 0.1, s.lat + 0.1],
+                [s.lon - 0.1, s.lat - 0.1],
               ],
-            },
+            ],
           },
         ],
       };
@@ -420,13 +417,10 @@ describe("FL and NC statewide geocoding", () => {
           state,
         ),
       ).toThrow("Incomplete");
-      data.features[0]!.attributes.GEOID = "48201";
+      data.features[0]!.GEOID = "48201";
       expect(() =>
         parseCounties(JSON.stringify(data), "synthetic", 1, state),
       ).toThrow("Invalid");
-      expect(countyQuery(state)).toContain(
-        `STATE%3D%27${geocodeStates[state].fips}%27`,
-      );
     },
   );
   it.each(["FL", "NC"] as const)(

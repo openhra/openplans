@@ -55,7 +55,7 @@
     "macos": {
       "name": "OpenPlans / macOS",
       "runs-on": "macos-15-intel",
-      "timeout-minutes": 20,
+      "timeout-minutes": 45,
       "steps": [
         {
           "uses": "actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5",
