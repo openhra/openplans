@@ -421,5 +421,7 @@ Each cell filled by the fallback carries the existing `cms_api` provenance objec
 Its `sourced_by` is `cms-marketplace-api`. Quote cells also include `freshness`,
 which is `fresh` for a stored unexpired answer, `stale` for a stored expired answer
 served within its policy window, or `refetched` for an answer retrieved during the
-request. `DataNotProvided` stays unknown. CMS coverage flags do not supply tiers,
+request. `DataNotProvided` stays unknown. `NotCovered` stays unknown with
+`cms_api_reports_not_covered` unless local NPPES or active RxNorm identifies the
+provider or drug. The original CMS statement remains in `cms_api.coverage`. CMS coverage flags do not supply tiers,
 restrictions or patient prices.

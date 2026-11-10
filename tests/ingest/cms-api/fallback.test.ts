@@ -1,3 +1,4 @@
+import type * as Fallback from "../../../src/ingest/cms-api/fallback.js";
 // CMS Marketplace API coverage fallback. Synthetic responses, synthetic key, no network.
 import type * as QuoteCoverage from "../../../src/services/quote-coverage.js";
 import { createHash } from "node:crypto";
@@ -511,7 +512,7 @@ describe("CMS API coverage fallback", () => {
       out.map((a) => [a.status, a.covered, a.cms_api?.sourced_by]),
     ).toEqual([
       ["listed_participating", true, "cms-marketplace-api"],
-      ["explicitly_not_participating", false, "cms-marketplace-api"],
+      ["unknown", undefined, "cms-marketplace-api"],
     ]);
     const rows = (
       await h.db.query(
@@ -930,5 +931,180 @@ it("preserves local coverage and identity reasons when shadow reads fail", async
   });
   expect(result[1]).toEqual(local);
   expect(result[2]).toEqual(unmapped);
+  expect(sent).toEqual([]);
+});
+
+const projectionCases = [
+  "Covered",
+  "GenericCovered",
+  "NotCovered",
+  "DataNotProvided",
+].flatMap((statement) => [false, true].map((known) => ({ statement, known })));
+it.each(projectionCases)(
+  "reprojects stored drug $statement with identity=$known",
+  async ({ statement, known }) => {
+    const rxcui = known ? rx : "999999999999";
+    reply = covered(statement);
+    const local = answer({ rxcui });
+    const first = (await applyCmsFallback("drug", [local], context()))[0]!;
+    const check = (out: DrugCoverage) => {
+      expect(out.cms_api).toMatchObject({
+        coverage: statement,
+        sourced_by: "cms-marketplace-api",
+      });
+      let status = "listed_covered";
+      if (statement === "NotCovered") status = "explicitly_not_covered";
+      if (
+        statement === "DataNotProvided" ||
+        (statement === "NotCovered" && !known)
+      )
+        status = "unknown";
+      expect(out.status).toBe(status);
+      expect(out.covered).toBe(
+        status === "unknown" ? undefined : statement !== "NotCovered",
+      );
+      if (statement === "NotCovered" && !known)
+        expect(out.reason).toBe("cms_api_reports_not_covered");
+    };
+    check(first);
+    sent = [];
+    check(
+      (
+        await applyCmsFallback("drug", [local], context({ writer: undefined }))
+      )[0]!,
+    );
+    await h.db.exec(
+      "UPDATE cms_api_drug_coverage SET expired_at=now()-interval '1 day'",
+    );
+    const stale = (
+      await applyCmsFallback("drug", [local], context({ writer: undefined }))
+    )[0]!;
+    check(stale);
+    expect(stale.cms_api!.served_from).toBe("absorbed_stale");
+    expect(sent).toEqual([]);
+  },
+);
+
+it("rechecks identity on stored NotCovered reads without changing the stored CMS statement", async () => {
+  reply = covered("NotCovered");
+  await applyCmsFallback("drug", [answer()], context());
+  await h.db.exec(
+    "UPDATE snapshot SET validation_state='QUARANTINED' WHERE snapshot_id='rx'",
+  );
+  try {
+    const out = (
+      await applyCmsFallback("drug", [answer()], context({ writer: undefined }))
+    )[0]!;
+    expect(out.status).toBe("unknown");
+    expect(out.covered).toBeUndefined();
+    expect(out.reason).toBe("cms_api_reports_not_covered");
+    expect(
+      (await h.db.query("SELECT coverage FROM cms_api_drug_coverage")).rows,
+    ).toEqual([{ coverage: "NotCovered" }]);
+  } finally {
+    await h.db.exec(
+      "UPDATE snapshot SET validation_state='ACTIVE' WHERE snapshot_id='rx'",
+    );
+  }
+});
+
+it("negative control: rejects a projection mutant that treats every identity as known", async () => {
+  const source = new URL(
+    "../../../src/ingest/cms-api/fallback.ts",
+    import.meta.url,
+  );
+  const temporary = new URL(
+    "../../../src/ingest/cms-api/.fallback-mutant-identity.ts",
+    import.meta.url,
+  );
+  const original = await readFile(source, "utf8");
+  expect(original).toContain("known.has(pair.id)");
+  await writeFile(temporary, original.replace("known.has(pair.id)", "true"));
+  try {
+    const mutant = (await import(
+      /* @vite-ignore */ temporary.href
+    )) as typeof Fallback;
+    reply = covered("NotCovered");
+    const out = (
+      await mutant.applyCmsFallback(
+        "drug",
+        [answer({ rxcui: "999999999999" })],
+        context(),
+      )
+    )[0]!;
+    expect(() => expect(out.status).toBe("unknown")).toThrow();
+    expect(out.covered).toBe(false);
+  } finally {
+    await rm(temporary, { force: true });
+  }
+});
+
+it("rechecks NPPES identity for fresh and stale stored provider negatives", async () => {
+  const identity = "1234567893";
+  const provider: ProviderParticipation = {
+    status: "unknown",
+    reason: "source_set_not_available",
+    requested_plan_id: plan,
+    base_hios_id: plan,
+    identity,
+    plan_year: 2026,
+    participation_scope: "provider_record",
+    snapshot_id: null,
+    manifest_snapshot_id: null,
+    evidence: [],
+    warnings: [],
+  };
+  reply = (url) => ({
+    status: 200,
+    body: JSON.stringify({
+      coverage: url.searchParams
+        .get("planids")!
+        .split(",")
+        .map((plan_id) => ({ plan_id, npi: identity, coverage: "NotCovered" })),
+    }),
+  });
+  const live = (await applyCmsFallback("provider", [provider], context()))[0]!;
+  expect(live).toMatchObject({
+    status: "unknown",
+    reason: "cms_api_reports_not_covered",
+  });
+  expect(live.covered).toBeUndefined();
+  sent = [];
+  for (const stale of [false, true]) {
+    if (stale)
+      await h.db.exec(
+        "UPDATE cms_api_provider_coverage SET expired_at=now()-interval '1 day'",
+      );
+    for (const known of [false, true, false]) {
+      if (known)
+        await h.db.query(
+          `INSERT INTO npi_provider(npi,organization_name,in_scope,state_filter,data_date,snapshot_id)
+        VALUES ($1,'Synthetic identity',true,'TX','2026-11-10','catalog')`,
+          [identity],
+        );
+      else
+        await h.db.query("DELETE FROM npi_provider WHERE npi=$1", [identity]);
+      const out = (
+        await applyCmsFallback(
+          "provider",
+          [provider],
+          context({ writer: undefined }),
+        )
+      )[0]!;
+      expect(out.status).toBe(
+        known ? "explicitly_not_participating" : "unknown",
+      );
+      expect(out.covered).toBe(known ? false : undefined);
+      expect(out.cms_api).toMatchObject({
+        coverage: "NotCovered",
+        sourced_by: "cms-marketplace-api",
+        served_from: stale ? "absorbed_stale" : "absorbed",
+      });
+      expect(
+        (await h.db.query("SELECT coverage FROM cms_api_provider_coverage"))
+          .rows,
+      ).toEqual([{ coverage: "NotCovered" }]);
+    }
+  }
   expect(sent).toEqual([]);
 });

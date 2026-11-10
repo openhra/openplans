@@ -1,5 +1,6 @@
 import { applicationVersion } from "./version.js";
 import { cmsFallbackContext } from "../ingest/cms-api/fallback.js";
+import { quoteFallbackEnabled } from "../services/quote-coverage.js";
 import { sharedResponseCache } from "../api/cache/index.js";
 import type { ResponseCache, CacheOutcome } from "../api/cache/index.js";
 import type { SqlSession } from "../db/database.js";
@@ -654,6 +655,8 @@ async function quoteAnswer(
   const native = await quotes.quotePlans(
     db,
     quoteBody(input, Math.floor(offset / size) + 1),
+    "public_quote",
+    quoteFallbackEnabled() ? cmsFallbackContext(db, undefined) : undefined,
   );
   const items = native.quotes.slice(offset % size);
   const completeness = await sourceCompleteness(db, input.year);

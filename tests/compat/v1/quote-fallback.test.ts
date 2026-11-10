@@ -1,5 +1,9 @@
 // Synthetic transport and key; the catalog and terminology use public fixture cuts.
 import { Hono } from "hono";
+import { callTool } from "../../../src/mcp/tools.js";
+import { assertHonest, outputSchemas } from "../../../src/mcp/schemas.js";
+import type { DrugCoverage } from "../../../src/domain/drugs/index.js";
+import type { ProviderParticipation } from "../../../src/domain/providers/index.js";
 import type { SqlSession } from "../../../src/db/database.js";
 import type * as QuoteRoutes from "../../../src/api/quotes.js";
 import { replaceSyntax } from "../../source-mutation.js";
@@ -640,3 +644,193 @@ it("returns the request deadline after a fallback write is cancelled", async () 
     error: { code: "REQUEST_DEADLINE" },
   });
 });
+
+// Synthetic identities and CMS statements exercise every public coverage projection.
+const cmsStatements = [
+  "Covered",
+  "GenericCovered",
+  "NotCovered",
+  "DataNotProvided",
+];
+it.each(
+  cmsStatements.flatMap((statement) =>
+    [false, true].map((known) => ({ statement, known })),
+  ),
+)(
+  "projects $statement with local identity=$known across coverage routes, quotes, compatibility and MCP",
+  async ({ statement, known }) => {
+    const providerId = "1234567893";
+    const drugId = known ? rx : "999999999999";
+    if (known)
+      await h.db.query(
+        `INSERT INTO npi_provider(npi,organization_name,in_scope,state_filter,data_date,snapshot_id)
+        SELECT $1,'Synthetic identity',true,'TX','2026-11-10',snapshot_id FROM rx_release LIMIT 1`,
+        [providerId],
+      );
+    try {
+      responseCoverage = statement;
+      // GenericCovered is a drug-only CMS flag. Providers must reject that response.
+      let providerStatus = "unknown",
+        drugStatus = "unknown";
+      if (statement === "Covered") providerStatus = "listed_participating";
+      if (statement === "NotCovered" && known)
+        providerStatus = "explicitly_not_participating";
+      if (known && ["Covered", "GenericCovered"].includes(statement))
+        drugStatus = "listed_covered";
+      if (known && statement === "NotCovered")
+        drugStatus = "explicitly_not_covered";
+      const assertCell = (
+        cell: ProviderParticipation | DrugCoverage,
+        kind: "provider" | "drug",
+      ) => {
+        expect(cell.status).toBe(
+          kind === "provider" ? providerStatus : drugStatus,
+        );
+        if (kind === "drug" && !known) {
+          expect(cell.reason).toBe("rxcui_not_in_rxnorm");
+          expect(cell.cms_api).toBeUndefined();
+        } else if (kind === "provider" && statement === "GenericCovered") {
+          expect(cell.cms_api).toBeUndefined();
+        } else {
+          expect(cell.cms_api).toMatchObject({
+            coverage: statement,
+            sourced_by: "cms-marketplace-api",
+          });
+          if (cell.status === "unknown") {
+            expect(cell.covered).toBeUndefined();
+            expect(cell.reason).toBe(
+              statement === "NotCovered"
+                ? "cms_api_reports_not_covered"
+                : "cms_api_data_not_provided",
+            );
+          } else
+            expect(cell.covered).toBe(
+              ["Covered", "GenericCovered"].includes(statement),
+            );
+        }
+      };
+      // Quote fetches first, then the other routes read the same stored statements.
+      if (statement === "GenericCovered")
+        await native({ npis: [], rxcuis: [drugId] });
+      const quoted = await native({ npis: [providerId], rxcuis: [drugId] });
+      assertCell(quoted.quotes[0]!.providers[0]!, "provider");
+      assertCell(quoted.quotes[0]!.drugs[0]!, "drug");
+      const api = app();
+      for (const [kind, code, collection, route] of [
+        ["provider", providerId, "npis", "provider-participation"],
+        ["drug", drugId, "rxcuis", "drug-coverage"],
+      ] as const) {
+        // Invalid provider flags open a breaker; the remaining projections must stay unknown.
+        const single = await api.request(
+          `/v1/plans/${plan}/${kind}s/${code}?year=2026`,
+        );
+        expect(single.status).toBe(200);
+        assertCell(await single.json(), kind);
+        const batch = await api.request(`/v1/${route}`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            plan_ids: [plan],
+            [collection]: [code],
+            year: 2026,
+          }),
+        });
+        expect(batch.status).toBe(200);
+        const cells = (await batch.json()) as {
+          results: (ProviderParticipation | DrugCoverage)[];
+        };
+        assertCell(cells.results[0]!, kind);
+        const tool =
+          kind === "provider"
+            ? "check_provider_network"
+            : "check_drug_coverage";
+        const output = (
+          await callTool({ db: h.db }, tool, {
+            plan_ids: [plan],
+            [collection]: [code],
+            year: 2026,
+          })
+        ).structuredContent;
+        expect(output.status).not.toBe("error");
+        const parsed = outputSchemas[tool].parse(output);
+        const cell = parsed.data!.results[0]!;
+        if (cell.cms_api && cell.status !== "unknown") {
+          for (const mutate of [
+            (c: NonNullable<typeof cell.cms_api>) => {
+              c.coverage = "DataNotProvided";
+            },
+            (c: NonNullable<typeof cell.cms_api>) => {
+              c.snapshot_id = "synthetic-missing-receipt";
+            },
+            (c: NonNullable<typeof cell.cms_api>) => {
+              c.sourced_at = "2000-01-01T00:00:00Z";
+            },
+          ]) {
+            const mutant = structuredClone(parsed);
+            mutate(mutant.data!.results[0]!.cms_api!);
+            expect(() => assertHonest(tool, mutant)).toThrow();
+          }
+          const unlabelled = structuredClone(parsed);
+          delete unlabelled.data!.results[0]!.cms_api;
+          expect(() => assertHonest(tool, unlabelled)).toThrow();
+        }
+        expect(cell.status).toBe(
+          kind === "provider" ? providerStatus : drugStatus,
+        );
+        if (
+          (kind === "provider" && statement !== "GenericCovered") ||
+          (kind === "drug" && known)
+        ) {
+          expect(cell.cms_api).toMatchObject({
+            coverage: statement,
+            sourced_by: "cms-marketplace-api",
+          });
+          if (cell.status === "unknown")
+            expect(cell.gaps).toContain(
+              statement === "NotCovered"
+                ? "cms_api_reports_not_covered"
+                : "cms_api_data_not_provided",
+            );
+        }
+      }
+      const mcpQuote = outputSchemas.quote_plans.parse(
+        (
+          await callTool({ db: h.db }, "quote_plans", {
+            year: 2026,
+            location: { county: "48201" },
+            members: [{ age: 35 }],
+            plan_refs: [plan],
+            npis: [providerId],
+            rxcuis: [drugId],
+          })
+        ).structuredContent,
+      );
+      expect(mcpQuote.status).not.toBe("error");
+      expect(mcpQuote.data!.quotes[0]!.providers[0]!.status).toBe(
+        providerStatus,
+      );
+      expect(mcpQuote.data!.quotes[0]!.drugs[0]!.status).toBe(drugStatus);
+      const facade = await compat({
+        providers: [{ npi: providerId }],
+        drug_packages: [{ id: "synthetic-package", rx_cui_id: drugId }],
+      });
+      const networkStatus: Record<string, boolean | null> = {
+        listed_participating: true,
+        explicitly_not_participating: false,
+        unknown: null,
+      };
+      expect(facade.body.plans[0]!.providers[0]!.in_network).toBe(
+        networkStatus[providerStatus],
+      );
+      expect(facade.body.coverages[0]!.tier).toBe(
+        drugStatus === "explicitly_not_covered" ? "not_covered" : null,
+      );
+      if (statement === "NotCovered" && !known)
+        expect(facade.response.headers.get("x-openplans-gaps")).toContain(
+          "unknown:cms_api_reports_not_covered:sourced_by=cms-marketplace-api",
+        );
+    } finally {
+      await h.db.query("DELETE FROM npi_provider WHERE npi=$1", [providerId]);
+    }
+  },
+);

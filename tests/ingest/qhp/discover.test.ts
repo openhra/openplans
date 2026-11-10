@@ -373,7 +373,7 @@ describe("registry-first QHP discovery", () => {
         identities.every(
           (value) =>
             value ===
-            "openplans/0.3.5 (public health-plan source discovery; +https://project.example/openplans)",
+            "openplans/0.3.6 (public health-plan source discovery; +https://project.example/openplans)",
         ),
       ).toBe(true);
       expect(

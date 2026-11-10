@@ -71,16 +71,19 @@ It holds counts and a time, never plan ids, codes or the key.
 Issuer and PUF tables are never written. Loaded files always win because the fallback runs only
 on their `unknown` answers.
 
-How it labels answers: a served answer gets `covered` and a `cms_api` object with the source,
+How it labels answers: a served answer gets a `cms_api` object with the source,
 `sourced_by`, `sourced_at`, the snapshot id, `served_from` (`live`, `absorbed` or
 `absorbed_stale`) and its limits. CMS publishes a coverage flag only. Tier, prior authorization,
 step therapy, quantity limits and cost stay `null`. `DataNotProvided` stays `unknown` with
-reason `cms_api_data_not_provided`.
+reason `cms_api_data_not_provided`. `NotCovered` stays `unknown` with reason
+`cms_api_reports_not_covered` unless the NPI exists in local NPPES or the RxCUI resolves
+to an unsuppressed concept in the active local RxNorm release. Only known identities
+can receive `covered: false`; positive flags receive `covered: true`. The identity check
+runs when serving stored answers too. The original CMS statement stays in `cms_api.coverage`.
 
 The key reaches the API only through fetch admission (`accessMode: "api-key"`, see
 `src/fetch/README.md`). Admission refuses the host when the key is unset. A response that
 contains the key is discarded.
-
 
 ## Choose expiry before switching on
 

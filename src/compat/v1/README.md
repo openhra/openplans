@@ -11,14 +11,14 @@ to remove the facade. There are no new dependencies or native schema changes.
 
 All paths below are under `/compat/v1`.
 
-| Method/path | Inputs |
-| --- | --- |
-| `GET /zip_counties` | `zip_prefix`, 3–5 digits; resolves only loaded Census ZCTAs |
-| `POST /plans/medical/search` | `fips_code`, nonempty `applicants` (`age`, optional `smoker`, `child`); optional `zip_code`, `market`, `enrollment_date`, `ids`, `sort`, `page`, `per_page`, `household_income`, `household_size`, `tax_filing` |
-| `GET /plans/:id`, `GET /plans/medical/:id` | Base/published variant HIOS identifier, or URL-encoded native VT `plan_key`; optional `year` |
-| `GET /drugs` | `search_term`, optional `page`, `per_page` |
-| `GET /carriers` | Optional `state`, `year`, `market`, `line_of_coverage`, `page`, `per_page` |
-| `GET /networks` | Optional `state`, `year`, `page`, `per_page` |
+| Method/path                                | Inputs                                                                                                                                                                                                          |
+| ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /zip_counties`                        | `zip_prefix`, 3–5 digits; resolves only loaded Census ZCTAs                                                                                                                                                     |
+| `POST /plans/medical/search`               | `fips_code`, nonempty `applicants` (`age`, optional `smoker`, `child`); optional `zip_code`, `market`, `enrollment_date`, `ids`, `sort`, `page`, `per_page`, `household_income`, `household_size`, `tax_filing` |
+| `GET /plans/:id`, `GET /plans/medical/:id` | Base/published variant HIOS identifier, or URL-encoded native VT `plan_key`; optional `year`                                                                                                                    |
+| `GET /drugs`                               | `search_term`, optional `page`, `per_page`                                                                                                                                                                      |
+| `GET /carriers`                            | Optional `state`, `year`, `market`, `line_of_coverage`, `page`, `per_page`                                                                                                                                      |
+| `GET /networks`                            | Optional `state`, `year`, `page`, `per_page`                                                                                                                                                                    |
 
 Pagination is 1-based; `ids` accepts up to 100 identifiers. Medical pages are capped at **50**.
 For example, `page: 2, per_page: 100` starts at offset 50, not 100. Smaller requested
@@ -174,15 +174,15 @@ inventing data, so consumers must accept nulls. Missing evidence never becomes
 The shape checks enforce required keys, non-null primitive types and nesting,
 and allow these nulls and empty collections.
 
-* Quotes expose gross `premium` and per-applicant amounts from the native rating
+- Quotes expose gross `premium` and per-applicant amounts from the native rating
   engine. Without resolved subsidy inputs, `premium_subsidized` and premium tax
   credit are null. State subsidy and Medicaid eligibility remain null. Conditional
   credit/net mapping is described above.
-* The public catalog lacks carrier-only off-exchange plans. Generic searches
+- The public catalog lacks carrier-only off-exchange plans. Generic searches
   advertise `off_exchange_catalog_incomplete`. An `ids` filter additionally lists
   each unavailable requested identifier as `public_plan_unavailable:<id>`.
   Absence alone does not classify an arbitrary identifier as off-exchange.
-* Native catalog views supply names, metal, issuer, network names and exchange
+- Native catalog views supply names, metal, issuer, network names and exchange
   flags. The selected variant maps available native benefit rows to labelled
   copay/coinsurance strings, preserving publisher conditions, tier 2 and limits.
   Base IDs default to the standard on-exchange variant; missing evidence stays
@@ -190,44 +190,44 @@ and allow these nulls and empty collections.
   label their scope. Unmapped plan metadata and benefits with no evidence stay
   null. These are implementation/native-view gaps, not claims that CMS lacks
   those fields.
-* Plan columns come from the selected variant's Plan Attributes PUF row.
-  * `standardized_plan` reads `DesignType`. "Design 1" and the other numbered
+- Plan columns come from the selected variant's Plan Attributes PUF row.
+  - `standardized_plan` reads `DesignType`. "Design 1" and the other numbered
     designs are standardized options. "Not Applicable" means the plan is not one.
-  * `essential_health_benefits_percentage` reads `EHBPercentTotalPremium`. The
+  - `essential_health_benefits_percentage` reads `EHBPercentTotalPremium`. The
     federal file prints a fraction such as 0.9609, which becomes 96.09. State
     files print a percentage in `EHB PERCENT PREMIUM`. State files also name the
     design column `PLAN DESIGN TYPE`.
-  * `plan_calendar` is `calendar_year` only when the row runs from January 1 to
+  - `plan_calendar` is `calendar_year` only when the row runs from January 1 to
     December 31 of its business year.
-  * `coinsurance` is the tier 1 deductible coinsurance cell. The mapper reads the
+  - `coinsurance` is the tier 1 deductible coinsurance cell. The mapper reads the
     `TEHB` cells when the row says medical and drug deductibles are integrated, and
     the `MEHB` cells otherwise.
-  * `plan_coinsurance` repeats the in-network tier 1 cell, plus the tier 2 cell
+  - `plan_coinsurance` repeats the in-network tier 1 cell, plus the tier 2 cell
     when one exists. The PUFs have no out-of-network deductible coinsurance column.
-  * `embedded_deductible` is `embedded` when the same scope lists a per-person
+  - `embedded_deductible` is `embedded` when the same scope lists a per-person
     family amount above $0 and below the per-group amount. Otherwise it is null.
     State files put both amounts in one family cell, and the mapper splits it.
-  * `out_of_network_coverage` is `true` when a covered primary care or specialist
+  - `out_of_network_coverage` is `true` when a covered primary care or specialist
     row lists an out-of-network cost below 100%. It is never `false`. A 100%
     coinsurance cell tells you the cost, not that coverage is missing.
-  * `sbc_name` is the published variant marketing name. Other document titles
+  - `sbc_name` is the published variant marketing name. Other document titles
     are not in any public cell.
-* `benefits_summary_url` is the row's `URLForSummaryofBenefitsCoverage` link,
+- `benefits_summary_url` is the row's `URLForSummaryofBenefitsCoverage` link,
   unchanged. `plan_documents` lists that link as `summary_of_benefits_and_coverage`
   and the `PlanBrochure` link as `plan_brochure`. A blank or non-HTTP cell adds
   nothing. OpenPlans links to the issuer's file and never hosts a copy.
-* Benefits and Cost Sharing PUF rows fill these fields:
-  * `adult_dental` from Routine Dental Services (Adult).
-  * `infertility_treatment_rider` from Infertility Treatment.
-  * `prenatal_care` and `postnatal_care` from Prenatal and Postnatal Care.
-  * `outpatient_ambulatory_care_center` from the Outpatient Facility Fee row.
-  * The non-preferred generic and specialty drug shares, when an issuer
+- Benefits and Cost Sharing PUF rows fill these fields:
+  - `adult_dental` from Routine Dental Services (Adult).
+  - `infertility_treatment_rider` from Infertility Treatment.
+  - `prenatal_care` and `postnatal_care` from Prenatal and Postnatal Care.
+  - `outpatient_ambulatory_care_center` from the Outpatient Facility Fee row.
+  - The non-preferred generic and specialty drug shares, when an issuer
     publishes those rows.
-* Some fields stay null on purpose. The PUFs do not split imaging or maternity
+- Some fields stay null on purpose. The PUFs do not split imaging or maternity
   physician fees from facility fees, so `imaging_center`, `imaging_physician` and
   `inpatient_birth_physician` stay null. The abortion row says whether the service
   is covered, not whether a rider is offered, so `abortion_rider` stays null too.
-* Carrier IDs are CMS issuer IDs (strings), scoped to loaded state/year sources.
+- Carrier IDs are CMS issuer IDs (strings), scoped to loaded state/year sources.
   Markets/lines come from the native Network PUF census. Issuer crosswalk
   arrays stay empty. Geographic numeric IDs remain public FIPS/ZIP aliases so
   existing geographic joins continue to work. No public crosswalk to other numeric
@@ -238,7 +238,7 @@ and allow these nulls and empty collections.
   FIPS when available (for example `Harris County` instead of postal `Harris`).
   Otherwise the published source label is retained; suffixes and identifiers
   are never inferred. Postal attribution/source fields remain present.
-* External network IDs are unavailable: `networks[].id` is null and `network_ids`
+- External network IDs are unavailable: `networks[].id` is null and `network_ids`
   is empty. Network names and published directory URLs come from the native
   catalog. When the `NetworkURL` cell is blank, the network has no
   `provider_directory_url` key. OpenPlans never makes up a numeric ID. Import dates are null.
@@ -311,14 +311,14 @@ ZIP. Each must fail the checks used for valid responses. Original evidence is in
 
 ## Providers, specialties and nonmedical plans
 
-| Method/path | Inputs |
-| --- | --- |
-| `POST /providers/search` | Required `zip_code`; optional `search_term`, `radius` in miles (0–500), `type` (`individual` or `organization`), `sort` (`distance` or `name`, optional `-`), `page`, `per_page` |
-| `GET /providers/:npi` | Published NPI, optional `year` |
-| `GET /specialties` | Codes present in the loaded in-scope NPPES identities |
-| `POST /plans/dental/search` | Same location/household inputs as medical search |
-| `GET /plans/dental/:id` | SADP base/variant HIOS identifier, optional `year` |
-| `POST /plans/vision/search` | Required `fips_code`, nonempty `applicants`; explicit unsupported result |
+| Method/path                 | Inputs                                                                                                                                                                           |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `POST /providers/search`    | Required `zip_code`; optional `search_term`, `radius` in miles (0–500), `type` (`individual` or `organization`), `sort` (`distance` or `name`, optional `-`), `page`, `per_page` |
+| `GET /providers/:npi`       | Published NPI, optional `year`                                                                                                                                                   |
+| `GET /specialties`          | Codes present in the loaded in-scope NPPES identities                                                                                                                            |
+| `POST /plans/dental/search` | Same location/household inputs as medical search                                                                                                                                 |
+| `GET /plans/dental/:id`     | SADP base/variant HIOS identifier, optional `year`                                                                                                                               |
+| `POST /plans/vision/search` | Required `fips_code`, nonempty `applicants`; explicit unsupported result                                                                                                         |
 
 Provider search also accepts native `plan_id` with optional `year`
 (default 2026, flagged), and `taxonomy` or `specialty`. Taxonomy codes returned by
@@ -416,7 +416,10 @@ because a CMS plan coverage flag does not establish office participation.
 Drug rows use the existing `coverages[]` keys `plan_id`, `drug_package_id`, `tier`,
 `prior_authorization`, `step_therapy` and `quantity_limit`. CMS does not publish
 these tiers or restrictions, so they stay null. An explicit negative answer may
-set `tier` to `not_covered`. `DataNotProvided` stays unknown.
+set `tier` to `not_covered` only for a drug resolved in active local RxNorm.
+A CMS `NotCovered` provider answer requires a local NPPES record before
+`in_network` can be false. Otherwise participation stays null and the gaps header
+reports `unknown:cms_api_reports_not_covered`. `DataNotProvided` stays unknown.
 
 Each pair has an entry in `x-openplans-gaps` with this format:
 

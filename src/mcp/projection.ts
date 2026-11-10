@@ -288,6 +288,13 @@ export async function projector(db: SqlSession, native: unknown) {
       },
     };
   }
+  function coverageEvidence(value: unknown) {
+    const r = row(value);
+    const refs = evidence(value);
+    if (r.cms_api && r.status === "unknown" && typeof r.reason === "string")
+      refs.gaps.push(r.reason);
+    return refs;
+  }
   function coverage(value: unknown, completeness: unknown) {
     const r = row(value);
     return {
@@ -313,7 +320,7 @@ export async function projector(db: SqlSession, native: unknown) {
         quantity_limit: nullable(e.quantity_limit),
         ...evidence(e),
       })),
-      ...evidence(value),
+      ...coverageEvidence(value),
     };
   }
   function participation(value: unknown, completeness: unknown) {
@@ -335,7 +342,7 @@ export async function projector(db: SqlSession, native: unknown) {
         tier_status: e.tier_status,
         ...evidence(e),
       })),
-      ...evidence(value),
+      ...coverageEvidence(value),
     };
   }
   /** A public quote: the estimate view plus the shared coverage and participation views. */

@@ -1269,7 +1269,32 @@ export function assertHonest<T extends ToolName>(
     ) {
       if (record.kind === "drug_coverage" || record.kind === "participation") {
         const evidence = record.evidence as Record<string, unknown>[];
+        const cms = object(record.cms_api);
+        const cmsStatuses =
+          record.kind === "drug_coverage"
+            ? {
+                Covered: "listed_covered",
+                GenericCovered: "listed_covered",
+                NotCovered: "explicitly_not_covered",
+              }
+            : {
+                Covered: "listed_participating",
+                NotCovered: "explicitly_not_participating",
+              };
+        const cmsStatus = (cmsStatuses as Record<string, string>)[
+          String(cms?.coverage)
+        ];
+        const cmsReceipt =
+          cmsStatus === record.status &&
+          (record.evidence_refs as string[]).some((ref) => {
+            const source = sources.get(ref);
+            return (
+              source?.snapshot_id === cms?.snapshot_id &&
+              source?.retrieved_at === cms?.sourced_at
+            );
+          });
         if (
+          !cmsReceipt &&
           !evidence.some(
             (row) =>
               row.status === record.status &&

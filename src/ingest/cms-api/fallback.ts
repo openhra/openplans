@@ -13,6 +13,7 @@ import type { FetchOptions } from "../../fetch/index.js";
 import { parse_hios } from "../../domain/hios/index.js";
 import type { DrugCoverage } from "../../domain/drugs/index.js";
 import type { ProviderParticipation } from "../../domain/providers/index.js";
+import { createRxnormRepository } from "../rxnorm/repository.js";
 
 /**
  * Coverage fallback to the CMS Marketplace API, off unless `OPENPLANS_CMS_FALLBACK=on`.
@@ -167,8 +168,16 @@ function withEvidence<T extends Answer>(
   kind: CmsKind,
   answer: T,
   evidence: CmsApiEvidence,
+  identityKnown: boolean,
 ): T {
   const covered = ["Covered", "GenericCovered"].includes(evidence.coverage);
+  if (evidence.coverage === "NotCovered" && !identityKnown)
+    return {
+      ...answer,
+      status: "unknown",
+      reason: "cms_api_reports_not_covered",
+      cms_api: evidence,
+    };
   if (
     evidence.coverage === "DataNotProvided" ||
     !["Covered", "GenericCovered", "NotCovered"].includes(evidence.coverage)
@@ -664,6 +673,28 @@ async function applyFallback<T extends Answer>(
     }
   }
   if (pending.length) rows = await absorbed(writer ?? db, kind, pairs);
+  // CMS also returns NotCovered for identities it cannot resolve. Recheck local identity
+  // on every read, including rows absorbed before this rule was introduced.
+  const negativeIds = [
+    ...new Set(
+      pairs
+        .filter((p) => rows.get(keyOf(p))?.coverage === "NotCovered")
+        .map((p) => p.id),
+    ),
+  ];
+  const known = new Set<string>();
+  if (kind === "provider" && negativeIds.length) {
+    const identities = await db.query<{ npi: string }>(
+      "SELECT npi FROM npi_provider WHERE npi=ANY($1::text[])",
+      [negativeIds],
+    );
+    for (const row of identities.rows) known.add(row.npi);
+  } else if (kind === "drug") {
+    const rxnorm = createRxnormRepository(db);
+    for (const id of negativeIds)
+      if ((await rxnorm.conceptByRxcui(id)).some((c) => c.suppress === "N"))
+        known.add(id);
+  }
   for (const pair of pairs) {
     const row = rows.get(keyOf(pair));
     const answer = out[pair.index]!;
@@ -676,6 +707,7 @@ async function applyFallback<T extends Answer>(
         kind,
         answer,
         evidenceFrom(kind, row, served),
+        known.has(pair.id),
       );
     } else if (reasonFor.has(pair.index))
       out[pair.index] = { ...answer, reason: reasonFor.get(pair.index)! };
