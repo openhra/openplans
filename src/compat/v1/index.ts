@@ -1,3 +1,4 @@
+import { logInternalError } from "../../api/error-log.js";
 import { catastrophicEligibility } from "../../domain/eligibility/catastrophic.js";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
@@ -132,11 +133,12 @@ export function compatRoutes(db: SqlSession, options: ApiOptions = {}) {
   const app = new Hono().basePath(BASE),
     native = nativeRoutes(db, options),
     anonymous = anonymousAdmission(options);
-  app.onError((error, c) =>
-    error instanceof v.InputError
-      ? c.json({ error: { code: error.code, field: error.field } }, 400)
-      : c.json({ error: "internal_error" }, 500),
-  );
+  app.onError((error, c) => {
+    if (error instanceof v.InputError)
+      return c.json({ error: { code: error.code, field: error.field } }, 400);
+    logInternalError(error);
+    return c.json({ error: "internal_error" }, 500);
+  });
 
   app.use("*", async (c, next) => {
     c.header("Access-Control-Allow-Origin", "*");

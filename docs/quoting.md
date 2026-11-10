@@ -116,7 +116,9 @@ location returns `quotes: []` with `location.status`. Responses carry
 
 ### Unknown is not "not covered"
 
-A provider or drug status comes only from published issuer evidence. When the
+By default, provider and drug status comes from published issuer evidence. The
+optional [CMS coverage fallback](../src/ingest/cms-api/README.md) can fill unknown
+answers when both fallback switches and a key are set. When the
 issuer's provider or formulary files are not loaded, the status is `unknown`
 with a reason such as `source_set_not_available` or `rxcui_not_in_rxnorm`. It
 never means the provider is out of network or the drug is not covered. Bootstrap
@@ -179,7 +181,10 @@ The MCP endpoint offers the same two tiers.
 - `quote_premiums` is the household quote and answers under `quotes`. It is open
   by default. A set `OPENPLANS_MCP_TOKEN` restricts it to Bearer callers over HTTP,
   `OPENPLANS_MCP_ALLOW_PERSONALIZED=0` withholds it over stdio, and
-  `OPENPLANS_PUBLIC_HOUSEHOLD=off` withholds it everywhere.
+  `OPENPLANS_PUBLIC_HOUSEHOLD=off` withholds anonymous HTTP access. An authorized
+  HTTP bearer caller can still use it. Over stdio, `OPENPLANS_MCP_ALLOW_PERSONALIZED=1`
+  grants access explicitly; `0` withholds it. When unset, stdio follows the public
+  household switch and withholds household tools if an MCP token is configured.
 
 `get_data_status` reports `public_quoting: "enabled"` or `"disabled"`. No quoting
 tool result is cached.

@@ -45,8 +45,8 @@ scripts need their own scoped configuration.
 
 ## Finite lint baseline
 
-The initial baseline contains 228 `@typescript-eslint/no-explicit-any` findings in
-27 test files. Production source has no allowances. Parser failures, undefined
+The committed baseline contains 170 `@typescript-eslint/no-explicit-any` findings in
+23 test files. Production source has no allowances. Parser failures, undefined
 runtime references, nested ternaries and incorrect type imports cannot enter the
 baseline.
 
@@ -103,7 +103,7 @@ dependencies, build output and local environment/tool state. It refuses a select
 payload or ignored fixture source. Comparing manifests
 also detects additions, deletions and changes in source selection. Keep the
 migration manifest with the release evidence, outside the source package. Capture
-a fresh manifest after concurrent fixture work has merged and before F2 starts.
+a fresh manifest after concurrent fixture work has merged and before formatting.
 
 `npm run check:lint-setup` checks the current fixture inventory and uses disposable
 synthetic examples. It requires rejection of an undefined JavaScript reference,

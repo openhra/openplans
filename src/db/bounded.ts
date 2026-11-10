@@ -7,6 +7,7 @@ export const DEADLINE_MS = 15_000;
 export function boundedDatabase(
   db: SqlSession,
   signal: AbortSignal,
+  options?: { readOnly?: boolean },
 ): SqlSession {
   return {
     async query<Row extends Record<string, unknown>>(
@@ -15,8 +16,10 @@ export function boundedDatabase(
     ) {
       signal.throwIfAborted();
       const result = db.withRequest
-        ? await db.withRequest(signal, (session) =>
-            session.query<Row>(sql, parameters),
+        ? await db.withRequest(
+            signal,
+            (session) => session.query<Row>(sql, parameters),
+            options,
           )
         : await db.query<Row>(sql, parameters);
       signal.throwIfAborted();

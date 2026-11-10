@@ -1,4 +1,8 @@
 // Synthetic transport and key; the catalog and terminology use public fixture cuts.
+import { Hono } from "hono";
+import type { SqlSession } from "../../../src/db/database.js";
+import type * as QuoteRoutes from "../../../src/api/quotes.js";
+import { replaceSyntax } from "../../source-mutation.js";
 import type * as NodeCrypto from "node:crypto";
 import { createHash } from "node:crypto";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -134,12 +138,12 @@ beforeEach(async () => {
   await h.db
     .exec(`DELETE FROM cms_api_conflict; DELETE FROM cms_api_drug_coverage; DELETE FROM cms_api_provider_coverage; DELETE FROM cms_api_attempt;
     UPDATE record_policy SET default_ttl=CASE name WHEN 'cms_api_fallback' THEN interval '7 days' ELSE interval '1 day' END,stale_window='30 days' WHERE name IN ('cms_api_fallback','cms_api_fallback_no_data');
-    UPDATE cms_api_budget SET day_start=(now() AT TIME ZONE 'UTC')::date, daily_requests=0,next_request_at='epoch',blocked_until='epoch',max_daily_requests=500,half_open=false;`);
+    UPDATE cms_api_budget SET day_start=(now() AT TIME ZONE 'UTC')::date, daily_requests=0,next_request_at='epoch',blocked_until='epoch',max_daily_requests=500,half_open=false,failure_count=0,failure_window_start=now();`);
   const factory = coverageService.quoteFallbackContext;
   vi.spyOn(coverageService, "quoteFallbackContext").mockImplementation(
-    (db, client) => {
+    (db, client, writer = db) => {
       if (!factory(db, client)) return undefined;
-      return cmsFallbackContext(db, db, {
+      return cmsFallbackContext(db, writer, {
         client,
         admission: new AdmissionSession([manifestPath], {
           maxRequests: 100,
@@ -159,13 +163,28 @@ afterEach(async () => {
   vi.unstubAllEnvs();
   await rm(directory, { recursive: true, force: true });
 });
+const productionDb = (): SqlSession => ({
+  ...h.db,
+  withRequest: (_signal, run, options) =>
+    h.db.transaction(async (tx) => {
+      await tx.exec(
+        options?.readOnly === false
+          ? "SET TRANSACTION READ WRITE"
+          : "SET TRANSACTION READ ONLY",
+      );
+      return run(tx);
+    }),
+});
 const app = () =>
-  createApp(h.db, {
+  createApp(productionDb(), {
     peerAddress: (request) =>
       request.headers.get("x-synthetic-peer") ?? "192.0.2.1",
   });
-async function native(extra = {}) {
-  const response = await app().request("/v1/quotes", {
+async function native(
+  extra = {},
+  api: Pick<ReturnType<typeof app>, "request"> = app(),
+) {
+  const response = await api.request("/v1/quotes", {
     method: "POST",
     headers,
     body: JSON.stringify(quoteBody({ npis: [npi], rxcuis: [rx], ...extra })),
@@ -173,8 +192,11 @@ async function native(extra = {}) {
   expect(response.status).toBe(200);
   return response.json() as Promise<Awaited<ReturnType<typeof quotePlans>>>;
 }
-async function compat(extra = {}) {
-  const response = await app().request(`${BASE}/plans/medical/search`, {
+async function compat(
+  extra = {},
+  api: Pick<ReturnType<typeof app>, "request"> = app(),
+) {
+  const response = await api.request(`${BASE}/plans/medical/search`, {
     method: "POST",
     headers,
     body: JSON.stringify(
@@ -414,4 +436,207 @@ it("shares the two-call cap over a compatibility page with many plans and both c
   expect(response.headers.get("x-openplans-gaps")).toContain(
     "unknown:cms_api_request_cap",
   );
+});
+
+const coverageCases = ["npis", "rxcuis", "both", "neither"].flatMap((inputs) =>
+  ["off", "on"].flatMap((switchValue) =>
+    [false, true].map((rxnorm) => ({ inputs, switchValue, rxnorm })),
+  ),
+);
+async function coverageMatrixCase(
+  { inputs, switchValue, rxnorm }: (typeof coverageCases)[number],
+  api: Pick<ReturnType<typeof app>, "request"> = app(),
+) {
+  vi.stubEnv("OPENPLANS_CMS_FALLBACK_QUOTES", switchValue);
+  const rxTables = ["rx_release", "rx_concept", "rx_relation", "rx_ndc"];
+  if (!rxnorm) {
+    for (const table of rxTables)
+      await h.db.exec(
+        `CREATE TEMP TABLE quote_saved_${table} AS TABLE ${table}`,
+      );
+    for (const table of [...rxTables].reverse())
+      await h.db.exec(`DELETE FROM ${table}`);
+    expect((await h.db.query("SELECT * FROM rx_release")).rows).toEqual([]);
+  }
+  responseCoverage = "DataNotProvided";
+  const npis = inputs === "npis" || inputs === "both" ? ["1234567893"] : [];
+  const rxcuis =
+    inputs === "rxcuis" || inputs === "both" ? [rxnorm ? rx : "860975"] : [];
+  try {
+    await h.db.exec(
+      "UPDATE cms_api_budget SET daily_requests=1,max_daily_requests=200",
+    );
+    const result = await native(
+      {
+        zip: undefined,
+        plan_ids: ["87226TX0100011"],
+        npis,
+        rxcuis,
+      },
+      api,
+    );
+    expect(result.quotes).toHaveLength(1);
+    expect(result.quotes[0]!.providers).toHaveLength(npis.length);
+    expect(result.quotes[0]!.drugs).toHaveLength(rxcuis.length);
+    for (const cell of [
+      ...result.quotes[0]!.providers,
+      ...result.quotes[0]!.drugs,
+    ]) {
+      expect(cell.status).toBe("unknown");
+      expect(cell.reason).toBeTruthy();
+      if (switchValue === "on" && cell.reason !== "rxcui_not_in_rxnorm") {
+        expect(cell.reason).toBe("cms_api_data_not_provided");
+        labelled(cell);
+      }
+    }
+    if (!rxnorm && rxcuis.length)
+      expect(result.quotes[0]!.drugs[0]!.reason).toBe("rxcui_not_in_rxnorm");
+    const facade = await compat({
+      ids: ["87226TX0100011"],
+      providers: npis.map((npi) => ({ npi })),
+      drug_packages: rxcuis.map((rx_cui_id) => ({
+        id: "synthetic-package",
+        rx_cui_id,
+      })),
+    });
+    expect(facade.body.plans).toHaveLength(1);
+    if (switchValue === "on") {
+      expect(
+        (facade.body.plans[0]!.providers ?? []).every(
+          (p) => p.in_network === null,
+        ),
+      ).toBe(true);
+      expect(facade.body.coverages.every((d) => d.tier === null)).toBe(true);
+      if (!rxnorm && rxcuis.length)
+        expect(facade.response.headers.get("x-openplans-gaps")).toContain(
+          "rxcui_not_in_rxnorm",
+        );
+    }
+  } finally {
+    if (!rxnorm) {
+      for (const table of rxTables) {
+        await h.db.exec(
+          `INSERT INTO ${table} SELECT * FROM quote_saved_${table}`,
+        );
+        await h.db.exec(`DROP TABLE quote_saved_${table}`);
+      }
+    }
+  }
+}
+it.each(coverageCases)(
+  "quote coverage matrix $inputs switch=$switchValue RxNorm=$rxnorm",
+  (testCase) => coverageMatrixCase(testCase),
+);
+
+it("negative control: the matrix rejects the original read-only fallback writer", async () => {
+  const source = new URL("../../../src/api/quotes.ts", import.meta.url);
+  const temporary = new URL(
+    "../../../src/api/.quotes-mutant-read-only.ts",
+    import.meta.url,
+  );
+  await writeFile(
+    temporary,
+    replaceSyntax(
+      await readFile(source, "utf8"),
+      "boundedDatabase(db, deadline, { readOnly: false })",
+      "scoped",
+    ),
+  );
+  try {
+    const mutant = (await import(
+      /* @vite-ignore */ temporary.href
+    )) as typeof QuoteRoutes;
+    const api = new Hono().onError((_error, c) =>
+      c.json({ error: "synthetic_failure" }, 500),
+    );
+    api.route("/v1", mutant.quoteRoutes(productionDb(), {}));
+    await expect(
+      coverageMatrixCase(
+        { inputs: "both", switchValue: "on", rxnorm: false },
+        api,
+      ),
+    ).rejects.toThrow();
+  } finally {
+    await rm(temporary, { force: true });
+  }
+});
+
+it.each([
+  ["absorbed read", /FROM cms_api_(?:drug|provider)_coverage c/],
+  ["exchange lookup", /JOIN sbe_catalog/],
+  ["budget reservation", /UPDATE cms_api_budget SET\s+daily_requests=/],
+  ["snapshot write", /INSERT INTO snapshot/],
+  ["absorption", /INSERT INTO cms_api_(?:drug|provider)_coverage/],
+  ["audit write", /INSERT INTO cms_api_attempt/],
+] as const)(
+  "degrades %s failures in native and compatibility coverage",
+  async (_stage, pattern) => {
+    let hits = 0;
+    const broken: SqlSession = {
+      ...h.db,
+      query: async (sql, parameters) => {
+        if (pattern.test(sql)) {
+          hits++;
+          throw new Error("synthetic fallback storage failure");
+        }
+        return h.db.query(sql, parameters);
+      },
+    };
+    const api = createApp(broken);
+    const result = await native({}, api);
+    for (const cell of [
+      ...result.quotes[0]!.providers,
+      ...result.quotes[0]!.drugs,
+    ]) {
+      expect(cell).toMatchObject({
+        status: "unknown",
+        reason: "cms_api_unavailable",
+      });
+      expect(cell.cms_api).toBeUndefined();
+    }
+    await h.db.exec(
+      "DELETE FROM cms_api_drug_coverage; DELETE FROM cms_api_provider_coverage; UPDATE cms_api_budget SET next_request_at='epoch',blocked_until='epoch',half_open=false,failure_count=0,failure_window_start=now()",
+    );
+    const facade = await compat({}, api);
+    expect(facade.body.plans[0]!.providers[0]!.in_network).toBeNull();
+    expect(facade.body.coverages[0]!.tier).toBeNull();
+    expect(facade.response.headers.get("x-openplans-gaps")).toContain(
+      "unknown:cms_api_unavailable",
+    );
+    expect(hits).toBeGreaterThanOrEqual(4);
+  },
+);
+
+it("rejects fallback writes in the production-style read-only scope", async () => {
+  await expect(
+    productionDb().withRequest!(new AbortController().signal, (session) =>
+      session.query("UPDATE cms_api_budget SET next_request_at='epoch'"),
+    ),
+  ).rejects.toThrow(/read-only transaction/);
+});
+
+it("returns the request deadline after a fallback write is cancelled", async () => {
+  const controller = new AbortController();
+  const db = productionDb();
+  const scoped = db.withRequest!;
+  let writes = 0;
+  db.withRequest = (signal, run, options) => {
+    if (options?.readOnly === false) {
+      writes++;
+      controller.abort();
+      signal.throwIfAborted();
+    }
+    return scoped(signal, run, options);
+  };
+  const response = await createApp(db).request("/v1/quotes", {
+    method: "POST",
+    headers,
+    signal: controller.signal,
+    body: JSON.stringify(quoteBody({ npis: [npi], rxcuis: [] })),
+  });
+  expect(writes).toBe(1);
+  expect(response.status).toBe(504);
+  expect(await response.json()).toEqual({
+    error: { code: "REQUEST_DEADLINE" },
+  });
 });

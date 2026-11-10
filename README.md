@@ -6,7 +6,8 @@ US health plan data you can host yourself.
 
 OpenPlans turns public CMS, Census, NPPES, NLM RxNorm and insurer files into an HTTP API and an
 MCP endpoint for ACA marketplace plans, premium quotes, subsidy estimates, drug coverage and
-provider networks. It runs in Docker on your own server. You can trace every answer to the public
+provider networks. It also serves Medicare catalogs and benefits where CMS releases are loaded.
+Part D drug data is off until the operator reviews its terms and enables it. It runs in Docker on your own server. You can trace every answer to the public
 file it came from.
 
 Project page: <https://plans.openhra.com/> · Part of [OpenHRA](https://www.openhra.com/).
@@ -18,8 +19,8 @@ Project page: <https://plans.openhra.com/> · Part of [OpenHRA](https://www.open
 > **Public quoting is on by default.** Every install answers anonymous quotes by age and ZIP at
 > `POST /v1/quotes` and through the MCP tool `quote_plans`. Set `OPENPLANS_PUBLIC_QUOTING=off` to
 > turn both off. Household quotes with income, at `POST /v1/premium-quotes` and through
-> `quote_premiums`, are on by default too. Set a token to restrict them, or
-> `OPENPLANS_PUBLIC_HOUSEHOLD=off` to turn them off.
+> `quote_premiums`, are on by default too. Set the REST or MCP token to restrict
+> that protocol. With no token, `OPENPLANS_PUBLIC_HOUSEHOLD=off` closes household access.
 
 [Get started with Docker, call the API and check coverage](docs/usage.md) ·
 [quoting guide](docs/quoting.md) · [self-hosting guide](docs/self-host.md).
@@ -30,7 +31,7 @@ Project page: <https://plans.openhra.com/> · Part of [OpenHRA](https://www.open
 |---|---|
 | Which plans are sold for this ZIP and county? | CMS Exchange public use files, Census ZCTA files |
 | What does a plan cost at these ages in this ZIP? | Filed rate tables, no token needed |
-| What does this household pay, with income? | Filed rate tables (federal age curve; NY and VT PY2026 family tiers), with a token |
+| What does this household pay, with income? | Filed rate rows and cited state rules, including NY and VT PY2026 family tiers; open unless a token is configured |
 | What subsidy might apply? | Benchmark plan, expected contribution, Form 8962 rounding |
 | Is this drug covered, at what tier? | Insurer formulary files, NLM RxNorm |
 | Is this provider in the plan's network? | Insurer provider files, CMS NPPES |

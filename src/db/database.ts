@@ -7,10 +7,11 @@ export interface SqlSession {
     parameters?: unknown[],
   ): Promise<{ rows: Row[] }>;
   exec(sql: string): Promise<void>;
-  /** Read-only request scope, with server timeout and active SQL cancellation. */
+  /** Request scope with server timeout and cancellation; read-only unless explicitly writable. */
   withRequest?<T>(
     signal: AbortSignal,
     run: (session: SqlSession) => Promise<T>,
+    options?: { readOnly?: boolean },
   ): Promise<T>;
 }
 
@@ -63,7 +64,7 @@ export function createDatabase(
 
   return {
     ...session(pool),
-    async withRequest(signal, run) {
+    async withRequest(signal, run, options) {
       signal.throwIfAborted();
       const client = await pool.connect();
       let cancellation: Promise<unknown> | undefined;
@@ -81,7 +82,9 @@ export function createDatabase(
       signal.addEventListener("abort", cancel, { once: true });
       try {
         signal.throwIfAborted();
-        await client.query("BEGIN READ ONLY");
+        await client.query(
+          options?.readOnly === false ? "BEGIN" : "BEGIN READ ONLY",
+        );
         await client.query("SET LOCAL statement_timeout = '5s'");
         // Let the server enforce 5s first; the client fallback only covers a broken connection.
         const scoped = session(client, 6_000);

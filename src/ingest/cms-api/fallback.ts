@@ -565,6 +565,23 @@ export async function applyCmsFallback<T extends Answer>(
   context: CmsFallbackContext | undefined,
 ): Promise<T[]> {
   if (!context || !cmsFallbackEnabled()) return answers;
+  try {
+    return await applyFallback(kind, answers, context);
+  } catch {
+    // Optional coverage must survive cache, budget, audit and persistence failures.
+    return answers.map((answer) =>
+      eligible(kind, answer)
+        ? { ...answer, reason: "cms_api_unavailable" }
+        : answer,
+    );
+  }
+}
+
+async function applyFallback<T extends Answer>(
+  kind: CmsKind,
+  answers: T[],
+  context: CmsFallbackContext,
+): Promise<T[]> {
   const db = context.reader;
   const writer = context.writer;
   const out = [...answers];

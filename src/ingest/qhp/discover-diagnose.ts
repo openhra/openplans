@@ -89,7 +89,7 @@ async function probe(input: string, root: boolean): Promise<Probe> {
         headers: {
           "accept-encoding": "identity",
           accept: root ? "text/html" : "application/json, */*;q=0.1",
-          "user-agent": `openplans/0.3.4 (public health-plan source discovery; +${project.href})`,
+          "user-agent": `openplans/0.3.5 (public health-plan source discovery; +${project.href})`,
         },
       });
       const socket = (response.body as IncomingMessage).socket as TLSSocket;

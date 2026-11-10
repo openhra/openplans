@@ -321,7 +321,7 @@ describe("no household request values in any log line", () => {
       spy.mock.calls.map((args) => args.map((a) => text(a)).join(" ")),
     );
   }
-  it("logs nothing on success, refusal and internal error paths, MCP included", async () => {
+  it("keeps household values out of success, refusal and error logs, MCP included", async () => {
     const spies = spyConsole();
     const app = createApp(h.db, {});
     for (const [path, payload] of routes)
@@ -382,7 +382,16 @@ describe("no household request values in any log line", () => {
     );
     expect(call.status).toBe(200);
     await call.text();
-    const lines = logged(spies);
+    const lines = logged(spies).map((line) => {
+      const entry = JSON.parse(line);
+      if (entry.event !== "api_internal_error") return line;
+      expect(entry).toEqual({
+        event: "api_internal_error",
+        error_class: "Error",
+        stack_hash: expect.stringMatching(/^[a-f0-9]{64}$/),
+      });
+      return JSON.stringify({ ...entry, stack_hash: undefined });
+    });
     expect(lines.some((line) => line.includes('"tool":"quote_premiums"'))).toBe(
       true,
     );

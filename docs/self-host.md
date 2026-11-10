@@ -2,7 +2,7 @@
 
 Run commands from the package directory containing compose.yml. Docker with
 Compose v2 is sufficient; host Node.js and a CMS API key are not required. Follow
-the [quickstart](../README.md#run-with-docker) to configure credentials and create
+the [package README](../README.md) to configure credentials and create
 a Docker-visible cache, then run:
 
 ~~~sh
@@ -12,8 +12,10 @@ OPENPLANS_RAW_READ_ONLY=false docker compose run --build --rm worker bootstrap -
 The command builds the image, starts healthy Postgres/API dependencies, loads
 cited rating rules, validates bundled subsidy parameters, acquires/imports PUFs,
 and loads Census/CMS geography. The API remains running after ingestion. Use
---states TX,FL --years 2026,2027 for multiple catalogs. Only these publication
-years are currently supported. A state absent from the publication fails
+--states TX,FL --years 2026,2027 for multiple catalogs. Bootstrap supports these
+two publication years. The lower-level PUF acquisition/import commands also accept explicit PY2025
+scopes. Bootstrap and bundled rating/subsidy rules remain limited to 2026 and 2027.
+A state absent from the publication fails
 explicitly; it does not become an empty supported catalog.
 
 > **Public quoting is on by default.** Once the API runs, anyone who can reach it can
@@ -23,11 +25,14 @@ explicitly; it does not become an empty supported catalog.
 >
 > **Household quotes and the compatibility API are on by default too.** With no
 > `OPENPLANS_API_TOKEN`, anyone can send income and ages to `POST /v1/premium-quotes`,
-> `/v1/benchmark` and `/v1/ichra/affordability`, and the MCP tools `quote_premiums` and
-> `check_ichra_affordability` are listed. With no `OPENPLANS_COMPAT_API_KEY`, `/compat/v1/*` is
+> `/v1/benchmark` and `/v1/ichra/affordability`. With no `OPENPLANS_MCP_TOKEN`, the MCP
+> tools `quote_premiums` and `check_ichra_affordability` are listed. With no
+> `OPENPLANS_COMPAT_API_KEY`, `/compat/v1/*` is
 > open. These routes are rate-limited per source, never cached, and never log request values.
-> Set a token or key to require it, or set `OPENPLANS_PUBLIC_HOUSEHOLD=off` or
-> `OPENPLANS_PUBLIC_COMPAT=off` to turn them off.
+> Set the REST token, MCP token or compatibility key for the protocol you use.
+> With no corresponding credential, `OPENPLANS_PUBLIC_HOUSEHOLD=off` closes
+> household access and `OPENPLANS_PUBLIC_COMPAT=off` closes compatibility access.
+> A configured credential still grants access when the public switch is off.
 
 ## Options and completion
 
@@ -35,7 +40,7 @@ explicitly; it does not become an empty supported catalog.
 | --- | --- | --- |
 | No optional flags | Catalog, filed premiums, geography and bundled subsidy parameters | Public PUF coverage and cited state rules determine support. State exchanges need separate adapters. Subsidies remain conditional estimates. |
 | --with-drugs | Public RxNorm CPC, issuer discovery and all-readable formularies | Cannot collect today. The RxNorm download host disallows automated access, so the rxnorm step fails with `admission_denied` (see [publisher access](#publisher-access)). Issuer feeds need operator manifests. Incomplete or blocked feeds stay unknown and can make the batch exit 1. |
-| --with-providers | NPPES full/weekly/deactivation codes, discovery and participation | NPPES works with the shipped manifests. Issuer discovery and participation need an operator manifest entry per issuer host. NPPES memberships are state-scoped, so several states share one database (P6h); a step that would overwrite another state's rows still fails. |
+| --with-providers | NPPES full/weekly/deactivation codes, discovery and participation | NPPES works with the shipped manifests. Issuer discovery and participation need an operator manifest entry per issuer host. NPPES memberships are state-scoped, so several states share one database; a step that would overwrite another state's rows still fails. |
 | --with-nucc-taxonomy | Optional NUCC specialty display names (also usable without --with-providers) | Explicit acceptance of operator responsibility for NUCC terms; commercial use requires a NUCC licence. Also needs your own manifest entry for www.nucc.org. |
 | --with-geocode | Provider inputs above, then incremental Census batch geocoding | Any of the 50 states and DC. County outlines come from one national Census boundary file, downloaded once. |
 | --dry-run | Dependency plan and observed artifact sizes | No database, network, ingestion or writes. Unknown sizes stay unknown. |
@@ -112,6 +117,23 @@ Dry-run byte sizes describe artifacts from cache metadata, not incremental
 network traffic: shared national files can appear in several state/year steps,
 cache hits need no download, and new issuer feeds remain unknown.
 Raw snapshots are immutable; do not edit a payload to fix a source error.
+
+## Reading availability
+
+`worker status` prints the stored coverage manifest. `GET /v1/data-availability`
+adds current drug/provider completeness, premium rule and geography evidence,
+and ICHRA readiness. It accepts optional `state` and `year` filters. An absent
+state/year row means no manifest entry, not a supported empty catalog. Database
+failures return 503, not an empty list.
+
+Catalog, premium, provider and formulary statuses describe separate evidence.
+A catalog can be available while provider or drug evidence remains unknown.
+Rate-row counts do not establish household quote support. California may report
+partial premium support where rating-area geography needs a ZIP. Read
+`premium_reason`, `provider_coverage` and `drug_coverage` before using a result.
+The [ICHRA guide](ichra.md#coverage) describes its readiness and look-back fields.
+[Medicare availability](medicare.md#routes) is a separate endpoint,
+`GET /v1/medicare/data-availability`, with its loaded releases and counts.
 
 ## Publisher access
 
@@ -213,8 +235,8 @@ intended issuer/state set and monitor both host-cache and Docker-VM disk.
 
 The software's [license](../LICENSE) does not replace publisher terms. Preserve
 source URLs, versions, retrieval dates, hashes and record references through
-backups and exports. See the [existing attribution](../README.md#sources-and-attribution)
-and each source's ingest README.
+backups and exports. The table below and each source's ingest README list
+the attribution and source-specific requirements.
 
 | Source | Used for | Publisher guidance |
 | --- | --- | --- |
@@ -358,7 +380,8 @@ connections as budget MiB / 32 (20–100), maintenance memory as 10% (max 1024 M
 and work memory as budget MiB / (connections × 16), clamped to 1–32 MiB.
 Parallel workers per gather are capped at two. The work-memory divisor leaves
 room for multiple sort/hash nodes and workers; it is not a hard RSS bound. The
-API pool uses five connections per process; include workers and every API replica
+API query pool uses five connections per process, plus one separate cancellation
+connection. Include workers and every API replica
 when sizing the connection limit. Autovacuum workers also consume memory.
 `effective_cache_size` is a planner estimate, not an allocation. These are starting
 values; measure your query mix and concurrency before increasing them. See the
@@ -415,6 +438,7 @@ credentials, invalidation, metrics, bounds, and operator inspection commands.
 ## MCP endpoint
 
 Send Streamable HTTP requests to `POST /mcp`. GET and DELETE return 405.
+The server registers 15 tools, listed in the [configuration reference](configuration.md#mcp-tools).
 Every tool needs no credential by default, `quote_premiums` and
 `check_ichra_affordability` included. To restrict those two, set a private
 `OPENPLANS_MCP_TOKEN` and send it as a bearer token. REST and compatibility credentials do not grant MCP access. Set
@@ -460,9 +484,12 @@ Without it, each process generates its own secret.
 For subprocess clients, build and run `node dist/mcp/stdio.js` with `DATABASE_URL`.
 The image also provides the `openplans-mcp` command. Attach stdin when running it in a
 container. Stdout contains protocol JSON only; diagnostics go to stderr. The process closes
-on EOF or signals. Local stdio offers household quotes by default; set
-`OPENPLANS_MCP_ALLOW_PERSONALIZED=0` to withhold them. HTTP tokens play no part over stdio. `OPENPLANS_PUBLIC_QUOTING`
-applies to stdio too.
+on EOF or signals. Local stdio offers household quotes when public household access is on and no
+MCP token is configured. Set `OPENPLANS_MCP_ALLOW_PERSONALIZED=1` to grant them
+explicitly or `0` to withhold them. Stdio does not authenticate bearer headers.
+`OPENPLANS_PUBLIC_QUOTING` applies to stdio too. See the
+[configuration reference](configuration.md) for environment defaults and the
+[worker command index](configuration.md#worker-commands) for ingestion commands.
 
 ## Optional second geocoder
 

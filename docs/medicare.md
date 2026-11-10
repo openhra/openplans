@@ -81,7 +81,10 @@ CMS publishes Part D formularies, pharmacy networks and drug pricing on data.cms
 "Agreement for Use of Prescription Drug Plan Formulary, Pharmacy Network, and Pricing Information
 Public Use Files". Serving them is off by default. Until an operator turns it on, every route
 reports `part_d_drug_data: {status: "unknown", reason: "pending_terms_review"}`. An operator who has
-read that agreement can set `OPENPLANS_MEDICARE_PART_D=on`. Responses then carry the release's
+read that agreement can set `OPENPLANS_MEDICARE_PART_D=on`. This is a native API
+environment option. Compose does not forward it by default; add it to the API
+service in a local override and recreate the service. See the
+[configuration reference](configuration.md). Responses then carry the release's
 as-of date and a note that unit costs are plan averages, not the price at any one pharmacy.
 
 ```sh

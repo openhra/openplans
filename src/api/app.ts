@@ -1,3 +1,4 @@
+import { logInternalError } from "./error-log.js";
 import { createMcpHttp } from "../mcp/http.js";
 import { Hono } from "hono";
 import { checkDatabase } from "../db/availability.js";
@@ -60,6 +61,9 @@ export function createApp(
   app.route("/v1", nativeRoutes(db, options));
   app.route("/", compatRoutes(db, options));
 
-  app.onError((_error, c) => c.json({ error: "internal_error" }, 500));
+  app.onError((error, c) => {
+    logInternalError(error);
+    return c.json({ error: "internal_error" }, 500);
+  });
   return app;
 }

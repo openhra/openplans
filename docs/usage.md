@@ -18,8 +18,9 @@ A fresh database is empty. Load public-source snapshots before searching.
 Every result keeps its source evidence. Missing evidence stays `unknown`, not
 "not covered". Optional [compatibility API routes](#optional-compatibility-api)
 adapt the native API for existing clients. No proprietary health-plan API is
-called. The CMS Marketplace API is a possible future live-data integration,
-not a dependency of the current service.
+called. The optional CMS Marketplace API fallback can resolve ZIP counties and fill
+unknown drug or provider coverage. Coverage calls are off by default. See the
+[fallback guide](../src/ingest/cms-api/README.md) before enabling them.
 
 > **Public quoting is on by default.** Every install answers anonymous quotes
 > by age and ZIP at `POST /v1/quotes` and through the MCP tool `quote_plans`.
@@ -33,7 +34,8 @@ one-time setup from this folder:
 
 ```sh
 cp .env.example .env
-# Replace the placeholder database credentials and both API tokens in .env.
+# Replace the placeholder database credentials in .env.
+# Set optional API tokens if household quotes or compatibility access need protection.
 export OPENPLANS_DATA_DIR="$HOME/.local/share/openplans"
 mkdir -p "$OPENPLANS_DATA_DIR/raw" "$OPENPLANS_DATA_DIR/reports" "$OPENPLANS_DATA_DIR/work"
 ```
@@ -74,7 +76,7 @@ flags acknowledge operator responsibility; they do not obtain a licence. Without
 that import, responses retain NPPES codes with `display_name: null` and
 `taxonomy_source: nppes_code_only`. Search by code works; specialty name search
 returns `unsupported_without_taxonomy`. See the [taxonomy guide](../src/ingest/taxonomy/README.md).
-Provider identity enrichment supports multiple states; geocoding supports **TX only**.
+Provider identity enrichment and bootstrap Census geocoding support all 50 states and DC.
 Issuer access restrictions and incomplete feeds remain explicit gaps and can make
 the optional bootstrap return exit 1. See [self-hosting](self-host.md) for
 measured sizes/times, these limits, source terms, updates and backups.
@@ -94,7 +96,8 @@ needs writable `raw/`; `OPENPLANS_RAW_READ_ONLY=false` applies only to the boots
 invocation above. Later import-only commands retain the read-only default. On
 Linux, make all three directories writable by the image's `node` user (UID 1000).
 On macOS, put the cache in a shared home directory or configure the Docker VM to
-share it. See [.env.example](../.env.example) for configuration. Connection URL
+share it. See [.env.example](../.env.example) and the [configuration reference](configuration.md)
+for defaults, native-only options and Compose forwarding. Connection URL
 credentials must be URL-safe (percent-encode reserved characters).
 
 Both ports bind to `127.0.0.1`. `API_PORT` and `DB_PORT` avoid local conflicts.
@@ -102,7 +105,8 @@ The default project is `openplans-local`; use `docker compose -p openplans-name`
 consistently to isolate an instance. `OPENPLANS_IMAGE` optionally selects a
 separate local API/worker image tag (default `openplans:local`).
 `docker compose down` preserves the DB volume; `docker compose down -v` deletes it.
-`worker status` prints the same manifest as `/v1/data-availability`. Run
+`worker status` prints the stored coverage manifest. `/v1/data-availability`
+adds current source completeness, rating and ICHRA readiness. Run
 `docker compose run --rm --no-deps worker migrate` before starting the API.
 The API never migrates at startup. See [migration authoring and preflight](migrations.md).
 
@@ -154,8 +158,8 @@ gross premium of a 35-year-old (no income, no subsidy calculation):
 }
 ```
 
-The authenticated `POST /v1/premium-quotes` returns the same 52928 cents for the
-household form of the request, which also accepts dates of birth and the income
+`POST /v1/premium-quotes` returns the same 52928 cents for the household request.
+It is open unless a token is configured. It also accepts dates of birth and income
 inputs for subsidy estimates:
 
 ```json
@@ -222,7 +226,7 @@ derived data and fixture cuts.
 | [CMS NPPES V2 dissemination files](https://download.cms.gov/nppes/NPI_Files.html) | Published provider identities, taxonomies and addresses | Attribute CMS/NPPES and release date; retain the release README and dissemination guidance. An NPI does not validate licensure or credentials. See the [import guide](../src/ingest/nppes/README.md). |
 | [NLM RxNorm Current Prescribable Content](https://www.nlm.nih.gov/research/umls/rxnorm/docs/rxnormfiles.html) | Drug names, RxCUIs, relationships and NDC mappings | The public subset needs no UMLS license. This importer retains RXNORM-source content; it does not import the licensed full release. Follow [NLM's terms and requested acknowledgement](https://www.nlm.nih.gov/research/umls/rxnorm/docs/termsofservice.html). |
 | Issuer QHP machine-readable indexes and child files | Formulary and provider participation evidence | Attribute each issuer and snapshot URL. Follow that publisher's terms and access restrictions; no blanket redistribution permission is assumed. Blocked or incomplete downloads remain explicit gaps. |
-| [CMS Marketplace API](https://developer.cms.gov/marketplace-api/) (future, optional) | Potential live shopping integration | Separate CMS access approval and key terms apply. CMS describes live application access, not bulk extraction; keys expire every 60 days. No key is required for current offline CI or PUF ingestion. |
+| [CMS Marketplace API](https://developer.cms.gov/marketplace-api/) (optional) | ZIP-county lookup and opt-in coverage fallback | Separate CMS access approval and key terms apply. CMS describes live application access, not bulk extraction; keys expire every 60 days. No key is required for current offline CI or PUF ingestion. |
 
 RxNorm data courtesy of the U.S. National Library of Medicine (NLM). NLM is not
 responsible for this product and does not endorse it. The linked terms give
@@ -262,15 +266,16 @@ Database errors and connection URLs are not exposed in responses or CLI errors.
 
 ```sh
 ./scripts/ci.sh
-./scripts/smoke.sh
-./scripts/smoke.sh --full
+OPENPLANS_PUBLIC_HOUSEHOLD=off ./scripts/smoke.sh
+OPENPLANS_PUBLIC_HOUSEHOLD=off ./scripts/smoke.sh --full
 ./scripts/realdata.sh
 ```
 
 CI needs no Docker or network. Prime npm's cache with `npm ci` once; when local
-dependencies are missing, CI uses `npm ci --offline`. It typechecks source and
-tests, checks extraction boundaries, builds with strict unused-code checks and
-runs Vitest. It prints `PASS` only after every check succeeds. PGlite runs the
+dependencies are missing, CI uses `npm ci --offline`. It checks formatting and
+lint, runs the tooling negative controls, typechecks source and tests, audits
+publication policy and publisher reviews, checks extraction boundaries, builds
+with strict unused-code checks and runs Vitest. It prints `PASS` only after every check succeeds. PGlite runs the
 actual SQL migrations in process; **only `002_postgis.sql` is omitted from the
 test copy**. Tests use small real source cuts with provenance and explicitly
 labelled synthetic records or mutations. The unreachable
@@ -278,22 +283,29 @@ database test uses a nonexistent Unix socket, without TCP or external requests.
 
 Plain smoke builds the images, starts PostGIS, runs a one-off migration job,
 starts the API, checks health, repeats migration twice, and checks API/worker
-empty manifests, PostGIS and refusal of personalized
-requests when the server token is unconfigured. It needs no real-data cache.
+empty manifests, PostGIS and refusal of household
+requests with public household access explicitly disabled and no token configured.
+It needs no real-data cache.
+The explicit household switch is needed because smoke checks a closed route
+before configuring its synthetic token; the application default is open.
 `--full` also imports cached rating rules, TX geography and TX PY2026 PUFs,
 checks exact row counts and all three plan-search pages, and verifies the 52928-cent
-premium. Missing/incorrect request bearer tokens must return 401; the configured
+premium. It then imports all federal states, NY geography, RxNorm, NPPES, one
+issuer's formulary and provider files, geocodes and optional NUCC taxonomy. It
+checks coverage endpoints and FL/AK premiums against raw rows. Missing/incorrect
+request bearer tokens must return 401; the configured
 placeholder must succeed. A deliberately wrong database must fail import without
 changing the active catalog or ACTIVE snapshot count. Stage wall times, DB size,
 API evidence and worker reports are saved in
-`$OPENPLANS_DATA_DIR/reports/h1-smoke-<UTC timestamp>/summary.json`.
+`$OPENPLANS_DATA_DIR/reports/h2-smoke-<UTC timestamp>/summary.json`.
 
 Both smoke paths use only `.env.example` public placeholders, project
-`openplans-h1` (override `OPENPLANS_COMPOSE_PROJECT` with an `openplans-` prefix),
+`openplans-h2` (override `OPENPLANS_COMPOSE_PROJECT` with an `openplans-` prefix),
 API port `43081`, and DB port `45432`. Override the port variables if needed.
 Smoke refuses an existing project's containers/volumes and removes everything it
 starts, including its database volume, even on failure. Full smoke requires a
-populated cache and writable `reports/`; it is opt-in and never runs in `ci.sh`.
+populated cache for those catalog, geography, identity, drug, issuer and geocoder
+inputs, writable `reports/`, and admitted NUCC access; it is opt-in and never runs in `ci.sh`.
 Full smoke defaults to the same shared machine cache as the native ingesters;
 export `OPENPLANS_DATA_DIR` to select another cache (it does not read `.env`).
 Native tools default to `$HOME/.local/share/openplans`;
@@ -303,7 +315,9 @@ Image pulls and package downloads during the Docker build need network access.
 `realdata.sh` compares cached public raw files with imported catalogs and filed
 premiums for 2026 and 2027, including dental. It writes reports below the external
 cache. See the [real-data check details](../scripts/oracle/README.md);
-`--year 2026` or `--year 2027` selects one year. A passing fixture suite does not
+`--year 2026` or `--year 2027` selects one year. Explicit `--year 2025`
+selects the earlier raw publication checks; it does not add bundled 2025 rating or
+subsidy rules. A passing fixture suite does not
 validate every issuer, state or live marketplace quote.
 
 The tests include failing-migration and external-import negative controls. To

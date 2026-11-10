@@ -51,26 +51,31 @@ beforeEach(() => {
   state.failRollback = false;
   state.cancel = undefined;
 });
-it("real database adapter applies server statement_timeout, sends backend cancel, rolls back before release", async () => {
-  const db = createDatabase("synthetic-connection"),
-    controller = new AbortController();
-  const work = db.withRequest!(controller.signal, (session) =>
-    session.query("SELECT synthetic_slow()"),
-  );
-  while (!state.cancel) await Promise.resolve();
-  expect(state.released).toBe(false);
-  controller.abort();
-  await expect(work).rejects.toThrow("cancelled SQL");
-  expect(state.sql).toEqual([
-    "BEGIN READ ONLY",
-    "SET LOCAL statement_timeout = '5s'",
-    "SELECT synthetic_slow()",
-    "SELECT pg_cancel_backend($1)",
-    "ROLLBACK",
-  ]);
-  expect(state.released).toBe(true);
-  await db.close();
-});
+it.each([undefined, { readOnly: false }])(
+  "database request scope %j applies timeout and cancellation",
+  async (options) => {
+    const db = createDatabase("synthetic-connection"),
+      controller = new AbortController();
+    const work = db.withRequest!(
+      controller.signal,
+      (session) => session.query("SELECT synthetic_slow()"),
+      options,
+    );
+    while (!state.cancel) await Promise.resolve();
+    expect(state.released).toBe(false);
+    controller.abort();
+    await expect(work).rejects.toThrow("cancelled SQL");
+    expect(state.sql).toEqual([
+      options?.readOnly === false ? "BEGIN" : "BEGIN READ ONLY",
+      "SET LOCAL statement_timeout = '5s'",
+      "SELECT synthetic_slow()",
+      "SELECT pg_cancel_backend($1)",
+      "ROLLBACK",
+    ]);
+    expect(state.released).toBe(true);
+    await db.close();
+  },
+);
 it("successful SQL commits and pre-aborted requests never acquire a client", async () => {
   const db = createDatabase("synthetic-connection"),
     controller = new AbortController();

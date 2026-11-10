@@ -154,22 +154,23 @@ export function quoteRoutes(
     ]);
     try {
       const scoped = boundedDatabase(db, deadline);
-      return c.json(
-        await quotePlans(
+      const result = await quotePlans(
+        scoped,
+        body,
+        "public_quote",
+        quoteFallbackContext(
           scoped,
-          body,
-          "public_quote",
-          quoteFallbackContext(
-            scoped,
-            requestSource(
-              c,
-              options.trustedProxies ??
-                proxyList(process.env.OPENPLANS_TRUST_PROXY),
-              options.peerAddress,
-            ),
+          requestSource(
+            c,
+            options.trustedProxies ??
+              proxyList(process.env.OPENPLANS_TRUST_PROXY),
+            options.peerAddress,
           ),
+          boundedDatabase(db, deadline, { readOnly: false }),
         ),
       );
+      deadline.throwIfAborted();
+      return c.json(result);
     } catch (error) {
       if (deadline.aborted)
         return c.json({ error: { code: "REQUEST_DEADLINE" } }, 504);

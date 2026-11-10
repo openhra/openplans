@@ -2,8 +2,7 @@
 
 Read and follow the [Code of Conduct](CODE_OF_CONDUCT.md) when taking part in OpenPlans.
 
-Thanks for helping. OpenPlans is in development. Expect larger changes on `develop` until the
-first release.
+OpenPlans is a public preview. Expect changes on `develop` between tagged releases.
 
 ## How work flows
 

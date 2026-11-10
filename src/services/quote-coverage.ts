@@ -17,9 +17,13 @@ export function quoteFallbackEnabled(): boolean {
   );
 }
 
-export function quoteFallbackContext(db: SqlSession, client: string) {
+export function quoteFallbackContext(
+  db: SqlSession,
+  client: string,
+  writer: SqlSession = db,
+) {
   return quoteFallbackEnabled()
-    ? cmsFallbackContext(db, db, { client })
+    ? cmsFallbackContext(db, writer, { client })
     : undefined;
 }
 

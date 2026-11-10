@@ -1,3 +1,4 @@
+import { logInternalError } from "./error-log.js";
 import {
   lookupZip,
   searchPlans,
@@ -30,6 +31,7 @@ export function nativeRoutes(db: SqlSession, options: ApiOptions) {
         error.error.code === "unsupported_without_taxonomy" ? 422 : 404,
       );
     } else {
+      logInternalError(error);
       return c.json({ error: { code: "INTERNAL_ERROR" } }, 500);
     }
   });

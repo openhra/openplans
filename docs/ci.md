@@ -18,7 +18,8 @@ scripts/ci.sh
 ```
 
 The install may use the network. After installation, `scripts/ci.sh` uses offline
-npm commands and ends with `PASS`. It runs typechecking, extraction boundaries,
+npm commands and ends with `PASS`. It runs formatting and lint checks, tooling
+negative controls, typechecking, publisher-review freshness, extraction boundaries,
 build and fixture tests. The optional neutrality audit skips when no external
 policy is supplied. That skip does not approve publication. Public CI does not
 run real-data checks or deploy anything.

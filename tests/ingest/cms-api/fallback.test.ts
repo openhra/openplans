@@ -911,3 +911,24 @@ describe("quote fallback request contracts", () => {
     },
   );
 });
+
+it("preserves local coverage and identity reasons when shadow reads fail", async () => {
+  const local = answer({ status: "listed_covered", reason: null });
+  const unmapped = answer({ reason: "rxcui_not_in_rxnorm" });
+  const fail = async () => {
+    throw new Error("synthetic shadow storage failure");
+  };
+  const broken = { query: fail, exec: fail };
+  const result = await applyCmsFallback(
+    "drug",
+    [answer(), local, unmapped],
+    context({ reader: broken, writer: broken }),
+  );
+  expect(result[0]).toMatchObject({
+    status: "unknown",
+    reason: "cms_api_unavailable",
+  });
+  expect(result[1]).toEqual(local);
+  expect(result[2]).toEqual(unmapped);
+  expect(sent).toEqual([]);
+});

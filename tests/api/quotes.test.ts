@@ -504,7 +504,7 @@ describe("no request values in any log line (negative control 4)", () => {
     );
   }
   const body = quoteBody({ members: [{ age: 43, tobacco: true }] });
-  it("logs nothing on success, refusal and internal error paths", async () => {
+  it("logs only class and stack hash on internal errors, without request values", async () => {
     const spies = spyConsole();
     const ok = await postJson(app(), "/v1/quotes", body);
     expect(ok.status).toBe(200);
@@ -513,6 +513,7 @@ describe("no request values in any log line (negative control 4)", () => {
       members: [{ age: 43, nickname: "synthetic-invalid-value" }],
     });
     expect(refused.status).toBe(400);
+    expect(logged(spies)).toEqual([]);
     const throwing: SqlSession = {
       query: async () => {
         throw new Error(
@@ -528,9 +529,17 @@ describe("no request values in any log line (negative control 4)", () => {
     );
     expect(failed.status).toBe(500);
     expect(await failed.text()).not.toMatch(/77002|synthetic-invalid-value/);
-    const lines = logged(spies);
-    for (const sentinel of sentinels)
-      expect(lines.filter((line) => line.includes(sentinel))).toEqual([]);
+    expect(spies[1]).toHaveBeenCalledTimes(1);
+    const entry = JSON.parse(spies[1]!.mock.calls[0]![0]);
+    expect(entry).toEqual({
+      event: "api_internal_error",
+      error_class: "Error",
+      stack_hash: expect.stringMatching(/^[a-f0-9]{64}$/),
+    });
+    expect(logged(spies.filter((_spy, index) => index !== 1))).toEqual([]);
+    // Short numeric sentinels can occur by chance inside a SHA-256 digest.
+    const metadata = JSON.stringify({ ...entry, stack_hash: undefined });
+    for (const sentinel of sentinels) expect(metadata).not.toContain(sentinel);
   });
   it("negative control: an error handler that logs the error is caught by the spy", async () => {
     const spies = spyConsole();
