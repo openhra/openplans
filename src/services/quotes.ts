@@ -112,12 +112,7 @@ async function quoteDataAvailability(
 ) {
   const issuers = new Set(plans.map(({ plan }) => plan.issuer_id));
   const rows = state
-    ? (await dataAvailability(db)).filter(
-        (row) =>
-          row.state === state &&
-          row.plan_year === year &&
-          (!issuers.size || issuers.has(row.issuer_id as string)),
-      )
+    ? await dataAvailability(db, { state, year, issuers })
     : [];
   return {
     catalog: summarize(rows.map((row) => row.catalog_status)),

@@ -89,10 +89,17 @@ async function ichraAvailability(
 /** Imported rate evidence and supported rating policy are separate requirements. */
 export async function dataAvailability(
   db: SqlSession,
+  scope?: { state: string; year: number; issuers?: ReadonlySet<string> },
 ): Promise<Record<string, unknown>[]> {
-  const manifest = await coverageManifest(db);
-  const drugs = await drugAvailability(db);
-  const providers = await providerAvailability(db);
+  const inScope = (entry: Record<string, unknown>) =>
+    !scope ||
+    (entry.state === scope.state &&
+      entry.plan_year === scope.year &&
+      (!scope.issuers?.size || scope.issuers.has(entry.issuer_id as string)));
+  // Quote availability must not rate-check every catalog in a national import.
+  const manifest = (await coverageManifest(db)).filter(inScope);
+  const drugs = (await drugAvailability(db)).filter(inScope);
+  const providers = (await providerAvailability(db)).filter(inScope);
   const sbe = (await sbeAvailabilitySources(db)).rows;
   const geography = (await availabilityGeography(db)).rows;
   const entryAvailability = async (entry: (typeof manifest)[number]) => {
@@ -245,8 +252,13 @@ export async function dataAvailability(
         provider_coverage: provider,
       });
   const scopes = (await activeStateScopes(db)).rows;
-  for (const scope of scopes) {
-    const rows = await stateCatalog(db, scope.plan_year, scope.state);
+  for (const stateScope of scopes) {
+    if (
+      scope &&
+      (stateScope.state !== scope.state || stateScope.plan_year !== scope.year)
+    )
+      continue;
+    const rows = await stateCatalog(db, stateScope.plan_year, stateScope.state);
     for (const issuer of [...new Set(rows.map((r) => r.raw_record.issuer))]) {
       const rates = rows.filter((r) => r.raw_record.issuer === issuer);
       const supported = rates.every((r) => catalogRule(r) !== null);
@@ -257,8 +269,8 @@ export async function dataAvailability(
           (counts.get(`${r.plan_key}:${r.region}`) ?? 0) + 1,
         );
       combined.push({
-        state: scope.state,
-        plan_year: scope.plan_year,
+        state: stateScope.state,
+        plan_year: stateScope.plan_year,
         market: "Individual",
         issuer_id: issuer,
         catalog_status: "available",
@@ -275,13 +287,13 @@ export async function dataAvailability(
         rating_method: "community_family_tier",
         quote_method: "state_filed_tier",
         bindable_quote: false,
-        on_exchange: scope.state === "NY" ? "unknown" : true,
+        on_exchange: stateScope.state === "NY" ? "unknown" : true,
         enrollment_eligibility: "unknown",
         subsidy_status: "requires_state_rules",
         rating_area_geography: stateRatingArea(
-          scope.state,
-          scope.plan_year,
-          scope.state === "NY" ? "36061" : "50007",
+          stateScope.state,
+          stateScope.plan_year,
+          stateScope.state === "NY" ? "36061" : "50007",
         ),
         provenance: {
           publication_snapshot_ids: [
@@ -301,7 +313,7 @@ export async function dataAvailability(
       );
     return catalogs.get(key)!;
   };
-  const withSources = combined.map((entry) => {
+  const withSources = combined.filter(inScope).map((entry) => {
     const source = sbe.find((s) => s.import_id === entry.snapshot_id);
     if (!source) return entry;
     const gap = { status: "unknown", reason: "sbe_no_index_registry" };

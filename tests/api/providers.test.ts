@@ -296,6 +296,10 @@ describe("provider API: record scope, distance and source evidence", () => {
       line_1: "Synthetic NPPES B",
       source: "npi_address",
       participation: "not_evaluated",
+      latitude: lat + 8 / 69.093,
+      longitude: lon,
+      method: "census_geocoder",
+      geocode_snapshot_id: "catalog",
     });
     expect(detail.body.plan_participations[0]).toMatchObject({
       base_hios_id: plan,
@@ -308,6 +312,40 @@ describe("provider API: record scope, distance and source evidence", () => {
         .map((r: any) => r.plan_participations.length)
         .sort(),
     ).toEqual([0, 1]);
+  });
+  it("NPI detail labels centroids and omits points from an older address snapshot", async () => {
+    const sourceRow = `${nearNpi}:practice:0`;
+    try {
+      await h.db.query(
+        `UPDATE address_point SET method='zcta_centroid',match_status='No_Match',match_quality=NULL,
+        centroid_snapshot_id='catalog' WHERE source_table='npi_address' AND source_row=$1`,
+        [sourceRow],
+      );
+      const centroid = await get(`/v1/providers/${nearNpi}`);
+      expect(centroid.body.identity.addresses[0]).toMatchObject({
+        method: "zcta_centroid",
+        centroid_snapshot_id: "catalog",
+        match_quality: null,
+      });
+      // Planted stale observation. The address is current; its point no longer is.
+      await h.db.query(
+        `UPDATE address_point SET source_snapshot_id=$1 WHERE source_table='npi_address' AND source_row=$2`,
+        ["registry", sourceRow],
+      );
+      const stale = await get(`/v1/providers/${nearNpi}`);
+      expect(stale.body.identity.addresses[0]).toMatchObject({
+        latitude: null,
+        longitude: null,
+        method: null,
+        geocode_snapshot_id: null,
+      });
+    } finally {
+      await h.db.query(
+        `UPDATE address_point SET source_snapshot_id='catalog',method='census_geocoder',match_status='Match',
+        match_quality='Exact',centroid_snapshot_id=NULL WHERE source_table='npi_address' AND source_row=$1`,
+        [sourceRow],
+      );
+    }
   });
   it("identity searches have no membership claims; batch and variants share five-state classification", async () => {
     const identities = await get(

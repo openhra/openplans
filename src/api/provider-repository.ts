@@ -701,8 +701,12 @@ export async function providerDetail(
       'classification',nt.classification,'specialization',nt.specialization,
       'taxonomy_status',CASE WHEN nt.code IS NULL THEN 'unknown_code' ELSE 'known' END) ORDER BY t.ordinal)
       FROM npi_taxonomy t LEFT JOIN ${taxonomy} nt ON nt.code=t.code WHERE t.npi=n.npi),'[]') AS taxonomy,
-    coalesce((SELECT jsonb_agg(${rowJson("a")}||jsonb_build_object('source','npi_address','participation','not_evaluated')
-      ORDER BY a.kind,a.ordinal) FROM npi_address a WHERE a.npi=n.npi),'[]') AS addresses
+    coalesce((SELECT jsonb_agg(${rowJson("a")}||jsonb_build_object('source','npi_address','participation','not_evaluated',
+      'latitude',p.latitude,'longitude',p.longitude,'method',p.method,'match_status',p.match_status,
+      'match_quality',p.match_quality,'geocode_snapshot_id',p.snapshot_id,'centroid_snapshot_id',p.centroid_snapshot_id)
+      ORDER BY a.kind,a.ordinal) FROM npi_address a LEFT JOIN address_point p ON p.source_table='npi_address'
+        AND p.source_row=a.npi||':'||a.kind||':'||a.ordinal::text AND p.source_snapshot_id=a.snapshot_id
+      WHERE a.npi=n.npi),'[]') AS addresses
     FROM npi_provider n WHERE n.npi=$1`,
         [npi],
       )

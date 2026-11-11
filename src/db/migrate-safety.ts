@@ -7,12 +7,14 @@ export interface MigrationSafety {
 export interface MigrationStatement {
   sql: string;
   tokens: string[];
+  bodies: string[];
 }
 
 /** Keep bodies and quoted values opaque; only unquoted semicolons end statements. */
 export function migrationStatements(sql: string): MigrationStatement[] {
   const statements: MigrationStatement[] = [];
   let tokens: string[] = [];
+  let bodies: string[] = [];
   let start = 0;
   let i = 0;
   let depth = 0;
@@ -47,6 +49,7 @@ export function migrationStatements(sql: string): MigrationStatement[] {
       const end = sql.indexOf(dollar, i + dollar.length);
       if (end < 0) throw new Error("Unterminated SQL body");
       tokens.push("<BODY>");
+      bodies.push(sql.slice(i + dollar.length, end));
       i = end + dollar.length;
       continue;
     }
@@ -76,9 +79,10 @@ export function migrationStatements(sql: string): MigrationStatement[] {
     }
     if (sql[i] === ";") {
       if (depth !== 0) throw new Error("Unbalanced SQL parentheses");
-      if (depth !== 0) throw new Error("Unbalanced SQL parentheses");
-      if (tokens.length) statements.push({ sql: sql.slice(start, i), tokens });
+      if (tokens.length)
+        statements.push({ sql: sql.slice(start, i), tokens, bodies });
       tokens = [];
+      bodies = [];
       start = ++i;
       continue;
     }
@@ -92,7 +96,8 @@ export function migrationStatements(sql: string): MigrationStatement[] {
     tokens.push(token.toUpperCase());
     i += token.length;
   }
-  if (tokens.length) statements.push({ sql: sql.slice(start), tokens });
+  if (depth !== 0) throw new Error("Unbalanced SQL parentheses");
+  if (tokens.length) statements.push({ sql: sql.slice(start), tokens, bodies });
   return statements;
 }
 
@@ -147,83 +152,390 @@ export function concurrentIndex(statement: MigrationStatement): boolean {
   );
 }
 
-export function classifyMigration(sql: string): MigrationSafety {
-  const reasons: string[] = [];
-  const newTables = new Set<string>();
-  let statements: MigrationStatement[];
-  try {
-    statements = migrationStatements(sql);
-  } catch {
-    return { classification: "risky", reasons: ["Unterminated SQL token"] };
-  }
-  if (statements.some(concurrentIndex) && statements.length !== 1)
-    reasons.push(
-      "Concurrent indexes must be the sole statement in a migration file",
-    );
+export const smallTableRows = 10_000;
+export const smallTableBytes = 16 * 1024 * 1024;
+
+/** Complete public-schema inventory; missing names are absent, null sizes unknown. */
+export type MigrationTableSizes = Record<
+  string,
+  { rows: number; bytes: number } | null
+>;
+
+function tableKey(name: string): string {
+  const parts = name.match(/"(?:[^"]|"")*"|[A-Z_][A-Z0-9_$]*/gi) ?? [];
+  if (parts.length === 1) parts.unshift("public");
+  return parts
+    .map((part) => {
+      const value = part.startsWith('"')
+        ? part.slice(1, -1).replaceAll('""', '"')
+        : part.toLowerCase();
+      return '"' + value.replaceAll('"', '""') + '"';
+    })
+    .join(".");
+}
+
+// Only expressions without subqueries or arbitrary function calls can seed small tables.
+function boundedExpression(tokens: string[]): boolean {
+  const functions = new Set([
+    "CARDINALITY",
+    "MD5",
+    "RANDOM",
+    "CLOCK_TIMESTAMP",
+    "NOW",
+  ]);
+  const forbidden = new Set([
+    "SELECT",
+    "TABLE",
+    "VALUES",
+    "WITH",
+    "FROM",
+    "JOIN",
+    "RETURNING",
+    "OPERATOR",
+    "OVER",
+    "COLLATE",
+    "<BODY>",
+  ]);
+  return tokens.every(
+    (token, i) =>
+      !forbidden.has(token) &&
+      (!/^[A-Z_][A-Z0-9_$]*$/.test(token) ||
+        tokens[i + 1] !== "(" ||
+        functions.has(token) ||
+        token === "IN") &&
+      !(token.startsWith('"') && tokens[i + 1] === "(") &&
+      !(token === "." && tokens[i + 2] === "(") &&
+      (token !== "::" ||
+        /^(?:TEXT|BOOLEAN|BOOL|SMALLINT|INTEGER|INT|BIGINT|REAL|NUMERIC|UUID|JSONB?|BYTEA|DATE|INTERVAL|TIMESTAMPTZ|TIMESTAMP|VARCHAR)$/.test(
+          tokens[i + 1] ?? "",
+        )),
+  );
+}
+
+function scalarAssignment(tokens: string[]): boolean {
+  if (tokens[1] !== "=") return false;
+  const value = tokens.slice(2);
+  if (constant.test(value.join(" "))) return true;
   if (
-    statements.some(
-      (s) =>
-        concurrentIndex(s) && s.tokens.join(" ").includes(" IF NOT EXISTS "),
-    )
+    value[0] !== "CASE" ||
+    value.at(-1) !== "END" ||
+    value.filter((t) => t === "CASE").length !== 1
   )
-    reasons.push(
-      "Concurrent IF NOT EXISTS can hide an invalid index from a failed build",
-    );
-  for (const [index, statement] of statements.entries()) {
-    const text = statement.tokens.join(" ");
-    let reason: string | undefined;
-    const table = new RegExp(`^CREATE TABLE (${relation}) \\(`).exec(text);
-    if (
-      table &&
-      statement.tokens.at(-1) === ")" &&
-      completeTableDefinition(statement.tokens)
-    ) {
-      newTables.add(table[1]!);
-    } else if (
-      new RegExp(
-        `^CREATE (?:UNIQUE )?INDEX (?:CONCURRENTLY )?(?:IF NOT EXISTS )?(?:${identifier} )?ON (?:ONLY )?(${relation}) (?:USING ${identifier} )?\\(`,
-      ).test(text)
-    ) {
-      const target = new RegExp(
-        ` ON (?:ONLY )?(${relation}) (?:USING ${identifier} )?\\(`,
-      ).exec(text)![1]!;
-      if (!concurrentIndex(statement) && !newTables.has(target))
-        reason =
-          "Non-concurrent index on an existing table; size and lock duration unknown";
-    } else if (
-      new RegExp(`^ALTER TABLE (?:ONLY )?${relation} ADD COLUMN `).test(text)
-    ) {
-      const first = statement.tokens.indexOf("ADD");
-      if (!additions(statement.tokens.slice(first)).every(columnAddition))
-        reason =
-          "Column addition has no non-null constant default, an expression, constraint, or unknown type/action";
-    } else if (
-      new RegExp(`^CREATE FUNCTION ${relation} \\(`).test(text) &&
-      / LANGUAGE (?:SQL|PLPGSQL)(?: |$)/.test(text) &&
-      statement.tokens.some(
-        (token, i) =>
-          statement.tokens[i - 1] === "AS" &&
-          (token === "<BODY>" || /^(?:[eE])?'/.test(token)),
+    return false;
+  const results = value.flatMap((token, i) =>
+    token === "THEN" || token === "ELSE" ? [i + 1] : [],
+  );
+  return (
+    results.length > 0 &&
+    results.every((start) => {
+      let end = start;
+      while (
+        end < value.length &&
+        !["WHEN", "ELSE", "END"].includes(value[end]!)
       )
-    ) {
-      // Defining a function does not execute its body. Calling it remains risky.
-    } else if (
-      new RegExp(
-        `^CREATE TRIGGER ${identifier} (?:BEFORE|AFTER|INSTEAD OF) `,
-      ).test(text) &&
-      / EXECUTE (?:FUNCTION|PROCEDURE) /.test(text)
-    ) {
-      // The new trigger's behavior still needs application review.
-    } else {
-      reason =
-        "Unknown or non-additive statement; possible rewrite, scan, or long lock";
-    }
-    if (reason) reasons.push(`Statement ${index + 1}: ${reason}`);
-  }
-  return {
-    classification: reasons.length ? "risky" : "additive-safe",
-    reasons,
+        end++;
+      return constant.test(value.slice(start, end).join(" "));
+    })
+  );
+}
+
+export function classifyMigration(
+  sql: string,
+  sizes?: MigrationTableSizes,
+): MigrationSafety {
+  return classifyMigrationBatch([sql], sizes)[0]!;
+}
+
+/** Carry new tables and invalidated size evidence through numeric-order pending files. */
+export function classifyMigrationBatch(
+  sqls: string[],
+  sizes?: MigrationTableSizes,
+): MigrationSafety[] {
+  const tables: MigrationTableSizes = Object.fromEntries(
+    Object.entries(sizes ?? {}).map(([name, size]) => [tableKey(name), size]),
+  );
+  const empty = new Set<string>();
+  let inventoryReliable = sizes !== undefined;
+  const small = (name: string) => {
+    const key = tableKey(name);
+    const size = tables[key];
+    return (
+      empty.has(key) ||
+      (!!size &&
+        Number.isSafeInteger(size.rows) &&
+        size.rows >= 0 &&
+        Number.isSafeInteger(size.bytes) &&
+        size.bytes >= 0 &&
+        size.rows <= smallTableRows &&
+        size.bytes <= smallTableBytes)
+    );
   };
+  const sizeReason = (name: string) => {
+    const size = tables[tableKey(name)];
+    return size
+      ? `${tableKey(name)}: ${size.rows < 0 ? "rows not counted" : `${size.rows} bounded rows`}, ${size.bytes} bytes; ${small(name) ? "within" : "outside"} the small-table budget`
+      : `${tableKey(name)} size is unknown`;
+  };
+  const invalidate = (name: string) => {
+    const key = tableKey(name);
+    empty.delete(key);
+    tables[key] = null;
+  };
+  return sqls.map((sql) => {
+    const reasons: string[] = [];
+    let statements: MigrationStatement[];
+    try {
+      statements = migrationStatements(sql);
+    } catch {
+      return {
+        classification: "risky",
+        reasons: ["Malformed or unterminated SQL token/parentheses"],
+      };
+    }
+    if (statements.some(concurrentIndex) && statements.length !== 1)
+      reasons.push(
+        "Concurrent indexes must be the sole statement in a migration file",
+      );
+    if (
+      statements.some(
+        (s) =>
+          concurrentIndex(s) && s.tokens.join(" ").includes(" IF NOT EXISTS "),
+      )
+    )
+      reasons.push(
+        "Concurrent IF NOT EXISTS can hide an invalid index from a failed build",
+      );
+
+    const inspect = (
+      statement: MigrationStatement,
+      label: string,
+      nesting = 0,
+    ) => {
+      const tokens = statement.tokens;
+      const text = tokens.join(" ");
+      let reason: string | undefined;
+      const table = new RegExp(
+        `^CREATE TABLE (IF NOT EXISTS )?(${relation}) \\( `,
+      ).exec(text);
+      const index = new RegExp(
+        `^CREATE (?:UNIQUE )?INDEX (?:CONCURRENTLY )?(?:IF NOT EXISTS )?(?:${identifier} )?ON (?:ONLY )?(${relation}) (?:USING ${identifier} )?\\(`,
+      ).exec(text);
+      const alter = new RegExp(
+        `^ALTER TABLE (?:ONLY )?(${relation}) (.+)$`,
+      ).exec(text);
+      const insert = new RegExp(`^INSERT INTO (${relation}) \\( `).exec(text);
+      const update = new RegExp(`^UPDATE (${relation}) SET (.+)$`).exec(text);
+      if (table && completeTableDefinition(tokens)) {
+        const key = tableKey(table[2]!);
+        // Conditional creation is not proof that an existing table is empty.
+        if (
+          !table[1] ||
+          (inventoryReliable &&
+            key.startsWith('"public".') &&
+            !Object.hasOwn(tables, key))
+        ) {
+          empty.add(key);
+          tables[key] = { rows: 0, bytes: 0 };
+        }
+      } else if (index) {
+        if (!concurrentIndex(statement) && !small(index[1]!))
+          reason = `Non-concurrent index blocks writes: ${sizeReason(index[1]!)}`;
+        if (!empty.has(tableKey(index[1]!))) invalidate(index[1]!);
+      } else if (alter) {
+        const target = alter[1]!;
+        const action = alter[2]!;
+        let actionStart = tokens[2] === "ONLY" ? 4 : 3;
+        if (tokens[actionStart] === ".") actionStart += 2;
+        const actionTokens = tokens.slice(actionStart);
+        const allowed = additions(actionTokens).every((part) => {
+          if (columnAddition(part)) return true;
+          const value = part.join(" ");
+          if (
+            new RegExp(`^ALTER COLUMN ${identifier} DROP NOT NULL$`).test(value)
+          )
+            return true;
+          // These scans are allowed only with current small-table evidence.
+          if (!small(target)) return false;
+          const check = part.indexOf("CHECK");
+          if (
+            check > 0 &&
+            part.at(-1) === ")" &&
+            boundedExpression(part.slice(check + 1)) &&
+            columnAddition(part.slice(0, check))
+          )
+            return true;
+          const reference = new RegExp(
+            `^(ADD COLUMN (?:IF NOT EXISTS )?${identifier} ${builtinType}) REFERENCES (${relation}) \\( ${identifier} \\)$`,
+          ).exec(value);
+          if (
+            reference &&
+            columnAddition(reference[1]!.split(" ")) &&
+            small(reference[2]!)
+          )
+            return true;
+          return (
+            new RegExp(
+              `^ADD CONSTRAINT ${identifier} (?:CHECK \\( .+ \\)|UNIQUE \\( ${identifier}(?: , ${identifier})* \\))$`,
+            ).test(value) && boundedExpression(part.slice(5, -1))
+          );
+        });
+        if (!allowed)
+          reason = /^(?:DROP|RENAME) | TYPE | SET NOT NULL/.test(action)
+            ? `Destructive or compatibility-changing ALTER TABLE ${tableKey(target)} requires review`
+            : `Column/constraint action may rewrite or scan; ${sizeReason(target)}; requires a known type and non-null constant default for NOT NULL`;
+      } else if (insert) {
+        const target = insert[1]!;
+        const values = tokens.indexOf("VALUES");
+        const select = tokens.indexOf("SELECT");
+        const conflict = tokens.indexOf("ON", values);
+        const data = tokens.slice(
+          values + 1,
+          conflict < 0 ? undefined : conflict,
+        );
+        const columnsEnd = tokens.indexOf(")");
+        const seedRows = additions(data).length;
+        const seedBytes =
+          Buffer.byteLength(statement.sql, "utf8") * 8 + seedRows * 1024;
+        const literalValues =
+          seedRows <= smallTableRows &&
+          seedBytes <= smallTableBytes &&
+          values === columnsEnd + 1 &&
+          data[0] === "(" &&
+          data.at(-1) === ")" &&
+          boundedExpression(data) &&
+          (conflict < 0 ||
+            tokens.slice(conflict).join(" ") === "ON CONFLICT DO NOTHING");
+        // INSERT SELECT can hold source locks for its whole scan. Every source must be small.
+        const column = `${identifier}(?: \\. ${identifier})?`;
+        const columns = `${column}(?: , ${column})*`;
+        const from = `${relation}(?: ${identifier})?`;
+        const comparison = `${column} = (?:${column}|${literal})`;
+        const joins = `(?: JOIN ${from} ON ${comparison}(?: AND ${comparison})*)*`;
+        const selectText = tokens.slice(select).join(" ");
+        const sources = [
+          ...selectText.matchAll(
+            new RegExp(`(?:FROM|JOIN) (${relation})(?= |$)`, "g"),
+          ),
+        ].map((m) => m[1]!);
+        const simpleSelect =
+          select === columnsEnd + 1 &&
+          sources.length > 0 &&
+          sources.every(small) &&
+          new RegExp(
+            `^SELECT ${columns} FROM ${from}${joins}(?: GROUP BY ${columns})?$`,
+          ).test(selectText);
+        if (!small(target) || (!literalValues && !simpleSelect))
+          reason = `Unbounded INSERT or source scan; ${sizeReason(target)}`;
+        const scalarSeeds =
+          literalValues &&
+          additions(data).every(
+            (row) =>
+              row[0] === "(" &&
+              row.at(-1) === ")" &&
+              additions(row.slice(1, -1)).every((cell) =>
+                constant.test(cell.join(" ")),
+              ),
+          );
+        const previous = tables[tableKey(target)];
+        invalidate(target);
+        if (!reason && scalarSeeds && previous) {
+          const count = additions(data).length;
+          tables[tableKey(target)] = {
+            rows: previous.rows + count,
+            bytes:
+              previous.bytes +
+              Buffer.byteLength(statement.sql, "utf8") * 8 +
+              count * 1024,
+          };
+        }
+      } else if (update) {
+        if (
+          !small(update[1]!) ||
+          !boundedExpression(tokens.slice(tokens.indexOf("SET") + 1)) ||
+          !additions(tokens.slice(tokens.indexOf("SET") + 1)).every(
+            scalarAssignment,
+          )
+        )
+          reason = `UPDATE may rewrite rows or execute unknown expressions; ${sizeReason(update[1]!)}`;
+        const previous = tables[tableKey(update[1]!)];
+        invalidate(update[1]!);
+        if (
+          !reason &&
+          previous &&
+          additions(tokens.slice(tokens.indexOf("SET") + 1)).every(
+            scalarAssignment,
+          )
+        )
+          tables[tableKey(update[1]!)] = {
+            rows: previous.rows,
+            bytes:
+              previous.bytes +
+              (Buffer.byteLength(statement.sql, "utf8") * 8 + 1024) *
+                previous.rows,
+          };
+      } else if (
+        new RegExp(`^CREATE FUNCTION ${relation} \\(`).test(text) &&
+        / LANGUAGE (?:SQL|PLPGSQL)(?: |$)/.test(text) &&
+        tokens.some(
+          (token, i) =>
+            tokens[i - 1] === "AS" &&
+            (token === "<BODY>" || /^(?:[eE])?'/.test(token)),
+        )
+      ) {
+        // Definition does not execute a body. Replacement and invocation need review.
+      } else if (
+        new RegExp(
+          `^CREATE TRIGGER ${identifier} (?:BEFORE|AFTER|INSTEAD OF) `,
+        ).test(text) &&
+        / EXECUTE (?:FUNCTION|PROCEDURE) /.test(text)
+      ) {
+        // Application compatibility still includes trigger behavior.
+      } else if (
+        /^DO <BODY>(?: LANGUAGE PLPGSQL)?$/.test(text) &&
+        nesting < 8
+      ) {
+        const body = /^\s*BEGIN\s+([\s\S]*);\s*END\s*;?\s*$/i.exec(
+          statement.bodies[0] ?? "",
+        );
+        if (!body)
+          reason =
+            "Opaque procedural block; control flow and dynamic SQL require review";
+        else {
+          try {
+            const children = migrationStatements(body[1]!);
+            if (children.some(concurrentIndex))
+              reason = "Concurrent index cannot run inside DO";
+            else
+              children.forEach((child, i) =>
+                inspect(child, `${label}.${i + 1}`, nesting + 1),
+              );
+          } catch {
+            reason = "Malformed procedural block";
+          }
+        }
+      } else if (/^SELECT |^DO |^CALL /.test(text)) {
+        reason =
+          "Procedural execution may alter or backfill existing tables; function definitions alone do not prove a call safe";
+      } else {
+        reason =
+          "Unknown or non-additive statement; possible rewrite, scan, or long lock";
+      }
+      if (reason) {
+        reasons.push(`Statement ${label}: ${reason}`);
+        // Approval of an opaque operation must not let later statements reuse stale sizes.
+        if (!index) {
+          inventoryReliable = false;
+          empty.clear();
+          for (const key of Object.keys(tables)) tables[key] = null;
+        }
+      }
+    };
+    statements.forEach((statement, i) => inspect(statement, `${i + 1}`));
+    return {
+      classification: reasons.length ? "risky" : "additive-safe",
+      reasons,
+    };
+  });
 }
 
 /** Historical hashes belong to CI only. Runtime checks never exempt old SQL. */

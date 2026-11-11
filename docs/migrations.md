@@ -31,15 +31,46 @@ uses a read-only transaction and reads the journal without creating it. A risky
 classification is a successful analysis result; database or history errors fail
 the command. Use a read-only database role for extra protection.
 
-The classifier recognizes new tables, nullable columns of known built-in types,
-constant defaults, concurrent indexes, new functions, and new triggers. Ordinary
-indexes are safe only on a table created earlier in the same file. Definitions of
-functions remain opaque; calls to them are risky. Data writes, procedural blocks,
-constraint changes, function replacement, expression defaults, and unknown SQL are
-risky. Column checks can scan existing rows, even with a constant default. Existing
-table sizes are unknown to this static check, so even a small existing table's
-ordinary index needs review. A successful earlier run does not
-exempt historical SQL from preflight.
+The classifier checks statements, not filenames. It recognizes new tables,
+nullable columns of known built-in types, constant defaults, concurrent indexes,
+new functions, and new triggers. PostgreSQL 16 can add a column with a constant
+default without rewriting its existing rows. A `NOT NULL` addition needs a non-null
+constant default. Volatile defaults, type changes, destructive drops, renames,
+and unknown SQL still need review.
+
+Preflight reads the public-schema relation inventory and total relation bytes,
+including indexes and TOAST. It counts at most 10,001 rows per eligible table and
+skips counting tables already above 16 MiB. It does not trust planner row estimates.
+An existing table qualifies as small only at 10,000 rows or fewer and 16 MiB or
+less. Partitioned, inherited, foreign, materialized-view, and row-security tables
+have unknown sizes for this purpose. The effective search path must contain only
+the public schema to use size evidence. Other search paths keep table sizes unknown.
+Growth and concurrent writers can change lock duration after preflight.
+
+Ordinary indexes, simple literal seeds, scalar CASE updates, and supported additive
+constraints can use that small-table evidence. An `INSERT SELECT` needs a simple
+projection and equality joins over small sources. Arbitrary functions and subqueries
+remain risky. Check constraints and unique constraints on large or unknown tables
+still need review. A nullable foreign-key column also needs a small referenced table.
+A new table starts empty. `CREATE TABLE IF NOT EXISTS` proves emptiness only when
+the inventory says the public table is absent. Literal seeds increase its size
+bound. Other writes invalidate that evidence unless their result sizes are bounded.
+Unknown execution invalidates size evidence for later statements and pending files.
+
+A plain `DO` block containing only `BEGIN`, recognized statements, and `END` is
+checked statement by statement. Loops, conditional control flow, dynamic execution,
+and arbitrary function calls require review. Function definitions stay opaque
+because creating a function does not execute it. A familiar function name does not
+exempt an installer or backfill call. Successful earlier execution and historical
+migration hashes never exempt SQL from runtime preflight.
+
+The 910 through 992 regression cases pin every migration under an explicit synthetic
+size scenario. With eligible existing tables below both limits, six still need
+review: 920 and 934 execute procedural blocks; 937 and 946 drop constraints or
+indexes; 990 executes an installer; 992 executes installers and backfills and
+renames a function. The other thirteen qualify as additive-safe in that scenario.
+Actual preflight uses the connected database's sizes. Without size evidence, sixteen
+of the nineteen still require review.
 
 Read `reasons` and review application compatibility yourself. Additive DDL still
 acquires locks, and a new trigger can change write behavior. Migration sessions
