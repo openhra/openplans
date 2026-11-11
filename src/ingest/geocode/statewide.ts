@@ -294,8 +294,10 @@ export async function publishStatewide(
   hashes?: string[],
 ): Promise<void> {
   const params = hashes ? [runId, hashes] : [runId];
+  // Keep result lookups bounded to the batch as the shared ledger grows.
   const inputs = hashes
-    ? "batch_input i JOIN geocode_tx_result r USING(address_hash)"
+    ? `batch_input i JOIN LATERAL (SELECT * FROM geocode_tx_result r
+      WHERE r.address_hash=i.address_hash OFFSET 0) r ON true`
     : `geocode_tx_result r
     JOIN LATERAL (SELECT * FROM geocode_tx_input i WHERE i.run_id=$1 AND i.address_hash=r.address_hash OFFSET 0) i ON true`;
   // Freeze this batch's indexed input keys before joining the growing result ledger.

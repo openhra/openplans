@@ -725,13 +725,13 @@
       "path": "package-lock.json",
       "mode": "100644",
       "size": 111804,
-      "sha256": "869cb72532edc720bbcad01ef69da8c54e40c723b001f6825c7a9f243ef80a0d"
+      "sha256": "c107f911213226c9a47eb25e928f1b6b77e9c4a5a4ebd45d48b9dcc684daf029"
     },
     {
       "path": "package.json",
       "mode": "100644",
       "size": 1891,
-      "sha256": "78cfd34a63de301bba5a4464e5655ccddc6a44b389304bd65eb4a65ebce12522"
+      "sha256": "576bc9921d02dc0cbb1ed49e55391708d53246d3032261ed940919ecda74f617"
     },
     {
       "path": "scripts/check-extraction.mjs",
@@ -1535,7 +1535,7 @@
       "path": "src/fetch/README.md",
       "mode": "100644",
       "size": 19688,
-      "sha256": "2d2b280d0d4011df68392ed80ab559c95081a018d40d7584101c9ff9a014c6a0"
+      "sha256": "564051ff0c9bfda80bd352359912a5d290b8fdf221d72c325dbe1004bec56370"
     },
     {
       "path": "src/fetch/admission.ts",
@@ -1553,7 +1553,7 @@
       "path": "src/fetch/cache.ts",
       "mode": "100644",
       "size": 39848,
-      "sha256": "ae252a7a66ddd53e42982bf2569a9926e15d648e30bc2f1296b4a1a1233a7fe3"
+      "sha256": "d152da522ef8eb524761fd4deb4b0c60cacf3b850d3666bd55724478d0d036b5"
     },
     {
       "path": "src/fetch/egress.ts",
@@ -1720,8 +1720,8 @@
     {
       "path": "src/ingest/geocode/README.md",
       "mode": "100644",
-      "size": 38893,
-      "sha256": "0c834f825351f94f9f50d4e54d5c61ba4e112db177f7b43fc0e6c20f1fbc7504"
+      "size": 40629,
+      "sha256": "8803655c33eb173edaea8284f726107f44a79843cacfab2af77d69adadc46570"
     },
     {
       "path": "src/ingest/geocode/address.ts",
@@ -1852,8 +1852,20 @@
     {
       "path": "src/ingest/geocode/statewide.ts",
       "mode": "100644",
-      "size": 26101,
-      "sha256": "b5416e77eccde0e1dbd2fc11db34886bede95a63ed2816450da32fdad93d1f9f"
+      "size": 26240,
+      "sha256": "e1c5615f53a68ec4e5bbd1627e686b364197ec5b49744bf3046460472b68a055"
+    },
+    {
+      "path": "src/ingest/geocode/transfer-cli.ts",
+      "mode": "100644",
+      "size": 1919,
+      "sha256": "f1972f0344f6f283a7e05a07a9520c5c1f22024b397ddb180a65da12be423148"
+    },
+    {
+      "path": "src/ingest/geocode/transfer.ts",
+      "mode": "100644",
+      "size": 12781,
+      "sha256": "c53335dfe0fec6997fd47bb3133dd319168c75a7bd1257b75ba961a86cf3ba3a"
     },
     {
       "path": "src/ingest/geocode/tx-cli.ts",
@@ -2111,7 +2123,7 @@
       "path": "src/ingest/qhp/discover-diagnose.ts",
       "mode": "100644",
       "size": 7715,
-      "sha256": "8dad6bb67ff22a25445cc39761fed56de23c262b419b3eb769b66f91bd8aaf33"
+      "sha256": "f990682fa081b3dfc162f71467a5eb05cc1d104ee0e04bbaca1b008ee45abb15"
     },
     {
       "path": "src/ingest/qhp/discover-pglite.ts",
@@ -2429,7 +2441,7 @@
       "path": "src/ingest/state/reflective.py",
       "mode": "100644",
       "size": 11147,
-      "sha256": "de8ca6bac7fd76acf45e5d060301bbbfb80f44466f5f1ba00830451b97a07420"
+      "sha256": "dc00425161fe787bac5e36d6593d6a1f79e7d353ca977b622cfe16c03f1d5ffb"
     },
     {
       "path": "src/ingest/state/reflective.ts",
@@ -4841,7 +4853,7 @@
       "path": "tests/ingest/geo/fallback.test.ts",
       "mode": "100644",
       "size": 17758,
-      "sha256": "7a5c458157acb2ae2261314181552e1afa6ca9bd83df83da256772e9ff9ad4b3"
+      "sha256": "668ebacea043a0921a2159f9c0acc57b80572038977e2e004624b41f10947c3f"
     },
     {
       "path": "tests/ingest/geo/geo.test.ts",
@@ -4924,8 +4936,14 @@
     {
       "path": "tests/ingest/geocode/statewide.test.ts",
       "mode": "100644",
-      "size": 25620,
-      "sha256": "efaa7b85ff7dc63d66663922a7e348592b6454fa04644a3038fe145a06100dc8"
+      "size": 28597,
+      "sha256": "cc077a774d7f425049a98f24a6a4101a8dae6431a9ad78893fde67a159d54f56"
+    },
+    {
+      "path": "tests/ingest/geocode/transfer.test.ts",
+      "mode": "100644",
+      "size": 10004,
+      "sha256": "60da8b3cea33226e84f1b5acb9cd118155438d29407eec82f488b7f471a2bd6c"
     },
     {
       "path": "tests/ingest/json/json.test.ts",
@@ -5039,7 +5057,7 @@
       "path": "tests/ingest/qhp/discover.test.ts",
       "mode": "100644",
       "size": 23712,
-      "sha256": "4d97ad18f17a439d328f3a8d364cdcc8fc6c484b06666f8cd00df55f0a7aa036"
+      "sha256": "03fc583321659543ae95e559b879919ffb482922e907b95157a627f1ff1a03f1"
     },
     {
       "path": "tests/ingest/qhp/enrichment.test.ts",

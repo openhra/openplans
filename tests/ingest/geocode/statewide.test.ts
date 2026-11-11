@@ -751,4 +751,85 @@ describe("statewide TX queue", () => {
       await h.cleanup();
     }
   });
+  it("keeps batch publication indexed as other states enlarge the ledger", async () => {
+    const h = await harness();
+    try {
+      const runId = "synthetic-lookup-plan";
+      await stageStatewide(h.db, { runId });
+      // Synthetic unrelated no-point observations make a whole-ledger scan expensive.
+      await h.db
+        .exec(`INSERT INTO geocode_tx_result(address_hash,normalized_address,match_status,county_basis,snapshot_id)
+        SELECT lpad(to_hex(i),64,'0'),'synthetic unrelated address','No_Match','unknown','input'
+        FROM generate_series(1,25000) i;
+        ANALYZE geocode_tx_result; ANALYZE geocode_tx_input`);
+      const hashes = (
+        await h.db.query(
+          "SELECT address_hash FROM geocode_tx_address WHERE run_id=$1",
+          [runId],
+        )
+      ).rows.map((r) => String(r.address_hash));
+      while (hashes.length < 2000)
+        hashes.push(hashes.length.toString(16).padStart(64, "0"));
+      const statements: { sql: string; parameters?: unknown[] }[] = [];
+      await publishStatewide(
+        {
+          query: async (sql, parameters) => {
+            statements.push({ sql, parameters });
+            return { rows: [] };
+          },
+          exec: async () => {},
+        },
+        runId,
+        hashes,
+      );
+      interface Plan {
+        "Node Type": string;
+        "Relation Name"?: string;
+        "Index Cond"?: string;
+        Plans?: Plan[];
+      }
+      function scans(plan: Plan): Plan[] {
+        return [
+          ...(plan["Relation Name"] === "geocode_tx_result" ? [plan] : []),
+          ...(plan.Plans ?? []).flatMap(scans),
+        ];
+      }
+      for (const statement of statements) {
+        const plan = (
+          await h.db.query(
+            "EXPLAIN (FORMAT JSON) " + statement.sql,
+            statement.parameters,
+          )
+        ).rows[0]!["QUERY PLAN"] as { Plan: Plan }[];
+        const indexed = scans(plan[0]!.Plan);
+        expect(indexed.length).toBeGreaterThan(0);
+        expect(
+          indexed.every(
+            (p) =>
+              p["Node Type"] === "Index Scan" &&
+              p["Index Cond"]?.includes("address_hash"),
+          ),
+        ).toBe(true);
+        // Mutate a disposable statement, never the source: the old join scans unrelated results.
+        const mutant = statement.sql.replace(
+          /JOIN LATERAL \(SELECT \* FROM geocode_tx_result r\s+WHERE r.address_hash=i.address_hash OFFSET 0\) r ON true/,
+          "JOIN geocode_tx_result r USING(address_hash)",
+        );
+        expect(mutant).not.toBe(statement.sql);
+        const bad = (
+          await h.db.query(
+            "EXPLAIN (FORMAT JSON) " + mutant,
+            statement.parameters,
+          )
+        ).rows[0]!["QUERY PLAN"] as { Plan: Plan }[];
+        expect(
+          scans(bad[0]!.Plan).some(
+            (p) => p["Node Type"] === "Seq Scan" || !p["Index Cond"],
+          ),
+        ).toBe(true);
+      }
+    } finally {
+      await h.cleanup();
+    }
+  });
 });

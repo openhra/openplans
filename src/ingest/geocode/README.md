@@ -545,3 +545,31 @@ operator coordinates, and public exports must retain the attribution above.
 
 Offline tests use a synthetic loopback service. The README attribution check runs with
 those tests and fails when a disposable copy loses the required attribution string.
+
+## Move completed geocodes between databases
+
+Use an offline transfer when the same normalized practice addresses have already been geocoded
+in another OpenPlans database. Both databases must have current migrations. Import the target's
+NPPES releases and geography first. Keep the source stable during export.
+
+```sh
+# DATABASE_URL selects the source. This command reads a completed state queue.
+node dist/ingest/geocode/transfer-cli.js export completed-ca-run /data/work/CA.jsonl
+# Record the file's SHA-256, move it with its retained raw cache, and check that hash.
+# DATABASE_URL now selects the target; OPENPLANS_DATA_DIR selects its raw cache.
+node dist/ingest/geocode/transfer-cli.js import target-ca-run /data/work/CA.jsonl
+```
+
+Each file contains one state's completed observations, county outlines and snapshot receipts.
+The importer checks the file checksum, address hashes, match labels, county bounds, ACTIVE
+snapshot metadata, cached body hashes and admission. It then stages the target's current
+addresses and calls the normal statewide publisher. The resulting points retain their Census
+or centroid evidence and the target address snapshot. Registry records imply no network
+participation.
+
+The command makes no HTTP requests. It fails if any target address lacks a completed observation,
+if an existing observation differs, or if the shared geocoder lock is busy. A failed import may
+have committed earlier pages. Keep that partial data and rerun the same file and run ID after
+resolving the cause. Changed address scopes need a new run ID. Repeating an unchanged transfer
+preserves observation timestamps. This command does not replace missing observations with
+centroids or claim that an incomplete state is ready.
