@@ -24,6 +24,12 @@ function countedCatalog() {
       seen.total++;
       if (sql.includes("count(r.base_plan_id)"))
         evidence.push(parameters ?? []);
+      // The kept-count statement checks many entries at once: one evidence row per entry.
+      if (sql.includes("rate_plan_count c")) {
+        const columns = (parameters ?? []) as unknown[][];
+        for (let i = 0; i < (columns[0]?.length ?? 0); i++)
+          evidence.push(columns.map((column) => column[i]));
+      }
       const result = await fixture.db.query<Row>(sql, parameters);
       if (!sql.includes("FROM data_availability")) return result;
       // Synthetic manifest metadata only: unrelated scopes have no invented rate rows.
@@ -105,6 +111,7 @@ it("bounds quote evidence queries independently of unrelated catalogs and reject
   const old = countedCatalog();
   const before = await mutant.quotePlans(old.db, quoteBody());
   expect(before).toEqual(result);
-  expect(old.seen.total).toBeGreaterThan(scoped.seen.total);
+  // One statement checks every entry, so compare the entries checked, not the query count.
+  expect(old.evidence.length).toBeGreaterThan(scoped.evidence.length);
   expect(() => requireQuoteBudget(old.evidence)).toThrow(/exceeded/);
 });

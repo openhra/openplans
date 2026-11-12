@@ -22,7 +22,8 @@ import {
   ingestRatingRules,
   ratingRule,
 } from "../../dist/ingest/rating-rules/index.js";
-import { ingestGeo } from "../../dist/ingest/geo/index.js";
+// The worker's geography entry point, including its reviewed CMS county spellings.
+import { ingestSbeGeography as ingestGeo } from "../../dist/ingest/sbe/geography.js";
 import { allStatesReport, atomicWrite } from "./all-states-report.mjs";
 import { domainRate, rateKey, checkRate, setComparison } from "./logic.mjs";
 const cache = importDataDirectory(),

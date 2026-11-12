@@ -22,6 +22,7 @@ import type {
   BenefitBundle,
   MoneyFigure,
   RateFigure,
+  RowGroup,
   RowRef,
 } from "../domain/medicare/part-d-cost/repository.js";
 import { drugCostRequestSchema } from "../api/medicare-schemas.js";
@@ -56,6 +57,8 @@ export interface DrugCostDeps {
   ) => FillRequest["classification"];
   readBundle: typeof readBenefitBundle;
   estimate: (request: EstimateRequest) => EstimateResult;
+  /** The evidence item that cites a group of rows sharing their values once. */
+  groupEvidence: (group: RowGroup) => GroupEvidence;
 }
 
 const unknownFacts = (): FillRequest["classification"] => ({
@@ -83,6 +86,7 @@ export const drugCostDeps: DrugCostDeps = {
   drugFacts: unknownFacts,
   readBundle: readBenefitBundle,
   estimate: estimateDrugCosts,
+  groupEvidence: (group) => ({ kind: "source_rows", ...group }),
 };
 
 // ---------- response ----------
@@ -93,13 +97,30 @@ export type FigureOut = {
   reason: string | null;
   evidence_refs: string[];
 };
-type EvidenceOut = { id: string } & Evidence;
+/** Rows that carry the same values in the cited fields, cited once. */
+export type GroupEvidence = { kind: "source_rows" } & RowGroup;
+type EvidenceOut = { id: string } & (Evidence | GroupEvidence);
 
-/** Numbers evidence items in first-use order, so the same request gives the same bytes. */
+const sameRows = (row: RowRef, group: RowGroup) =>
+  row.snapshot_id === group.snapshot_id &&
+  row.table === group.table &&
+  JSON.stringify(row.fields) === JSON.stringify(group.fields);
+
+/**
+ * Numbers evidence items in first-use order, so the same request gives the same bytes. When a
+ * figure cites every row of a group, such as a plan's county rows that all file the same
+ * deductible, the group takes one id in place of one id per row.
+ */
 class EvidenceTable {
   private readonly ids = new Map<string, string>();
   readonly items: EvidenceOut[] = [];
-  ref(item: Evidence): string {
+  /** Every item a figure cited before grouping, for the coverage check. */
+  readonly cited = new Map<string, Evidence>();
+  constructor(
+    private readonly groups: readonly RowGroup[],
+    private readonly groupEvidence: DrugCostDeps["groupEvidence"],
+  ) {}
+  private ref(item: Evidence | GroupEvidence): string {
     const key = JSON.stringify(item);
     let id = this.ids.get(key);
     if (!id) {
@@ -110,8 +131,95 @@ class EvidenceTable {
     return id;
   }
   refs(items: readonly Evidence[]): string[] {
-    return [...new Set(items.map((item) => this.ref(item)))];
+    for (const item of items) this.cited.set(JSON.stringify(item), item);
+    // A group stands in for its rows only when the figure cites all of them.
+    const whole = this.groups.filter((group) => {
+      const rows = new Set(
+        items.flatMap((item) =>
+          item.kind === "source_row" && sameRows(item, group)
+            ? [item.source_row]
+            : [],
+        ),
+      );
+      return group.source_rows.every((row) => rows.has(row));
+    });
+    const out = new Set<string>();
+    for (const item of items) {
+      const group =
+        item.kind === "source_row"
+          ? whole.find(
+              (entry) =>
+                sameRows(item, entry) &&
+                entry.source_rows.includes(item.source_row),
+            )
+          : undefined;
+      out.add(this.ref(group ? this.groupEvidence(group) : item));
+    }
+    return [...out];
   }
+}
+
+/**
+ * Every item a figure cited must be in the answer's evidence: as itself, or as a row of a group
+ * with the same snapshot, table and fields.
+ */
+export function evidenceCoverageProblems(
+  cited: Iterable<Evidence>,
+  evidence: readonly EvidenceOut[],
+): string[] {
+  const exact = new Set<string>();
+  const groups: GroupEvidence[] = [];
+  for (const { id: _id, ...item } of evidence) {
+    if (item.kind === "source_rows") groups.push(item);
+    else exact.add(JSON.stringify(item));
+  }
+  const problems: string[] = [];
+  for (const item of cited) {
+    if (exact.has(JSON.stringify(item))) continue;
+    if (
+      item.kind === "source_row" &&
+      groups.some(
+        (group) =>
+          sameRows(item, group) && group.source_rows.includes(item.source_row),
+      )
+    )
+      continue;
+    problems.push(
+      item.kind === "source_row"
+        ? `lost source ${item.table} row ${item.source_row}`
+        : `lost ${item.kind} evidence`,
+    );
+  }
+  return problems;
+}
+
+/** A group lists its rows once each, in order, and the value of every field it names. */
+function groupProblems(item: Record<string, unknown>): string[] {
+  const rows = item.source_rows;
+  const fields = item.fields;
+  const values = item.values as Record<string, unknown> | undefined;
+  const problems: string[] = [];
+  if (
+    !Array.isArray(rows) ||
+    !rows.length ||
+    !rows.every(
+      (row, i) =>
+        Number.isInteger(row) &&
+        (row as number) > 0 &&
+        (i === 0 || (row as number) > (rows[i - 1] as number)),
+    )
+  )
+    problems.push(`${String(item.id)}: group rows not listed in order`);
+  if (
+    !Array.isArray(fields) ||
+    !fields.length ||
+    !values ||
+    typeof values !== "object" ||
+    Object.keys(values).length !== fields.length ||
+    !fields.every((field) => typeof values[field as string] === "string")
+  )
+    problems.push(`${String(item.id)}: group without its shared values`);
+  return problems;
 }
 
 const rowEvidence = (rows: readonly RowRef[]): Evidence[] =>
@@ -319,8 +427,9 @@ function project(
   input: DrugCostRequest,
   bundle: Extract<BenefitBundle, { status: "available" }>,
   result: Extract<EstimateResult, { fills: unknown }>,
+  deps: DrugCostDeps,
 ) {
-  const table = new EvidenceTable();
+  const table = new EvidenceTable(bundle.row_groups ?? [], deps.groupEvidence);
   const opening: Evidence[] =
     input.opening_state.kind === "provided"
       ? [{ kind: "request", field: "opening_state" }]
@@ -382,7 +491,7 @@ function project(
   });
   const totalRefs = [...allRefs];
   const subtotal = result.totals.calculable_subtotal;
-  return {
+  const answer = {
     ...head,
     status: result.status,
     scenario: result.scenario,
@@ -433,15 +542,21 @@ function project(
     })),
     evidence: table.items,
   };
+  return { answer, cited: table.cited.values() };
 }
 export type DrugCostEstimate =
-  ReturnType<typeof project> | ReturnType<typeof closed>;
+  ReturnType<typeof project>["answer"] | ReturnType<typeof closed>;
 
 /** Every value figure cites evidence that is in the answer, and every unknown says why. */
 export function estimateProvenanceProblems(answer: unknown): string[] {
   const problems: string[] = [];
-  const root = answer as { evidence?: { id: string }[] };
-  const ids = new Set((root.evidence ?? []).map((item) => item.id));
+  const root = answer as { evidence?: Record<string, unknown>[] };
+  const ids = new Set<unknown>();
+  for (const item of root.evidence ?? []) {
+    if (ids.has(item.id)) problems.push(`$.evidence: ${String(item.id)} twice`);
+    ids.add(item.id);
+    if (item.kind === "source_rows") problems.push(...groupProblems(item));
+  }
   const visit = (value: unknown, path: string) => {
     if (Array.isArray(value)) {
       value.forEach((item, i) => visit(item, `${path}[${i}]`));
@@ -531,8 +646,11 @@ export async function drugCostEstimate(
     return v.fail("body.fills", "INVALID_SCHEDULE");
   if (!("fills" in result))
     return closed(head, result.status, result.reason, bundle.release.as_of);
-  const answer = project(head, input, bundle, result);
-  const problems = estimateProvenanceProblems(answer);
+  const { answer, cited } = project(head, input, bundle, result, deps);
+  const problems = [
+    ...estimateProvenanceProblems(answer),
+    ...evidenceCoverageProblems(cited, answer.evidence),
+  ];
   if (problems.length) throw new Error("estimate provenance incomplete");
   return answer;
 }

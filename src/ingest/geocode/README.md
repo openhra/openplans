@@ -489,6 +489,17 @@ node dist/ingest/geocode/open-cli.js --state TX \
 bash src/ingest/geocode/geocoder.sh stop
 ```
 
+With a remote snapshot store (`blobs.provider` other than `local`), the extracts live in the
+store instead of `raw/open-geocoder`. Before `prepare-open.py` runs, `geocoder.sh` calls
+`dist/ingest/geocode/open-store-cli.js`. It copies the extract and its `metadata.json` down from
+the store into `work/open-geocoder/from-store/`, checking the size and hash the metadata
+records, and the filter and import containers mount that copy. An extract the store doesn't
+hold yet is first acquired through the fetch cache: the publisher MD5 and the extract go into
+the store under the `open-geocoder-osm` source, and `metadata.json` names that snapshot. A
+reviewed access manifest must admit `download.geofabrik.de`, as for every fetch.
+`open-cli.js` reads the same copy. With the `local` store none of this runs and every path is
+unchanged.
+
 The compose project is `openplans-geocoder`. Its only published
 port binds to 127.0.0.1. No API key is used. The launcher checks the VM Docker disk has
 at least 41 GiB free and the external disk has 160 GiB before import. OSM node coordinates

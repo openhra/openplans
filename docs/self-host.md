@@ -135,6 +135,14 @@ The [ICHRA guide](ichra.md#coverage) describes its readiness and look-back field
 [Medicare availability](medicare.md#routes) is a separate endpoint,
 `GET /v1/medicare/data-availability`, with its loaded releases and counts.
 
+A catalog import stores the rate-row count of each plan with its rate file, so
+availability reads one small row per file instead of counting rate rows again.
+Catalogs imported before migration 993 have no stored counts, so availability
+counts their rate rows on every read. That takes seconds on a national catalog. Run
+`worker backfill rate-plan-count` once after migrating to store their counts.
+The command handles one rate file per transaction and skips files that already
+have counts. Responses are the same either way.
+
 ## Publisher access
 
 OpenPlans downloads only from hosts that a reviewed access manifest clears. Before
@@ -311,6 +319,8 @@ docker compose exec -T db sh -c 'exec pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_
   --exclude-table-data=cms_api_drug_coverage --exclude-table-data=cms_api_provider_coverage \
   --exclude-table-data=cms_zip_attempt --exclude-table-data=cms_zip_lookup' > "$OPENPLANS_BACKUP_DIR/catalog.dump"
 tar -C "$OPENPLANS_DATA_DIR" --exclude='raw/cms-marketplace-*' -czf "$OPENPLANS_BACKUP_DIR/cache.tar.gz" raw reports
+docker compose run --rm -T worker backup-args --manifest > "$OPENPLANS_BACKUP_DIR/manifest.json"
+[ -f "$OPENPLANS_DATA_DIR/reports/inputs.json" ] && cp "$OPENPLANS_DATA_DIR/reports/inputs.json" "$OPENPLANS_BACKUP_DIR/inputs.json"
 docker compose up -d api
 ~~~
 
@@ -350,10 +360,30 @@ tar -C "$OPENPLANS_DATA_DIR" -xzf "$OPENPLANS_BACKUP_DIR/cache.tar.gz"
 docker compose up -d db
 docker compose stop api
 docker compose exec -T db sh -c 'exec pg_restore --exit-on-error --clean --if-exists --no-owner -U "$POSTGRES_USER" -d "$POSTGRES_DB"' < "$OPENPLANS_BACKUP_DIR/catalog.dump"
+docker compose run --rm -T worker backup-restored --manifest - < "$OPENPLANS_BACKUP_DIR/manifest.json"
 docker compose up --build --wait api
 curl http://127.0.0.1:3000/healthz
 docker compose run --rm worker status
 ~~~
+
+The dump keeps the `snapshot` receipts of the answers it left out. `worker backup-restored`
+reads the manifest and marks each of those receipts `QUARANTINED`, with an
+`answers_excluded_from_backup` quality issue, so no `ACTIVE` receipt points at an answer that
+is not there. It touches only pass-through receipts with no answer row left, and only for
+sources whose tables the manifest lists. Pass-through sources are the CMS Marketplace API and
+any registered source that stores answers. It never changes catalog, provider or other
+imported receipts. A second run changes nothing. Run it before the API starts: once
+the API has stored new answers, they have rows and stay `ACTIVE`. If your dump keeps the
+answers, their receipts still have rows and the step leaves them alone. For an older backup
+without a manifest, use the output of `worker backup-args --manifest` from the package version
+that made it.
+
+The backup also saves `reports/inputs.json` next to the archive when you keep one, such as the
+prepared provider profile. A readiness check after a restore should use that copy, because the
+live file can list data loaded after the dump. The `worker backup-args` and
+`worker backup-restored` commands above read the plugins your installation loads, so run them
+with the same `OPENPLANS_PLUGINS` and `OPENPLANS_CONFIG` as production. The
+[plugin operations guide](plugins-operations.md#backups-and-restores) has the details.
 
 Start with the same package version so migration checksums match. DB raw paths
 record the original import; restored snapshots remain addressed by source/hash
@@ -442,6 +472,27 @@ Old-generation cursors return `CURSOR_EXPIRED`; restart the search.
 
 See the [cache contract](../src/api/cache/README.md) for eligible endpoints,
 credentials, invalidation, metrics, bounds, and operator inspection commands.
+
+## Plugins
+
+Plugins are off by default. Set `OPENPLANS_PLUGINS` in `.env` to a comma-separated list of
+package names, or set `OPENPLANS_CONFIG` to the absolute path of a JSON config file on the
+Docker host when a plugin needs options:
+
+~~~sh
+OPENPLANS_PLUGINS=@openplans/plugin-status
+# or
+OPENPLANS_CONFIG=/etc/openplans/config.json
+~~~
+
+Compose passes both variables to the `api`, `worker` and `scheduler` services and mounts the
+config file read-only at the same path in each. Recreate the services after a change with
+`docker compose up -d api`, plus `docker compose --profile scheduler up -d scheduler` when the
+scheduler runs. Plugin secrets need a local Compose override. The
+[operator guide](plugins-operations.md) walks through the status page and the operator token, the
+`scheduler` profile, Slack and the webhook, pass-through cache levels, backups and restores, the
+approved-plugin list and the checks to run before an update. The [plugin guide](plugins.md) covers
+the first-party plugins, config file entries, event delivery and writing a plugin.
 
 ## MCP endpoint
 

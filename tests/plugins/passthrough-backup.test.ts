@@ -47,6 +47,26 @@ describe("worker backup-args", () => {
     expect(new Set(args).size).toBe(args.length);
   });
 
+  it("prints the excluded tables as a JSON manifest", () => {
+    const out: string[] = [];
+    expect(
+      runBackupArgs(
+        ["--manifest"],
+        { out: (l) => out.push(l), error: () => {} },
+        [source("synthetic-own", "stored", ["plg_syn_answer"])],
+      ),
+    ).toBe(0);
+    expect(JSON.parse(out[0]!)).toEqual({
+      excluded_table_data: [
+        ...CMS_API_EXPORT_EXCLUDED_TABLES,
+        "passthrough_answer",
+        "passthrough_attempt",
+        "passthrough_conflict",
+        "plg_syn_answer",
+      ],
+    });
+  });
+
   it("prints raw-body exclusions for the archive and refuses other arguments", () => {
     expect(
       backupArgs(
@@ -65,6 +85,6 @@ describe("worker backup-args", () => {
         [],
       ),
     ).toBe(1);
-    expect(errors).toEqual(["Usage: worker backup-args [--tar]"]);
+    expect(errors).toEqual(["Usage: worker backup-args [--tar | --manifest]"]);
   });
 });

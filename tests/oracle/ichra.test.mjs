@@ -193,11 +193,23 @@ const CASES = [
 const OFFERED = { adult: [A, B], child: [A, B, CHILD] };
 
 let directory;
-async function reference(rates, cases = CASES) {
+/** `ehb` replaces EHBPercentTotalPremium for some plans; `script` runs another copy of the reading. */
+async function reference(
+  rates,
+  cases = CASES,
+  { ehb = {}, script = "scripts/oracle/ichra-reference.py" } = {},
+) {
   const path = (name) => join(directory, name);
   await writeFile(
     path("plan-attributes.csv"),
-    csv(ATTRIBUTE_HEADER, attributes),
+    csv(
+      ATTRIBUTE_HEADER,
+      attributes.map((row) =>
+        row.StandardComponentId in ehb
+          ? { ...row, EHBPercentTotalPremium: ehb[row.StandardComponentId] }
+          : row,
+      ),
+    ),
   );
   await writeFile(path("service-area.csv"), csv(AREA_HEADER, serviceAreas));
   await writeFile(path("rate.csv"), csv(RATE_HEADER, rates));
@@ -209,7 +221,7 @@ async function reference(rates, cases = CASES) {
     "python3",
     [
       "-B",
-      "scripts/oracle/ichra-reference.py",
+      script,
       ...["plan-attributes", "service-area", "rate"].flatMap((kind) => [
         `--${kind}`,
         path(`${kind}.csv`),
@@ -236,7 +248,7 @@ function employee(age) {
 /** The application's ranking over the same rows; `rank` lets a control swap the pick. */
 function application(
   rates,
-  { rank = lowestCostSilver, swapBases = false } = {},
+  { rank = lowestCostSilver, swapBases = false, ehb = {} } = {},
 ) {
   const parsed = rates.map((raw, index) =>
     parseRateRow(raw, {
@@ -246,7 +258,7 @@ function application(
     }),
   );
   const fractions = new Map(
-    PLANS.map(([plan, , , , , fraction]) => [plan, fraction]),
+    PLANS.map(([plan, , , , , fraction]) => [plan, ehb[plan] ?? fraction]),
   );
   const candidates = (plans, age, basis) =>
     plans.map((planId) => {
@@ -268,6 +280,17 @@ function application(
     const plans = item.age >= 21 ? OFFERED.adult : OFFERED.child;
     const identification = item.identification_age ?? item.age;
     const answer = (basis) => {
+      // As the ICHRA service does: one unreadable EHB fraction leaves the EHB basis unknown.
+      if (
+        basis === "ehb_portion" &&
+        plans.some((plan) => allocatePremium(100, fractions.get(plan)) === null)
+      )
+        return {
+          status: "requires_premium_adjustments",
+          plan_ids: [],
+          monthly_cents: null,
+          prices_at_age: [],
+        };
       const atAge = candidates(plans, item.age, basis);
       if (identification === item.age) {
         const result = rank(atAge, employee(item.age));
@@ -367,7 +390,65 @@ describe("lowest cost silver plan from raw files (SYNTHETIC catalog)", () => {
     expect(none.bases.gross.status).toBe("incomplete_lcsp");
   });
 
+  it("leaves the EHB portion unknown past 15 places or outside 0 through 1", async () => {
+    const rates = syntheticRates();
+    for (const fraction of [
+      "0.9000000000000001",
+      "1.0000000000000000",
+      "1.01",
+      "-0.9",
+      "90%",
+    ]) {
+      const ehb = { [A]: fraction };
+      const answers = await reference(rates, CASES, { ehb });
+      for (const answer of answers) {
+        expect(answer.bases.ehb_portion, fraction).toMatchObject({
+          status: "requires_premium_adjustments",
+          reason: `${A}: ehb_allocation_unknown`,
+          monthly_cents: null,
+        });
+        expect(answer.bases.gross.status).toBe("calculated");
+      }
+      expect(compareLcsp(answers, application(rates, { ehb }))).toEqual([]);
+    }
+    // Fifteen places is still a filed fraction: A files 400.00 at 90%.
+    const ehb = { [A]: "0.900000000000001" };
+    const [direct] = await reference(rates, [CASES[0]], { ehb });
+    expect(direct.bases.ehb_portion).toMatchObject({
+      status: "calculated",
+      plan_ids: [A],
+      monthly_cents: 36000,
+    });
+    expect(
+      compareLcsp(
+        await reference(rates, CASES, { ehb }),
+        application(rates, { ehb }),
+      ),
+    ).toEqual([]);
+  });
+
   describe("planted defects must be caught", () => {
+    it("a reading that accepts a 16-place EHB fraction", async () => {
+      const source = await readFile(
+        "scripts/oracle/ichra-reference.py",
+        "utf8",
+      );
+      const strict = String.raw`0(?:\.\d{1,15})?|1(?:\.0{1,15})?`;
+      expect(source).toContain(strict);
+      const script = join(directory, "ichra-reference-16.py");
+      await writeFile(
+        script,
+        source.replace(strict, String.raw`0(?:\.\d{1,16})?|1(?:\.0{1,16})?`),
+      );
+      const rates = syntheticRates();
+      const ehb = { [A]: "0.9000000000000001" };
+      const mutant = await reference(rates, CASES, { ehb, script });
+      expect(mutant[0].bases.ehb_portion.status).toBe("calculated");
+      const differences = compareLcsp(mutant, application(rates, { ehb }));
+      expect(differences.join("\n")).toContain(
+        "ehb_portion: status requires_premium_adjustments, raw files give calculated",
+      );
+    });
     it("one cent on one rate row", async () => {
       const rates = syntheticRates();
       const expected = await reference(rates);

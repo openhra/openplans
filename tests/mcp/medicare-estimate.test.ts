@@ -27,9 +27,12 @@ import {
   assertEstimateHonest,
   callEstimateTool,
   estimateOutputSchema,
+  estimateToolHooks,
   MEDICARE_ESTIMATE_TOOL,
   registerEstimateTool,
 } from "../../src/mcp/medicare-estimate.js";
+import type { EstimateToolHooks } from "../../src/mcp/medicare-estimate.js";
+import { drugCostDeps } from "../../src/services/medicare-drug-cost.js";
 import type * as EstimateModule from "../../src/mcp/medicare-estimate.js";
 import { configDependencies } from "../../src/mcp/policy.js";
 import { buildServer } from "../../src/mcp/server.js";
@@ -508,6 +511,65 @@ describe("estimate_medicare_drug_costs over the fixture Part D files", () => {
     ).toBe(true);
   });
 
+  /** The tool's data has the HTTP route's bytes, grouped county rows included. */
+  async function sameAsHttp(hooks: EstimateToolHooks): Promise<boolean> {
+    const http = createApp(
+      loaded.db,
+      { premiumToken: API_TOKEN },
+      { store: new SpyStore(), config: loadConfig({}) },
+    );
+    const route = await http.request(
+      `/v1/medicare/plans/${PLAN}/drug-cost-estimates?year=2026`,
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          authorization: `Bearer ${API_TOKEN}`,
+        },
+        body: JSON.stringify(schedule()),
+      },
+    );
+    const text = await route.text();
+    const result = await callEstimateTool(
+      grantedDeps(loaded.db),
+      args(),
+      0,
+      hooks,
+    );
+    const output = result.structuredContent as Json;
+    if (output.error) return false;
+    try {
+      assertEstimateHonest(output, JSON.parse(text));
+    } catch {
+      return false;
+    }
+    return JSON.stringify(output.data) === text;
+  }
+
+  it("shares the grouped evidence shape with HTTP; a diverging MCP shape is caught", async () => {
+    switches(true, true);
+    expect(await sameAsHttp(estimateToolHooks)).toBe(true);
+    const result = await callEstimateTool(grantedDeps(loaded.db), args());
+    const data = (result.structuredContent as Json).data;
+    expect(
+      data.evidence.filter((item: Json) => item.kind === "source_rows").length,
+    ).toBeGreaterThan(0);
+    // Planted mutant: the tool lists county rows one by one while HTTP groups them.
+    const diverged: EstimateToolHooks = {
+      ...estimateToolHooks,
+      service: {
+        ...drugCostDeps,
+        readBundle: async (...input) => {
+          const bundle = await drugCostDeps.readBundle(...input);
+          return bundle.status === "available"
+            ? { ...bundle, row_groups: [] }
+            : bundle;
+        },
+      },
+    };
+    expect(await sameAsHttp(diverged)).toBe(false);
+  });
+
   it("the honesty check refuses changed figures, lost sources and denial words", async () => {
     switches(true, true);
     const result = await callEstimateTool(grantedDeps(loaded.db), args());
@@ -542,6 +604,15 @@ describe("estimate_medicare_drug_costs over the fixture Part D files", () => {
       tamper((c) => {
         c.data.plan_figures.standard_deductible.evidence_refs = [];
       }, bare),
+    ).toThrow(/INTERNAL_HONESTY_CHECK/);
+    // A grouped county row lost from its group.
+    expect(
+      tamper((c) => {
+        const group = c.data.evidence.find(
+          (item: Json) => item.kind === "source_rows",
+        );
+        group.source_rows.pop();
+      }),
     ).toThrow(/INTERNAL_HONESTY_CHECK/);
     // Envelope status must follow the answer: partial or unknown is never ok.
     expect(tamper((c) => (c.status = "ok"))).toThrow(/INTERNAL_HONESTY_CHECK/);

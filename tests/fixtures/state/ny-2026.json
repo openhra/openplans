@@ -103,5 +103,46 @@
         }
       ]
     }
+  ],
+  "template_checks": [
+    {
+      "url": "https://myportal.dfs.ny.gov/documents/538523/45010883/MetroPlus_IND_ONX_MPHP-134514244_ApprRatesTemplate",
+      "sha256": "525fab46b6f6c8c7b8a953c115cdbf6feddf42a5b29b8a65ab7ce7d5a73fd174",
+      "bytes": 476672,
+      "retrieved_at": "2026-11-07T17:55:58.882456+00:00",
+      "content_type": "application/vnd.ms-excel",
+      "filing": "MPHP-134514244",
+      "issuer_ids": [
+        "11177"
+      ],
+      "decision": "admitted",
+      "status": "filed",
+      "reason": null,
+      "evidence": {
+        "rule": "ny-approved-template-saved-on-or-after-submission-v1",
+        "workbooks": [
+          {
+            "member": "publication",
+            "saved_at": "2025-08-21T20:56:41Z"
+          }
+        ],
+        "submission_date": "2025-05-15",
+        "submission_source": {
+          "url": "https://myportal.dfs.ny.gov/documents/538523/45010894/MetroPlus_IND_ONX_MPHP-134514244_FinalExhibits",
+          "sha256": "6934dc15dbc73c8e0ad9c3f1c7de9662e8a42ccc6c1960f06ec4a10f43d06ffd",
+          "members": [
+            "MetroPlus Healt_95546_MPHP-134514244_IN_13C_20250515_181410278.xlsm",
+            "MetroPlus Healt_95546_MPHP-134514244_IN_14_20250515_181534393.xlsm",
+            "MetroPlus Healt_95546_MPHP-134514244_IN_16_20250515_180522979.xlsm",
+            "MetroPlus Healt_95546_MPHP-134514244_IN_17_20250515_180523010.xlsm",
+            "MetroPlus Healt_95546_MPHP-134514244_IN_18_20250515_181534405.xlsm",
+            "MetroPlus Healt_95546_MPHP-134514244_IN_23_20250515_181410081.xlsm"
+          ],
+          "dates": [
+            "20250515"
+          ]
+        }
+      }
+    }
   ]
 }

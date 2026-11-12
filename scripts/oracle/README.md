@@ -30,11 +30,16 @@ its premium changes are cross-sectional medians, not renewal quotes.
 The lowest cost silver plan check has two parts. `ichra-reference.py` reads the plan for a
 county, rating area, age and month from the raw Plan Attributes, Service Area and Rate CSVs.
 It prices the plan on the filed premium and on its EHB portion, and the caller supplies the
-county's rating area. `ichra-logic.mjs` compares those answers with the application's.
-`tests/oracle/ichra.test.mjs` runs both offline on a synthetic catalog and must catch four
+county's rating area. The reading skips an `EHBPercentTotalPremium` with more than 15 decimal
+places or outside 0 through 1. The EHB-portion answer is then `requires_premium_adjustments`
+with reason `<plan>: ehb_allocation_unknown`, the same answer the application gives.
+`allocatePremium` in `src/domain/subsidy/dental.ts` documents the limit. The gross answer
+still stands.
+`ichra-logic.mjs` compares those answers with the application's.
+`tests/oracle/ichra.test.mjs` runs both offline on a synthetic catalog and must catch five
 planted defects: one cent on a rate row, the second lowest plan in place of the lowest, the
-two premium bases swapped, and a case only one side answers. `scripts/realdata.sh` does not
-run this check yet, so it has not run on a cached catalog yet.
+two premium bases swapped, a case only one side answers, and a reading that accepts a
+16-place EHB fraction. `scripts/realdata.sh` does not run this check yet.
 
 Geocode bounds and disposable point controls are available in `geocode.mjs`;
 `geocode-statewide-controls.mjs` exercises transaction and resume behavior with

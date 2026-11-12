@@ -44,12 +44,12 @@ export async function runGeo(
     yearSeen = false,
     all = false;
   const usage =
-    "Usage: worker ingest geo [--year 2026|2027] [--state XX | --all-states]";
+    "Usage: worker ingest geo [--year 2025|2026|2027] [--state XX | --all-states]";
   for (let at = 0; at < args.length; at++) {
     if (
       args[at] === "--year" &&
       !yearSeen &&
-      /^(2026|2027)$/.test(args[at + 1] ?? "")
+      /^(2025|2026|2027)$/.test(args[at + 1] ?? "")
     ) {
       year = Number(args[++at]);
       yearSeen = true;

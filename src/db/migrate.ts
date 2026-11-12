@@ -4,13 +4,15 @@ import { readdir, readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { join } from "node:path";
 import {
-  classifyMigrationBatch,
-  smallTableRows,
-  smallTableBytes,
-  type MigrationTableSizes,
+  classifyMigrationBatchWithRules,
   concurrentIndex,
   migrationStatements,
 } from "./migrate-safety.js";
+import {
+  collectSizeEvidence,
+  tableSizesFromEvidence,
+  type MigrationSizeEvidence,
+} from "./migration-size-evidence.js";
 import type { Database, SqlSession } from "./database.js";
 import {
   pluginMigrationScope,
@@ -185,57 +187,6 @@ function pendingMigrations(
   return migrations.filter((migration) => !applied.has(migration.name));
 }
 
-/** Exact capped counts avoid stale planner estimates and never scan a large heap in full. */
-async function migrationTableSizes(
-  tx: SqlSession,
-): Promise<MigrationTableSizes | undefined> {
-  const { rows: searchPath } = await tx.query<{ schemas: string[] }>(
-    "SELECT current_schemas(false)::text[] AS schemas",
-  );
-  if (JSON.stringify(searchPath[0]?.schemas) !== '["public"]') return undefined;
-  const { rows: relations } = await tx.query<{
-    name: string;
-    schema_name: string;
-    bytes: string;
-    countable: boolean;
-  }>(`SELECT c.relname AS name, n.nspname AS schema_name,
-      pg_total_relation_size(c.oid)::text AS bytes,
-      (c.relkind = 'r' AND NOT c.relrowsecurity AND NOT EXISTS
-        (SELECT 1 FROM pg_inherits i WHERE i.inhrelid=c.oid OR i.inhparent=c.oid)) AS countable
-    FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
-    WHERE n.nspname = 'public' AND c.relkind IN ('r','p','f','m','v')`);
-  const sizes: MigrationTableSizes = {};
-  for (const relation of relations) {
-    const bytes = Number(relation.bytes);
-    let size: MigrationTableSizes[string] = null;
-    if (
-      relation.countable &&
-      Number.isSafeInteger(bytes) &&
-      bytes >= 0 &&
-      bytes <= smallTableBytes
-    ) {
-      const quote = (name: string) => '"' + name.replaceAll('"', '""') + '"';
-      const { rows } = await tx.query<{ rows: string }>(
-        `SELECT count(*)::text AS rows FROM (SELECT 1 FROM ${quote(relation.schema_name)}.${quote(relation.name)} LIMIT ${smallTableRows + 1}) AS bounded`,
-      );
-      const count = Number(rows[0]?.rows);
-      if (Number.isSafeInteger(count) && count >= 0)
-        size = { rows: count, bytes };
-    } else if (Number.isSafeInteger(bytes) && bytes > smallTableBytes) {
-      // A byte-budget failure is sufficient; no row scan is necessary.
-      size = { rows: -1, bytes };
-    }
-    sizes[
-      '"' +
-        relation.schema_name.replaceAll('"', '""') +
-        '" . "' +
-        relation.name.replaceAll('"', '""') +
-        '"'
-    ] = size;
-  }
-  return sizes;
-}
-
 /** No journal creation, advisory locks, DDL, or installer calls in preflight. */
 export async function checkMigrations(
   db: Database,
@@ -244,33 +195,49 @@ export async function checkMigrations(
 ) {
   const migrations = await loadMigrations(directory);
   return db.transaction(async (tx) => {
-    await tx.exec("SET TRANSACTION READ ONLY");
+    await tx.exec("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY");
     await tx.exec("SET LOCAL lock_timeout = '2s'");
-    const { rows: journal } = await tx.query<{ present: boolean }>(
-      "SELECT to_regclass('schema_migrations') IS NOT NULL AS present",
-    );
-    const rows = journal[0]?.present
-      ? (
-          await tx.query<{ name: string; sha256: string }>(
-            "SELECT name, sha256 FROM schema_migrations ORDER BY name",
-          )
-        ).rows
-      : [];
-    const pending = pendingMigrations(migrations, rows, plugins);
-    const sizes = pending.length ? await migrationTableSizes(tx) : {};
-    const safety = classifyMigrationBatch(
-      pending.map((migration) => migration.sql),
-      sizes,
-    );
-    return {
-      format: 1,
-      pending: pending.map(({ name, sha256 }, i) => ({
-        name,
-        sha256,
-        ...safety[i]!,
-      })),
-    };
+    const evidence = await collectSizeEvidence(tx);
+    return checkMigrationsWithEvidence(evidence, migrations, plugins);
   });
+}
+
+/** Prints the read-only size evidence that `migrate --check` classifies with. */
+export async function migrationSizeEvidence(db: Database) {
+  return db.transaction(async (tx) => {
+    await tx.exec("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY");
+    await tx.exec("SET LOCAL lock_timeout = '2s'");
+    return collectSizeEvidence(tx);
+  });
+}
+
+/**
+ * Classifies the files pending against the journal in `evidence`. `migrate --check` calls it
+ * with evidence it has just collected; it also replays saved evidence without a database.
+ */
+export function checkMigrationsWithEvidence(
+  evidence: MigrationSizeEvidence,
+  migrations: Migration[],
+  plugins: readonly PluginMigration[] = [],
+) {
+  const rows = (evidence.journal ?? []).map(([name, sha256]) => ({
+    name,
+    sha256,
+  }));
+  const pending = pendingMigrations(migrations, rows, plugins);
+  const safety = classifyMigrationBatchWithRules(
+    pending.map((migration) => migration.sql),
+    tableSizesFromEvidence(evidence),
+  );
+  return {
+    format: 1,
+    pending: pending.map(({ name, sha256 }, i) => ({
+      name,
+      sha256,
+      ...safety[i]!,
+    })),
+    sizeEvidence: evidence,
+  };
 }
 
 async function installMetadata(tx: SqlSession) {

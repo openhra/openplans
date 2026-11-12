@@ -310,25 +310,24 @@ export function stateDetailColumns(raw: Record<string, string>) {
   return normalizeEhbColumns(result);
 }
 
-/** CMS Plan Attributes membership supplies Exchange-offer evidence.
- * Reviewed DFS identity cells also identify filed off-Exchange and non-silver rows. */
-export async function nyLcspCatalog(
+/** CMS Plan Attributes rows for these NY plans from the newest fully active SBE bundle. */
+async function nyDetailAttributes(
   db: SqlSession,
   year: number,
-  region?: string,
+  ids: readonly string[],
 ) {
-  const catalog = await stateCatalog(db, year, "NY", undefined, region);
-  const { rows: attributes } = await db.query<{
-    metal: string;
-    raw: Record<string, string>;
-    source_row: number;
-    base_plan_id: string;
-    snapshot_id: string;
-    import_id: string;
-    bundle_url: string;
-    bundle_sha256: string;
-  }>(
-    `WITH detail_catalog AS (
+  return (
+    await db.query<{
+      metal: string;
+      raw: Record<string, string>;
+      source_row: number;
+      base_plan_id: string;
+      snapshot_id: string;
+      import_id: string;
+      bundle_url: string;
+      bundle_sha256: string;
+    }>(
+      `WITH detail_catalog AS (
     SELECT p.import_id,c.bundle_url,c.bundle_sha256 FROM puf_import p
     JOIN sbe_catalog c ON c.import_id=p.import_id
     JOIN snapshot s ON s.snapshot_id=p.import_id AND s.validation_state='ACTIVE'
@@ -341,10 +340,109 @@ export async function nyLcspCatalog(
     JOIN plan_attribute pa ON pa.snapshot_id=f.snapshot_id
     WHERE pa.state='NY' AND pa.plan_year=$1 AND pa.market='Individual' AND NOT pa.dental_only
       AND pa.base_plan_id=ANY($2::text[]) ORDER BY pa.source_row`,
-    [
-      year,
-      catalog.map((r) => r.raw_record.plan_id).filter((id) => id !== null),
-    ],
+      [year, ids],
+    )
+  ).rows;
+}
+
+export interface RefusedTemplatePlan {
+  issuer: string;
+  reason: string;
+  snapshot_id: string;
+  url: string | null;
+  filing: string | null;
+  /** null when the stored refusal does not say where its plans are. */
+  plan_id: string | null;
+  region: string | null;
+  metals: string[];
+  attribute_snapshot_id: string | null;
+  source_rows: number[];
+}
+
+/** Plans of refused issuer templates in one rating region, with any CMS metal evidence.
+ * A refusal that does not list its plans counts as present in every region. */
+export async function refusedTemplatePlans(
+  db: SqlSession,
+  state: "NY" | "VT",
+  year: number,
+  region: string,
+): Promise<RefusedTemplatePlan[]> {
+  const { rows } = await db.query<{
+    issuer: string;
+    issue_code: string;
+    snapshot_id: string;
+    explanation: string;
+  }>(
+    `SELECT q.source_record AS issuer,q.issue_code,q.snapshot_id,q.explanation FROM state_rate_active a
+    JOIN quality_issue q ON starts_with(q.snapshot_id, a.import_id || ':refused:')
+    WHERE a.state=$1 AND a.plan_year=$2
+    ORDER BY q.snapshot_id,q.source_record,q.issue_code`,
+    [state, year],
+  );
+  const listed: Omit<
+    RefusedTemplatePlan,
+    "metals" | "attribute_snapshot_id" | "source_rows"
+  >[] = [];
+  for (const row of rows) {
+    let detail: { url?: unknown; filing?: unknown; listed_plans?: unknown };
+    try {
+      detail = JSON.parse(row.explanation) as typeof detail;
+    } catch {
+      detail = {};
+    }
+    const base = {
+      issuer: row.issuer,
+      reason: row.issue_code,
+      snapshot_id: row.snapshot_id,
+      url: typeof detail.url === "string" ? detail.url : null,
+      filing: typeof detail.filing === "string" ? detail.filing : null,
+    };
+    const plans = detail.listed_plans;
+    if (
+      !Array.isArray(plans) ||
+      !plans.length ||
+      !plans.every(
+        (p: { plan_id?: unknown; region?: unknown }) =>
+          typeof p?.plan_id === "string" &&
+          p.plan_id.startsWith(row.issuer) &&
+          typeof p.region === "string",
+      )
+    ) {
+      listed.push({ ...base, plan_id: null, region: null });
+      continue;
+    }
+    for (const plan of plans as { plan_id: string; region: string }[])
+      if (plan.region === region)
+        listed.push({ ...base, plan_id: plan.plan_id, region });
+  }
+  const ids = listed.flatMap((p) => (p.plan_id ? [p.plan_id] : []));
+  const attributes =
+    state === "NY" && ids.length ? await nyDetailAttributes(db, year, ids) : [];
+  return listed.map((plan) => {
+    const matched = attributes.filter((a) => a.base_plan_id === plan.plan_id);
+    return {
+      ...plan,
+      metals: [
+        ...new Set(matched.map((a) => a.metal.trim().toLowerCase())),
+      ].sort(),
+      attribute_snapshot_id: matched[0]?.snapshot_id ?? null,
+      source_rows: matched.map((a) => a.source_row),
+    };
+  });
+}
+
+/** CMS Plan Attributes membership supplies Exchange-offer evidence.
+ * Reviewed DFS identity cells also identify filed off-Exchange and non-silver rows. */
+export async function nyLcspCatalog(
+  db: SqlSession,
+  year: number,
+  region?: string,
+) {
+  const catalog = await stateCatalog(db, year, "NY", undefined, region);
+  const attributes = await nyDetailAttributes(
+    db,
+    year,
+    catalog.map((r) => r.raw_record.plan_id).filter((id) => id !== null),
   );
   return catalog.map((row) => {
     const matched = attributes.filter(

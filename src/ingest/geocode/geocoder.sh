@@ -6,6 +6,8 @@ case "${OPENPLANS_GEOCODER_STATE:-}" in tx|fl|nc) ;; *) echo 'Set OPENPLANS_GEOC
 [[ "${OPENPLANS_GEOCODER_SNAPSHOT:-}" =~ ^[0-9]{6}$ ]] || { echo 'Set OPENPLANS_GEOCODER_SNAPSHOT=YYMMDD' >&2; exit 1; }
 action="${1:-}"
 export OPENPLANS_GEOCODER_VOLUME_DIR="/mnt/openplans-geocoder-$OPENPLANS_GEOCODER_STATE-$OPENPLANS_GEOCODER_SNAPSHOT/postgres"
+# The extracts compose mounts at /data: raw/open-geocoder, or the store copy set below.
+export OPENPLANS_GEOCODER_RAW_MOUNT="$OPENPLANS_DATA_DIR/raw/open-geocoder"
 case "$action" in up|prepare|stop|logs) ;; *) echo 'Usage: geocoder.sh up|prepare|stop|logs' >&2; exit 1;; esac
 if [ "$action" = up ]; then
   container=openplans-geocoder-geocoder-1
@@ -23,13 +25,20 @@ if [ "$action" = up ] || [ "$action" = prepare ]; then
   [ "$free_kib" -ge 42991616 ] || { echo 'VM has less than 41 GiB free; keeping the 40 GiB reserve' >&2; exit 1; }
   host_kib=$(df -Pk "$OPENPLANS_DATA_DIR" | awk 'NR==2 {print $4}')
   [ "$host_kib" -ge 167772160 ] || { echo 'External disk needs 160 GiB free before import, including flatnode staging' >&2; exit 1; }
-  python3 src/ingest/geocode/prepare-open.py "$(echo "$OPENPLANS_GEOCODER_STATE" | tr '[:lower:]' '[:upper:]')" --snapshot "$OPENPLANS_GEOCODER_SNAPSHOT"
+  upper=$(echo "$OPENPLANS_GEOCODER_STATE" | tr '[:lower:]' '[:upper:]')
+  # With a remote snapshot store, a private copy of the extract fetched down from it. The local
+  # store prints nothing and raw/open-geocoder is mounted as before.
+  store_copy=$(node dist/ingest/geocode/open-store-cli.js "$upper" --snapshot "$OPENPLANS_GEOCODER_SNAPSHOT")
+  if [ -n "$store_copy" ]; then
+    export OPENPLANS_OPEN_GEOCODER_RAW_DIR="$store_copy" OPENPLANS_GEOCODER_RAW_MOUNT="$store_copy"
+  else unset OPENPLANS_OPEN_GEOCODER_RAW_DIR; fi
+  python3 src/ingest/geocode/prepare-open.py "$upper" --snapshot "$OPENPLANS_GEOCODER_SNAPSHOT"
   flatnode="$OPENPLANS_DATA_DIR/work/open-geocoder/$OPENPLANS_GEOCODER_STATE-$OPENPLANS_GEOCODER_SNAPSHOT-flatnode"
   mkdir -p "$flatnode"
   # Public OSM staging only. The container's Linux UID is not preserved by virtiofs.
   chmod 0777 "$flatnode"
   stamp=$(python3 -c 'import datetime,json,sys; print(datetime.datetime.fromisoformat(json.load(open(sys.argv[1]))["data_timestamp"]).strftime("%Y%m%dT%H%M%SZ"))' \
-    "$OPENPLANS_DATA_DIR/raw/open-geocoder/$OPENPLANS_GEOCODER_STATE/$OPENPLANS_GEOCODER_SNAPSHOT/metadata.json")
+    "${OPENPLANS_OPEN_GEOCODER_RAW_DIR:-$OPENPLANS_DATA_DIR/raw/open-geocoder}/$OPENPLANS_GEOCODER_STATE/$OPENPLANS_GEOCODER_SNAPSHOT/metadata.json")
   shared="$OPENPLANS_DATA_DIR/work/open-geocoder/flatnode-$stamp.file"
   # Every indexed way node is present in the verified input and overwritten on import.
   # Clone the seed to isolate writers; freeze removes only the state's cache file.

@@ -593,6 +593,25 @@ describe("CMS worked examples through the HTTP route and the MCP tool", () => {
       const route = await viaHttp(oracle);
       expect(mismatches(oracle, route, "http")).toEqual([]);
       expect(estimateProvenanceProblems(route)).toEqual([]);
+      // The plan deductible names every county row of the plan: one group when the rows agree.
+      const plan = plans[setups[oracle.id]!.plan]!;
+      const county = (
+        await loaded.db.query<{ source_row: number }>(
+          `SELECT source_row FROM partd_plan
+           WHERE snapshot_id=$1 AND contract_id=$2 AND plan_id=$3 ORDER BY source_row`,
+          [route.snapshot_ids[0], plan.contract, plan.plan],
+        )
+      ).rows.map((row) => row.source_row);
+      const deductibleRefs: string[] =
+        route.plan_figures.plan_deductible.evidence_refs;
+      const named = deductibleRefs.flatMap((id) => {
+        const item = route.evidence.find((entry: Json) => entry.id === id);
+        return item.kind === "source_rows"
+          ? item.source_rows
+          : [item.source_row];
+      });
+      expect(named).toEqual(county);
+      expect(deductibleRefs.length).toBe(county.length > 1 ? 1 : county.length);
       // The plan's own filing settled the benefit type; the caller cannot assert it.
       expect(route.benefit_type.origin).toBe("pbp_filing");
       expect(route.plan_figures.standard_deductible.cents).toBe(

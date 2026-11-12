@@ -1,8 +1,14 @@
 import { createHash } from "node:crypto";
 import { createReadStream } from "node:fs";
+import { readFile } from "node:fs/promises";
 import type { Database, SqlSession } from "../../db/database.js";
 import { acquireGeo, centroidStream } from "./sources.js";
-import type { AcquisitionOptions, GeoFiles, GeoKind } from "./sources.js";
+import type {
+  AcquisitionOptions,
+  GeoFile,
+  GeoFiles,
+  GeoKind,
+} from "./sources.js";
 import { centroids, GeoError, ratingRows, relationships } from "./parse.js";
 import { STATE_FIPS, countyKey, CMS_COUNTY_SPELLINGS } from "./states.js";
 import { insertRows, saveSnapshot, snapshotId } from "./repository.js";
@@ -13,7 +19,11 @@ export type { GeoFiles, GeoFile } from "./sources.js";
 
 export interface GeoImportOptions extends AcquisitionOptions {
   state?: string;
-  /** CMS's current undated table is associated with this requested year; it is not a historical version. */
+  /**
+   * CMS's current undated table is associated with this requested year; it is not a historical
+   * version. A plan year that ended before the snapshot was fetched also needs the page to show
+   * it was last modified before that year began (see `pastYearTableModified`).
+   */
   planYear?: number;
   files?: GeoFiles;
 }
@@ -30,7 +40,36 @@ export interface GeoImportReport {
     censusKey: string;
     sourceRow: number;
   }[];
-  ratingAreaBasis: "current_cms_table";
+  ratingAreaBasis: "current_cms_table" | "cms_table_unmodified_since";
+  /** Past plan years only: the page's "Page Last Modified" date, before the plan year began. */
+  ratingAreaTableModified?: string;
+}
+
+/**
+ * The CMS GRA pages publish no plan-year version. For a plan year earlier than the snapshot's
+ * fetch year, the current table is used only if its "Page Last Modified" date falls before
+ * January 1 of that plan year, so the same table was in force all year. Otherwise the import
+ * fails and the state's geography for that year stays unknown. Returns undefined for the
+ * fetch year and later, which keep the existing `current_cms_table` behaviour.
+ */
+export async function pastYearTableModified(
+  file: GeoFile,
+  planYear: number,
+): Promise<string | undefined> {
+  const fetched = Number(file.metadata.fetched_at.slice(0, 4));
+  if (!Number.isInteger(fetched) || fetched <= planYear) return undefined;
+  const match =
+    /Page Last Modified:\s*(?:<[^>]*>\s*)*(\d{2})\/(\d{2})\/(\d{4})\b/.exec(
+      await readFile(file.path, "utf8"),
+    );
+  const modified = match && `${match[3]}-${match[1]}-${match[2]}`;
+  if (!modified || modified >= `${planYear}-01-01`)
+    throw new GeoError(
+      "incomplete",
+      1,
+      `CMS rating-area page does not show the table unchanged since before PY${planYear}`,
+    );
+  return modified;
 }
 async function verifyFiles(files: GeoFiles): Promise<void> {
   for (const file of Object.values(files)) {
@@ -77,6 +116,10 @@ export async function ingestGeo(
     throw new TypeError("Invalid geography plan year");
   const files = options.files ?? (await acquireGeo({ ...options, state }));
   await verifyFiles(files);
+  const tableModified = await pastYearTableModified(
+    files.ratingAreas,
+    planYear,
+  );
   const selected = new Set<string>(),
     counties = new Map<string, string>();
   for await (const row of relationships(
@@ -268,7 +311,12 @@ export async function ingestGeo(
       snapshots,
       countyNameCorrections,
       ratingAreaUnit: seenPrefixes.size ? "zip3" : "county",
-      ratingAreaBasis: "current_cms_table",
+      ...(tableModified
+        ? {
+            ratingAreaBasis: "cms_table_unmodified_since" as const,
+            ratingAreaTableModified: tableModified,
+          }
+        : { ratingAreaBasis: "current_cms_table" as const }),
     };
   });
 }

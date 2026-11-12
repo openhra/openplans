@@ -17,6 +17,7 @@ import {
 import { runWorker } from "../src/worker/commands.js";
 import { checkMigrations, loadMigrations, migrate } from "../src/db/migrate.js";
 import type { Database, SqlSession } from "../src/db/database.js";
+import { sizeEvidenceSql } from "../src/db/migration-size-evidence.js";
 const history: Record<string, string> = JSON.parse(
   await readFile(new URL("./migrate-history.json", import.meta.url), "utf8"),
 );
@@ -179,6 +180,8 @@ describe("conservative migration preflight", () => {
     ["990_row_provenance.sql", "risky"],
     ["991_cms_api_breaker.sql", "additive-safe"],
     ["992_record_policy.sql", "risky"],
+    ["993_rate_plan_count.sql", "additive-safe"],
+    ["994_cms_api_attempt_provenance.sql", "additive-safe"],
     ["1000_plugin_events.sql", "additive-safe"],
     ["1001_passthrough.sql", "additive-safe"],
     ["1002_ingest_run_snapshot.sql", "additive-safe"],
@@ -189,6 +192,8 @@ describe("conservative migration preflight", () => {
       const migration = (await loadMigrations()).find((m) => m.name === name)!;
       if (
         ![
+          "993_rate_plan_count.sql",
+          "994_cms_api_attempt_provenance.sql",
           "1000_plugin_events.sql",
           "1001_passthrough.sql",
           "1002_ingest_run_snapshot.sql",
@@ -199,6 +204,8 @@ describe("conservative migration preflight", () => {
         "910_open_geocoder.sql",
         "935_provider_search_execution.sql",
         "936_provider_search_operator_points.sql",
+        "993_rate_plan_count.sql",
+        "994_cms_api_attempt_provenance.sql",
       ].includes(name)
         ? "additive-safe"
         : "risky";
@@ -490,13 +497,28 @@ describe("conservative migration preflight", () => {
     const session: SqlSession = {
       exec: vi.fn(async (sql) => {
         expect([
-          "SET TRANSACTION READ ONLY",
+          "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY",
           "SET LOCAL lock_timeout = '2s'",
         ]).toContain(sql);
       }),
       query: vi.fn(async (sql) => {
         queries.push(sql);
-        return { rows: [] };
+        // Synthetic collector output for an empty database.
+        return {
+          rows: [
+            {
+              evidence: JSON.stringify({
+                format: 1,
+                collectedAt: "2026-01-01T00:00:00Z",
+                serverVersionNum: 160000,
+                transactionReadOnly: true,
+                searchPath: ["public"],
+                journal: null,
+                relations: [],
+              }),
+            },
+          ],
+        } as never;
       }),
     };
     const db = {
@@ -507,11 +529,7 @@ describe("conservative migration preflight", () => {
     const report = await checkMigrations(db);
     expect(report.format).toBe(1);
     expect(report.pending.length).toBe((await loadMigrations()).length);
-    expect(queries).toHaveLength(2);
-    expect(queries[0]).toBe(
-      "SELECT to_regclass('schema_migrations') IS NOT NULL AS present",
-    );
-    expect(queries[1]).toContain("current_schemas");
+    expect(queries).toEqual([sizeEvidenceSql]);
     expect(queries.every((sql) => sql.startsWith("SELECT "))).toBe(true);
     expect(session.exec).toHaveBeenCalledTimes(2);
     expect(

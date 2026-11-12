@@ -94,7 +94,7 @@ const closedSchema = z.strictObject({
 });
 const evidenceItemSchema = z.looseObject({
   id: z.string().min(1).max(32),
-  kind: z.enum(["source_row", "pbp_row", "rule", "request"]),
+  kind: z.enum(["source_row", "source_rows", "pbp_row", "rule", "request"]),
 });
 const fillSchema = z.looseObject({
   fill_id: z.string(),
@@ -211,7 +211,11 @@ export function assertEstimateHonest(
     ),
   );
   for (const item of (data.evidence as Evidence[] | undefined) ?? []) {
-    if (item.kind === "source_row" || item.kind === "pbp_row") {
+    if (
+      item.kind === "source_row" ||
+      item.kind === "source_rows" ||
+      item.kind === "pbp_row"
+    ) {
       if (!item.snapshot_id || !available(item.snapshot_id))
         reject("unresolvable provenance");
     } else if (item.kind === "rule") {

@@ -2,7 +2,8 @@
 
 Each year file lists the states discovered in that year's acquired Plan Attributes
 PUF with on-exchange individual medical rows, plus explicit unsupported NY/VT guards.
-The 2026 publication lists 30 states; 2027 lists 29 (Oregon is absent).
+The 2026 publication lists 30 states; 2027 lists 29 (Oregon is absent). The 2025
+publication lists 31: the 2026 set plus Illinois.
 
 Reviewed 2026-11-07:
 
@@ -16,6 +17,13 @@ Reviewed 2026-11-07:
 - [CMS State Specific Age Curve Variations](https://www.cms.gov/CCIIO/Programs-and-Initiatives/Health-Insurance-Market-Reforms/Downloads/StateSpecAgeCrv053117.pdf),
   the CMS page's currently linked 2018-effective document (dated 2017-05-31), including
   AL individual, MS, OR and UT curves. CMS does not label this a PY2026/PY2027 document.
+
+`2025.json` was reviewed on 2026-11-12 from the same three sources. None of them is a
+PY2026 document. The CMS table is dated 2021-12-10, its page was last modified on
+2024-09-10 (before PY2025 began), and the regulation has no amendment after 2018. Each PY2025
+entry cites its own state row, and Illinois (federal defaults) is new. No PY2026 rule or
+community-family file is reused for PY2025. NY and VT are absent from the PY2025 Exchange
+PUF and stay `unsupported` until PY2025 state tier filings are loaded.
 
 These sources support using **filed age rows**, not calculating rates from an assumed
 curve. The current CMS table and regulation were reviewed for both requested years;

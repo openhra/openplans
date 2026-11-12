@@ -13,6 +13,7 @@ import {
   stagedStatePremium,
 } from "../../../src/ingest/state/index.js";
 import { runWorker } from "../../../src/worker/commands.js";
+import { refusedTemplatePlans } from "../../../src/ingest/state/catalog.js";
 import {
   couple,
   family,
@@ -241,4 +242,217 @@ it("worker ingest state validates flags without opening a database, and never sk
   ).toBe(1);
   expect(close).toHaveBeenCalledOnce();
   expect(messages.at(-1)).toContain("Prior staged import preserved");
+});
+
+// SYNTHETIC refused template for a made-up issuer 99999: its workbook was last saved three
+// days before its filing's submission date.
+function refusedCheck() {
+  const filing = "TEST-000000001";
+  return {
+    url: `https://myportal.dfs.ny.gov/documents/538523/45010883/Synthetic_IND_BOTHX_${filing}_ApprRatesTemplate`,
+    sha256: "e".repeat(64),
+    bytes: 1024,
+    retrieved_at: "2026-01-01T00:00:00+00:00",
+    content_type: "synthetic",
+    filing,
+    issuer_ids: ["99999"],
+    decision: "refused",
+    status: "unknown",
+    reason: "template_saved_before_submission",
+    evidence: {
+      rule: "ny-approved-template-saved-on-or-after-submission-v1",
+      workbooks: [{ member: "publication", saved_at: "2025-05-12T23:32:58Z" }],
+      submission_date: "2025-05-15",
+      submission_source: {
+        url: `https://myportal.dfs.ny.gov/documents/538523/45010894/Synthetic_IND_BOTHX_${filing}_FinalExhibits`,
+        sha256: "f".repeat(64),
+        members: [`Synthetic Issuer_00000_${filing}_IN_23_20250515_1.xlsm`],
+        dates: ["20250515"],
+      },
+    },
+    listed_plans: [
+      { plan_id: "99999NY0010001", region: "Rating Area 4" },
+      { plan_id: "99999NY0010002", region: "Rating Area 1" },
+    ],
+  };
+}
+
+it("NY template guard: every served source needs an admitted check; skipped or forged guards are rejected", async () => {
+  const { value } = await artifact("NY");
+  expect(() => parseStateArtifact(JSON.stringify(value))).not.toThrow();
+  const mutants: [string, (v: typeof value) => void][] = [
+    ["guard output missing", (v) => delete v.template_checks],
+    ["source without check", (v) => (v.template_checks = [refusedCheck()])],
+    [
+      "refused template still served",
+      (v) => {
+        const check = refusedCheck();
+        check.url = v.sources[0].url;
+        check.sha256 = v.sources[0].sha256;
+        check.filing = "MPHP-134514244";
+        check.issuer_ids = ["11177"];
+        check.evidence.submission_source = v.template_checks[0].evidence
+          .submission_source as typeof check.evidence.submission_source;
+        v.template_checks = [check];
+      },
+    ],
+    [
+      "guard skipped: stale template marked admitted",
+      (v) => {
+        v.template_checks[0].evidence.workbooks[0].saved_at =
+          "2025-05-12T23:32:58Z";
+      },
+    ],
+    [
+      "undated template marked admitted",
+      (v) => (v.template_checks[0].evidence.workbooks[0].saved_at = null),
+    ],
+    [
+      "submission date not named by the exhibits",
+      (v) => (v.template_checks[0].evidence.submission_date = "2025-01-01"),
+    ],
+    [
+      "check for other bytes",
+      (v) => (v.template_checks[0].sha256 = "0".repeat(64)),
+    ],
+    [
+      "refusal without its listed plans",
+      (v) => {
+        const check: Partial<ReturnType<typeof refusedCheck>> = refusedCheck();
+        delete check.listed_plans;
+        v.template_checks.push(check);
+      },
+    ],
+    [
+      "refusal listing another issuer's plan",
+      (v) => {
+        const check = refusedCheck();
+        check.listed_plans.push({
+          plan_id: "11177NY0010001",
+          region: "Rating Area 4",
+        });
+        v.template_checks.push(check);
+      },
+    ],
+    [
+      "refusal listing a region outside NY",
+      (v) => {
+        const check = refusedCheck();
+        check.listed_plans[0]!.region = "Rating Area 9";
+        v.template_checks.push(check);
+      },
+    ],
+    [
+      "admitted check carrying listed plans",
+      (v) =>
+        Object.assign(v.template_checks[0], {
+          listed_plans: refusedCheck().listed_plans.map((p) => ({
+            ...p,
+            plan_id: "11177NY0010001",
+          })),
+        }),
+    ],
+    [
+      "refusal relabelled not covered",
+      (v) => {
+        const check = { ...refusedCheck(), status: "not_covered" };
+        v.template_checks.push(check);
+      },
+    ],
+  ];
+  for (const [label, mutate] of mutants) {
+    const mutant = structuredClone(value);
+    mutate(mutant);
+    expect(() => parseStateArtifact(JSON.stringify(mutant)), label).toThrow();
+  }
+  const vt = (await artifact("VT")).value;
+  vt.template_checks = value.template_checks;
+  expect(() => parseStateArtifact(JSON.stringify(vt))).toThrow(
+    "NY publications only",
+  );
+});
+
+it("NY template guard: a refused issuer stays unknown with its reason and evidence in provenance", async () => {
+  const ny = await artifact("NY");
+  ny.value.synthetic_refusal = true;
+  ny.value.template_checks.push(refusedCheck());
+  await writeFile(ny.path, JSON.stringify(ny.value));
+  const staged = await ingestStateRates(db, ny.path, "NY", {
+    verifyRaw: false,
+  });
+  expect(staged).toMatchObject({
+    records: 3,
+    publications: 1,
+    unknown_issuers: [
+      { issuer: "99999", reason: "template_saved_before_submission" },
+    ],
+  });
+  expect(
+    await ingestStateRates(db, ny.path, "NY", { verifyRaw: false }),
+  ).toEqual(staged);
+  expect(
+    await stagedStatePremium(
+      db,
+      "NY",
+      "99999NY0010001",
+      "Rating Area 4",
+      single,
+      "2026-01-01",
+    ),
+  ).toEqual({
+    status: "unknown",
+    reason: "template_saved_before_submission",
+    totalCents: null,
+  });
+  expect(
+    await stagedStatePremium(
+      db,
+      "NY",
+      "11177NY0220001",
+      "Rating Area 4",
+      single,
+      "2026-01-01",
+    ),
+  ).toMatchObject({ status: "rated", totalCents: 127_098 });
+  const issues = (
+    await db.query<{
+      validation_state: string;
+      issue_code: string;
+      explanation: string;
+    }>(
+      `SELECT s.validation_state,q.issue_code,q.explanation FROM quality_issue q
+      JOIN snapshot s ON s.snapshot_id=q.snapshot_id
+      WHERE q.snapshot_id=$1 AND q.source_record='99999'`,
+      [`${staged.import_id}:refused:${"e".repeat(64)}`],
+    )
+  ).rows;
+  expect(issues).toHaveLength(1);
+  expect(issues[0]).toMatchObject({
+    validation_state: "QUARANTINED",
+    issue_code: "template_saved_before_submission",
+  });
+  expect(JSON.parse(issues[0]!.explanation)).toMatchObject({
+    status: "unknown",
+    filing: "TEST-000000001",
+    evidence: {
+      workbooks: [{ saved_at: "2025-05-12T23:32:58Z" }],
+      submission_date: "2025-05-15",
+    },
+    listed_plans: refusedCheck().listed_plans,
+  });
+  // Benchmarks read the listed plans back by region, with no CMS metal evidence here.
+  expect(await refusedTemplatePlans(db, "NY", 2026, "Rating Area 4")).toEqual([
+    expect.objectContaining({
+      issuer: "99999",
+      plan_id: "99999NY0010001",
+      region: "Rating Area 4",
+      reason: "template_saved_before_submission",
+      filing: "TEST-000000001",
+      metals: [],
+    }),
+  ]);
+  expect(await refusedTemplatePlans(db, "NY", 2026, "Rating Area 2")).toEqual(
+    [],
+  );
+  expect(await refusedTemplatePlans(db, "VT", 2026, "Vermont")).toEqual([]);
 });

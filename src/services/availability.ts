@@ -2,6 +2,7 @@ import {
   sbeAvailabilitySources,
   availabilityGeography,
   availabilityRateEvidence,
+  countedRateEvidence,
   activeStateScopes,
 } from "../api/repository.js";
 import {
@@ -103,6 +104,24 @@ export async function dataAvailability(
   const providers = (await providerAvailability(db)).filter(inScope);
   const sbe = (await sbeAvailabilitySources(db)).rows;
   const geography = (await availabilityGeography(db)).rows;
+  // One statement reads the kept per-plan counts for every rated entry. An entry whose rate
+  // file has none is counted from the rate rows, one query per entry, as before.
+  const rated = manifest.filter(
+    (entry) => entry.catalog_status === "available",
+  );
+  const counted = new Map<
+    (typeof manifest)[number],
+    Awaited<ReturnType<typeof countedRateEvidence>>["rows"][number]
+  >();
+  if (rated.length)
+    for (const row of (await countedRateEvidence(db, rated)).rows)
+      counted.set(rated[row.at - 1]!, row);
+  const rules = new Map<string, ReturnType<typeof ratingRule>>();
+  const rateRule = (state: string, year: number, market: string) => {
+    const key = JSON.stringify([state, year, market]);
+    if (!rules.has(key)) rules.set(key, ratingRule(db, state, year, market));
+    return rules.get(key)!;
+  };
   const entryAvailability = async (entry: (typeof manifest)[number]) => {
     const drug = drugs.find(
       (d) =>
@@ -128,15 +147,12 @@ export async function dataAvailability(
       if (result[key] === "not_yet_verified") result[key] = "unknown";
     }
     if (entry.catalog_status !== "available") return result;
-    const { rows } = await availabilityRateEvidence(db, entry);
-    const evidence = rows[0];
+    const kept = counted.get(entry);
+    const evidence = kept?.counted
+      ? kept
+      : kept && (await availabilityRateEvidence(db, entry)).rows[0];
     if (!evidence) return result;
-    const rule = await ratingRule(
-      db,
-      entry.state,
-      entry.plan_year,
-      entry.market,
-    );
+    const rule = await rateRule(entry.state, entry.plan_year, entry.market);
     const geo = geography.find(
       (g) => g.state === entry.state && g.plan_year === entry.plan_year,
     );

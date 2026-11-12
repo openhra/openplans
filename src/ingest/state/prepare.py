@@ -14,6 +14,7 @@ import json
 import os
 from pathlib import Path
 import re
+import struct
 import subprocess
 import urllib.request
 import xml.etree.ElementTree as ET
@@ -54,9 +55,11 @@ def sha(b):
     return hashlib.sha256(b).hexdigest()
 
 
-def cached_download(url, cache):
+def cached_publication(url, cache):
+    """Return (path, metadata) for a hash-verified cached copy of url, or None. Never downloads."""
     directory = cache / 'raw' / 'state-rating'
-    directory.mkdir(parents=True, exist_ok=True)
+    if not directory.is_dir():
+        return None
     # Also reuse the survey downloads made before this preparation tool existed.
     for meta in sorted(directory.rglob('*.meta.json')):
         value = json.loads(meta.read_text())
@@ -65,6 +68,17 @@ def cached_download(url, cache):
         path = Path(str(meta)[:-len('.meta.json')])
         if path.is_file() and sha(path.read_bytes()) == value.get('sha256'):
             return path, value
+    return None
+
+
+def cached_download(url, cache, cache_only=False):
+    cached = cached_publication(url, cache)
+    if cached:
+        return cached
+    if cache_only:
+        raise ValueError('Not in the local cache (--cache-only): ' + url)
+    directory = cache / 'raw' / 'state-rating'
+    directory.mkdir(parents=True, exist_ok=True)
     with urllib.request.urlopen(url, timeout=60) as response:
         data = response.read(50 * 1024 * 1024 + 1)
         if len(data) > 50 * 1024 * 1024:
@@ -160,6 +174,119 @@ def ny_records(path):
     return result
 
 
+# Template guard. An approved-rates template must have been saved on or after the day its
+# filing was submitted. A workbook last saved before submission cannot hold
+# the rates DFS approved later, so it is refused and its issuer's rates stay unknown.
+TEMPLATE_GUARD_RULE = 'ny-approved-template-saved-on-or-after-submission-v1'
+FILING_TRACKING = re.compile(r'_([A-Z]{4}-\d{9})_(?:ApprRatesTemplate|FinalExhibits)$')
+# DFS final-exhibit members keep their submission upload date in the file name, for example
+# "<issuer>_<NAIC>_<tracking>_IN_23_<YYYYMMDD>_<sequence>.xlsm".
+SUBMISSION_MEMBER = re.compile(r'_([A-Z]{4}-\d{9})_IN_[0-9A-Z]+_(\d{8})_\d+\.xls[xm]?$')
+SUMMARY_FMTID = bytes.fromhex('e0859ff2f94f6810ab9108002b27b3d9')
+PID_LAST_SAVED = 13
+VT_FILETIME = 0x40
+
+
+def filetime_iso(value):
+    if not value:
+        return None
+    moment = datetime.datetime(1601, 1, 1, tzinfo=datetime.timezone.utc) + datetime.timedelta(microseconds=value // 10)
+    return moment.strftime('%Y-%m-%dT%H:%M:%SZ')
+
+
+def ole_saved_at(data):
+    """Last-saved time from a CFB workbook's SummaryInformation property set, or None."""
+    from biff import cfb_stream
+    stream = cfb_stream(data, ('\x05SummaryInformation',))
+    if not stream or len(stream) < 48 or stream[28:44] != SUMMARY_FMTID:
+        return None
+    section = struct.unpack_from('<I', stream, 44)[0]
+    if section + 8 > len(stream):
+        return None
+    count = struct.unpack_from('<I', stream, section + 4)[0]
+    if section + 8 + 8 * count > len(stream):
+        return None
+    for index in range(count):
+        pid, offset = struct.unpack_from('<II', stream, section + 8 + 8 * index)
+        at = section + offset
+        if pid == PID_LAST_SAVED and at + 12 <= len(stream) and struct.unpack_from('<I', stream, at)[0] == VT_FILETIME:
+            return filetime_iso(struct.unpack_from('<Q', stream, at + 4)[0])
+    return None
+
+
+def ooxml_saved_at(data):
+    """dcterms:modified from an OOXML workbook's core properties, or None."""
+    with zipfile.ZipFile(io.BytesIO(data)) as z:
+        if 'docProps/core.xml' not in z.namelist():
+            return None
+        core = ET.fromstring(z.read('docProps/core.xml'))
+    node = core.find('{http://purl.org/dc/terms/}modified')
+    text = (node.text or '').strip() if node is not None else ''
+    if not re.fullmatch(r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z', text):
+        return None
+    return text[:19] + 'Z'
+
+
+def template_workbooks(data):
+    if data[:4] == b'PK\x03\x04':
+        with zipfile.ZipFile(io.BytesIO(data)) as z:
+            if 'xl/workbook.xml' not in z.namelist():
+                return [(n, z.read(n)) for n in sorted(z.namelist()) if n.lower().endswith(('.xls', '.xlsx', '.xlsm'))]
+    return [('publication', data)]
+
+
+def template_saved_dates(data):
+    return [dict(member=member, saved_at=ooxml_saved_at(book) if book[:4] == b'PK\x03\x04' else ole_saved_at(book))
+            for member, book in template_workbooks(data)]
+
+
+def filing_submission(final_exhibits, tracking):
+    """Submission date (YYYY-MM-DD) named by the filing's cached final exhibits, with evidence."""
+    if final_exhibits is None:
+        return None, None
+    path, metadata = final_exhibits
+    with zipfile.ZipFile(path) as z:
+        names = sorted(z.namelist())
+    members = [n for n in names if (m := SUBMISSION_MEMBER.search(n)) and m.group(1) == tracking]
+    dates = sorted({SUBMISSION_MEMBER.search(n).group(2) for n in members})
+    evidence = dict(url=metadata['url'], sha256=metadata['sha256'], members=members, dates=dates)
+    if len(dates) != 1:
+        return None, evidence
+    day = dates[0]
+    return f'{day[:4]}-{day[4:6]}-{day[6:]}', evidence
+
+
+def template_decision(workbooks, submission_date, submission_evidence):
+    if not workbooks or any(w['saved_at'] is None for w in workbooks):
+        return 'template_saved_date_unavailable'
+    if submission_date is None:
+        return 'submission_date_ambiguous' if submission_evidence and submission_evidence['dates'] else 'submission_date_unavailable'
+    if min(w['saved_at'][:10] for w in workbooks) < submission_date:
+        return 'template_saved_before_submission'
+    return None
+
+
+def template_check(url, path, metadata, final_exhibits, records):
+    """Apply the template guard. The submission date comes only from the local cache."""
+    match = FILING_TRACKING.search(url)
+    tracking = match.group(1) if match else None
+    workbooks = template_saved_dates(path.read_bytes())
+    submission_date, submission_evidence = filing_submission(final_exhibits, tracking) if tracking else (None, None)
+    reason = template_decision(workbooks, submission_date, submission_evidence)
+    check = dict(url=url, sha256=metadata['sha256'], bytes=metadata['bytes'], retrieved_at=metadata['retrieved_at'],
+                 content_type=metadata.get('content_type'), filing=tracking,
+                 issuer_ids=sorted({r['issuer'] for r in records}),
+                 decision='refused' if reason else 'admitted', status='unknown' if reason else 'filed', reason=reason,
+                 evidence=dict(rule=TEMPLATE_GUARD_RULE, workbooks=workbooks,
+                               submission_date=submission_date, submission_source=submission_evidence))
+    if reason:
+        # Where the refused template lists plans, without any of its rates. A benchmark for a
+        # listed region cannot be computed while one of these plans could rank.
+        check['listed_plans'] = [dict(plan_id=plan, region=region)
+                                 for plan, region in sorted({(r['plan_id'], r['region']) for r in records})]
+    return check
+
+
 def vt_records(path):
     # This mapping must be re-reviewed if the publisher changes the layout.
     if sha(path.read_bytes()) != '8353a9b2d90f2b4b23173c154e0de8ef426b90ec8a897eed965f4b97c82f68c3':
@@ -191,6 +318,7 @@ def main():
     parser.add_argument('--state', choices=['NY', 'VT'], required=True)
     parser.add_argument('--data-dir', default=os.environ.get('OPENPLANS_DATA_DIR', str(Path.home() / '.local' / 'share' / 'openplans')))
     parser.add_argument('--fixtures', action='store_true', help='write a small, reproducible cut into tests/fixtures/state')
+    parser.add_argument('--cache-only', action='store_true', help='never download; fail when a publication is not cached')
     args = parser.parse_args()
     cache = Path(args.data_dir).resolve()
     package = Path(__file__).resolve().parents[3]
@@ -205,12 +333,19 @@ def main():
         raise ValueError('Data directory must be outside the repository and worktrees')
     urls = [(NY_FINAL + name).replace('/45010894/', '/45010883/').replace('_FinalExhibits', '_ApprRatesTemplate') for name in NY_FILES] if args.state == 'NY' else [VT_URL]
     def prepare(url):
-        path, metadata = cached_download(url, cache)
+        path, metadata = cached_download(url, cache, args.cache_only)
         rows = ny_records(path) if args.state == 'NY' else vt_records(path)
-        return dict(**metadata, raw_path=str(path), records=rows)
+        source = dict(**metadata, raw_path=str(path), records=rows)
+        if args.state != 'NY':
+            return source, None
+        final_url = url.replace('/45010883/', '/45010894/').replace('_ApprRatesTemplate', '_FinalExhibits')
+        return source, template_check(url, path, metadata, cached_publication(final_url, cache), rows)
     with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:
-        sources = list(pool.map(prepare, urls))
+        prepared = list(pool.map(prepare, urls))
+    sources = [source for source, check in prepared if check is None or check['decision'] == 'admitted']
     value = dict(schema_version='state-rates-v1', state=args.state, plan_year=2026, sources=sources)
+    if args.state == 'NY':
+        value['template_checks'] = [check for _, check in prepared]
     out = cache / 'derived' / 'state-rating' / f'{args.state.lower()}-2026.json'
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(value, indent=2) + '\n')
@@ -219,6 +354,7 @@ def main():
         if args.state == 'NY':
             sources = [s for s in sources if 'MetroPlus' in s['url']]
             sources[0]['records'] = [r for r in sources[0]['records'] if r['plan_id'] in ['11177NY0010001', '11177NY0010002', '11177NY0220001']]
+            value['template_checks'] = [c for c in value['template_checks'] if c['url'] == sources[0]['url']]
         else:
             sources[0]['records'] = [r for r in sources[0]['records'] if r['plan_name'] in ['Gold Plan', 'MVP VT Gold 1']]
         value['sources'] = sources

@@ -91,13 +91,56 @@ rejects changed PDF bytes before applying the reviewed column labels. The worker
 requires the original publication paths and verifies their byte counts/hashes;
 `verifyRaw: false` is a test-only library option, never a worker flag.
 
-Preparation produces 1,245 NY family-tier plan/rating-area rows from 12 approved
-publications (1,245 distinct keys) and 26 Vermont named designs. NY child-only
+Preparation reads 12 NY approved publications. One is refused by the template guard
+below, so it produces 1,121 NY family-tier plan/rating-area rows from 11 approved
+publications (1,121 distinct keys) and 26 Vermont named designs. NY child-only
 age-labelled sheets are skipped, never interpreted as federal per-member rates.
 All three dependent-count columns must agree for each of NY's parent/family tiers.
 Different date intervals or nonuniform family columns stop preparation. NY geographic availability is the filed rating-area scope, with enrollment
 eligibility and exchange status unknown. VT service area is statewide under DVHA
 section 2.3. No CSR variant or HIOS/name join is inferred from a rate row.
+
+### NY approved-template guard
+
+An approved-rates template has to be saved on or after the day its filing was
+submitted. A template last saved before that day can't contain the rates DFS
+approved afterwards. Most likely it is the requested template, posted under the
+approved link. For each template, preparation records:
+
+- the workbook's last-saved time: OLE `SummaryInformation` for BIFF8 `.xls`,
+  `docProps/core.xml` `dcterms:modified` for OOXML, and every workbook inside a ZIP;
+- the filing's submission date, taken from the member file names of the same filing's
+  cached final-exhibits ZIP (`…_<tracking>_IN_<exhibit>_<YYYYMMDD>_…`). DFS keeps the
+  original submission date in those names.
+
+The guard compares calendar dates: the earliest last-saved date (UTC) against the
+submission date. A template saved earlier, a workbook with no last-saved time, a
+final-exhibits ZIP that isn't in the local cache, or exhibit names that give no date
+or more than one date all refuse the template. The submission evidence is never
+downloaded for the guard; it is read from the cache or treated as missing.
+
+Preparation leaves a refused template out of `sources`, and its issuer's NY rates are
+`unknown`, never "not covered". `template_checks` in `ny-2026.json` lists every
+decision with its evidence. A refused entry has `status: "unknown"` and one of four
+reason codes, `template_saved_before_submission`, `template_saved_date_unavailable`,
+`submission_date_unavailable` or `submission_date_ambiguous`.
+The importer checks the same rule again. It rejects an NY artifact with no checks, a
+served source without an admitted check for the same bytes, and a check whose decision
+disagrees with its evidence. It stores each refusal as a `QUARANTINED` snapshot with
+one `quality_issue` per issuer, and `stagedStatePremium()` answers `unknown` with that
+reason for the issuer's plans. In the PY2026 cache, one of the 12 templates was
+last saved before its filing's submission date and is refused. The other 11 pass.
+Use `--cache-only` to regenerate without any network access.
+
+A refused entry also has `listed_plans`, which holds the plan IDs and rating regions the
+template lists and none of its rates. Admitted entries never carry it. A refused issuer still
+sells plans, so a filed benchmark that leaves them out could pick the wrong plan. The
+LCSP for a region is `unknown`, with the refusal's reason code, when a refused template
+lists a plan there that could be silver. A plan is ruled out only when its CMS Plan
+Attributes rows agree on one recognized metal level other than silver. The response
+names each refused plan under `provenance.refused_templates`. Regions with no such plan
+keep their calculated answer. A stored refusal without a usable plan list counts as
+present in every region.
 
 `620_state_community_rates.sql` stores immutable publication snapshots, raw rate
 records, cited rule documents, and an atomic staging pointer. Duplicate plan/area

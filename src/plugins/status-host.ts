@@ -7,6 +7,7 @@ import type {
   StatusHost,
 } from "@openplans/plugin-sdk";
 import { responseCacheFor } from "../api/cache/index.js";
+import { dataGeneration } from "../api/cache/generation.js";
 import type { CoreConfig } from "../config/index.js";
 import type { SqlSession } from "../db/database.js";
 import { dataAvailability } from "../services/availability.js";
@@ -74,6 +75,50 @@ export async function hostAvailability(
   }));
 }
 
+type AvailabilityRead = (db: SqlSession) => Promise<HostAvailabilityEntry[]>;
+
+/**
+ * `hostAvailability` kept for one data generation, the same key the response cache uses. Every
+ * call reads the generation first, so the first read after a publication commits computes again.
+ * Concurrent reads of one generation share one computation. A failed one is not kept. Each
+ * caller gets its own copies, so one view cannot change what another reads.
+ */
+export function availabilityMemo(
+  derive: AvailabilityRead = hostAvailability,
+  generation: (db: SqlSession) => Promise<string> = dataGeneration,
+): AvailabilityRead {
+  let memo:
+    | { generation: string; entries: Promise<HostAvailabilityEntry[]> }
+    | undefined;
+  return async (db) => {
+    let current: string;
+    try {
+      current = await generation(db);
+    } catch {
+      // Without a generation nothing can be reused safely.
+      return derive(db);
+    }
+    let entry = memo;
+    const shared = entry?.generation === current;
+    if (!entry || !shared) {
+      const fresh = { generation: current, entries: derive(db) };
+      memo = entry = fresh;
+      fresh.entries.catch(() => {
+        if (memo === fresh) memo = undefined;
+      });
+    }
+    let rows: HostAvailabilityEntry[];
+    try {
+      rows = await entry.entries;
+    } catch (error) {
+      if (!shared) throw error;
+      // A shared derivation ran on another request's session, which may have hit its deadline.
+      rows = await derive(db);
+    }
+    return rows.map((row) => ({ ...row }));
+  };
+}
+
 async function probe(store: CacheStore): Promise<boolean> {
   const nonce = randomUUID();
   let timer: NodeJS.Timeout | undefined;
@@ -102,6 +147,10 @@ export function createStatusHost(
   loaded: () => LoadedStatus | undefined,
 ): StatusHost {
   let store: CacheStore | undefined;
+  // With the cache off every status read derives availability again, as the API does.
+  const dataAvailability = config.cache.enabled
+    ? availabilityMemo()
+    : hostAvailability;
   const host: StatusHost = {
     version: coreApplicationVersion,
     poolWaiting: () => parts.database?.poolWaiting?.(),
@@ -115,7 +164,7 @@ export function createStatusHost(
     passthroughEnabled: (id) =>
       loaded() ? passThroughSourceIds().includes(id) : undefined,
     passthroughHitRate: passThroughHitRate,
-    dataAvailability: hostAvailability,
+    dataAvailability,
   };
   if (config.cache.enabled)
     host.cacheProbe = async () => {

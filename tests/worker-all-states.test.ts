@@ -139,7 +139,7 @@ it.each([
   expect(await runWorker(["ingest", "geo", ...flags], open, log)).toBe(1);
   expect(open).not.toHaveBeenCalled();
   expect(log.error).toHaveBeenCalledWith(
-    "Usage: worker ingest geo [--year 2026|2027] [--state XX | --all-states]",
+    "Usage: worker ingest geo [--year 2025|2026|2027] [--state XX | --all-states]",
   );
 });
 

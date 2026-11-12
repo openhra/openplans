@@ -415,10 +415,10 @@ export function loadConfig(
       ...Object(settings.blobs),
       root: env.OPENPLANS_DATA_DIR,
     };
-  if (env.OPENPLANS_PLUGINS !== undefined)
-    settings.plugins = list(env.OPENPLANS_PLUGINS).map((name) => ({
-      package: name,
-    }));
+  // Empty counts as unset, because Compose passes the variable even when .env leaves it out.
+  const plugins = list(env.OPENPLANS_PLUGINS ?? "");
+  if (plugins.length)
+    settings.plugins = plugins.map((name) => ({ package: name }));
   const result = coreConfigSchema.safeParse(settings);
   if (!result.success) {
     // Never include values from a file or environment in a startup diagnostic.

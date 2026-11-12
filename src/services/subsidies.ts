@@ -176,9 +176,24 @@ export async function benchmark(
   const catalog = await federalCatalog(db, state, request.year);
   if (!catalog.rows.length)
     return { ...empty, status: "unknown", issues: ["catalog_not_loaded"] };
+  const silver = (plan: { on_exchange: boolean; metal: string }) =>
+    plan.on_exchange && plan.metal.toLowerCase() === "silver";
+  // Without a ZIP, a silver plan that serves only part of the county may or may not
+  // be offered to the household, so neither benchmark nor credit is known.
+  if (
+    !location.zip &&
+    (
+      await plansForCounty(db, location.county, request.year, "Individual")
+    ).some((p) => !p.dental_only && silver(p) && p.zip_restricted)
+  )
+    return {
+      ...empty,
+      status: "location_requires_zip",
+      issues: ["zip_limited_service_area"],
+    };
   const offered = (
     await countyPlans(db, location.county, request.year, location.zip)
-  ).filter((plan) => plan.on_exchange && plan.metal.toLowerCase() === "silver");
+  ).filter(silver);
   if (!offered.length) return { ...empty, status: "no_silver_plans" };
   const household: SlcspHousehold = {
     coverageStartDate: request.coverage,
@@ -373,7 +388,10 @@ export async function householdSubsidy(
     quote_method: b.quote_method,
     enrollment_ehb_fractions: enrollmentEhbFractions,
     status: b.status,
-    reason: b.status,
+    reason:
+      b.status === "location_requires_zip"
+        ? "zip_limited_service_area"
+        : b.status,
     slcsp_monthly_cents: b.slcsp_monthly_cents,
     benchmark: b,
     rounding_policy: "form_8962_lines_8a_8b_whole_dollars" as const,

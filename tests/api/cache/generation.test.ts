@@ -36,6 +36,8 @@ const NON_CATALOG_TABLES: Record<string, string> = {
     "stored answers checked against loaded files; never feeds catalog responses",
   ingest_run_snapshot:
     "which ingest run wrote each snapshot; never feeds catalog responses",
+  rate_plan_count:
+    "rate-row counts kept from immutable rate files; responses read the same values from rate",
 };
 
 async function missingGenerationTriggers() {

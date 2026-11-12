@@ -28,9 +28,10 @@ Migration numbers 1000 and above are reserved for plugin-system core tables.
 
 ## Preflight and lock limits
 
-`worker migrate --check` returns JSON with `format: 1` and a numeric-order `pending`
-list. Each entry has `name`, `sha256`, `classification`, and `reasons`. This command
-uses a read-only transaction and reads the journal without creating it. A risky
+`worker migrate --check` returns JSON with `format: 1`, a numeric-order `pending`
+list and the `sizeEvidence` it classified with. Each entry has `name`, `sha256`,
+`classification`, `reasons`, and `sizeRules`. This command uses a read-only
+transaction and reads the journal without creating it. A risky
 classification is a successful analysis result; database or history errors fail
 the command. Use a read-only database role for extra protection.
 
@@ -49,9 +50,11 @@ that evidence. A small populated table does not receive this exemption.
 
 Preflight reads the public-schema relation inventory and total relation bytes,
 including indexes and TOAST. It counts at most 10,001 rows per eligible table and
-skips counting tables already above 16 MiB. It does not trust planner row estimates.
-An existing table qualifies as small only at 10,000 rows or fewer and 16 MiB or
-less. Partitioned, inherited, foreign, materialized-view, and row-security tables
+skips counting tables already above 16 MiB. It also reads planner row estimates
+(`pg_class.reltuples`, then `pg_stat_user_tables.n_live_tup`) and shows them in
+reasons for large tables, but an estimate never decides a verdict. An existing
+table qualifies as small only with an exact count of 10,000 rows or fewer and 16 MiB
+or less. Partitioned, inherited, foreign, materialized-view, and row-security tables
 have unknown sizes for this purpose. The effective search path must contain only
 the public schema to use size evidence. Other search paths keep table sizes unknown.
 Growth and concurrent writers can change lock duration after preflight.
@@ -73,17 +76,24 @@ because creating a function does not execute it. A familiar function name does n
 exempt an installer or backfill call. Successful earlier execution and historical
 migration hashes never exempt SQL from runtime preflight.
 
-The 910 through 1001 regression cases pin every migration under an explicit synthetic
-size scenario. With eligible existing tables below both limits, six still need
-review: 920 and 934 execute procedural blocks; 937 and 946 drop constraints or
-indexes; 990 executes an installer; 992 executes installers and backfills and
-renames a function. The other fifteen qualify as additive-safe in that scenario.
-Migration 1000 creates the plugin event, delivery and state tables. Its snapshot
-trigger is a recognized new trigger, so the file is additive-safe in this scenario.
-Migration 1001 creates the pass-through tables and seeds a small registry with
-literal rows, so it is additive-safe in this scenario too.
-Actual preflight uses the connected database's sizes. Without size evidence, eighteen
-of the twenty-one still require review.
+The 910 through 1002 regression cases pin all twenty-four migrations in that range
+under an explicit synthetic size scenario. With eligible existing tables below both
+limits, six still need review: 920 and 934 execute procedural blocks; 937 and 946
+drop constraints or indexes; 990 executes an installer; 992 executes installers and
+backfills and renames a function. The other eighteen qualify as additive-safe in
+that scenario. Migration 993 creates the empty `rate_plan_count` table, which is
+additive-safe even without size evidence. Migration 994 adds a function, a trigger
+and a comment, so it is additive-safe without size evidence too. Migration 1000 creates the plugin event,
+delivery and state tables. Its snapshot trigger is a recognized new trigger, so the
+file is additive-safe in this scenario. Migration 1001 creates the pass-through
+tables and seeds a small registry with literal rows, so it is additive-safe in this
+scenario too. Migration 1002 adds the ingest-run table, its seed row and its snapshot
+trigger, and is additive-safe for the same reasons.
+Actual preflight uses the connected database's sizes. Without size evidence,
+nineteen of the twenty-four still require review. A second synthetic scenario
+gives the provider and address tables tens of millions of rows and gigabytes each.
+There the index files 930 through 933 stay risky, because a blocking index build
+on such a table needs review.
 
 Read `reasons` and review application compatibility yourself. Additive DDL still
 acquires locks, and a new trigger can change write behavior. Migration sessions
@@ -101,6 +111,62 @@ passes `--allow-risky-migration NAME.sql`. Repeat that option for each reviewed 
 The receipt records the checked hashes, classifications, and approved names. An
 approval for an absent or safe migration fails, so a typo cannot silently pass.
 A dry run lists this step but does not build or check a candidate image.
+
+## Size evidence
+
+Size evidence is the relation inventory with exact capped counts and total bytes.
+`worker migrate --size-evidence` prints it without classifying anything, and
+`migrate --check` collects the same document in its own transaction. The collector
+is one `SELECT`. It runs inside a `REPEATABLE READ READ ONLY` transaction with a
+two-second lock timeout, and takes only `ACCESS SHARE` locks, the lock any plain
+query takes. Each capped count reads at most 10,001 rows from a table already known
+to be 16 MiB or smaller. The document holds:
+
+- `collectedAt`, `serverVersionNum`, `transactionReadOnly` and `searchPath`;
+- `journal`, the applied `[name, sha256]` rows, or `null` without a journal;
+- `relations`, one entry per public table, view, materialized view, foreign table or
+  partitioned table, with `kind`, `bytes`, `countable`, `countedRows`,
+  `estimatedRows` and `liveTuples`.
+
+`countedRows` is `null` when the table was not counted. That happens when it is
+above 16 MiB, partitioned, inherited, foreign, a view, or uses row security. The
+classifier treats such a table as unknown or large. The collector refuses to run
+outside a read-only transaction. To collect evidence with `psql` alone, run the `sizeEvidenceScript`
+string exported by `dist/db/migration-size-evidence.js`. It opens the read-only
+transaction, prints one JSON line and rolls back.
+
+`checkMigrationsWithEvidence` in `dist/db/migrate.js` replays a saved document
+without a database. It uses the document's journal to find pending files and returns
+the same report as `migrate --check`.
+
+### Size evidence rules
+
+Size evidence clears a statement only through one of these rules. The rule and the
+evidence it used are listed in that entry's `sizeRules`, as
+`{statement, rule, tables: [{table, rows, bytes, source}]}`. `source` is `database`
+for a counted table and `pending-batch` for a table created earlier in the pending
+files, whose size comes from their literal seeds. Small means 10,000 rows or fewer
+and 16 MiB or less, both measured.
+
+| Rule               | Statement                                                                                   | Needs                                                         |
+| ------------------ | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| `small-index`      | `CREATE INDEX` without `CONCURRENTLY`                                                       | The indexed table is small                                    |
+| `small-constraint` | `ADD CONSTRAINT ... CHECK` or `UNIQUE`, `ADD COLUMN ... CHECK`, `ADD COLUMN ... REFERENCES` | The table, and any referenced table, is small                 |
+| `small-insert`     | `INSERT` of literal rows, or a simple `INSERT SELECT` with equality joins                   | The target and every source are small                         |
+| `small-update`     | `UPDATE` with constant or single scalar `CASE` assignments                                  | The table is small                                            |
+| `empty-not-null`   | `SET NOT NULL`, or `ADD COLUMN ... NOT NULL` without a default                              | The table was created earlier in the batch and is still empty |
+
+Size evidence clears no other statement. Without evidence, with an unknown size, or one
+row or byte over a limit, each of these statements stays `risky`, as before. A planner
+estimate cannot stand in for a count, even a small one. The tests plant a mutant for
+each rule that removes its evidence check, and one that trusts estimates. Each
+mutant clears a statement that has no evidence, and the tests fail on it.
+
+The hard release runner checks `sizeRules` again. Each rule must be one of the five,
+each table within both limits, and each `database` table must match a counted relation
+in `sizeEvidence` with no fewer rows or bytes. The receipt records the rules per file
+and the evidence: collection time, whether the search path was public, and each
+relation's kind, bytes, counted rows and estimated rows.
 
 ## Reviewed exceptions
 

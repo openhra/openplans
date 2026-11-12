@@ -1,5 +1,5 @@
 import { STATE_FIPS } from "../geo/states.js";
-import type { SqlSession } from "../../db/database.js";
+import type { Database, SqlSession } from "../../db/database.js";
 import type { ImportFile, ImportKind } from "./import-source.js";
 import { isStateCatalogSource } from "./import-source.js";
 import { importColumns, importTables } from "./import-parse.js";
@@ -105,6 +105,47 @@ export async function importIssue(
     ],
   );
 }
+/**
+ * Keep the rate-row count of each base plan in a rate file. Call it in the transaction that
+ * stored the file's rows, or for a file whose import has finished: rate rows never change after.
+ */
+export async function countRatePlans(
+  tx: SqlSession,
+  snapshot: string,
+): Promise<void> {
+  await tx.query(
+    `INSERT INTO rate_plan_count(snapshot_id,plan_rows,rate_rows)
+    SELECT $1,coalesce(jsonb_object_agg(base_plan_id,n),'{}'::jsonb),coalesce(sum(n),0)
+    FROM (SELECT base_plan_id,count(*) AS n FROM rate WHERE snapshot_id=$1 GROUP BY base_plan_id) counts
+    ON CONFLICT (snapshot_id) DO NOTHING`,
+    [snapshot],
+  );
+}
+/**
+ * Count rate files imported before `rate_plan_count` existed, one file per transaction. Only
+ * files of a finished import (an ACTIVE file snapshot) qualify, so no count can miss rows
+ * that a running import has not committed yet.
+ */
+export async function backfillRatePlanCounts(
+  db: Database,
+  report: (row: { snapshot_id: string; rate_rows: number }) => void = () => {},
+): Promise<number> {
+  const { rows } = await db.query<{ snapshot_id: string }>(
+    `SELECT f.snapshot_id FROM puf_import_file f
+    JOIN snapshot s ON s.snapshot_id=f.snapshot_id AND s.validation_state='ACTIVE'
+    WHERE f.kind='rate' AND NOT EXISTS (SELECT 1 FROM rate_plan_count c WHERE c.snapshot_id=f.snapshot_id)
+    ORDER BY f.snapshot_id`,
+  );
+  for (const { snapshot_id } of rows) {
+    await db.transaction((tx) => countRatePlans(tx, snapshot_id));
+    const counted = await db.query<{ rate_rows: string }>(
+      "SELECT rate_rows::text FROM rate_plan_count WHERE snapshot_id=$1",
+      [snapshot_id],
+    );
+    report({ snapshot_id, rate_rows: Number(counted.rows[0]?.rate_rows ?? 0) });
+  }
+  return rows.length;
+}
 export async function deriveCatalogRows(
   tx: SqlSession,
   kind: ImportKind,
@@ -147,6 +188,7 @@ export async function deriveCatalogRows(
       [snapshot],
     );
   }
+  if (kind === "rate") await countRatePlans(tx, snapshot);
   if (kind === "service-area") {
     await tx.query(
       `INSERT INTO service_area

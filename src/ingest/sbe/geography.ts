@@ -3,7 +3,7 @@ import { createReadStream } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { Readable } from "node:stream";
 import type { Database } from "../../db/database.js";
-import { ingestGeo } from "../geo/index.js";
+import { ingestGeo, pastYearTableModified } from "../geo/index.js";
 import type { GeoImportOptions } from "../geo/index.js";
 import { acquireGeo, centroidStream } from "../geo/sources.js";
 import { relationships, centroids, ratingRows } from "../geo/parse.js";
@@ -48,6 +48,7 @@ export async function ingestSbeGeography(
     )
       throw new Error("SBE geography source integrity failed");
   }
+  const tableModified = await pastYearTableModified(files.ratingAreas, year);
   const selected = new Set<string>(),
     counties = new Map<string, string>();
   for await (const row of relationships(
@@ -263,7 +264,12 @@ export async function ingestSbeGeography(
       ratingAreaRows: ratingAreaRows + prefixes.size,
       snapshots,
       countyNameCorrections: corrections,
-      ratingAreaBasis: "current_cms_table",
+      ...(tableModified
+        ? {
+            ratingAreaBasis: "cms_table_unmodified_since" as const,
+            ratingAreaTableModified: tableModified,
+          }
+        : { ratingAreaBasis: "current_cms_table" as const }),
       constraints,
     };
   });

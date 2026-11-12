@@ -37,6 +37,7 @@ async function migrations(
   if (omit) {
     await rm(path);
     await rm(join(core.directory, "992_record_policy.sql"));
+    await rm(join(core.directory, "994_cms_api_attempt_provenance.sql"));
     await rm(join(core.directory, "1000_plugin_events.sql"));
     await rm(join(core.directory, "1001_passthrough.sql"));
     await rm(join(core.directory, "1002_ingest_run_snapshot.sql"));
@@ -293,6 +294,7 @@ describe("row provenance values", () => {
     expect(await migrate(db, full)).toEqual([
       MIGRATION,
       "992_record_policy.sql",
+      "994_cms_api_attempt_provenance.sql",
       "1000_plugin_events.sql",
       "1001_passthrough.sql",
       "1002_ingest_run_snapshot.sql",

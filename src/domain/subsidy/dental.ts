@@ -3,12 +3,15 @@ import type { Household, RateRow } from "../rating/index.js";
 import { checkedCents } from "../rating/rate-row.js";
 import { parse_hios } from "../hios/index.js";
 
-/** CMS Plan Attributes PUF dictionary: decimal fraction, including nine-place SADP filings. */
+/**
+ * CMS Plan Attributes PUF dictionary: a decimal fraction from 0 through 1 with at most 15 places.
+ * SADP filings use nine and the PY2025 PUF uses 15. The fraction is exact and never rounded.
+ */
 export function allocatePremium(cents: number, value: unknown): number | null {
   checkedCents(cents);
   if (
     typeof value !== "string" ||
-    !/^(0(?:\.\d{1,12})?|1(?:\.0{1,12})?)$/.test(value.trim())
+    !/^(0(?:\.\d{1,15})?|1(?:\.0{1,15})?)$/.test(value.trim())
   )
     return null;
   const [whole, digits = ""] = value.trim().split(".");

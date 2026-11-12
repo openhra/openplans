@@ -20,6 +20,11 @@ import {
   reflectivePublications,
   validateReflectiveRecord,
 } from "./reflective.js";
+import {
+  TEMPLATE_GUARD_RULE,
+  validateTemplateChecks,
+} from "./template-guard.js";
+import type { TemplateCheck } from "./template-guard.js";
 
 export const communityRulesFile = fileURLToPath(
   new URL(
@@ -53,6 +58,8 @@ export interface StateArtifact {
   state: "NY" | "VT";
   plan_year: 2026;
   sources: SourceData[];
+  /** NY only: one approved-template guard decision per DFS publication. */
+  template_checks?: TemplateCheck[];
 }
 const hash = (text: string | Buffer) =>
   createHash("sha256").update(text).digest("hex");
@@ -231,8 +238,17 @@ export function parseStateArtifact(bytes: string): StateArtifact {
       }
     }
   }
+  if (document.state === "NY")
+    validateTemplateChecks(document.template_checks, document.sources, (url) =>
+      sourceAllowed("NY", url),
+    );
+  else if (document.template_checks !== undefined)
+    throw new Error("Template checks apply to NY publications only");
   return document;
 }
+
+const refusedTemplates = (document: StateArtifact) =>
+  (document.template_checks ?? []).filter((c) => c.decision === "refused");
 
 export function communityRate(
   document: StateArtifact,
@@ -365,6 +381,48 @@ export async function ingestStateRates(
         );
       }
     }
+    // A refused template is kept as a quarantined receipt, with one quality issue per
+    // issuer carrying the reason code and evidence. Its rates are never staged.
+    for (const check of refusedTemplates(document)) {
+      const refused = `${importId}:refused:${check.sha256}`;
+      await tx.query(
+        `INSERT INTO snapshot(snapshot_id,source_id,requested_url,retrieved_at,content_type,compressed_bytes,sha256,
+        schema_version,parser_version,expected_children,fetched_children,validation_state)
+        VALUES($1,$2,$3,$4,$5,$6,$7,'state-publication-v1',$8,0,0,'QUARANTINED') ON CONFLICT DO NOTHING`,
+        [
+          refused,
+          sourceId,
+          check.url,
+          check.retrieved_at,
+          check.content_type,
+          check.bytes,
+          check.sha256,
+          TEMPLATE_GUARD_RULE,
+        ],
+      );
+      for (const issuer of check.issuer_ids) {
+        await tx.query(
+          `INSERT INTO quality_issue(source_id,snapshot_id,source_record,severity,issue_code,explanation)
+          SELECT $1,$2,$3,'warning',$4,$5 WHERE NOT EXISTS (
+            SELECT 1 FROM quality_issue WHERE snapshot_id=$2 AND source_record=$3 AND issue_code=$4)`,
+          [
+            sourceId,
+            refused,
+            issuer,
+            check.reason,
+            JSON.stringify({
+              status: "unknown",
+              url: check.url,
+              filing: check.filing,
+              evidence: check.evidence,
+              listed_plans: (check.listed_plans ?? []).filter((p) =>
+                p.plan_id.startsWith(issuer),
+              ),
+            }),
+          ],
+        );
+      }
+    }
     await tx.query(
       `INSERT INTO state_rate_active(state,plan_year,import_id) VALUES($1,2026,$2)
       ON CONFLICT(state,plan_year) DO UPDATE SET import_id=EXCLUDED.import_id`,
@@ -377,6 +435,9 @@ export async function ingestStateRates(
       import_id: importId,
       records: count,
       publications: document.sources.length,
+      unknown_issuers: refusedTemplates(document).flatMap((check) =>
+        check.issuer_ids.map((issuer) => ({ issuer, reason: check.reason })),
+      ),
       native_api_status: "unsupported_rating_method" as const,
     };
   });
@@ -401,6 +462,11 @@ export async function stagedStatePremium(
     WHERE a.state=$1 AND a.plan_year=$2 AND r.plan_key=$3 AND r.region=$4`,
     [state, year, planKey, region],
   );
+  if (!result.rows.length) {
+    const refusal = await templateRefusal(db, state, year, planKey);
+    if (refusal)
+      return { status: "unknown", reason: refusal, totalCents: null };
+  }
   if (result.rows.length !== 1)
     return {
       status: result.rows.length ? "ambiguous" : "missing",
@@ -412,4 +478,22 @@ export async function stagedStatePremium(
     plan_year: row.rules_document.plan_year,
   };
   return communityFamilyPremium(rule, row.rate, members, coverageStart);
+}
+
+/** The active import refused this plan's issuer template, so its rate is unknown. */
+async function templateRefusal(
+  db: SqlSession,
+  state: "NY" | "VT",
+  year: number,
+  planKey: string,
+) {
+  if (state !== "NY") return null;
+  const { rows } = await db.query<{ issue_code: string }>(
+    `SELECT q.issue_code FROM state_rate_active a
+    JOIN quality_issue q ON starts_with(q.snapshot_id, a.import_id || ':refused:')
+    WHERE a.state=$1 AND a.plan_year=$2 AND q.source_record=$3
+    ORDER BY q.issue_code LIMIT 1`,
+    [state, year, planKey.slice(0, 5)],
+  );
+  return rows[0]?.issue_code ?? null;
 }

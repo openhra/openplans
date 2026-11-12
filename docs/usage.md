@@ -97,7 +97,8 @@ invocation above. Later import-only commands retain the read-only default. On
 Linux, make all three directories writable by the image's `node` user (UID 1000).
 On macOS, put the cache in a shared home directory or configure the Docker VM to
 share it. See [.env.example](../.env.example) and the [configuration reference](configuration.md)
-for defaults, native-only options and Compose forwarding. Connection URL
+for defaults, native-only options and Compose forwarding. The [plugin guide](plugins.md) covers the
+status page, webhook and Slack notifications, S3-compatible storage and writing your own plugin. Connection URL
 credentials must be URL-safe (percent-encode reserved characters).
 
 Both ports bind to `127.0.0.1`. `API_PORT` and `DB_PORT` avoid local conflicts.

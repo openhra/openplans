@@ -153,11 +153,19 @@ guess and never zero.
   manufacturer discount, and plan paid inside and outside the standard benefit. It also gives the
   accumulators before and after the fill. Totals add a labelled subtotal of the fills whose amount
   is known. That subtotal is not a lower bound for the year.
-- Every figure is `{status, cents, reason, evidence_refs}`. The refs point into one `evidence`
-  list of source rows, PBP rows, rule citations and request fields. Before an answer leaves the
-  service, a check confirms that every value cites evidence, every unknown has a reason and no
-  answer says "not covered". The MCP tool also checks that every cited snapshot and document can
-  be resolved.
+- Every figure is `{status, cents, reason, evidence_refs}`. The refs are ids in one top-level
+  `evidence` list, which holds each source row, PBP row, rule citation and request field once.
+- The plan file has one row per county, so a plan can file the same deductible and SNP code on
+  ninety rows or more. When every county row holds the same raw value in each cited field, the
+  answer lists them as one `source_rows` item. That item gives the snapshot, the table, the
+  fields, every row number in `source_rows` and the shared cells in `values`. A figure that rests
+  on those rows cites the group's id. If any row differs, each row is listed on its own.
+- The service checks each answer before it leaves. Every value cites evidence, every ref
+  resolves and every unknown has a reason. A group lists its rows in ascending order and has a
+  value for each field. No answer says "not covered". Every row and rule the engine used must be
+  in the list, on its own or inside a group, or the service refuses to answer. The MCP tool also
+  checks that its data matches the service answer byte for byte and that it can resolve every
+  cited snapshot and document.
 - `bindable_quote` is always `false`. Premiums come back as `not_evaluated`.
 
 ### What it does not do yet
@@ -299,7 +307,8 @@ The drug-cost estimator has two checks.
   of the fixture Part D and PBP files that files the benefit the example describes. The test
   imports those files, posts the schedule to the HTTP route with a Bearer token and calls the MCP
   tool. Every expected figure must match to the cent on both, and the two answers must be equal.
-  No price source is loaded, so the test supplies each example's CMS price and the insulin facts
+  The plan deductible must name every county row of the example's plan, as one group when the
+  plan has more than one row. No price source is loaded, so the test supplies each example's CMS price and the insulin facts
   the example states. Everything else comes from the imported rows. Five planted mutants must each
   break an example: the price dropped, 2027 rules used for 2026, an enhanced alternative filing
   read as basic, the selected-drug flag ignored and the plan deductible ignored.
@@ -311,8 +320,10 @@ The drug-cost estimator has two checks.
   out-of-pocket threshold. Every answer must pass the provenance check and cite only listed
   documents. Without a price, an amount may be calculated only for a fill that starts in the
   catastrophic phase, where it is $0. About one plan in a hundred also goes through the MCP tool,
-  whose answer must equal the HTTP body. The tool sends each answer twice, as data and as text, and refuses one over its 128 KiB output limit with `RESULT_TOO_LARGE` rather than cut it.
-  An answer for a single fill can reach that limit when the plan's evidence list is long. The
-  check counts those refusals and fails on any other error. Six planted mutants on a real answer
-  must each be caught. The counts of calculated and unknown results, by reason, go to
+  whose answer must equal the HTTP body. Every answer large enough to come near the tool's output
+  limit also goes through the tool. The tool sends each answer twice, as data and as text, and refuses one over
+  its 128 KiB limit with `RESULT_TOO_LARGE` rather than cut it. The check counts those refusals
+  and fails on any other error. Nine planted mutants on real answers must each be caught. Three of
+  them target grouped county rows: a row dropped from a group, a group without its shared values
+  and an MCP answer that no longer matches the HTTP body. The counts of calculated and unknown results, by reason, go to
   `reports/medicare-cost-oracle-<year>.json` under the data directory.

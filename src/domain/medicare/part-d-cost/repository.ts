@@ -31,6 +31,45 @@ export interface RowRef {
   source_row: number;
   fields: string[];
 }
+/**
+ * Rows of one table that hold the same raw value in every named field, such as a plan's county
+ * rows in the plan file. An answer may cite the group once in place of each row. It still lists
+ * every source row, and `values` gives the cells they share.
+ */
+export interface RowGroup {
+  snapshot_id: string;
+  table: SpufTable;
+  fields: string[];
+  source_rows: number[];
+  values: Record<string, string>;
+}
+
+/**
+ * The group of `rows` when there are at least two and every row has each field with the same raw
+ * value; otherwise null, and the rows are cited one by one.
+ */
+export function sharedRowGroup(
+  snapshotId: string,
+  table: SpufTable,
+  rows: readonly StoredRow[],
+  fields: readonly string[],
+): RowGroup | null {
+  if (rows.length < 2) return null;
+  const values: Record<string, string> = {};
+  for (const field of fields) {
+    if (!rows.every((row) => Object.hasOwn(row.cells, field))) return null;
+    const value = rows[0]!.cells[field]!;
+    if (rows.some((row) => row.cells[field] !== value)) return null;
+    values[field] = value;
+  }
+  return {
+    snapshot_id: snapshotId,
+    table,
+    fields: [...fields],
+    source_rows: rows.map((row) => row.source_row).sort((a, b) => a - b),
+    values,
+  };
+}
 /** A published dollar amount. Blank and zero are distinct: blank is `not_reported`. */
 export type MoneyFigure =
   | { status: "value"; cents: number; raw: string }
@@ -154,6 +193,8 @@ export type BenefitBundle =
       deductible: MoneyFigure;
       deductible_evidence: RowRef[];
       special_needs_plan: SpecialNeedsPlan;
+      /** Plan county rows that agree on the cited fields; absent in bundles built by hand. */
+      row_groups?: RowGroup[];
       /**
        * The plan's drug benefit type from the PBP release of the same year. Absent when the bundle
        * was built without a PBP read, which the engine treats as unknown.
@@ -533,6 +574,12 @@ export function decodeInsulin(
   return { insulin, conflicts };
 }
 
+const PLAN_DEDUCTIBLE_FIELDS = [
+  "FORMULARY_ID",
+  "DEDUCTIBLE",
+  "PLAN_SUPPRESSED_YN",
+] as const;
+
 /** County rows of one plan must agree on formulary, deductible and suppression. */
 export function decodePlanRows(
   snapshotId: string,
@@ -552,7 +599,7 @@ export function decodePlanRows(
       snapshot_id: snapshotId,
       table: "plan",
       source_row: row.source_row,
-      fields: ["FORMULARY_ID", "DEDUCTIBLE", "PLAN_SUPPRESSED_YN"],
+      fields: [...PLAN_DEDUCTIBLE_FIELDS],
     }));
   const conflicts: Conflict[] = [];
   const values = [
@@ -1057,6 +1104,10 @@ export async function readBenefitBundle(
     deductible: planned.deductible,
     deductible_evidence: planned.evidence,
     special_needs_plan: planned.special_needs_plan,
+    row_groups: [PLAN_DEDUCTIBLE_FIELDS, ["SNP"]].flatMap((fields) => {
+      const group = sharedRowGroup(snapshot, "plan", planRows, fields);
+      return group ? [group] : [];
+    }),
     benefit_type: benefitType,
     tiers: tierCosts.tiers,
     insulin: insulin.insulin,

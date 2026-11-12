@@ -27,13 +27,13 @@ services:
       - "127.0.0.1:${OPENPLANS_GEOCODER_PORT:-58080}:8080"
     volumes:
       - type: bind
-        source: ${OPENPLANS_DATA_DIR}/work/open-geocoder/${OPENPLANS_GEOCODER_STATE:?Set a state directory}-${OPENPLANS_GEOCODER_SNAPSHOT:?Set the extract date}-addresses.osm.pbf
+        source: ${OPENPLANS_DATA_DIR:?Set the external data directory}/work/open-geocoder/${OPENPLANS_GEOCODER_STATE:?Set a state directory}-${OPENPLANS_GEOCODER_SNAPSHOT:?Set the extract date}-addresses.osm.pbf
         target: /input/addresses.osm.pbf
         read_only: true
         bind:
           create_host_path: false
       - type: bind
-        source: ${OPENPLANS_DATA_DIR:?Set the external data directory}/raw/open-geocoder
+        source: ${OPENPLANS_GEOCODER_RAW_MOUNT:?Run through src/ingest/geocode/geocoder.sh}
         target: /data
         read_only: true
         bind:

@@ -73,6 +73,15 @@ is the individual-market division when CMS publishes separate market tables.
 Two- and three-column county tables are accepted; county/parish name punctuation
 is normalized while ambiguous and missing counties fail closed.
 
+For a plan year earlier than the snapshot's fetch year (PY2025 for the 2026 snapshots), the
+importer reads the page's "Page Last Modified" date and
+accepts the table only if that date is before January 1 of the plan year, so the same
+table applied all year. The report then says `ratingAreaBasis: cms_table_unmodified_since`
+and gives the date in `ratingAreaTableModified`. A later or missing date fails the import,
+and that state's geography for the year stays unknown. The South Dakota page, modified on
+2026-03-13, fails for PY2025 this way. The fetch year and later keep `current_cms_table`.
+`worker ingest geo` accepts `--year 2025`.
+
 Alaska's CMS table uses ZIP3 divisions. The importer retains these in `rating_area_zip`
 under migration 500. It never treats them as county areas. `ratingAreaForLocation` resolves
 county or ZIP3 evidence; without a ZIP an Alaska rating area stays unknown.

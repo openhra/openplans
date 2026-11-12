@@ -92,19 +92,112 @@ try {
     acquire: false,
   });
   assert.equal(imported.passed, true);
-  await ingestStateRates(
-    db,
-    join(data, "derived/state-rating/ny-2026.json"),
-    "NY",
+  const artifactPath = join(data, "derived/state-rating/ny-2026.json");
+  const artifact = JSON.parse(await readFile(artifactPath, "utf8"));
+  const staged = await ingestStateRates(db, artifactPath, "NY");
+  // Expectations follow the artifact: a refused template's rows are absent and its
+  // refusal is recorded; every region it lists a possible silver plan in is unknown.
+  const refusals = artifact.template_checks.filter(
+    (c) => c.decision === "refused",
+  );
+  const refusedIssuers = new Set(refusals.flatMap((c) => c.issuer_ids));
+  const records = artifact.sources.reduce((n, s) => n + s.records.length, 0);
+  assert.equal(staged.records, records);
+  assert.deepEqual(
+    staged.unknown_issuers,
+    refusals.flatMap((c) =>
+      c.issuer_ids.map((issuer) => ({ issuer, reason: c.reason })),
+    ),
   );
   const catalog = await nyLcspCatalog(db, 2026);
-  assert.equal(catalog.length, 1245);
-  assert.equal(catalog.filter((r) => !r.exchange_evidence).length, 424);
-  assert.equal(catalog.filter((r) => r.filed_identity).length, 424);
+  assert.equal(catalog.length, records);
+  assert.equal(
+    catalog.filter((r) => refusedIssuers.has(r.row.plan_key.slice(0, 5)))
+      .length,
+    0,
+  );
+  const recorded = (
+    await db.query(
+      `SELECT q.source_record,q.issue_code,q.explanation,s.validation_state FROM quality_issue q
+      JOIN snapshot s ON s.snapshot_id=q.snapshot_id
+      WHERE starts_with(q.snapshot_id,$1) ORDER BY q.source_record`,
+      [`${staged.import_id}:refused:`],
+    )
+  ).rows;
+  assert.deepEqual(
+    recorded.map((r) => [r.source_record, r.issue_code, r.validation_state]),
+    refusals.flatMap((c) =>
+      c.issuer_ids.map((issuer) => [issuer, c.reason, "QUARANTINED"]),
+    ),
+  );
+  for (const row of recorded)
+    assert.deepEqual(
+      JSON.parse(row.explanation).listed_plans,
+      refusals
+        .find((c) => c.issuer_ids.includes(row.source_record))
+        .listed_plans.filter((p) => p.plan_id.startsWith(row.source_record)),
+    );
+  const mapped = Object.values(audit.regions).reduce(
+    (n, r) => n + (r.off_exchange ?? 0) + (r.catastrophic ?? 0),
+    0,
+  );
+  const offExchange = Object.values(audit.regions).reduce(
+    (n, r) => n + (r.off_exchange ?? 0),
+    0,
+  );
+  assert.equal(catalog.filter((r) => !r.exchange_evidence).length, mapped);
+  assert.equal(catalog.filter((r) => r.filed_identity).length, mapped);
   assert.equal(
     catalog.filter((r) => r.filed_identity?.off_exchange).length,
-    422,
+    offExchange,
   );
+  // CMS metal cells for each refused plan: only one non-silver metal rules it out.
+  const cmsMetals = new Map();
+  for (const { base_plan_id, metal } of (
+    await db.query(
+      `SELECT base_plan_id,metal FROM plan_attribute WHERE state='NY' AND plan_year=2026
+      AND market='Individual' AND NOT dental_only AND base_plan_id=ANY($1::text[])`,
+      [refusals.flatMap((c) => c.listed_plans.map((p) => p.plan_id))],
+    )
+  ).rows)
+    cmsMetals.set(base_plan_id, [
+      ...new Set([...(cmsMetals.get(base_plan_id) ?? []), metal.toLowerCase()]),
+    ]);
+  const couldRank = (planId) => {
+    const metals = cmsMetals.get(planId) ?? [];
+    return !(
+      metals.length === 1 &&
+      [
+        "bronze",
+        "expanded bronze",
+        "gold",
+        "platinum",
+        "catastrophic",
+      ].includes(metals[0])
+    );
+  };
+  const refusedIn = (region) =>
+    refusals.flatMap((c) =>
+      c.listed_plans
+        .filter((p) => p.region === region && couldRank(p.plan_id))
+        .map((p) => ({ ...p, reason: c.reason })),
+    );
+  const ignoreRefusal = join(directory, "refusal-ignored-service.mjs");
+  await writeFile(
+    ignoreRefusal,
+    rebaseImports(
+      replaceSyntax(
+        await readFile(
+          new URL("../../../dist/services/ichra.js", import.meta.url),
+          "utf8",
+        ),
+        ".filter(couldRankSilver)",
+        ".filter(() => false)",
+      ),
+      new URL("../../../dist/services/ichra.js", import.meta.url),
+    ),
+  );
+  const withoutRefused = await import(pathToFileURL(ignoreRefusal).href);
   const catalogModule = new URL(
     "../../../dist/ingest/state/catalog.js",
     import.meta.url,
@@ -159,6 +252,43 @@ try {
     };
     const result = await ichraAffordability(db, request);
     const expected = audit.regions[region];
+    const refused = refusedIn(region);
+    if (refused.length) {
+      const checkUnknown = (answer) => {
+        assert.equal(answer.status, "unknown", JSON.stringify({ region }));
+        assert.equal(answer.reason, refused[0].reason);
+        assert.equal(answer.lcsp.monthly_cents, null);
+        assert.deepEqual(answer.verdicts, []);
+        assert.deepEqual(
+          answer.lcsp.provenance.refused_templates.map((p) => p.plan_id),
+          refused.map((p) => p.plan_id).sort(),
+        );
+      };
+      checkUnknown(result);
+      const ehb = await ichraAffordability(db, {
+        ...request,
+        lcspPremiumBasis: "ehb_portion",
+      });
+      checkUnknown(ehb);
+      // Planted mutant: the same request computed without the refused issuer is rejected.
+      const bad = await withoutRefused.ichraAffordability(db, request);
+      assert.equal(bad.status, "calculated");
+      assert.equal(bad.lcsp.monthly_cents, expected.gross_lcsp_cents);
+      assert.throws(() => checkUnknown(bad), assert.AssertionError);
+      regions.push({
+        region,
+        status: result.status,
+        reason: result.reason,
+        refused_plans: refused.map((p) => p.plan_id),
+        lcsp: result.lcsp,
+        ehb_status: ehb.status,
+        without_refused_issuer_rejected: {
+          status: bad.status,
+          gross_lcsp_cents: bad.lcsp.monthly_cents,
+        },
+      });
+      continue;
+    }
     assert.equal(
       result.status,
       "calculated",
@@ -214,8 +344,15 @@ try {
       ehb_lcsp: ehb.lcsp,
     });
   }
-  assert.equal((await nyLcspAvailability(db, 2026)).status, "available");
-  // Disposable database mutants: no alteration of the cached source files.
+  const unknownRegions = regions.filter((r) => r.status === "unknown");
+  assert.deepEqual(
+    await nyLcspAvailability(db, 2026),
+    unknownRegions.length
+      ? { status: "unknown", reason: unknownRegions[0].reason }
+      : { status: "available", reason: null },
+  );
+  // Disposable database mutants: no alteration of the cached source files. These
+  // controls exercise the other candidate guards, so they set the refusal aside first.
   const checks = [];
   for (const [name, sql, reason] of [
     [
@@ -232,6 +369,9 @@ try {
     const marker = new Error("rollback NY negative control");
     await assert.rejects(
       db.transaction(async (tx) => {
+        await tx.exec(
+          `DELETE FROM quality_issue WHERE starts_with(snapshot_id,'${staged.import_id}:refused:')`,
+        );
         await tx.exec(sql);
         const { status, reason: actual } = await nyLcspAvailability(tx, 2026);
         assert.equal(status, "incomplete_lcsp");
@@ -249,6 +389,15 @@ try {
         status: "PASS",
         database: "disposable PGlite; PostGIS migration omitted",
         imported: imported.import_id,
+        state_import: staged.import_id,
+        records,
+        refusals: refusals.map((c) => ({
+          url: c.url,
+          filing: c.filing,
+          issuer_ids: c.issuer_ids,
+          reason: c.reason,
+          listed_plans: c.listed_plans.length,
+        })),
         regions,
         negative_controls: checks,
       },
@@ -257,7 +406,7 @@ try {
     ) + "\n",
   );
   console.log(
-    `PASS: NY identities 821 -> 1245/1245; 422 off-Exchange + 2 catastrophic; ${regions.length}/8 gross and EHB LCSP regions calculated; old EHB mutant rejected in every region; ${checks.length} negative controls`,
+    `PASS: NY ${catalog.length}/${records} filed rows; refused issuers ${[...refusedIssuers].join(",") || "none"} absent and recorded; ${offExchange} off-Exchange + ${mapped - offExchange} catastrophic; ${regions.length - unknownRegions.length}/${regions.length} regions calculated (old EHB mutant rejected), ${unknownRegions.length} unknown for a refused issuer (computing without it rejected); ${checks.length} negative controls`,
   );
 } finally {
   await db.close();

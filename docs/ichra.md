@@ -269,10 +269,23 @@ node src/ingest/state/ny-identitycheck.mjs "$OPENPLANS_DATA_DIR"
 ```
 
 The second command needs a build. It imports cached publications into a disposable database,
-checks gross and EHB prices in all eight regions against independent decimal calculations,
+checks that a refused template's rows are absent and its refusal is recorded, expects
+`unknown` in each region where it lists a possible silver plan, rejects a planted service
+that computes those regions without it,
+checks gross and EHB prices in the other regions against independent decimal calculations,
 and plants missing-silver, changed-price and unnormalized-percentage controls. Results go to
 `reports/ny-ehb-2026/` under the data directory. It never connects to a running service or
 downloads files.
+
+When the template guard described in the state ingest README refuses an issuer's DFS
+approved-rates template, that issuer's plans have no usable price. In a region where the refused template lists a plan
+that could be silver, the LCSP is `unknown` and the reason is the refusal's code, for example
+`template_saved_before_submission`. It is never calculated from the remaining issuers. A
+listed plan is ruled out only when CMS Plan Attributes give it one non-silver metal level.
+`provenance.refused_templates` names the issuer, filing, plan and region. Other regions keep
+their answers. In the PY2026 cache one issuer is refused and it lists a possible silver plan
+in all eight regions. Every NY LCSP stays `unknown` until the cache holds approved rates for
+that issuer.
 
 A silver plan without CMS offer evidence or an explicit off-Exchange exclusion makes the LCSP `incomplete_lcsp` with reason
 `exchange_offering_unverified`. Missing or conflicting metal evidence also makes the result
@@ -334,6 +347,7 @@ NY and VT availability rows report these limits as follows:
 | ---------------------------------------------- | ----------------- | ---------------------------------------------------------------------------- |
 | NY 2026, complete loaded regional evidence     | `available`       | null                                                                         |
 | NY 2026, incomplete candidate evidence         | `incomplete_lcsp` | `exchange_offering_unverified`, `metal_level_unknown` or the candidate issue |
+| NY 2026, a refused template lists a candidate  | `unknown`         | the refusal's reason code, e.g. `template_saved_before_submission`           |
 | NY 2026, no loaded filed catalog               | `unknown`         | `catalog_not_loaded`                                                         |
 | VT 2026, complete cited catalog                | `available`       | null                                                                         |
 | VT 2026, missing or conflicting metal evidence | `incomplete_lcsp` | `metal_level_unknown`                                                        |

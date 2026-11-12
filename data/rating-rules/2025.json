@@ -1,0 +1,463 @@
+{
+  "schema_version": "rating-rules-v1",
+  "plan_year": 2025,
+  "reviewed_on": "2026-11-12",
+  "rules": [
+    {
+      "state": "AK",
+      "market": "individual",
+      "method": "per_member",
+      "citation": "Alaska: CMS Market Rating Reforms, individual-market Alaska row (table updated 2021-12-10; page last modified 2024-09-10, before PY2025 began); State Specific Age Curve Variations effective 2018 (federal default age curve); 45 CFR 147.102(c)(1), (d), (e), current through 2026-11-05, with no amendment after 2018; reviewed for PY2025 on 2026-11-12; table retrieved 2026-11-09.",
+      "references": [
+        "https://www.cms.gov/cciio/programs-and-initiatives/health-insurance-market-reforms/state-rating",
+        "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-B/part-147/section-147.102",
+        "https://www.cms.gov/CCIIO/Programs-and-Initiatives/Health-Insurance-Market-Reforms/Downloads/StateSpecAgeCrv053117.pdf"
+      ],
+      "member_rate_basis": "filed_rate_rows",
+      "child_rule": "three_oldest_covered_children_under_21",
+      "note": "Use the PY2025 filed per-age/area/date/tobacco cents directly; never synthesize a rate from a curve or reuse another year's rows. Family Option and populated family tiers remain unsupported. Individual medical only; no authorization for dental or SHOP."
+    },
+    {
+      "state": "AL",
+      "market": "individual",
+      "method": "per_member",
+      "citation": "Alabama: CMS Market Rating Reforms, individual-market Alabama row (table updated 2021-12-10; page last modified 2024-09-10, before PY2025 began); State Specific Age Curve Variations effective 2018 (state-established age curve); 45 CFR 147.102(c)(1), (d), (e), current through 2026-11-05, with no amendment after 2018; reviewed for PY2025 on 2026-11-12; table retrieved 2026-11-09.",
+      "references": [
+        "https://www.cms.gov/cciio/programs-and-initiatives/health-insurance-market-reforms/state-rating",
+        "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-B/part-147/section-147.102",
+        "https://www.cms.gov/CCIIO/Programs-and-Initiatives/Health-Insurance-Market-Reforms/Downloads/StateSpecAgeCrv053117.pdf"
+      ],
+      "member_rate_basis": "filed_rate_rows",
+      "child_rule": "three_oldest_covered_children_under_21",
+      "note": "Use the PY2025 filed per-age/area/date/tobacco cents directly; never synthesize a rate from a curve or reuse another year's rows. Family Option and populated family tiers remain unsupported. Individual medical only; no authorization for dental or SHOP."
+    },
+    {
+      "state": "AR",
+      "market": "individual",
+      "method": "per_member",
+      "citation": "Arkansas: CMS Market Rating Reforms, individual-market Arkansas row (table updated 2021-12-10; page last modified 2024-09-10, before PY2025 began); tobacco rating ratio 1.2:1; State Specific Age Curve Variations effective 2018 (federal default age curve); 45 CFR 147.102(c)(1), (d), (e), current through 2026-11-05, with no amendment after 2018; reviewed for PY2025 on 2026-11-12; table retrieved 2026-11-09.",
+      "references": [
+        "https://www.cms.gov/cciio/programs-and-initiatives/health-insurance-market-reforms/state-rating",
+        "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-B/part-147/section-147.102",
+        "https://www.cms.gov/CCIIO/Programs-and-Initiatives/Health-Insurance-Market-Reforms/Downloads/StateSpecAgeCrv053117.pdf"
+      ],
+      "member_rate_basis": "filed_rate_rows",
+      "child_rule": "three_oldest_covered_children_under_21",
+      "note": "Use the PY2025 filed per-age/area/date/tobacco cents directly; never synthesize a rate from a curve or reuse another year's rows. Family Option and populated family tiers remain unsupported. Individual medical only; no authorization for dental or SHOP."
+    },
+    {
+      "state": "AZ",
+      "market": "individual",
+      "method": "per_member",
+      "citation": "Arizona: CMS Market Rating Reforms, individual-market Arizona row (table updated 2021-12-10; page last modified 2024-09-10, before PY2025 began); State Specific Age Curve Variations effective 2018 (federal default age curve); 45 CFR 147.102(c)(1), (d), (e), current through 2026-11-05, with no amendment after 2018; reviewed for PY2025 on 2026-11-12; table retrieved 2026-11-09.",
+      "references": [
+        "https://www.cms.gov/cciio/programs-and-initiatives/health-insurance-market-reforms/state-rating",
+        "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-B/part-147/section-147.102",
+        "https://www.cms.gov/CCIIO/Programs-and-Initiatives/Health-Insurance-Market-Reforms/Downloads/StateSpecAgeCrv053117.pdf"
+      ],
+      "member_rate_basis": "filed_rate_rows",
+      "child_rule": "three_oldest_covered_children_under_21",
+      "note": "Use the PY2025 filed per-age/area/date/tobacco cents directly; never synthesize a rate from a curve or reuse another year's rows. Family Option and populated family tiers remain unsupported. Individual medical only; no authorization for dental or SHOP."
+    },
+    {
+      "state": "DE",
+      "market": "individual",
+      "method": "per_member",
+      "citation": "Delaware: CMS Market Rating Reforms, individual-market Delaware row (table updated 2021-12-10; page last modified 2024-09-10, before PY2025 began); State Specific Age Curve Variations effective 2018 (federal default age curve); 45 CFR 147.102(c)(1), (d), (e), current through 2026-11-05, with no amendment after 2018; reviewed for PY2025 on 2026-11-12; table retrieved 2026-11-09.",
+      "references": [
+        "https://www.cms.gov/cciio/programs-and-initiatives/health-insurance-market-reforms/state-rating",
+        "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-B/part-147/section-147.102",
+        "https://www.cms.gov/CCIIO/Programs-and-Initiatives/Health-Insurance-Market-Reforms/Downloads/StateSpecAgeCrv053117.pdf"
+      ],
+      "member_rate_basis": "filed_rate_rows",
+      "child_rule": "three_oldest_covered_children_under_21",
+      "note": "Use the PY2025 filed per-age/area/date/tobacco cents directly; never synthesize a rate from a curve or reuse another year's rows. Family Option and populated family tiers remain unsupported. Individual medical only; no authorization for dental or SHOP."
+    },
+    {
+      "state": "FL",
+      "market": "individual",
+      "method": "per_member",
+      "citation": "Florida: CMS Market Rating Reforms, individual-market Florida row (table updated 2021-12-10; page last modified 2024-09-10, before PY2025 began); State Specific Age Curve Variations effective 2018 (federal default age curve); 45 CFR 147.102(c)(1), (d), (e), current through 2026-11-05, with no amendment after 2018; reviewed for PY2025 on 2026-11-12; table retrieved 2026-11-09.",
+      "references": [
+        "https://www.cms.gov/cciio/programs-and-initiatives/health-insurance-market-reforms/state-rating",
+        "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-B/part-147/section-147.102",
+        "https://www.cms.gov/CCIIO/Programs-and-Initiatives/Health-Insurance-Market-Reforms/Downloads/StateSpecAgeCrv053117.pdf"
+      ],
+      "member_rate_basis": "filed_rate_rows",
+      "child_rule": "three_oldest_covered_children_under_21",
+      "note": "Use the PY2025 filed per-age/area/date/tobacco cents directly; never synthesize a rate from a curve or reuse another year's rows. Family Option and populated family tiers remain unsupported. Individual medical only; no authorization for dental or SHOP."
+    },
+    {
+      "state": "HI",
+      "market": "individual",
+      "method": "per_member",
+      "citation": "Hawaii: CMS Market Rating Reforms, individual-market Hawaii row (table updated 2021-12-10; page last modified 2024-09-10, before PY2025 began); State Specific Age Curve Variations effective 2018 (federal default age curve); 45 CFR 147.102(c)(1), (d), (e), current through 2026-11-05, with no amendment after 2018; reviewed for PY2025 on 2026-11-12; table retrieved 2026-11-09.",
+      "references": [
+        "https://www.cms.gov/cciio/programs-and-initiatives/health-insurance-market-reforms/state-rating",
+        "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-B/part-147/section-147.102",
+        "https://www.cms.gov/CCIIO/Programs-and-Initiatives/Health-Insurance-Market-Reforms/Downloads/StateSpecAgeCrv053117.pdf"
+      ],
+      "member_rate_basis": "filed_rate_rows",
+      "child_rule": "three_oldest_covered_children_under_21",
+      "note": "Use the PY2025 filed per-age/area/date/tobacco cents directly; never synthesize a rate from a curve or reuse another year's rows. Family Option and populated family tiers remain unsupported. Individual medical only; no authorization for dental or SHOP."
+    },
+    {
+      "state": "IA",
+      "market": "individual",
+      "method": "per_member",
+      "citation": "Iowa: CMS Market Rating Reforms, individual-market Iowa row (table updated 2021-12-10; page last modified 2024-09-10, before PY2025 began); State Specific Age Curve Variations effective 2018 (federal default age curve); 45 CFR 147.102(c)(1), (d), (e), current through 2026-11-05, with no amendment after 2018; reviewed for PY2025 on 2026-11-12; table retrieved 2026-11-09.",
+      "references": [
+        "https://www.cms.gov/cciio/programs-and-initiatives/health-insurance-market-reforms/state-rating",
+        "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-B/part-147/section-147.102",
+        "https://www.cms.gov/CCIIO/Programs-and-Initiatives/Health-Insurance-Market-Reforms/Downloads/StateSpecAgeCrv053117.pdf"
+      ],
+      "member_rate_basis": "filed_rate_rows",
+      "child_rule": "three_oldest_covered_children_under_21",
+      "note": "Use the PY2025 filed per-age/area/date/tobacco cents directly; never synthesize a rate from a curve or reuse another year's rows. Family Option and populated family tiers remain unsupported. Individual medical only; no authorization for dental or SHOP."
+    },
+    {
+      "state": "IL",
+      "market": "individual",
+      "method": "per_member",
+      "citation": "Illinois: CMS Market Rating Reforms, individual-market Illinois row (table updated 2021-12-10; page last modified 2024-09-10, before PY2025 began); State Specific Age Curve Variations effective 2018 (federal default age curve); 45 CFR 147.102(c)(1), (d), (e), current through 2026-11-05, with no amendment after 2018; reviewed for PY2025 on 2026-11-12; table retrieved 2026-11-09.",
+      "references": [
+        "https://www.cms.gov/cciio/programs-and-initiatives/health-insurance-market-reforms/state-rating",
+        "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-B/part-147/section-147.102",
+        "https://www.cms.gov/CCIIO/Programs-and-Initiatives/Health-Insurance-Market-Reforms/Downloads/StateSpecAgeCrv053117.pdf"
+      ],
+      "member_rate_basis": "filed_rate_rows",
+      "child_rule": "three_oldest_covered_children_under_21",
+      "note": "Use the PY2025 filed per-age/area/date/tobacco cents directly; never synthesize a rate from a curve or reuse another year's rows. Family Option and populated family tiers remain unsupported. Individual medical only; no authorization for dental or SHOP."
+    },
+    {
+      "state": "IN",
+      "market": "individual",
+      "method": "per_member",
+      "citation": "Indiana: CMS Market Rating Reforms, individual-market Indiana row (table updated 2021-12-10; page last modified 2024-09-10, before PY2025 began); State Specific Age Curve Variations effective 2018 (federal default age curve); 45 CFR 147.102(c)(1), (d), (e), current through 2026-11-05, with no amendment after 2018; reviewed for PY2025 on 2026-11-12; table retrieved 2026-11-09.",
+      "references": [
+        "https://www.cms.gov/cciio/programs-and-initiatives/health-insurance-market-reforms/state-rating",
+        "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-B/part-147/section-147.102",
+        "https://www.cms.gov/CCIIO/Programs-and-Initiatives/Health-Insurance-Market-Reforms/Downloads/StateSpecAgeCrv053117.pdf"
+      ],
+      "member_rate_basis": "filed_rate_rows",
+      "child_rule": "three_oldest_covered_children_under_21",
+      "note": "Use the PY2025 filed per-age/area/date/tobacco cents directly; never synthesize a rate from a curve or reuse another year's rows. Family Option and populated family tiers remain unsupported. Individual medical only; no authorization for dental or SHOP."
+    },
+    {
+      "state": "KS",
+      "market": "individual",
+      "method": "per_member",
+      "citation": "Kansas: CMS Market Rating Reforms, individual-market Kansas row (table updated 2021-12-10; page last modified 2024-09-10, before PY2025 began); State Specific Age Curve Variations effective 2018 (federal default age curve); 45 CFR 147.102(c)(1), (d), (e), current through 2026-11-05, with no amendment after 2018; reviewed for PY2025 on 2026-11-12; table retrieved 2026-11-09.",
+      "references": [
+        "https://www.cms.gov/cciio/programs-and-initiatives/health-insurance-market-reforms/state-rating",
+        "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-B/part-147/section-147.102",
+        "https://www.cms.gov/CCIIO/Programs-and-Initiatives/Health-Insurance-Market-Reforms/Downloads/StateSpecAgeCrv053117.pdf"
+      ],
+      "member_rate_basis": "filed_rate_rows",
+      "child_rule": "three_oldest_covered_children_under_21",
+      "note": "Use the PY2025 filed per-age/area/date/tobacco cents directly; never synthesize a rate from a curve or reuse another year's rows. Family Option and populated family tiers remain unsupported. Individual medical only; no authorization for dental or SHOP."
+    },
+    {
+      "state": "LA",
+      "market": "individual",
+      "method": "per_member",
+      "citation": "Louisiana: CMS Market Rating Reforms, individual-market Louisiana row (table updated 2021-12-10; page last modified 2024-09-10, before PY2025 began); State Specific Age Curve Variations effective 2018 (federal default age curve); 45 CFR 147.102(c)(1), (d), (e), current through 2026-11-05, with no amendment after 2018; reviewed for PY2025 on 2026-11-12; table retrieved 2026-11-09.",
+      "references": [
+        "https://www.cms.gov/cciio/programs-and-initiatives/health-insurance-market-reforms/state-rating",
+        "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-B/part-147/section-147.102",
+        "https://www.cms.gov/CCIIO/Programs-and-Initiatives/Health-Insurance-Market-Reforms/Downloads/StateSpecAgeCrv053117.pdf"
+      ],
+      "member_rate_basis": "filed_rate_rows",
+      "child_rule": "three_oldest_covered_children_under_21",
+      "note": "Use the PY2025 filed per-age/area/date/tobacco cents directly; never synthesize a rate from a curve or reuse another year's rows. Family Option and populated family tiers remain unsupported. Individual medical only; no authorization for dental or SHOP."
+    },
+    {
+      "state": "MI",
+      "market": "individual",
+      "method": "per_member",
+      "citation": "Michigan: CMS Market Rating Reforms, individual-market Michigan row (table updated 2021-12-10; page last modified 2024-09-10, before PY2025 began); State Specific Age Curve Variations effective 2018 (federal default age curve); 45 CFR 147.102(c)(1), (d), (e), current through 2026-11-05, with no amendment after 2018; reviewed for PY2025 on 2026-11-12; table retrieved 2026-11-09.",
+      "references": [
+        "https://www.cms.gov/cciio/programs-and-initiatives/health-insurance-market-reforms/state-rating",
+        "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-B/part-147/section-147.102",
+        "https://www.cms.gov/CCIIO/Programs-and-Initiatives/Health-Insurance-Market-Reforms/Downloads/StateSpecAgeCrv053117.pdf"
+      ],
+      "member_rate_basis": "filed_rate_rows",
+      "child_rule": "three_oldest_covered_children_under_21",
+      "note": "Use the PY2025 filed per-age/area/date/tobacco cents directly; never synthesize a rate from a curve or reuse another year's rows. Family Option and populated family tiers remain unsupported. Individual medical only; no authorization for dental or SHOP."
+    },
+    {
+      "state": "MO",
+      "market": "individual",
+      "method": "per_member",
+      "citation": "Missouri: CMS Market Rating Reforms, individual-market Missouri row (table updated 2021-12-10; page last modified 2024-09-10, before PY2025 began); State Specific Age Curve Variations effective 2018 (federal default age curve); 45 CFR 147.102(c)(1), (d), (e), current through 2026-11-05, with no amendment after 2018; reviewed for PY2025 on 2026-11-12; table retrieved 2026-11-09.",
+      "references": [
+        "https://www.cms.gov/cciio/programs-and-initiatives/health-insurance-market-reforms/state-rating",
+        "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-B/part-147/section-147.102",
+        "https://www.cms.gov/CCIIO/Programs-and-Initiatives/Health-Insurance-Market-Reforms/Downloads/StateSpecAgeCrv053117.pdf"
+      ],
+      "member_rate_basis": "filed_rate_rows",
+      "child_rule": "three_oldest_covered_children_under_21",
+      "note": "Use the PY2025 filed per-age/area/date/tobacco cents directly; never synthesize a rate from a curve or reuse another year's rows. Family Option and populated family tiers remain unsupported. Individual medical only; no authorization for dental or SHOP."
+    },
+    {
+      "state": "MS",
+      "market": "individual",
+      "method": "per_member",
+      "citation": "Mississippi: CMS Market Rating Reforms, individual-market Mississippi row (table updated 2021-12-10; page last modified 2024-09-10, before PY2025 began); State Specific Age Curve Variations effective 2018 (state-established age curve); 45 CFR 147.102(c)(1), (d), (e), current through 2026-11-05, with no amendment after 2018; reviewed for PY2025 on 2026-11-12; table retrieved 2026-11-09.",
+      "references": [
+        "https://www.cms.gov/cciio/programs-and-initiatives/health-insurance-market-reforms/state-rating",
+        "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-B/part-147/section-147.102",
+        "https://www.cms.gov/CCIIO/Programs-and-Initiatives/Health-Insurance-Market-Reforms/Downloads/StateSpecAgeCrv053117.pdf"
+      ],
+      "member_rate_basis": "filed_rate_rows",
+      "child_rule": "three_oldest_covered_children_under_21",
+      "note": "Use the PY2025 filed per-age/area/date/tobacco cents directly; never synthesize a rate from a curve or reuse another year's rows. Family Option and populated family tiers remain unsupported. Individual medical only; no authorization for dental or SHOP."
+    },
+    {
+      "state": "MT",
+      "market": "individual",
+      "method": "per_member",
+      "citation": "Montana: CMS Market Rating Reforms, individual-market Montana row (table updated 2021-12-10; page last modified 2024-09-10, before PY2025 began); State Specific Age Curve Variations effective 2018 (federal default age curve); 45 CFR 147.102(c)(1), (d), (e), current through 2026-11-05, with no amendment after 2018; reviewed for PY2025 on 2026-11-12; table retrieved 2026-11-09.",
+      "references": [
+        "https://www.cms.gov/cciio/programs-and-initiatives/health-insurance-market-reforms/state-rating",
+        "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-B/part-147/section-147.102",
+        "https://www.cms.gov/CCIIO/Programs-and-Initiatives/Health-Insurance-Market-Reforms/Downloads/StateSpecAgeCrv053117.pdf"
+      ],
+      "member_rate_basis": "filed_rate_rows",
+      "child_rule": "three_oldest_covered_children_under_21",
+      "note": "Use the PY2025 filed per-age/area/date/tobacco cents directly; never synthesize a rate from a curve or reuse another year's rows. Family Option and populated family tiers remain unsupported. Individual medical only; no authorization for dental or SHOP."
+    },
+    {
+      "state": "NC",
+      "market": "individual",
+      "method": "per_member",
+      "citation": "North Carolina: CMS Market Rating Reforms, individual-market North Carolina row (table updated 2021-12-10; page last modified 2024-09-10, before PY2025 began); State Specific Age Curve Variations effective 2018 (federal default age curve); 45 CFR 147.102(c)(1), (d), (e), current through 2026-11-05, with no amendment after 2018; reviewed for PY2025 on 2026-11-12; table retrieved 2026-11-09.",
+      "references": [
+        "https://www.cms.gov/cciio/programs-and-initiatives/health-insurance-market-reforms/state-rating",
+        "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-B/part-147/section-147.102",
+        "https://www.cms.gov/CCIIO/Programs-and-Initiatives/Health-Insurance-Market-Reforms/Downloads/StateSpecAgeCrv053117.pdf"
+      ],
+      "member_rate_basis": "filed_rate_rows",
+      "child_rule": "three_oldest_covered_children_under_21",
+      "note": "Use the PY2025 filed per-age/area/date/tobacco cents directly; never synthesize a rate from a curve or reuse another year's rows. Family Option and populated family tiers remain unsupported. Individual medical only; no authorization for dental or SHOP."
+    },
+    {
+      "state": "ND",
+      "market": "individual",
+      "method": "per_member",
+      "citation": "North Dakota: CMS Market Rating Reforms, individual-market North Dakota row (table updated 2021-12-10; page last modified 2024-09-10, before PY2025 began); State Specific Age Curve Variations effective 2018 (federal default age curve); 45 CFR 147.102(c)(1), (d), (e), current through 2026-11-05, with no amendment after 2018; reviewed for PY2025 on 2026-11-12; table retrieved 2026-11-09.",
+      "references": [
+        "https://www.cms.gov/cciio/programs-and-initiatives/health-insurance-market-reforms/state-rating",
+        "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-B/part-147/section-147.102",
+        "https://www.cms.gov/CCIIO/Programs-and-Initiatives/Health-Insurance-Market-Reforms/Downloads/StateSpecAgeCrv053117.pdf"
+      ],
+      "member_rate_basis": "filed_rate_rows",
+      "child_rule": "three_oldest_covered_children_under_21",
+      "note": "Use the PY2025 filed per-age/area/date/tobacco cents directly; never synthesize a rate from a curve or reuse another year's rows. Family Option and populated family tiers remain unsupported. Individual medical only; no authorization for dental or SHOP."
+    },
+    {
+      "state": "NE",
+      "market": "individual",
+      "method": "per_member",
+      "citation": "Nebraska: CMS Market Rating Reforms, individual-market Nebraska row (table updated 2021-12-10; page last modified 2024-09-10, before PY2025 began); State Specific Age Curve Variations effective 2018 (federal default age curve); 45 CFR 147.102(c)(1), (d), (e), current through 2026-11-05, with no amendment after 2018; reviewed for PY2025 on 2026-11-12; table retrieved 2026-11-09.",
+      "references": [
+        "https://www.cms.gov/cciio/programs-and-initiatives/health-insurance-market-reforms/state-rating",
+        "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-B/part-147/section-147.102",
+        "https://www.cms.gov/CCIIO/Programs-and-Initiatives/Health-Insurance-Market-Reforms/Downloads/StateSpecAgeCrv053117.pdf"
+      ],
+      "member_rate_basis": "filed_rate_rows",
+      "child_rule": "three_oldest_covered_children_under_21",
+      "note": "Use the PY2025 filed per-age/area/date/tobacco cents directly; never synthesize a rate from a curve or reuse another year's rows. Family Option and populated family tiers remain unsupported. Individual medical only; no authorization for dental or SHOP."
+    },
+    {
+      "state": "NH",
+      "market": "individual",
+      "method": "per_member",
+      "citation": "New Hampshire: CMS Market Rating Reforms, individual-market New Hampshire row (table updated 2021-12-10; page last modified 2024-09-10, before PY2025 began); State Specific Age Curve Variations effective 2018 (federal default age curve); 45 CFR 147.102(c)(1), (d), (e), current through 2026-11-05, with no amendment after 2018; reviewed for PY2025 on 2026-11-12; table retrieved 2026-11-09.",
+      "references": [
+        "https://www.cms.gov/cciio/programs-and-initiatives/health-insurance-market-reforms/state-rating",
+        "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-B/part-147/section-147.102",
+        "https://www.cms.gov/CCIIO/Programs-and-Initiatives/Health-Insurance-Market-Reforms/Downloads/StateSpecAgeCrv053117.pdf"
+      ],
+      "member_rate_basis": "filed_rate_rows",
+      "child_rule": "three_oldest_covered_children_under_21",
+      "note": "Use the PY2025 filed per-age/area/date/tobacco cents directly; never synthesize a rate from a curve or reuse another year's rows. Family Option and populated family tiers remain unsupported. Individual medical only; no authorization for dental or SHOP."
+    },
+    {
+      "state": "OH",
+      "market": "individual",
+      "method": "per_member",
+      "citation": "Ohio: CMS Market Rating Reforms, individual-market Ohio row (table updated 2021-12-10; page last modified 2024-09-10, before PY2025 began); State Specific Age Curve Variations effective 2018 (federal default age curve); 45 CFR 147.102(c)(1), (d), (e), current through 2026-11-05, with no amendment after 2018; reviewed for PY2025 on 2026-11-12; table retrieved 2026-11-09.",
+      "references": [
+        "https://www.cms.gov/cciio/programs-and-initiatives/health-insurance-market-reforms/state-rating",
+        "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-B/part-147/section-147.102",
+        "https://www.cms.gov/CCIIO/Programs-and-Initiatives/Health-Insurance-Market-Reforms/Downloads/StateSpecAgeCrv053117.pdf"
+      ],
+      "member_rate_basis": "filed_rate_rows",
+      "child_rule": "three_oldest_covered_children_under_21",
+      "note": "Use the PY2025 filed per-age/area/date/tobacco cents directly; never synthesize a rate from a curve or reuse another year's rows. Family Option and populated family tiers remain unsupported. Individual medical only; no authorization for dental or SHOP."
+    },
+    {
+      "state": "OK",
+      "market": "individual",
+      "method": "per_member",
+      "citation": "Oklahoma: CMS Market Rating Reforms, individual-market Oklahoma row (table updated 2021-12-10; page last modified 2024-09-10, before PY2025 began); State Specific Age Curve Variations effective 2018 (federal default age curve); 45 CFR 147.102(c)(1), (d), (e), current through 2026-11-05, with no amendment after 2018; reviewed for PY2025 on 2026-11-12; table retrieved 2026-11-09.",
+      "references": [
+        "https://www.cms.gov/cciio/programs-and-initiatives/health-insurance-market-reforms/state-rating",
+        "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-B/part-147/section-147.102",
+        "https://www.cms.gov/CCIIO/Programs-and-Initiatives/Health-Insurance-Market-Reforms/Downloads/StateSpecAgeCrv053117.pdf"
+      ],
+      "member_rate_basis": "filed_rate_rows",
+      "child_rule": "three_oldest_covered_children_under_21",
+      "note": "Use the PY2025 filed per-age/area/date/tobacco cents directly; never synthesize a rate from a curve or reuse another year's rows. Family Option and populated family tiers remain unsupported. Individual medical only; no authorization for dental or SHOP."
+    },
+    {
+      "state": "OR",
+      "market": "individual",
+      "method": "per_member",
+      "citation": "Oregon: CMS Market Rating Reforms, individual-market Oregon row (table updated 2021-12-10; page last modified 2024-09-10, before PY2025 began); State Specific Age Curve Variations effective 2018 (state-established age curve); 45 CFR 147.102(c)(1), (d), (e), current through 2026-11-05, with no amendment after 2018; reviewed for PY2025 on 2026-11-12; table retrieved 2026-11-09.",
+      "references": [
+        "https://www.cms.gov/cciio/programs-and-initiatives/health-insurance-market-reforms/state-rating",
+        "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-B/part-147/section-147.102",
+        "https://www.cms.gov/CCIIO/Programs-and-Initiatives/Health-Insurance-Market-Reforms/Downloads/StateSpecAgeCrv053117.pdf"
+      ],
+      "member_rate_basis": "filed_rate_rows",
+      "child_rule": "three_oldest_covered_children_under_21",
+      "note": "Use the PY2025 filed per-age/area/date/tobacco cents directly; never synthesize a rate from a curve or reuse another year's rows. Family Option and populated family tiers remain unsupported. Individual medical only; no authorization for dental or SHOP."
+    },
+    {
+      "state": "SC",
+      "market": "individual",
+      "method": "per_member",
+      "citation": "South Carolina: CMS Market Rating Reforms, individual-market South Carolina row (table updated 2021-12-10; page last modified 2024-09-10, before PY2025 began); State Specific Age Curve Variations effective 2018 (federal default age curve); 45 CFR 147.102(c)(1), (d), (e), current through 2026-11-05, with no amendment after 2018; reviewed for PY2025 on 2026-11-12; table retrieved 2026-11-09.",
+      "references": [
+        "https://www.cms.gov/cciio/programs-and-initiatives/health-insurance-market-reforms/state-rating",
+        "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-B/part-147/section-147.102",
+        "https://www.cms.gov/CCIIO/Programs-and-Initiatives/Health-Insurance-Market-Reforms/Downloads/StateSpecAgeCrv053117.pdf"
+      ],
+      "member_rate_basis": "filed_rate_rows",
+      "child_rule": "three_oldest_covered_children_under_21",
+      "note": "Use the PY2025 filed per-age/area/date/tobacco cents directly; never synthesize a rate from a curve or reuse another year's rows. Family Option and populated family tiers remain unsupported. Individual medical only; no authorization for dental or SHOP."
+    },
+    {
+      "state": "SD",
+      "market": "individual",
+      "method": "per_member",
+      "citation": "South Dakota: CMS Market Rating Reforms, individual-market South Dakota row (table updated 2021-12-10; page last modified 2024-09-10, before PY2025 began); State Specific Age Curve Variations effective 2018 (federal default age curve); 45 CFR 147.102(c)(1), (d), (e), current through 2026-11-05, with no amendment after 2018; reviewed for PY2025 on 2026-11-12; table retrieved 2026-11-09.",
+      "references": [
+        "https://www.cms.gov/cciio/programs-and-initiatives/health-insurance-market-reforms/state-rating",
+        "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-B/part-147/section-147.102",
+        "https://www.cms.gov/CCIIO/Programs-and-Initiatives/Health-Insurance-Market-Reforms/Downloads/StateSpecAgeCrv053117.pdf"
+      ],
+      "member_rate_basis": "filed_rate_rows",
+      "child_rule": "three_oldest_covered_children_under_21",
+      "note": "Use the PY2025 filed per-age/area/date/tobacco cents directly; never synthesize a rate from a curve or reuse another year's rows. Family Option and populated family tiers remain unsupported. Individual medical only; no authorization for dental or SHOP."
+    },
+    {
+      "state": "TN",
+      "market": "individual",
+      "method": "per_member",
+      "citation": "Tennessee: CMS Market Rating Reforms, individual-market Tennessee row (table updated 2021-12-10; page last modified 2024-09-10, before PY2025 began); State Specific Age Curve Variations effective 2018 (federal default age curve); 45 CFR 147.102(c)(1), (d), (e), current through 2026-11-05, with no amendment after 2018; reviewed for PY2025 on 2026-11-12; table retrieved 2026-11-09.",
+      "references": [
+        "https://www.cms.gov/cciio/programs-and-initiatives/health-insurance-market-reforms/state-rating",
+        "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-B/part-147/section-147.102",
+        "https://www.cms.gov/CCIIO/Programs-and-Initiatives/Health-Insurance-Market-Reforms/Downloads/StateSpecAgeCrv053117.pdf"
+      ],
+      "member_rate_basis": "filed_rate_rows",
+      "child_rule": "three_oldest_covered_children_under_21",
+      "note": "Use the PY2025 filed per-age/area/date/tobacco cents directly; never synthesize a rate from a curve or reuse another year's rows. Family Option and populated family tiers remain unsupported. Individual medical only; no authorization for dental or SHOP."
+    },
+    {
+      "state": "TX",
+      "market": "individual",
+      "method": "per_member",
+      "citation": "Texas: CMS Market Rating Reforms, individual-market Texas row (table updated 2021-12-10; page last modified 2024-09-10, before PY2025 began); State Specific Age Curve Variations effective 2018 (federal default age curve); 45 CFR 147.102(c)(1), (d), (e), current through 2026-11-05, with no amendment after 2018; reviewed for PY2025 on 2026-11-12; table retrieved 2026-11-09.",
+      "references": [
+        "https://www.cms.gov/cciio/programs-and-initiatives/health-insurance-market-reforms/state-rating",
+        "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-B/part-147/section-147.102",
+        "https://www.cms.gov/CCIIO/Programs-and-Initiatives/Health-Insurance-Market-Reforms/Downloads/StateSpecAgeCrv053117.pdf"
+      ],
+      "member_rate_basis": "filed_rate_rows",
+      "child_rule": "three_oldest_covered_children_under_21",
+      "note": "Use the PY2025 filed per-age/area/date/tobacco cents directly; never synthesize a rate from a curve or reuse another year's rows. Family Option and populated family tiers remain unsupported. Individual medical only; no authorization for dental or SHOP."
+    },
+    {
+      "state": "UT",
+      "market": "individual",
+      "method": "per_member",
+      "citation": "Utah: CMS Market Rating Reforms, individual-market Utah row (table updated 2021-12-10; page last modified 2024-09-10, before PY2025 began); State Specific Age Curve Variations effective 2018 (state-established age curve); 45 CFR 147.102(c)(1), (d), (e), current through 2026-11-05, with no amendment after 2018; reviewed for PY2025 on 2026-11-12; table retrieved 2026-11-09.",
+      "references": [
+        "https://www.cms.gov/cciio/programs-and-initiatives/health-insurance-market-reforms/state-rating",
+        "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-B/part-147/section-147.102",
+        "https://www.cms.gov/CCIIO/Programs-and-Initiatives/Health-Insurance-Market-Reforms/Downloads/StateSpecAgeCrv053117.pdf"
+      ],
+      "member_rate_basis": "filed_rate_rows",
+      "child_rule": "three_oldest_covered_children_under_21",
+      "note": "Use the PY2025 filed per-age/area/date/tobacco cents directly; never synthesize a rate from a curve or reuse another year's rows. Family Option and populated family tiers remain unsupported. Individual medical only; no authorization for dental or SHOP."
+    },
+    {
+      "state": "WI",
+      "market": "individual",
+      "method": "per_member",
+      "citation": "Wisconsin: CMS Market Rating Reforms, individual-market Wisconsin row (table updated 2021-12-10; page last modified 2024-09-10, before PY2025 began); State Specific Age Curve Variations effective 2018 (federal default age curve); 45 CFR 147.102(c)(1), (d), (e), current through 2026-11-05, with no amendment after 2018; reviewed for PY2025 on 2026-11-12; table retrieved 2026-11-09.",
+      "references": [
+        "https://www.cms.gov/cciio/programs-and-initiatives/health-insurance-market-reforms/state-rating",
+        "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-B/part-147/section-147.102",
+        "https://www.cms.gov/CCIIO/Programs-and-Initiatives/Health-Insurance-Market-Reforms/Downloads/StateSpecAgeCrv053117.pdf"
+      ],
+      "member_rate_basis": "filed_rate_rows",
+      "child_rule": "three_oldest_covered_children_under_21",
+      "note": "Use the PY2025 filed per-age/area/date/tobacco cents directly; never synthesize a rate from a curve or reuse another year's rows. Family Option and populated family tiers remain unsupported. Individual medical only; no authorization for dental or SHOP."
+    },
+    {
+      "state": "WV",
+      "market": "individual",
+      "method": "per_member",
+      "citation": "West Virginia: CMS Market Rating Reforms, individual-market West Virginia row (table updated 2021-12-10; page last modified 2024-09-10, before PY2025 began); State Specific Age Curve Variations effective 2018 (federal default age curve); 45 CFR 147.102(c)(1), (d), (e), current through 2026-11-05, with no amendment after 2018; reviewed for PY2025 on 2026-11-12; table retrieved 2026-11-09.",
+      "references": [
+        "https://www.cms.gov/cciio/programs-and-initiatives/health-insurance-market-reforms/state-rating",
+        "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-B/part-147/section-147.102",
+        "https://www.cms.gov/CCIIO/Programs-and-Initiatives/Health-Insurance-Market-Reforms/Downloads/StateSpecAgeCrv053117.pdf"
+      ],
+      "member_rate_basis": "filed_rate_rows",
+      "child_rule": "three_oldest_covered_children_under_21",
+      "note": "Use the PY2025 filed per-age/area/date/tobacco cents directly; never synthesize a rate from a curve or reuse another year's rows. Family Option and populated family tiers remain unsupported. Individual medical only; no authorization for dental or SHOP."
+    },
+    {
+      "state": "WY",
+      "market": "individual",
+      "method": "per_member",
+      "citation": "Wyoming: CMS Market Rating Reforms, individual-market Wyoming row (table updated 2021-12-10; page last modified 2024-09-10, before PY2025 began); State Specific Age Curve Variations effective 2018 (federal default age curve); 45 CFR 147.102(c)(1), (d), (e), current through 2026-11-05, with no amendment after 2018; reviewed for PY2025 on 2026-11-12; table retrieved 2026-11-09.",
+      "references": [
+        "https://www.cms.gov/cciio/programs-and-initiatives/health-insurance-market-reforms/state-rating",
+        "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-B/part-147/section-147.102",
+        "https://www.cms.gov/CCIIO/Programs-and-Initiatives/Health-Insurance-Market-Reforms/Downloads/StateSpecAgeCrv053117.pdf"
+      ],
+      "member_rate_basis": "filed_rate_rows",
+      "child_rule": "three_oldest_covered_children_under_21",
+      "note": "Use the PY2025 filed per-age/area/date/tobacco cents directly; never synthesize a rate from a curve or reuse another year's rows. Family Option and populated family tiers remain unsupported. Individual medical only; no authorization for dental or SHOP."
+    },
+    {
+      "state": "NY",
+      "market": "individual",
+      "method": "unsupported",
+      "citation": "New York: CMS Market Rating Reforms, individual-market New York row (uniform family tiers; State Specific Family Tier Ratios 1, 2, 1.7, 2.85); page last modified 2024-09-10. NY is absent from the PY2025 Exchange PUF and no PY2025 state filed tier rates are loaded; return unsupported_rating_method.",
+      "references": [
+        "https://www.cms.gov/cciio/programs-and-initiatives/health-insurance-market-reforms/state-rating",
+        "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-B/part-147/section-147.102"
+      ],
+      "note": "Missing PY2025 tier evidence, not a coverage conclusion. The PY2026 community-family adapter is not applied to 2025."
+    },
+    {
+      "state": "VT",
+      "market": "individual",
+      "method": "unsupported",
+      "citation": "Vermont: CMS Market Rating Reforms, individual-market Vermont row (uniform family tiers; State Specific Family Tier Ratios 1, 2, 1.93, 2.81); page last modified 2024-09-10. VT is absent from the PY2025 Exchange PUF and no PY2025 state filed tier rates are loaded; return unsupported_rating_method.",
+      "references": [
+        "https://www.cms.gov/cciio/programs-and-initiatives/health-insurance-market-reforms/state-rating",
+        "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-B/part-147/section-147.102"
+      ],
+      "note": "Missing PY2025 tier evidence, not a coverage conclusion. The PY2026 community-family adapter is not applied to 2025."
+    }
+  ]
+}

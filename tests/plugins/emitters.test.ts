@@ -54,8 +54,13 @@ import { coreMigrations, testDatabase } from "../pglite.js";
 let db: Database;
 let directory: string;
 let cleanupMigrations: () => Promise<void>;
+// Own synthetic data dir, set explicitly so no test reads the real
+// OPENPLANS_DATA_DIR from the environment.
+let baseDataDir: string;
 
 beforeAll(async () => {
+  baseDataDir = await mkdtemp(join(tmpdir(), "openplans-emitters-data-"));
+  vi.stubEnv("OPENPLANS_DATA_DIR", baseDataDir);
   db = testDatabase(new PGlite());
   const core = await coreMigrations();
   directory = core.directory;
@@ -63,6 +68,8 @@ beforeAll(async () => {
   await migrate(db, directory);
 });
 afterAll(async () => {
+  vi.unstubAllEnvs();
+  await rm(baseDataDir, { recursive: true, force: true });
   await db.close();
   await cleanupMigrations();
 });
@@ -239,7 +246,7 @@ describe("ingest events from the worker command wrapper", () => {
     expect(open).not.toHaveBeenCalled();
     expect(await readOutbox(db)).toEqual([]);
     expect(out.errors).toEqual([
-      "Usage: worker ingest geo [--year 2026|2027] [--state XX | --all-states]",
+      "Usage: worker ingest geo [--year 2025|2026|2027] [--state XX | --all-states]",
     ]);
   });
 
@@ -1018,6 +1025,13 @@ async function cachedPufs(dataDirectory: string) {
   return files;
 }
 
+describe("synthetic data dir", () => {
+  it("points OPENPLANS_DATA_DIR at the test's own temp dir", () => {
+    expect(process.env.OPENPLANS_DATA_DIR).toBe(baseDataDir);
+    expect(baseDataDir.startsWith(tmpdir())).toBe(true);
+  });
+});
+
 describe("bootstrap readiness", () => {
   it("the existing corrupt-acquisition failure emits readiness.failed for the failed step", async () => {
     const dataDirectory = await mkdtemp(
@@ -1075,7 +1089,7 @@ describe("bootstrap readiness", () => {
       expect(out.errors).toEqual([]);
     } finally {
       acquire.mockRestore();
-      vi.unstubAllEnvs();
+      vi.stubEnv("OPENPLANS_DATA_DIR", baseDataDir);
       await local.close();
       await core.cleanup();
       await rm(dataDirectory, { recursive: true, force: true });

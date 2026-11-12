@@ -48,7 +48,7 @@ def save_manifest(path, saved):
 
 def prepare(state, snapshot, root):
     subprocess.run(["python3", str(HERE / "download-open.py"), state, "--snapshot", snapshot], check=True)
-    raw = json.loads((root / "raw/open-geocoder" / state.lower() / snapshot / "metadata.json").read_text())
+    raw = json.loads((download.raw_directory(root) / state.lower() / snapshot / "metadata.json").read_text())
     work = root / "work/open-geocoder"
     work.mkdir(parents=True, exist_ok=True)
     output = work / f"{state.lower()}-{snapshot}-addresses.osm.pbf"
@@ -68,7 +68,7 @@ def prepare(state, snapshot, root):
     docker, image = filter_image()
     part = Path(str(output) + ".part")
     part.unlink(missing_ok=True)
-    mounts = ["-v", str(root / "raw/open-geocoder") + ":/raw:ro", "-v", str(work) + ":/work"]
+    mounts = ["-v", str(download.raw_directory(root)) + ":/raw:ro", "-v", str(work) + ":/work"]
     common = docker + ["run", "--rm", "--memory", "6g", "--cpus", "2", "--label", "com.docker.compose.project=openplans-geocoder"] + mounts + [image]
     subprocess.run(common + ["tags-filter", "--no-progress", "--output-header=osmosis_replication_timestamp!", "-f", "pbf", "-o", "/work/" + part.name,
                             f"/raw/{state.lower()}/{snapshot}/data.osm.pbf"] + FILTERS, check=True)

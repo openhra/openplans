@@ -92,10 +92,17 @@ def price(rates, pid, area, age, month):
     return cents(live[0]['IndividualRate'])
 
 
+# The CMS Plan Attributes PUF data dictionary defines EHBPercentTotalPremium as a decimal fraction
+# from 0 through 1 with at most 15 places. allocatePremium in src/domain/subsidy/dental.ts documents
+# the same limit. This reading skips a value with more places or outside 0 through 1, so its EHB
+# portion is unknown. It never rounds the value to fit.
+EHB_FRACTION = re.compile(r'0(?:\.\d{1,15})?|1(?:\.0{1,15})?')
+
+
 def ehb_portion(gross, fraction):
-    if fraction is None or not re.fullmatch(r'(?:0(?:\.\d+)?|1(?:\.0+)?)', fraction):
+    if fraction is None or not EHB_FRACTION.fullmatch(fraction.strip()):
         return None
-    return int((Decimal(gross) * Decimal(fraction)).quantize(Decimal('1'), rounding=ROUND_HALF_UP))
+    return int((Decimal(gross) * Decimal(fraction.strip())).quantize(Decimal('1'), rounding=ROUND_HALF_UP))
 
 
 def pick(identification, at_age):
@@ -138,7 +145,7 @@ def lcsp(plans, areas, rates, case):
     result['silver_plan_count'] = len(eligible)
     gross = {'id': {}, 'age': {}}
     ehb = {'id': {}, 'age': {}}
-    ehb_missing = None
+    ehb_missing = []
     for pid in eligible:
         fraction = agreed(plans[pid], 'EHBPercentTotalPremium')
         for key, rated_age in [('id', identification_age), ('age', age)]:
@@ -148,12 +155,15 @@ def lcsp(plans, areas, rates, case):
             gross[key][pid] = value
             portion = ehb_portion(value, fraction)
             if portion is None:
-                ehb_missing = pid
+                if pid not in ehb_missing:
+                    ehb_missing.append(pid)
             else:
                 ehb[key][pid] = portion
+    issues = [pid + ': ehb_allocation_unknown' for pid in ehb_missing]
     result['bases'] = {
         'gross': pick(gross['id'], gross['age']),
-        'ehb_portion': refused('incomplete_lcsp', ehb_missing + ': ehb_allocation_unknown') if ehb_missing
+        # The gross answer stands; the EHB portion needs a readable fraction for every eligible plan.
+        'ehb_portion': {**refused('requires_premium_adjustments', issues[0]), 'issues': issues} if issues
         else pick(ehb['id'], ehb['age']),
     }
     return result

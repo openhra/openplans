@@ -25,6 +25,7 @@ import * as qhpRegistry from "../src/ingest/qhp/discover-registry.js";
 import * as taxonomyAcquire from "../src/plugins/core-plugin.js";
 import * as fetcher from "../src/fetch/index.js";
 import * as geoSources from "../src/ingest/geo/sources.js";
+import * as sbeGeography from "../src/ingest/sbe/geography.js";
 import { fixtureFiles as geoFiles } from "./ingest/geo/helpers.js";
 import { runWorker } from "../src/worker/commands.js";
 import { syntheticZip } from "./fixtures/fetch/generate.mjs";
@@ -210,6 +211,52 @@ describe("one-command bootstrap", () => {
       ).toEqual({ reason: "step_failed_check_source_cache_and_database" });
     },
   );
+
+  it("imports a federal year's geography through the state spelling router", async () => {
+    // IL's CMS table spells Vermilion County "Vermillion"; only the router registers that.
+    const directory = await mkdtemp(join(tmpdir(), "openplans-bootstrap-geo-"));
+    try {
+      const file = (sha256: string) => ({
+        path: "/synthetic",
+        metadata: { sha256 },
+      });
+      const files = {
+        relationship: file("a".repeat(64)),
+        centroids: file("b".repeat(64)),
+        ratingAreas: file("c".repeat(64)),
+      } as unknown as Awaited<ReturnType<typeof geoSources.acquireGeo>>;
+      vi.spyOn(geoSources, "acquireGeo").mockResolvedValue(files);
+      const routed = vi
+        .spyOn(sbeGeography, "ingestSbeGeography")
+        .mockResolvedValue({ state: "IL" } as never);
+      const db = { query: async () => ({ rows: [] }) };
+      const steps = await bootstrapPlan(
+        {
+          states: ["IL"],
+          years: [2025],
+          drugs: false,
+          providers: false,
+          nuccTaxonomy: false,
+          geocode: false,
+          dryRun: false,
+          qhpCacheOnly: true,
+        },
+        () => db as never,
+        directory,
+      );
+      const step = steps.find((candidate) => candidate.id === "geo-IL-2025")!;
+      expect(await step.run()).toEqual({ evidence: { state: "IL" } });
+      expect(routed).toHaveBeenCalledWith(db, {
+        state: "IL",
+        planYear: 2025,
+        dataDir: directory,
+        files,
+      });
+    } finally {
+      vi.restoreAllMocks();
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
 
   it("dry-run is metadata-only, reports unknown sizes, and never calls an action or database", async () => {
     const directory = await mkdtemp(join(tmpdir(), "openplans-bootstrap-dry-"));

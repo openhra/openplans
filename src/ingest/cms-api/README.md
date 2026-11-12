@@ -62,6 +62,8 @@ What it stores:
   database refuse a row whose labels disagree with it.
 - `cms_api_attempt` logs each call or refusal with counts, status and latency. It never stores
   plan ids, drug codes or NPIs. The receipt URL keeps parameter names with redacted values.
+  An attempt that got no response has no receipt, so its row says `sourced_by = 'openplans'`
+  and `sourced_slug = 'cache:cms-api-attempt'`.
 - `cms_api_conflict` records, without changing either side, how a stored API answer compares
   with the answer from issuer files once those files are loaded.
 

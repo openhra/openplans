@@ -124,7 +124,10 @@ per-plan cap. Unresolved credit/net stay null, never zero. The domain's
 household with a calculated benchmark receives zero credit. Other states include
 `parameters_unconfirmed`, `requires_state_rules`, `requires_tax_filing_review`,
 `incomplete_benchmark`, `unsupported_rating_method`, `requires_premium_adjustments`, and
-`requires_benchmark_adjustments`. A requested plan that cannot be rated has no
+`requires_benchmark_adjustments`. If a request gives a county but no ZIP, and a
+silver plan there serves only some of the county's ZIP codes, the status is
+`location_requires_zip` with reason `zip_limited_service_area`. The benchmark, credit
+and net stay null until the request includes a ZIP. Gross premiums do not change. A requested plan that cannot be rated has no
 applied credit/net. Off-exchange and catastrophic plans receive no estimated
 credit (`plan_ineligible_for_tax_credit`). CSR variant eligibility is not inferred.
 

@@ -35,9 +35,11 @@ import {
   nyLcspCatalog,
   vtLcspCatalog,
   nyRatingCounties,
+  refusedTemplatePlans,
   stateRatingArea,
   stateSourceCell,
 } from "../ingest/state/catalog.js";
+import type { RefusedTemplatePlan } from "../ingest/state/catalog.js";
 import { vtMetalCatalogComplete } from "../ingest/state/vt-metal.js";
 import { checkedCents, dateParts } from "../domain/rating/rate-row.js";
 import { allocatePremium, lowestCostSilver } from "../domain/subsidy/index.js";
@@ -478,6 +480,22 @@ async function lcspEvidence(
   };
 }
 
+const FILED_METALS = [
+  "bronze",
+  "expanded bronze",
+  "silver",
+  "gold",
+  "platinum",
+  "catastrophic",
+];
+/** Only one consistent, recognized non-silver CMS metal rules a refused plan out. */
+const couldRankSilver = ({ metals }: RefusedTemplatePlan) =>
+  !(
+    metals.length === 1 &&
+    FILED_METALS.includes(metals[0]!) &&
+    metals[0] !== "silver"
+  );
+
 /** Filed single-tier prices have no age or tobacco factors. */
 async function filedLcspEvidence(
   db: SqlSession,
@@ -537,6 +555,17 @@ async function filedLcspEvidence(
     dateParts(question.month).day !== 1
   )
     return refuse("unknown", "month_rate_rows_missing");
+  // A refused issuer template leaves its plans unpriced. If one of them could be the lowest
+  // silver here, the benchmark is unknown; it is never computed without that issuer.
+  const refused = (
+    await refusedTemplatePlans(db, state, year, area.rating_area_id)
+  ).filter(couldRankSilver);
+  if (refused.length)
+    return {
+      ...refuse("unknown", refused[0]!.reason),
+      issues: refused.map((p) => `${p.plan_id ?? p.issuer}: ${p.reason}`),
+      provenance: { ...provenance, refused_templates: refused },
+    };
   if (
     state === "VT" &&
     !vtMetalCatalogComplete(catalog.map((entry) => entry.row))
@@ -556,17 +585,7 @@ async function filedLcspEvidence(
     if (filed_identity) metals.add(filed_identity.metal.toLowerCase());
     if (row.raw_record.metal)
       metals.add(row.raw_record.metal.trim().toLowerCase());
-    if (
-      metals.size !== 1 ||
-      ![
-        "bronze",
-        "expanded bronze",
-        "silver",
-        "gold",
-        "platinum",
-        "catastrophic",
-      ].includes([...metals][0] ?? "")
-    )
+    if (metals.size !== 1 || !FILED_METALS.includes([...metals][0] ?? ""))
       return refuse("incomplete_lcsp", "metal_level_unknown");
     if (!metals.has("silver")) continue;
     if (filed_identity?.off_exchange) {

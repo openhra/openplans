@@ -174,11 +174,45 @@ export function concurrentIndex(statement: MigrationStatement): boolean {
 export const smallTableRows = 10_000;
 export const smallTableBytes = 16 * 1024 * 1024;
 
-/** Complete public-schema inventory; missing names are absent, null sizes unknown. */
+/**
+ * Complete public-schema inventory; missing names are absent, null sizes unknown. `rows` is an
+ * exact capped count, or -1 when the byte budget already failed. `estimatedRows` comes from
+ * planner statistics; it appears in reasons and never decides a verdict.
+ */
 export type MigrationTableSizes = Record<
   string,
-  { rows: number; bytes: number } | null
+  { rows: number; bytes: number; estimatedRows?: number | null } | null
 >;
+
+/**
+ * The only rules that let size evidence clear a statement. Each needs every named table at
+ * or below smallTableRows exact rows and smallTableBytes total bytes, except empty-not-null,
+ * which needs a table created earlier in the pending batch and still empty.
+ */
+export const sizeRules = {
+  "small-index": "Non-concurrent CREATE INDEX on a small table",
+  "small-constraint":
+    "ALTER TABLE ADD CONSTRAINT CHECK or UNIQUE, ADD COLUMN with CHECK, or ADD COLUMN REFERENCES, with the table and any referenced table small",
+  "small-insert":
+    "INSERT of literal rows, or a simple INSERT SELECT, with the target and every source small",
+  "small-update":
+    "UPDATE with constant or scalar CASE assignments on a small table",
+  "empty-not-null":
+    "SET NOT NULL or ADD COLUMN NOT NULL without a default on a table created earlier in the batch and still empty",
+} as const;
+export type SizeRuleId = keyof typeof sizeRules;
+
+/** Where a table's size came from: the connected database, or the pending SQL alone. */
+export interface SizeRuleUse {
+  statement: string;
+  rule: SizeRuleId;
+  tables: {
+    table: string;
+    rows: number;
+    bytes: number;
+    source: "database" | "pending-batch";
+  }[];
+}
 
 function tableKey(name: string): string {
   const parts = name.match(/"(?:[^"]|"")*"|[A-Z_][A-Z0-9_$]*/gi) ?? [];
@@ -270,13 +304,25 @@ export function classifyMigrationBatch(
   sqls: string[],
   sizes?: MigrationTableSizes,
 ): MigrationSafety[] {
+  return classifyMigrationBatchWithRules(sqls, sizes).map(
+    ({ classification, reasons }) => ({ classification, reasons }),
+  );
+}
+
+/** As classifyMigrationBatch, also naming the size rule behind each cleared statement. */
+export function classifyMigrationBatchWithRules(
+  sqls: string[],
+  sizes?: MigrationTableSizes,
+): (MigrationSafety & { sizeRules: SizeRuleUse[] })[] {
   const tables: MigrationTableSizes = Object.fromEntries(
     Object.entries(sizes ?? {}).map(([name, size]) => [tableKey(name), size]),
   );
+  const fromDatabase = new Set(
+    Object.keys(tables).filter((key) => tables[key]),
+  );
   const empty = new Set<string>();
   let inventoryReliable = sizes !== undefined;
-  const small = (name: string) => {
-    const key = tableKey(name);
+  const withinBudget = (key: string) => {
     const size = tables[key];
     return (
       empty.has(key) ||
@@ -289,10 +335,28 @@ export function classifyMigrationBatch(
         size.bytes <= smallTableBytes)
     );
   };
+  // Tables whose size evidence the current statement relied on.
+  let used: SizeRuleUse["tables"] = [];
+  const small = (name: string) => {
+    const key = tableKey(name);
+    if (!withinBudget(key)) return false;
+    const size = tables[key] ?? { rows: 0, bytes: 0 };
+    used.push({
+      table: key,
+      rows: size.rows,
+      bytes: size.bytes,
+      source: fromDatabase.has(key) ? "database" : "pending-batch",
+    });
+    return true;
+  };
   const sizeReason = (name: string) => {
     const size = tables[tableKey(name)];
+    const estimate =
+      typeof size?.estimatedRows === "number" && size.estimatedRows >= 0
+        ? `, about ${size.estimatedRows} rows by planner estimate`
+        : "";
     return size
-      ? `${tableKey(name)}: ${size.rows < 0 ? "rows not counted" : `${size.rows} bounded rows`}, ${size.bytes} bytes; ${small(name) ? "within" : "outside"} the small-table budget`
+      ? `${tableKey(name)}: ${size.rows < 0 ? "rows not counted" : `${size.rows} bounded rows`}${estimate}, ${size.bytes} bytes; ${withinBudget(tableKey(name)) ? "within" : "outside"} the small-table budget`
       : `${tableKey(name)} size is unknown`;
   };
   const invalidate = (name: string) => {
@@ -307,6 +371,7 @@ export function classifyMigrationBatch(
   };
   return sqls.map((sql) => {
     const reasons: string[] = [];
+    const sizeRuleUses: SizeRuleUse[] = [];
     let reviewed = 0;
     let statements: MigrationStatement[];
     try {
@@ -316,6 +381,7 @@ export function classifyMigrationBatch(
       return {
         classification: "risky",
         reasons: ["Malformed or unterminated SQL token/parentheses"],
+        sizeRules: [],
       };
     }
     if (statements.some(concurrentIndex) && statements.length !== 1)
@@ -340,6 +406,10 @@ export function classifyMigrationBatch(
       const tokens = statement.tokens;
       const text = tokens.join(" ");
       let reason: string | undefined;
+      const outerUsed = used;
+      used = [];
+      let rule: SizeRuleId | undefined;
+      let emptyNotNull: string | undefined;
       const table = new RegExp(
         `^CREATE TABLE (IF NOT EXISTS )?(${relation}) \\( `,
       ).exec(text);
@@ -366,6 +436,7 @@ export function classifyMigrationBatch(
       } else if (index) {
         if (!concurrentIndex(statement) && !small(index[1]!))
           reason = `Non-concurrent index blocks writes: ${sizeReason(index[1]!)}`;
+        rule = "small-index";
         if (!empty.has(tableKey(index[1]!))) invalidate(index[1]!);
       } else if (alter) {
         const target = alter[1]!;
@@ -374,8 +445,13 @@ export function classifyMigrationBatch(
         if (tokens[actionStart] === ".") actionStart += 2;
         const actionTokens = tokens.slice(actionStart);
         const newEmptyTable = empty.has(tableKey(target));
+        rule = "small-constraint";
         const allowed = additions(actionTokens).every((part) => {
-          if (columnAddition(part, newEmptyTable)) return true;
+          if (columnAddition(part)) return true;
+          if (newEmptyTable && columnAddition(part, true)) {
+            emptyNotNull = tableKey(target);
+            return true;
+          }
           const value = part.join(" ");
           if (
             new RegExp(`^ALTER COLUMN ${identifier} DROP NOT NULL$`).test(value)
@@ -384,8 +460,10 @@ export function classifyMigrationBatch(
           if (
             newEmptyTable &&
             new RegExp(`^ALTER COLUMN ${identifier} SET NOT NULL$`).test(value)
-          )
+          ) {
+            emptyNotNull = tableKey(target);
             return true;
+          }
           // These scans are allowed only with current small-table evidence.
           if (!small(target)) return false;
           const check = part.indexOf("CHECK");
@@ -416,6 +494,7 @@ export function classifyMigrationBatch(
             ? `Destructive or compatibility-changing ALTER TABLE ${tableKey(target)} requires review`
             : `Column/constraint action may rewrite or scan; ${sizeReason(target)}; requires a known type and non-null constant default for NOT NULL`;
       } else if (insert) {
+        rule = "small-insert";
         const target = insert[1]!;
         const values = tokens.indexOf("VALUES");
         const select = tokens.indexOf("SELECT");
@@ -481,6 +560,7 @@ export function classifyMigrationBatch(
           };
         }
       } else if (update) {
+        rule = "small-update";
         if (
           !small(update[1]!) ||
           !boundedExpression(tokens.slice(tokens.indexOf("SET") + 1)) ||
@@ -600,10 +680,28 @@ export function classifyMigrationBatch(
         }
         // Approval of an opaque operation must not let later statements reuse stale sizes.
         if (!index) invalidateAll();
-      } else if (statement.reviews.length)
-        reasons.push(
-          `Statement ${label}: Allow annotation must target a risky top-level statement`,
-        );
+      } else {
+        if (statement.reviews.length)
+          reasons.push(
+            `Statement ${label}: Allow annotation must target a risky top-level statement`,
+          );
+        if (rule && used.length)
+          sizeRuleUses.push({ statement: label, rule, tables: used });
+        if (emptyNotNull)
+          sizeRuleUses.push({
+            statement: label,
+            rule: "empty-not-null",
+            tables: [
+              {
+                table: emptyNotNull,
+                rows: 0,
+                bytes: 0,
+                source: "pending-batch",
+              },
+            ],
+          });
+      }
+      used = outerUsed;
     };
     statements.forEach((statement, i) => inspect(statement, `${i + 1}`));
     let classification: MigrationSafety["classification"] = "additive-safe";
@@ -613,6 +711,7 @@ export function classifyMigrationBatch(
     return {
       classification,
       reasons,
+      sizeRules: sizeRuleUses,
     };
   });
 }

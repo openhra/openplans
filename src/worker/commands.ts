@@ -16,6 +16,7 @@ import { coverageManifest } from "../db/availability.js";
 import type { Database } from "../db/database.js";
 import {
   checkMigrations,
+  migrationSizeEvidence,
   loadPluginMigrations,
   migrate,
   migrationsDirectory,
@@ -24,6 +25,7 @@ import {
 } from "../db/migrate.js";
 import type { PluginMigration, PluginMigrationSource } from "../db/migrate.js";
 import { backfillRowProvenance } from "../db/row-provenance.js";
+import { backfillRatePlanCounts } from "../ingest/puf/import-repository.js";
 import { runPufAcquire } from "../ingest/puf/acquire.js";
 import { runRatingRules } from "../ingest/rating-rules/command.js";
 
@@ -51,9 +53,10 @@ import { CORE_SCHEDULES, runScheduleCommand } from "./schedule.js";
 import type { ScheduledCommand } from "./schedule.js";
 import { runTaxonomyIngest } from "../plugins/core-plugin.js";
 import { runBackupArgs } from "./backup-args.js";
+import { runBackupRestored } from "./backup-restored.js";
 
 const usage =
-  "Usage: worker migrate [--check] | status | record-policy list|set|expire | backup-args [--tar] | backfill row-provenance [--table NAME] [--blocks N] | ingest puf|qhp|nppes|rxnorm|taxonomy|geo|medicare";
+  "Usage: worker migrate [--check|--size-evidence] | status | record-policy list|set|expire | backup-args [--tar|--manifest] | backup-restored --manifest FILE | backfill row-provenance [--table NAME] [--blocks N] | backfill rate-plan-count | ingest puf|qhp|nppes|rxnorm|taxonomy|geo|medicare";
 
 export interface WorkerOutput {
   out(message: string): void;
@@ -109,7 +112,7 @@ export const coreWorkerCommands: readonly CoreWorkerCommand[] = Object.freeze(
     [
       {
         argv: ["migrate"],
-        usage: "Usage: worker migrate [--check]",
+        usage: "Usage: worker migrate [--check|--size-evidence]",
         // Index builds on a populated database take minutes (740 on TX: 6m28s).
         queryTimeoutMs: 3_600_000,
         run: (args, io) => runMaintenance("migrate", args, io),
@@ -134,6 +137,13 @@ export const coreWorkerCommands: readonly CoreWorkerCommand[] = Object.freeze(
         queryTimeoutMs: 3_600_000,
         run: (args, { open, output }) =>
           runRowProvenanceBackfill(args, () => open(), output),
+      },
+      {
+        argv: ["backfill", "rate-plan-count"],
+        usage: "Usage: worker backfill rate-plan-count",
+        queryTimeoutMs: 3_600_000,
+        run: (args, { open, output }) =>
+          runRatePlanCountBackfill(args, () => open(), output),
       },
       {
         argv: ["bootstrap"],
@@ -269,7 +279,7 @@ export const coreWorkerCommands: readonly CoreWorkerCommand[] = Object.freeze(
         argv: ["ingest", "geo"],
         source: ingestSources.geo,
         usage:
-          "Usage: worker ingest geo [--year 2026|2027] [--state XX | --all-states]",
+          "Usage: worker ingest geo [--year 2025|2026|2027] [--state XX | --all-states]",
         run: (args, { open, output, directory }) =>
           runGeo(args, open, output, directory),
       },
@@ -316,8 +326,16 @@ export const coreWorkerCommands: readonly CoreWorkerCommand[] = Object.freeze(
       {
         // Prints dump exclusions for this installation; it opens no database.
         argv: ["backup-args"],
-        usage: "Usage: worker backup-args [--tar]",
+        usage: "Usage: worker backup-args [--tar | --manifest]",
         run: async (args, { output }) => runBackupArgs(args, output),
+      },
+      {
+        // After a restore: quarantines receipts whose stored answers the backup left out.
+        argv: ["backup-restored"],
+        usage: "Usage: worker backup-restored --manifest FILE|-",
+        queryTimeoutMs: 3_600_000,
+        run: (args, { open, output }) =>
+          runBackupRestored(args, () => open(), output),
       },
       {
         argv: ["emit"],
@@ -455,7 +473,9 @@ async function runMaintenance(
 ): Promise<number> {
   const check =
     command === "migrate" && args.length === 1 && args[0] === "--check";
-  if (!check && args.length !== 0) {
+  const evidence =
+    command === "migrate" && args.length === 1 && args[0] === "--size-evidence";
+  if (!check && !evidence && args.length !== 0) {
     output.error(usage);
     return 1;
   }
@@ -469,8 +489,10 @@ async function runMaintenance(
   let db: Database | undefined;
   let exitCode = 0;
   try {
-    db = command === "migrate" && !check ? open() : openDatabase();
-    if (check) {
+    db = command === "migrate" && !check && !evidence ? open() : openDatabase();
+    if (evidence) {
+      output.out(JSON.stringify(await migrationSizeEvidence(db)));
+    } else if (check) {
       output.out(JSON.stringify(await checkMigrations(db, directory, plugins)));
     } else if (command === "migrate") {
       const applied = await migrate(db, directory, plugins);
@@ -493,6 +515,39 @@ async function runMaintenance(
     }
   }
   return exitCode;
+}
+
+async function runRatePlanCountBackfill(
+  args: string[],
+  open: () => Database,
+  output: WorkerOutput,
+): Promise<number> {
+  if (args.length) {
+    output.error("Usage: worker backfill rate-plan-count");
+    return 1;
+  }
+  let db: Database | undefined,
+    code = 0;
+  try {
+    db = open();
+    const files = await backfillRatePlanCounts(db, (row) =>
+      output.out(JSON.stringify(row)),
+    );
+    output.out(JSON.stringify({ counted_files: files }));
+  } catch (error) {
+    output.error(
+      `worker backfill rate-plan-count failed${databaseErrorDiagnostic(error)}; run worker migrate first and check the database`,
+    );
+    code = 1;
+  } finally {
+    try {
+      await db?.close();
+    } catch {
+      output.error("worker database shutdown failed");
+      code = 1;
+    }
+  }
+  return code;
 }
 
 async function runRowProvenanceBackfill(

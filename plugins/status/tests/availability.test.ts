@@ -24,6 +24,12 @@ import { AVAILABILITY_KINDS, AVAILABILITY_STATUSES } from "../src/views.js";
 const OPERATOR = "synthetic-operator-secret";
 const indexFile = fileURLToPath(new URL("../src/index.ts", import.meta.url));
 const readFile = fileURLToPath(new URL("../src/read.ts", import.meta.url));
+const hostFile = fileURLToPath(
+  new URL("../../../src/plugins/status-host.ts", import.meta.url),
+);
+const loaderFile = fileURLToPath(
+  new URL("../../../src/plugins/loader.ts", import.meta.url),
+);
 const shipped = fileURLToPath(
   new URL("../../../data/access/federal-publishers.json", import.meta.url),
 );
@@ -37,6 +43,12 @@ const API_KEYS = {
 let db: Database;
 let directory: string;
 let cleanup: () => Promise<void>;
+
+// Setup runs the core migrations plus three imports on one PGlite: about 1.7 s alone, and
+// about 4.8 s with the file. The fixture is already built once for the whole file, so there
+// is nothing left to share; under a loaded host the same work has overrun the 30 s default
+// hook timeout, so this one hook gets 90 s.
+const SETUP_TIMEOUT_MS = 90_000;
 
 beforeAll(async () => {
   db = testDatabase(new PGlite());
@@ -68,20 +80,20 @@ beforeAll(async () => {
       ('VT', 2025, 'individual', NULL, 'stale', 'partial', 'unknown', 'unknown',
         'synthetic-status.1');
   `);
-});
+}, SETUP_TIMEOUT_MS);
 afterAll(async () => {
   await db.close();
   await cleanup();
   await rm(directory, { recursive: true, force: true });
 });
 
-async function api(file = indexFile) {
+async function api(file = indexFile, load = loadPlugins) {
   const lines: string[] = [];
   const config = loadConfig(
     { OPENPLANS_OPERATOR_TOKEN: OPERATOR },
     { version: 1, plugins: [{ package: file }] },
   );
-  const loaded = await loadPlugins(config, "api", {
+  const loaded = await load(config, "api", {
     env: {},
     statusHost: { database: db },
     manifestPaths: [shipped],
@@ -110,9 +122,11 @@ const scope = (row: {
   issuer_id: string | null;
 }) => [row.state, row.year, row.market, row.issuer_id].join("|");
 
+type App = Awaited<ReturnType<typeof api>>;
+
 /** Both answers from the same database: the API rows by scope, and the plugin's two views. */
-async function answers(file = indexFile) {
-  const app = await api(file);
+async function answers(file: string | App = indexFile) {
+  const app = typeof file === "string" ? await api(file) : file;
   const apiRows = (await (
     await app.request("/v1/data-availability")
   ).json()) as Record<string, unknown>[];
@@ -262,6 +276,96 @@ describe("status availability matches /v1/data-availability", () => {
     } finally {
       await index.cleanup();
       await read.cleanup();
+    }
+  });
+});
+
+// A synthetic scope whose derived catalog status moves when its stored row changes.
+const MOVING = "VT|2025|individual|22222";
+const setMoving = (status: string) =>
+  db.query(
+    `UPDATE data_availability SET catalog_status = $1
+      WHERE state = 'VT' AND plan_year = 2025 AND issuer_id = '22222'`,
+    [status],
+  );
+
+/** One app read before and after a change: both views must follow the API at once. */
+async function acrossChange(app: App) {
+  const before = await answers(app);
+  await setMoving("stale");
+  try {
+    // Same generation again: the memo answers and must still agree.
+    const again = await answers(app);
+    const after = await answers(app);
+    return { before, again, after };
+  } finally {
+    await setMoving("not_yet_verified");
+  }
+}
+
+describe("status availability memo follows the data generation", () => {
+  it("a change reaches /status.json and /status/operator.json on the next request", async () => {
+    const app = await api();
+    const before = await answers(app);
+    expect(before.fromApi.get(MOVING)?.catalog).toBe("unknown");
+    const { again, after } = await acrossChange(app);
+    expect(disagreements(before)).toEqual([]);
+    for (const result of [again, after]) {
+      expect(result.fromApi.get(MOVING)?.catalog).toBe("stale");
+      expect(result.fromPlugin.get(MOVING)?.catalog).toBe("stale");
+      expect(disagreements(result)).toEqual([]);
+    }
+    // And back, on the same app.
+    const restored = await answers(app);
+    expect(restored.fromPlugin.get(MOVING)?.catalog).toBe("unknown");
+    expect(disagreements(restored)).toEqual([]);
+  });
+
+  it("planted mutant: a memo the generation never invalidates keeps the old status", async () => {
+    const host = await plantMutant(
+      hostFile,
+      "const shared = entry?.generation === current;",
+      "const shared = entry !== undefined;",
+    );
+    const loader = await plantMutant(
+      loaderFile,
+      'import { createStatusHost } from "./status-host.js";',
+      `import { createStatusHost } from ${JSON.stringify(host.path)};`,
+    );
+    try {
+      const { loadPlugins: mutantLoad } = (await import(loader.path)) as {
+        loadPlugins: typeof loadPlugins;
+      };
+      const { after } = await acrossChange(await api(indexFile, mutantLoad));
+      expect(after.fromPlugin.get(MOVING)?.catalog).toBe("unknown");
+      expect(disagreements(after)).toContain(
+        `${MOVING} catalog: unknown != stale`,
+      );
+      expect(disagreements(after)).toContain("public data summary");
+    } finally {
+      await loader.cleanup();
+      await host.cleanup();
+    }
+  });
+
+  it("planted mutant: a public view that keeps its first read diverges from the operator view", async () => {
+    const index = await plantMutant(
+      indexFile,
+      'handler: async (c) => c.json(publicView(await read(c.get("pluginDb"))))',
+      `handler: async (c) => {
+          const kept = globalThis as { statusFirstRead?: ReturnType<typeof read> };
+          kept.statusFirstRead ??= read(c.get("pluginDb"));
+          return c.json(publicView(await kept.statusFirstRead));
+        }`,
+    );
+    try {
+      const { after } = await acrossChange(await api(index.path));
+      // The operator view follows the change; the public summary does not.
+      expect(after.fromPlugin.get(MOVING)?.catalog).toBe("stale");
+      expect(disagreements(after)).toEqual(["public data summary"]);
+    } finally {
+      delete (globalThis as { statusFirstRead?: unknown }).statusFirstRead;
+      await index.cleanup();
     }
   });
 });

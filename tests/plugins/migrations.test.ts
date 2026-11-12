@@ -287,7 +287,7 @@ describe("plugin migrations run after core (design 5.13)", () => {
         JSON.parse(
           (await worker(db, ["migrate", "--check"], [fixtureSource])).out[0]!,
         ),
-      ).toEqual({ format: 1, pending: [] });
+      ).toMatchObject({ format: 1, pending: [] });
     } finally {
       await db.close();
     }
@@ -352,7 +352,10 @@ describe("disabling a plugin (design 5.13)", () => {
       // Disabled: the worker gets no plugin migrations at all.
       const check = await worker(db, ["migrate", "--check"]);
       expect(check.code).toBe(0);
-      expect(JSON.parse(check.out[0]!)).toEqual({ format: 1, pending: [] });
+      expect(JSON.parse(check.out[0]!)).toMatchObject({
+        format: 1,
+        pending: [],
+      });
       const run = await worker(db, ["migrate"]);
       expect(run.code).toBe(0);
       expect(JSON.parse(run.out[0]!)).toEqual({ applied: [] });
@@ -414,8 +417,8 @@ describe("migrate --check classifies plugin migrations (design 5.13)", () => {
   it("mutant: a check that leaves plugin migrations out lets a risky one through unseen", async () => {
     const mutant = await plantMutant(
       new URL("../../src/db/migrate.ts", import.meta.url),
-      "const pending = pendingMigrations(migrations, rows, plugins);\n    const sizes",
-      "const pending = pendingMigrations(migrations, rows);\n    const sizes",
+      "const pending = pendingMigrations(migrations, rows, plugins);\n  const safety",
+      "const pending = pendingMigrations(migrations, rows);\n  const safety",
     );
     const db = testDatabase(new PGlite());
     try {

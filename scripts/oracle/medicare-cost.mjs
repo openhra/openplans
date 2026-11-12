@@ -8,8 +8,9 @@
  * formulary and the lowest RxCUI flagged as a selected drug.
  *
  * Every answer must carry complete provenance, never say "not covered", never report
- * `estimated` (no price source is loaded) and cite only listed documents. A sample of plans also
- * runs through the MCP tool, whose data must equal the HTTP body. Planted mutants on real answers
+ * `estimated` (no price source is loaded) and cite only listed documents. A sample of plans, and
+ * every answer near the tool's output limit, also runs through the MCP tool, whose data must equal
+ * the HTTP body. Planted mutants on real answers, grouped county rows included,
  * must each be caught. The counts of calculated and unknown results, by reason, go to
  * reports/medicare-cost-oracle-<year>.json under the data directory.
  *
@@ -268,6 +269,9 @@ const record = (bucket, figure) => {
 const problems = [];
 let mcpChecked = 0;
 let firstAnswer = null;
+// The first answer that cites a plan's county rows as one group, for the group mutants.
+let groupedAnswer = null;
+let groupedRequest = null;
 
 /**
  * With no price loaded, an amount can be calculated only where the price cannot change it: a fill
@@ -377,19 +381,25 @@ for (const [index, plan] of plans.entries()) {
         continue;
       }
       firstAnswer ??= answer;
+      if (
+        !groupedAnswer &&
+        answer.evidence.some((item) => item.kind === "source_rows")
+      ) {
+        groupedAnswer = answer;
+        groupedRequest = { key, body };
+      }
       if (opening === "new_calendar_year" && n === 0)
         bump(summary.benefit_type_origin, answer.benefit_type.origin);
-      if (index % MCP_SAMPLE_EVERY === 0 && n === 0) {
+      const bytes = Buffer.byteLength(JSON.stringify(answer));
+      // A sample of plans, and every answer large enough to come near the tool's output limit.
+      const nearLimit = 2 * bytes + 16 * 1024 > MAX_OUTPUT_BYTES;
+      if ((index % MCP_SAMPLE_EVERY === 0 && n === 0) || nearLimit) {
         const output = await viaMcp(key, body);
         mcpChecked++;
-        const bytes = Buffer.byteLength(JSON.stringify(answer));
         // The tool sends the answer twice (structured and as text) plus its envelope, and refuses,
         // never truncates, a result over its output limit. The refusal is expected only for an
         // answer within 16 KiB of half that limit.
-        if (
-          output.error?.code === "RESULT_TOO_LARGE" &&
-          2 * bytes + 16 * 1024 > MAX_OUTPUT_BYTES
-        )
+        if (output.error?.code === "RESULT_TOO_LARGE" && nearLimit)
           summary.mcp_result_too_large.push({ plan: key, opening, bytes });
         else if (output.error)
           problems.push(
@@ -464,6 +474,41 @@ const controls = {};
     caught = true;
   }
   controls.mcp_cent_changed = caught;
+}
+
+{
+  // A grouped county row dropped, or a group without its shared values.
+  assert.ok(groupedAnswer, "no answer cited a group of county rows");
+  const output = await viaMcp(groupedRequest.key, groupedRequest.body);
+  const caught = (edit, check) => {
+    const mutant = JSON.parse(JSON.stringify(output));
+    edit(mutant.data.evidence.find((item) => item.kind === "source_rows"));
+    try {
+      return check(mutant);
+    } catch {
+      return true;
+    }
+  };
+  controls.group_row_dropped = caught(
+    (group) => group.source_rows.pop(),
+    (mutant) => {
+      assertEstimateHonest(mutant, output.data);
+      return false;
+    },
+  );
+  controls.group_values_missing = caught(
+    (group) => delete group.values[group.fields[0]],
+    (mutant) => estimateProvenanceProblems(mutant.data).length > 0,
+  );
+  controls.mcp_differs_from_http =
+    JSON.stringify(output.data) === JSON.stringify(groupedAnswer) &&
+    caught(
+      (group) => (group.kind = "source_row"),
+      (mutant) => {
+        assertEstimateHonest(mutant, groupedAnswer);
+        return false;
+      },
+    );
 }
 
 const report = {

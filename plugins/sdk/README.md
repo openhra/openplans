@@ -2,7 +2,11 @@
 
 `@openplans/plugin-sdk` exports plugin, context, registry and source contracts,
 plus `pluginManifestSchema` and the 14 schemas in `eventPayloadSchemas`.
-The experimental plugin API version is `0.1`.
+The experimental plugin API version is `PLUGIN_API_VERSION`, now `0.1`. See
+[Versions](#versions).
+
+To write a plugin, start from [`plugins/template`](../template/README.md) and the
+[plugin guide](../../docs/plugins.md#write-a-plugin).
 
 The manifest schema validates package names, semantic versions, the exact API
 version, registration kinds and optional capabilities. A manifest can supply a
@@ -20,11 +24,13 @@ allowed in a loaded access manifest. Otherwise the run stops before `plan`. For 
 id, and reuses an earlier copy of the same URL without a request. Use it only for a URL that
 names one fixed release.
 
-Plugins get a database as `PluginDatabase`, `{ reader, writer? }`, both in
-setup (`ctx.db`) and in worker commands (`WorkerContext.db`). `reader` runs
-read-only. `writer` is there only when the plugin declares
-`capabilities.writes` with `"staging"` and the host grants it. Today only
-worker commands grant it.
+Plugins get a database as `PluginDatabase`, `{ reader, writer? }`. Worker
+commands get a working one as `WorkerContext.db`. `ctx.db` in setup has the
+same type, but the core hosts reject queries on it while plugins load, so
+setup only registers. `reader` runs read-only. `writer` is there only when
+the plugin declares `capabilities.writes` with `"staging"` and the host
+grants it. Today only worker commands grant it. The test kit gives setup a
+working database, so a test does not catch a setup that queries it.
 
 Route handlers take `Context<PluginRouteEnv>`. The host sets two variables on
 each request:
@@ -108,3 +114,15 @@ bytes>\n`, and each link adds `<path>\0link:<target>\n`. The hash is the hex SHA
 those lines joined together. It is `null` for a tree over 10,000 files or 200 MiB, or one that
 cannot be read.
 
+## Versions
+
+`PLUGIN_API_VERSION` is the plugin API version. A manifest's `apiVersion` must equal it exactly.
+The loader refuses anything else with `plugin_api_version_mismatch`, and `pluginManifestSchema`
+rejects it too. While the API is `0.x`, a breaking change raises the minor version and is listed
+below. The package's major and minor numbers follow the API version, so `0.1.x` serves `0.1`.
+The [plugin guide](../../docs/plugins.md#versions) says what counts as breaking and how plugin
+versions relate to the package hash and the approved list.
+
+### Changes
+
+- `0.1`: the first experimental API.

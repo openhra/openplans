@@ -4,7 +4,7 @@ import { currentRegistries } from "../plugins/registries.js";
 import { passThroughExcludedTables } from "../plugins/sources/passthrough.js";
 import type { WorkerOutput } from "./commands.js";
 
-const usage = "Usage: worker backup-args [--tar]";
+const usage = "Usage: worker backup-args [--tar | --manifest]";
 
 type Source = PassThroughSource<Question, unknown>;
 const registered = (): Source[] =>
@@ -39,15 +39,28 @@ export function backupArgs(sources: readonly Source[], tar = false): string[] {
   );
 }
 
-/** `worker backup-args [--tar]`: prints the arguments on one line, for a shell to splice in. */
+/**
+ * `worker backup-args [--tar | --manifest]`: prints the arguments on one line, for a shell to
+ * splice in. `--manifest` prints the excluded tables as JSON instead; keep it with the dump for
+ * `worker backup-restored`.
+ */
 export function runBackupArgs(
   args: string[],
   output: WorkerOutput,
   sources: readonly Source[] = registered(),
 ): number {
-  if (args.length > 1 || (args.length === 1 && args[0] !== "--tar")) {
+  if (
+    args.length > 1 ||
+    (args.length === 1 && !["--tar", "--manifest"].includes(args[0]!))
+  ) {
     output.error(usage);
     return 1;
+  }
+  if (args[0] === "--manifest") {
+    output.out(
+      JSON.stringify({ excluded_table_data: backupExcludedTables(sources) }),
+    );
+    return 0;
   }
   output.out(backupArgs(sources, args[0] === "--tar").join(" "));
   return 0;

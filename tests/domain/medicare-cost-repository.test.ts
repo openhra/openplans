@@ -10,6 +10,7 @@ import {
   decodePlanRows,
   decodeRate,
   decodeTierCosts,
+  sharedRowGroup,
   yearRules,
 } from "../../src/domain/medicare/part-d-cost/repository.js";
 import type {
@@ -278,6 +279,54 @@ describe("Part D benefit field decoding", () => {
       coinsurance: { basis_points: 0 },
     });
     expect(conflicts.map((c) => c.code)).toEqual(["duplicate_insulin_rows"]);
+  });
+
+  it("groups county rows only when every row files the same value in every cited field", () => {
+    const row = (sourceRow: number, cells: Record<string, string>) => ({
+      cells,
+      source_row: sourceRow,
+    });
+    const fields = ["DEDUCTIBLE", "SNP"];
+    const agree = [
+      row(9, { DEDUCTIBLE: "615", SNP: "0" }),
+      row(4, { DEDUCTIBLE: "615", SNP: "0" }),
+      row(6, { DEDUCTIBLE: "615", SNP: "0" }),
+    ];
+    expect(sharedRowGroup(snapshot, "plan", agree, fields)).toEqual({
+      snapshot_id: snapshot,
+      table: "plan",
+      fields,
+      source_rows: [4, 6, 9],
+      values: { DEDUCTIBLE: "615", SNP: "0" },
+    });
+    // One differing cell, a missing cell, raw spacing or a single row: cited row by row.
+    expect(
+      sharedRowGroup(
+        snapshot,
+        "plan",
+        [...agree, row(10, { DEDUCTIBLE: "600", SNP: "0" })],
+        fields,
+      ),
+    ).toBeNull();
+    expect(
+      sharedRowGroup(
+        snapshot,
+        "plan",
+        [...agree, row(10, { DEDUCTIBLE: "615" })],
+        fields,
+      ),
+    ).toBeNull();
+    expect(
+      sharedRowGroup(
+        snapshot,
+        "plan",
+        [...agree, row(10, { DEDUCTIBLE: "615 ", SNP: "0" })],
+        fields,
+      ),
+    ).toBeNull();
+    expect(sharedRowGroup(snapshot, "plan", agree.slice(0, 1), fields)).toBe(
+      null,
+    );
   });
 
   it("requires county rows to agree and the deductible to fit the year's standard", () => {

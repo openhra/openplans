@@ -64,6 +64,22 @@ beforeAll(async () => {
   fixture.sources[0].sha256 = createHash("sha256")
     .update("SYNTHETIC publication")
     .digest("hex");
+  // The template check follows the synthetic publication it vouches for.
+  const check = fixture.template_checks[0];
+  const filing = "TEST-000000000";
+  Object.assign(check, {
+    url: fixture.sources[0].url,
+    sha256: fixture.sources[0].sha256,
+    filing,
+    issuer_ids: ["99999"],
+  });
+  check.evidence.submission_source = {
+    ...check.evidence.submission_source,
+    url: `https://myportal.dfs.ny.gov/documents/538523/45010894/Synthetic_IND_ONX_${filing}_FinalExhibits`,
+    members: check.evidence.submission_source.members.map((m: string) =>
+      m.replace("MPHP-134514244", filing),
+    ),
+  };
   fixture.sources[0].records = [500, 600, 100, 50, 10].map((price, i) => {
     const region = i === 4 ? "Rating Area 1" : "Rating Area 4";
     const value = `${price}.00`;
@@ -440,4 +456,171 @@ it("cited DFS off-Exchange silver is excluded; an unverified cell or conflicting
       reason: "exchange_offering_conflict",
     });
   });
+});
+
+// SYNTHETIC refused template for a made-up issuer 88888, recorded the way the importer
+// records one: a quarantined receipt plus a quality issue that lists the template's plans.
+const refusedPlan = "88888NY0010001";
+async function refuse(
+  tx: SqlSession,
+  listed: { plan_id: string; region: string }[] | null,
+  metal: string | null = null,
+) {
+  const { import_id } = (
+    await tx.query<{ import_id: string }>(
+      `SELECT import_id FROM state_rate_active WHERE state='NY' AND plan_year=2026`,
+    )
+  ).rows[0]!;
+  const snapshot = `${import_id}:refused:${"e".repeat(64)}`;
+  await tx.query(
+    `INSERT INTO snapshot(snapshot_id,source_id,retrieved_at,content_type,compressed_bytes,sha256,
+    schema_version,parser_version,expected_children,fetched_children,validation_state)
+    VALUES($1,'state-rates:NY:2026',now(),'synthetic',1,$2,'state-publication-v1','synthetic',0,0,'QUARANTINED')`,
+    [snapshot, "e".repeat(64)],
+  );
+  await tx.query(
+    `INSERT INTO quality_issue(source_id,snapshot_id,source_record,severity,issue_code,explanation)
+    VALUES('state-rates:NY:2026',$1,'88888','warning','template_saved_before_submission',$2)`,
+    [
+      snapshot,
+      JSON.stringify({
+        status: "unknown",
+        url: "https://myportal.dfs.ny.gov/documents/538523/45010883/Synthetic_IND_BOTHX_TEST-000000002_ApprRatesTemplate",
+        filing: "TEST-000000002",
+        ...(listed ? { listed_plans: listed } : {}),
+      }),
+    ],
+  );
+  if (metal)
+    await tx.query(
+      `INSERT INTO plan_attribute SELECT snapshot_id,200,plan_year,state,'88888',$1,$2,market,$3,dental_only,
+      network_id,service_area_id,plan_name,exchange_status,on_exchange,off_exchange,raw FROM plan_attribute WHERE source_row=1`,
+      [refusedPlan, `${refusedPlan}-01`, metal],
+    );
+}
+const ratingArea1 = { residence: { county: "36001" } };
+const unknownBenchmark = (r: Json) => {
+  assert.equal(r.status, "unknown");
+  assert.equal(r.reason, "template_saved_before_submission");
+  assert.equal(r.lcsp.monthly_cents, null);
+  assert.deepEqual(r.verdicts, []);
+};
+
+it("a refused issuer's plan that could rank makes the NY benchmark unknown; it is never computed without it", async () => {
+  const baseline = {
+    area4: JSON.stringify(await run()),
+    area1: JSON.stringify(await run(db, ratingArea1)),
+  };
+  expect(JSON.parse(baseline.area1)).toMatchObject({ status: "calculated" });
+  for (const metal of [null, "Silver", "Gold Silver"]) {
+    await rollback(async (tx) => {
+      await refuse(
+        tx,
+        [{ plan_id: refusedPlan, region: "Rating Area 4" }],
+        metal === "Gold Silver" ? "Gold" : metal,
+      );
+      if (metal === "Gold Silver")
+        await tx.query(
+          `INSERT INTO plan_attribute SELECT snapshot_id,201,plan_year,state,issuer_id,base_plan_id,
+          published_plan_id||'x',market,'Silver',dental_only,network_id,service_area_id,plan_name,exchange_status,
+          on_exchange,off_exchange,raw FROM plan_attribute WHERE source_row=200`,
+        );
+      const result = await run(tx);
+      unknownBenchmark(result);
+      expect(result.lcsp).toMatchObject({
+        status: "unknown",
+        plan_ids: [],
+        issues: [`${refusedPlan}: template_saved_before_submission`],
+        provenance: {
+          refused_templates: [
+            {
+              issuer: "88888",
+              plan_id: refusedPlan,
+              region: "Rating Area 4",
+              reason: "template_saved_before_submission",
+              filing: "TEST-000000002",
+            },
+          ],
+        },
+      });
+      expect(result.employer_lcsp ?? result.lcsp).toMatchObject({
+        monthly_cents: null,
+      });
+      unknownBenchmark(await run(tx, { lcspPremiumBasis: "ehb_portion" }));
+      // Rating Area 1 has no refused plan: its answer is unchanged, byte for byte.
+      expect(JSON.stringify(await run(tx, ratingArea1))).toBe(baseline.area1);
+      const rows = await dataAvailability(tx);
+      expect(rows.length).toBeGreaterThan(0);
+      for (const row of rows)
+        expect(row).toMatchObject({
+          ichra_status: "unknown",
+          ichra_reason: "template_saved_before_submission",
+        });
+    });
+  }
+});
+
+it("refused plans that cannot rank leave NY benchmarks byte-identical; an unlisted footprint is unknown everywhere", async () => {
+  const baseline = {
+    area4: JSON.stringify(await run()),
+    area1: JSON.stringify(await run(db, ratingArea1)),
+  };
+  // CMS shows the only listed plan is Gold, or it is listed in another region.
+  for (const [listed, metal] of [
+    [[{ plan_id: refusedPlan, region: "Rating Area 4" }], "Gold"],
+    [[{ plan_id: refusedPlan, region: "Rating Area 2" }], null],
+  ] as const)
+    await rollback(async (tx) => {
+      await refuse(tx, [...listed], metal);
+      expect(JSON.stringify(await run(tx))).toBe(baseline.area4);
+      expect(JSON.stringify(await run(tx, ratingArea1))).toBe(baseline.area1);
+    });
+  await rollback(async (tx) => {
+    await refuse(tx, [{ plan_id: refusedPlan, region: "Rating Area 1" }]);
+    expect(JSON.stringify(await run(tx))).toBe(baseline.area4);
+    unknownBenchmark(await run(tx, ratingArea1));
+  });
+  await rollback(async (tx) => {
+    await refuse(tx, null);
+    const result = await run(tx);
+    unknownBenchmark(result);
+    expect(result.lcsp.provenance.refused_templates).toMatchObject([
+      { issuer: "88888", plan_id: null, region: null },
+    ]);
+    unknownBenchmark(await run(tx, ratingArea1));
+  });
+});
+
+it("planted source mutants: a benchmark computed without the refused issuer fails", async () => {
+  const original = new URL("../../dist/services/ichra.js", import.meta.url);
+  const source = await readFile(original, "utf8");
+  for (const [name, before, after, metal] of [
+    [
+      "refusal ignored",
+      ".filter(couldRankSilver)",
+      ".filter(() => false)",
+      null,
+    ],
+    ["CMS silver ignored", 'metals[0] !== "silver"', "true", "Silver"],
+  ] as const) {
+    const path = join(directory, `${name.replaceAll(" ", "-")}.mjs`);
+    await writeFile(
+      path,
+      rebaseImports(replaceSyntax(source, before, after), original),
+    );
+    const mutant = (await import(pathToFileURL(path).href)) as {
+      ichraAffordability: typeof ichraAffordability;
+    };
+    await rollback(async (tx) => {
+      await refuse(
+        tx,
+        [{ plan_id: refusedPlan, region: "Rating Area 4" }],
+        metal,
+      );
+      unknownBenchmark(await run(tx));
+      const bad = await mutant.ichraAffordability(tx, request);
+      expect(bad.status, name).toBe("calculated");
+      expect(() => unknownBenchmark(bad)).toThrow(assert.AssertionError);
+    });
+  }
 });

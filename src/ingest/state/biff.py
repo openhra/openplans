@@ -9,7 +9,8 @@ import struct
 END = 0xFFFFFFFA
 
 
-def workbook_stream(data):
+def cfb_stream(data, names):
+    """Return the first named CFB stream present, or None when none of `names` exists."""
     if len(data) > 50 * 1024 * 1024 or data[:8] != bytes.fromhex('d0cf11e0a1b11ae1'):
         raise ValueError('Invalid or oversized CFB workbook')
     sector_size = 1 << struct.unpack_from('<H', data, 30)[0]
@@ -59,9 +60,9 @@ def workbook_stream(data):
         if entry[66] == 5:
             root = (start, size)
         entries[name] = (start, size)
-    start, size = entries.get('Workbook', entries.get('Book', (None, 0)))
+    start, size = next((entries[n] for n in names if n in entries), (None, 0))
     if start is None:
-        raise ValueError('No BIFF workbook stream')
+        return None
     if size >= struct.unpack_from('<I', data, 56)[0]:
         return chain(start)[:size]
     if root is None:
@@ -70,6 +71,13 @@ def workbook_stream(data):
     mini_fat_data = chain(struct.unpack_from('<I', data, 60)[0])
     mini_fat = struct.unpack('<' + str(len(mini_fat_data) // 4) + 'I', mini_fat_data)
     return chain(start, mini_fat, 64, mini_data)[:size]
+
+
+def workbook_stream(data):
+    stream = cfb_stream(data, ('Workbook', 'Book'))
+    if stream is None:
+        raise ValueError('No BIFF workbook stream')
+    return stream
 
 
 class Strings:

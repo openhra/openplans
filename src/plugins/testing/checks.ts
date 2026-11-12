@@ -16,6 +16,7 @@ export const NON_CATALOG_TABLES: Readonly<Record<string, string>> = {
   passthrough_attempt: "pass-through call log",
   passthrough_conflict: "stored answers checked against loaded files",
   ingest_run_snapshot: "ingest run snapshot log",
+  rate_plan_count: "rate-row counts kept from rate files that never change",
 };
 
 /** Require the enabled AFTER STATEMENT trigger for insert, update, delete and truncate. */

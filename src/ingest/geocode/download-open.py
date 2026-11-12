@@ -70,8 +70,16 @@ def digest(path, algorithm):
     return h.hexdigest()
 
 
+def raw_directory(root):
+    """raw/open-geocoder, or the copy geocoder.sh fetched down from a remote snapshot store."""
+    override = os.environ.get("OPENPLANS_OPEN_GEOCODER_RAW_DIR")
+    if override and not os.path.isabs(override):
+        raise ValueError("OPENPLANS_OPEN_GEOCODER_RAW_DIR must be absolute")
+    return Path(override) if override else root / "raw" / "open-geocoder"
+
+
 def download(state, snapshot, root):
-    directory = root / "raw" / "open-geocoder" / state.lower() / snapshot
+    directory = raw_directory(root) / state.lower() / snapshot
     directory.mkdir(parents=True, exist_ok=True)
     target = directory / "data.osm.pbf"
     metadata = directory / "metadata.json"

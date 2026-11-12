@@ -88,10 +88,15 @@ services:
       OPENPLANS_API_CACHE: ${OPENPLANS_API_CACHE:-on}
       OPENPLANS_API_CACHE_MB: ${OPENPLANS_API_CACHE_MB:-64}
       OPENPLANS_CACHE_URL: ${OPENPLANS_CACHE_URL:-}
-      # Comma-separated plugin packages, e.g. @openplans/plugin-status. Empty loads none.
+      # Comma-separated plugin packages, e.g. @openplans/plugin-status. Empty keeps the config file's list.
       OPENPLANS_PLUGINS: ${OPENPLANS_PLUGINS:-}
+      # Absolute path to a JSON config file, mounted read-only at the same path. Empty reads none.
+      OPENPLANS_CONFIG: ${OPENPLANS_CONFIG:-}
       # Bearer token for /status/operator*. Unset keeps those routes at 404.
       OPENPLANS_OPERATOR_TOKEN: ${OPENPLANS_OPERATOR_TOKEN:-}
+    configs:
+      - source: openplans_config
+        target: ${OPENPLANS_CONFIG:-/run/openplans/no-config}
     command: ["node", "dist/api/server.js"]
     ports:
       - "127.0.0.1:${API_PORT:-3000}:3000"
@@ -146,6 +151,13 @@ services:
       OPENPLANS_ACCESS_MANIFEST: ${OPENPLANS_ACCESS_MANIFEST:-}
       # Optional ISO country code recorded in admission receipts; it does not restrict collection.
       OPENPLANS_EGRESS_COUNTRY: ${OPENPLANS_EGRESS_COUNTRY:-}
+      # Comma-separated plugin packages, e.g. @openplans/plugin-status. Empty keeps the config file's list.
+      OPENPLANS_PLUGINS: ${OPENPLANS_PLUGINS:-}
+      # Absolute path to a JSON config file, mounted read-only at the same path. Empty reads none.
+      OPENPLANS_CONFIG: ${OPENPLANS_CONFIG:-}
+    configs:
+      - source: openplans_config
+        target: ${OPENPLANS_CONFIG:-/run/openplans/no-config}
     volumes:
       - type: bind
         source: ${OPENPLANS_DATA_DIR:-/var/lib/openplans}/raw
@@ -179,6 +191,13 @@ services:
       OPENPLANS_DATA_DIR: /data
       OPENPLANS_ACCESS_MANIFEST: ${OPENPLANS_ACCESS_MANIFEST:-}
       OPENPLANS_EGRESS_COUNTRY: ${OPENPLANS_EGRESS_COUNTRY:-}
+      # Comma-separated plugin packages, e.g. @openplans/plugin-status. Empty keeps the config file's list.
+      OPENPLANS_PLUGINS: ${OPENPLANS_PLUGINS:-}
+      # Absolute path to a JSON config file, mounted read-only at the same path. Empty reads none.
+      OPENPLANS_CONFIG: ${OPENPLANS_CONFIG:-}
+    configs:
+      - source: openplans_config
+        target: ${OPENPLANS_CONFIG:-/run/openplans/no-config}
     volumes:
       - type: bind
         source: ${OPENPLANS_DATA_DIR:-/var/lib/openplans}/raw
@@ -202,6 +221,12 @@ services:
     depends_on:
       api:
         condition: service_healthy
+
+configs:
+  # The file named by OPENPLANS_CONFIG. With it unset, each service gets an empty file at
+  # /run/openplans/no-config that nothing reads.
+  openplans_config:
+    file: ${OPENPLANS_CONFIG:-/dev/null}
 
 volumes:
   pgdata:

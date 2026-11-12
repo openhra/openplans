@@ -896,6 +896,51 @@ export function availabilityRateEvidence(
   );
 }
 
+/**
+ * `availabilityRateEvidence` for many entries in one statement, from the counts kept at import.
+ * One row per entry with evidence, `at` being its 1-based position. `counted` is false when the
+ * rate file has no kept counts; the caller then asks `availabilityRateEvidence` for that entry.
+ */
+export function countedRateEvidence(
+  db: SqlSession,
+  entries: readonly {
+    state: string;
+    plan_year: number;
+    market: string;
+    issuer_id: string | null;
+    snapshot_id: string | null;
+  }[],
+) {
+  return db.query<{
+    at: number;
+    counted: boolean;
+    snapshot_id: string;
+    rate_rows: number;
+    medical_plans: number;
+  }>(
+    `
+      SELECT e.at::int AS at, c.snapshot_id IS NOT NULL AS counted, rf.snapshot_id,
+        coalesce(sum((c.plan_rows->>p.base_plan_id)::bigint),0)::int AS rate_rows,
+        count(DISTINCT p.base_plan_id)::int AS medical_plans
+      FROM unnest($1::text[],$2::int[],$3::text[],$4::text[],$5::text[]) WITH ORDINALITY
+        AS e(state,plan_year,market,issuer_id,import_id,at)
+      JOIN puf_active_catalog a ON a.state=e.state AND a.plan_year=e.plan_year AND a.import_id=e.import_id
+      JOIN puf_import_file pf ON pf.import_id=a.import_id AND pf.kind='plan-attributes'
+      JOIN puf_import_file rf ON rf.import_id=a.import_id AND rf.kind='rate'
+      LEFT JOIN rate_plan_count c ON c.snapshot_id=rf.snapshot_id
+      LEFT JOIN plan p ON p.snapshot_id=pf.snapshot_id AND NOT p.dental_only AND p.market=e.market
+        AND (e.issuer_id IS NULL OR p.issuer_id=e.issuer_id)
+      GROUP BY e.at,rf.snapshot_id,c.snapshot_id ORDER BY e.at`,
+    [
+      entries.map((e) => e.state),
+      entries.map((e) => e.plan_year),
+      entries.map((e) => e.market),
+      entries.map((e) => e.issuer_id),
+      entries.map((e) => e.snapshot_id),
+    ],
+  );
+}
+
 export function activeStateScopes(db: SqlSession) {
   return db.query<{
     state: string;

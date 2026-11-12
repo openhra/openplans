@@ -199,6 +199,7 @@ export const CORE_WORKER_ARGV: readonly (readonly string[])[] = Object.freeze(
     ["status"],
     ["record-policy"],
     ["backfill", "row-provenance"],
+    ["backfill", "rate-plan-count"],
     ["bootstrap"],
     ["ingest", "sbe"],
     ["ingest", "state"],
@@ -220,6 +221,7 @@ export const CORE_WORKER_ARGV: readonly (readonly string[])[] = Object.freeze(
     ["deliver-events"],
     ["schedule"],
     ["backup-args"],
+    ["backup-restored"],
     ["emit"],
   ].map((argv) => Object.freeze(argv)),
 );

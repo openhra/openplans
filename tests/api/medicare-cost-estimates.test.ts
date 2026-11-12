@@ -27,8 +27,10 @@ import {
 } from "../../src/ingest/medicare/spuf.js";
 import { runWithScope } from "../../src/plugins/request-scope.js";
 import { ReadError } from "../../src/services/errors.js";
+import { estimateMedicareDrugCost } from "../../src/services/medicare.js";
 import {
   drugCostDeps,
+  evidenceCoverageProblems,
   estimateProvenanceProblems,
   parseDrugCostRequest,
 } from "../../src/services/medicare-drug-cost.js";
@@ -652,6 +654,169 @@ describe("Part D drug-cost estimates over HTTP", () => {
       expect(estimateProvenanceProblems(relabelled)).toContain(
         "an answer never says not covered",
       );
+    });
+  });
+
+  describe("compact evidence", () => {
+    const DEDUCTIBLE_FIELDS = [
+      "FORMULARY_ID",
+      "DEDUCTIBLE",
+      "PLAN_SUPPRESSED_YN",
+    ];
+    const groups = (body: Json, fields: string[]) =>
+      body.evidence.filter(
+        (item: Json) =>
+          item.kind === "source_rows" &&
+          JSON.stringify(item.fields) === JSON.stringify(fields),
+      );
+    const countyRows = async () =>
+      (
+        await loaded.db.query<{ source_row: number }>(
+          `SELECT source_row FROM partd_plan WHERE contract_id='H0028' AND plan_id='042'
+           ORDER BY source_row`,
+        )
+      ).rows.map((row) => row.source_row);
+    const estimate = (deps: DrugCostDeps, body: unknown = schedule()) =>
+      estimateMedicareDrugCost(loaded.db, PLAN, { year: "2026" }, body, deps);
+
+    it("cites the plan's county rows once, as a group that names every row and the shared values", async () => {
+      switches(true, true);
+      const body = await (await post(app, schedule())).json();
+      const rows = await countyRows();
+      expect(rows.length).toBe(9);
+      const [group, ...more] = groups(body, DEDUCTIBLE_FIELDS);
+      expect(more).toEqual([]);
+      expect(group).toMatchObject({
+        kind: "source_rows",
+        snapshot_id: body.snapshot_ids[0],
+        table: "plan",
+        source_rows: rows,
+        values: {
+          FORMULARY_ID: "00026408",
+          DEDUCTIBLE: "340",
+          PLAN_SUPPRESSED_YN: "N",
+        },
+      });
+      expect(body.plan_figures.plan_deductible).toMatchObject({
+        status: "value",
+        cents: 34000,
+        evidence_refs: [group.id],
+      });
+      // No county row is listed again on its own.
+      expect(
+        body.evidence.filter(
+          (item: Json) => item.kind === "source_row" && item.table === "plan",
+        ),
+      ).toEqual([]);
+      expect(estimateProvenanceProblems(body)).toEqual([]);
+    });
+
+    it("without a group, the same answer lists each county row and keeps every figure", async () => {
+      switches(true, true);
+      const grouped = await estimate(drugCostDeps);
+      const single = await estimate({
+        ...drugCostDeps,
+        readBundle: async (...args) => {
+          const bundle = await drugCostDeps.readBundle(...args);
+          return bundle.status === "available"
+            ? { ...bundle, row_groups: [] }
+            : bundle;
+        },
+      });
+      const refs = (single as Json).plan_figures.plan_deductible.evidence_refs;
+      expect(refs.length).toBe(9);
+      const strip = (answer: unknown) =>
+        JSON.stringify(answer, (key, value) =>
+          key === "evidence_refs" || key === "evidence" ? undefined : value,
+        );
+      expect(strip(single)).toBe(strip(grouped));
+      expect(JSON.stringify(grouped).length).toBeLessThan(
+        JSON.stringify(single).length,
+      );
+    });
+
+    describe("planted mutants", () => {
+      it("a figure references a missing row", async () => {
+        switches(true, true);
+        const body = await (await post(app, schedule())).json();
+        const mutant = structuredClone(body);
+        mutant.plan_figures.plan_deductible.evidence_refs = ["e999"];
+        expect(estimateProvenanceProblems(mutant)).toContain(
+          "$.plan_figures.plan_deductible: dangling e999",
+        );
+        const [group] = groups(body, DEDUCTIBLE_FIELDS);
+        const dropped = structuredClone(body);
+        dropped.evidence = dropped.evidence.filter(
+          (item: Json) => item.id !== group.id,
+        );
+        expect(estimateProvenanceProblems(dropped)).toContain(
+          `$.plan_figures.plan_deductible: dangling ${group.id}`,
+        );
+      });
+
+      it("a grouped row drops a source row id", async () => {
+        switches(true, true);
+        await expect(estimate(drugCostDeps)).resolves.toMatchObject({
+          plan_key: PLAN,
+        });
+        const mutant: DrugCostDeps = {
+          ...drugCostDeps,
+          groupEvidence: (group) => ({
+            kind: "source_rows",
+            ...group,
+            source_rows: group.source_rows.slice(0, -1),
+          }),
+        };
+        await expect(estimate(mutant)).rejects.toThrow(
+          "estimate provenance incomplete",
+        );
+        // The coverage check names the row the group lost.
+        const rows = await countyRows();
+        const row = {
+          kind: "source_row" as const,
+          snapshot_id: "s",
+          table: "plan" as const,
+          source_row: rows.at(-1)!,
+          fields: DEDUCTIBLE_FIELDS,
+        };
+        const group = {
+          id: "e1",
+          kind: "source_rows" as const,
+          snapshot_id: "s",
+          table: "plan" as const,
+          fields: DEDUCTIBLE_FIELDS,
+          source_rows: rows.slice(0, -1),
+          values: {},
+        };
+        expect(evidenceCoverageProblems([row], [group])).toEqual([
+          `lost source plan row ${rows.at(-1)}`,
+        ]);
+        expect(
+          evidenceCoverageProblems([row], [{ ...group, source_rows: rows }]),
+        ).toEqual([]);
+      });
+
+      it("a group lists rows out of order or without the shared values", async () => {
+        switches(true, true);
+        const body = await (await post(app, schedule())).json();
+        const [group] = groups(body, DEDUCTIBLE_FIELDS);
+        const at = body.evidence.indexOf(group);
+        const reordered = structuredClone(body);
+        reordered.evidence[at].source_rows.reverse();
+        expect(estimateProvenanceProblems(reordered)).toContain(
+          `${group.id}: group rows not listed in order`,
+        );
+        const empty = structuredClone(body);
+        empty.evidence[at].source_rows = [];
+        expect(estimateProvenanceProblems(empty)).toContain(
+          `${group.id}: group rows not listed in order`,
+        );
+        const valueless = structuredClone(body);
+        delete valueless.evidence[at].values.DEDUCTIBLE;
+        expect(estimateProvenanceProblems(valueless)).toContain(
+          `${group.id}: group without its shared values`,
+        );
+      });
     });
   });
 });

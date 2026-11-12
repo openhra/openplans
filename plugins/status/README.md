@@ -36,6 +36,9 @@ per client, 8 at once in total.
 - `data`: the number of states, the plan years, and how many coverage rows have each status
   (catalog, premiums, providers, formulary). These are the statuses `/v1/data-availability`
   serves. The host's availability service supplies them. Without a host they read `null`.
+  With the response cache on, the core host keeps the computed statuses in memory for the
+  current data generation, the same key the response cache uses. The first read after an
+  import commits computes them again. With the cache off, every read computes them.
 - `sources`: each source with an active snapshot and how old its latest copy is: `<1d`, `<7d`,
   `<30d` or `older`.
 - `worker.last_ingest`: for each source, how long ago its last successful import finished, in

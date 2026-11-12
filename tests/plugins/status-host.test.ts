@@ -31,8 +31,10 @@ import {
 import type { PassThroughDeps } from "../../src/plugins/sources/passthrough.js";
 import {
   CACHE_PROBE_KEY,
+  availabilityMemo,
   coreApplicationVersion,
   createStatusHost,
+  hostAvailability,
 } from "../../src/plugins/status-host.js";
 import { plantMutant } from "../../src/plugins/testing/index.js";
 
@@ -393,6 +395,116 @@ describe("pass-through hit rate", () => {
     expect(passThroughHitRate("synthetic-cold")).toBe(0);
     resetPassThrough();
     expect(passThroughHitRate("synthetic-rate")).toBeUndefined();
+  });
+});
+
+describe("availability memo", () => {
+  const session = {} as never;
+  const row = (premium: string) => ({
+    state: "TX",
+    year: 2026,
+    market: "Individual",
+    issuer_id: "11111",
+    catalog: "available",
+    premium,
+    provider: "unknown",
+    formulary: "unknown",
+    snapshot_id: "synthetic.1",
+  });
+  /** A synthetic derivation that counts its runs, over a generation the test moves. */
+  function fixture() {
+    const state = { generation: "g1", premium: "available", runs: 0 };
+    const derive = async () => {
+      state.runs++;
+      return [row(state.premium)];
+    };
+    const memo = availabilityMemo(derive, async () => state.generation);
+    return { state, memo };
+  }
+
+  it("derives once per generation and again the moment the generation moves", async () => {
+    const { state, memo } = fixture();
+    expect(await memo(session)).toEqual([row("available")]);
+    expect(await memo(session)).toEqual([row("available")]);
+    expect(state.runs).toBe(1);
+    state.premium = "unsupported";
+    state.generation = "g2";
+    expect(await memo(session)).toEqual([row("unsupported")]);
+    expect(state.runs).toBe(2);
+  });
+
+  it("shares one derivation between concurrent reads and hands each its own copy", async () => {
+    const { state, memo } = fixture();
+    const [a, b] = await Promise.all([memo(session), memo(session)]);
+    expect(state.runs).toBe(1);
+    a[0]!.premium = "changed by one view";
+    expect(b[0]!.premium).toBe("available");
+    expect((await memo(session))[0]!.premium).toBe("available");
+  });
+
+  it("keeps no failed derivation and derives without a readable generation", async () => {
+    let runs = 0;
+    let fail = true;
+    const memo = availabilityMemo(
+      async () => {
+        runs++;
+        if (fail) throw new Error("synthetic read failure");
+        return [row("available")];
+      },
+      async () => "g1",
+    );
+    await expect(memo(session)).rejects.toThrow("synthetic read failure");
+    fail = false;
+    expect(await memo(session)).toEqual([row("available")]);
+    expect(runs).toBe(2);
+    let derived = 0;
+    const blind = availabilityMemo(
+      async () => [row(String(++derived))],
+      async () => {
+        throw new Error("no generation table");
+      },
+    );
+    await blind(session);
+    expect((await blind(session))[0]!.premium).toBe("2");
+  });
+
+  it("a reader joining a derivation that fails derives again on its own session", async () => {
+    let runs = 0;
+    let release!: (error: Error) => void;
+    const memo = availabilityMemo(
+      async () => {
+        runs++;
+        if (runs === 1)
+          return new Promise((_, reject) => {
+            release = reject;
+          });
+        return [row("available")];
+      },
+      async () => "g1",
+    );
+    const tick = () => new Promise((done) => setImmediate(done));
+    const first = memo(session);
+    await tick();
+    const second = memo(session);
+    await tick();
+    expect(runs).toBe(1);
+    release(new Error("first request's deadline"));
+    await expect(first).rejects.toThrow("first request's deadline");
+    expect(await second).toEqual([row("available")]);
+    expect(runs).toBe(2);
+  });
+
+  it("is used only while the response cache is on", () => {
+    const loaded = () => undefined;
+    const off = createStatusHost(
+      loadConfig({ OPENPLANS_API_CACHE: "off" }),
+      {},
+      loaded,
+    );
+    expect(off.dataAvailability).toBe(hostAvailability);
+    const on = createStatusHost(loadConfig({}), {}, loaded);
+    expect(on.dataAvailability).toBeTypeOf("function");
+    expect(on.dataAvailability).not.toBe(hostAvailability);
   });
 });
 

@@ -26,6 +26,13 @@ as its slug and says `unknown`.
 On insert the trigger keeps a `created_at` or `updated_at` the caller passes, so rows copied
 between databases keep their times.
 
+Failed calls to the CMS Marketplace API have no receipt. A row in `cms_zip_attempt` or
+`cms_api_attempt` with no `snapshot_id` says `openplans`, with slug `cache:cms-zip-lookup` or
+`cache:cms-api-attempt` and no `sourced_at`. For `cms_zip_attempt` the rule's fixed value does
+this. For `cms_api_attempt`, migration `994_cms_api_attempt_provenance.sql` adds a second
+trigger, `row_provenance_fallback`, which runs after `row_provenance`. Attempts logged before
+that migration keep `unknown`.
+
 ## New tables
 
 `worker migrate` installs the columns and trigger on any table that lacks them, whatever order

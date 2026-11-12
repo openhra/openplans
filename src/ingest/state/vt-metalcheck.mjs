@@ -73,7 +73,9 @@ const request = {
   lcspPremiumBasis: "gross",
 };
 try {
-  for (const name of (await readdir(join(root, "migrations"))).sort())
+  for (const name of (await readdir(join(root, "migrations"))).sort(
+    (a, b) => parseInt(a, 10) - parseInt(b, 10),
+  ))
     if (name.endsWith(".sql") && name !== "002_postgis.sql")
       await db.exec(await readFile(join(root, "migrations", name), "utf8"));
   const serviceModule = new URL(

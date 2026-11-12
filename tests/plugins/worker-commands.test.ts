@@ -2,7 +2,15 @@ import { PGlite } from "@electric-sql/pglite";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterAll, afterEach, beforeEach, describe, expect, it } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import type { Database } from "../../src/db/database.js";
 import { plantMutant } from "../../src/plugins/testing/index.js";
 import {
@@ -19,7 +27,12 @@ import { testDatabase } from "../pglite.js";
 
 // Synthetic plugins written at test time. They carry no source data.
 const scratch = await mkdtemp(join(tmpdir(), "openplans-worker-plugins-"));
-afterAll(() => rm(scratch, { recursive: true, force: true }));
+// Synthetic data dir, set explicitly so the real OPENPLANS_DATA_DIR is never read.
+vi.stubEnv("OPENPLANS_DATA_DIR", join(scratch, "data"));
+afterAll(async () => {
+  vi.unstubAllEnvs();
+  await rm(scratch, { recursive: true, force: true });
+});
 
 const plugin = async (name: string, body: string) => {
   const directory = join(scratch, name);
@@ -161,6 +174,9 @@ interface Run {
   err: string[];
   opened: (string | undefined)[];
 }
+it("points OPENPLANS_DATA_DIR at the test's own temp dir", () => {
+  expect(process.env.OPENPLANS_DATA_DIR).toBe(join(scratch, "data"));
+});
 const savedUrl = process.env.DATABASE_URL;
 beforeEach(() => {
   seen().length = 0;
@@ -207,6 +223,7 @@ describe("core worker commands", () => {
       status: null,
       "record-policy": 3_600_000,
       "backfill row-provenance": 3_600_000,
+      "backfill rate-plan-count": 3_600_000,
       bootstrap: null,
       "ingest sbe": 300_000,
       "ingest state": null,
@@ -228,6 +245,7 @@ describe("core worker commands", () => {
       "deliver-events": 60_000,
       schedule: 60_000,
       "backup-args": null,
+      "backup-restored": 3_600_000,
       emit: null,
     });
     for (const { usage } of coreWorkerCommands)
@@ -245,7 +263,7 @@ describe("core worker commands", () => {
       const result = await run(args, []);
       expect(result.code).toBe(1);
       expect(result.err).toEqual([
-        "Usage: worker migrate [--check] | status | record-policy list|set|expire | backup-args [--tar] | backfill row-provenance [--table NAME] [--blocks N] | ingest puf|qhp|nppes|rxnorm|taxonomy|geo|medicare",
+        "Usage: worker migrate [--check|--size-evidence] | status | record-policy list|set|expire | backup-args [--tar|--manifest] | backup-restored --manifest FILE | backfill row-provenance [--table NAME] [--blocks N] | backfill rate-plan-count | ingest puf|qhp|nppes|rxnorm|taxonomy|geo|medicare",
       ]);
       expect(result.opened).toEqual([]);
     }

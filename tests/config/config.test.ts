@@ -82,6 +82,12 @@ describe("typed configuration", () => {
       OPENPLANS_WEBHOOK_SECRET: "../../plugins/webhook/src/index.ts",
       OPENPLANS_SLACK_HOST: "../../plugins/slack/src/index.ts",
       OPENPLANS_SLACK_WEBHOOK_URL: "../../plugins/slack/src/index.ts",
+      OPENPLANS_BLOB_S3_ENDPOINT: "../../plugins/blob-s3/src/index.ts",
+      OPENPLANS_BLOB_S3_REGION: "../../plugins/blob-s3/src/index.ts",
+      OPENPLANS_BLOB_S3_BUCKET: "../../plugins/blob-s3/src/index.ts",
+      OPENPLANS_BLOB_S3_ACCESS_KEY_ID: "../../plugins/blob-s3/src/index.ts",
+      OPENPLANS_BLOB_S3_SECRET_ACCESS_KEY: "../../plugins/blob-s3/src/index.ts",
+      OPENPLANS_BLOB_S3_SESSION_TOKEN: "../../plugins/blob-s3/src/index.ts",
     };
     for (const name of new Set(names)) {
       if (name === "OPENPLANS_CONFIG" || name === "OPENPLANS_PLUGINS") continue;
@@ -282,9 +288,13 @@ describe("typed configuration", () => {
         OPENPLANS_PLUGINS: " @openplans/a, @openplans/b ,",
       }).plugins.map((plugin) => plugin.package),
     ).toEqual(["@openplans/a", "@openplans/b"]);
-    expect(
-      loadConfig({ OPENPLANS_CONFIG: file, OPENPLANS_PLUGINS: "" }).plugins,
-    ).toEqual([]);
+    // Compose passes an empty OPENPLANS_PLUGINS; the file's list and options must survive it.
+    for (const empty of ["", " , "])
+      expect(
+        loadConfig({ OPENPLANS_CONFIG: file, OPENPLANS_PLUGINS: empty })
+          .plugins,
+      ).toEqual(config.plugins);
+    expect(loadConfig({ OPENPLANS_PLUGINS: "" }).plugins).toEqual([]);
     expect(loadConfig({}, file).listen.port).toBe(4200);
     expect(loadConfig({}, { version: 1, plugins: [] }).plugins).toEqual([]);
     expect(Object.isFrozen(config)).toBe(true);

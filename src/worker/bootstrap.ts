@@ -39,7 +39,6 @@ import {
 import { importPufs } from "../ingest/puf/import.js";
 import { pufStates } from "../ingest/puf/import-batch.js";
 import { acquireGeo, geoSources } from "../ingest/geo/sources.js";
-import { ingestGeo } from "../ingest/geo/index.js";
 import { STATE_FIPS } from "../ingest/geo/states.js";
 import {
   acquireRelease as acquireRxnorm,
@@ -735,10 +734,15 @@ export async function bootstrapPlan(
             )
           )
             return current;
+          // The state router registers CMS county spellings (IL's "Vermillion", for one) before
+          // the shared importer runs, so a federal year of a state with one imports too.
           return {
-            evidence: await (
-              isSbe(state, year) ? ingestSbeGeography : ingestGeo
-            )(database(), { state, planYear: year, dataDir, files }),
+            evidence: await ingestSbeGeography(database(), {
+              state,
+              planYear: year,
+              dataDir,
+              files,
+            }),
           };
         },
         sizes.every(Boolean)
