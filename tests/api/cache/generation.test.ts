@@ -1,4 +1,4 @@
-import { replaceSyntax } from "../../source-mutation.js";
+import { rebaseImports, replaceSyntax } from "../../source-mutation.js";
 import { PGlite } from "@electric-sql/pglite";
 import { Hono } from "hono";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
@@ -23,6 +23,30 @@ import { ingestGeo } from "../../../src/ingest/geo/index.js";
 import { zipToCounties } from "../../../src/ingest/geo/repository.js";
 import { fixtureFiles } from "../../ingest/geo/helpers.js";
 import { coreMigrations, testDatabase } from "../../pglite.js";
+
+const NON_CATALOG_TABLES: Record<string, string> = {
+  plugin_event_outbox: "application event log; never feeds catalog responses",
+  plugin_event_delivery:
+    "subscriber delivery state; never feeds catalog responses",
+  plugin_state: "durable plugin state; never feeds catalog responses",
+  passthrough_budget:
+    "pass-through request budget; never feeds catalog responses",
+  passthrough_attempt: "pass-through call log; never feeds catalog responses",
+  passthrough_conflict:
+    "stored answers checked against loaded files; never feeds catalog responses",
+  ingest_run_snapshot:
+    "which ingest run wrote each snapshot; never feeds catalog responses",
+};
+
+async function missingGenerationTriggers() {
+  const { rows } = await db.query<{ tablename: string }>(
+    `SELECT tablename FROM pg_tables WHERE schemaname='public'
+      AND tablename NOT IN ('api_data_generation','schema_migrations','spatial_ref_sys')
+      AND NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid=('public.' || quote_ident(tablename))::regclass
+        AND tgname='api_data_changed' AND tgenabled <> 'D') ORDER BY tablename`,
+  );
+  return rows.filter(({ tablename }) => !NON_CATALOG_TABLES[tablename]);
+}
 
 const db = testDatabase(new PGlite());
 let core: Awaited<ReturnType<typeof coreMigrations>>, directory: string;
@@ -110,12 +134,13 @@ describe("transactional catalog generations", () => {
     }
   });
   it("registers every existing public import table and invalidates on truncate", async () => {
-    const { rows } = await db.query<{
-      tablename: string;
-    }>(`SELECT tablename FROM pg_tables WHERE schemaname='public'
-      AND tablename NOT IN ('api_data_generation','schema_migrations','spatial_ref_sys')
-      AND NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid=('public.' || quote_ident(tablename))::regclass AND tgname='api_data_changed')`);
-    expect(rows).toEqual([]);
+    expect(await missingGenerationTriggers()).toEqual([]);
+    const { rows: pluginTriggers } = await db.query(
+      `SELECT tgname FROM pg_trigger WHERE tgname='api_data_changed'
+        AND tgrelid IN (SELECT oid FROM pg_class WHERE relname=ANY($1::text[]))`,
+      [Object.keys(NON_CATALOG_TABLES)],
+    );
+    expect(pluginTriggers).toEqual([]);
     await db.exec("CREATE TEMP TABLE synthetic_generation_copy(i integer)");
     await db.exec(`CREATE TRIGGER api_data_changed AFTER INSERT OR UPDATE OR DELETE OR TRUNCATE ON synthetic_generation_copy
       FOR EACH STATEMENT EXECUTE FUNCTION bump_api_data_generation();
@@ -126,6 +151,16 @@ describe("transactional catalog generations", () => {
     const inserted = await dataGeneration(db);
     await db.exec("TRUNCATE synthetic_generation_copy");
     expect(await dataGeneration(db)).not.toBe(inserted);
+  });
+  it("negative control: a public table without a generation trigger fails the guard", async () => {
+    await db.exec("CREATE TABLE synthetic_missing_generation(id integer)");
+    try {
+      const problems = await missingGenerationTriggers();
+      expect(() => expect(problems).toEqual([])).toThrow();
+      expect(problems).toEqual([{ tablename: "synthetic_missing_generation" }]);
+    } finally {
+      await db.exec("DROP TABLE synthetic_missing_generation");
+    }
   });
   it("negative control: an actual middleware mutant omitting generation serves stale data and fails freshness", async () => {
     // Compile a temporary module tree; the real sources remain untouched.
@@ -147,6 +182,13 @@ describe("transactional catalog generations", () => {
           "[...url.searchParams], body, 'generation-omitted'",
         );
       }
+      source = rebaseImports(
+        source,
+        new URL(
+          `../../../dist/api/cache/${file.replace(".ts", ".js")}`,
+          import.meta.url,
+        ),
+      );
       await writeFile(
         join(directory, "src/api/cache", file.replace(".ts", ".js")),
         ts.transpileModule(source, {

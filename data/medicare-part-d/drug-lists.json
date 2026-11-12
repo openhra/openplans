@@ -1,0 +1,2616 @@
+{
+  "schemaVersion": 1,
+  "cacheSource": "cms-partd-druglists",
+  "documents": [
+    {
+      "id": "C15",
+      "title": "Medicare Drug Price Negotiation Program: Selected Drugs and Negotiated Prices (web page)",
+      "use": "What the selected-drug NDC file holds; the deselection table",
+      "publisher": "Centers for Medicare & Medicaid Services",
+      "url": "https://www.cms.gov/initiatives/medicare-prescription-drug-affordability/overview/medicare-drug-price-negotiation-program/selected-drugs-negotiated-prices",
+      "contentType": "text/html",
+      "sha256": "e51bed6666959102f349ae48a3cf55d9832499cc53612e76d9ba561b4a2645d1",
+      "bytes": 220216,
+      "retrievedOn": "2026-11-12",
+      "lastModified": "Wed, 11 Nov 2026 23:41:42 GMT"
+    },
+    {
+      "id": "C16",
+      "title": "Selected Drug List and Maximum Fair Price data file, November 2, 2026",
+      "use": "NDC-11 list of selected drugs with maximum fair price effective and end dates",
+      "publisher": "Centers for Medicare & Medicaid Services",
+      "url": "https://www.cms.gov/files/zip/cms-negotiation-program-selected-drug-list-maximum-fair-price-data-file-20261102.zip",
+      "contentType": "application/zip",
+      "sha256": "49fbb15dbf066c4e41d0593e7525dac7dd2633a2d342b6c5c01bdbcceeff3601",
+      "bytes": 44196,
+      "retrievedOn": "2026-11-12",
+      "lastModified": "Mon, 02 Nov 2026 18:11:48 GMT",
+      "members": [
+        {
+          "name": "CMS_Negotiation_Program_Selected_Drug_List_and_Maximum_Fair_Price_Data_File_20261102.csv",
+          "sha256": "14a83072bb753728c4772d760d5b260306616fccd9c5f810258c3ac3456906d4",
+          "bytes": 93198
+        }
+      ]
+    },
+    {
+      "id": "C17",
+      "title": "Fact sheet: selected drugs for initial price applicability year 2026",
+      "use": "Names of the ten drugs selected for 2026 (names only)",
+      "publisher": "Centers for Medicare & Medicaid Services",
+      "url": "https://www.cms.gov/files/document/fact-sheet-medicare-selected-drug-negotiation-list-ipay-2026.pdf",
+      "contentType": "application/pdf",
+      "sha256": "3c548376a6cfc050c49d0699bbb849795232b0947095076ba09a1e2705cf7fc8",
+      "bytes": 184341,
+      "retrievedOn": "2026-11-12",
+      "lastModified": "Tue, 29 Aug 2023 10:49:04 GMT"
+    },
+    {
+      "id": "C18",
+      "title": "Fact sheet: selected drugs for initial price applicability year 2027",
+      "use": "Names of the fifteen drugs selected for 2027 (names only)",
+      "publisher": "Centers for Medicare & Medicaid Services",
+      "url": "https://www.cms.gov/files/document/factsheet-medicare-negotiation-selected-drug-list-ipay-2027.pdf",
+      "contentType": "application/pdf",
+      "sha256": "6ef6256f90fe4edeb8579bbce6fe0420162b3cac38a3eb23c1d5f58471f9e61e",
+      "bytes": 182600,
+      "retrievedOn": "2026-11-12",
+      "lastModified": "Fri, 17 Jan 2025 12:10:59 GMT"
+    },
+    {
+      "id": "C19",
+      "title": "Part D Information for Pharmaceutical Manufacturers (web page)",
+      "use": "Downloads of the Manufacturer Discount Program labeler code and phase-in lists",
+      "publisher": "Centers for Medicare & Medicaid Services",
+      "url": "https://www.cms.gov/medicare/coverage/prescription-drug-coverage/part-d-information-pharmaceutical-manufacturers",
+      "contentType": "text/html",
+      "sha256": "2a46f1d4aa0baffaa6dea980d62e58ff19657071eecf5e528e9c4c73db3177ac",
+      "bytes": 201871,
+      "retrievedOn": "2026-11-12",
+      "lastModified": "Wed, 11 Nov 2026 23:34:49 GMT"
+    },
+    {
+      "id": "C20",
+      "title": "Manufacturer Discount Program participating labeler codes, November 2026",
+      "use": "Labeler codes covered by a discount program agreement, with the ReadMe",
+      "publisher": "Centers for Medicare & Medicaid Services",
+      "url": "https://www.cms.gov/files/zip/manufacturer-discount-program-november-2026-participating-labeler-codes.zip",
+      "contentType": "application/zip",
+      "sha256": "71e1322972268e55fae681cbd75d4b3315de5a9a2253807d72032318d5f842c0",
+      "bytes": 245870,
+      "retrievedOn": "2026-11-12",
+      "lastModified": "Fri, 23 Oct 2026 14:24:51 GMT",
+      "members": [
+        {
+          "name": "Manufacturer Discount Program Participating Labeler Codes 11012026.csv",
+          "sha256": "4990664d23f1a7b55a3568f5ccc3f6d53ca413bc20804a6eaeaec38185ddd968",
+          "bytes": 86262
+        },
+        {
+          "name": "Manufacturer Discount Program Labeler Code ReadMe.pdf",
+          "sha256": "ac5a66a0a629a4617a5ecfc66d42069e9610e0f6fc4d480c250d97ad3e43e86e",
+          "bytes": 176303
+        }
+      ]
+    },
+    {
+      "id": "C21",
+      "title": "Manufacturer Discount Program phase-in eligible NDC-9 list, November 2026",
+      "use": "NDC-9s eligible for the discount phase-in, with the ReadMe",
+      "publisher": "Centers for Medicare & Medicaid Services",
+      "url": "https://www.cms.gov/files/zip/manufacturer-discount-program-november-2026-phase-eligible-ndc9.zip",
+      "contentType": "application/zip",
+      "sha256": "886b3943f0b6943d4caaf1935eed3cd9b4a787d232f023ff72486efae4e3310c",
+      "bytes": 293635,
+      "retrievedOn": "2026-11-12",
+      "lastModified": "Fri, 23 Oct 2026 14:26:04 GMT",
+      "members": [
+        {
+          "name": "Manufacturer Discount Program Phase-In Eligible NDC9 11012026.csv",
+          "sha256": "85f5094d89f40db4fea73618430dd7837f84ad6d94c486d2ac215ab29dcba64e",
+          "bytes": 248683
+        },
+        {
+          "name": "Manufacturer Discount Program NDC-9 List ReadMe.pdf",
+          "sha256": "fffd202b429a181022f6bc524e084ddbab2c0f8e09f68c72404e61ef281bbfac",
+          "bytes": 199627
+        }
+      ]
+    },
+    {
+      "id": "C22",
+      "title": "Manufacturer Discount Program archived participating labeler codes",
+      "use": "Monthly labeler code lists from January 2025 to November 2026",
+      "publisher": "Centers for Medicare & Medicaid Services",
+      "url": "https://www.cms.gov/files/zip/manufacturer-discount-program-archived-participating-labeler-codes.zip-15",
+      "contentType": "application/zip",
+      "sha256": "9d8a422e53b3202977cb40213d6fbdb64b3fef0fee090967b39053b018bcbbe3",
+      "bytes": 5507599,
+      "retrievedOn": "2026-11-12",
+      "lastModified": "Fri, 23 Oct 2026 14:27:09 GMT"
+    },
+    {
+      "id": "C23",
+      "title": "Revised Medicare Part D Manufacturer Discount Program final guidance (December 2024)",
+      "use": "Definition of an applicable drug and the labeler code coverage rule",
+      "publisher": "Centers for Medicare & Medicaid Services",
+      "url": "https://www.cms.gov/files/document/revised-manufacturer-discount-programfinal-guidance122024.pdf",
+      "contentType": "application/pdf",
+      "sha256": "d1031aeff2cb009290bc5c9eec99b9cbb15b12dc0080063bcb6c9f2d9cc33d97",
+      "bytes": 1183142,
+      "retrievedOn": "2026-11-12",
+      "lastModified": "Fri, 20 Dec 2024 21:33:31 GMT"
+    },
+    {
+      "id": "C24",
+      "title": "Medicare Part D Improvements (web page)",
+      "use": "Part D redesign and discount program page; checked for a covered insulin product list",
+      "publisher": "Centers for Medicare & Medicaid Services",
+      "url": "https://www.cms.gov/priorities/medicare-prescription-drug-affordability/overview/medicare-part-d-improvements",
+      "contentType": "text/html",
+      "sha256": "b3c3461796c728be8f13bd7a1633c68f68d4a42a0851609a80eedecc0289aac3",
+      "bytes": 192914,
+      "retrievedOn": "2026-11-12",
+      "lastModified": "Wed, 11 Nov 2026 23:51:03 GMT"
+    }
+  ],
+  "selectedDrugs": {
+    "document": "C16",
+    "member": "CMS_Negotiation_Program_Selected_Drug_List_and_Maximum_Fair_Price_Data_File_20261102.csv",
+    "rule": "An NDC-11 is on a year's list when the rows for it cover every day of the year, from the maximum fair price effective date to the end date (open when blank). A row that ends before it starts never applies. An NDC covered for only part of the year is listed under partial. The engine matches entries on the NDC-11 only. The drug name is there for people reading the file.",
+    "citations": [
+      {
+        "document": "C15",
+        "section": "Selected Drugs and Negotiated Prices: the selected drug list file",
+        "quote": "The file below contains the list of National Drug Codes (NDC) associated with the selected drug list, which represents the NDCs for which any negotiated maximum fair price would apply consistent with CMS guidance."
+      },
+      {
+        "document": "C15",
+        "section": "Selected Drugs and Negotiated Prices: drugs with deselection determinations",
+        "quote": "STELARA October 2025 January 1, 2027"
+      },
+      {
+        "document": "C23",
+        "section": "Section 40.1, Applicable Drugs",
+        "page": 21,
+        "quote": "applicable drugs under the Discount Program are Part D drugs approved under a new drug application (NDA) under section 505(c) of the Federal Food, Drug, and Cosmetic Act (FDCA) or, in the case of a biologic product licensed under section 351 of the Public Health Service Act (PHSA), but do not include a selected drug during a price applicability period with respect to such drug."
+      }
+    ],
+    "years": {
+      "2026": {
+        "listed": [
+          {
+            "ndc11": "00003089321",
+            "drug": "ELIQUIS; ELIQUIS SPRINKLE",
+            "ipay": 2026,
+            "rows": [2]
+          },
+          {
+            "ndc11": "00003089331",
+            "drug": "ELIQUIS; ELIQUIS SPRINKLE",
+            "ipay": 2026,
+            "rows": [4]
+          },
+          {
+            "ndc11": "00003089341",
+            "drug": "ELIQUIS; ELIQUIS SPRINKLE",
+            "ipay": 2026,
+            "rows": [6]
+          },
+          {
+            "ndc11": "00003089421",
+            "drug": "ELIQUIS; ELIQUIS SPRINKLE",
+            "ipay": 2026,
+            "rows": [8]
+          },
+          {
+            "ndc11": "00003089431",
+            "drug": "ELIQUIS; ELIQUIS SPRINKLE",
+            "ipay": 2026,
+            "rows": [10]
+          },
+          {
+            "ndc11": "00003089441",
+            "drug": "ELIQUIS; ELIQUIS SPRINKLE",
+            "ipay": 2026,
+            "rows": [12]
+          },
+          {
+            "ndc11": "00003089470",
+            "drug": "ELIQUIS; ELIQUIS SPRINKLE",
+            "ipay": 2026,
+            "rows": [14]
+          },
+          {
+            "ndc11": "00003089828",
+            "drug": "ELIQUIS; ELIQUIS SPRINKLE",
+            "ipay": 2026,
+            "rows": [16]
+          },
+          {
+            "ndc11": "00003102812",
+            "drug": "ELIQUIS; ELIQUIS SPRINKLE",
+            "ipay": 2026,
+            "rows": [18]
+          },
+          {
+            "ndc11": "00003102828",
+            "drug": "ELIQUIS; ELIQUIS SPRINKLE",
+            "ipay": 2026,
+            "rows": [20]
+          },
+          {
+            "ndc11": "00003102884",
+            "drug": "ELIQUIS; ELIQUIS SPRINKLE",
+            "ipay": 2026,
+            "rows": [22]
+          },
+          {
+            "ndc11": "00003142711",
+            "drug": "FARXIGA",
+            "ipay": 2026,
+            "rows": [105]
+          },
+          {
+            "ndc11": "00003142712",
+            "drug": "FARXIGA",
+            "ipay": 2026,
+            "rows": [107]
+          },
+          {
+            "ndc11": "00003142713",
+            "drug": "FARXIGA",
+            "ipay": 2026,
+            "rows": [109]
+          },
+          {
+            "ndc11": "00003142714",
+            "drug": "FARXIGA",
+            "ipay": 2026,
+            "rows": [111]
+          },
+          {
+            "ndc11": "00003142791",
+            "drug": "FARXIGA",
+            "ipay": 2026,
+            "rows": [113]
+          },
+          {
+            "ndc11": "00003142811",
+            "drug": "FARXIGA",
+            "ipay": 2026,
+            "rows": [115]
+          },
+          {
+            "ndc11": "00003142812",
+            "drug": "FARXIGA",
+            "ipay": 2026,
+            "rows": [117]
+          },
+          {
+            "ndc11": "00003142813",
+            "drug": "FARXIGA",
+            "ipay": 2026,
+            "rows": [119]
+          },
+          {
+            "ndc11": "00003142814",
+            "drug": "FARXIGA",
+            "ipay": 2026,
+            "rows": [121]
+          },
+          {
+            "ndc11": "00003142891",
+            "drug": "FARXIGA",
+            "ipay": 2026,
+            "rows": [123]
+          },
+          {
+            "ndc11": "00003376474",
+            "drug": "ELIQUIS; ELIQUIS SPRINKLE",
+            "ipay": 2026,
+            "rows": [24]
+          },
+          {
+            "ndc11": "00006011201",
+            "drug": "JANUVIA",
+            "ipay": 2026,
+            "rows": [155]
+          },
+          {
+            "ndc11": "00006011228",
+            "drug": "JANUVIA",
+            "ipay": 2026,
+            "rows": [157]
+          },
+          {
+            "ndc11": "00006011231",
+            "drug": "JANUVIA",
+            "ipay": 2026,
+            "rows": [159]
+          },
+          {
+            "ndc11": "00006011254",
+            "drug": "JANUVIA",
+            "ipay": 2026,
+            "rows": [161]
+          },
+          {
+            "ndc11": "00006022101",
+            "drug": "JANUVIA",
+            "ipay": 2026,
+            "rows": [163]
+          },
+          {
+            "ndc11": "00006022128",
+            "drug": "JANUVIA",
+            "ipay": 2026,
+            "rows": [165]
+          },
+          {
+            "ndc11": "00006022131",
+            "drug": "JANUVIA",
+            "ipay": 2026,
+            "rows": [167]
+          },
+          {
+            "ndc11": "00006022154",
+            "drug": "JANUVIA",
+            "ipay": 2026,
+            "rows": [169]
+          },
+          {
+            "ndc11": "00006027701",
+            "drug": "JANUVIA",
+            "ipay": 2026,
+            "rows": [171]
+          },
+          {
+            "ndc11": "00006027702",
+            "drug": "JANUVIA",
+            "ipay": 2026,
+            "rows": [173]
+          },
+          {
+            "ndc11": "00006027714",
+            "drug": "JANUVIA",
+            "ipay": 2026,
+            "rows": [175]
+          },
+          {
+            "ndc11": "00006027727",
+            "drug": "JANUVIA",
+            "ipay": 2026,
+            "rows": [177]
+          },
+          {
+            "ndc11": "00006027728",
+            "drug": "JANUVIA",
+            "ipay": 2026,
+            "rows": [179]
+          },
+          {
+            "ndc11": "00006027730",
+            "drug": "JANUVIA",
+            "ipay": 2026,
+            "rows": [181]
+          },
+          {
+            "ndc11": "00006027731",
+            "drug": "JANUVIA",
+            "ipay": 2026,
+            "rows": [183]
+          },
+          {
+            "ndc11": "00006027733",
+            "drug": "JANUVIA",
+            "ipay": 2026,
+            "rows": [185]
+          },
+          {
+            "ndc11": "00006027754",
+            "drug": "JANUVIA",
+            "ipay": 2026,
+            "rows": [187]
+          },
+          {
+            "ndc11": "00006027774",
+            "drug": "JANUVIA",
+            "ipay": 2026,
+            "rows": [189]
+          },
+          {
+            "ndc11": "00006027782",
+            "drug": "JANUVIA",
+            "ipay": 2026,
+            "rows": [191]
+          },
+          {
+            "ndc11": "00078065920",
+            "drug": "ENTRESTO; ENTRESTO SPRINKLE",
+            "ipay": 2026,
+            "rows": [72]
+          },
+          {
+            "ndc11": "00078065935",
+            "drug": "ENTRESTO; ENTRESTO SPRINKLE",
+            "ipay": 2026,
+            "rows": [74]
+          },
+          {
+            "ndc11": "00078065961",
+            "drug": "ENTRESTO; ENTRESTO SPRINKLE",
+            "ipay": 2026,
+            "rows": [76]
+          },
+          {
+            "ndc11": "00078065967",
+            "drug": "ENTRESTO; ENTRESTO SPRINKLE",
+            "ipay": 2026,
+            "rows": [78]
+          },
+          {
+            "ndc11": "00078069620",
+            "drug": "ENTRESTO; ENTRESTO SPRINKLE",
+            "ipay": 2026,
+            "rows": [80]
+          },
+          {
+            "ndc11": "00078069635",
+            "drug": "ENTRESTO; ENTRESTO SPRINKLE",
+            "ipay": 2026,
+            "rows": [82]
+          },
+          {
+            "ndc11": "00078069661",
+            "drug": "ENTRESTO; ENTRESTO SPRINKLE",
+            "ipay": 2026,
+            "rows": [84]
+          },
+          {
+            "ndc11": "00078069667",
+            "drug": "ENTRESTO; ENTRESTO SPRINKLE",
+            "ipay": 2026,
+            "rows": [86]
+          },
+          {
+            "ndc11": "00078077720",
+            "drug": "ENTRESTO; ENTRESTO SPRINKLE",
+            "ipay": 2026,
+            "rows": [88]
+          },
+          {
+            "ndc11": "00078077735",
+            "drug": "ENTRESTO; ENTRESTO SPRINKLE",
+            "ipay": 2026,
+            "rows": [90]
+          },
+          {
+            "ndc11": "00078077761",
+            "drug": "ENTRESTO; ENTRESTO SPRINKLE",
+            "ipay": 2026,
+            "rows": [92]
+          },
+          {
+            "ndc11": "00078077767",
+            "drug": "ENTRESTO; ENTRESTO SPRINKLE",
+            "ipay": 2026,
+            "rows": [94]
+          },
+          {
+            "ndc11": "00078123120",
+            "drug": "ENTRESTO; ENTRESTO SPRINKLE",
+            "ipay": 2026,
+            "rows": [96, 97]
+          },
+          {
+            "ndc11": "00078123820",
+            "drug": "ENTRESTO; ENTRESTO SPRINKLE",
+            "ipay": 2026,
+            "rows": [99, 100]
+          },
+          {
+            "ndc11": "00169210011",
+            "drug": "NOVOLOG; NOVOLOG FLEXPEN; NOVOLOG PENFILL; FIASP; FIASP FLEXTOUCH; FIASP PENFILL",
+            "ipay": 2026,
+            "rows": [205]
+          },
+          {
+            "ndc11": "00169210112",
+            "drug": "NOVOLOG; NOVOLOG FLEXPEN; NOVOLOG PENFILL; FIASP; FIASP FLEXTOUCH; FIASP PENFILL",
+            "ipay": 2026,
+            "rows": [207]
+          },
+          {
+            "ndc11": "00169210125",
+            "drug": "NOVOLOG; NOVOLOG FLEXPEN; NOVOLOG PENFILL; FIASP; FIASP FLEXTOUCH; FIASP PENFILL",
+            "ipay": 2026,
+            "rows": [209]
+          },
+          {
+            "ndc11": "00169320111",
+            "drug": "NOVOLOG; NOVOLOG FLEXPEN; NOVOLOG PENFILL; FIASP; FIASP FLEXTOUCH; FIASP PENFILL",
+            "ipay": 2026,
+            "rows": [211]
+          },
+          {
+            "ndc11": "00169320415",
+            "drug": "NOVOLOG; NOVOLOG FLEXPEN; NOVOLOG PENFILL; FIASP; FIASP FLEXTOUCH; FIASP PENFILL",
+            "ipay": 2026,
+            "rows": [213]
+          },
+          {
+            "ndc11": "00169320511",
+            "drug": "NOVOLOG; NOVOLOG FLEXPEN; NOVOLOG PENFILL; FIASP; FIASP FLEXTOUCH; FIASP PENFILL",
+            "ipay": 2026,
+            "rows": [215]
+          },
+          {
+            "ndc11": "00169320515",
+            "drug": "NOVOLOG; NOVOLOG FLEXPEN; NOVOLOG PENFILL; FIASP; FIASP FLEXTOUCH; FIASP PENFILL",
+            "ipay": 2026,
+            "rows": [217]
+          },
+          {
+            "ndc11": "00169320611",
+            "drug": "NOVOLOG; NOVOLOG FLEXPEN; NOVOLOG PENFILL; FIASP; FIASP FLEXTOUCH; FIASP PENFILL",
+            "ipay": 2026,
+            "rows": [219]
+          },
+          {
+            "ndc11": "00169320615",
+            "drug": "NOVOLOG; NOVOLOG FLEXPEN; NOVOLOG PENFILL; FIASP; FIASP FLEXTOUCH; FIASP PENFILL",
+            "ipay": 2026,
+            "rows": [221]
+          },
+          {
+            "ndc11": "00169330312",
+            "drug": "NOVOLOG; NOVOLOG FLEXPEN; NOVOLOG PENFILL; FIASP; FIASP FLEXTOUCH; FIASP PENFILL",
+            "ipay": 2026,
+            "rows": [223]
+          },
+          {
+            "ndc11": "00169633910",
+            "drug": "NOVOLOG; NOVOLOG FLEXPEN; NOVOLOG PENFILL; FIASP; FIASP FLEXTOUCH; FIASP PENFILL",
+            "ipay": 2026,
+            "rows": [225]
+          },
+          {
+            "ndc11": "00169750111",
+            "drug": "NOVOLOG; NOVOLOG FLEXPEN; NOVOLOG PENFILL; FIASP; FIASP FLEXTOUCH; FIASP PENFILL",
+            "ipay": 2026,
+            "rows": [227]
+          },
+          {
+            "ndc11": "00310620530",
+            "drug": "FARXIGA",
+            "ipay": 2026,
+            "rows": [125]
+          },
+          {
+            "ndc11": "00310620590",
+            "drug": "FARXIGA",
+            "ipay": 2026,
+            "rows": [127]
+          },
+          {
+            "ndc11": "00310621030",
+            "drug": "FARXIGA",
+            "ipay": 2026,
+            "rows": [129]
+          },
+          {
+            "ndc11": "00310621039",
+            "drug": "FARXIGA",
+            "ipay": 2026,
+            "rows": [131]
+          },
+          {
+            "ndc11": "00310621090",
+            "drug": "FARXIGA",
+            "ipay": 2026,
+            "rows": [133]
+          },
+          {
+            "ndc11": "00597015230",
+            "drug": "JARDIANCE",
+            "ipay": 2026,
+            "rows": [193]
+          },
+          {
+            "ndc11": "00597015237",
+            "drug": "JARDIANCE",
+            "ipay": 2026,
+            "rows": [195]
+          },
+          {
+            "ndc11": "00597015290",
+            "drug": "JARDIANCE",
+            "ipay": 2026,
+            "rows": [197]
+          },
+          {
+            "ndc11": "00597015330",
+            "drug": "JARDIANCE",
+            "ipay": 2026,
+            "rows": [199]
+          },
+          {
+            "ndc11": "00597015337",
+            "drug": "JARDIANCE",
+            "ipay": 2026,
+            "rows": [201]
+          },
+          {
+            "ndc11": "00597015390",
+            "drug": "JARDIANCE",
+            "ipay": 2026,
+            "rows": [203]
+          },
+          {
+            "ndc11": "50458057501",
+            "drug": "XARELTO",
+            "ipay": 2026,
+            "rows": [257]
+          },
+          {
+            "ndc11": "50458057701",
+            "drug": "XARELTO",
+            "ipay": 2026,
+            "rows": [260]
+          },
+          {
+            "ndc11": "50458057710",
+            "drug": "XARELTO",
+            "ipay": 2026,
+            "rows": [262]
+          },
+          {
+            "ndc11": "50458057718",
+            "drug": "XARELTO",
+            "ipay": 2026,
+            "rows": [264]
+          },
+          {
+            "ndc11": "50458057760",
+            "drug": "XARELTO",
+            "ipay": 2026,
+            "rows": [266]
+          },
+          {
+            "ndc11": "50458057801",
+            "drug": "XARELTO",
+            "ipay": 2026,
+            "rows": [269]
+          },
+          {
+            "ndc11": "50458057810",
+            "drug": "XARELTO",
+            "ipay": 2026,
+            "rows": [271]
+          },
+          {
+            "ndc11": "50458057830",
+            "drug": "XARELTO",
+            "ipay": 2026,
+            "rows": [273]
+          },
+          {
+            "ndc11": "50458057890",
+            "drug": "XARELTO",
+            "ipay": 2026,
+            "rows": [275]
+          },
+          {
+            "ndc11": "50458057901",
+            "drug": "XARELTO",
+            "ipay": 2026,
+            "rows": [278]
+          },
+          {
+            "ndc11": "50458057910",
+            "drug": "XARELTO",
+            "ipay": 2026,
+            "rows": [280]
+          },
+          {
+            "ndc11": "50458057930",
+            "drug": "XARELTO",
+            "ipay": 2026,
+            "rows": [282]
+          },
+          {
+            "ndc11": "50458057989",
+            "drug": "XARELTO",
+            "ipay": 2026,
+            "rows": [284]
+          },
+          {
+            "ndc11": "50458057990",
+            "drug": "XARELTO",
+            "ipay": 2026,
+            "rows": [286]
+          },
+          {
+            "ndc11": "50458058001",
+            "drug": "XARELTO",
+            "ipay": 2026,
+            "rows": [289]
+          },
+          {
+            "ndc11": "50458058010",
+            "drug": "XARELTO",
+            "ipay": 2026,
+            "rows": [291]
+          },
+          {
+            "ndc11": "50458058030",
+            "drug": "XARELTO",
+            "ipay": 2026,
+            "rows": [293]
+          },
+          {
+            "ndc11": "50458058090",
+            "drug": "XARELTO",
+            "ipay": 2026,
+            "rows": [295]
+          },
+          {
+            "ndc11": "50458058451",
+            "drug": "XARELTO",
+            "ipay": 2026,
+            "rows": [297]
+          },
+          {
+            "ndc11": "57894005427",
+            "drug": "STELARA",
+            "ipay": 2026,
+            "rows": [239]
+          },
+          {
+            "ndc11": "57894006002",
+            "drug": "STELARA",
+            "ipay": 2026,
+            "rows": [241]
+          },
+          {
+            "ndc11": "57894006003",
+            "drug": "STELARA",
+            "ipay": 2026,
+            "rows": [243]
+          },
+          {
+            "ndc11": "57894006102",
+            "drug": "STELARA",
+            "ipay": 2026,
+            "rows": [245]
+          },
+          {
+            "ndc11": "57894006103",
+            "drug": "STELARA",
+            "ipay": 2026,
+            "rows": [247]
+          },
+          {
+            "ndc11": "57894044001",
+            "drug": "STELARA",
+            "ipay": 2026,
+            "rows": [249]
+          },
+          {
+            "ndc11": "57894044003",
+            "drug": "STELARA",
+            "ipay": 2026,
+            "rows": [251]
+          },
+          {
+            "ndc11": "57894044101",
+            "drug": "STELARA",
+            "ipay": 2026,
+            "rows": [253]
+          },
+          {
+            "ndc11": "57894044401",
+            "drug": "STELARA",
+            "ipay": 2026,
+            "rows": [255]
+          },
+          {
+            "ndc11": "57962000712",
+            "drug": "IMBRUVICA",
+            "ipay": 2026,
+            "rows": [139]
+          },
+          {
+            "ndc11": "57962001428",
+            "drug": "IMBRUVICA",
+            "ipay": 2026,
+            "rows": [141]
+          },
+          {
+            "ndc11": "57962007028",
+            "drug": "IMBRUVICA",
+            "ipay": 2026,
+            "rows": [143]
+          },
+          {
+            "ndc11": "57962014009",
+            "drug": "IMBRUVICA",
+            "ipay": 2026,
+            "rows": [145]
+          },
+          {
+            "ndc11": "57962014012",
+            "drug": "IMBRUVICA",
+            "ipay": 2026,
+            "rows": [147]
+          },
+          {
+            "ndc11": "57962028028",
+            "drug": "IMBRUVICA",
+            "ipay": 2026,
+            "rows": [149]
+          },
+          {
+            "ndc11": "57962042028",
+            "drug": "IMBRUVICA",
+            "ipay": 2026,
+            "rows": [151]
+          },
+          {
+            "ndc11": "57962056028",
+            "drug": "IMBRUVICA",
+            "ipay": 2026,
+            "rows": [153]
+          },
+          {
+            "ndc11": "58406001001",
+            "drug": "ENBREL",
+            "ipay": 2026,
+            "rows": [26]
+          },
+          {
+            "ndc11": "58406001004",
+            "drug": "ENBREL",
+            "ipay": 2026,
+            "rows": [28]
+          },
+          {
+            "ndc11": "58406002101",
+            "drug": "ENBREL",
+            "ipay": 2026,
+            "rows": [30]
+          },
+          {
+            "ndc11": "58406002104",
+            "drug": "ENBREL",
+            "ipay": 2026,
+            "rows": [32]
+          },
+          {
+            "ndc11": "58406003201",
+            "drug": "ENBREL",
+            "ipay": 2026,
+            "rows": [34]
+          },
+          {
+            "ndc11": "58406003204",
+            "drug": "ENBREL",
+            "ipay": 2026,
+            "rows": [36]
+          },
+          {
+            "ndc11": "58406004401",
+            "drug": "ENBREL",
+            "ipay": 2026,
+            "rows": [38]
+          },
+          {
+            "ndc11": "58406004404",
+            "drug": "ENBREL",
+            "ipay": 2026,
+            "rows": [40]
+          },
+          {
+            "ndc11": "58406004424",
+            "drug": "ENBREL",
+            "ipay": 2026,
+            "rows": [42]
+          },
+          {
+            "ndc11": "58406005501",
+            "drug": "ENBREL",
+            "ipay": 2026,
+            "rows": [44]
+          },
+          {
+            "ndc11": "58406005504",
+            "drug": "ENBREL",
+            "ipay": 2026,
+            "rows": [46]
+          },
+          {
+            "ndc11": "58406042534",
+            "drug": "ENBREL",
+            "ipay": 2026,
+            "rows": [48]
+          },
+          {
+            "ndc11": "58406042541",
+            "drug": "ENBREL",
+            "ipay": 2026,
+            "rows": [50]
+          },
+          {
+            "ndc11": "58406043501",
+            "drug": "ENBREL",
+            "ipay": 2026,
+            "rows": [52]
+          },
+          {
+            "ndc11": "58406043504",
+            "drug": "ENBREL",
+            "ipay": 2026,
+            "rows": [54]
+          },
+          {
+            "ndc11": "58406044501",
+            "drug": "ENBREL",
+            "ipay": 2026,
+            "rows": [56]
+          },
+          {
+            "ndc11": "58406044504",
+            "drug": "ENBREL",
+            "ipay": 2026,
+            "rows": [58]
+          },
+          {
+            "ndc11": "58406044601",
+            "drug": "ENBREL",
+            "ipay": 2026,
+            "rows": [60]
+          },
+          {
+            "ndc11": "58406044604",
+            "drug": "ENBREL",
+            "ipay": 2026,
+            "rows": [62]
+          },
+          {
+            "ndc11": "58406045501",
+            "drug": "ENBREL",
+            "ipay": 2026,
+            "rows": [64]
+          },
+          {
+            "ndc11": "58406045504",
+            "drug": "ENBREL",
+            "ipay": 2026,
+            "rows": [66]
+          },
+          {
+            "ndc11": "58406045601",
+            "drug": "ENBREL",
+            "ipay": 2026,
+            "rows": [68]
+          },
+          {
+            "ndc11": "58406045604",
+            "drug": "ENBREL",
+            "ipay": 2026,
+            "rows": [70]
+          },
+          {
+            "ndc11": "66993045630",
+            "drug": "FARXIGA",
+            "ipay": 2026,
+            "rows": [135]
+          },
+          {
+            "ndc11": "66993045730",
+            "drug": "FARXIGA",
+            "ipay": 2026,
+            "rows": [137]
+          },
+          {
+            "ndc11": "73070010011",
+            "drug": "NOVOLOG; NOVOLOG FLEXPEN; NOVOLOG PENFILL; FIASP; FIASP FLEXTOUCH; FIASP PENFILL",
+            "ipay": 2026,
+            "rows": [229]
+          },
+          {
+            "ndc11": "73070010210",
+            "drug": "NOVOLOG; NOVOLOG FLEXPEN; NOVOLOG PENFILL; FIASP; FIASP FLEXTOUCH; FIASP PENFILL",
+            "ipay": 2026,
+            "rows": [231]
+          },
+          {
+            "ndc11": "73070010215",
+            "drug": "NOVOLOG; NOVOLOG FLEXPEN; NOVOLOG PENFILL; FIASP; FIASP FLEXTOUCH; FIASP PENFILL",
+            "ipay": 2026,
+            "rows": [233]
+          },
+          {
+            "ndc11": "73070010310",
+            "drug": "NOVOLOG; NOVOLOG FLEXPEN; NOVOLOG PENFILL; FIASP; FIASP FLEXTOUCH; FIASP PENFILL",
+            "ipay": 2026,
+            "rows": [235]
+          },
+          {
+            "ndc11": "73070010315",
+            "drug": "NOVOLOG; NOVOLOG FLEXPEN; NOVOLOG PENFILL; FIASP; FIASP FLEXTOUCH; FIASP PENFILL",
+            "ipay": 2026,
+            "rows": [237]
+          }
+        ],
+        "partial": []
+      },
+      "2027": {
+        "listed": [
+          {
+            "ndc11": "00003089321",
+            "drug": "ELIQUIS; ELIQUIS SPRINKLE",
+            "ipay": 2026,
+            "rows": [3]
+          },
+          {
+            "ndc11": "00003089331",
+            "drug": "ELIQUIS; ELIQUIS SPRINKLE",
+            "ipay": 2026,
+            "rows": [5]
+          },
+          {
+            "ndc11": "00003089341",
+            "drug": "ELIQUIS; ELIQUIS SPRINKLE",
+            "ipay": 2026,
+            "rows": [7]
+          },
+          {
+            "ndc11": "00003089421",
+            "drug": "ELIQUIS; ELIQUIS SPRINKLE",
+            "ipay": 2026,
+            "rows": [9]
+          },
+          {
+            "ndc11": "00003089431",
+            "drug": "ELIQUIS; ELIQUIS SPRINKLE",
+            "ipay": 2026,
+            "rows": [11]
+          },
+          {
+            "ndc11": "00003089441",
+            "drug": "ELIQUIS; ELIQUIS SPRINKLE",
+            "ipay": 2026,
+            "rows": [13]
+          },
+          {
+            "ndc11": "00003089470",
+            "drug": "ELIQUIS; ELIQUIS SPRINKLE",
+            "ipay": 2026,
+            "rows": [15]
+          },
+          {
+            "ndc11": "00003089828",
+            "drug": "ELIQUIS; ELIQUIS SPRINKLE",
+            "ipay": 2026,
+            "rows": [17]
+          },
+          {
+            "ndc11": "00003102812",
+            "drug": "ELIQUIS; ELIQUIS SPRINKLE",
+            "ipay": 2026,
+            "rows": [19]
+          },
+          {
+            "ndc11": "00003102828",
+            "drug": "ELIQUIS; ELIQUIS SPRINKLE",
+            "ipay": 2026,
+            "rows": [21]
+          },
+          {
+            "ndc11": "00003102884",
+            "drug": "ELIQUIS; ELIQUIS SPRINKLE",
+            "ipay": 2026,
+            "rows": [23]
+          },
+          {
+            "ndc11": "00003142711",
+            "drug": "FARXIGA",
+            "ipay": 2026,
+            "rows": [106]
+          },
+          {
+            "ndc11": "00003142712",
+            "drug": "FARXIGA",
+            "ipay": 2026,
+            "rows": [108]
+          },
+          {
+            "ndc11": "00003142713",
+            "drug": "FARXIGA",
+            "ipay": 2026,
+            "rows": [110]
+          },
+          {
+            "ndc11": "00003142714",
+            "drug": "FARXIGA",
+            "ipay": 2026,
+            "rows": [112]
+          },
+          {
+            "ndc11": "00003142791",
+            "drug": "FARXIGA",
+            "ipay": 2026,
+            "rows": [114]
+          },
+          {
+            "ndc11": "00003142811",
+            "drug": "FARXIGA",
+            "ipay": 2026,
+            "rows": [116]
+          },
+          {
+            "ndc11": "00003142812",
+            "drug": "FARXIGA",
+            "ipay": 2026,
+            "rows": [118]
+          },
+          {
+            "ndc11": "00003142813",
+            "drug": "FARXIGA",
+            "ipay": 2026,
+            "rows": [120]
+          },
+          {
+            "ndc11": "00003142814",
+            "drug": "FARXIGA",
+            "ipay": 2026,
+            "rows": [122]
+          },
+          {
+            "ndc11": "00003142891",
+            "drug": "FARXIGA",
+            "ipay": 2026,
+            "rows": [124]
+          },
+          {
+            "ndc11": "00003376474",
+            "drug": "ELIQUIS; ELIQUIS SPRINKLE",
+            "ipay": 2026,
+            "rows": [25]
+          },
+          {
+            "ndc11": "00006007861",
+            "drug": "JANUMET; JANUMET XR",
+            "ipay": 2027,
+            "rows": [334]
+          },
+          {
+            "ndc11": "00006007862",
+            "drug": "JANUMET; JANUMET XR",
+            "ipay": 2027,
+            "rows": [335]
+          },
+          {
+            "ndc11": "00006007882",
+            "drug": "JANUMET; JANUMET XR",
+            "ipay": 2027,
+            "rows": [336]
+          },
+          {
+            "ndc11": "00006008061",
+            "drug": "JANUMET; JANUMET XR",
+            "ipay": 2027,
+            "rows": [337]
+          },
+          {
+            "ndc11": "00006008062",
+            "drug": "JANUMET; JANUMET XR",
+            "ipay": 2027,
+            "rows": [338]
+          },
+          {
+            "ndc11": "00006008082",
+            "drug": "JANUMET; JANUMET XR",
+            "ipay": 2027,
+            "rows": [339]
+          },
+          {
+            "ndc11": "00006008131",
+            "drug": "JANUMET; JANUMET XR",
+            "ipay": 2027,
+            "rows": [340]
+          },
+          {
+            "ndc11": "00006008154",
+            "drug": "JANUMET; JANUMET XR",
+            "ipay": 2027,
+            "rows": [341]
+          },
+          {
+            "ndc11": "00006008182",
+            "drug": "JANUMET; JANUMET XR",
+            "ipay": 2027,
+            "rows": [342]
+          },
+          {
+            "ndc11": "00006011201",
+            "drug": "JANUVIA",
+            "ipay": 2026,
+            "rows": [156]
+          },
+          {
+            "ndc11": "00006011228",
+            "drug": "JANUVIA",
+            "ipay": 2026,
+            "rows": [158]
+          },
+          {
+            "ndc11": "00006011231",
+            "drug": "JANUVIA",
+            "ipay": 2026,
+            "rows": [160]
+          },
+          {
+            "ndc11": "00006011254",
+            "drug": "JANUVIA",
+            "ipay": 2026,
+            "rows": [162]
+          },
+          {
+            "ndc11": "00006022101",
+            "drug": "JANUVIA",
+            "ipay": 2026,
+            "rows": [164]
+          },
+          {
+            "ndc11": "00006022128",
+            "drug": "JANUVIA",
+            "ipay": 2026,
+            "rows": [166]
+          },
+          {
+            "ndc11": "00006022131",
+            "drug": "JANUVIA",
+            "ipay": 2026,
+            "rows": [168]
+          },
+          {
+            "ndc11": "00006022154",
+            "drug": "JANUVIA",
+            "ipay": 2026,
+            "rows": [170]
+          },
+          {
+            "ndc11": "00006027701",
+            "drug": "JANUVIA",
+            "ipay": 2026,
+            "rows": [172]
+          },
+          {
+            "ndc11": "00006027702",
+            "drug": "JANUVIA",
+            "ipay": 2026,
+            "rows": [174]
+          },
+          {
+            "ndc11": "00006027714",
+            "drug": "JANUVIA",
+            "ipay": 2026,
+            "rows": [176]
+          },
+          {
+            "ndc11": "00006027727",
+            "drug": "JANUVIA",
+            "ipay": 2026,
+            "rows": [178]
+          },
+          {
+            "ndc11": "00006027728",
+            "drug": "JANUVIA",
+            "ipay": 2026,
+            "rows": [180]
+          },
+          {
+            "ndc11": "00006027730",
+            "drug": "JANUVIA",
+            "ipay": 2026,
+            "rows": [182]
+          },
+          {
+            "ndc11": "00006027731",
+            "drug": "JANUVIA",
+            "ipay": 2026,
+            "rows": [184]
+          },
+          {
+            "ndc11": "00006027733",
+            "drug": "JANUVIA",
+            "ipay": 2026,
+            "rows": [186]
+          },
+          {
+            "ndc11": "00006027754",
+            "drug": "JANUVIA",
+            "ipay": 2026,
+            "rows": [188]
+          },
+          {
+            "ndc11": "00006027774",
+            "drug": "JANUVIA",
+            "ipay": 2026,
+            "rows": [190]
+          },
+          {
+            "ndc11": "00006027782",
+            "drug": "JANUVIA",
+            "ipay": 2026,
+            "rows": [192]
+          },
+          {
+            "ndc11": "00006057501",
+            "drug": "JANUMET; JANUMET XR",
+            "ipay": 2027,
+            "rows": [343]
+          },
+          {
+            "ndc11": "00006057552",
+            "drug": "JANUMET; JANUMET XR",
+            "ipay": 2027,
+            "rows": [344]
+          },
+          {
+            "ndc11": "00006057561",
+            "drug": "JANUMET; JANUMET XR",
+            "ipay": 2027,
+            "rows": [345]
+          },
+          {
+            "ndc11": "00006057562",
+            "drug": "JANUMET; JANUMET XR",
+            "ipay": 2027,
+            "rows": [346]
+          },
+          {
+            "ndc11": "00006057582",
+            "drug": "JANUMET; JANUMET XR",
+            "ipay": 2027,
+            "rows": [347]
+          },
+          {
+            "ndc11": "00006057701",
+            "drug": "JANUMET; JANUMET XR",
+            "ipay": 2027,
+            "rows": [348]
+          },
+          {
+            "ndc11": "00006057752",
+            "drug": "JANUMET; JANUMET XR",
+            "ipay": 2027,
+            "rows": [349]
+          },
+          {
+            "ndc11": "00006057761",
+            "drug": "JANUMET; JANUMET XR",
+            "ipay": 2027,
+            "rows": [350]
+          },
+          {
+            "ndc11": "00006057762",
+            "drug": "JANUMET; JANUMET XR",
+            "ipay": 2027,
+            "rows": [351]
+          },
+          {
+            "ndc11": "00006057782",
+            "drug": "JANUMET; JANUMET XR",
+            "ipay": 2027,
+            "rows": [352]
+          },
+          {
+            "ndc11": "00069018721",
+            "drug": "IBRANCE",
+            "ipay": 2027,
+            "rows": [325]
+          },
+          {
+            "ndc11": "00069018821",
+            "drug": "IBRANCE",
+            "ipay": 2027,
+            "rows": [326]
+          },
+          {
+            "ndc11": "00069018921",
+            "drug": "IBRANCE",
+            "ipay": 2027,
+            "rows": [327]
+          },
+          {
+            "ndc11": "00069028403",
+            "drug": "IBRANCE",
+            "ipay": 2027,
+            "rows": [328]
+          },
+          {
+            "ndc11": "00069028407",
+            "drug": "IBRANCE",
+            "ipay": 2027,
+            "rows": [329]
+          },
+          {
+            "ndc11": "00069048603",
+            "drug": "IBRANCE",
+            "ipay": 2027,
+            "rows": [330]
+          },
+          {
+            "ndc11": "00069048607",
+            "drug": "IBRANCE",
+            "ipay": 2027,
+            "rows": [331]
+          },
+          {
+            "ndc11": "00069068803",
+            "drug": "IBRANCE",
+            "ipay": 2027,
+            "rows": [332]
+          },
+          {
+            "ndc11": "00069068807",
+            "drug": "IBRANCE",
+            "ipay": 2027,
+            "rows": [333]
+          },
+          {
+            "ndc11": "00169170430",
+            "drug": "OZEMPIC; RYBELSUS; WEGOVY",
+            "ipay": 2027,
+            "rows": [372]
+          },
+          {
+            "ndc11": "00169170930",
+            "drug": "OZEMPIC; RYBELSUS; WEGOVY",
+            "ipay": 2027,
+            "rows": [373]
+          },
+          {
+            "ndc11": "00169171530",
+            "drug": "OZEMPIC; RYBELSUS; WEGOVY",
+            "ipay": 2027,
+            "rows": [374]
+          },
+          {
+            "ndc11": "00169413001",
+            "drug": "OZEMPIC; RYBELSUS; WEGOVY",
+            "ipay": 2027,
+            "rows": [375]
+          },
+          {
+            "ndc11": "00169413013",
+            "drug": "OZEMPIC; RYBELSUS; WEGOVY",
+            "ipay": 2027,
+            "rows": [376]
+          },
+          {
+            "ndc11": "00169413211",
+            "drug": "OZEMPIC; RYBELSUS; WEGOVY",
+            "ipay": 2027,
+            "rows": [377]
+          },
+          {
+            "ndc11": "00169413212",
+            "drug": "OZEMPIC; RYBELSUS; WEGOVY",
+            "ipay": 2027,
+            "rows": [378]
+          },
+          {
+            "ndc11": "00169413602",
+            "drug": "OZEMPIC; RYBELSUS; WEGOVY",
+            "ipay": 2027,
+            "rows": [379]
+          },
+          {
+            "ndc11": "00169413611",
+            "drug": "OZEMPIC; RYBELSUS; WEGOVY",
+            "ipay": 2027,
+            "rows": [380]
+          },
+          {
+            "ndc11": "00169418103",
+            "drug": "OZEMPIC; RYBELSUS; WEGOVY",
+            "ipay": 2027,
+            "rows": [381]
+          },
+          {
+            "ndc11": "00169418113",
+            "drug": "OZEMPIC; RYBELSUS; WEGOVY",
+            "ipay": 2027,
+            "rows": [382]
+          },
+          {
+            "ndc11": "00169430301",
+            "drug": "OZEMPIC; RYBELSUS; WEGOVY",
+            "ipay": 2027,
+            "rows": [383]
+          },
+          {
+            "ndc11": "00169430313",
+            "drug": "OZEMPIC; RYBELSUS; WEGOVY",
+            "ipay": 2027,
+            "rows": [384]
+          },
+          {
+            "ndc11": "00169430330",
+            "drug": "OZEMPIC; RYBELSUS; WEGOVY",
+            "ipay": 2027,
+            "rows": [385]
+          },
+          {
+            "ndc11": "00169430701",
+            "drug": "OZEMPIC; RYBELSUS; WEGOVY",
+            "ipay": 2027,
+            "rows": [386]
+          },
+          {
+            "ndc11": "00169430713",
+            "drug": "OZEMPIC; RYBELSUS; WEGOVY",
+            "ipay": 2027,
+            "rows": [387]
+          },
+          {
+            "ndc11": "00169430730",
+            "drug": "OZEMPIC; RYBELSUS; WEGOVY",
+            "ipay": 2027,
+            "rows": [388]
+          },
+          {
+            "ndc11": "00169431401",
+            "drug": "OZEMPIC; RYBELSUS; WEGOVY",
+            "ipay": 2027,
+            "rows": [389]
+          },
+          {
+            "ndc11": "00169431413",
+            "drug": "OZEMPIC; RYBELSUS; WEGOVY",
+            "ipay": 2027,
+            "rows": [390]
+          },
+          {
+            "ndc11": "00169431430",
+            "drug": "OZEMPIC; RYBELSUS; WEGOVY",
+            "ipay": 2027,
+            "rows": [391]
+          },
+          {
+            "ndc11": "00169440431",
+            "drug": "OZEMPIC; RYBELSUS; WEGOVY",
+            "ipay": 2027,
+            "rows": [392]
+          },
+          {
+            "ndc11": "00169440931",
+            "drug": "OZEMPIC; RYBELSUS; WEGOVY",
+            "ipay": 2027,
+            "rows": [393]
+          },
+          {
+            "ndc11": "00169441531",
+            "drug": "OZEMPIC; RYBELSUS; WEGOVY",
+            "ipay": 2027,
+            "rows": [394]
+          },
+          {
+            "ndc11": "00169442531",
+            "drug": "OZEMPIC; RYBELSUS; WEGOVY",
+            "ipay": 2027,
+            "rows": [395]
+          },
+          {
+            "ndc11": "00169450101",
+            "drug": "OZEMPIC; RYBELSUS; WEGOVY",
+            "ipay": 2027,
+            "rows": [396]
+          },
+          {
+            "ndc11": "00169450114",
+            "drug": "OZEMPIC; RYBELSUS; WEGOVY",
+            "ipay": 2027,
+            "rows": [397]
+          },
+          {
+            "ndc11": "00169450501",
+            "drug": "OZEMPIC; RYBELSUS; WEGOVY",
+            "ipay": 2027,
+            "rows": [398]
+          },
+          {
+            "ndc11": "00169450514",
+            "drug": "OZEMPIC; RYBELSUS; WEGOVY",
+            "ipay": 2027,
+            "rows": [399]
+          },
+          {
+            "ndc11": "00169451701",
+            "drug": "OZEMPIC; RYBELSUS; WEGOVY",
+            "ipay": 2027,
+            "rows": [400]
+          },
+          {
+            "ndc11": "00169451714",
+            "drug": "OZEMPIC; RYBELSUS; WEGOVY",
+            "ipay": 2027,
+            "rows": [401]
+          },
+          {
+            "ndc11": "00169452401",
+            "drug": "OZEMPIC; RYBELSUS; WEGOVY",
+            "ipay": 2027,
+            "rows": [402]
+          },
+          {
+            "ndc11": "00169452414",
+            "drug": "OZEMPIC; RYBELSUS; WEGOVY",
+            "ipay": 2027,
+            "rows": [403]
+          },
+          {
+            "ndc11": "00169452501",
+            "drug": "OZEMPIC; RYBELSUS; WEGOVY",
+            "ipay": 2027,
+            "rows": [404]
+          },
+          {
+            "ndc11": "00169452514",
+            "drug": "OZEMPIC; RYBELSUS; WEGOVY",
+            "ipay": 2027,
+            "rows": [405]
+          },
+          {
+            "ndc11": "00169457201",
+            "drug": "OZEMPIC; RYBELSUS; WEGOVY",
+            "ipay": 2027,
+            "rows": [406]
+          },
+          {
+            "ndc11": "00169457214",
+            "drug": "OZEMPIC; RYBELSUS; WEGOVY",
+            "ipay": 2027,
+            "rows": [407]
+          },
+          {
+            "ndc11": "00169477211",
+            "drug": "OZEMPIC; RYBELSUS; WEGOVY",
+            "ipay": 2027,
+            "rows": [408]
+          },
+          {
+            "ndc11": "00169477212",
+            "drug": "OZEMPIC; RYBELSUS; WEGOVY",
+            "ipay": 2027,
+            "rows": [409]
+          },
+          {
+            "ndc11": "00173085910",
+            "drug": "BREO ELLIPTA",
+            "ipay": 2027,
+            "rows": [316]
+          },
+          {
+            "ndc11": "00173085914",
+            "drug": "BREO ELLIPTA",
+            "ipay": 2027,
+            "rows": [317]
+          },
+          {
+            "ndc11": "00173088210",
+            "drug": "BREO ELLIPTA",
+            "ipay": 2027,
+            "rows": [318]
+          },
+          {
+            "ndc11": "00173088214",
+            "drug": "BREO ELLIPTA",
+            "ipay": 2027,
+            "rows": [319]
+          },
+          {
+            "ndc11": "00173088710",
+            "drug": "TRELEGY ELLIPTA",
+            "ipay": 2027,
+            "rows": [422]
+          },
+          {
+            "ndc11": "00173088714",
+            "drug": "TRELEGY ELLIPTA",
+            "ipay": 2027,
+            "rows": [423]
+          },
+          {
+            "ndc11": "00173089310",
+            "drug": "TRELEGY ELLIPTA",
+            "ipay": 2027,
+            "rows": [424]
+          },
+          {
+            "ndc11": "00173089314",
+            "drug": "TRELEGY ELLIPTA",
+            "ipay": 2027,
+            "rows": [425]
+          },
+          {
+            "ndc11": "00173091610",
+            "drug": "BREO ELLIPTA",
+            "ipay": 2027,
+            "rows": [320]
+          },
+          {
+            "ndc11": "00310051260",
+            "drug": "CALQUENCE",
+            "ipay": 2027,
+            "rows": [323]
+          },
+          {
+            "ndc11": "00310351260",
+            "drug": "CALQUENCE",
+            "ipay": 2027,
+            "rows": [324]
+          },
+          {
+            "ndc11": "00310620530",
+            "drug": "FARXIGA",
+            "ipay": 2026,
+            "rows": [126]
+          },
+          {
+            "ndc11": "00310620590",
+            "drug": "FARXIGA",
+            "ipay": 2026,
+            "rows": [128]
+          },
+          {
+            "ndc11": "00310621030",
+            "drug": "FARXIGA",
+            "ipay": 2026,
+            "rows": [130]
+          },
+          {
+            "ndc11": "00310621039",
+            "drug": "FARXIGA",
+            "ipay": 2026,
+            "rows": [132]
+          },
+          {
+            "ndc11": "00310621090",
+            "drug": "FARXIGA",
+            "ipay": 2026,
+            "rows": [134]
+          },
+          {
+            "ndc11": "00456120130",
+            "drug": "LINZESS",
+            "ipay": 2027,
+            "rows": [353]
+          },
+          {
+            "ndc11": "00456120230",
+            "drug": "LINZESS",
+            "ipay": 2027,
+            "rows": [354]
+          },
+          {
+            "ndc11": "00456120330",
+            "drug": "LINZESS",
+            "ipay": 2027,
+            "rows": [355]
+          },
+          {
+            "ndc11": "00469012599",
+            "drug": "XTANDI",
+            "ipay": 2027,
+            "rows": [460]
+          },
+          {
+            "ndc11": "00469062599",
+            "drug": "XTANDI",
+            "ipay": 2027,
+            "rows": [461]
+          },
+          {
+            "ndc11": "00469072560",
+            "drug": "XTANDI",
+            "ipay": 2027,
+            "rows": [462]
+          },
+          {
+            "ndc11": "00597014010",
+            "drug": "TRADJENTA",
+            "ipay": 2027,
+            "rows": [418]
+          },
+          {
+            "ndc11": "00597014030",
+            "drug": "TRADJENTA",
+            "ipay": 2027,
+            "rows": [419]
+          },
+          {
+            "ndc11": "00597014061",
+            "drug": "TRADJENTA",
+            "ipay": 2027,
+            "rows": [420]
+          },
+          {
+            "ndc11": "00597014090",
+            "drug": "TRADJENTA",
+            "ipay": 2027,
+            "rows": [421]
+          },
+          {
+            "ndc11": "00597014360",
+            "drug": "OFEV",
+            "ipay": 2027,
+            "rows": [356]
+          },
+          {
+            "ndc11": "00597014560",
+            "drug": "OFEV",
+            "ipay": 2027,
+            "rows": [357]
+          },
+          {
+            "ndc11": "00597015230",
+            "drug": "JARDIANCE",
+            "ipay": 2026,
+            "rows": [194]
+          },
+          {
+            "ndc11": "00597015237",
+            "drug": "JARDIANCE",
+            "ipay": 2026,
+            "rows": [196]
+          },
+          {
+            "ndc11": "00597015290",
+            "drug": "JARDIANCE",
+            "ipay": 2026,
+            "rows": [198]
+          },
+          {
+            "ndc11": "00597015330",
+            "drug": "JARDIANCE",
+            "ipay": 2026,
+            "rows": [200]
+          },
+          {
+            "ndc11": "00597015337",
+            "drug": "JARDIANCE",
+            "ipay": 2026,
+            "rows": [202]
+          },
+          {
+            "ndc11": "00597015390",
+            "drug": "JARDIANCE",
+            "ipay": 2026,
+            "rows": [204]
+          },
+          {
+            "ndc11": "55513013728",
+            "drug": "OTEZLA; OTEZLA XR",
+            "ipay": 2027,
+            "rows": [358]
+          },
+          {
+            "ndc11": "55513013750",
+            "drug": "OTEZLA; OTEZLA XR",
+            "ipay": 2027,
+            "rows": [359]
+          },
+          {
+            "ndc11": "55513013760",
+            "drug": "OTEZLA; OTEZLA XR",
+            "ipay": 2027,
+            "rows": [360]
+          },
+          {
+            "ndc11": "55513036955",
+            "drug": "OTEZLA; OTEZLA XR",
+            "ipay": 2027,
+            "rows": [361]
+          },
+          {
+            "ndc11": "55513049751",
+            "drug": "OTEZLA; OTEZLA XR",
+            "ipay": 2027,
+            "rows": [362]
+          },
+          {
+            "ndc11": "55513049760",
+            "drug": "OTEZLA; OTEZLA XR",
+            "ipay": 2027,
+            "rows": [363]
+          },
+          {
+            "ndc11": "55513050855",
+            "drug": "OTEZLA; OTEZLA XR",
+            "ipay": 2027,
+            "rows": [364]
+          },
+          {
+            "ndc11": "55513051641",
+            "drug": "OTEZLA; OTEZLA XR",
+            "ipay": 2027,
+            "rows": [365]
+          },
+          {
+            "ndc11": "55513051804",
+            "drug": "OTEZLA; OTEZLA XR",
+            "ipay": 2027,
+            "rows": [366]
+          },
+          {
+            "ndc11": "55513051930",
+            "drug": "OTEZLA; OTEZLA XR",
+            "ipay": 2027,
+            "rows": [367]
+          },
+          {
+            "ndc11": "57962000712",
+            "drug": "IMBRUVICA",
+            "ipay": 2026,
+            "rows": [140]
+          },
+          {
+            "ndc11": "57962001428",
+            "drug": "IMBRUVICA",
+            "ipay": 2026,
+            "rows": [142]
+          },
+          {
+            "ndc11": "57962007028",
+            "drug": "IMBRUVICA",
+            "ipay": 2026,
+            "rows": [144]
+          },
+          {
+            "ndc11": "57962014009",
+            "drug": "IMBRUVICA",
+            "ipay": 2026,
+            "rows": [146]
+          },
+          {
+            "ndc11": "57962014012",
+            "drug": "IMBRUVICA",
+            "ipay": 2026,
+            "rows": [148]
+          },
+          {
+            "ndc11": "57962028028",
+            "drug": "IMBRUVICA",
+            "ipay": 2026,
+            "rows": [150]
+          },
+          {
+            "ndc11": "57962042028",
+            "drug": "IMBRUVICA",
+            "ipay": 2026,
+            "rows": [152]
+          },
+          {
+            "ndc11": "57962056028",
+            "drug": "IMBRUVICA",
+            "ipay": 2026,
+            "rows": [154]
+          },
+          {
+            "ndc11": "58406001001",
+            "drug": "ENBREL",
+            "ipay": 2026,
+            "rows": [27]
+          },
+          {
+            "ndc11": "58406001004",
+            "drug": "ENBREL",
+            "ipay": 2026,
+            "rows": [29]
+          },
+          {
+            "ndc11": "58406002101",
+            "drug": "ENBREL",
+            "ipay": 2026,
+            "rows": [31]
+          },
+          {
+            "ndc11": "58406002104",
+            "drug": "ENBREL",
+            "ipay": 2026,
+            "rows": [33]
+          },
+          {
+            "ndc11": "58406003201",
+            "drug": "ENBREL",
+            "ipay": 2026,
+            "rows": [35]
+          },
+          {
+            "ndc11": "58406003204",
+            "drug": "ENBREL",
+            "ipay": 2026,
+            "rows": [37]
+          },
+          {
+            "ndc11": "58406004401",
+            "drug": "ENBREL",
+            "ipay": 2026,
+            "rows": [39]
+          },
+          {
+            "ndc11": "58406004404",
+            "drug": "ENBREL",
+            "ipay": 2026,
+            "rows": [41]
+          },
+          {
+            "ndc11": "58406004424",
+            "drug": "ENBREL",
+            "ipay": 2026,
+            "rows": [43]
+          },
+          {
+            "ndc11": "58406005501",
+            "drug": "ENBREL",
+            "ipay": 2026,
+            "rows": [45]
+          },
+          {
+            "ndc11": "58406005504",
+            "drug": "ENBREL",
+            "ipay": 2026,
+            "rows": [47]
+          },
+          {
+            "ndc11": "58406042534",
+            "drug": "ENBREL",
+            "ipay": 2026,
+            "rows": [49]
+          },
+          {
+            "ndc11": "58406042541",
+            "drug": "ENBREL",
+            "ipay": 2026,
+            "rows": [51]
+          },
+          {
+            "ndc11": "58406043501",
+            "drug": "ENBREL",
+            "ipay": 2026,
+            "rows": [53]
+          },
+          {
+            "ndc11": "58406043504",
+            "drug": "ENBREL",
+            "ipay": 2026,
+            "rows": [55]
+          },
+          {
+            "ndc11": "58406044501",
+            "drug": "ENBREL",
+            "ipay": 2026,
+            "rows": [57]
+          },
+          {
+            "ndc11": "58406044504",
+            "drug": "ENBREL",
+            "ipay": 2026,
+            "rows": [59]
+          },
+          {
+            "ndc11": "58406044601",
+            "drug": "ENBREL",
+            "ipay": 2026,
+            "rows": [61]
+          },
+          {
+            "ndc11": "58406044604",
+            "drug": "ENBREL",
+            "ipay": 2026,
+            "rows": [63]
+          },
+          {
+            "ndc11": "58406045501",
+            "drug": "ENBREL",
+            "ipay": 2026,
+            "rows": [65]
+          },
+          {
+            "ndc11": "58406045504",
+            "drug": "ENBREL",
+            "ipay": 2026,
+            "rows": [67]
+          },
+          {
+            "ndc11": "58406045601",
+            "drug": "ENBREL",
+            "ipay": 2026,
+            "rows": [69]
+          },
+          {
+            "ndc11": "58406045604",
+            "drug": "ENBREL",
+            "ipay": 2026,
+            "rows": [71]
+          },
+          {
+            "ndc11": "59572050100",
+            "drug": "POMALYST",
+            "ipay": 2027,
+            "rows": [410]
+          },
+          {
+            "ndc11": "59572050121",
+            "drug": "POMALYST",
+            "ipay": 2027,
+            "rows": [411]
+          },
+          {
+            "ndc11": "59572050200",
+            "drug": "POMALYST",
+            "ipay": 2027,
+            "rows": [412]
+          },
+          {
+            "ndc11": "59572050221",
+            "drug": "POMALYST",
+            "ipay": 2027,
+            "rows": [413]
+          },
+          {
+            "ndc11": "59572050300",
+            "drug": "POMALYST",
+            "ipay": 2027,
+            "rows": [414]
+          },
+          {
+            "ndc11": "59572050321",
+            "drug": "POMALYST",
+            "ipay": 2027,
+            "rows": [415]
+          },
+          {
+            "ndc11": "59572050400",
+            "drug": "POMALYST",
+            "ipay": 2027,
+            "rows": [416]
+          },
+          {
+            "ndc11": "59572050421",
+            "drug": "POMALYST",
+            "ipay": 2027,
+            "rows": [417]
+          },
+          {
+            "ndc11": "59572063027",
+            "drug": "OTEZLA; OTEZLA XR",
+            "ipay": 2027,
+            "rows": [368]
+          },
+          {
+            "ndc11": "59572063106",
+            "drug": "OTEZLA; OTEZLA XR",
+            "ipay": 2027,
+            "rows": [369]
+          },
+          {
+            "ndc11": "59572063128",
+            "drug": "OTEZLA; OTEZLA XR",
+            "ipay": 2027,
+            "rows": [370]
+          },
+          {
+            "ndc11": "59572063255",
+            "drug": "OTEZLA; OTEZLA XR",
+            "ipay": 2027,
+            "rows": [371]
+          },
+          {
+            "ndc11": "61874011511",
+            "drug": "VRAYLAR",
+            "ipay": 2027,
+            "rows": [426]
+          },
+          {
+            "ndc11": "61874011517",
+            "drug": "VRAYLAR",
+            "ipay": 2027,
+            "rows": [427]
+          },
+          {
+            "ndc11": "61874011520",
+            "drug": "VRAYLAR",
+            "ipay": 2027,
+            "rows": [428]
+          },
+          {
+            "ndc11": "61874011530",
+            "drug": "VRAYLAR",
+            "ipay": 2027,
+            "rows": [429]
+          },
+          {
+            "ndc11": "61874011531",
+            "drug": "VRAYLAR",
+            "ipay": 2027,
+            "rows": [430]
+          },
+          {
+            "ndc11": "61874011563",
+            "drug": "VRAYLAR",
+            "ipay": 2027,
+            "rows": [431]
+          },
+          {
+            "ndc11": "61874011590",
+            "drug": "VRAYLAR",
+            "ipay": 2027,
+            "rows": [432]
+          },
+          {
+            "ndc11": "61874013011",
+            "drug": "VRAYLAR",
+            "ipay": 2027,
+            "rows": [433]
+          },
+          {
+            "ndc11": "61874013020",
+            "drug": "VRAYLAR",
+            "ipay": 2027,
+            "rows": [434]
+          },
+          {
+            "ndc11": "61874013030",
+            "drug": "VRAYLAR",
+            "ipay": 2027,
+            "rows": [435]
+          },
+          {
+            "ndc11": "61874013031",
+            "drug": "VRAYLAR",
+            "ipay": 2027,
+            "rows": [436]
+          },
+          {
+            "ndc11": "61874013063",
+            "drug": "VRAYLAR",
+            "ipay": 2027,
+            "rows": [437]
+          },
+          {
+            "ndc11": "61874013090",
+            "drug": "VRAYLAR",
+            "ipay": 2027,
+            "rows": [438]
+          },
+          {
+            "ndc11": "61874014511",
+            "drug": "VRAYLAR",
+            "ipay": 2027,
+            "rows": [439]
+          },
+          {
+            "ndc11": "61874014530",
+            "drug": "VRAYLAR",
+            "ipay": 2027,
+            "rows": [440]
+          },
+          {
+            "ndc11": "61874014563",
+            "drug": "VRAYLAR",
+            "ipay": 2027,
+            "rows": [441]
+          },
+          {
+            "ndc11": "61874014590",
+            "drug": "VRAYLAR",
+            "ipay": 2027,
+            "rows": [442]
+          },
+          {
+            "ndc11": "61874016011",
+            "drug": "VRAYLAR",
+            "ipay": 2027,
+            "rows": [443]
+          },
+          {
+            "ndc11": "61874016030",
+            "drug": "VRAYLAR",
+            "ipay": 2027,
+            "rows": [444]
+          },
+          {
+            "ndc11": "61874016063",
+            "drug": "VRAYLAR",
+            "ipay": 2027,
+            "rows": [445]
+          },
+          {
+            "ndc11": "61874016090",
+            "drug": "VRAYLAR",
+            "ipay": 2027,
+            "rows": [446]
+          },
+          {
+            "ndc11": "61874017008",
+            "drug": "VRAYLAR",
+            "ipay": 2027,
+            "rows": [447]
+          },
+          {
+            "ndc11": "61874025030",
+            "drug": "VRAYLAR",
+            "ipay": 2027,
+            "rows": [448]
+          },
+          {
+            "ndc11": "61874027530",
+            "drug": "VRAYLAR",
+            "ipay": 2027,
+            "rows": [449]
+          },
+          {
+            "ndc11": "65649030103",
+            "drug": "XIFAXAN",
+            "ipay": 2027,
+            "rows": [452]
+          },
+          {
+            "ndc11": "65649030104",
+            "drug": "XIFAXAN",
+            "ipay": 2027,
+            "rows": [453]
+          },
+          {
+            "ndc11": "65649030105",
+            "drug": "XIFAXAN",
+            "ipay": 2027,
+            "rows": [454]
+          },
+          {
+            "ndc11": "65649030141",
+            "drug": "XIFAXAN",
+            "ipay": 2027,
+            "rows": [455]
+          },
+          {
+            "ndc11": "65649030203",
+            "drug": "XIFAXAN",
+            "ipay": 2027,
+            "rows": [456]
+          },
+          {
+            "ndc11": "65649030302",
+            "drug": "XIFAXAN",
+            "ipay": 2027,
+            "rows": [457]
+          },
+          {
+            "ndc11": "65649030303",
+            "drug": "XIFAXAN",
+            "ipay": 2027,
+            "rows": [458]
+          },
+          {
+            "ndc11": "65649030304",
+            "drug": "XIFAXAN",
+            "ipay": 2027,
+            "rows": [459]
+          },
+          {
+            "ndc11": "66993013597",
+            "drug": "BREO ELLIPTA",
+            "ipay": 2027,
+            "rows": [321]
+          },
+          {
+            "ndc11": "66993013697",
+            "drug": "BREO ELLIPTA",
+            "ipay": 2027,
+            "rows": [322]
+          },
+          {
+            "ndc11": "66993045630",
+            "drug": "FARXIGA",
+            "ipay": 2026,
+            "rows": [136]
+          },
+          {
+            "ndc11": "66993045730",
+            "drug": "FARXIGA",
+            "ipay": 2026,
+            "rows": [138]
+          },
+          {
+            "ndc11": "68546017060",
+            "drug": "AUSTEDO; AUSTEDO XR",
+            "ipay": 2027,
+            "rows": [303]
+          },
+          {
+            "ndc11": "68546017160",
+            "drug": "AUSTEDO; AUSTEDO XR",
+            "ipay": 2027,
+            "rows": [304]
+          },
+          {
+            "ndc11": "68546017260",
+            "drug": "AUSTEDO; AUSTEDO XR",
+            "ipay": 2027,
+            "rows": [305]
+          },
+          {
+            "ndc11": "68546047056",
+            "drug": "AUSTEDO; AUSTEDO XR",
+            "ipay": 2027,
+            "rows": [306]
+          },
+          {
+            "ndc11": "68546047156",
+            "drug": "AUSTEDO; AUSTEDO XR",
+            "ipay": 2027,
+            "rows": [307]
+          },
+          {
+            "ndc11": "68546047256",
+            "drug": "AUSTEDO; AUSTEDO XR",
+            "ipay": 2027,
+            "rows": [308]
+          },
+          {
+            "ndc11": "68546047356",
+            "drug": "AUSTEDO; AUSTEDO XR",
+            "ipay": 2027,
+            "rows": [309]
+          },
+          {
+            "ndc11": "68546047456",
+            "drug": "AUSTEDO; AUSTEDO XR",
+            "ipay": 2027,
+            "rows": [310]
+          },
+          {
+            "ndc11": "68546047556",
+            "drug": "AUSTEDO; AUSTEDO XR",
+            "ipay": 2027,
+            "rows": [311]
+          },
+          {
+            "ndc11": "68546047656",
+            "drug": "AUSTEDO; AUSTEDO XR",
+            "ipay": 2027,
+            "rows": [312]
+          },
+          {
+            "ndc11": "68546047729",
+            "drug": "AUSTEDO; AUSTEDO XR",
+            "ipay": 2027,
+            "rows": [313]
+          },
+          {
+            "ndc11": "68546047956",
+            "drug": "AUSTEDO; AUSTEDO XR",
+            "ipay": 2027,
+            "rows": [314]
+          },
+          {
+            "ndc11": "68546049052",
+            "drug": "AUSTEDO; AUSTEDO XR",
+            "ipay": 2027,
+            "rows": [315]
+          },
+          {
+            "ndc11": "70518315700",
+            "drug": "VRAYLAR",
+            "ipay": 2027,
+            "rows": [450]
+          },
+          {
+            "ndc11": "70518315701",
+            "drug": "VRAYLAR",
+            "ipay": 2027,
+            "rows": [451]
+          }
+        ],
+        "partial": []
+      }
+    }
+  },
+  "nameOnlyLists": [
+    {
+      "document": "C17",
+      "year": 2026,
+      "reason": "name_only_list_needs_rxnorm",
+      "names": [
+        "Eliquis",
+        "Jardiance",
+        "Xarelto",
+        "Januvia",
+        "Farxiga",
+        "Entresto",
+        "Enbrel",
+        "Imbruvica",
+        "Stelara",
+        "Fiasp; Fiasp FlexTouch; Fiasp PenFill; NovoLog; NovoLog FlexPen; NovoLog PenFill"
+      ],
+      "citations": [
+        {
+          "document": "C17",
+          "section": "Selected drugs for initial price applicability year 2026",
+          "page": 1,
+          "quote": "Below is the list of 10 drugs covered under Medicare Part D selected for negotiation for initial price applicability year 2026"
+        }
+      ]
+    },
+    {
+      "document": "C18",
+      "year": 2027,
+      "reason": "name_only_list_needs_rxnorm",
+      "names": [
+        "Ozempic; Rybelsus; Wegovy",
+        "Trelegy Ellipta",
+        "Xtandi",
+        "Pomalyst",
+        "Ibrance",
+        "Ofev",
+        "Linzess",
+        "Calquence",
+        "Austedo; Austedo XR",
+        "Breo Ellipta",
+        "Tradjenta",
+        "Xifaxan",
+        "Vraylar",
+        "Janumet; Janumet XR"
+      ],
+      "citations": [
+        {
+          "document": "C18",
+          "section": "Selected drugs for initial price applicability year 2027",
+          "page": 1,
+          "quote": "On January 17, 2025, CMS announced the selection of the below list of 15 drugs covered under Medicare Part D for the second cycle of negotiations (initial price applicability year 2027)"
+        }
+      ]
+    }
+  ],
+  "manufacturerDiscount": {
+    "status": "unknown",
+    "reason": "applicable_drug_list_not_cached",
+    "checked": ["C19", "C20", "C21", "C22", "C23"],
+    "note": "CMS lists the labeler codes covered by a discount program agreement (C20, monthly back to January 2025 in C22) and the NDC-9s eligible for the phase-in (C21). A labeler code says which company made the agreement. It does not say whether FDA approved a product under an NDA or BLA, so it cannot tell whether a drug is an applicable drug. Phase-in drugs get a lower discount than the 2026 rates the engine holds. Neither list settles a drug's program, so it stays open.",
+    "citations": [
+      {
+        "document": "C20",
+        "member": "Manufacturer Discount Program Labeler Code ReadMe.pdf",
+        "section": "Purpose of File",
+        "page": 1,
+        "quote": "Under the Manufacturer Discount Program, Medicare Part D only covers brand-name drugs and biologics with a labeler code that is covered by a Manufacturer Discount Program agreement."
+      },
+      {
+        "document": "C23",
+        "section": "Section 40, labeler codes and non-applicable drugs",
+        "page": 21,
+        "quote": "Part D coverage may be available for non-applicable drugs that otherwise meet the definition of a covered Part D drug, regardless of whether the labeler code of such drug is covered by a Discount Program agreement."
+      },
+      {
+        "document": "C21",
+        "member": "Manufacturer Discount Program NDC-9 List ReadMe.pdf",
+        "section": "Purpose of File",
+        "page": 1,
+        "quote": "Inclusion of an NDC-9 on the list means that the drug is eligible for phase-in when covered under Part D; it does not constitute a coverage determination or supersede any relevant Medicare or plan coverage criteria."
+      }
+    ]
+  },
+  "insulin": {
+    "status": "unknown",
+    "reason": "insulin_product_list_not_cached",
+    "checked": ["C15", "C19", "C24"],
+    "note": "None of the CMS pages checked publishes a list of covered insulin products by NDC or RxCUI. The selected-drug list holds one insulin family (C16) because it was selected, not because it is insulin, so it is not used to classify insulin."
+  }
+}

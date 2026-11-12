@@ -4,7 +4,7 @@ import { drugCoverage } from "../domain/drugs/repository.js";
 import { drugConcept, normalizeNdc } from "../domain/drugs/concepts.js";
 import * as v from "../api/validation.js";
 import { ReadError } from "./errors.js";
-import { applyCmsFallback } from "../ingest/cms-api/fallback.js";
+import { passThrough } from "../plugins/sources/passthrough.js";
 import type { CmsFallbackContext } from "../ingest/cms-api/fallback.js";
 
 function rxcui(value: unknown): string {
@@ -92,7 +92,7 @@ export async function checkDrugCoverage(
     rxcui(code),
     drugYear(year),
   );
-  return (await applyCmsFallback("drug", [answer], cms))[0]!;
+  return cms ? (await passThrough.apply("drug", [answer], cms))[0]! : answer;
 }
 export async function checkDrugCoverages(
   db: SqlSession,
@@ -104,7 +104,9 @@ export async function checkDrugCoverages(
   for (const plan of request.plans)
     for (const code of request.codes)
       results.push(await drugCoverage(db, plan, code, request.year));
-  return { results: await applyCmsFallback("drug", results, cms) };
+  return {
+    results: cms ? await passThrough.apply("drug", results, cms) : results,
+  };
 }
 /** Terminology availability is separate from a successful empty candidate search. */
 export const drugTerminology = (db: SqlSession) =>

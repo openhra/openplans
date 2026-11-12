@@ -1,5 +1,9 @@
 import type { RunBudget } from "./formulary-acquire.js";
-import { checkRunBudget, childFailureCodes } from "./formulary-acquire.js";
+import {
+  checkRunBudget,
+  childFailureCodes,
+  childPayloadPath,
+} from "./formulary-acquire.js";
 import { createHash, randomUUID } from "node:crypto";
 import { createReadStream } from "node:fs";
 import type { Database } from "../../db/database.js";
@@ -34,9 +38,10 @@ async function* cachedRecords(child: CachedChild): AsyncGenerator<unknown> {
     throw new Error(child.status);
   if (!child.raw_path || !child.sha256 || child.status !== "downloaded")
     throw new Error("child_not_cached");
+  const path = await childPayloadPath(child);
   const hash = createHash("sha256");
   async function* bytes() {
-    for await (const chunk of createReadStream(child.raw_path!)) {
+    for await (const chunk of createReadStream(path)) {
       hash.update(chunk);
       yield chunk as Buffer;
     }

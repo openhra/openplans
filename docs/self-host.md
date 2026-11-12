@@ -79,7 +79,7 @@ work with either `taxonomy=207Q00000X` or `specialty=207Q00000X`. Name searches
 return HTTP 422 with `error.code: unsupported_without_taxonomy`; they become
 available after the import. Compatibility responses include the same source note
 and nullable display name. Omitting the flag on an existing installation does not
-delete names previously imported. See the [taxonomy guide](../src/ingest/taxonomy/README.md).
+delete names previously imported. See the [taxonomy guide](../plugins/source-nucc-taxonomy/README.md).
 
 Bootstrap runs sequentially: migrations, each year's rules and subsidy
 validation, PUF acquisition/import and geography, then optional sources.
@@ -223,7 +223,7 @@ Cache-backed timings exclude downloads.
 | RxNorm national CPC, added to TX | About 394 MiB additional DB; release archive additional | 60 s on Postgres; 70.952 s independent PGlite import | Not recorded | h2-smoke-20261107T102924Z/{times.tsv,rxnorm-metrics.json}; p2a-rxnorm-realdata.json |
 | NPPES TX identities/status | About 846 MiB additional DB; 1,130,479,129-byte national monthly ZIP additional | 805 s on Postgres; 800.149 s monthly + 6.759 s deactivation on PGlite | Not recorded | Same H2 nppes-metrics.json; p3a-nppes-validation.json; [NPPES measurements](../src/ingest/nppes/README.md) |
 | Census geocode, Harris County | About 202 MiB additional DB for 145,584 points/attempts | 83 s using cached replies; original live run 628.398 s / 15 successful requests | Not recorded | Same H2 geocode-metrics.json; p3c-geocode-harris-first-run.json; [live run](../src/ingest/geocode/README.md#harris-county-real-run--2026-11-07) |
-| NUCC taxonomy | Not separately measured | Not separately measured | Not recorded | [Importer and terms](../src/ingest/taxonomy/README.md) |
+| NUCC taxonomy | Not separately measured | Not separately measured | Not recorded | [Importer and terms](../plugins/source-nucc-taxonomy/README.md) |
 
 Issuer drug and provider evidence is not in this table. Its size depends on which issuers
 you load, so measure your own set.
@@ -320,6 +320,14 @@ each and expire; a restored installation asks again when it needs them. The tabl
 empty unless `OPENPLANS_CMS_FALLBACK=on`. If you run your own installation and want them in
 your backup, remove the six `--exclude-table-data` arguments and the tar `--exclude`. Do not
 publish or pass on a dump made that way.
+
+`worker backup-args` prints the `--exclude-table-data` arguments for your installation, and
+`worker backup-args --tar` prints the tar `--exclude` arguments. Use their output instead of
+typing the names. Without pass-through plugins the table list is the six names above plus the
+three generic pass-through tables (`passthrough_answer`, `passthrough_attempt` and
+`passthrough_conflict`), which stay empty until a plugin uses them. Each registered source
+that stores answers in its own tables adds those tables, unless the source opts back in to
+backups.
 
 The coverage fallback requires `OPENPLANS_CMS_FALLBACK=on` and `CMS_API_KEY`.
 The separate `OPENPLANS_CMS_FALLBACK_QUOTES=on` switch also lets native quotes and

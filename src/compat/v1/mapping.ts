@@ -63,11 +63,6 @@ const percent = (value: string | undefined) => {
 
 /** EHBPercentTotalPremium is a fraction ("0.9609"); shift the decimal point without float error. */
 const fractionAsPercent = (value: string | undefined) => {
-  // State publications print the same share as a percentage ("99%").
-  if (value?.trim().endsWith("%")) {
-    const share = percent(value);
-    return share !== null && share <= 100 ? share : null;
-  }
   const match = /^(\d+)(?:\.(\d+))?$/.exec(value?.trim() ?? "");
   if (!match) return null;
   const fraction = (match[2] ?? "").padEnd(2, "0");

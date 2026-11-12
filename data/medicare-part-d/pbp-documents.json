@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "cacheSource": "cms-medicare-pbp",
+  "documents": [
+    {
+      "id": "C13",
+      "title": "Plan Benefit Package (PBP) benefits data, contract year 2026",
+      "use": "Data dictionary codes for the 2026 drug benefit type and tier cost-share structure",
+      "publisher": "Centers for Medicare & Medicaid Services",
+      "url": "https://www.cms.gov/files/zip/pbp-benefits-2026.zip",
+      "contentType": "application/zip",
+      "sha256": "1720048e668f6c9e4abc47c512e537c013600de12860d28aea4f8308b5e51de4",
+      "bytes": 22892140,
+      "retrievedOn": "2026-11-09",
+      "lastModified": "Tue, 28 Oct 2025 13:39:17 GMT",
+      "contractYear": 2026,
+      "members": [
+        {
+          "name": "PBP_Benefits_2026_dictionary.xlsx",
+          "sha256": "3630486e8f5275dec8f635a227a0058838dc352701fb03653f2570d437eb6b9e",
+          "bytes": 1385779,
+          "sheet": "PBP2026_dictionary (1)"
+        }
+      ]
+    },
+    {
+      "id": "C14",
+      "title": "Plan Benefit Package (PBP) benefits data, contract year 2027",
+      "use": "Data dictionary codes for the 2027 drug benefit type and tier cost-share structure",
+      "publisher": "Centers for Medicare & Medicaid Services",
+      "url": "https://www.cms.gov/files/zip/pbp-benefits-2027.zip",
+      "contentType": "application/zip",
+      "sha256": "6d8430e2ecb51acf3cc8547f12dd73506aa73f0dccf034cc3c3393868576ff47",
+      "bytes": 23373818,
+      "retrievedOn": "2026-11-09",
+      "lastModified": "Thu, 01 Oct 2026 17:45:40 GMT",
+      "contractYear": 2027,
+      "members": [
+        {
+          "name": "PBP_Benefits_2027_dictionary.xlsx",
+          "sha256": "48de37dabe5297e52d2476a82ec3990221978a0d3616d162e74b08f322c69c78",
+          "bytes": 1399526,
+          "sheet": "PBP_Benefits_2027_dictionary"
+        }
+      ]
+    }
+  ]
+}

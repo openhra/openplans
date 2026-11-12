@@ -290,13 +290,12 @@ it("data availability exposes staged state catalogs separately from federal cata
   }
 });
 
-function ichraDisclosure(year: number, state: string) {
+function ichraDisclosure(year: number) {
   let status = "unknown",
     reason = "catalog_not_loaded";
   if (year === 2026) {
-    status = state === "NY" ? "incomplete_lcsp" : "requires_state_rules";
-    reason =
-      state === "NY" ? "metal_level_unknown" : "state_filed_tier_pending";
+    status = "incomplete_lcsp";
+    reason = "metal_level_unknown";
   }
   return {
     ichra_status: status,
@@ -320,7 +319,7 @@ async function checkMcpAvailability(
   const output = outputSchemas.get_data_status.parse(result.structuredContent);
   expect(output.data!.datasets.length).toBeGreaterThan(0);
   for (const row of output.data!.datasets)
-    expect(row).toMatchObject(ichraDisclosure(year, state));
+    expect(row).toMatchObject(ichraDisclosure(year));
 }
 
 it("NY and VT 2026 ICHRA availability explains their evidence gaps over HTTP and MCP", async () => {
@@ -331,8 +330,7 @@ it("NY and VT 2026 ICHRA availability explains their evidence gaps over HTTP and
     expect(response.status).toBe(200);
     const rows = (await response.json()) as Record<string, unknown>[];
     expect(rows.length).toBeGreaterThan(0);
-    for (const row of rows)
-      expect(row).toMatchObject(ichraDisclosure(2026, state));
+    for (const row of rows) expect(row).toMatchObject(ichraDisclosure(2026));
     await checkMcpAvailability(db, state, 2026);
   }
 });
@@ -350,7 +348,7 @@ it("NY and VT 2027 availability and look-back stay unknown over HTTP and MCP", a
       expect(response.status).toBe(200);
       const rows = (await response.json()) as Record<string, unknown>[];
       expect(rows).toHaveLength(1);
-      expect(rows[0]).toMatchObject(ichraDisclosure(2027, state));
+      expect(rows[0]).toMatchObject(ichraDisclosure(2027));
       await checkMcpAvailability(tx, state, 2027);
     }
   });
@@ -394,7 +392,7 @@ it("planted mutant: dropping the NY/VT branch fails the availability assertions"
       (r) => r.state === state,
     )!;
     const check = (row: Record<string, unknown>) =>
-      assert.equal(row.ichra_status, ichraDisclosure(2026, state).ichra_status);
+      assert.equal(row.ichra_status, ichraDisclosure(2026).ichra_status);
     check(good);
     expect(() => check(bad)).toThrow(assert.AssertionError);
   }

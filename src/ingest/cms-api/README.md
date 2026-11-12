@@ -3,6 +3,11 @@
 Off by default. An operator turns it on with `OPENPLANS_CMS_FALLBACK=on` and a key in
 `CMS_API_KEY`. Without both, nothing changes: answers stay `unknown`.
 
+The source is the first-party package
+[`@openplans/source-cms-marketplace-api`](../../../plugins/source-cms-marketplace-api/README.md),
+run by the pass-through core. `fallback.ts` here builds the per-request scope for routes and
+services.
+
 Some issuers' drug and provider files cannot be collected, so OpenPlans answers `unknown` for
 their plans. With `OPENPLANS_CMS_FALLBACK=on` and `CMS_API_KEY` set, the drug and provider
 coverage endpoints ask the CMS Marketplace API (`drugs/covered`, `providers/covered`) about

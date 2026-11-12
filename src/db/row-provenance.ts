@@ -86,3 +86,43 @@ export async function backfillRowProvenance(
 function quoteIdentifier(name: string): string {
   return `"${name.replaceAll('"', '""')}"`;
 }
+
+const columns = new Set<string>(ROW_PROVENANCE_COLUMNS);
+
+/**
+ * Places where a response documents a field that shares a name with a row provenance
+ * column. Anything else with one of those names is a table column that got out.
+ */
+function documented(key: string, path: string[], url: string): boolean {
+  // The CMS Marketplace API fallback labels its answers. See src/ingest/cms-api/README.md.
+  if (
+    path.includes("cms_api") &&
+    ["sourced_by", "sourced_at", "sourced_slug"].includes(key)
+  )
+    return true;
+  // The compatibility plan object lists `updated_at`, always null.
+  const parent = path.filter((part) => part !== "*").at(-1);
+  return (
+    key === "updated_at" &&
+    url.includes("/compat/v1/") &&
+    (parent === "plans" || parent === "plan")
+  );
+}
+
+// Paths of row provenance columns in a response body; array items show as "*".
+export function rowProvenanceLeaks(body: unknown, url = ""): string[] {
+  const found = new Set<string>();
+  const walk = (value: unknown, path: string[]) => {
+    if (Array.isArray(value)) {
+      for (const item of value) walk(item, [...path, "*"]);
+    } else if (value && typeof value === "object") {
+      for (const [key, child] of Object.entries(value)) {
+        if (columns.has(key) && !documented(key, path, url))
+          found.add([...path, key].join("/"));
+        walk(child, [...path, key]);
+      }
+    }
+  };
+  walk(body, []);
+  return [...found].sort();
+}

@@ -9,12 +9,22 @@ import { importSbe } from "../ingest/sbe/import.js";
 import { sbeRulesFile } from "../ingest/sbe/rules.js";
 import { createHash, randomUUID } from "node:crypto";
 import { createReadStream } from "node:fs";
-import { readFile, readdir, writeFile, rename } from "node:fs/promises";
+import { readFile, writeFile, rename } from "node:fs/promises";
 import { isAbsolute, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Database } from "../db/database.js";
+import type { CoreEvents } from "../plugins/worker.js";
 import { migrate, migrationsDirectory } from "../db/migrate.js";
-import { assertSnapshotAdmissible, FetchError } from "../fetch/index.js";
+import {
+  assertSnapshotAdmissible,
+  cachedNames,
+  cachedPayloadPath,
+  FetchError,
+  readCachedText,
+  remoteSnapshotStore,
+  sidecarNames,
+  storeCachedText,
+} from "../fetch/index.js";
 import type { SnapshotMetadata } from "../fetch/index.js";
 import { parameterRegistry } from "../domain/subsidy/generated.js";
 import { isSubsidyParameters } from "../domain/subsidy/parameters.js";
@@ -46,8 +56,8 @@ import { importNppes } from "../ingest/nppes/import.js";
 import {
   acquireRelease as acquireTaxonomy,
   discoverRelease as discoverTaxonomy,
-} from "../ingest/taxonomy/acquire.js";
-import { importTaxonomy } from "../ingest/taxonomy/import.js";
+  importTaxonomy,
+} from "../plugins/core-plugin.js";
 import {
   cachedRegistry,
   verifyRegistry,
@@ -332,18 +342,11 @@ async function metadata(
   source: string,
   url?: string | RegExp,
 ): Promise<SnapshotMetadata | undefined> {
-  const root = join(dataDir, "raw", source);
-  let names: string[];
-  try {
-    names = await readdir(root);
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return;
-    throw error;
-  }
+  // Sidecars are read through the fetch cache's store, local or remote.
   const values: SnapshotMetadata[] = [];
-  for (const name of names.filter((name) => name.endsWith(".meta.json"))) {
+  for (const name of await sidecarNames(dataDir, source)) {
     const m = JSON.parse(
-      await readFile(join(root, name), "utf8"),
+      await readCachedText(dataDir, source, name),
     ) as SnapshotMetadata;
     if (
       m.source !== source ||
@@ -361,30 +364,41 @@ async function metadata(
 async function latestManifest(
   dataDir: string,
 ): Promise<PufManifest | undefined> {
-  const root = join(dataDir, "raw", "cms-exchange-puf");
-  let names: string[];
-  try {
-    names = await readdir(root);
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return;
-    throw error;
-  }
-  const name = names
+  // PUF manifests live beside their snapshots, in the fetch cache's store.
+  const name = (await cachedNames(dataDir, "cms-exchange-puf"))
     .filter((name) => /^manifest-.*\.json$/.test(name))
     .sort()
     .at(-1);
   if (!name) return;
-  const m = JSON.parse(await readFile(join(root, name), "utf8")) as PufManifest;
+  const m = JSON.parse(
+    await readCachedText(dataDir, "cms-exchange-puf", name),
+  ) as PufManifest;
   if (m.schema_version !== 1 || m.dry_run || !Array.isArray(m.files))
     fail("invalid_puf_manifest");
   return m;
 }
 /** Cached release pages and archives obey the fetch cache's quarantine and re-admission rule. */
+const SNAPSHOT_DIRECTORY = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 async function verifiedCached(dataDir: string, source: string, url?: string) {
   const m = await metadata(dataDir, source, url);
   if (!m) return;
   await assertSnapshotAdmissible(dataDir, m);
-  const path = join(dataDir, "raw", source, m.sha256, "payload");
+  // A feed run names its cache directory by snapshot id; other fetches use the hash.
+  const directory = SNAPSHOT_DIRECTORY.test(m.snapshot_id ?? "")
+    ? m.snapshot_id
+    : m.sha256;
+  let path: string;
+  try {
+    path = await cachedPayloadPath(dataDir, source, directory, {
+      bytes: m.bytes,
+      sha256: m.sha256,
+    });
+  } catch (error) {
+    // A remote store's copy that fails its size or hash check.
+    if ((error as { code?: string }).code === "cache_error")
+      fail("cache_integrity_failed");
+    throw error;
+  }
   const hash = createHash("sha256");
   let bytes = 0;
   for await (const chunk of createReadStream(path)) {
@@ -533,18 +547,16 @@ export async function bootstrapPlan(
             ...acquired.manifest.files,
           ],
         };
-        const path = join(
-          dataDir,
-          "raw",
-          "cms-exchange-puf",
-          `manifest-${new Date().toISOString().replace(/:/g, "-")}-bootstrap.json`,
-        );
-        await writeFile(
-          `${path}.part`,
-          `${JSON.stringify(combined, null, 2)}\n`,
-          { flag: "wx" },
-        );
-        await rename(`${path}.part`, path);
+        const name = `manifest-${new Date().toISOString().replace(/:/g, "-")}-bootstrap.json`;
+        const text = `${JSON.stringify(combined, null, 2)}\n`;
+        const remote = remoteSnapshotStore(dataDir);
+        if (remote)
+          await storeCachedText(remote, "cms-exchange-puf", name, text);
+        else {
+          const path = join(dataDir, "raw", "cms-exchange-puf", name);
+          await writeFile(`${path}.part`, text, { flag: "wx" });
+          await rename(`${path}.part`, path);
+        }
         if (
           wanted.some(
             (kind) =>
@@ -1148,7 +1160,9 @@ export async function runBootstrap(
   openDatabase: (connectionString?: string) => Database,
   output: Output,
   directory = migrationsDirectory,
+  events?: CoreEvents,
 ): Promise<number> {
+  const runId = randomUUID();
   let options: BootstrapOptions;
   const stateFlag = args.indexOf("--states");
   const selectedStates =
@@ -1196,6 +1210,14 @@ export async function runBootstrap(
     );
     const summary = await executeBootstrap(steps, output, options.dryRun);
     code = summary.passed ? 0 : 1;
+    for (const step of summary.steps)
+      if (step.status === "failed")
+        await readinessFailed(
+          events,
+          runId,
+          `bootstrap.${step.id}`,
+          step.reason,
+        );
   } catch (error) {
     const fetchError = fetchFailure(error);
     output.error(
@@ -1203,6 +1225,7 @@ export async function runBootstrap(
         ? `worker bootstrap failed: ${fetchError.message} (${fetchError.code})`
         : "worker bootstrap failed; check data cache metadata, options and database",
     );
+    await readinessFailed(events, runId, "bootstrap", fetchError?.code);
     code = 1;
   } finally {
     try {
@@ -1213,4 +1236,28 @@ export async function runBootstrap(
     }
   }
   return code;
+}
+
+/** `readiness.failed` for one failed step or plan: identifiers and codes only. */
+async function readinessFailed(
+  events: CoreEvents | undefined,
+  runId: string,
+  check: string,
+  reason: string | undefined,
+): Promise<void> {
+  if (!events) return;
+  const safeCheck = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(check)
+    ? check
+    : "bootstrap";
+  await events.emit({
+    type: "readiness.failed",
+    idempotencyKey: `readiness.failed:${runId}:${safeCheck}`,
+    payload: {
+      check: safeCheck,
+      reasonCode:
+        reason && /^[A-Za-z][A-Za-z0-9_]{0,95}$/.test(reason)
+          ? reason
+          : "bootstrap_failed",
+    },
+  });
 }

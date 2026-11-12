@@ -125,4 +125,88 @@ describe("prepared QHP profile", () => {
       }),
     ).toBe(false);
   });
+
+  // Synthetic outcomes: only an ACTIVE set whose sole partial reason is rejected records passes.
+  const partialCases: [string, Record<string, unknown>, boolean][] = [
+    [
+      "ACTIVE partial, rejected records only",
+      {
+        status: "ACTIVE",
+        completeness: "partial",
+        reason: "source_records_rejected",
+      },
+      true,
+    ],
+    [
+      "ACTIVE partial, another reason",
+      {
+        status: "ACTIVE",
+        completeness: "partial",
+        reason: "catalog_plan_year_not_in_definitions",
+      },
+      false,
+    ],
+    [
+      "ACTIVE partial, rejected records plus another reason",
+      {
+        status: "ACTIVE",
+        completeness: "partial",
+        reason: "catalog_plan_year_not_in_definitions,source_records_rejected",
+      },
+      false,
+    ],
+    [
+      "ACTIVE partial, rejected records plus an operational failure",
+      {
+        status: "ACTIVE",
+        completeness: "partial",
+        reason: "run_budget_exceeded,source_records_rejected",
+      },
+      false,
+    ],
+    [
+      "ACTIVE partial without a reason",
+      { status: "ACTIVE", completeness: "partial" },
+      false,
+    ],
+    [
+      "ACTIVE partial with an empty reason",
+      { status: "ACTIVE", completeness: "partial", reason: "" },
+      false,
+    ],
+    [
+      "ACTIVE failed, rejected records",
+      {
+        status: "ACTIVE",
+        completeness: "failed",
+        reason: "source_records_rejected",
+      },
+      false,
+    ],
+    [
+      "status missing, partial, rejected records",
+      { completeness: "partial", reason: "source_records_rejected" },
+      false,
+    ],
+  ];
+
+  it.each(partialCases)("partial outcome: %s", (_name, report, expected) => {
+    expect(preparedQhpOutcome(report)).toBe(expected);
+  });
+
+  it("planted mutant that accepts any partial is caught", () => {
+    const mutant = (report: Record<string, unknown>) =>
+      report.completeness === "partial" || preparedQhpOutcome(report);
+    const caught = partialCases.filter(
+      ([, report, expected]) => mutant(report) !== expected,
+    );
+    expect(caught.map(([name]) => name)).toEqual([
+      "ACTIVE partial, another reason",
+      "ACTIVE partial, rejected records plus another reason",
+      "ACTIVE partial, rejected records plus an operational failure",
+      "ACTIVE partial without a reason",
+      "ACTIVE partial with an empty reason",
+      "status missing, partial, rejected records",
+    ]);
+  });
 });

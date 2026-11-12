@@ -49,6 +49,18 @@ done
 for year in "${years[@]}"; do
   node --max-old-space-size=8192 scripts/oracle/medicare-part-d.mjs --year "$year"
 done
+# Part D drug-cost estimates: the CMS worked examples end to end over HTTP and MCP, then every
+# cached Part D plan through the estimate route with a provenance check, a sample through the MCP
+# tool and planted mutants. Writes calculated and unknown counts by reason. Skips when not cached.
+node node_modules/vitest/vitest.mjs run tests/ingest/medicare/medicare-cost-oracle.test.ts
+for year in "${years[@]}"; do
+  node --max-old-space-size=8192 scripts/oracle/medicare-cost.mjs --year "$year"
+done
+# NY filed identities: cached DFS fields, regional LCSP and refusal controls.
+if [[ " ${years[*]} " == *" 2026 "* ]]; then
+  node src/ingest/state/ny-identitycheck.mjs
+  node src/ingest/state/vt-metalcheck.mjs
+fi
 # CMS SBE: independent CSV/Decimal counts, exact filed rates and households.
 for year in "${years[@]}"; do
   node scripts/oracle/sbe.mjs --year "$year"

@@ -1,4 +1,6 @@
+import { randomUUID } from "node:crypto";
 import type { Database } from "../db/database.js";
+import type { CoreEvents } from "../plugins/worker.js";
 import type { WorkerOutput } from "./commands.js";
 import { databaseErrorDiagnostic } from "./database-error.js";
 
@@ -10,6 +12,7 @@ export async function runRecordPolicy(
   args: string[],
   openDatabase: () => Database,
   output: WorkerOutput,
+  events?: CoreEvents,
 ): Promise<number> {
   const [command, name, ...flags] = args;
   const options = new Map<string, string>();
@@ -115,6 +118,7 @@ export async function runRecordPolicy(
       }
       await db.exec(`VACUUM (PARALLEL 0) ${table}`);
     }
+    if (command === "set" && events) await emitPolicyChanged(events, name!);
     output.out(JSON.stringify({ policy: name, command, rows: changed }));
     return 0;
   } catch (error) {
@@ -125,4 +129,23 @@ export async function runRecordPolicy(
   } finally {
     await db?.close();
   }
+}
+
+/** Reads the stored values through the events connection, so the command's own queries stay as they were. */
+async function emitPolicyChanged(
+  events: CoreEvents,
+  policy: string,
+): Promise<void> {
+  const row = (
+    await events.read<{ ttl: string | null; stale_window: string }>(
+      "SELECT default_ttl::text AS ttl, stale_window::text AS stale_window FROM record_policy WHERE name=$1",
+      [policy],
+    )
+  )?.[0];
+  if (!row) return;
+  await events.emit({
+    type: "record_policy.changed",
+    idempotencyKey: `record_policy.changed:${randomUUID()}`,
+    payload: { policy, ttl: row.ttl, staleWindow: row.stale_window },
+  });
 }

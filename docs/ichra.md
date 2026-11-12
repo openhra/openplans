@@ -94,6 +94,22 @@ a response carries `status: "final"` or `status: "proposed_reliance_permitted"` 
 With a location or look-back flag, the household-income verdict is also an employer verdict and
 uses the same safe-harbor LCSP. Without them it uses the residence LCSP for the plan start month.
 
+For a non-calendar plan year, the look-back changes the rate month, while the employee's age
+and location describe the current offer. For example, a plan starting July 1, 2026 uses January
+2026 rates. An employee born August 15, 1985 who can first receive the HRA on August 15, 2026
+is priced at age 41, even though the employee was 40 when the plan year started and in January.
+Send that effective date as `employee.eligible_from`. On August 14 the applicable age would
+still be 40. The plan year determines the contribution percentage, so this example uses 9.96%.
+The employer LCSP still identifies the plan at the lowest age band before pricing it at the
+applicable age. For February through December starts, responses cite proposed (f)(4)(ii) and
+(f)(7)(i)-(ii) as `look_back_current_circumstances`, with status
+`proposed_reliance_permitted`.
+
+Every non-January start month uses January of the year in `plan_start`, including a mid-year
+entrant. `eligible_from` does not move the look-back month to the eligibility year. A missing
+catalog returns `unknown` with `lookback_catalog_not_loaded`; another year's rates cannot fill
+the gap. The supplied worksite or residence describes the current offer's location.
+
 ## Premium basis
 
 The LCSP uses the full monthly premium by default, as 26 CFR 1.36B-2(c)(5)(ii)(A) says ("monthly
@@ -180,7 +196,7 @@ or unaffordable in these cases:
 | `unknown`                   | `month_rate_rows_missing`                            | A silver plan lacks a rate row for that month and age, or the plan starts January 2-31 |
 | `unknown`                   | `location_ambiguous`, `location_unknown`             | The ZIP spans counties without a county, or is not known                               |
 | `location_requires_zip`     | `zip_limited_service_area`, `sub_county_rating_area` | A ZIP is needed to know which plans are offered or which rating area applies           |
-| `requires_state_rules`      | `state_filed_tier_pending`                           | Vermont LCSP selection or the required New York filed-tier rule is unavailable         |
+| `requires_state_rules`      | `state_filed_tier_pending`                           | The required filed-tier rating rule is unavailable                                     |
 | `unsupported_state`         |                                                      | Territories have no Exchange LCSP in these files                                       |
 | `unsupported_rating_method` |                                                      | The state's rating method is not supported                                             |
 | `incomplete_lcsp`           | plan and cause                                       | A silver plan is unrated, or its child-only offering is unknown                        |
@@ -231,7 +247,34 @@ bundle URL, hash, snapshot and source rows. It also cites the filed price cell, 
 mapping and state rating rule. This evidence does not establish county-specific enrollment
 eligibility.
 
-A silver plan without that evidence makes the LCSP `incomplete_lcsp` with reason
+Some filed rate rows cover off-Exchange plans absent from the CMS publication. For four
+2026 filings, a small source cut from [DFS final Exhibit 23 publications](https://myportal.dfs.ny.gov/web/prior-approval/2026-final-exhibits)
+supplies explicit metal and Exchange/CSR fields. The join uses the current 16-character HIOS
+variant ID, its 14-character base, the exact rate-publication hash, and a matching 2026 regional
+single premium. Quotes use the approved rate-template cells. Exhibit 23 prices only validate
+the identity join. Previous-year IDs and rates cannot establish a match.
+
+The response cites these facts as `filed_identity.source: ny_dfs_exhibit_23`, with the
+publication URL, hash, workbook, sheet, physical rows and field columns. A consistent `Off`
+field on every current variant excludes that plan from the Exchange silver set. Conflicting
+Exchange evidence for a silver plan prevents an answer. DFS `On` fields do not replace CMS
+Exchange-offer evidence.
+The source cut resolves 424 regional rows: 422 off-Exchange and two catastrophic. To verify
+or regenerate it from cached original files, run:
+
+```sh
+python3 -B src/ingest/state/ny-identity.py --data-dir "$OPENPLANS_DATA_DIR"
+# Add --write to regenerate data/rating-rules/ny-plan-identities-2026.json.
+node src/ingest/state/ny-identitycheck.mjs "$OPENPLANS_DATA_DIR"
+```
+
+The second command needs a build. It imports cached publications into a disposable database,
+checks gross and EHB prices in all eight regions against independent decimal calculations,
+and plants missing-silver, changed-price and unnormalized-percentage controls. Results go to
+`reports/ny-ehb-2026/` under the data directory. It never connects to a running service or
+downloads files.
+
+A silver plan without CMS offer evidence or an explicit off-Exchange exclusion makes the LCSP `incomplete_lcsp` with reason
 `exchange_offering_unverified`. Missing or conflicting metal evidence also makes the result
 `incomplete_lcsp`, with reason `metal_level_unknown`. The calculation never drops an unverified
 candidate to choose a more expensive plan. Unknown family eligibility and conflicting filed
@@ -241,11 +284,39 @@ New York responses use `quote_method: state_filed_tier`, `age_rating: none` and 
 `identified_at_age` and `priced_at_age`. Both employee and employer checks use the same
 age-independent single-tier prices. The EHB-portion basis needs a published, consistent EHB
 fraction for every eligible silver plan. Missing fractions leave the gross calculation intact
-and the EHB-portion result incomplete.
+and the EHB-portion result incomplete. Ingestion converts published percentages such as `99%`,
+`99` and `99.5 %` to fraction strings, while `0.99` stays a fraction. Unmarked values through
+1 are fractions; values above 1 through 100 are percentages. Conflicting aliases, malformed
+values and values outside the range stay unknown. Allocation accepts only fraction strings
+and rounds the resulting premium to cents.
 
-Vermont still returns `requires_state_rules` with reason `state_filed_tier_pending`.
-The staged on-Exchange publication has no explicit metal field or cited metal mapping, so it
-cannot establish the silver set. Off-Exchange reflective plan metal fields do not fill that gap.
+Vermont 2026 uses the explicit `METAL LEVEL` cells in the admitted
+[CMS Vermont SBE bundle](https://www.cms.gov/files/zip/vermontsbepuf2026.zip).
+`data/rating-rules/vt-plan-metals-2026.json` maps all 26 main-filing designs to their
+literal CMS metal fields through the existing exact HIOS identity join. The mapping pins the
+original filed PDF hash and tier cells, the CMS bundle hash, variant identities and physical
+CSV rows. Names and prices do not supply a metal level. Missing or conflicting evidence
+returns `incomplete_lcsp` with `metal_level_unknown`, including a missing Silver variant.
+A changed or unreviewed bundle cannot inherit the mapping.
+
+Vermont has one statewide rating area. The eight eligible Silver designs have a lowest filed
+single premium of $1,288.59. ICHRA uses that lowest premium. The second-lowest gross Silver
+premium is $1,298.94; this figure alone does not establish an adjusted premium-tax-credit
+benchmark. The optional eight reflective designs remain explicitly off-Exchange and are
+excluded from the ICHRA candidate set under their cited state filings. Both the original and
+reflective catalogs retain the same eligible Silver set.
+
+Verify or regenerate the cut and check the actual service from cached originals after a build:
+
+```sh
+python3 -B src/ingest/state/vt-metal.py --data-dir "$OPENPLANS_DATA_DIR"
+# Add --write to regenerate data/rating-rules/vt-plan-metals-2026.json.
+node src/ingest/state/vt-metalcheck.mjs "$OPENPLANS_DATA_DIR"
+```
+
+The checker uses a disposable database, checks all 14 counties, and rejects changed metal,
+missing Silver evidence, changed prices and inactive attribute snapshots. It writes results
+to `reports/vt-metal-2026/`. Neither command downloads files or uses a running service.
 
 Both states use community-rated family tiers without age or tobacco factors. Self-only
 coverage uses the filed `single` tier. The state premium rules cite
@@ -259,19 +330,21 @@ and [DVHA 2026 issuer guidance, section 2.2](https://dvha.vermont.gov/sites/dvha
 
 NY and VT availability rows report these limits as follows:
 
-| Scope                                      | `ichra_status`         | Reason                                                                       |
-| ------------------------------------------ | ---------------------- | ---------------------------------------------------------------------------- |
-| NY 2026, complete loaded regional evidence | `available`            | null                                                                         |
-| NY 2026, incomplete candidate evidence     | `incomplete_lcsp`      | `exchange_offering_unverified`, `metal_level_unknown` or the candidate issue |
-| NY 2026, no loaded filed catalog           | `unknown`              | `catalog_not_loaded`                                                         |
-| VT 2026                                    | `requires_state_rules` | `state_filed_tier_pending`                                                   |
-| NY/VT 2027                                 | `unknown`              | `catalog_not_loaded`                                                         |
+| Scope                                          | `ichra_status`    | Reason                                                                       |
+| ---------------------------------------------- | ----------------- | ---------------------------------------------------------------------------- |
+| NY 2026, complete loaded regional evidence     | `available`       | null                                                                         |
+| NY 2026, incomplete candidate evidence         | `incomplete_lcsp` | `exchange_offering_unverified`, `metal_level_unknown` or the candidate issue |
+| NY 2026, no loaded filed catalog               | `unknown`         | `catalog_not_loaded`                                                         |
+| VT 2026, complete cited catalog                | `available`       | null                                                                         |
+| VT 2026, missing or conflicting metal evidence | `incomplete_lcsp` | `metal_level_unknown`                                                        |
+| VT 2026, no loaded filed catalog               | `unknown`         | `catalog_not_loaded`                                                         |
+| NY/VT 2027                                     | `unknown`         | `catalog_not_loaded`                                                         |
 
 NY readiness checks every loaded DFS region. It describes gross-premium calculation readiness;
 a particular request may still lack an EHB fraction or family eligibility evidence.
 Both states retain `ichra_lookback_status: unknown` and
 `ichra_lookback_reason: catalog_not_loaded`. No prior-year filed catalog is supported.
-NY requests for 2027 or a missing look-back catalog return `unknown`; a non-January coverage
+NY/VT requests for 2027 or a missing look-back catalog return `unknown`; a non-January coverage
 month returns `unknown` with `month_rate_rows_missing`.
 
 `ichra_reason` explains the row's year. `ichra_documentation` points to this section.

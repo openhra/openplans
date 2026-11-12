@@ -1,18 +1,14 @@
+import { CMS_API_EXPORT_EXCLUDED_TABLES } from "@openplans/source-cms-marketplace-api";
+
 /**
- * Tables whose rows come from the CMS Marketplace API or describe calls to it. The backup
- * commands in docs/self-host.md leave their data out, so a dump never carries API answers.
- * Receipts in `snapshot` stay. They hold a hash and a redacted URL, not the answer.
+ * Tables whose rows come from the CMS Marketplace API or describe calls to it, and the raw
+ * bodies the backup archive leaves out. The list lives in the source package; `worker
+ * backup-args` prints the arguments for an installation.
  */
-export const CMS_API_EXPORT_EXCLUDED_TABLES: readonly string[] = [
-  "cms_api_attempt",
-  "cms_api_conflict",
-  "cms_api_drug_coverage",
-  "cms_api_provider_coverage",
-  "cms_zip_attempt",
-  "cms_zip_lookup",
-];
-/** Raw response bodies under the data directory that the backup archive leaves out. */
-export const CMS_API_EXPORT_EXCLUDED_RAW = "raw/cms-marketplace-*";
+export {
+  CMS_API_EXPORT_EXCLUDED_RAW,
+  CMS_API_EXPORT_EXCLUDED_TABLES,
+} from "@openplans/source-cms-marketplace-api";
 
 /** `pg_dump` arguments that keep API-sourced rows out of a dump. */
 export function pgDumpExcludeArgs(): string[] {

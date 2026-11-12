@@ -1,5 +1,9 @@
 import type { RunBudget } from "./formulary-acquire.js";
-import { checkRunBudget, childFailureCodes } from "./formulary-acquire.js";
+import {
+  checkRunBudget,
+  childFailureCodes,
+  childPayloadPath,
+} from "./formulary-acquire.js";
 import { createHash, randomUUID } from "node:crypto";
 import { createReadStream } from "node:fs";
 import type { Database, SqlSession } from "../../db/database.js";
@@ -49,9 +53,10 @@ export async function* providerCachedRecords(
     throw new Error(child.status);
   if (!child.raw_path || !child.sha256 || child.status !== "downloaded")
     throw new Error("child_not_cached");
+  const path = await childPayloadPath(child);
   const hash = createHash("sha256");
   async function* bytes() {
-    for await (const chunk of createReadStream(child.raw_path!)) {
+    for await (const chunk of createReadStream(path)) {
       hash.update(chunk);
       yield chunk as Buffer;
     }
@@ -233,7 +238,8 @@ export async function importProviders(
       addresses = 0,
       edges = 0,
       statsPrimed = estimate >= 10_000,
-      partial = false;
+      partial = false,
+      rejectedChildren = 0;
     const parsedChildren: CachedChild[] = [];
     for (let child of children) {
       const shardStarted = Date.now();
@@ -255,6 +261,7 @@ export async function importProviders(
       let firstOutsideStatePlan: string | null = null;
       let count = 0,
         stored = 0,
+        rejected = 0,
         invalid = false,
         failure: string | null = null;
       let recordBatch: unknown[][] = [],
@@ -366,38 +373,44 @@ export async function importProviders(
           const recordId = `${child.sha256}:${row}`;
           let npi = text(provider.npi);
           if (npi === "") npi = null;
-          if (npi !== null && !/^[12][0-9]{9}$/.test(npi)) {
-            issue("invalid_npi", row, true);
-            npi = null;
+          // A published value that is not an NPI rejects only this record: it is not stored,
+          // has no edges and is counted. Its other fields are still checked below, so a
+          // structural defect still quarantines the whole child.
+          const keep = !(
+            (npi !== null && !/^[12][0-9]{9}$/.test(npi)) ||
+            (provider.npi !== undefined &&
+              provider.npi !== null &&
+              typeof provider.npi !== "string")
+          );
+          if (!keep) {
+            issue("invalid_npi_record_rejected", row);
+            rejected++;
           }
-          if (
-            provider.npi !== undefined &&
-            provider.npi !== null &&
-            typeof provider.npi !== "string"
-          )
-            issue("invalid_npi", row, true);
-          recordBatch.push([
-            shardId,
-            recordId,
-            row,
-            npi,
-            provider.type,
-            json(provider.name),
-            text(provider.facility_name),
-            json(provider.facility_type),
-            text(provider.group_name),
-            json(provider.speciality),
-            json(provider.specialty),
-            json(provider.languages),
-            json(provider.accepting),
-            text(provider.last_updated_on),
-          ]);
-          records++;
+          if (keep) {
+            recordBatch.push([
+              shardId,
+              recordId,
+              row,
+              npi,
+              provider.type,
+              json(provider.name),
+              text(provider.facility_name),
+              json(provider.facility_type),
+              text(provider.group_name),
+              json(provider.speciality),
+              json(provider.specialty),
+              json(provider.languages),
+              json(provider.accepting),
+              text(provider.last_updated_on),
+            ]);
+            records++;
+          }
           for (const [index, address] of provider.addresses.entries()) {
             if (!object(address)) {
               issue("invalid_provider_address", row, true);
               continue;
             }
+            if (!keep) continue;
             addressBatch.push([
               shardId,
               recordId,
@@ -455,6 +468,7 @@ export async function importProviders(
               issue("invalid_network_tier", row, true);
               continue;
             }
+            if (!keep) continue;
             const resolved = tiers.get(plan)?.has(tier) ?? false;
             if (!resolved) {
               const key = JSON.stringify([plan, tier]),
@@ -524,6 +538,10 @@ export async function importProviders(
         if (failure !== "plan_definitions_incomplete")
           issue(failure, count, true);
       }
+      // Per-record rejection is for isolated bad values. A child where more than 1% of
+      // records are rejected has a format problem, and the whole child is quarantined.
+      if (!failure && rejected * 100 > count)
+        issue("rejected_records_over_limit", null, true);
       if (failure || invalid) {
         // A child is indivisible evidence: even complete rows preceding a bad EOF are private
         // and discarded. Publication of an older ACTIVE source set is never touched here.
@@ -582,25 +600,32 @@ export async function importProviders(
         } else {
           status = "failed";
         }
-      } else if (invalid) {
+      } else if (invalid || rejected) {
         status = "partial";
       } else {
         status = "complete";
       }
       if (status === "partial") partial = true;
-      const reason = failure ?? (invalid ? "invalid_source_records" : null);
+      let reason: string | null = null;
+      if (failure) reason = failure;
+      else if (invalid) reason = "invalid_source_records";
+      else if (rejected) {
+        reason = "source_records_rejected";
+        rejectedChildren++;
+      }
       if (status === "complete") complete++;
       else reasons.add(reason!);
+      const kept = failure || invalid ? 0 : count - rejected;
       await tx.query(
         `UPDATE provider_shard SET status=$2,reason=$3,record_count=$4,edge_count=$5 WHERE snapshot_id=$1`,
-        [shardId, status, reason, failure || invalid ? 0 : count, stored],
+        [shardId, status, reason, kept, stored],
       );
       options.onShard?.({
         issuer: scope.issuer,
         child_id: child.child_id,
         status,
         reason,
-        records: failure || invalid ? 0 : count,
+        records: kept,
         edges: stored,
         elapsed_ms: Date.now() - shardStarted,
       });
@@ -702,12 +727,18 @@ export async function importProviders(
       );
     // A definition-year gap limits absence evidence; it does not invalidate explicitly dated
     // positive associations. Structural/fetch/hash failures still preserve the prior pointer.
+    // Rejected records likewise limit absence evidence only: the source set stays partial,
+    // so an unlisted provider remains unknown, never not_listed.
+    const positiveOnly = new Set([
+      "catalog_plan_year_not_in_definitions",
+      "source_records_rejected",
+    ]);
     const publishPositive =
       completeness === "complete" ||
       (edges > 0 &&
-        complete === children.length &&
-        reasons.size === 1 &&
-        reasons.has("catalog_plan_year_not_in_definitions"));
+        complete + rejectedChildren === children.length &&
+        reasons.size > 0 &&
+        [...reasons].every((r) => positiveOnly.has(r)));
     await publishSet(
       tx,
       scope,
@@ -718,6 +749,7 @@ export async function importProviders(
       complete,
       [...new Set(plans.map((p) => p.market))],
       publishPositive,
+      complete + rejectedChildren,
     );
     await tx.exec(
       "ANALYZE provider_active_set; ANALYZE provider_shard; ANALYZE provider_source_set; ANALYZE snapshot",

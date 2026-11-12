@@ -16,20 +16,22 @@ import type { SqlSession } from "../db/database.js";
 import { ratingRule } from "../ingest/rating-rules/index.js";
 import { federalCatalog } from "../api/repository.js";
 import { ichraParameters } from "../domain/ichra/index.js";
-import { cmsApiAvailability } from "../ingest/cms-api/fallback.js";
+import { CMS_API_SOURCE } from "../ingest/cms-api/fallback.js";
+import type { CmsApiAvailability } from "../ingest/cms-api/fallback.js";
+import { passThrough } from "../plugins/sources/passthrough.js";
 
-import { nyLcspAvailability } from "./ichra.js";
+import { nyLcspAvailability, vtLcspAvailability } from "./ichra.js";
 
 const ICHRA_STATE_RULES = new Set(["NY", "VT"]);
 /**
  * ICHRA fields for one availability row. `available` means the gross-premium LCSP can be computed:
- * premiums and the year's catalog and parameters are available. NY also requires
- * complete filed-tier candidate evidence. The EHB-portion figure can still be unknown.
+ * premiums and the year's catalog and parameters are available. State catalogs also need
+ * complete candidate evidence. The EHB-portion figure can still be unknown.
  */
 async function ichraAvailability(
   entry: Record<string, unknown>,
   loaded: (state: string, year: number) => Promise<boolean>,
-  ny: (year: number) => ReturnType<typeof nyLcspAvailability>,
+  filed: (state: string, year: number) => ReturnType<typeof nyLcspAvailability>,
 ) {
   const state = String(entry.state),
     year = Number(entry.plan_year);
@@ -44,12 +46,11 @@ async function ichraAvailability(
       : null;
   let status: string, reason: string | null;
   if (ICHRA_STATE_RULES.has(state)) {
-    if (state === "NY" && year === 2026) {
-      ({ status, reason } = await ny(year));
+    if (year === 2026) {
+      ({ status, reason } = await filed(state, year));
     } else {
-      status = year === 2026 ? "requires_state_rules" : "unknown";
-      reason =
-        year === 2026 ? "state_filed_tier_pending" : "catalog_not_loaded";
+      status = "unknown";
+      reason = "catalog_not_loaded";
     }
   } else if (!rules) {
     status = "unknown";
@@ -172,7 +173,10 @@ export async function dataAvailability(
     );
   }
   // Only with the CMS API fallback on: how many stored API answers each entry has.
-  const cms = await cmsApiAvailability(db);
+  const cms = (await passThrough.availability(CMS_API_SOURCE, db)) as {
+    configured: boolean;
+    byIssuer: Map<string, CmsApiAvailability>;
+  } | null;
   if (cms)
     for (const entry of entries)
       (entry as Record<string, unknown>).cms_api = cms.byIssuer.get(
@@ -346,14 +350,23 @@ export async function dataAvailability(
         : {}),
     };
   });
-  const nyReadiness = new Map<number, ReturnType<typeof nyLcspAvailability>>();
-  const ny = (year: number) => {
-    if (!nyReadiness.has(year))
-      nyReadiness.set(year, nyLcspAvailability(db, year));
-    return nyReadiness.get(year)!;
+  const readiness = new Map<string, ReturnType<typeof nyLcspAvailability>>();
+  const filed = (state: string, year: number) => {
+    const key = `${state}:${year}`;
+    if (!readiness.has(key))
+      readiness.set(
+        key,
+        state === "VT"
+          ? vtLcspAvailability(db, year)
+          : nyLcspAvailability(db, year),
+      );
+    return readiness.get(key)!;
   };
-  const result: Record<string, unknown>[] = [];
+  const result = [];
   for (const entry of withSources)
-    result.push({ ...entry, ...(await ichraAvailability(entry, loaded, ny)) });
+    result.push({
+      ...entry,
+      ...(await ichraAvailability(entry, loaded, filed)),
+    });
   return result;
 }

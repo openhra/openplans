@@ -1,3 +1,4 @@
+import { loadConfig } from "../config/index.js";
 import { sharedResponseCache } from "../api/cache/index.js";
 import type { CacheOutcome } from "../api/cache/index.js";
 import { Hono } from "hono";
@@ -9,15 +10,23 @@ import {
 import type { SqlSession } from "../db/database.js";
 import { createSourceLimiter, requestSource } from "../api/rate-limit.js";
 import { buildServer } from "./server.js";
-import { PERSONALIZED_TOOLS, toolNames } from "./schemas.js";
+import { PERSONALIZED_TOOLS } from "./schemas.js";
+import {
+  estimateToolHooks,
+  MEDICARE_ESTIMATE_TOOL,
+} from "./medicare-estimate.js";
+import { isToolName } from "../plugins/mcp-tools.js";
+import { runWithScope } from "../plugins/request-scope.js";
+import type { ScopeHandle } from "../plugins/request-scope.js";
+import type { CacheLevel } from "@openplans/plugin-sdk";
 import type { ToolName } from "./schemas.js";
 import { MAX_OUTPUT_BYTES, MAX_TOOL_LIST_BYTES, limits } from "./tools.js";
 import {
   authenticated,
   boundedDatabase,
-  dependencies,
+  configDependencies,
   DEADLINE_MS,
-  householdOpen,
+  configHouseholdOpen,
 } from "./policy.js";
 import type { McpEnvironment } from "./policy.js";
 
@@ -34,14 +43,9 @@ export interface HttpOptions {
   log?: (entry: McpLog) => void;
   /** Trusted socket peer supplied by a hosting adapter, never an HTTP header. */
   peerAddress?: (request: Request) => string | undefined;
+  /** Called once with the request's cache level, before the first response byte is sent. */
+  onCacheLevel?: (level: CacheLevel | null) => void;
 }
-const list = (value: string | undefined, defaults: string[] = []) =>
-  value === undefined || value === ""
-    ? defaults
-    : value
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean);
 function failure(
   status: number,
   code: number,
@@ -56,21 +60,13 @@ function failure(
 
 export function createMcpHttp(db: SqlSession, options: HttpOptions = {}) {
   const cache = sharedResponseCache(db);
-  const env = options.env ?? process.env,
-    now = options.now ?? Date.now;
-  const port = env.PORT ?? "3000";
-  const locals = ["127.0.0.1", "localhost", "[::1]"];
-  const hosts = list(env.OPENPLANS_MCP_ALLOWED_HOSTS, [
-    ...locals,
-    ...locals.map((h) => `${h}:${port}`),
-  ]);
-  const origins = list(
-    env.OPENPLANS_MCP_ALLOWED_ORIGINS,
-    locals.map((h) => `http://${h}:${port}`),
-  );
-  const proxies = list(env.OPENPLANS_TRUST_PROXY);
+  const config = loadConfig(options.env ?? process.env);
+  const now = options.now ?? Date.now;
+  const hosts = [...config.mcp.allowedHosts];
+  const origins = config.mcp.allowedOrigins;
+  const proxies = [...config.trustProxy];
   // Anonymous callers share the 60 per minute bucket whether or not household tools are open.
-  const open = householdOpen(env);
+  const open = configHouseholdOpen(config);
   const log = options.log ?? ((entry) => console.error(JSON.stringify(entry)));
   const limiter = createSourceLimiter(now);
   let active = 0;
@@ -92,7 +88,7 @@ export function createMcpHttp(db: SqlSession, options: HttpOptions = {}) {
     }
   });
   app.use("/mcp", async (c, next) => {
-    if (env.OPENPLANS_MCP === "off") return c.notFound();
+    if (!config.mcp.enabled) return c.notFound();
     const host = c.req.header("host") ?? new URL(c.req.url).host;
     if (!hosts.includes(host)) return failure(403, -32000, "Host forbidden");
     await next();
@@ -129,6 +125,16 @@ export function createMcpHttp(db: SqlSession, options: HttpOptions = {}) {
     let status = 500,
       cacheOutcome: CacheOutcome = "bypass";
     let handler: ReturnType<typeof createMcpHandler> | undefined;
+    let scope: ScopeHandle | undefined,
+      levelSeen = false;
+    // Read through the handle: stream callbacks run outside the request's async context.
+    const seeLevel = () => {
+      if (levelSeen || !scope) return;
+      levelSeen = true;
+      const level = scope.level();
+      if (level === "none" || level === "request") cacheOutcome = "bypass";
+      options.onCacheLevel?.(level);
+    };
     const finish = () => {
       if (done) return;
       done = true;
@@ -160,7 +166,7 @@ export function createMcpHttp(db: SqlSession, options: HttpOptions = {}) {
       signal.throwIfAborted();
       const granted = authenticated(
         c.req.header("authorization") ?? null,
-        env.OPENPLANS_MCP_TOKEN,
+        config.tokens.mcp?.reveal(),
       );
       const source = requestSource(c, proxies, options.peerAddress);
       const admission = limiter.take(
@@ -202,9 +208,14 @@ export function createMcpHttp(db: SqlSession, options: HttpOptions = {}) {
       const responseLimit =
         parsed.method === "tools/list" ? MAX_TOOL_LIST_BYTES : MAX_OUTPUT_BYTES;
       const params = parsed.params as Record<string, unknown> | undefined;
+      // The Medicare estimate exists only while its switches are on; off, it is an unknown name.
+      const estimateCall =
+        parsed.method === "tools/call" &&
+        params?.name === MEDICARE_ESTIMATE_TOOL &&
+        estimateToolHooks.enabled();
       tool =
         parsed.method === "tools/call" &&
-        toolNames.some((name) => name === params?.name)
+        (isToolName(params?.name) || estimateCall)
           ? String(params?.name)
           : null;
       // Legacy initialize predates metadata headers; all modern metadata validation is delegated to the SDK.
@@ -220,6 +231,8 @@ export function createMcpHttp(db: SqlSession, options: HttpOptions = {}) {
         PERSONALIZED_TOOLS.has(params?.name as ToolName) &&
         !granted &&
         !open;
+      // The estimate needs a verified Bearer token; household openness never grants it.
+      const needsEstimateGrant = estimateCall && !granted;
       const heavy =
         parsed.method === "tools/call" || parsed.method === "resources/read";
       if (heavy && active >= 4) {
@@ -235,7 +248,12 @@ export function createMcpHttp(db: SqlSession, options: HttpOptions = {}) {
       handler = createMcpHandler(
         () =>
           buildServer({
-            ...dependencies(boundedDatabase(db, signal), env, granted || open),
+            ...configDependencies(
+              boundedDatabase(db, signal),
+              config,
+              granted || open,
+              granted,
+            ),
             cache,
             onCache: (outcome) => {
               cacheOutcome = outcome;
@@ -255,8 +273,14 @@ export function createMcpHttp(db: SqlSession, options: HttpOptions = {}) {
         body: body.text,
         signal,
       });
+      const mcp = handler;
+      // Design 5.10.5: tools and catalog() run inside this scope, so the level is known before
+      // any byte is written.
       const response = await Promise.race([
-        handler.fetch(request, { parsedBody: parsed }),
+        runWithScope((handle) => {
+          scope = handle;
+          return mcp.fetch(request, { parsedBody: parsed });
+        }),
         aborted,
       ]);
       status = response.status;
@@ -269,7 +293,20 @@ export function createMcpHttp(db: SqlSession, options: HttpOptions = {}) {
           "WWW-Authenticate": 'Bearer realm="openplans-mcp"',
         });
       }
+      if (needsEstimateGrant && (status === 200 || status === 404)) {
+        await response.body?.cancel();
+        // Like the HTTP estimate route: no token configured means no grant can be verified.
+        if (!config.tokens.mcp) {
+          status = 503;
+          return failure(status, -32000, "AUTH_NOT_CONFIGURED");
+        }
+        status = 401;
+        return failure(status, -32000, "Estimate access required", {
+          "WWW-Authenticate": 'Bearer realm="openplans-mcp"',
+        });
+      }
       if (!response.body) {
+        seeLevel();
         finish();
         return response;
       }
@@ -282,6 +319,7 @@ export function createMcpHttp(db: SqlSession, options: HttpOptions = {}) {
         async pull(out) {
           try {
             const part = await Promise.race([reader.read(), aborted]);
+            seeLevel();
             if (part.done) {
               out.close();
               finish();

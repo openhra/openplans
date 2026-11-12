@@ -1,7 +1,11 @@
-import { readFile, readdir } from "node:fs/promises";
-import { join } from "node:path";
+import { readFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
-import { fetchToCache, streamZipMember } from "../../fetch/index.js";
+import {
+  fetchToCache,
+  readCachedText,
+  sidecarNames,
+  streamZipMember,
+} from "../../fetch/index.js";
 import type { SnapshotMetadata } from "../../fetch/index.js";
 import type { SqlSession } from "../../db/database.js";
 import { dataDirectory } from "./census.js";
@@ -614,19 +618,17 @@ export async function readCountyArchive(
   });
   return byState;
 }
-async function cachedSha(root: string): Promise<string | undefined> {
+export async function cachedSha(root: string): Promise<string | undefined> {
   try {
-    const dir = join(root, "raw", countySource),
-      names = await readdir(dir);
+    // Sidecars are read through the fetch cache's store, local or remote.
+    const names = await sidecarNames(root, countySource);
     const metadata = await Promise.all(
-      names
-        .filter((n) => n.endsWith(".meta.json"))
-        .map(
-          async (n) =>
-            JSON.parse(
-              await readFile(join(dir, n), "utf8"),
-            ) as SnapshotMetadata,
-        ),
+      names.map(
+        async (n) =>
+          JSON.parse(
+            await readCachedText(root, countySource, n),
+          ) as SnapshotMetadata,
+      ),
     );
     return metadata
       .filter((m) => m.source === countySource && m.url === countyUrl)

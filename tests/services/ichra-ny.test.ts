@@ -296,6 +296,25 @@ it("inactive or incomplete SBE bundles cannot supply Exchange evidence", async (
     });
 });
 
+it("NY EHB quotes accept published percent formats while gross quotes stay unchanged", async () => {
+  for (const value of ["80%", "80", "80.0 %"])
+    await rollback(async (tx) => {
+      await tx.query(
+        `UPDATE plan_attribute SET raw=jsonb_set(raw,'{EHB Percent Premium}',to_jsonb($1::text)) WHERE base_plan_id=$2`,
+        [value, id(2)],
+      );
+      const result = await run(tx, { lcspPremiumBasis: "ehb_portion" });
+      expect(result).toMatchObject({
+        status: "calculated",
+        lcsp: {
+          monthly_cents: 48_000,
+          plan_ids: [id(2)],
+          by_basis: { gross: { monthly_cents: 50_000, plan_ids: [id(1)] } },
+        },
+      });
+    });
+});
+
 it("unknown EHB fraction preserves gross; future years and look-back never substitute the 2026 rows", async () => {
   await rollback(async (tx) => {
     await tx.exec(
@@ -358,4 +377,67 @@ it("planted source mutants: second/highest silver and silently dropping unverifi
         expect(() => check(bad)).toThrow(assert.AssertionError);
       });
   }
+});
+
+it("cited DFS off-Exchange silver is excluded; an unverified cell or conflicting CMS offer still refuses", async () => {
+  // SYNTHETIC catalog transaction; these added identity/price facts are the real,
+  // regenerated Anthem Exhibit 23 row 37, not an invented filed premium.
+  await rollback(async (tx) => {
+    const template = (
+      await tx.query(`SELECT * FROM state_community_rate WHERE plan_key=$1`, [
+        id(1),
+      ])
+    ).rows[0]!;
+    const rate = structuredClone(template.rate) as Json;
+    const raw = structuredClone(template.raw_record) as Json;
+    rate.planKey = "41046NY0020014";
+    rate.prices.single = 108882;
+    rate.provenance.sourceUrl =
+      "https://myportal.dfs.ny.gov/documents/538523/45010883/Anthem_HP_IND_BOTHX_AWLP-134536531_ApprRatesTemplate";
+    rate.provenance.sourceSha256 =
+      "b09d3f689c3bd507d2f00f0315c6956ae889a3caf62930cebd93bc954f3d7c62";
+    raw.plan_id = rate.planKey;
+    raw.issuer = "41046";
+    raw.metal = null;
+    raw.prices.single = "1088.82";
+    raw.raw["0"] = rate.planKey;
+    raw.raw["4"] = "1088.82";
+    await tx.query(
+      `INSERT INTO state_community_rate VALUES($1,0,100,$2,$3,'Rating Area 4',$4,$5)`,
+      [
+        template.import_id,
+        template.publication_snapshot_id,
+        rate.planKey,
+        JSON.stringify(rate),
+        JSON.stringify(raw),
+      ],
+    );
+    const result = await run(tx);
+    expect(result.status).toBe("calculated");
+    expect(result.lcsp.monthly_cents).toBe(50_000);
+    expect(result.lcsp.silver_plan_count).toBe(2);
+    expect(
+      result.lcsp.provenance.plans.find(
+        (p: Json) => p.plan_key === rate.planKey,
+      ).filed_identity,
+    ).toMatchObject({
+      source: "ny_dfs_exhibit_23",
+      metal: "Silver",
+      off_exchange: true,
+      source_rows: [37],
+    });
+    await tx.exec(
+      `UPDATE state_community_rate SET rate=jsonb_set(rate,'{prices,single}','108883') WHERE plan_key='41046NY0020014'`,
+    );
+    expect(await run(tx)).toMatchObject({
+      status: "incomplete_lcsp",
+      reason: "metal_level_unknown",
+    });
+    await tx.exec(`UPDATE state_community_rate SET rate=jsonb_set(rate,'{prices,single}','108882') WHERE plan_key='41046NY0020014';
+      INSERT INTO plan_attribute SELECT snapshot_id,100,plan_year,state,'41046','41046NY0020014','41046NY0020014-01',market,metal,dental_only,network_id,service_area_id,plan_name,exchange_status,on_exchange,off_exchange,raw FROM plan_attribute WHERE source_row=1`);
+    expect(await run(tx)).toMatchObject({
+      status: "incomplete_lcsp",
+      reason: "exchange_offering_conflict",
+    });
+  });
 });

@@ -1,0 +1,3914 @@
+{
+  "drug covered live, then absorbed, then stale": {
+    "steps": [
+      {
+        "out": [
+          {
+            "status": "listed_covered",
+            "reason": null,
+            "base_hios_id": "00010TX0010001",
+            "requested_plan_id": "00010TX0010001",
+            "rxcui": "990000201",
+            "plan_year": 2026,
+            "drug_tier": null,
+            "tier_status": null,
+            "cost_sharing": null,
+            "prior_authorization": null,
+            "step_therapy": null,
+            "quantity_limit": null,
+            "patient_price": null,
+            "evidence": [],
+            "snapshot_id": null,
+            "manifest_snapshot_id": null,
+            "covered": true,
+            "cms_api": {
+              "coverage": "Covered",
+              "generic_rxcui": null,
+              "snapshot_id": "cms-marketplace-api:drugs-covered:2026:e43732eed6b4c7fb:3c6abdff07c88bcc:<retrieval>",
+              "sourced_by": "cms-marketplace-api",
+              "sourced_at": "<time>",
+              "sourced_slug": "cms-marketplace-api:drugs-covered:2026:e43732eed6b4c7fb:3c6abdff07c88bcc:<retrieval>",
+              "served_from": "live",
+              "source": "Centers for Medicare & Medicaid Services, Marketplace API (HealthCare.gov)",
+              "terms_url": "https://developer.cms.gov/marketplace-api/",
+              "limits": "coverage flag only; tier, prior authorization, step therapy, quantity limit and cost are not published by this source"
+            }
+          }
+        ],
+        "sent": [
+          "https://marketplace.api.healthcare.gov/api/v1/drugs/covered?year=2026&drugs=990000201&planids=00010TX0010001&apikey=<key>"
+        ]
+      },
+      {
+        "out": [
+          {
+            "status": "listed_covered",
+            "reason": null,
+            "base_hios_id": "00010TX0010001",
+            "requested_plan_id": "00010TX0010001",
+            "rxcui": "990000201",
+            "plan_year": 2026,
+            "drug_tier": null,
+            "tier_status": null,
+            "cost_sharing": null,
+            "prior_authorization": null,
+            "step_therapy": null,
+            "quantity_limit": null,
+            "patient_price": null,
+            "evidence": [],
+            "snapshot_id": null,
+            "manifest_snapshot_id": null,
+            "covered": true,
+            "cms_api": {
+              "coverage": "Covered",
+              "generic_rxcui": null,
+              "snapshot_id": "cms-marketplace-api:drugs-covered:2026:e43732eed6b4c7fb:3c6abdff07c88bcc:<retrieval>",
+              "sourced_by": "cms-marketplace-api",
+              "sourced_at": "<time>",
+              "sourced_slug": "cms-marketplace-api:drugs-covered:2026:e43732eed6b4c7fb:3c6abdff07c88bcc:<retrieval>",
+              "served_from": "absorbed",
+              "source": "Centers for Medicare & Medicaid Services, Marketplace API (HealthCare.gov)",
+              "terms_url": "https://developer.cms.gov/marketplace-api/",
+              "limits": "coverage flag only; tier, prior authorization, step therapy, quantity limit and cost are not published by this source"
+            }
+          }
+        ],
+        "sent": []
+      },
+      {
+        "out": [
+          {
+            "status": "listed_covered",
+            "reason": null,
+            "base_hios_id": "00010TX0010001",
+            "requested_plan_id": "00010TX0010001",
+            "rxcui": "990000201",
+            "plan_year": 2026,
+            "drug_tier": null,
+            "tier_status": null,
+            "cost_sharing": null,
+            "prior_authorization": null,
+            "step_therapy": null,
+            "quantity_limit": null,
+            "patient_price": null,
+            "evidence": [],
+            "snapshot_id": null,
+            "manifest_snapshot_id": null,
+            "covered": true,
+            "cms_api": {
+              "coverage": "Covered",
+              "generic_rxcui": null,
+              "snapshot_id": "cms-marketplace-api:drugs-covered:2026:e43732eed6b4c7fb:3c6abdff07c88bcc:<retrieval>",
+              "sourced_by": "cms-marketplace-api",
+              "sourced_at": "<time>",
+              "sourced_slug": "cms-marketplace-api:drugs-covered:2026:e43732eed6b4c7fb:3c6abdff07c88bcc:<retrieval>",
+              "served_from": "absorbed_stale",
+              "source": "Centers for Medicare & Medicaid Services, Marketplace API (HealthCare.gov)",
+              "terms_url": "https://developer.cms.gov/marketplace-api/",
+              "limits": "coverage flag only; tier, prior authorization, step therapy, quantity limit and cost are not published by this source"
+            }
+          }
+        ],
+        "sent": []
+      },
+      {
+        "out": [
+          {
+            "status": "listed_covered",
+            "reason": null,
+            "base_hios_id": "00010TX0010001",
+            "requested_plan_id": "00010TX0010001",
+            "rxcui": "990000201",
+            "plan_year": 2026,
+            "drug_tier": null,
+            "tier_status": null,
+            "cost_sharing": null,
+            "prior_authorization": null,
+            "step_therapy": null,
+            "quantity_limit": null,
+            "patient_price": null,
+            "evidence": [],
+            "snapshot_id": null,
+            "manifest_snapshot_id": null,
+            "covered": true,
+            "cms_api": {
+              "coverage": "Covered",
+              "generic_rxcui": null,
+              "snapshot_id": "cms-marketplace-api:drugs-covered:2026:e43732eed6b4c7fb:3c6abdff07c88bcc:<retrieval>",
+              "sourced_by": "cms-marketplace-api",
+              "sourced_at": "<time>",
+              "sourced_slug": "cms-marketplace-api:drugs-covered:2026:e43732eed6b4c7fb:3c6abdff07c88bcc:<retrieval>",
+              "served_from": "absorbed_stale",
+              "source": "Centers for Medicare & Medicaid Services, Marketplace API (HealthCare.gov)",
+              "terms_url": "https://developer.cms.gov/marketplace-api/",
+              "limits": "coverage flag only; tier, prior authorization, step therapy, quantity limit and cost are not published by this source"
+            }
+          }
+        ],
+        "sent": []
+      }
+    ],
+    "state": {
+      "drugs": [
+        {
+          "plan_id": "00010TX0010001",
+          "rxcui": "990000201",
+          "plan_year": 2026,
+          "coverage": "Covered",
+          "generic_rxcui": null,
+          "snapshot_id": "cms-marketplace-api:drugs-covered:2026:e43732eed6b4c7fb:3c6abdff07c88bcc:<retrieval>",
+          "source_row": 1,
+          "expires_at": "<time>",
+          "sourced_by": "cms-marketplace-api",
+          "sourced_at": "<time>",
+          "sourced_slug": "cms-marketplace-api:drugs-covered:2026:e43732eed6b4c7fb:3c6abdff07c88bcc:<retrieval>",
+          "created_at": "<time>",
+          "updated_at": "<time>",
+          "record_policy": "cms_api_fallback",
+          "record_ttl": "7 days",
+          "expired_at": "<time>",
+          "ttl_span": "-23:59:59.994"
+        }
+      ],
+      "providers": [],
+      "attempts": [
+        {
+          "endpoint": "drugs/covered",
+          "plan_year": 2026,
+          "pairs": 1,
+          "snapshot_id": "cms-marketplace-api:drugs-covered:2026:e43732eed6b4c7fb:3c6abdff07c88bcc:<retrieval>",
+          "outcome": "absorbed",
+          "http_status": 200,
+          "failure_code": null,
+          "refusal_reason": null
+        },
+        {
+          "endpoint": "drugs/covered",
+          "plan_year": 2026,
+          "pairs": 1,
+          "snapshot_id": null,
+          "outcome": "refused",
+          "http_status": null,
+          "failure_code": null,
+          "refusal_reason": "cms_api_budget_exhausted"
+        }
+      ],
+      "conflicts": [],
+      "budget": [
+        {
+          "daily_requests": 500,
+          "max_daily_requests": 500,
+          "min_interval_ms": 1000,
+          "failure_count": 0,
+          "half_open": false,
+          "spaced": true,
+          "blocked": false,
+          "blocked_long": false
+        }
+      ],
+      "receipts": [
+        {
+          "snapshot_id": "cms-marketplace-api:drugs-covered:2026:e43732eed6b4c7fb:3c6abdff07c88bcc:<retrieval>",
+          "source_id": "cms-marketplace-api",
+          "requested_url": "https://marketplace.api.healthcare.gov/api/v1/drugs/covered?year=%5BREDACTED%5D&drugs=%5BREDACTED%5D&planids=%5BREDACTED%5D",
+          "final_url": "https://marketplace.api.healthcare.gov/api/v1/drugs/covered?year=%5BREDACTED%5D&drugs=%5BREDACTED%5D&planids=%5BREDACTED%5D",
+          "http_status": 200,
+          "content_type": null,
+          "compressed_bytes": 84,
+          "sha256": "3c6abdff07c88bcc62d5d2c6d2c7aadefc970b2e09aeb2c6eb899bc0ff9b0af7",
+          "raw_path": "<dir>/raw/cms-marketplace-api-e43732eed6b4c7fb/3c6abdff07c88bcc62d5d2c6d2c7aadefc970b2e09aeb2c6eb899bc0ff9b0af7/payload",
+          "schema_version": "cms-api-coverage-v1",
+          "parser_version": "cms-api-fallback-v1",
+          "terms_review_reference": "https://developer.cms.gov/marketplace-api/",
+          "validation_state": "ACTIVE"
+        }
+      ]
+    }
+  },
+  "drug statements for known and unknown identities": {
+    "steps": [
+      {
+        "out": [
+          {
+            "status": "listed_covered",
+            "reason": null,
+            "base_hios_id": "00010TX0010001",
+            "requested_plan_id": "00010TX0010001",
+            "rxcui": "990000201",
+            "plan_year": 2025,
+            "drug_tier": null,
+            "tier_status": null,
+            "cost_sharing": null,
+            "prior_authorization": null,
+            "step_therapy": null,
+            "quantity_limit": null,
+            "patient_price": null,
+            "evidence": [],
+            "snapshot_id": null,
+            "manifest_snapshot_id": null,
+            "covered": true,
+            "cms_api": {
+              "coverage": "Covered",
+              "generic_rxcui": null,
+              "snapshot_id": "cms-marketplace-api:drugs-covered:2025:0688644dde057f45:eb6976c5925928fd:<retrieval>",
+              "sourced_by": "cms-marketplace-api",
+              "sourced_at": "<time>",
+              "sourced_slug": "cms-marketplace-api:drugs-covered:2025:0688644dde057f45:eb6976c5925928fd:<retrieval>",
+              "served_from": "live",
+              "source": "Centers for Medicare & Medicaid Services, Marketplace API (HealthCare.gov)",
+              "terms_url": "https://developer.cms.gov/marketplace-api/",
+              "limits": "coverage flag only; tier, prior authorization, step therapy, quantity limit and cost are not published by this source"
+            }
+          },
+          {
+            "status": "listed_covered",
+            "reason": null,
+            "base_hios_id": "00010TX0010001",
+            "requested_plan_id": "00010TX0010001",
+            "rxcui": "999999999999",
+            "plan_year": 2025,
+            "drug_tier": null,
+            "tier_status": null,
+            "cost_sharing": null,
+            "prior_authorization": null,
+            "step_therapy": null,
+            "quantity_limit": null,
+            "patient_price": null,
+            "evidence": [],
+            "snapshot_id": null,
+            "manifest_snapshot_id": null,
+            "covered": true,
+            "cms_api": {
+              "coverage": "Covered",
+              "generic_rxcui": null,
+              "snapshot_id": "cms-marketplace-api:drugs-covered:2025:0688644dde057f45:eb6976c5925928fd:<retrieval>",
+              "sourced_by": "cms-marketplace-api",
+              "sourced_at": "<time>",
+              "sourced_slug": "cms-marketplace-api:drugs-covered:2025:0688644dde057f45:eb6976c5925928fd:<retrieval>",
+              "served_from": "live",
+              "source": "Centers for Medicare & Medicaid Services, Marketplace API (HealthCare.gov)",
+              "terms_url": "https://developer.cms.gov/marketplace-api/",
+              "limits": "coverage flag only; tier, prior authorization, step therapy, quantity limit and cost are not published by this source"
+            }
+          }
+        ],
+        "sent": [
+          "https://marketplace.api.healthcare.gov/api/v1/drugs/covered?year=2025&drugs=990000201%2C999999999999&planids=00010TX0010001&apikey=<key>"
+        ]
+      },
+      {
+        "out": [
+          {
+            "status": "listed_covered",
+            "reason": null,
+            "base_hios_id": "00010TX0010001",
+            "requested_plan_id": "00010TX0010001",
+            "rxcui": "990000201",
+            "plan_year": 2025,
+            "drug_tier": null,
+            "tier_status": null,
+            "cost_sharing": null,
+            "prior_authorization": null,
+            "step_therapy": null,
+            "quantity_limit": null,
+            "patient_price": null,
+            "evidence": [],
+            "snapshot_id": null,
+            "manifest_snapshot_id": null,
+            "covered": true,
+            "cms_api": {
+              "coverage": "Covered",
+              "generic_rxcui": null,
+              "snapshot_id": "cms-marketplace-api:drugs-covered:2025:0688644dde057f45:eb6976c5925928fd:<retrieval>",
+              "sourced_by": "cms-marketplace-api",
+              "sourced_at": "<time>",
+              "sourced_slug": "cms-marketplace-api:drugs-covered:2025:0688644dde057f45:eb6976c5925928fd:<retrieval>",
+              "served_from": "absorbed",
+              "source": "Centers for Medicare & Medicaid Services, Marketplace API (HealthCare.gov)",
+              "terms_url": "https://developer.cms.gov/marketplace-api/",
+              "limits": "coverage flag only; tier, prior authorization, step therapy, quantity limit and cost are not published by this source"
+            }
+          },
+          {
+            "status": "listed_covered",
+            "reason": null,
+            "base_hios_id": "00010TX0010001",
+            "requested_plan_id": "00010TX0010001",
+            "rxcui": "999999999999",
+            "plan_year": 2025,
+            "drug_tier": null,
+            "tier_status": null,
+            "cost_sharing": null,
+            "prior_authorization": null,
+            "step_therapy": null,
+            "quantity_limit": null,
+            "patient_price": null,
+            "evidence": [],
+            "snapshot_id": null,
+            "manifest_snapshot_id": null,
+            "covered": true,
+            "cms_api": {
+              "coverage": "Covered",
+              "generic_rxcui": null,
+              "snapshot_id": "cms-marketplace-api:drugs-covered:2025:0688644dde057f45:eb6976c5925928fd:<retrieval>",
+              "sourced_by": "cms-marketplace-api",
+              "sourced_at": "<time>",
+              "sourced_slug": "cms-marketplace-api:drugs-covered:2025:0688644dde057f45:eb6976c5925928fd:<retrieval>",
+              "served_from": "absorbed",
+              "source": "Centers for Medicare & Medicaid Services, Marketplace API (HealthCare.gov)",
+              "terms_url": "https://developer.cms.gov/marketplace-api/",
+              "limits": "coverage flag only; tier, prior authorization, step therapy, quantity limit and cost are not published by this source"
+            }
+          }
+        ],
+        "sent": []
+      },
+      {
+        "out": [
+          {
+            "status": "listed_covered",
+            "reason": null,
+            "base_hios_id": "00010TX0010001",
+            "requested_plan_id": "00010TX0010001",
+            "rxcui": "990000201",
+            "plan_year": 2025,
+            "drug_tier": null,
+            "tier_status": null,
+            "cost_sharing": null,
+            "prior_authorization": null,
+            "step_therapy": null,
+            "quantity_limit": null,
+            "patient_price": null,
+            "evidence": [],
+            "snapshot_id": null,
+            "manifest_snapshot_id": null,
+            "covered": true,
+            "cms_api": {
+              "coverage": "GenericCovered",
+              "generic_rxcui": null,
+              "snapshot_id": "cms-marketplace-api:drugs-covered:2025:0688644dde057f45:a06f27c74787da89:<retrieval>",
+              "sourced_by": "cms-marketplace-api",
+              "sourced_at": "<time>",
+              "sourced_slug": "cms-marketplace-api:drugs-covered:2025:0688644dde057f45:a06f27c74787da89:<retrieval>",
+              "served_from": "live",
+              "source": "Centers for Medicare & Medicaid Services, Marketplace API (HealthCare.gov)",
+              "terms_url": "https://developer.cms.gov/marketplace-api/",
+              "limits": "coverage flag only; tier, prior authorization, step therapy, quantity limit and cost are not published by this source"
+            }
+          },
+          {
+            "status": "listed_covered",
+            "reason": null,
+            "base_hios_id": "00010TX0010001",
+            "requested_plan_id": "00010TX0010001",
+            "rxcui": "999999999999",
+            "plan_year": 2025,
+            "drug_tier": null,
+            "tier_status": null,
+            "cost_sharing": null,
+            "prior_authorization": null,
+            "step_therapy": null,
+            "quantity_limit": null,
+            "patient_price": null,
+            "evidence": [],
+            "snapshot_id": null,
+            "manifest_snapshot_id": null,
+            "covered": true,
+            "cms_api": {
+              "coverage": "GenericCovered",
+              "generic_rxcui": null,
+              "snapshot_id": "cms-marketplace-api:drugs-covered:2025:0688644dde057f45:a06f27c74787da89:<retrieval>",
+              "sourced_by": "cms-marketplace-api",
+              "sourced_at": "<time>",
+              "sourced_slug": "cms-marketplace-api:drugs-covered:2025:0688644dde057f45:a06f27c74787da89:<retrieval>",
+              "served_from": "live",
+              "source": "Centers for Medicare & Medicaid Services, Marketplace API (HealthCare.gov)",
+              "terms_url": "https://developer.cms.gov/marketplace-api/",
+              "limits": "coverage flag only; tier, prior authorization, step therapy, quantity limit and cost are not published by this source"
+            }
+          }
+        ],
+        "sent": [
+          "https://marketplace.api.healthcare.gov/api/v1/drugs/covered?year=2025&drugs=990000201%2C999999999999&planids=00010TX0010001&apikey=<key>"
+        ]
+      },
+      {
+        "out": [
+          {
+            "status": "listed_covered",
+            "reason": null,
+            "base_hios_id": "00010TX0010001",
+            "requested_plan_id": "00010TX0010001",
+            "rxcui": "990000201",
+            "plan_year": 2025,
+            "drug_tier": null,
+            "tier_status": null,
+            "cost_sharing": null,
+            "prior_authorization": null,
+            "step_therapy": null,
+            "quantity_limit": null,
+            "patient_price": null,
+            "evidence": [],
+            "snapshot_id": null,
+            "manifest_snapshot_id": null,
+            "covered": true,
+            "cms_api": {
+              "coverage": "GenericCovered",
+              "generic_rxcui": null,
+              "snapshot_id": "cms-marketplace-api:drugs-covered:2025:0688644dde057f45:a06f27c74787da89:<retrieval>",
+              "sourced_by": "cms-marketplace-api",
+              "sourced_at": "<time>",
+              "sourced_slug": "cms-marketplace-api:drugs-covered:2025:0688644dde057f45:a06f27c74787da89:<retrieval>",
+              "served_from": "absorbed",
+              "source": "Centers for Medicare & Medicaid Services, Marketplace API (HealthCare.gov)",
+              "terms_url": "https://developer.cms.gov/marketplace-api/",
+              "limits": "coverage flag only; tier, prior authorization, step therapy, quantity limit and cost are not published by this source"
+            }
+          },
+          {
+            "status": "listed_covered",
+            "reason": null,
+            "base_hios_id": "00010TX0010001",
+            "requested_plan_id": "00010TX0010001",
+            "rxcui": "999999999999",
+            "plan_year": 2025,
+            "drug_tier": null,
+            "tier_status": null,
+            "cost_sharing": null,
+            "prior_authorization": null,
+            "step_therapy": null,
+            "quantity_limit": null,
+            "patient_price": null,
+            "evidence": [],
+            "snapshot_id": null,
+            "manifest_snapshot_id": null,
+            "covered": true,
+            "cms_api": {
+              "coverage": "GenericCovered",
+              "generic_rxcui": null,
+              "snapshot_id": "cms-marketplace-api:drugs-covered:2025:0688644dde057f45:a06f27c74787da89:<retrieval>",
+              "sourced_by": "cms-marketplace-api",
+              "sourced_at": "<time>",
+              "sourced_slug": "cms-marketplace-api:drugs-covered:2025:0688644dde057f45:a06f27c74787da89:<retrieval>",
+              "served_from": "absorbed",
+              "source": "Centers for Medicare & Medicaid Services, Marketplace API (HealthCare.gov)",
+              "terms_url": "https://developer.cms.gov/marketplace-api/",
+              "limits": "coverage flag only; tier, prior authorization, step therapy, quantity limit and cost are not published by this source"
+            }
+          }
+        ],
+        "sent": []
+      },
+      {
+        "out": [
+          {
+            "status": "explicitly_not_covered",
+            "reason": null,
+            "base_hios_id": "00010TX0010001",
+            "requested_plan_id": "00010TX0010001",
+            "rxcui": "990000201",
+            "plan_year": 2025,
+            "drug_tier": null,
+            "tier_status": null,
+            "cost_sharing": null,
+            "prior_authorization": null,
+            "step_therapy": null,
+            "quantity_limit": null,
+            "patient_price": null,
+            "evidence": [],
+            "snapshot_id": null,
+            "manifest_snapshot_id": null,
+            "covered": false,
+            "cms_api": {
+              "coverage": "NotCovered",
+              "generic_rxcui": null,
+              "snapshot_id": "cms-marketplace-api:drugs-covered:2025:0688644dde057f45:8131b73bdc29ce63:<retrieval>",
+              "sourced_by": "cms-marketplace-api",
+              "sourced_at": "<time>",
+              "sourced_slug": "cms-marketplace-api:drugs-covered:2025:0688644dde057f45:8131b73bdc29ce63:<retrieval>",
+              "served_from": "live",
+              "source": "Centers for Medicare & Medicaid Services, Marketplace API (HealthCare.gov)",
+              "terms_url": "https://developer.cms.gov/marketplace-api/",
+              "limits": "coverage flag only; tier, prior authorization, step therapy, quantity limit and cost are not published by this source"
+            }
+          },
+          {
+            "status": "unknown",
+            "reason": "cms_api_reports_not_covered",
+            "base_hios_id": "00010TX0010001",
+            "requested_plan_id": "00010TX0010001",
+            "rxcui": "999999999999",
+            "plan_year": 2025,
+            "drug_tier": null,
+            "tier_status": null,
+            "cost_sharing": null,
+            "prior_authorization": null,
+            "step_therapy": null,
+            "quantity_limit": null,
+            "patient_price": null,
+            "evidence": [],
+            "snapshot_id": null,
+            "manifest_snapshot_id": null,
+            "cms_api": {
+              "coverage": "NotCovered",
+              "generic_rxcui": null,
+              "snapshot_id": "cms-marketplace-api:drugs-covered:2025:0688644dde057f45:8131b73bdc29ce63:<retrieval>",
+              "sourced_by": "cms-marketplace-api",
+              "sourced_at": "<time>",
+              "sourced_slug": "cms-marketplace-api:drugs-covered:2025:0688644dde057f45:8131b73bdc29ce63:<retrieval>",
+              "served_from": "live",
+              "source": "Centers for Medicare & Medicaid Services, Marketplace API (HealthCare.gov)",
+              "terms_url": "https://developer.cms.gov/marketplace-api/",
+              "limits": "coverage flag only; tier, prior authorization, step therapy, quantity limit and cost are not published by this source"
+            }
+          }
+        ],
+        "sent": [
+          "https://marketplace.api.healthcare.gov/api/v1/drugs/covered?year=2025&drugs=990000201%2C999999999999&planids=00010TX0010001&apikey=<key>"
+        ]
+      },
+      {
+        "out": [
+          {
+            "status": "explicitly_not_covered",
+            "reason": null,
+            "base_hios_id": "00010TX0010001",
+            "requested_plan_id": "00010TX0010001",
+            "rxcui": "990000201",
+            "plan_year": 2025,
+            "drug_tier": null,
+            "tier_status": null,
+            "cost_sharing": null,
+            "prior_authorization": null,
+            "step_therapy": null,
+            "quantity_limit": null,
+            "patient_price": null,
+            "evidence": [],
+            "snapshot_id": null,
+            "manifest_snapshot_id": null,
+            "covered": false,
+            "cms_api": {
+              "coverage": "NotCovered",
+              "generic_rxcui": null,
+              "snapshot_id": "cms-marketplace-api:drugs-covered:2025:0688644dde057f45:8131b73bdc29ce63:<retrieval>",
+              "sourced_by": "cms-marketplace-api",
+              "sourced_at": "<time>",
+              "sourced_slug": "cms-marketplace-api:drugs-covered:2025:0688644dde057f45:8131b73bdc29ce63:<retrieval>",
+              "served_from": "absorbed",
+              "source": "Centers for Medicare & Medicaid Services, Marketplace API (HealthCare.gov)",
+              "terms_url": "https://developer.cms.gov/marketplace-api/",
+              "limits": "coverage flag only; tier, prior authorization, step therapy, quantity limit and cost are not published by this source"
+            }
+          },
+          {
+            "status": "unknown",
+            "reason": "cms_api_reports_not_covered",
+            "base_hios_id": "00010TX0010001",
+            "requested_plan_id": "00010TX0010001",
+            "rxcui": "999999999999",
+            "plan_year": 2025,
+            "drug_tier": null,
+            "tier_status": null,
+            "cost_sharing": null,
+            "prior_authorization": null,
+            "step_therapy": null,
+            "quantity_limit": null,
+            "patient_price": null,
+            "evidence": [],
+            "snapshot_id": null,
+            "manifest_snapshot_id": null,
+            "cms_api": {
+              "coverage": "NotCovered",
+              "generic_rxcui": null,
+              "snapshot_id": "cms-marketplace-api:drugs-covered:2025:0688644dde057f45:8131b73bdc29ce63:<retrieval>",
+              "sourced_by": "cms-marketplace-api",
+              "sourced_at": "<time>",
+              "sourced_slug": "cms-marketplace-api:drugs-covered:2025:0688644dde057f45:8131b73bdc29ce63:<retrieval>",
+              "served_from": "absorbed",
+              "source": "Centers for Medicare & Medicaid Services, Marketplace API (HealthCare.gov)",
+              "terms_url": "https://developer.cms.gov/marketplace-api/",
+              "limits": "coverage flag only; tier, prior authorization, step therapy, quantity limit and cost are not published by this source"
+            }
+          }
+        ],
+        "sent": []
+      },
+      {
+        "out": [
+          {
+            "status": "unknown",
+            "reason": "cms_api_data_not_provided",
+            "base_hios_id": "00010TX0010001",
+            "requested_plan_id": "00010TX0010001",
+            "rxcui": "990000201",
+            "plan_year": 2025,
+            "drug_tier": null,
+            "tier_status": null,
+            "cost_sharing": null,
+            "prior_authorization": null,
+            "step_therapy": null,
+            "quantity_limit": null,
+            "patient_price": null,
+            "evidence": [],
+            "snapshot_id": null,
+            "manifest_snapshot_id": null,
+            "cms_api": {
+              "coverage": "DataNotProvided",
+              "generic_rxcui": null,
+              "snapshot_id": "cms-marketplace-api:drugs-covered:2025:0688644dde057f45:0aeb638ce0b3e6fa:<retrieval>",
+              "sourced_by": "cms-marketplace-api",
+              "sourced_at": "<time>",
+              "sourced_slug": "cms-marketplace-api:drugs-covered:2025:0688644dde057f45:0aeb638ce0b3e6fa:<retrieval>",
+              "served_from": "live",
+              "source": "Centers for Medicare & Medicaid Services, Marketplace API (HealthCare.gov)",
+              "terms_url": "https://developer.cms.gov/marketplace-api/",
+              "limits": "coverage flag only; tier, prior authorization, step therapy, quantity limit and cost are not published by this source"
+            }
+          },
+          {
+            "status": "unknown",
+            "reason": "cms_api_data_not_provided",
+            "base_hios_id": "00010TX0010001",
+            "requested_plan_id": "00010TX0010001",
+            "rxcui": "999999999999",
+            "plan_year": 2025,
+            "drug_tier": null,
+            "tier_status": null,
+            "cost_sharing": null,
+            "prior_authorization": null,
+            "step_therapy": null,
+            "quantity_limit": null,
+            "patient_price": null,
+            "evidence": [],
+            "snapshot_id": null,
+            "manifest_snapshot_id": null,
+            "cms_api": {
+              "coverage": "DataNotProvided",
+              "generic_rxcui": null,
+              "snapshot_id": "cms-marketplace-api:drugs-covered:2025:0688644dde057f45:0aeb638ce0b3e6fa:<retrieval>",
+              "sourced_by": "cms-marketplace-api",
+              "sourced_at": "<time>",
+              "sourced_slug": "cms-marketplace-api:drugs-covered:2025:0688644dde057f45:0aeb638ce0b3e6fa:<retrieval>",
+              "served_from": "live",
+              "source": "Centers for Medicare & Medicaid Services, Marketplace API (HealthCare.gov)",
+              "terms_url": "https://developer.cms.gov/marketplace-api/",
+              "limits": "coverage flag only; tier, prior authorization, step therapy, quantity limit and cost are not published by this source"
+            }
+          }
+        ],
+        "sent": [
+          "https://marketplace.api.healthcare.gov/api/v1/drugs/covered?year=2025&drugs=990000201%2C999999999999&planids=00010TX0010001&apikey=<key>"
+        ]
+      },
+      {
+        "out": [
+          {
+            "status": "unknown",
+            "reason": "cms_api_data_not_provided",
+            "base_hios_id": "00010TX0010001",
+            "requested_plan_id": "00010TX0010001",
+            "rxcui": "990000201",
+            "plan_year": 2025,
+            "drug_tier": null,
+            "tier_status": null,
+            "cost_sharing": null,
+            "prior_authorization": null,
+            "step_therapy": null,
+            "quantity_limit": null,
+            "patient_price": null,
+            "evidence": [],
+            "snapshot_id": null,
+            "manifest_snapshot_id": null,
+            "cms_api": {
+              "coverage": "DataNotProvided",
+              "generic_rxcui": null,
+              "snapshot_id": "cms-marketplace-api:drugs-covered:2025:0688644dde057f45:0aeb638ce0b3e6fa:<retrieval>",
+              "sourced_by": "cms-marketplace-api",
+              "sourced_at": "<time>",
+              "sourced_slug": "cms-marketplace-api:drugs-covered:2025:0688644dde057f45:0aeb638ce0b3e6fa:<retrieval>",
+              "served_from": "absorbed",
+              "source": "Centers for Medicare & Medicaid Services, Marketplace API (HealthCare.gov)",
+              "terms_url": "https://developer.cms.gov/marketplace-api/",
+              "limits": "coverage flag only; tier, prior authorization, step therapy, quantity limit and cost are not published by this source"
+            }
+          },
+          {
+            "status": "unknown",
+            "reason": "cms_api_data_not_provided",
+            "base_hios_id": "00010TX0010001",
+            "requested_plan_id": "00010TX0010001",
+            "rxcui": "999999999999",
+            "plan_year": 2025,
+            "drug_tier": null,
+            "tier_status": null,
+            "cost_sharing": null,
+            "prior_authorization": null,
+            "step_therapy": null,
+            "quantity_limit": null,
+            "patient_price": null,
+            "evidence": [],
+            "snapshot_id": null,
+            "manifest_snapshot_id": null,
+            "cms_api": {
+              "coverage": "DataNotProvided",
+              "generic_rxcui": null,
+              "snapshot_id": "cms-marketplace-api:drugs-covered:2025:0688644dde057f45:0aeb638ce0b3e6fa:<retrieval>",
+              "sourced_by": "cms-marketplace-api",
+              "sourced_at": "<time>",
+              "sourced_slug": "cms-marketplace-api:drugs-covered:2025:0688644dde057f45:0aeb638ce0b3e6fa:<retrieval>",
+              "served_from": "absorbed",
+              "source": "Centers for Medicare & Medicaid Services, Marketplace API (HealthCare.gov)",
+              "terms_url": "https://developer.cms.gov/marketplace-api/",
+              "limits": "coverage flag only; tier, prior authorization, step therapy, quantity limit and cost are not published by this source"
+            }
+          }
+        ],
+        "sent": []
+      },
+      {
+        "out": [
+          {
+            "status": "listed_covered",
+            "reason": null,
+            "base_hios_id": "00010TX0010001",
+            "requested_plan_id": "00010TX0010001",
+            "rxcui": "2002",
+            "plan_year": 2026,
+            "drug_tier": null,
+            "tier_status": null,
+            "cost_sharing": null,
+            "prior_authorization": null,
+            "step_therapy": null,
+            "quantity_limit": null,
+            "patient_price": null,
+            "evidence": [],
+            "snapshot_id": null,
+            "manifest_snapshot_id": null,
+            "covered": true,
+            "cms_api": {
+              "coverage": "GenericCovered",
+              "generic_rxcui": "2003",
+              "snapshot_id": "cms-marketplace-api:drugs-covered:2026:ece28a8e4a673921:586a034e284c1dbd:<retrieval>",
+              "sourced_by": "cms-marketplace-api",
+              "sourced_at": "<time>",
+              "sourced_slug": "cms-marketplace-api:drugs-covered:2026:ece28a8e4a673921:586a034e284c1dbd:<retrieval>",
+              "served_from": "live",
+              "source": "Centers for Medicare & Medicaid Services, Marketplace API (HealthCare.gov)",
+              "terms_url": "https://developer.cms.gov/marketplace-api/",
+              "limits": "coverage flag only; tier, prior authorization, step therapy, quantity limit and cost are not published by this source"
+            }
+          }
+        ],
+        "sent": [
+          "https://marketplace.api.healthcare.gov/api/v1/drugs/covered?year=2026&drugs=2002&planids=00010TX0010001&apikey=<key>"
+        ]
+      }
+    ],
+    "state": {
+      "drugs": [
+        {
+          "plan_id": "00010TX0010001",
+          "rxcui": "2002",
+          "plan_year": 2026,
+          "coverage": "GenericCovered",
+          "generic_rxcui": "2003",
+          "snapshot_id": "cms-marketplace-api:drugs-covered:2026:ece28a8e4a673921:586a034e284c1dbd:<retrieval>",
+          "source_row": 1,
+          "expires_at": "<time>",
+          "sourced_by": "cms-marketplace-api",
+          "sourced_at": "<time>",
+          "sourced_slug": "cms-marketplace-api:drugs-covered:2026:ece28a8e4a673921:586a034e284c1dbd:<retrieval>",
+          "created_at": "<time>",
+          "updated_at": "<time>",
+          "record_policy": "cms_api_fallback",
+          "record_ttl": "7 days",
+          "expired_at": "<time>",
+          "ttl_span": "7 days"
+        }
+      ],
+      "providers": [],
+      "attempts": [
+        {
+          "endpoint": "drugs/covered",
+          "plan_year": 2025,
+          "pairs": 2,
+          "snapshot_id": "cms-marketplace-api:drugs-covered:2025:0688644dde057f45:eb6976c5925928fd:<retrieval>",
+          "outcome": "absorbed",
+          "http_status": 200,
+          "failure_code": null,
+          "refusal_reason": null
+        },
+        {
+          "endpoint": "drugs/covered",
+          "plan_year": 2025,
+          "pairs": 2,
+          "snapshot_id": "cms-marketplace-api:drugs-covered:2025:0688644dde057f45:a06f27c74787da89:<retrieval>",
+          "outcome": "absorbed",
+          "http_status": 200,
+          "failure_code": null,
+          "refusal_reason": null
+        },
+        {
+          "endpoint": "drugs/covered",
+          "plan_year": 2025,
+          "pairs": 2,
+          "snapshot_id": "cms-marketplace-api:drugs-covered:2025:0688644dde057f45:8131b73bdc29ce63:<retrieval>",
+          "outcome": "absorbed",
+          "http_status": 200,
+          "failure_code": null,
+          "refusal_reason": null
+        },
+        {
+          "endpoint": "drugs/covered",
+          "plan_year": 2025,
+          "pairs": 2,
+          "snapshot_id": "cms-marketplace-api:drugs-covered:2025:0688644dde057f45:0aeb638ce0b3e6fa:<retrieval>",
+          "outcome": "absorbed",
+          "http_status": 200,
+          "failure_code": null,
+          "refusal_reason": null
+        },
+        {
+          "endpoint": "drugs/covered",
+          "plan_year": 2026,
+          "pairs": 1,
+          "snapshot_id": "cms-marketplace-api:drugs-covered:2026:ece28a8e4a673921:586a034e284c1dbd:<retrieval>",
+          "outcome": "absorbed",
+          "http_status": 200,
+          "failure_code": null,
+          "refusal_reason": null
+        }
+      ],
+      "conflicts": [],
+      "budget": [
+        {
+          "daily_requests": 5,
+          "max_daily_requests": 500,
+          "min_interval_ms": 1000,
+          "failure_count": 0,
+          "half_open": false,
+          "spaced": false,
+          "blocked": false,
+          "blocked_long": false
+        }
+      ],
+      "receipts": [
+        {
+          "snapshot_id": "cms-marketplace-api:drugs-covered:2025:0688644dde057f45:0aeb638ce0b3e6fa:<retrieval>",
+          "source_id": "cms-marketplace-api",
+          "requested_url": "https://marketplace.api.healthcare.gov/api/v1/drugs/covered?year=%5BREDACTED%5D&drugs=%5BREDACTED%5D&planids=%5BREDACTED%5D",
+          "final_url": "https://marketplace.api.healthcare.gov/api/v1/drugs/covered?year=%5BREDACTED%5D&drugs=%5BREDACTED%5D&planids=%5BREDACTED%5D",
+          "http_status": 200,
+          "content_type": null,
+          "compressed_bytes": 173,
+          "sha256": "0aeb638ce0b3e6fa79e80a23dfea0a48b9fa02bd6eb6c1785bd1d40e47e3bbcb",
+          "raw_path": "<dir>/raw/cms-marketplace-api-0688644dde057f45/0aeb638ce0b3e6fa79e80a23dfea0a48b9fa02bd6eb6c1785bd1d40e47e3bbcb/payload",
+          "schema_version": "cms-api-coverage-v1",
+          "parser_version": "cms-api-fallback-v1",
+          "terms_review_reference": "https://developer.cms.gov/marketplace-api/",
+          "validation_state": "ACTIVE"
+        },
+        {
+          "snapshot_id": "cms-marketplace-api:drugs-covered:2026:ece28a8e4a673921:586a034e284c1dbd:<retrieval>",
+          "source_id": "cms-marketplace-api",
+          "requested_url": "https://marketplace.api.healthcare.gov/api/v1/drugs/covered?year=%5BREDACTED%5D&drugs=%5BREDACTED%5D&planids=%5BREDACTED%5D",
+          "final_url": "https://marketplace.api.healthcare.gov/api/v1/drugs/covered?year=%5BREDACTED%5D&drugs=%5BREDACTED%5D&planids=%5BREDACTED%5D",
+          "http_status": 200,
+          "content_type": null,
+          "compressed_bytes": 109,
+          "sha256": "586a034e284c1dbd2c59a2dfe0181b60510b763e5ffc24c12b51420ae38c1dd7",
+          "raw_path": "<dir>/raw/cms-marketplace-api-ece28a8e4a673921/586a034e284c1dbd2c59a2dfe0181b60510b763e5ffc24c12b51420ae38c1dd7/payload",
+          "schema_version": "cms-api-coverage-v1",
+          "parser_version": "cms-api-fallback-v1",
+          "terms_review_reference": "https://developer.cms.gov/marketplace-api/",
+          "validation_state": "ACTIVE"
+        },
+        {
+          "snapshot_id": "cms-marketplace-api:drugs-covered:2025:0688644dde057f45:8131b73bdc29ce63:<retrieval>",
+          "source_id": "cms-marketplace-api",
+          "requested_url": "https://marketplace.api.healthcare.gov/api/v1/drugs/covered?year=%5BREDACTED%5D&drugs=%5BREDACTED%5D&planids=%5BREDACTED%5D",
+          "final_url": "https://marketplace.api.healthcare.gov/api/v1/drugs/covered?year=%5BREDACTED%5D&drugs=%5BREDACTED%5D&planids=%5BREDACTED%5D",
+          "http_status": 200,
+          "content_type": null,
+          "compressed_bytes": 163,
+          "sha256": "8131b73bdc29ce6353ab50fbe7173c3c5f4e51567f2dd78d1404a770fd8d2026",
+          "raw_path": "<dir>/raw/cms-marketplace-api-0688644dde057f45/8131b73bdc29ce6353ab50fbe7173c3c5f4e51567f2dd78d1404a770fd8d2026/payload",
+          "schema_version": "cms-api-coverage-v1",
+          "parser_version": "cms-api-fallback-v1",
+          "terms_review_reference": "https://developer.cms.gov/marketplace-api/",
+          "validation_state": "ACTIVE"
+        },
+        {
+          "snapshot_id": "cms-marketplace-api:drugs-covered:2025:0688644dde057f45:a06f27c74787da89:<retrieval>",
+          "source_id": "cms-marketplace-api",
+          "requested_url": "https://marketplace.api.healthcare.gov/api/v1/drugs/covered?year=%5BREDACTED%5D&drugs=%5BREDACTED%5D&planids=%5BREDACTED%5D",
+          "final_url": "https://marketplace.api.healthcare.gov/api/v1/drugs/covered?year=%5BREDACTED%5D&drugs=%5BREDACTED%5D&planids=%5BREDACTED%5D",
+          "http_status": 200,
+          "content_type": null,
+          "compressed_bytes": 171,
+          "sha256": "a06f27c74787da89dd6fd62ec59c2e904f5f0e9e582d7852ad1aeeb3c8904d57",
+          "raw_path": "<dir>/raw/cms-marketplace-api-0688644dde057f45/a06f27c74787da89dd6fd62ec59c2e904f5f0e9e582d7852ad1aeeb3c8904d57/payload",
+          "schema_version": "cms-api-coverage-v1",
+          "parser_version": "cms-api-fallback-v1",
+          "terms_review_reference": "https://developer.cms.gov/marketplace-api/",
+          "validation_state": "ACTIVE"
+        },
+        {
+          "snapshot_id": "cms-marketplace-api:drugs-covered:2025:0688644dde057f45:eb6976c5925928fd:<retrieval>",
+          "source_id": "cms-marketplace-api",
+          "requested_url": "https://marketplace.api.healthcare.gov/api/v1/drugs/covered?year=%5BREDACTED%5D&drugs=%5BREDACTED%5D&planids=%5BREDACTED%5D",
+          "final_url": "https://marketplace.api.healthcare.gov/api/v1/drugs/covered?year=%5BREDACTED%5D&drugs=%5BREDACTED%5D&planids=%5BREDACTED%5D",
+          "http_status": 200,
+          "content_type": null,
+          "compressed_bytes": 157,
+          "sha256": "eb6976c5925928fd551cd4049a0a758b8736020b106892ec68ec1509a7bf7316",
+          "raw_path": "<dir>/raw/cms-marketplace-api-0688644dde057f45/eb6976c5925928fd551cd4049a0a758b8736020b106892ec68ec1509a7bf7316/payload",
+          "schema_version": "cms-api-coverage-v1",
+          "parser_version": "cms-api-fallback-v1",
+          "terms_review_reference": "https://developer.cms.gov/marketplace-api/",
+          "validation_state": "ACTIVE"
+        }
+      ]
+    }
+  },
+  "provider statements: unknown NPI stays unknown, known NPI is not participating": {
+    "steps": [
+      {
+        "out": [
+          {
+            "status": "listed_participating",
+            "reason": null,
+            "requested_plan_id": "00010TX0010001",
+            "base_hios_id": "00010TX0010001",
+            "identity": "1000000001",
+            "plan_year": 2026,
+            "participation_scope": "provider_record",
+            "snapshot_id": null,
+            "manifest_snapshot_id": null,
+            "evidence": [],
+            "warnings": [],
+            "covered": true,
+            "cms_api": {
+              "coverage": "Covered",
+              "accepting": "unknown",
+              "snapshot_id": "cms-marketplace-api:providers-covered:2026:ecf79bb8123dec02:a1eddd54be55aaea:<retrieval>",
+              "sourced_by": "cms-marketplace-api",
+              "sourced_at": "<time>",
+              "sourced_slug": "cms-marketplace-api:providers-covered:2026:ecf79bb8123dec02:a1eddd54be55aaea:<retrieval>",
+              "served_from": "live",
+              "source": "Centers for Medicare & Medicaid Services, Marketplace API (HealthCare.gov)",
+              "terms_url": "https://developer.cms.gov/marketplace-api/",
+              "limits": "coverage flag only; network tier and address participation are not published by this source"
+            }
+          },
+          {
+            "status": "unknown",
+            "reason": "cms_api_reports_not_covered",
+            "requested_plan_id": "00010TX0010001",
+            "base_hios_id": "00010TX0010001",
+            "identity": "1000000002",
+            "plan_year": 2026,
+            "participation_scope": "provider_record",
+            "snapshot_id": null,
+            "manifest_snapshot_id": null,
+            "evidence": [],
+            "warnings": [],
+            "cms_api": {
+              "coverage": "NotCovered",
+              "accepting": "unknown",
+              "snapshot_id": "cms-marketplace-api:providers-covered:2026:ecf79bb8123dec02:a1eddd54be55aaea:<retrieval>",
+              "sourced_by": "cms-marketplace-api",
+              "sourced_at": "<time>",
+              "sourced_slug": "cms-marketplace-api:providers-covered:2026:ecf79bb8123dec02:a1eddd54be55aaea:<retrieval>",
+              "served_from": "live",
+              "source": "Centers for Medicare & Medicaid Services, Marketplace API (HealthCare.gov)",
+              "terms_url": "https://developer.cms.gov/marketplace-api/",
+              "limits": "coverage flag only; network tier and address participation are not published by this source"
+            }
+          },
+          {
+            "status": "unknown",
+            "reason": "cms_api_reports_not_covered",
+            "requested_plan_id": "00010TX0010001",
+            "base_hios_id": "00010TX0010001",
+            "identity": "1234567893",
+            "plan_year": 2026,
+            "participation_scope": "provider_record",
+            "snapshot_id": null,
+            "manifest_snapshot_id": null,
+            "evidence": [],
+            "warnings": [],
+            "cms_api": {
+              "coverage": "NotCovered",
+              "accepting": "unknown",
+              "snapshot_id": "cms-marketplace-api:providers-covered:2026:ecf79bb8123dec02:a1eddd54be55aaea:<retrieval>",
+              "sourced_by": "cms-marketplace-api",
+              "sourced_at": "<time>",
+              "sourced_slug": "cms-marketplace-api:providers-covered:2026:ecf79bb8123dec02:a1eddd54be55aaea:<retrieval>",
+              "served_from": "live",
+              "source": "Centers for Medicare & Medicaid Services, Marketplace API (HealthCare.gov)",
+              "terms_url": "https://developer.cms.gov/marketplace-api/",
+              "limits": "coverage flag only; network tier and address participation are not published by this source"
+            }
+          },
+          {
+            "status": "unknown",
+            "reason": "cms_api_data_not_provided",
+            "requested_plan_id": "00010TX0010001",
+            "base_hios_id": "00010TX0010001",
+            "identity": "1000000004",
+            "plan_year": 2026,
+            "participation_scope": "provider_record",
+            "snapshot_id": null,
+            "manifest_snapshot_id": null,
+            "evidence": [],
+            "warnings": [],
+            "cms_api": {
+              "coverage": "DataNotProvided",
+              "accepting": "unknown",
+              "snapshot_id": "cms-marketplace-api:providers-covered:2026:ecf79bb8123dec02:a1eddd54be55aaea:<retrieval>",
+              "sourced_by": "cms-marketplace-api",
+              "sourced_at": "<time>",
+              "sourced_slug": "cms-marketplace-api:providers-covered:2026:ecf79bb8123dec02:a1eddd54be55aaea:<retrieval>",
+              "served_from": "live",
+              "source": "Centers for Medicare & Medicaid Services, Marketplace API (HealthCare.gov)",
+              "terms_url": "https://developer.cms.gov/marketplace-api/",
+              "limits": "coverage flag only; network tier and address participation are not published by this source"
+            }
+          },
+          {
+            "status": "unknown",
+            "reason": "source_access_denied",
+            "requested_plan_id": "00010TX0010001",
+            "base_hios_id": "00010TX0010001",
+            "identity": "12345",
+            "plan_year": 2026,
+            "participation_scope": "provider_record",
+            "snapshot_id": null,
+            "manifest_snapshot_id": null,
+            "evidence": [],
+            "warnings": []
+          }
+        ],
+        "sent": [
+          "https://marketplace.api.healthcare.gov/api/v1/providers/covered?year=2026&providerids=1000000001%2C1000000002%2C1234567893%2C1000000004&planids=00010TX0010001&apikey=<key>"
+        ]
+      },
+      {
+        "out": [
+          {
+            "status": "listed_participating",
+            "reason": null,
+            "requested_plan_id": "00010TX0010001",
+            "base_hios_id": "00010TX0010001",
+            "identity": "1000000001",
+            "plan_year": 2026,
+            "participation_scope": "provider_record",
+            "snapshot_id": null,
+            "manifest_snapshot_id": null,
+            "evidence": [],
+            "warnings": [],
+            "covered": true,
+            "cms_api": {
+              "coverage": "Covered",
+              "accepting": "unknown",
+              "snapshot_id": "cms-marketplace-api:providers-covered:2026:ecf79bb8123dec02:a1eddd54be55aaea:<retrieval>",
+              "sourced_by": "cms-marketplace-api",
+              "sourced_at": "<time>",
+              "sourced_slug": "cms-marketplace-api:providers-covered:2026:ecf79bb8123dec02:a1eddd54be55aaea:<retrieval>",
+              "served_from": "absorbed",
+              "source": "Centers for Medicare & Medicaid Services, Marketplace API (HealthCare.gov)",
+              "terms_url": "https://developer.cms.gov/marketplace-api/",
+              "limits": "coverage flag only; network tier and address participation are not published by this source"
+            }
+          },
+          {
+            "status": "unknown",
+            "reason": "cms_api_reports_not_covered",
+            "requested_plan_id": "00010TX0010001",
+            "base_hios_id": "00010TX0010001",
+            "identity": "1000000002",
+            "plan_year": 2026,
+            "participation_scope": "provider_record",
+            "snapshot_id": null,
+            "manifest_snapshot_id": null,
+            "evidence": [],
+            "warnings": [],
+            "cms_api": {
+              "coverage": "NotCovered",
+              "accepting": "unknown",
+              "snapshot_id": "cms-marketplace-api:providers-covered:2026:ecf79bb8123dec02:a1eddd54be55aaea:<retrieval>",
+              "sourced_by": "cms-marketplace-api",
+              "sourced_at": "<time>",
+              "sourced_slug": "cms-marketplace-api:providers-covered:2026:ecf79bb8123dec02:a1eddd54be55aaea:<retrieval>",
+              "served_from": "absorbed",
+              "source": "Centers for Medicare & Medicaid Services, Marketplace API (HealthCare.gov)",
+              "terms_url": "https://developer.cms.gov/marketplace-api/",
+              "limits": "coverage flag only; network tier and address participation are not published by this source"
+            }
+          },
+          {
+            "status": "explicitly_not_participating",
+            "reason": null,
+            "requested_plan_id": "00010TX0010001",
+            "base_hios_id": "00010TX0010001",
+            "identity": "1234567893",
+            "plan_year": 2026,
+            "participation_scope": "provider_record",
+            "snapshot_id": null,
+            "manifest_snapshot_id": null,
+            "evidence": [],
+            "warnings": [],
+            "covered": false,
+            "cms_api": {
+              "coverage": "NotCovered",
+              "accepting": "unknown",
+              "snapshot_id": "cms-marketplace-api:providers-covered:2026:ecf79bb8123dec02:a1eddd54be55aaea:<retrieval>",
+              "sourced_by": "cms-marketplace-api",
+              "sourced_at": "<time>",
+              "sourced_slug": "cms-marketplace-api:providers-covered:2026:ecf79bb8123dec02:a1eddd54be55aaea:<retrieval>",
+              "served_from": "absorbed",
+              "source": "Centers for Medicare & Medicaid Services, Marketplace API (HealthCare.gov)",
+              "terms_url": "https://developer.cms.gov/marketplace-api/",
+              "limits": "coverage flag only; network tier and address participation are not published by this source"
+            }
+          },
+          {
+            "status": "unknown",
+            "reason": "cms_api_data_not_provided",
+            "requested_plan_id": "00010TX0010001",
+            "base_hios_id": "00010TX0010001",
+            "identity": "1000000004",
+            "plan_year": 2026,
+            "participation_scope": "provider_record",
+            "snapshot_id": null,
+            "manifest_snapshot_id": null,
+            "evidence": [],
+            "warnings": [],
+            "cms_api": {
+              "coverage": "DataNotProvided",
+              "accepting": "unknown",
+              "snapshot_id": "cms-marketplace-api:providers-covered:2026:ecf79bb8123dec02:a1eddd54be55aaea:<retrieval>",
+              "sourced_by": "cms-marketplace-api",
+              "sourced_at": "<time>",
+              "sourced_slug": "cms-marketplace-api:providers-covered:2026:ecf79bb8123dec02:a1eddd54be55aaea:<retrieval>",
+              "served_from": "absorbed",
+              "source": "Centers for Medicare & Medicaid Services, Marketplace API (HealthCare.gov)",
+              "terms_url": "https://developer.cms.gov/marketplace-api/",
+              "limits": "coverage flag only; network tier and address participation are not published by this source"
+            }
+          },
+          {
+            "status": "unknown",
+            "reason": "source_access_denied",
+            "requested_plan_id": "00010TX0010001",
+            "base_hios_id": "00010TX0010001",
+            "identity": "12345",
+            "plan_year": 2026,
+            "participation_scope": "provider_record",
+            "snapshot_id": null,
+            "manifest_snapshot_id": null,
+            "evidence": [],
+            "warnings": []
+          }
+        ],
+        "sent": []
+      },
+      {
+        "out": [
+          {
+            "status": "listed_participating",
+            "reason": null,
+            "requested_plan_id": "00010TX0010001",
+            "base_hios_id": "00010TX0010001",
+            "identity": "1000000001",
+            "plan_year": 2026,
+            "participation_scope": "provider_record",
+            "snapshot_id": null,
+            "manifest_snapshot_id": null,
+            "evidence": [],
+            "warnings": [],
+            "covered": true,
+            "cms_api": {
+              "coverage": "Covered",
+              "accepting": "unknown",
+              "snapshot_id": "cms-marketplace-api:providers-covered:2026:ecf79bb8123dec02:a1eddd54be55aaea:<retrieval>",
+              "sourced_by": "cms-marketplace-api",
+              "sourced_at": "<time>",
+              "sourced_slug": "cms-marketplace-api:providers-covered:2026:ecf79bb8123dec02:a1eddd54be55aaea:<retrieval>",
+              "served_from": "absorbed_stale",
+              "source": "Centers for Medicare & Medicaid Services, Marketplace API (HealthCare.gov)",
+              "terms_url": "https://developer.cms.gov/marketplace-api/",
+              "limits": "coverage flag only; network tier and address participation are not published by this source"
+            }
+          },
+          {
+            "status": "unknown",
+            "reason": "cms_api_reports_not_covered",
+            "requested_plan_id": "00010TX0010001",
+            "base_hios_id": "00010TX0010001",
+            "identity": "1000000002",
+            "plan_year": 2026,
+            "participation_scope": "provider_record",
+            "snapshot_id": null,
+            "manifest_snapshot_id": null,
+            "evidence": [],
+            "warnings": [],
+            "cms_api": {
+              "coverage": "NotCovered",
+              "accepting": "unknown",
+              "snapshot_id": "cms-marketplace-api:providers-covered:2026:ecf79bb8123dec02:a1eddd54be55aaea:<retrieval>",
+              "sourced_by": "cms-marketplace-api",
+              "sourced_at": "<time>",
+              "sourced_slug": "cms-marketplace-api:providers-covered:2026:ecf79bb8123dec02:a1eddd54be55aaea:<retrieval>",
+              "served_from": "absorbed_stale",
+              "source": "Centers for Medicare & Medicaid Services, Marketplace API (HealthCare.gov)",
+              "terms_url": "https://developer.cms.gov/marketplace-api/",
+              "limits": "coverage flag only; network tier and address participation are not published by this source"
+            }
+          },
+          {
+            "status": "explicitly_not_participating",
+            "reason": null,
+            "requested_plan_id": "00010TX0010001",
+            "base_hios_id": "00010TX0010001",
+            "identity": "1234567893",
+            "plan_year": 2026,
+            "participation_scope": "provider_record",
+            "snapshot_id": null,
+            "manifest_snapshot_id": null,
+            "evidence": [],
+            "warnings": [],
+            "covered": false,
+            "cms_api": {
+              "coverage": "NotCovered",
+              "accepting": "unknown",
+              "snapshot_id": "cms-marketplace-api:providers-covered:2026:ecf79bb8123dec02:a1eddd54be55aaea:<retrieval>",
+              "sourced_by": "cms-marketplace-api",
+              "sourced_at": "<time>",
+              "sourced_slug": "cms-marketplace-api:providers-covered:2026:ecf79bb8123dec02:a1eddd54be55aaea:<retrieval>",
+              "served_from": "absorbed_stale",
+              "source": "Centers for Medicare & Medicaid Services, Marketplace API (HealthCare.gov)",
+              "terms_url": "https://developer.cms.gov/marketplace-api/",
+              "limits": "coverage flag only; network tier and address participation are not published by this source"
+            }
+          },
+          {
+            "status": "unknown",
+            "reason": "cms_api_data_not_provided",
+            "requested_plan_id": "00010TX0010001",
+            "base_hios_id": "00010TX0010001",
+            "identity": "1000000004",
+            "plan_year": 2026,
+            "participation_scope": "provider_record",
+            "snapshot_id": null,
+            "manifest_snapshot_id": null,
+            "evidence": [],
+            "warnings": [],
+            "cms_api": {
+              "coverage": "DataNotProvided",
+              "accepting": "unknown",
+              "snapshot_id": "cms-marketplace-api:providers-covered:2026:ecf79bb8123dec02:a1eddd54be55aaea:<retrieval>",
+              "sourced_by": "cms-marketplace-api",
+              "sourced_at": "<time>",
+              "sourced_slug": "cms-marketplace-api:providers-covered:2026:ecf79bb8123dec02:a1eddd54be55aaea:<retrieval>",
+              "served_from": "absorbed_stale",
+              "source": "Centers for Medicare & Medicaid Services, Marketplace API (HealthCare.gov)",
+              "terms_url": "https://developer.cms.gov/marketplace-api/",
+              "limits": "coverage flag only; network tier and address participation are not published by this source"
+            }
+          },
+          {
+            "status": "unknown",
+            "reason": "source_access_denied",
+            "requested_plan_id": "00010TX0010001",
+            "base_hios_id": "00010TX0010001",
+            "identity": "12345",
+            "plan_year": 2026,
+            "participation_scope": "provider_record",
+            "snapshot_id": null,
+            "manifest_snapshot_id": null,
+            "evidence": [],
+            "warnings": []
+          }
+        ],
+        "sent": []
+      }
+    ],
+    "state": {
+      "drugs": [],
+      "providers": [
+        {
+          "plan_id": "00010TX0010001",
+          "npi": "1000000001",
+          "plan_year": 2026,
+          "coverage": "Covered",
+          "accepting": "unknown",
+          "addresses": [
+            {
+              "city": "Synthetic"
+            }
+          ],
+          "snapshot_id": "cms-marketplace-api:providers-covered:2026:ecf79bb8123dec02:a1eddd54be55aaea:<retrieval>",
+          "source_row": 1,
+          "expires_at": "<time>",
+          "sourced_by": "cms-marketplace-api",
+          "sourced_at": "<time>",
+          "sourced_slug": "cms-marketplace-api:providers-covered:2026:ecf79bb8123dec02:a1eddd54be55aaea:<retrieval>",
+          "created_at": "<time>",
+          "updated_at": "<time>",
+          "record_policy": "cms_api_fallback",
+          "record_ttl": "7 days",
+          "expired_at": "<time>",
+          "ttl_span": "-23:59:59.987"
+        },
+        {
+          "plan_id": "00010TX0010001",
+          "npi": "1000000002",
+          "plan_year": 2026,
+          "coverage": "NotCovered",
+          "accepting": "unknown",
+          "addresses": [
+            {
+              "city": "Synthetic"
+            }
+          ],
+          "snapshot_id": "cms-marketplace-api:providers-covered:2026:ecf79bb8123dec02:a1eddd54be55aaea:<retrieval>",
+          "source_row": 2,
+          "expires_at": "<time>",
+          "sourced_by": "cms-marketplace-api",
+          "sourced_at": "<time>",
+          "sourced_slug": "cms-marketplace-api:providers-covered:2026:ecf79bb8123dec02:a1eddd54be55aaea:<retrieval>",
+          "created_at": "<time>",
+          "updated_at": "<time>",
+          "record_policy": "cms_api_fallback",
+          "record_ttl": "7 days",
+          "expired_at": "<time>",
+          "ttl_span": "-23:59:59.987"
+        },
+        {
+          "plan_id": "00010TX0010001",
+          "npi": "1000000004",
+          "plan_year": 2026,
+          "coverage": "DataNotProvided",
+          "accepting": "unknown",
+          "addresses": [
+            {
+              "city": "Synthetic"
+            }
+          ],
+          "snapshot_id": "cms-marketplace-api:providers-covered:2026:ecf79bb8123dec02:a1eddd54be55aaea:<retrieval>",
+          "source_row": 4,
+          "expires_at": "<time>",
+          "sourced_by": "cms-marketplace-api",
+          "sourced_at": "<time>",
+          "sourced_slug": "cms-marketplace-api:providers-covered:2026:ecf79bb8123dec02:a1eddd54be55aaea:<retrieval>",
+          "created_at": "<time>",
+          "updated_at": "<time>",
+          "record_policy": "cms_api_fallback_no_data",
+          "record_ttl": "1 day",
+          "expired_at": "<time>",
+          "ttl_span": "-23:59:59.987"
+        },
+        {
+          "plan_id": "00010TX0010001",
+          "npi": "1234567893",
+          "plan_year": 2026,
+          "coverage": "NotCovered",
+          "accepting": "unknown",
+          "addresses": [
+            {
+              "city": "Synthetic"
+            }
+          ],
+          "snapshot_id": "cms-marketplace-api:providers-covered:2026:ecf79bb8123dec02:a1eddd54be55aaea:<retrieval>",
+          "source_row": 3,
+          "expires_at": "<time>",
+          "sourced_by": "cms-marketplace-api",
+          "sourced_at": "<time>",
+          "sourced_slug": "cms-marketplace-api:providers-covered:2026:ecf79bb8123dec02:a1eddd54be55aaea:<retrieval>",
+          "created_at": "<time>",
+          "updated_at": "<time>",
+          "record_policy": "cms_api_fallback",
+          "record_ttl": "7 days",
+          "expired_at": "<time>",
+          "ttl_span": "-23:59:59.987"
+        }
+      ],
+      "attempts": [
+        {
+          "endpoint": "providers/covered",
+          "plan_year": 2026,
+          "pairs": 4,
+          "snapshot_id": "cms-marketplace-api:providers-covered:2026:ecf79bb8123dec02:a1eddd54be55aaea:<retrieval>",
+          "outcome": "absorbed",
+          "http_status": 200,
+          "failure_code": null,
+          "refusal_reason": null
+        }
+      ],
+      "conflicts": [],
+      "budget": [
+        {
+          "daily_requests": 1,
+          "max_daily_requests": 500,
+          "min_interval_ms": 1000,
+          "failure_count": 0,
+          "half_open": false,
+          "spaced": false,
+          "blocked": false,
+          "blocked_long": false
+        }
+      ],
+      "receipts": [
+        {
+          "snapshot_id": "cms-marketplace-api:providers-covered:2026:ecf79bb8123dec02:a1eddd54be55aaea:<retrieval>",
+          "source_id": "cms-marketplace-api",
+          "requested_url": "https://marketplace.api.healthcare.gov/api/v1/providers/covered?year=%5BREDACTED%5D&providerids=%5BREDACTED%5D&planids=%5BREDACTED%5D",
+          "final_url": "https://marketplace.api.healthcare.gov/api/v1/providers/covered?year=%5BREDACTED%5D&providerids=%5BREDACTED%5D&planids=%5BREDACTED%5D",
+          "http_status": 200,
+          "content_type": null,
+          "compressed_bytes": 532,
+          "sha256": "a1eddd54be55aaea4bbe7851ccc828740b1f2c3a59d6e88bf2ed24594d08f838",
+          "raw_path": "<dir>/raw/cms-marketplace-api-ecf79bb8123dec02/a1eddd54be55aaea4bbe7851ccc828740b1f2c3a59d6e88bf2ed24594d08f838/payload",
+          "schema_version": "cms-api-coverage-v1",
+          "parser_version": "cms-api-fallback-v1",
+          "terms_review_reference": "https://developer.cms.gov/marketplace-api/",
+          "validation_state": "ACTIVE"
+        }
+      ]
+    }
+  },
+  "grid batching, duplicates, the request cap and unreadable plan ids": {
+    "steps": [
+      {
+        "out": [
+          {
+            "status": "listed_covered",
+            "reason": null,
+            "base_hios_id": "00010TX0010001",
+            "requested_plan_id": "00010TX0010001",
+            "rxcui": "990000201",
+            "plan_year": 2026,
+            "drug_tier": null,
+            "tier_status": null,
+            "cost_sharing": null,
+            "prior_authorization": null,
+            "step_therapy": null,
+            "quantity_limit": null,
+            "patient_price": null,
+            "evidence": [],
+            "snapshot_id": null,
+            "manifest_snapshot_id": null,
+            "covered": true,
+            "cms_api": {
+              "coverage": "Covered",
+              "generic_rxcui": null,
+              "snapshot_id": "cms-marketplace-api:drugs-covered:2026:d4840a7b9b947780:cbbdbd38aa3707f2:<retrieval>",
+              "sourced_by": "cms-marketplace-api",
+              "sourced_at": "<time>",
+              "sourced_slug": "cms-marketplace-api:drugs-covered:2026:d4840a7b9b947780:cbbdbd38aa3707f2:<retrieval>",
+              "served_from": "live",
+              "source": "Centers for Medicare & Medicaid Services, Marketplace API (HealthCare.gov)",
+              "terms_url": "https://developer.cms.gov/marketplace-api/",
+              "limits": "coverage flag only; tier, prior authorization, step therapy, quantity limit and cost are not published by this source"
+            }
+          },
+          {
+            "status": "listed_covered",
+            "reason": null,
+            "base_hios_id": "00010TX0010001",
+            "requested_plan_id": "00010TX0010001",
+            "rxcui": "1003",
+            "plan_year": 2026,
+            "drug_tier": null,
+            "tier_status": null,
+            "cost_sharing": null,
+            "prior_authorization": null,
+            "step_therapy": null,
+            "quantity_limit": null,
+            "patient_price": null,
+            "evidence": [],
+            "snapshot_id": null,
+            "manifest_snapshot_id": null,
+            "covered": true,
+            "cms_api": {
+              "coverage": "Covered",
+              "generic_rxcui": null,
+              "snapshot_id": "cms-marketplace-api:drugs-covered:2026:d4840a7b9b947780:cbbdbd38aa3707f2:<retrieval>",
+              "sourced_by": "cms-marketplace-api",
+              "sourced_at": "<time>",
+              "sourced_slug": "cms-marketplace-api:drugs-covered:2026:d4840a7b9b947780:cbbdbd38aa3707f2:<retrieval>",
+              "served_from": "live",
+              "source": "Centers for Medicare & Medicaid Services, Marketplace API (HealthCare.gov)",
+              "terms_url": "https://developer.cms.gov/marketplace-api/",
+              "limits": "coverage flag only; tier, prior authorization, step therapy, quantity limit and cost are not published by this source"
+            }
+          },
+          {
+            "status": "listed_covered",
+            "reason": null,
+            "base_hios_id": "00010TX0010001",
+            "requested_plan_id": "00010TX0019999",
+            "rxcui": "990000201",
+            "plan_year": 2026,
+            "drug_tier": null,
+            "tier_status": null,
+            "cost_sharing": null,
+            "prior_authorization": null,
+            "step_therapy": null,
+            "quantity_limit": null,
+            "patient_price": null,
+            "evidence": [],
+            "snapshot_id": null,
+            "manifest_snapshot_id": null,
+            "covered": true,
+            "cms_api": {
+              "coverage": "Covered",
+              "generic_rxcui": null,
+              "snapshot_id": "cms-marketplace-api:drugs-covered:2026:5cf852b4b6d29950:17cd080b8a05188f:<retrieval>",
+              "sourced_by": "cms-marketplace-api",
+              "sourced_at": "<time>",
+              "sourced_slug": "cms-marketplace-api:drugs-covered:2026:5cf852b4b6d29950:17cd080b8a05188f:<retrieval>",
+              "served_from": "live",
+              "source": "Centers for Medicare & Medicaid Services, Marketplace API (HealthCare.gov)",
+              "terms_url": "https://developer.cms.gov/marketplace-api/",
+              "limits": "coverage flag only; tier, prior authorization, step therapy, quantity limit and cost are not published by this source"
+            }
+          },
+          {
+            "status": "listed_covered",
+            "reason": null,
+            "base_hios_id": "00010TX0010001",
+            "requested_plan_id": "00010TX0019999",
+            "rxcui": "1004",
+            "plan_year": 2026,
+            "drug_tier": null,
+            "tier_status": null,
+            "cost_sharing": null,
+            "prior_authorization": null,
+            "step_therapy": null,
+            "quantity_limit": null,
+            "patient_price": null,
+            "evidence": [],
+            "snapshot_id": null,
+            "manifest_snapshot_id": null,
+            "covered": true,
+            "cms_api": {
+              "coverage": "Covered",
+              "generic_rxcui": null,
+              "snapshot_id": "cms-marketplace-api:drugs-covered:2026:5cf852b4b6d29950:17cd080b8a05188f:<retrieval>",
+              "sourced_by": "cms-marketplace-api",
+              "sourced_at": "<time>",
+              "sourced_slug": "cms-marketplace-api:drugs-covered:2026:5cf852b4b6d29950:17cd080b8a05188f:<retrieval>",
+              "served_from": "live",
+              "source": "Centers for Medicare & Medicaid Services, Marketplace API (HealthCare.gov)",
+              "terms_url": "https://developer.cms.gov/marketplace-api/",
+              "limits": "coverage flag only; tier, prior authorization, step therapy, quantity limit and cost are not published by this source"
+            }
+          },
+          {
+            "status": "listed_covered",
+            "reason": null,
+            "base_hios_id": "00010TX0010001",
+            "requested_plan_id": "00010TX0010001",
+            "rxcui": "1003",
+            "plan_year": 2026,
+            "drug_tier": null,
+            "tier_status": null,
+            "cost_sharing": null,
+            "prior_authorization": null,
+            "step_therapy": null,
+            "quantity_limit": null,
+            "patient_price": null,
+            "evidence": [],
+            "snapshot_id": null,
+            "manifest_snapshot_id": null,
+            "covered": true,
+            "cms_api": {
+              "coverage": "Covered",
+              "generic_rxcui": null,
+              "snapshot_id": "cms-marketplace-api:drugs-covered:2026:d4840a7b9b947780:cbbdbd38aa3707f2:<retrieval>",
+              "sourced_by": "cms-marketplace-api",
+              "sourced_at": "<time>",
+              "sourced_slug": "cms-marketplace-api:drugs-covered:2026:d4840a7b9b947780:cbbdbd38aa3707f2:<retrieval>",
+              "served_from": "live",
+              "source": "Centers for Medicare & Medicaid Services, Marketplace API (HealthCare.gov)",
+              "terms_url": "https://developer.cms.gov/marketplace-api/",
+              "limits": "coverage flag only; tier, prior authorization, step therapy, quantity limit and cost are not published by this source"
+            }
+          },
+          {
+            "status": "unknown",
+            "reason": "source_set_not_available",
+            "base_hios_id": "00010TX0010001",
+            "requested_plan_id": "not-a-plan",
+            "rxcui": "990000201",
+            "plan_year": 2026,
+            "drug_tier": null,
+            "tier_status": null,
+            "cost_sharing": null,
+            "prior_authorization": null,
+            "step_therapy": null,
+            "quantity_limit": null,
+            "patient_price": null,
+            "evidence": [],
+            "snapshot_id": null,
+            "manifest_snapshot_id": null
+          },
+          {
+            "status": "unknown",
+            "reason": "cms_api_request_cap",
+            "base_hios_id": "00010TX0010001",
+            "requested_plan_id": "00010TX0010001",
+            "rxcui": "990000201",
+            "plan_year": 2025,
+            "drug_tier": null,
+            "tier_status": null,
+            "cost_sharing": null,
+            "prior_authorization": null,
+            "step_therapy": null,
+            "quantity_limit": null,
+            "patient_price": null,
+            "evidence": [],
+            "snapshot_id": null,
+            "manifest_snapshot_id": null
+          },
+          {
+            "status": "unknown",
+            "reason": "cms_api_request_cap",
+            "base_hios_id": "00010TX0010001",
+            "requested_plan_id": "00010TX0010001",
+            "rxcui": "990000201",
+            "plan_year": 2027,
+            "drug_tier": null,
+            "tier_status": null,
+            "cost_sharing": null,
+            "prior_authorization": null,
+            "step_therapy": null,
+            "quantity_limit": null,
+            "patient_price": null,
+            "evidence": [],
+            "snapshot_id": null,
+            "manifest_snapshot_id": null
+          },
+          {
+            "status": "unknown",
+            "reason": "cms_api_request_cap",
+            "base_hios_id": "00010TX0010001",
+            "requested_plan_id": "00010TX0010001",
+            "rxcui": "1003",
+            "plan_year": 2027,
+            "drug_tier": null,
+            "tier_status": null,
+            "cost_sharing": null,
+            "prior_authorization": null,
+            "step_therapy": null,
+            "quantity_limit": null,
+            "patient_price": null,
+            "evidence": [],
+            "snapshot_id": null,
+            "manifest_snapshot_id": null
+          },
+          {
+            "status": "unknown",
+            "reason": "cms_api_year_not_served",
+            "base_hios_id": "00010TX0010001",
+            "requested_plan_id": "00010TX0010001",
+            "rxcui": "990000201",
+            "plan_year": 2024,
+            "drug_tier": null,
+            "tier_status": null,
+            "cost_sharing": null,
+            "prior_authorization": null,
+            "step_therapy": null,
+            "quantity_limit": null,
+            "patient_price": null,
+            "evidence": [],
+            "snapshot_id": null,
+            "manifest_snapshot_id": null
+          },
+          {
+            "status": "listed_covered",
+            "reason": null,
+            "base_hios_id": "00010TX0010001",
+            "requested_plan_id": "00010TX0010001",
+            "rxcui": "990000201",
+            "plan_year": 2026,
+            "drug_tier": null,
+            "tier_status": null,
+            "cost_sharing": null,
+            "prior_authorization": null,
+            "step_therapy": null,
+            "quantity_limit": null,
+            "patient_price": null,
+            "evidence": [],
+            "snapshot_id": null,
+            "manifest_snapshot_id": null
+          },
+          {
+            "status": "unknown",
+            "reason": "rxcui_not_in_rxnorm",
+            "base_hios_id": "00010TX0010001",
+            "requested_plan_id": "00010TX0010001",
+            "rxcui": "990000201",
+            "plan_year": 2026,
+            "drug_tier": null,
+            "tier_status": null,
+            "cost_sharing": null,
+            "prior_authorization": null,
+            "step_therapy": null,
+            "quantity_limit": null,
+            "patient_price": null,
+            "evidence": [],
+            "snapshot_id": null,
+            "manifest_snapshot_id": null
+          }
+        ],
+        "sent": [
+          "https://marketplace.api.healthcare.gov/api/v1/drugs/covered?year=2026&drugs=990000201%2C1003&planids=00010TX0010001&apikey=<key>",
+          "https://marketplace.api.healthcare.gov/api/v1/drugs/covered?year=2026&drugs=990000201%2C1004&planids=00010TX0019999&apikey=<key>"
+        ]
+      }
+    ],
+    "state": {
+      "drugs": [
+        {
+          "plan_id": "00010TX0010001",
+          "rxcui": "1003",
+          "plan_year": 2026,
+          "coverage": "Covered",
+          "generic_rxcui": null,
+          "snapshot_id": "cms-marketplace-api:drugs-covered:2026:d4840a7b9b947780:cbbdbd38aa3707f2:<retrieval>",
+          "source_row": 2,
+          "expires_at": "<time>",
+          "sourced_by": "cms-marketplace-api",
+          "sourced_at": "<time>",
+          "sourced_slug": "cms-marketplace-api:drugs-covered:2026:d4840a7b9b947780:cbbdbd38aa3707f2:<retrieval>",
+          "created_at": "<time>",
+          "updated_at": "<time>",
+          "record_policy": "cms_api_fallback",
+          "record_ttl": "7 days",
+          "expired_at": "<time>",
+          "ttl_span": "7 days"
+        },
+        {
+          "plan_id": "00010TX0010001",
+          "rxcui": "990000201",
+          "plan_year": 2026,
+          "coverage": "Covered",
+          "generic_rxcui": null,
+          "snapshot_id": "cms-marketplace-api:drugs-covered:2026:d4840a7b9b947780:cbbdbd38aa3707f2:<retrieval>",
+          "source_row": 1,
+          "expires_at": "<time>",
+          "sourced_by": "cms-marketplace-api",
+          "sourced_at": "<time>",
+          "sourced_slug": "cms-marketplace-api:drugs-covered:2026:d4840a7b9b947780:cbbdbd38aa3707f2:<retrieval>",
+          "created_at": "<time>",
+          "updated_at": "<time>",
+          "record_policy": "cms_api_fallback",
+          "record_ttl": "7 days",
+          "expired_at": "<time>",
+          "ttl_span": "7 days"
+        },
+        {
+          "plan_id": "00010TX0019999",
+          "rxcui": "1004",
+          "plan_year": 2026,
+          "coverage": "Covered",
+          "generic_rxcui": null,
+          "snapshot_id": "cms-marketplace-api:drugs-covered:2026:5cf852b4b6d29950:17cd080b8a05188f:<retrieval>",
+          "source_row": 2,
+          "expires_at": "<time>",
+          "sourced_by": "cms-marketplace-api",
+          "sourced_at": "<time>",
+          "sourced_slug": "cms-marketplace-api:drugs-covered:2026:5cf852b4b6d29950:17cd080b8a05188f:<retrieval>",
+          "created_at": "<time>",
+          "updated_at": "<time>",
+          "record_policy": "cms_api_fallback",
+          "record_ttl": "7 days",
+          "expired_at": "<time>",
+          "ttl_span": "7 days"
+        },
+        {
+          "plan_id": "00010TX0019999",
+          "rxcui": "990000201",
+          "plan_year": 2026,
+          "coverage": "Covered",
+          "generic_rxcui": null,
+          "snapshot_id": "cms-marketplace-api:drugs-covered:2026:5cf852b4b6d29950:17cd080b8a05188f:<retrieval>",
+          "source_row": 1,
+          "expires_at": "<time>",
+          "sourced_by": "cms-marketplace-api",
+          "sourced_at": "<time>",
+          "sourced_slug": "cms-marketplace-api:drugs-covered:2026:5cf852b4b6d29950:17cd080b8a05188f:<retrieval>",
+          "created_at": "<time>",
+          "updated_at": "<time>",
+          "record_policy": "cms_api_fallback",
+          "record_ttl": "7 days",
+          "expired_at": "<time>",
+          "ttl_span": "7 days"
+        }
+      ],
+      "providers": [],
+      "attempts": [
+        {
+          "endpoint": "drugs/covered",
+          "plan_year": 2026,
+          "pairs": 2,
+          "snapshot_id": "cms-marketplace-api:drugs-covered:2026:d4840a7b9b947780:cbbdbd38aa3707f2:<retrieval>",
+          "outcome": "absorbed",
+          "http_status": 200,
+          "failure_code": null,
+          "refusal_reason": null
+        },
+        {
+          "endpoint": "drugs/covered",
+          "plan_year": 2026,
+          "pairs": 2,
+          "snapshot_id": "cms-marketplace-api:drugs-covered:2026:5cf852b4b6d29950:17cd080b8a05188f:<retrieval>",
+          "outcome": "absorbed",
+          "http_status": 200,
+          "failure_code": null,
+          "refusal_reason": null
+        },
+        {
+          "endpoint": "drugs/covered",
+          "plan_year": 2025,
+          "pairs": 1,
+          "snapshot_id": null,
+          "outcome": "refused",
+          "http_status": null,
+          "failure_code": null,
+          "refusal_reason": "cms_api_request_cap"
+        },
+        {
+          "endpoint": "drugs/covered",
+          "plan_year": 2027,
+          "pairs": 2,
+          "snapshot_id": null,
+          "outcome": "refused",
+          "http_status": null,
+          "failure_code": null,
+          "refusal_reason": "cms_api_request_cap"
+        }
+      ],
+      "conflicts": [],
+      "budget": [
+        {
+          "daily_requests": 2,
+          "max_daily_requests": 500,
+          "min_interval_ms": 1000,
+          "failure_count": 0,
+          "half_open": false,
+          "spaced": false,
+          "blocked": false,
+          "blocked_long": false
+        }
+      ],
+      "receipts": [
+        {
+          "snapshot_id": "cms-marketplace-api:drugs-covered:2026:5cf852b4b6d29950:17cd080b8a05188f:<retrieval>",
+          "source_id": "cms-marketplace-api",
+          "requested_url": "https://marketplace.api.healthcare.gov/api/v1/drugs/covered?year=%5BREDACTED%5D&drugs=%5BREDACTED%5D&planids=%5BREDACTED%5D",
+          "final_url": "https://marketplace.api.healthcare.gov/api/v1/drugs/covered?year=%5BREDACTED%5D&drugs=%5BREDACTED%5D&planids=%5BREDACTED%5D",
+          "http_status": 200,
+          "content_type": null,
+          "compressed_bytes": 149,
+          "sha256": "17cd080b8a05188ff4452ed5a5b5e45bef7c2ac2996ab40334ba23f540fd860b",
+          "raw_path": "<dir>/raw/cms-marketplace-api-5cf852b4b6d29950/17cd080b8a05188ff4452ed5a5b5e45bef7c2ac2996ab40334ba23f540fd860b/payload",
+          "schema_version": "cms-api-coverage-v1",
+          "parser_version": "cms-api-fallback-v1",
+          "terms_review_reference": "https://developer.cms.gov/marketplace-api/",
+          "validation_state": "ACTIVE"
+        },
+        {
+          "snapshot_id": "cms-marketplace-api:drugs-covered:2026:d4840a7b9b947780:cbbdbd38aa3707f2:<retrieval>",
+          "source_id": "cms-marketplace-api",
+          "requested_url": "https://marketplace.api.healthcare.gov/api/v1/drugs/covered?year=%5BREDACTED%5D&drugs=%5BREDACTED%5D&planids=%5BREDACTED%5D",
+          "final_url": "https://marketplace.api.healthcare.gov/api/v1/drugs/covered?year=%5BREDACTED%5D&drugs=%5BREDACTED%5D&planids=%5BREDACTED%5D",
+          "http_status": 200,
+          "content_type": null,
+          "compressed_bytes": 149,
+          "sha256": "cbbdbd38aa3707f2aa331ba5ca99f6edd364c1b53816d1a98a2cdc78ae8f968b",
+          "raw_path": "<dir>/raw/cms-marketplace-api-d4840a7b9b947780/cbbdbd38aa3707f2aa331ba5ca99f6edd364c1b53816d1a98a2cdc78ae8f968b/payload",
+          "schema_version": "cms-api-coverage-v1",
+          "parser_version": "cms-api-fallback-v1",
+          "terms_review_reference": "https://developer.cms.gov/marketplace-api/",
+          "validation_state": "ACTIVE"
+        }
+      ]
+    }
+  },
+  "refusals: no key, budget, client share, blocked": {
+    "steps": [
+      {
+        "out": [
+          {
+            "status": "unknown",
+            "reason": "cms_api_not_configured",
+            "base_hios_id": "00010TX0010001",
+            "requested_plan_id": "00010TX0010001",
+            "rxcui": "990000201",
+            "plan_year": 2026,
+            "drug_tier": null,
+            "tier_status": null,
+            "cost_sharing": null,
+            "prior_authorization": null,
+            "step_therapy": null,
+            "quantity_limit": null,
+            "patient_price": null,
+            "evidence": [],
+            "snapshot_id": null,
+            "manifest_snapshot_id": null
+          }
+        ],
+        "sent": []
+      },
+      {
+        "out": [
+          {
+            "status": "unknown",
+            "reason": "cms_api_budget_exhausted",
+            "base_hios_id": "00010TX0010001",
+            "requested_plan_id": "00010TX0010001",
+            "rxcui": "990000201",
+            "plan_year": 2026,
+            "drug_tier": null,
+            "tier_status": null,
+            "cost_sharing": null,
+            "prior_authorization": null,
+            "step_therapy": null,
+            "quantity_limit": null,
+            "patient_price": null,
+            "evidence": [],
+            "snapshot_id": null,
+            "manifest_snapshot_id": null
+          }
+        ],
+        "sent": []
+      },
+      {
+        "out": [
+          {
+            "status": "listed_covered",
+            "reason": null,
+            "base_hios_id": "00010TX0010001",
+            "requested_plan_id": "00010TX0010001",
+            "rxcui": "1001",
+            "plan_year": 2026,
+            "drug_tier": null,
+            "tier_status": null,
+            "cost_sharing": null,
+            "prior_authorization": null,
+            "step_therapy": null,
+            "quantity_limit": null,
+            "patient_price": null,
+            "evidence": [],
+            "snapshot_id": null,
+            "manifest_snapshot_id": null,
+            "covered": true,
+            "cms_api": {
+              "coverage": "Covered",
+              "generic_rxcui": null,
+              "snapshot_id": "cms-marketplace-api:drugs-covered:2026:d4b487288b46a405:1aee288d83844103:<retrieval>",
+              "sourced_by": "cms-marketplace-api",
+              "sourced_at": "<time>",
+              "sourced_slug": "cms-marketplace-api:drugs-covered:2026:d4b487288b46a405:1aee288d83844103:<retrieval>",
+              "served_from": "live",
+              "source": "Centers for Medicare & Medicaid Services, Marketplace API (HealthCare.gov)",
+              "terms_url": "https://developer.cms.gov/marketplace-api/",
+              "limits": "coverage flag only; tier, prior authorization, step therapy, quantity limit and cost are not published by this source"
+            }
+          }
+        ],
+        "sent": [
+          "https://marketplace.api.healthcare.gov/api/v1/drugs/covered?year=2026&drugs=1001&planids=00010TX0010001&apikey=<key>"
+        ]
+      },
+      {
+        "out": [
+          {
+            "status": "listed_covered",
+            "reason": null,
+            "base_hios_id": "00010TX0010001",
+            "requested_plan_id": "00010TX0010001",
+            "rxcui": "1002",
+            "plan_year": 2026,
+            "drug_tier": null,
+            "tier_status": null,
+            "cost_sharing": null,
+            "prior_authorization": null,
+            "step_therapy": null,
+            "quantity_limit": null,
+            "patient_price": null,
+            "evidence": [],
+            "snapshot_id": null,
+            "manifest_snapshot_id": null,
+            "covered": true,
+            "cms_api": {
+              "coverage": "Covered",
+              "generic_rxcui": null,
+              "snapshot_id": "cms-marketplace-api:drugs-covered:2026:0391c7609f633dd5:03747d019bca8b13:<retrieval>",
+              "sourced_by": "cms-marketplace-api",
+              "sourced_at": "<time>",
+              "sourced_slug": "cms-marketplace-api:drugs-covered:2026:0391c7609f633dd5:03747d019bca8b13:<retrieval>",
+              "served_from": "live",
+              "source": "Centers for Medicare & Medicaid Services, Marketplace API (HealthCare.gov)",
+              "terms_url": "https://developer.cms.gov/marketplace-api/",
+              "limits": "coverage flag only; tier, prior authorization, step therapy, quantity limit and cost are not published by this source"
+            }
+          }
+        ],
+        "sent": [
+          "https://marketplace.api.healthcare.gov/api/v1/drugs/covered?year=2026&drugs=1002&planids=00010TX0010001&apikey=<key>"
+        ]
+      },
+      {
+        "out": [
+          {
+            "status": "unknown",
+            "reason": "cms_api_request_cap",
+            "base_hios_id": "00010TX0010001",
+            "requested_plan_id": "00010TX0010001",
+            "rxcui": "1003",
+            "plan_year": 2026,
+            "drug_tier": null,
+            "tier_status": null,
+            "cost_sharing": null,
+            "prior_authorization": null,
+            "step_therapy": null,
+            "quantity_limit": null,
+            "patient_price": null,
+            "evidence": [],
+            "snapshot_id": null,
+            "manifest_snapshot_id": null
+          }
+        ],
+        "sent": []
+      },
+      {
+        "out": [
+          {
+            "status": "listed_covered",
+            "reason": null,
+            "base_hios_id": "00010TX0010001",
+            "requested_plan_id": "00010TX0010001",
+            "rxcui": "1003",
+            "plan_year": 2026,
+            "drug_tier": null,
+            "tier_status": null,
+            "cost_sharing": null,
+            "prior_authorization": null,
+            "step_therapy": null,
+            "quantity_limit": null,
+            "patient_price": null,
+            "evidence": [],
+            "snapshot_id": null,
+            "manifest_snapshot_id": null,
+            "covered": true,
+            "cms_api": {
+              "coverage": "Covered",
+              "generic_rxcui": null,
+              "snapshot_id": "cms-marketplace-api:drugs-covered:2026:c4d1f953d6c56c50:f8160bbf73438916:<retrieval>",
+              "sourced_by": "cms-marketplace-api",
+              "sourced_at": "<time>",
+              "sourced_slug": "cms-marketplace-api:drugs-covered:2026:c4d1f953d6c56c50:f8160bbf73438916:<retrieval>",
+              "served_from": "live",
+              "source": "Centers for Medicare & Medicaid Services, Marketplace API (HealthCare.gov)",
+              "terms_url": "https://developer.cms.gov/marketplace-api/",
+              "limits": "coverage flag only; tier, prior authorization, step therapy, quantity limit and cost are not published by this source"
+            }
+          }
+        ],
+        "sent": [
+          "https://marketplace.api.healthcare.gov/api/v1/drugs/covered?year=2026&drugs=1003&planids=00010TX0010001&apikey=<key>"
+        ]
+      },
+      {
+        "out": [
+          {
+            "status": "unknown",
+            "reason": "cms_api_unavailable",
+            "base_hios_id": "00010TX0010001",
+            "requested_plan_id": "00010TX0010001",
+            "rxcui": "1004",
+            "plan_year": 2026,
+            "drug_tier": null,
+            "tier_status": null,
+            "cost_sharing": null,
+            "prior_authorization": null,
+            "step_therapy": null,
+            "quantity_limit": null,
+            "patient_price": null,
+            "evidence": [],
+            "snapshot_id": null,
+            "manifest_snapshot_id": null
+          }
+        ],
+        "sent": []
+      }
+    ],
+    "state": {
+      "drugs": [
+        {
+          "plan_id": "00010TX0010001",
+          "rxcui": "1001",
+          "plan_year": 2026,
+          "coverage": "Covered",
+          "generic_rxcui": null,
+          "snapshot_id": "cms-marketplace-api:drugs-covered:2026:d4b487288b46a405:1aee288d83844103:<retrieval>",
+          "source_row": 1,
+          "expires_at": "<time>",
+          "sourced_by": "cms-marketplace-api",
+          "sourced_at": "<time>",
+          "sourced_slug": "cms-marketplace-api:drugs-covered:2026:d4b487288b46a405:1aee288d83844103:<retrieval>",
+          "created_at": "<time>",
+          "updated_at": "<time>",
+          "record_policy": "cms_api_fallback",
+          "record_ttl": "7 days",
+          "expired_at": "<time>",
+          "ttl_span": "7 days"
+        },
+        {
+          "plan_id": "00010TX0010001",
+          "rxcui": "1002",
+          "plan_year": 2026,
+          "coverage": "Covered",
+          "generic_rxcui": null,
+          "snapshot_id": "cms-marketplace-api:drugs-covered:2026:0391c7609f633dd5:03747d019bca8b13:<retrieval>",
+          "source_row": 1,
+          "expires_at": "<time>",
+          "sourced_by": "cms-marketplace-api",
+          "sourced_at": "<time>",
+          "sourced_slug": "cms-marketplace-api:drugs-covered:2026:0391c7609f633dd5:03747d019bca8b13:<retrieval>",
+          "created_at": "<time>",
+          "updated_at": "<time>",
+          "record_policy": "cms_api_fallback",
+          "record_ttl": "7 days",
+          "expired_at": "<time>",
+          "ttl_span": "7 days"
+        },
+        {
+          "plan_id": "00010TX0010001",
+          "rxcui": "1003",
+          "plan_year": 2026,
+          "coverage": "Covered",
+          "generic_rxcui": null,
+          "snapshot_id": "cms-marketplace-api:drugs-covered:2026:c4d1f953d6c56c50:f8160bbf73438916:<retrieval>",
+          "source_row": 1,
+          "expires_at": "<time>",
+          "sourced_by": "cms-marketplace-api",
+          "sourced_at": "<time>",
+          "sourced_slug": "cms-marketplace-api:drugs-covered:2026:c4d1f953d6c56c50:f8160bbf73438916:<retrieval>",
+          "created_at": "<time>",
+          "updated_at": "<time>",
+          "record_policy": "cms_api_fallback",
+          "record_ttl": "7 days",
+          "expired_at": "<time>",
+          "ttl_span": "7 days"
+        }
+      ],
+      "providers": [],
+      "attempts": [
+        {
+          "endpoint": "drugs/covered",
+          "plan_year": 2026,
+          "pairs": 1,
+          "snapshot_id": null,
+          "outcome": "refused",
+          "http_status": null,
+          "failure_code": null,
+          "refusal_reason": "cms_api_budget_exhausted"
+        },
+        {
+          "endpoint": "drugs/covered",
+          "plan_year": 2026,
+          "pairs": 1,
+          "snapshot_id": "cms-marketplace-api:drugs-covered:2026:d4b487288b46a405:1aee288d83844103:<retrieval>",
+          "outcome": "absorbed",
+          "http_status": 200,
+          "failure_code": null,
+          "refusal_reason": null
+        },
+        {
+          "endpoint": "drugs/covered",
+          "plan_year": 2026,
+          "pairs": 1,
+          "snapshot_id": "cms-marketplace-api:drugs-covered:2026:0391c7609f633dd5:03747d019bca8b13:<retrieval>",
+          "outcome": "absorbed",
+          "http_status": 200,
+          "failure_code": null,
+          "refusal_reason": null
+        },
+        {
+          "endpoint": "drugs/covered",
+          "plan_year": 2026,
+          "pairs": 1,
+          "snapshot_id": null,
+          "outcome": "refused",
+          "http_status": null,
+          "failure_code": null,
+          "refusal_reason": "cms_api_client_share"
+        },
+        {
+          "endpoint": "drugs/covered",
+          "plan_year": 2026,
+          "pairs": 1,
+          "snapshot_id": "cms-marketplace-api:drugs-covered:2026:c4d1f953d6c56c50:f8160bbf73438916:<retrieval>",
+          "outcome": "absorbed",
+          "http_status": 200,
+          "failure_code": null,
+          "refusal_reason": null
+        },
+        {
+          "endpoint": "drugs/covered",
+          "plan_year": 2026,
+          "pairs": 1,
+          "snapshot_id": null,
+          "outcome": "refused",
+          "http_status": null,
+          "failure_code": null,
+          "refusal_reason": "cms_api_unavailable"
+        }
+      ],
+      "conflicts": [],
+      "budget": [
+        {
+          "daily_requests": 3,
+          "max_daily_requests": 20,
+          "min_interval_ms": 1000,
+          "failure_count": 0,
+          "half_open": false,
+          "spaced": false,
+          "blocked": true,
+          "blocked_long": true
+        }
+      ],
+      "receipts": [
+        {
+          "snapshot_id": "cms-marketplace-api:drugs-covered:2026:0391c7609f633dd5:03747d019bca8b13:<retrieval>",
+          "source_id": "cms-marketplace-api",
+          "requested_url": "https://marketplace.api.healthcare.gov/api/v1/drugs/covered?year=%5BREDACTED%5D&drugs=%5BREDACTED%5D&planids=%5BREDACTED%5D",
+          "final_url": "https://marketplace.api.healthcare.gov/api/v1/drugs/covered?year=%5BREDACTED%5D&drugs=%5BREDACTED%5D&planids=%5BREDACTED%5D",
+          "http_status": 200,
+          "content_type": null,
+          "compressed_bytes": 79,
+          "sha256": "03747d019bca8b136dc5cb1a087a14b26c112dc5232c697c24a163e71159835e",
+          "raw_path": "<dir>/raw/cms-marketplace-api-0391c7609f633dd5/03747d019bca8b136dc5cb1a087a14b26c112dc5232c697c24a163e71159835e/payload",
+          "schema_version": "cms-api-coverage-v1",
+          "parser_version": "cms-api-fallback-v1",
+          "terms_review_reference": "https://developer.cms.gov/marketplace-api/",
+          "validation_state": "ACTIVE"
+        },
+        {
+          "snapshot_id": "cms-marketplace-api:drugs-covered:2026:d4b487288b46a405:1aee288d83844103:<retrieval>",
+          "source_id": "cms-marketplace-api",
+          "requested_url": "https://marketplace.api.healthcare.gov/api/v1/drugs/covered?year=%5BREDACTED%5D&drugs=%5BREDACTED%5D&planids=%5BREDACTED%5D",
+          "final_url": "https://marketplace.api.healthcare.gov/api/v1/drugs/covered?year=%5BREDACTED%5D&drugs=%5BREDACTED%5D&planids=%5BREDACTED%5D",
+          "http_status": 200,
+          "content_type": null,
+          "compressed_bytes": 79,
+          "sha256": "1aee288d83844103d0b708ba6ec5aced06fefd44a3de6f568bd4f07fe4166f87",
+          "raw_path": "<dir>/raw/cms-marketplace-api-d4b487288b46a405/1aee288d83844103d0b708ba6ec5aced06fefd44a3de6f568bd4f07fe4166f87/payload",
+          "schema_version": "cms-api-coverage-v1",
+          "parser_version": "cms-api-fallback-v1",
+          "terms_review_reference": "https://developer.cms.gov/marketplace-api/",
+          "validation_state": "ACTIVE"
+        },
+        {
+          "snapshot_id": "cms-marketplace-api:drugs-covered:2026:c4d1f953d6c56c50:f8160bbf73438916:<retrieval>",
+          "source_id": "cms-marketplace-api",
+          "requested_url": "https://marketplace.api.healthcare.gov/api/v1/drugs/covered?year=%5BREDACTED%5D&drugs=%5BREDACTED%5D&planids=%5BREDACTED%5D",
+          "final_url": "https://marketplace.api.healthcare.gov/api/v1/drugs/covered?year=%5BREDACTED%5D&drugs=%5BREDACTED%5D&planids=%5BREDACTED%5D",
+          "http_status": 200,
+          "content_type": null,
+          "compressed_bytes": 79,
+          "sha256": "f8160bbf73438916b09fe0c7ae00287b400ac7dfe6dd1605130df10015e243ee",
+          "raw_path": "<dir>/raw/cms-marketplace-api-c4d1f953d6c56c50/f8160bbf73438916b09fe0c7ae00287b400ac7dfe6dd1605130df10015e243ee/payload",
+          "schema_version": "cms-api-coverage-v1",
+          "parser_version": "cms-api-fallback-v1",
+          "terms_review_reference": "https://developer.cms.gov/marketplace-api/",
+          "validation_state": "ACTIVE"
+        }
+      ]
+    }
+  },
+  "failures: 401, server errors and the trial call, bodies": {
+    "steps": [
+      {
+        "out": [
+          {
+            "status": "unknown",
+            "reason": "cms_api_unavailable",
+            "base_hios_id": "00010TX0010001",
+            "requested_plan_id": "00010TX0010001",
+            "rxcui": "990000201",
+            "plan_year": 2026,
+            "drug_tier": null,
+            "tier_status": null,
+            "cost_sharing": null,
+            "prior_authorization": null,
+            "step_therapy": null,
+            "quantity_limit": null,
+            "patient_price": null,
+            "evidence": [],
+            "snapshot_id": null,
+            "manifest_snapshot_id": null
+          }
+        ],
+        "sent": [
+          "https://marketplace.api.healthcare.gov/api/v1/drugs/covered?year=2026&drugs=990000201&planids=00010TX0010001&apikey=<key>"
+        ]
+      },
+      {
+        "out": [
+          {
+            "status": "unknown",
+            "reason": "cms_api_unavailable",
+            "base_hios_id": "00010TX0010001",
+            "requested_plan_id": "00010TX0010001",
+            "rxcui": "1001",
+            "plan_year": 2026,
+            "drug_tier": null,
+            "tier_status": null,
+            "cost_sharing": null,
+            "prior_authorization": null,
+            "step_therapy": null,
+            "quantity_limit": null,
+            "patient_price": null,
+            "evidence": [],
+            "snapshot_id": null,
+            "manifest_snapshot_id": null
+          }
+        ],
+        "sent": []
+      },
+      {
+        "out": [
+          {
+            "status": "unknown",
+            "reason": "cms_api_unavailable",
+            "base_hios_id": "00010TX0010001",
+            "requested_plan_id": "00010TX0010001",
+            "rxcui": "1001",
+            "plan_year": 2026,
+            "drug_tier": null,
+            "tier_status": null,
+            "cost_sharing": null,
+            "prior_authorization": null,
+            "step_therapy": null,
+            "quantity_limit": null,
+            "patient_price": null,
+            "evidence": [],
+            "snapshot_id": null,
+            "manifest_snapshot_id": null
+          }
+        ],
+        "sent": [
+          "https://marketplace.api.healthcare.gov/api/v1/drugs/covered?year=2026&drugs=1001&planids=00010TX0010001&apikey=<key>"
+        ]
+      },
+      {
+        "out": [
+          {
+            "status": "unknown",
+            "reason": "cms_api_unavailable",
+            "base_hios_id": "00010TX0010001",
+            "requested_plan_id": "00010TX0010001",
+            "rxcui": "1002",
+            "plan_year": 2026,
+            "drug_tier": null,
+            "tier_status": null,
+            "cost_sharing": null,
+            "prior_authorization": null,
+            "step_therapy": null,
+            "quantity_limit": null,
+            "patient_price": null,
+            "evidence": [],
+            "snapshot_id": null,
+            "manifest_snapshot_id": null
+          }
+        ],
+        "sent": [
+          "https://marketplace.api.healthcare.gov/api/v1/drugs/covered?year=2026&drugs=1002&planids=00010TX0010001&apikey=<key>"
+        ]
+      },
+      {
+        "out": [
+          {
+            "status": "unknown",
+            "reason": "cms_api_unavailable",
+            "base_hios_id": "00010TX0010001",
+            "requested_plan_id": "00010TX0010001",
+            "rxcui": "1003",
+            "plan_year": 2026,
+            "drug_tier": null,
+            "tier_status": null,
+            "cost_sharing": null,
+            "prior_authorization": null,
+            "step_therapy": null,
+            "quantity_limit": null,
+            "patient_price": null,
+            "evidence": [],
+            "snapshot_id": null,
+            "manifest_snapshot_id": null
+          }
+        ],
+        "sent": [
+          "https://marketplace.api.healthcare.gov/api/v1/drugs/covered?year=2026&drugs=1003&planids=00010TX0010001&apikey=<key>"
+        ]
+      },
+      {
+        "out": [
+          {
+            "status": "unknown",
+            "reason": "cms_api_unavailable",
+            "base_hios_id": "00010TX0010001",
+            "requested_plan_id": "00010TX0010001",
+            "rxcui": "1004",
+            "plan_year": 2026,
+            "drug_tier": null,
+            "tier_status": null,
+            "cost_sharing": null,
+            "prior_authorization": null,
+            "step_therapy": null,
+            "quantity_limit": null,
+            "patient_price": null,
+            "evidence": [],
+            "snapshot_id": null,
+            "manifest_snapshot_id": null
+          }
+        ],
+        "sent": []
+      },
+      {
+        "out": [
+          {
+            "status": "listed_covered",
+            "reason": null,
+            "base_hios_id": "00010TX0010001",
+            "requested_plan_id": "00010TX0010001",
+            "rxcui": "1004",
+            "plan_year": 2026,
+            "drug_tier": null,
+            "tier_status": null,
+            "cost_sharing": null,
+            "prior_authorization": null,
+            "step_therapy": null,
+            "quantity_limit": null,
+            "patient_price": null,
+            "evidence": [],
+            "snapshot_id": null,
+            "manifest_snapshot_id": null,
+            "covered": true,
+            "cms_api": {
+              "coverage": "Covered",
+              "generic_rxcui": null,
+              "snapshot_id": "cms-marketplace-api:drugs-covered:2026:5c897a3b09f6eee5:dc0c861eb20cb6a5:<retrieval>",
+              "sourced_by": "cms-marketplace-api",
+              "sourced_at": "<time>",
+              "sourced_slug": "cms-marketplace-api:drugs-covered:2026:5c897a3b09f6eee5:dc0c861eb20cb6a5:<retrieval>",
+              "served_from": "live",
+              "source": "Centers for Medicare & Medicaid Services, Marketplace API (HealthCare.gov)",
+              "terms_url": "https://developer.cms.gov/marketplace-api/",
+              "limits": "coverage flag only; tier, prior authorization, step therapy, quantity limit and cost are not published by this source"
+            }
+          }
+        ],
+        "sent": [
+          "https://marketplace.api.healthcare.gov/api/v1/drugs/covered?year=2026&drugs=1004&planids=00010TX0010001&apikey=<key>"
+        ]
+      },
+      {
+        "out": [
+          {
+            "status": "unknown",
+            "reason": "cms_api_unavailable",
+            "base_hios_id": "00010TX0010001",
+            "requested_plan_id": "00010TX0010001",
+            "rxcui": "1005",
+            "plan_year": 2026,
+            "drug_tier": null,
+            "tier_status": null,
+            "cost_sharing": null,
+            "prior_authorization": null,
+            "step_therapy": null,
+            "quantity_limit": null,
+            "patient_price": null,
+            "evidence": [],
+            "snapshot_id": null,
+            "manifest_snapshot_id": null
+          }
+        ],
+        "sent": [
+          "https://marketplace.api.healthcare.gov/api/v1/drugs/covered?year=2026&drugs=1005&planids=00010TX0010001&apikey=<key>"
+        ]
+      },
+      {
+        "out": [
+          {
+            "status": "unknown",
+            "reason": "cms_api_unavailable",
+            "base_hios_id": "00010TX0010001",
+            "requested_plan_id": "00010TX0010001",
+            "rxcui": "1006",
+            "plan_year": 2026,
+            "drug_tier": null,
+            "tier_status": null,
+            "cost_sharing": null,
+            "prior_authorization": null,
+            "step_therapy": null,
+            "quantity_limit": null,
+            "patient_price": null,
+            "evidence": [],
+            "snapshot_id": null,
+            "manifest_snapshot_id": null
+          }
+        ],
+        "sent": [
+          "https://marketplace.api.healthcare.gov/api/v1/drugs/covered?year=2026&drugs=1006&planids=00010TX0010001&apikey=<key>"
+        ]
+      },
+      {
+        "out": [
+          {
+            "status": "unknown",
+            "reason": "source_set_not_available",
+            "base_hios_id": "00010TX0010001",
+            "requested_plan_id": "00010TX0010001",
+            "rxcui": "1007",
+            "plan_year": 2026,
+            "drug_tier": null,
+            "tier_status": null,
+            "cost_sharing": null,
+            "prior_authorization": null,
+            "step_therapy": null,
+            "quantity_limit": null,
+            "patient_price": null,
+            "evidence": [],
+            "snapshot_id": null,
+            "manifest_snapshot_id": null
+          }
+        ],
+        "sent": [
+          "https://marketplace.api.healthcare.gov/api/v1/drugs/covered?year=2026&drugs=1007&planids=00010TX0010001&apikey=<key>"
+        ]
+      }
+    ],
+    "state": {
+      "drugs": [
+        {
+          "plan_id": "00010TX0010001",
+          "rxcui": "1004",
+          "plan_year": 2026,
+          "coverage": "Covered",
+          "generic_rxcui": null,
+          "snapshot_id": "cms-marketplace-api:drugs-covered:2026:5c897a3b09f6eee5:dc0c861eb20cb6a5:<retrieval>",
+          "source_row": 1,
+          "expires_at": "<time>",
+          "sourced_by": "cms-marketplace-api",
+          "sourced_at": "<time>",
+          "sourced_slug": "cms-marketplace-api:drugs-covered:2026:5c897a3b09f6eee5:dc0c861eb20cb6a5:<retrieval>",
+          "created_at": "<time>",
+          "updated_at": "<time>",
+          "record_policy": "cms_api_fallback",
+          "record_ttl": "7 days",
+          "expired_at": "<time>",
+          "ttl_span": "7 days"
+        }
+      ],
+      "providers": [],
+      "attempts": [
+        {
+          "endpoint": "drugs/covered",
+          "plan_year": 2026,
+          "pairs": 1,
+          "snapshot_id": null,
+          "outcome": "failed",
+          "http_status": 401,
+          "failure_code": "http_status",
+          "refusal_reason": null
+        },
+        {
+          "endpoint": "drugs/covered",
+          "plan_year": 2026,
+          "pairs": 1,
+          "snapshot_id": null,
+          "outcome": "refused",
+          "http_status": null,
+          "failure_code": null,
+          "refusal_reason": "cms_api_unavailable"
+        },
+        {
+          "endpoint": "drugs/covered",
+          "plan_year": 2026,
+          "pairs": 1,
+          "snapshot_id": null,
+          "outcome": "failed",
+          "http_status": 503,
+          "failure_code": "http_status",
+          "refusal_reason": null
+        },
+        {
+          "endpoint": "drugs/covered",
+          "plan_year": 2026,
+          "pairs": 1,
+          "snapshot_id": null,
+          "outcome": "failed",
+          "http_status": 503,
+          "failure_code": "http_status",
+          "refusal_reason": null
+        },
+        {
+          "endpoint": "drugs/covered",
+          "plan_year": 2026,
+          "pairs": 1,
+          "snapshot_id": null,
+          "outcome": "failed",
+          "http_status": 503,
+          "failure_code": "http_status",
+          "refusal_reason": null
+        },
+        {
+          "endpoint": "drugs/covered",
+          "plan_year": 2026,
+          "pairs": 1,
+          "snapshot_id": null,
+          "outcome": "refused",
+          "http_status": null,
+          "failure_code": null,
+          "refusal_reason": "cms_api_unavailable"
+        },
+        {
+          "endpoint": "drugs/covered",
+          "plan_year": 2026,
+          "pairs": 1,
+          "snapshot_id": "cms-marketplace-api:drugs-covered:2026:5c897a3b09f6eee5:dc0c861eb20cb6a5:<retrieval>",
+          "outcome": "absorbed",
+          "http_status": 200,
+          "failure_code": null,
+          "refusal_reason": null
+        },
+        {
+          "endpoint": "drugs/covered",
+          "plan_year": 2026,
+          "pairs": 1,
+          "snapshot_id": null,
+          "outcome": "failed",
+          "http_status": 200,
+          "failure_code": "invalid_body",
+          "refusal_reason": null
+        },
+        {
+          "endpoint": "drugs/covered",
+          "plan_year": 2026,
+          "pairs": 1,
+          "snapshot_id": null,
+          "outcome": "failed",
+          "http_status": 200,
+          "failure_code": "body_rejected",
+          "refusal_reason": null
+        },
+        {
+          "endpoint": "drugs/covered",
+          "plan_year": 2026,
+          "pairs": 1,
+          "snapshot_id": "cms-marketplace-api:drugs-covered:2026:1a00c672ca0d06ed:e9490ebfbc406a3b:<retrieval>",
+          "outcome": "empty",
+          "http_status": 200,
+          "failure_code": null,
+          "refusal_reason": null
+        }
+      ],
+      "conflicts": [],
+      "budget": [
+        {
+          "daily_requests": 8,
+          "max_daily_requests": 500,
+          "min_interval_ms": 1000,
+          "failure_count": 1,
+          "half_open": false,
+          "spaced": false,
+          "blocked": false,
+          "blocked_long": false
+        }
+      ],
+      "receipts": [
+        {
+          "snapshot_id": "cms-marketplace-api:drugs-covered:2026:5c897a3b09f6eee5:dc0c861eb20cb6a5:<retrieval>",
+          "source_id": "cms-marketplace-api",
+          "requested_url": "https://marketplace.api.healthcare.gov/api/v1/drugs/covered?year=%5BREDACTED%5D&drugs=%5BREDACTED%5D&planids=%5BREDACTED%5D",
+          "final_url": "https://marketplace.api.healthcare.gov/api/v1/drugs/covered?year=%5BREDACTED%5D&drugs=%5BREDACTED%5D&planids=%5BREDACTED%5D",
+          "http_status": 200,
+          "content_type": null,
+          "compressed_bytes": 79,
+          "sha256": "dc0c861eb20cb6a54c9d65b6802cbd48bb295028f6dc467045ed1f43c1633cc8",
+          "raw_path": "<dir>/raw/cms-marketplace-api-5c897a3b09f6eee5/dc0c861eb20cb6a54c9d65b6802cbd48bb295028f6dc467045ed1f43c1633cc8/payload",
+          "schema_version": "cms-api-coverage-v1",
+          "parser_version": "cms-api-fallback-v1",
+          "terms_review_reference": "https://developer.cms.gov/marketplace-api/",
+          "validation_state": "ACTIVE"
+        },
+        {
+          "snapshot_id": "cms-marketplace-api:drugs-covered:2026:1a00c672ca0d06ed:e9490ebfbc406a3b:<retrieval>",
+          "source_id": "cms-marketplace-api",
+          "requested_url": "https://marketplace.api.healthcare.gov/api/v1/drugs/covered?year=%5BREDACTED%5D&drugs=%5BREDACTED%5D&planids=%5BREDACTED%5D",
+          "final_url": "https://marketplace.api.healthcare.gov/api/v1/drugs/covered?year=%5BREDACTED%5D&drugs=%5BREDACTED%5D&planids=%5BREDACTED%5D",
+          "http_status": 200,
+          "content_type": null,
+          "compressed_bytes": 15,
+          "sha256": "e9490ebfbc406a3bfacadb472420cbf85163e026694bfaee6dcfa66e409defc6",
+          "raw_path": "<dir>/raw/cms-marketplace-api-1a00c672ca0d06ed/e9490ebfbc406a3bfacadb472420cbf85163e026694bfaee6dcfa66e409defc6/payload",
+          "schema_version": "cms-api-coverage-v1",
+          "parser_version": "cms-api-fallback-v1",
+          "terms_review_reference": "https://developer.cms.gov/marketplace-api/",
+          "validation_state": "ACTIVE"
+        }
+      ]
+    }
+  },
+  "state-based exchange plans and conflicts with loaded files": {
+    "steps": [
+      {
+        "out": [
+          {
+            "status": "unknown",
+            "reason": "cms_api_state_not_served",
+            "base_hios_id": "00010TX0010001",
+            "requested_plan_id": "00010TX0010001",
+            "rxcui": "990000201",
+            "plan_year": 2026,
+            "drug_tier": null,
+            "tier_status": null,
+            "cost_sharing": null,
+            "prior_authorization": null,
+            "step_therapy": null,
+            "quantity_limit": null,
+            "patient_price": null,
+            "evidence": [],
+            "snapshot_id": null,
+            "manifest_snapshot_id": null
+          }
+        ],
+        "sent": []
+      },
+      {
+        "out": [
+          {
+            "status": "explicitly_not_covered",
+            "reason": null,
+            "base_hios_id": "00010TX0010001",
+            "requested_plan_id": "00010TX0010001",
+            "rxcui": "990000201",
+            "plan_year": 2026,
+            "drug_tier": null,
+            "tier_status": null,
+            "cost_sharing": null,
+            "prior_authorization": null,
+            "step_therapy": null,
+            "quantity_limit": null,
+            "patient_price": null,
+            "evidence": [],
+            "snapshot_id": null,
+            "manifest_snapshot_id": null,
+            "covered": false,
+            "cms_api": {
+              "coverage": "NotCovered",
+              "generic_rxcui": null,
+              "snapshot_id": "cms-marketplace-api:drugs-covered:2026:e43732eed6b4c7fb:47571c58abde5e64:<retrieval>",
+              "sourced_by": "cms-marketplace-api",
+              "sourced_at": "<time>",
+              "sourced_slug": "cms-marketplace-api:drugs-covered:2026:e43732eed6b4c7fb:47571c58abde5e64:<retrieval>",
+              "served_from": "live",
+              "source": "Centers for Medicare & Medicaid Services, Marketplace API (HealthCare.gov)",
+              "terms_url": "https://developer.cms.gov/marketplace-api/",
+              "limits": "coverage flag only; tier, prior authorization, step therapy, quantity limit and cost are not published by this source"
+            }
+          }
+        ],
+        "sent": [
+          "https://marketplace.api.healthcare.gov/api/v1/drugs/covered?year=2026&drugs=990000201&planids=00010TX0010001&apikey=<key>"
+        ]
+      },
+      {
+        "out": [
+          {
+            "status": "listed_covered",
+            "reason": null,
+            "base_hios_id": "00010TX0010001",
+            "requested_plan_id": "00010TX0010001",
+            "rxcui": "990000201",
+            "plan_year": 2026,
+            "drug_tier": null,
+            "tier_status": null,
+            "cost_sharing": null,
+            "prior_authorization": null,
+            "step_therapy": null,
+            "quantity_limit": null,
+            "patient_price": null,
+            "evidence": [],
+            "snapshot_id": "rx",
+            "manifest_snapshot_id": null
+          }
+        ],
+        "sent": []
+      }
+    ],
+    "state": {
+      "drugs": [
+        {
+          "plan_id": "00010TX0010001",
+          "rxcui": "990000201",
+          "plan_year": 2026,
+          "coverage": "NotCovered",
+          "generic_rxcui": null,
+          "snapshot_id": "cms-marketplace-api:drugs-covered:2026:e43732eed6b4c7fb:47571c58abde5e64:<retrieval>",
+          "source_row": 1,
+          "expires_at": "<time>",
+          "sourced_by": "cms-marketplace-api",
+          "sourced_at": "<time>",
+          "sourced_slug": "cms-marketplace-api:drugs-covered:2026:e43732eed6b4c7fb:47571c58abde5e64:<retrieval>",
+          "created_at": "<time>",
+          "updated_at": "<time>",
+          "record_policy": "cms_api_fallback",
+          "record_ttl": "7 days",
+          "expired_at": "<time>",
+          "ttl_span": "7 days"
+        }
+      ],
+      "providers": [],
+      "attempts": [
+        {
+          "endpoint": "drugs/covered",
+          "plan_year": 2026,
+          "pairs": 1,
+          "snapshot_id": "cms-marketplace-api:drugs-covered:2026:e43732eed6b4c7fb:47571c58abde5e64:<retrieval>",
+          "outcome": "absorbed",
+          "http_status": 200,
+          "failure_code": null,
+          "refusal_reason": null
+        }
+      ],
+      "conflicts": [
+        {
+          "kind": "drug",
+          "plan_id": "00010TX0010001",
+          "identity": "990000201",
+          "plan_year": 2026,
+          "cms_snapshot_id": "cms-marketplace-api:drugs-covered:2026:e43732eed6b4c7fb:47571c58abde5e64:<retrieval>",
+          "cms_coverage": "NotCovered",
+          "authoritative_status": "listed_covered",
+          "authoritative_snapshot_id": "rx",
+          "agrees": false
+        }
+      ],
+      "budget": [
+        {
+          "daily_requests": 1,
+          "max_daily_requests": 500,
+          "min_interval_ms": 1000,
+          "failure_count": 0,
+          "half_open": false,
+          "spaced": true,
+          "blocked": false,
+          "blocked_long": false
+        }
+      ],
+      "receipts": [
+        {
+          "snapshot_id": "cms-marketplace-api:drugs-covered:2026:e43732eed6b4c7fb:47571c58abde5e64:<retrieval>",
+          "source_id": "cms-marketplace-api",
+          "requested_url": "https://marketplace.api.healthcare.gov/api/v1/drugs/covered?year=%5BREDACTED%5D&drugs=%5BREDACTED%5D&planids=%5BREDACTED%5D",
+          "final_url": "https://marketplace.api.healthcare.gov/api/v1/drugs/covered?year=%5BREDACTED%5D&drugs=%5BREDACTED%5D&planids=%5BREDACTED%5D",
+          "http_status": 200,
+          "content_type": null,
+          "compressed_bytes": 87,
+          "sha256": "47571c58abde5e6456af498b5f35532d5ebd110e413b3fac0a4a375eefe7af41",
+          "raw_path": "<dir>/raw/cms-marketplace-api-e43732eed6b4c7fb/47571c58abde5e6456af498b5f35532d5ebd110e413b3fac0a4a375eefe7af41/payload",
+          "schema_version": "cms-api-coverage-v1",
+          "parser_version": "cms-api-fallback-v1",
+          "terms_review_reference": "https://developer.cms.gov/marketplace-api/",
+          "validation_state": "ACTIVE"
+        }
+      ]
+    }
+  },
+  "quotes share one cap across plans and kinds, with freshness labels": {
+    "steps": [
+      {
+        "out": [
+          {
+            "providers": [
+              {
+                "status": "listed_participating",
+                "reason": null,
+                "requested_plan_id": "00010TX0010001",
+                "base_hios_id": "00010TX0010001",
+                "identity": "1000000001",
+                "plan_year": 2025,
+                "participation_scope": "provider_record",
+                "snapshot_id": null,
+                "manifest_snapshot_id": null,
+                "evidence": [],
+                "warnings": [],
+                "covered": true,
+                "cms_api": {
+                  "coverage": "Covered",
+                  "accepting": "unknown",
+                  "snapshot_id": "cms-marketplace-api:providers-covered:2025:2eab111c153f6f74:edfc37c3d1cca668:<retrieval>",
+                  "sourced_by": "cms-marketplace-api",
+                  "sourced_at": "<time>",
+                  "sourced_slug": "cms-marketplace-api:providers-covered:2025:2eab111c153f6f74:edfc37c3d1cca668:<retrieval>",
+                  "served_from": "live",
+                  "source": "Centers for Medicare & Medicaid Services, Marketplace API (HealthCare.gov)",
+                  "terms_url": "https://developer.cms.gov/marketplace-api/",
+                  "limits": "coverage flag only; network tier and address participation are not published by this source",
+                  "freshness": "refetched"
+                }
+              }
+            ],
+            "drugs": [
+              {
+                "status": "unknown",
+                "reason": "cms_api_request_cap",
+                "base_hios_id": "00010TX0010001",
+                "requested_plan_id": "00010TX0010001",
+                "rxcui": "990000201",
+                "plan_year": 2025,
+                "drug_tier": null,
+                "tier_status": null,
+                "cost_sharing": null,
+                "prior_authorization": null,
+                "step_therapy": null,
+                "quantity_limit": null,
+                "patient_price": null,
+                "evidence": [],
+                "snapshot_id": null,
+                "manifest_snapshot_id": null
+              }
+            ]
+          },
+          {
+            "providers": [
+              {
+                "status": "listed_participating",
+                "reason": null,
+                "requested_plan_id": "00010TX0010001",
+                "base_hios_id": "00010TX0010001",
+                "identity": "1000000001",
+                "plan_year": 2026,
+                "participation_scope": "provider_record",
+                "snapshot_id": null,
+                "manifest_snapshot_id": null,
+                "evidence": [],
+                "warnings": [],
+                "covered": true,
+                "cms_api": {
+                  "coverage": "Covered",
+                  "accepting": "unknown",
+                  "snapshot_id": "cms-marketplace-api:providers-covered:2026:7a0b53f759f02abc:edfc37c3d1cca668:<retrieval>",
+                  "sourced_by": "cms-marketplace-api",
+                  "sourced_at": "<time>",
+                  "sourced_slug": "cms-marketplace-api:providers-covered:2026:7a0b53f759f02abc:edfc37c3d1cca668:<retrieval>",
+                  "served_from": "live",
+                  "source": "Centers for Medicare & Medicaid Services, Marketplace API (HealthCare.gov)",
+                  "terms_url": "https://developer.cms.gov/marketplace-api/",
+                  "limits": "coverage flag only; network tier and address participation are not published by this source",
+                  "freshness": "refetched"
+                }
+              }
+            ],
+            "drugs": [
+              {
+                "status": "unknown",
+                "reason": "cms_api_request_cap",
+                "base_hios_id": "00010TX0010001",
+                "requested_plan_id": "00010TX0010001",
+                "rxcui": "990000201",
+                "plan_year": 2026,
+                "drug_tier": null,
+                "tier_status": null,
+                "cost_sharing": null,
+                "prior_authorization": null,
+                "step_therapy": null,
+                "quantity_limit": null,
+                "patient_price": null,
+                "evidence": [],
+                "snapshot_id": null,
+                "manifest_snapshot_id": null
+              }
+            ]
+          },
+          {
+            "providers": [
+              {
+                "status": "unknown",
+                "reason": "cms_api_request_cap",
+                "requested_plan_id": "00010TX0010001",
+                "base_hios_id": "00010TX0010001",
+                "identity": "1000000001",
+                "plan_year": 2027,
+                "participation_scope": "provider_record",
+                "snapshot_id": null,
+                "manifest_snapshot_id": null,
+                "evidence": [],
+                "warnings": []
+              }
+            ],
+            "drugs": [
+              {
+                "status": "unknown",
+                "reason": "cms_api_request_cap",
+                "base_hios_id": "00010TX0010001",
+                "requested_plan_id": "00010TX0010001",
+                "rxcui": "990000201",
+                "plan_year": 2027,
+                "drug_tier": null,
+                "tier_status": null,
+                "cost_sharing": null,
+                "prior_authorization": null,
+                "step_therapy": null,
+                "quantity_limit": null,
+                "patient_price": null,
+                "evidence": [],
+                "snapshot_id": null,
+                "manifest_snapshot_id": null
+              }
+            ]
+          }
+        ],
+        "sent": [
+          "https://marketplace.api.healthcare.gov/api/v1/providers/covered?year=2025&providerids=1000000001&planids=00010TX0010001&apikey=<key>",
+          "https://marketplace.api.healthcare.gov/api/v1/providers/covered?year=2026&providerids=1000000001&planids=00010TX0010001&apikey=<key>"
+        ]
+      },
+      {
+        "out": [
+          {
+            "providers": [
+              {
+                "status": "listed_participating",
+                "reason": null,
+                "requested_plan_id": "00010TX0010001",
+                "base_hios_id": "00010TX0010001",
+                "identity": "1000000001",
+                "plan_year": 2025,
+                "participation_scope": "provider_record",
+                "snapshot_id": null,
+                "manifest_snapshot_id": null,
+                "evidence": [],
+                "warnings": [],
+                "covered": true,
+                "cms_api": {
+                  "coverage": "Covered",
+                  "accepting": "unknown",
+                  "snapshot_id": "cms-marketplace-api:providers-covered:2025:2eab111c153f6f74:edfc37c3d1cca668:<retrieval>",
+                  "sourced_by": "cms-marketplace-api",
+                  "sourced_at": "<time>",
+                  "sourced_slug": "cms-marketplace-api:providers-covered:2025:2eab111c153f6f74:edfc37c3d1cca668:<retrieval>",
+                  "served_from": "absorbed",
+                  "source": "Centers for Medicare & Medicaid Services, Marketplace API (HealthCare.gov)",
+                  "terms_url": "https://developer.cms.gov/marketplace-api/",
+                  "limits": "coverage flag only; network tier and address participation are not published by this source",
+                  "freshness": "fresh"
+                }
+              }
+            ],
+            "drugs": [
+              {
+                "status": "listed_covered",
+                "reason": null,
+                "base_hios_id": "00010TX0010001",
+                "requested_plan_id": "00010TX0010001",
+                "rxcui": "990000201",
+                "plan_year": 2025,
+                "drug_tier": null,
+                "tier_status": null,
+                "cost_sharing": null,
+                "prior_authorization": null,
+                "step_therapy": null,
+                "quantity_limit": null,
+                "patient_price": null,
+                "evidence": [],
+                "snapshot_id": null,
+                "manifest_snapshot_id": null,
+                "covered": true,
+                "cms_api": {
+                  "coverage": "Covered",
+                  "generic_rxcui": null,
+                  "snapshot_id": "cms-marketplace-api:drugs-covered:2025:310749bcfb8107e9:3c6abdff07c88bcc:<retrieval>",
+                  "sourced_by": "cms-marketplace-api",
+                  "sourced_at": "<time>",
+                  "sourced_slug": "cms-marketplace-api:drugs-covered:2025:310749bcfb8107e9:3c6abdff07c88bcc:<retrieval>",
+                  "served_from": "live",
+                  "source": "Centers for Medicare & Medicaid Services, Marketplace API (HealthCare.gov)",
+                  "terms_url": "https://developer.cms.gov/marketplace-api/",
+                  "limits": "coverage flag only; tier, prior authorization, step therapy, quantity limit and cost are not published by this source",
+                  "freshness": "refetched"
+                }
+              }
+            ]
+          },
+          {
+            "providers": [
+              {
+                "status": "listed_participating",
+                "reason": null,
+                "requested_plan_id": "00010TX0010001",
+                "base_hios_id": "00010TX0010001",
+                "identity": "1000000001",
+                "plan_year": 2026,
+                "participation_scope": "provider_record",
+                "snapshot_id": null,
+                "manifest_snapshot_id": null,
+                "evidence": [],
+                "warnings": [],
+                "covered": true,
+                "cms_api": {
+                  "coverage": "Covered",
+                  "accepting": "unknown",
+                  "snapshot_id": "cms-marketplace-api:providers-covered:2026:7a0b53f759f02abc:edfc37c3d1cca668:<retrieval>",
+                  "sourced_by": "cms-marketplace-api",
+                  "sourced_at": "<time>",
+                  "sourced_slug": "cms-marketplace-api:providers-covered:2026:7a0b53f759f02abc:edfc37c3d1cca668:<retrieval>",
+                  "served_from": "absorbed",
+                  "source": "Centers for Medicare & Medicaid Services, Marketplace API (HealthCare.gov)",
+                  "terms_url": "https://developer.cms.gov/marketplace-api/",
+                  "limits": "coverage flag only; network tier and address participation are not published by this source",
+                  "freshness": "fresh"
+                }
+              }
+            ],
+            "drugs": [
+              {
+                "status": "unknown",
+                "reason": "cms_api_request_cap",
+                "base_hios_id": "00010TX0010001",
+                "requested_plan_id": "00010TX0010001",
+                "rxcui": "990000201",
+                "plan_year": 2026,
+                "drug_tier": null,
+                "tier_status": null,
+                "cost_sharing": null,
+                "prior_authorization": null,
+                "step_therapy": null,
+                "quantity_limit": null,
+                "patient_price": null,
+                "evidence": [],
+                "snapshot_id": null,
+                "manifest_snapshot_id": null
+              }
+            ]
+          },
+          {
+            "providers": [
+              {
+                "status": "listed_participating",
+                "reason": null,
+                "requested_plan_id": "00010TX0010001",
+                "base_hios_id": "00010TX0010001",
+                "identity": "1000000001",
+                "plan_year": 2027,
+                "participation_scope": "provider_record",
+                "snapshot_id": null,
+                "manifest_snapshot_id": null,
+                "evidence": [],
+                "warnings": [],
+                "covered": true,
+                "cms_api": {
+                  "coverage": "Covered",
+                  "accepting": "unknown",
+                  "snapshot_id": "cms-marketplace-api:providers-covered:2027:bc60ef6f025559c9:edfc37c3d1cca668:<retrieval>",
+                  "sourced_by": "cms-marketplace-api",
+                  "sourced_at": "<time>",
+                  "sourced_slug": "cms-marketplace-api:providers-covered:2027:bc60ef6f025559c9:edfc37c3d1cca668:<retrieval>",
+                  "served_from": "live",
+                  "source": "Centers for Medicare & Medicaid Services, Marketplace API (HealthCare.gov)",
+                  "terms_url": "https://developer.cms.gov/marketplace-api/",
+                  "limits": "coverage flag only; network tier and address participation are not published by this source",
+                  "freshness": "refetched"
+                }
+              }
+            ],
+            "drugs": [
+              {
+                "status": "unknown",
+                "reason": "cms_api_request_cap",
+                "base_hios_id": "00010TX0010001",
+                "requested_plan_id": "00010TX0010001",
+                "rxcui": "990000201",
+                "plan_year": 2027,
+                "drug_tier": null,
+                "tier_status": null,
+                "cost_sharing": null,
+                "prior_authorization": null,
+                "step_therapy": null,
+                "quantity_limit": null,
+                "patient_price": null,
+                "evidence": [],
+                "snapshot_id": null,
+                "manifest_snapshot_id": null
+              }
+            ]
+          }
+        ],
+        "sent": [
+          "https://marketplace.api.healthcare.gov/api/v1/providers/covered?year=2027&providerids=1000000001&planids=00010TX0010001&apikey=<key>",
+          "https://marketplace.api.healthcare.gov/api/v1/drugs/covered?year=2025&drugs=990000201&planids=00010TX0010001&apikey=<key>"
+        ]
+      },
+      {
+        "out": [
+          {
+            "providers": [
+              {
+                "status": "listed_participating",
+                "reason": null,
+                "requested_plan_id": "00010TX0010001",
+                "base_hios_id": "00010TX0010001",
+                "identity": "1000000001",
+                "plan_year": 2025,
+                "participation_scope": "provider_record",
+                "snapshot_id": null,
+                "manifest_snapshot_id": null,
+                "evidence": [],
+                "warnings": [],
+                "covered": true,
+                "cms_api": {
+                  "coverage": "Covered",
+                  "accepting": "unknown",
+                  "snapshot_id": "cms-marketplace-api:providers-covered:2025:2eab111c153f6f74:edfc37c3d1cca668:<retrieval>",
+                  "sourced_by": "cms-marketplace-api",
+                  "sourced_at": "<time>",
+                  "sourced_slug": "cms-marketplace-api:providers-covered:2025:2eab111c153f6f74:edfc37c3d1cca668:<retrieval>",
+                  "served_from": "absorbed",
+                  "source": "Centers for Medicare & Medicaid Services, Marketplace API (HealthCare.gov)",
+                  "terms_url": "https://developer.cms.gov/marketplace-api/",
+                  "limits": "coverage flag only; network tier and address participation are not published by this source",
+                  "freshness": "fresh"
+                }
+              }
+            ],
+            "drugs": [
+              {
+                "status": "listed_covered",
+                "reason": null,
+                "base_hios_id": "00010TX0010001",
+                "requested_plan_id": "00010TX0010001",
+                "rxcui": "990000201",
+                "plan_year": 2025,
+                "drug_tier": null,
+                "tier_status": null,
+                "cost_sharing": null,
+                "prior_authorization": null,
+                "step_therapy": null,
+                "quantity_limit": null,
+                "patient_price": null,
+                "evidence": [],
+                "snapshot_id": null,
+                "manifest_snapshot_id": null,
+                "covered": true,
+                "cms_api": {
+                  "coverage": "Covered",
+                  "generic_rxcui": null,
+                  "snapshot_id": "cms-marketplace-api:drugs-covered:2025:310749bcfb8107e9:3c6abdff07c88bcc:<retrieval>",
+                  "sourced_by": "cms-marketplace-api",
+                  "sourced_at": "<time>",
+                  "sourced_slug": "cms-marketplace-api:drugs-covered:2025:310749bcfb8107e9:3c6abdff07c88bcc:<retrieval>",
+                  "served_from": "absorbed_stale",
+                  "source": "Centers for Medicare & Medicaid Services, Marketplace API (HealthCare.gov)",
+                  "terms_url": "https://developer.cms.gov/marketplace-api/",
+                  "limits": "coverage flag only; tier, prior authorization, step therapy, quantity limit and cost are not published by this source",
+                  "freshness": "stale"
+                }
+              }
+            ]
+          },
+          {
+            "providers": [
+              {
+                "status": "listed_participating",
+                "reason": null,
+                "requested_plan_id": "00010TX0010001",
+                "base_hios_id": "00010TX0010001",
+                "identity": "1000000001",
+                "plan_year": 2026,
+                "participation_scope": "provider_record",
+                "snapshot_id": null,
+                "manifest_snapshot_id": null,
+                "evidence": [],
+                "warnings": [],
+                "covered": true,
+                "cms_api": {
+                  "coverage": "Covered",
+                  "accepting": "unknown",
+                  "snapshot_id": "cms-marketplace-api:providers-covered:2026:7a0b53f759f02abc:edfc37c3d1cca668:<retrieval>",
+                  "sourced_by": "cms-marketplace-api",
+                  "sourced_at": "<time>",
+                  "sourced_slug": "cms-marketplace-api:providers-covered:2026:7a0b53f759f02abc:edfc37c3d1cca668:<retrieval>",
+                  "served_from": "absorbed",
+                  "source": "Centers for Medicare & Medicaid Services, Marketplace API (HealthCare.gov)",
+                  "terms_url": "https://developer.cms.gov/marketplace-api/",
+                  "limits": "coverage flag only; network tier and address participation are not published by this source",
+                  "freshness": "fresh"
+                }
+              }
+            ],
+            "drugs": [
+              {
+                "status": "unknown",
+                "reason": "cms_api_budget_exhausted",
+                "base_hios_id": "00010TX0010001",
+                "requested_plan_id": "00010TX0010001",
+                "rxcui": "990000201",
+                "plan_year": 2026,
+                "drug_tier": null,
+                "tier_status": null,
+                "cost_sharing": null,
+                "prior_authorization": null,
+                "step_therapy": null,
+                "quantity_limit": null,
+                "patient_price": null,
+                "evidence": [],
+                "snapshot_id": null,
+                "manifest_snapshot_id": null
+              }
+            ]
+          },
+          {
+            "providers": [
+              {
+                "status": "listed_participating",
+                "reason": null,
+                "requested_plan_id": "00010TX0010001",
+                "base_hios_id": "00010TX0010001",
+                "identity": "1000000001",
+                "plan_year": 2027,
+                "participation_scope": "provider_record",
+                "snapshot_id": null,
+                "manifest_snapshot_id": null,
+                "evidence": [],
+                "warnings": [],
+                "covered": true,
+                "cms_api": {
+                  "coverage": "Covered",
+                  "accepting": "unknown",
+                  "snapshot_id": "cms-marketplace-api:providers-covered:2027:bc60ef6f025559c9:edfc37c3d1cca668:<retrieval>",
+                  "sourced_by": "cms-marketplace-api",
+                  "sourced_at": "<time>",
+                  "sourced_slug": "cms-marketplace-api:providers-covered:2027:bc60ef6f025559c9:edfc37c3d1cca668:<retrieval>",
+                  "served_from": "absorbed",
+                  "source": "Centers for Medicare & Medicaid Services, Marketplace API (HealthCare.gov)",
+                  "terms_url": "https://developer.cms.gov/marketplace-api/",
+                  "limits": "coverage flag only; network tier and address participation are not published by this source",
+                  "freshness": "fresh"
+                }
+              }
+            ],
+            "drugs": [
+              {
+                "status": "unknown",
+                "reason": "cms_api_budget_exhausted",
+                "base_hios_id": "00010TX0010001",
+                "requested_plan_id": "00010TX0010001",
+                "rxcui": "990000201",
+                "plan_year": 2027,
+                "drug_tier": null,
+                "tier_status": null,
+                "cost_sharing": null,
+                "prior_authorization": null,
+                "step_therapy": null,
+                "quantity_limit": null,
+                "patient_price": null,
+                "evidence": [],
+                "snapshot_id": null,
+                "manifest_snapshot_id": null
+              }
+            ]
+          }
+        ],
+        "sent": []
+      }
+    ],
+    "state": {
+      "drugs": [
+        {
+          "plan_id": "00010TX0010001",
+          "rxcui": "990000201",
+          "plan_year": 2025,
+          "coverage": "Covered",
+          "generic_rxcui": null,
+          "snapshot_id": "cms-marketplace-api:drugs-covered:2025:310749bcfb8107e9:3c6abdff07c88bcc:<retrieval>",
+          "source_row": 1,
+          "expires_at": "<time>",
+          "sourced_by": "cms-marketplace-api",
+          "sourced_at": "<time>",
+          "sourced_slug": "cms-marketplace-api:drugs-covered:2025:310749bcfb8107e9:3c6abdff07c88bcc:<retrieval>",
+          "created_at": "<time>",
+          "updated_at": "<time>",
+          "record_policy": "cms_api_fallback",
+          "record_ttl": "7 days",
+          "expired_at": "<time>",
+          "ttl_span": "-23:59:59.996"
+        }
+      ],
+      "providers": [
+        {
+          "plan_id": "00010TX0010001",
+          "npi": "1000000001",
+          "plan_year": 2025,
+          "coverage": "Covered",
+          "accepting": "unknown",
+          "addresses": [
+            {
+              "city": "Synthetic"
+            }
+          ],
+          "snapshot_id": "cms-marketplace-api:providers-covered:2025:2eab111c153f6f74:edfc37c3d1cca668:<retrieval>",
+          "source_row": 1,
+          "expires_at": "<time>",
+          "sourced_by": "cms-marketplace-api",
+          "sourced_at": "<time>",
+          "sourced_slug": "cms-marketplace-api:providers-covered:2025:2eab111c153f6f74:edfc37c3d1cca668:<retrieval>",
+          "created_at": "<time>",
+          "updated_at": "<time>",
+          "record_policy": "cms_api_fallback",
+          "record_ttl": "7 days",
+          "expired_at": "<time>",
+          "ttl_span": "7 days"
+        },
+        {
+          "plan_id": "00010TX0010001",
+          "npi": "1000000001",
+          "plan_year": 2026,
+          "coverage": "Covered",
+          "accepting": "unknown",
+          "addresses": [
+            {
+              "city": "Synthetic"
+            }
+          ],
+          "snapshot_id": "cms-marketplace-api:providers-covered:2026:7a0b53f759f02abc:edfc37c3d1cca668:<retrieval>",
+          "source_row": 1,
+          "expires_at": "<time>",
+          "sourced_by": "cms-marketplace-api",
+          "sourced_at": "<time>",
+          "sourced_slug": "cms-marketplace-api:providers-covered:2026:7a0b53f759f02abc:edfc37c3d1cca668:<retrieval>",
+          "created_at": "<time>",
+          "updated_at": "<time>",
+          "record_policy": "cms_api_fallback",
+          "record_ttl": "7 days",
+          "expired_at": "<time>",
+          "ttl_span": "7 days"
+        },
+        {
+          "plan_id": "00010TX0010001",
+          "npi": "1000000001",
+          "plan_year": 2027,
+          "coverage": "Covered",
+          "accepting": "unknown",
+          "addresses": [
+            {
+              "city": "Synthetic"
+            }
+          ],
+          "snapshot_id": "cms-marketplace-api:providers-covered:2027:bc60ef6f025559c9:edfc37c3d1cca668:<retrieval>",
+          "source_row": 1,
+          "expires_at": "<time>",
+          "sourced_by": "cms-marketplace-api",
+          "sourced_at": "<time>",
+          "sourced_slug": "cms-marketplace-api:providers-covered:2027:bc60ef6f025559c9:edfc37c3d1cca668:<retrieval>",
+          "created_at": "<time>",
+          "updated_at": "<time>",
+          "record_policy": "cms_api_fallback",
+          "record_ttl": "7 days",
+          "expired_at": "<time>",
+          "ttl_span": "7 days"
+        }
+      ],
+      "attempts": [
+        {
+          "endpoint": "providers/covered",
+          "plan_year": 2025,
+          "pairs": 1,
+          "snapshot_id": "cms-marketplace-api:providers-covered:2025:2eab111c153f6f74:edfc37c3d1cca668:<retrieval>",
+          "outcome": "absorbed",
+          "http_status": 200,
+          "failure_code": null,
+          "refusal_reason": null
+        },
+        {
+          "endpoint": "providers/covered",
+          "plan_year": 2026,
+          "pairs": 1,
+          "snapshot_id": "cms-marketplace-api:providers-covered:2026:7a0b53f759f02abc:edfc37c3d1cca668:<retrieval>",
+          "outcome": "absorbed",
+          "http_status": 200,
+          "failure_code": null,
+          "refusal_reason": null
+        },
+        {
+          "endpoint": "providers/covered",
+          "plan_year": 2027,
+          "pairs": 1,
+          "snapshot_id": null,
+          "outcome": "refused",
+          "http_status": null,
+          "failure_code": null,
+          "refusal_reason": "cms_api_request_cap"
+        },
+        {
+          "endpoint": "drugs/covered",
+          "plan_year": 2025,
+          "pairs": 1,
+          "snapshot_id": null,
+          "outcome": "refused",
+          "http_status": null,
+          "failure_code": null,
+          "refusal_reason": "cms_api_request_cap"
+        },
+        {
+          "endpoint": "drugs/covered",
+          "plan_year": 2026,
+          "pairs": 1,
+          "snapshot_id": null,
+          "outcome": "refused",
+          "http_status": null,
+          "failure_code": null,
+          "refusal_reason": "cms_api_request_cap"
+        },
+        {
+          "endpoint": "drugs/covered",
+          "plan_year": 2027,
+          "pairs": 1,
+          "snapshot_id": null,
+          "outcome": "refused",
+          "http_status": null,
+          "failure_code": null,
+          "refusal_reason": "cms_api_request_cap"
+        },
+        {
+          "endpoint": "providers/covered",
+          "plan_year": 2027,
+          "pairs": 1,
+          "snapshot_id": "cms-marketplace-api:providers-covered:2027:bc60ef6f025559c9:edfc37c3d1cca668:<retrieval>",
+          "outcome": "absorbed",
+          "http_status": 200,
+          "failure_code": null,
+          "refusal_reason": null
+        },
+        {
+          "endpoint": "drugs/covered",
+          "plan_year": 2025,
+          "pairs": 1,
+          "snapshot_id": "cms-marketplace-api:drugs-covered:2025:310749bcfb8107e9:3c6abdff07c88bcc:<retrieval>",
+          "outcome": "absorbed",
+          "http_status": 200,
+          "failure_code": null,
+          "refusal_reason": null
+        },
+        {
+          "endpoint": "drugs/covered",
+          "plan_year": 2026,
+          "pairs": 1,
+          "snapshot_id": null,
+          "outcome": "refused",
+          "http_status": null,
+          "failure_code": null,
+          "refusal_reason": "cms_api_request_cap"
+        },
+        {
+          "endpoint": "drugs/covered",
+          "plan_year": 2027,
+          "pairs": 1,
+          "snapshot_id": null,
+          "outcome": "refused",
+          "http_status": null,
+          "failure_code": null,
+          "refusal_reason": "cms_api_request_cap"
+        },
+        {
+          "endpoint": "drugs/covered",
+          "plan_year": 2025,
+          "pairs": 1,
+          "snapshot_id": null,
+          "outcome": "refused",
+          "http_status": null,
+          "failure_code": null,
+          "refusal_reason": "cms_api_budget_exhausted"
+        },
+        {
+          "endpoint": "drugs/covered",
+          "plan_year": 2026,
+          "pairs": 1,
+          "snapshot_id": null,
+          "outcome": "refused",
+          "http_status": null,
+          "failure_code": null,
+          "refusal_reason": "cms_api_budget_exhausted"
+        },
+        {
+          "endpoint": "drugs/covered",
+          "plan_year": 2027,
+          "pairs": 1,
+          "snapshot_id": null,
+          "outcome": "refused",
+          "http_status": null,
+          "failure_code": null,
+          "refusal_reason": "cms_api_budget_exhausted"
+        }
+      ],
+      "conflicts": [],
+      "budget": [
+        {
+          "daily_requests": 500,
+          "max_daily_requests": 500,
+          "min_interval_ms": 1000,
+          "failure_count": 0,
+          "half_open": false,
+          "spaced": false,
+          "blocked": false,
+          "blocked_long": false
+        }
+      ],
+      "receipts": [
+        {
+          "snapshot_id": "cms-marketplace-api:drugs-covered:2025:310749bcfb8107e9:3c6abdff07c88bcc:<retrieval>",
+          "source_id": "cms-marketplace-api",
+          "requested_url": "https://marketplace.api.healthcare.gov/api/v1/drugs/covered?year=%5BREDACTED%5D&drugs=%5BREDACTED%5D&planids=%5BREDACTED%5D",
+          "final_url": "https://marketplace.api.healthcare.gov/api/v1/drugs/covered?year=%5BREDACTED%5D&drugs=%5BREDACTED%5D&planids=%5BREDACTED%5D",
+          "http_status": 200,
+          "content_type": null,
+          "compressed_bytes": 84,
+          "sha256": "3c6abdff07c88bcc62d5d2c6d2c7aadefc970b2e09aeb2c6eb899bc0ff9b0af7",
+          "raw_path": "<dir>/raw/cms-marketplace-api-310749bcfb8107e9/3c6abdff07c88bcc62d5d2c6d2c7aadefc970b2e09aeb2c6eb899bc0ff9b0af7/payload",
+          "schema_version": "cms-api-coverage-v1",
+          "parser_version": "cms-api-fallback-v1",
+          "terms_review_reference": "https://developer.cms.gov/marketplace-api/",
+          "validation_state": "ACTIVE"
+        },
+        {
+          "snapshot_id": "cms-marketplace-api:providers-covered:2025:2eab111c153f6f74:edfc37c3d1cca668:<retrieval>",
+          "source_id": "cms-marketplace-api",
+          "requested_url": "https://marketplace.api.healthcare.gov/api/v1/providers/covered?year=%5BREDACTED%5D&providerids=%5BREDACTED%5D&planids=%5BREDACTED%5D",
+          "final_url": "https://marketplace.api.healthcare.gov/api/v1/providers/covered?year=%5BREDACTED%5D&providerids=%5BREDACTED%5D&planids=%5BREDACTED%5D",
+          "http_status": 200,
+          "content_type": null,
+          "compressed_bytes": 140,
+          "sha256": "edfc37c3d1cca6685f6e3f88eb6c755b2d64a7f973f92b9bfea4c74d9cc3cec9",
+          "raw_path": "<dir>/raw/cms-marketplace-api-2eab111c153f6f74/edfc37c3d1cca6685f6e3f88eb6c755b2d64a7f973f92b9bfea4c74d9cc3cec9/payload",
+          "schema_version": "cms-api-coverage-v1",
+          "parser_version": "cms-api-fallback-v1",
+          "terms_review_reference": "https://developer.cms.gov/marketplace-api/",
+          "validation_state": "ACTIVE"
+        },
+        {
+          "snapshot_id": "cms-marketplace-api:providers-covered:2026:7a0b53f759f02abc:edfc37c3d1cca668:<retrieval>",
+          "source_id": "cms-marketplace-api",
+          "requested_url": "https://marketplace.api.healthcare.gov/api/v1/providers/covered?year=%5BREDACTED%5D&providerids=%5BREDACTED%5D&planids=%5BREDACTED%5D",
+          "final_url": "https://marketplace.api.healthcare.gov/api/v1/providers/covered?year=%5BREDACTED%5D&providerids=%5BREDACTED%5D&planids=%5BREDACTED%5D",
+          "http_status": 200,
+          "content_type": null,
+          "compressed_bytes": 140,
+          "sha256": "edfc37c3d1cca6685f6e3f88eb6c755b2d64a7f973f92b9bfea4c74d9cc3cec9",
+          "raw_path": "<dir>/raw/cms-marketplace-api-7a0b53f759f02abc/edfc37c3d1cca6685f6e3f88eb6c755b2d64a7f973f92b9bfea4c74d9cc3cec9/payload",
+          "schema_version": "cms-api-coverage-v1",
+          "parser_version": "cms-api-fallback-v1",
+          "terms_review_reference": "https://developer.cms.gov/marketplace-api/",
+          "validation_state": "ACTIVE"
+        },
+        {
+          "snapshot_id": "cms-marketplace-api:providers-covered:2027:bc60ef6f025559c9:edfc37c3d1cca668:<retrieval>",
+          "source_id": "cms-marketplace-api",
+          "requested_url": "https://marketplace.api.healthcare.gov/api/v1/providers/covered?year=%5BREDACTED%5D&providerids=%5BREDACTED%5D&planids=%5BREDACTED%5D",
+          "final_url": "https://marketplace.api.healthcare.gov/api/v1/providers/covered?year=%5BREDACTED%5D&providerids=%5BREDACTED%5D&planids=%5BREDACTED%5D",
+          "http_status": 200,
+          "content_type": null,
+          "compressed_bytes": 140,
+          "sha256": "edfc37c3d1cca6685f6e3f88eb6c755b2d64a7f973f92b9bfea4c74d9cc3cec9",
+          "raw_path": "<dir>/raw/cms-marketplace-api-bc60ef6f025559c9/edfc37c3d1cca6685f6e3f88eb6c755b2d64a7f973f92b9bfea4c74d9cc3cec9/payload",
+          "schema_version": "cms-api-coverage-v1",
+          "parser_version": "cms-api-fallback-v1",
+          "terms_review_reference": "https://developer.cms.gov/marketplace-api/",
+          "validation_state": "ACTIVE"
+        }
+      ]
+    }
+  },
+  "availability counts stored answers": {
+    "steps": [
+      {
+        "out": [
+          true,
+          []
+        ],
+        "sent": []
+      },
+      {
+        "out": [
+          true,
+          [
+            [
+              "00010|TX|2026",
+              {
+                "configured": true,
+                "absorbed_rows": 1,
+                "last_absorbed_at": "<time>"
+              }
+            ]
+          ]
+        ],
+        "sent": []
+      }
+    ],
+    "state": {
+      "drugs": [
+        {
+          "plan_id": "00010TX0010001",
+          "rxcui": "990000201",
+          "plan_year": 2026,
+          "coverage": "Covered",
+          "generic_rxcui": null,
+          "snapshot_id": "cms-marketplace-api:drugs-covered:2026:e43732eed6b4c7fb:3c6abdff07c88bcc:<retrieval>",
+          "source_row": 1,
+          "expires_at": "<time>",
+          "sourced_by": "cms-marketplace-api",
+          "sourced_at": "<time>",
+          "sourced_slug": "cms-marketplace-api:drugs-covered:2026:e43732eed6b4c7fb:3c6abdff07c88bcc:<retrieval>",
+          "created_at": "<time>",
+          "updated_at": "<time>",
+          "record_policy": "cms_api_fallback",
+          "record_ttl": "7 days",
+          "expired_at": "<time>",
+          "ttl_span": "7 days"
+        }
+      ],
+      "providers": [],
+      "attempts": [
+        {
+          "endpoint": "drugs/covered",
+          "plan_year": 2026,
+          "pairs": 1,
+          "snapshot_id": "cms-marketplace-api:drugs-covered:2026:e43732eed6b4c7fb:3c6abdff07c88bcc:<retrieval>",
+          "outcome": "absorbed",
+          "http_status": 200,
+          "failure_code": null,
+          "refusal_reason": null
+        }
+      ],
+      "conflicts": [],
+      "budget": [
+        {
+          "daily_requests": 1,
+          "max_daily_requests": 500,
+          "min_interval_ms": 1000,
+          "failure_count": 0,
+          "half_open": false,
+          "spaced": true,
+          "blocked": false,
+          "blocked_long": false
+        }
+      ],
+      "receipts": [
+        {
+          "snapshot_id": "cms-marketplace-api:drugs-covered:2026:e43732eed6b4c7fb:3c6abdff07c88bcc:<retrieval>",
+          "source_id": "cms-marketplace-api",
+          "requested_url": "https://marketplace.api.healthcare.gov/api/v1/drugs/covered?year=%5BREDACTED%5D&drugs=%5BREDACTED%5D&planids=%5BREDACTED%5D",
+          "final_url": "https://marketplace.api.healthcare.gov/api/v1/drugs/covered?year=%5BREDACTED%5D&drugs=%5BREDACTED%5D&planids=%5BREDACTED%5D",
+          "http_status": 200,
+          "content_type": null,
+          "compressed_bytes": 84,
+          "sha256": "3c6abdff07c88bcc62d5d2c6d2c7aadefc970b2e09aeb2c6eb899bc0ff9b0af7",
+          "raw_path": "<dir>/raw/cms-marketplace-api-e43732eed6b4c7fb/3c6abdff07c88bcc62d5d2c6d2c7aadefc970b2e09aeb2c6eb899bc0ff9b0af7/payload",
+          "schema_version": "cms-api-coverage-v1",
+          "parser_version": "cms-api-fallback-v1",
+          "terms_review_reference": "https://developer.cms.gov/marketplace-api/",
+          "validation_state": "ACTIVE"
+        }
+      ]
+    }
+  },
+  "a storage failure keeps loaded answers and marks eligible ones unavailable": {
+    "steps": [
+      {
+        "out": [
+          {
+            "status": "unknown",
+            "reason": "cms_api_unavailable",
+            "base_hios_id": "00010TX0010001",
+            "requested_plan_id": "00010TX0010001",
+            "rxcui": "990000201",
+            "plan_year": 2026,
+            "drug_tier": null,
+            "tier_status": null,
+            "cost_sharing": null,
+            "prior_authorization": null,
+            "step_therapy": null,
+            "quantity_limit": null,
+            "patient_price": null,
+            "evidence": [],
+            "snapshot_id": null,
+            "manifest_snapshot_id": null
+          },
+          {
+            "status": "listed_covered",
+            "reason": null,
+            "base_hios_id": "00010TX0010001",
+            "requested_plan_id": "00010TX0010001",
+            "rxcui": "990000201",
+            "plan_year": 2026,
+            "drug_tier": null,
+            "tier_status": null,
+            "cost_sharing": null,
+            "prior_authorization": null,
+            "step_therapy": null,
+            "quantity_limit": null,
+            "patient_price": null,
+            "evidence": [],
+            "snapshot_id": null,
+            "manifest_snapshot_id": null
+          },
+          {
+            "status": "unknown",
+            "reason": "rxcui_not_in_rxnorm",
+            "base_hios_id": "00010TX0010001",
+            "requested_plan_id": "00010TX0010001",
+            "rxcui": "990000201",
+            "plan_year": 2026,
+            "drug_tier": null,
+            "tier_status": null,
+            "cost_sharing": null,
+            "prior_authorization": null,
+            "step_therapy": null,
+            "quantity_limit": null,
+            "patient_price": null,
+            "evidence": [],
+            "snapshot_id": null,
+            "manifest_snapshot_id": null
+          }
+        ],
+        "sent": []
+      }
+    ],
+    "state": {
+      "drugs": [],
+      "providers": [],
+      "attempts": [],
+      "conflicts": [],
+      "budget": [
+        {
+          "daily_requests": 0,
+          "max_daily_requests": 500,
+          "min_interval_ms": 1000,
+          "failure_count": 0,
+          "half_open": false,
+          "spaced": false,
+          "blocked": false,
+          "blocked_long": false
+        }
+      ],
+      "receipts": []
+    }
+  }
+}

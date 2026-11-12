@@ -33,10 +33,12 @@ import type {
 import {
   catalogRule,
   nyLcspCatalog,
+  vtLcspCatalog,
   nyRatingCounties,
   stateRatingArea,
   stateSourceCell,
 } from "../ingest/state/catalog.js";
+import { vtMetalCatalogComplete } from "../ingest/state/vt-metal.js";
 import { checkedCents, dateParts } from "../domain/rating/rate-row.js";
 import { allocatePremium, lowestCostSilver } from "../domain/subsidy/index.js";
 import type {
@@ -95,8 +97,6 @@ const QUOTE = {
   quote_method: "puf_calculation",
   bindable_quote: false,
 } as const;
-/** Vermont still needs a cited metal mapping for the filed publication. */
-const STATE_RULES = new Set(["VT"]);
 
 type LcspStatus =
   | "calculated"
@@ -346,9 +346,8 @@ async function lcspEvidence(
   base.location.county_fips = county;
   const state = countyState(county);
   if (!state) return refuse("unsupported_state");
-  if (state === "NY") return nyLcspEvidence(db, question, base, county);
-  if (STATE_RULES.has(state))
-    return refuse("requires_state_rules", "state_filed_tier_pending");
+  if (state === "NY" || state === "VT")
+    return filedLcspEvidence(db, question, base, county, state);
   const year = dateParts(question.month).year;
   if (!(await federalCatalog(db, state, year)).rows.length)
     return refuse(
@@ -480,14 +479,15 @@ async function lcspEvidence(
 }
 
 /** Filed single-tier prices have no age or tobacco factors. */
-async function nyLcspEvidence(
+async function filedLcspEvidence(
   db: SqlSession,
   question: LcspQuestion,
   base: Omit<LcspEvidence, "status">,
   county: string,
+  state: "NY" | "VT",
 ): Promise<LcspEvidence> {
   const year = dateParts(question.month).year;
-  const area = stateRatingArea("NY", year, county);
+  const area = stateRatingArea(state, year, county);
   const evidence = {
     ...base,
     identified_at_age: null,
@@ -498,22 +498,28 @@ async function nyLcspEvidence(
       rating_area_id: area?.rating_area_id ?? null,
     },
   };
-  const catalog = await nyLcspCatalog(db, year, area?.rating_area_id);
+  const catalog =
+    state === "NY"
+      ? await nyLcspCatalog(db, year, area?.rating_area_id)
+      : await vtLcspCatalog(db, year, area?.rating_area_id);
   const provenance = {
     geography: area,
-    plans: catalog.map(({ row, exchange_evidence, attributes }) => ({
-      plan_key: row.plan_key,
-      hios_id: row.raw_record.plan_id,
-      single: stateSourceCell(row, "single"),
-      state_rule: catalogRule(row),
-      exchange_evidence,
-      attribute_rows: attributes.map((a) => ({
-        source_row: a.source_row,
-        metal: a.metal,
-        child_only_offering: a.raw.ChildOnlyOffering ?? null,
-        ehb_fraction: a.raw.EHBPercentTotalPremium ?? null,
-      })),
-    })),
+    plans: catalog.map(
+      ({ row, exchange_evidence, attributes, filed_identity }) => ({
+        plan_key: row.plan_key,
+        hios_id: row.hios_id ?? row.raw_record.plan_id,
+        single: stateSourceCell(row, "single"),
+        state_rule: catalogRule(row),
+        exchange_evidence,
+        ...(filed_identity ? { filed_identity } : {}),
+        attribute_rows: attributes.map((a) => ({
+          source_row: a.source_row,
+          metal: a.metal,
+          child_only_offering: a.raw.ChildOnlyOffering ?? null,
+          ehb_fraction: a.raw.EHBPercentTotalPremium ?? null,
+        })),
+      }),
+    ),
   };
   const refuse = (status: LcspStatus, reason: string): LcspEvidence => ({
     status,
@@ -531,11 +537,23 @@ async function nyLcspEvidence(
     dateParts(question.month).day !== 1
   )
     return refuse("unknown", "month_rate_rows_missing");
+  if (
+    state === "VT" &&
+    !vtMetalCatalogComplete(catalog.map((entry) => entry.row))
+  )
+    return refuse("incomplete_lcsp", "metal_level_unknown");
   const candidates: { id: string; gross: number; ehb: number | null }[] = [];
   const keys = new Set<string>();
-  for (const { row, attributes, exchange_evidence } of catalog) {
+  for (const entry of catalog) {
+    const { row, attributes, exchange_evidence, filed_identity } = entry;
+    if (state === "VT") {
+      if ("off_exchange" in entry && entry.off_exchange) continue;
+      if (!filed_identity)
+        return refuse("incomplete_lcsp", "metal_level_unknown");
+    }
     if (row.rate.childOnly) continue;
     const metals = new Set(attributes.map((a) => a.metal.trim().toLowerCase()));
+    if (filed_identity) metals.add(filed_identity.metal.toLowerCase());
     if (row.raw_record.metal)
       metals.add(row.raw_record.metal.trim().toLowerCase());
     if (
@@ -551,6 +569,11 @@ async function nyLcspEvidence(
     )
       return refuse("incomplete_lcsp", "metal_level_unknown");
     if (!metals.has("silver")) continue;
+    if (filed_identity?.off_exchange) {
+      if (exchange_evidence)
+        return refuse("incomplete_lcsp", "exchange_offering_conflict");
+      continue;
+    }
     if (!exchange_evidence)
       return refuse("incomplete_lcsp", "exchange_offering_unverified");
     const eligible = familyOffer(
@@ -625,8 +648,19 @@ async function nyLcspEvidence(
 
 /** State-wide readiness is conservative when any loaded DFS region is incomplete. */
 export async function nyLcspAvailability(db: SqlSession, year: number) {
-  // One county for each DFS region. The same filed regional set serves every county in it.
-  const counties = nyRatingCounties(year);
+  return filedLcspAvailability(db, year, nyRatingCounties(year));
+}
+
+export async function vtLcspAvailability(db: SqlSession, year: number) {
+  return filedLcspAvailability(db, year, year === 2026 ? ["50007"] : []);
+}
+
+async function filedLcspAvailability(
+  db: SqlSession,
+  year: number,
+  counties: string[],
+) {
+  // One county per filed rating area; each area has one common price set.
   let answered = false;
   for (const county of counties) {
     const result = await lcspEvidence(db, {
@@ -889,7 +923,11 @@ export async function ichraAffordability(
   if (employer) {
     applied.push("age_safe_harbor", "lowest_age_band");
     if (source === "worksite") applied.push("location_safe_harbor");
-    if (harbors.lookBack) applied.push("look_back_month");
+    if (harbors.lookBack) {
+      applied.push("look_back_month");
+      if (dateParts(request.planStart).month !== 1)
+        applied.push("look_back_current_circumstances");
+    }
   }
   return {
     ...QUOTE,

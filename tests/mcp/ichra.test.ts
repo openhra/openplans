@@ -255,3 +255,47 @@ describe("MCP check_ichra_affordability", () => {
     );
   });
 });
+
+it("MCP non-calendar look-back preserves entrant age, figures and cited rules", async () => {
+  const extended = {
+    ...input,
+    plan_start: "2026-07-01",
+    employee: { date_of_birth: "1985-08-15", eligible_from: "2026-08-15" },
+    months_available: 11,
+    hra: { self_only_annual_cents: 330_000 },
+    safe_harbors: { look_back: true },
+    income: [{ measure: "rate_of_pay_hourly", hourly_cents: 2_300 }],
+  };
+  const client = await connect(granted());
+  try {
+    const output = (await client.call(
+      "check_ichra_affordability",
+      extended,
+    )) as Json;
+    expect(output.status).toBe("ok");
+    expect(output.data.applicable_age).toBe(41);
+    expect(output.data.lcsps[0]).toMatchObject({
+      use: "employer",
+      coverage_month: "2026-01-01",
+      priced_at_age: 41,
+      monthly_cents: 60_316,
+    });
+    const native = (await ichraAffordability(
+      h.db,
+      ichraRequest(extended),
+    )) as Json;
+    expect(output.data.verdicts).toEqual(native.verdicts);
+    expect(output.data.rules).toContainEqual(
+      expect.objectContaining({
+        id: "look_back_current_circumstances",
+        status: "proposed_reliance_permitted",
+        citations: [expect.stringContaining("2019-20034")],
+      }),
+    );
+    expect(
+      outputSchemas.check_ichra_affordability.safeParse(output).success,
+    ).toBe(true);
+  } finally {
+    await client.close();
+  }
+});

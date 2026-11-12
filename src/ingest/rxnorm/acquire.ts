@@ -1,7 +1,11 @@
 import { homedir } from "node:os";
-import { readFile, readdir } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { fetchToCache } from "../../fetch/index.js";
+import {
+  fetchToCache,
+  readCachedText,
+  sidecarNames,
+} from "../../fetch/index.js";
 import type { FetchOptions, SnapshotMetadata } from "../../fetch/index.js";
 
 export const filesPage =
@@ -68,11 +72,12 @@ export async function acquireRelease(
   const release = discoverRelease(await readFile(page.path, "utf8"));
   // Reuse only a matching dated URL, and let fetchToCache verify the actual cached hash.
   let expectedSha256: string | undefined;
-  const directory = join(dataDir, "raw", sourceId);
-  for (const name of await readdir(directory).catch(() => [] as string[])) {
-    if (!name.endsWith(".meta.json")) continue;
+  // Sidecars are read through the fetch cache's store, local or remote.
+  for (const name of await sidecarNames(dataDir, sourceId).catch(
+    () => [] as string[],
+  )) {
     const metadata = JSON.parse(
-      await readFile(join(directory, name), "utf8"),
+      await readCachedText(dataDir, sourceId, name),
     ) as SnapshotMetadata;
     if (metadata.url === release.url) {
       expectedSha256 = metadata.sha256;

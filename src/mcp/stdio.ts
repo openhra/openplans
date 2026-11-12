@@ -1,25 +1,33 @@
 #!/usr/bin/env node
+import { loadConfig } from "../config/index.js";
+import type { CoreConfig } from "../config/index.js";
 import { realpathSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import {
   serveStdio,
   StdioServerTransport,
 } from "@modelcontextprotocol/server/stdio";
-import { createDatabase } from "../db/database.js";
+import { openHostDatabase, startHostStorage } from "../plugins/host-storage.js";
 import { buildServer } from "./server.js";
-import { dependencies, householdOpen } from "./policy.js";
+import { loadApiPlugins } from "../plugins/api.js";
+import { configDependencies, configHouseholdOpen } from "./policy.js";
 import type { McpEnvironment } from "./policy.js";
 import { limits, MAX_OUTPUT_BYTES, MAX_TOOL_LIST_BYTES } from "./tools.js";
 
 /** Local stdio grants household tools by default; OPENPLANS_MCP_ALLOW_PERSONALIZED=0 withholds them. */
 export function stdioGranted(env: McpEnvironment): boolean {
-  const allow = env.OPENPLANS_MCP_ALLOW_PERSONALIZED;
+  return configStdioGranted(loadConfig(env));
+}
+function configStdioGranted(config: CoreConfig): boolean {
+  const allow = config.mcp.allowPersonalized;
   if (allow === "1") return true;
   if (allow === "0") return false;
-  return householdOpen(env);
+  return configHouseholdOpen(config);
 }
 export function startStdio() {
-  const db = createDatabase();
+  const config = loadConfig();
+  startHostStorage(config);
+  const db = openHostDatabase(config);
   const transport = new StdioServerTransport(process.stdin, process.stdout, {
     maxBufferSize: limits.input_bytes,
   });
@@ -33,8 +41,10 @@ export function startStdio() {
       throw new Error("Response limit");
     await send(message);
   };
+  // Local stdio grants the Medicare estimate by the same rules as the other personalized tools.
+  const granted = configStdioGranted(config);
   const handle = serveStdio(
-    () => buildServer(dependencies(db, process.env, stdioGranted(process.env))),
+    () => buildServer(configDependencies(db, config, granted, granted)),
     {
       legacy: "serve",
       maxSubscriptions: 0,
@@ -64,9 +74,18 @@ if (
   process.argv[1] &&
   import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href
 ) {
+  // Plugin MCP tools join the list only once loaded; a refused plugin exits with one line.
+  const plugins = await loadApiPlugins({ host: "stdio" });
   try {
     startStdio();
+    if (plugins.plugins.length > 0) {
+      const stop = () => void plugins.teardown();
+      process.stdin.once("end", stop);
+      process.once("SIGINT", stop);
+      process.once("SIGTERM", stop);
+    }
   } catch {
+    await plugins.teardown();
     console.error("MCP startup failed; check DATABASE_URL");
     process.exitCode = 1;
   }

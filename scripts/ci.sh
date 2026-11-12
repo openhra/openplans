@@ -10,6 +10,9 @@ fi
 export npm_config_offline=true
 export npm_config_audit=false
 export npm_config_fund=false
+# Workspace dist/ folders are gitignored, and install builds only the SDK (its `prepare`). Build the
+# SDK and then every plugin so a stale or missing dist never breaks lint, typecheck or tests.
+npm run build:plugins
 npm run format:check
 npm run lint
 npm run check:lint-setup

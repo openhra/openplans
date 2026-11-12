@@ -1048,3 +1048,148 @@ describe("Synthetic issuer providers and labelled mutants", () => {
     ).toBe("unknown");
   });
 });
+
+describe("Synthetic per-record rejection of values that are not NPIs", () => {
+  let h: Awaited<ReturnType<typeof setup>>, base: Fixture, plan: string;
+  // Synthetic identifiers only. The rejected value starts with 4, which no NPI does.
+  const synthetic = (i: number) => `19999${String(i).padStart(5, "0")}`;
+  const rejectedNpi = "4999900017";
+  beforeAll(async () => {
+    h = await setup();
+    const providers = await fixture("records");
+    const definitions = await fixture("plans");
+    base = structuredClone(providers[0]);
+    plan = base.plans.find((p: PlanEdge) =>
+      h.catalog.plans.some((c: BasePlan) => c.base_plan_id === p.plan_id),
+    ).plan_id;
+    base.plans = [
+      {
+        ...base.plans.find((p: PlanEdge) => p.plan_id === plan),
+        years: [2026],
+        network_tier: definitions.find((p: PlanEdge) => p.plan_id === plan)
+          .network[0].network_tier,
+      },
+    ];
+  });
+  afterAll(async () => {
+    await h?.close();
+  });
+  const valid = (n: number) =>
+    Array.from({ length: n }, (_, i) => ({ ...base, npi: synthetic(i) }));
+  const rows = async (setId: string) =>
+    (
+      await h.db.query<{ source_record: number; npi: string | null }>(
+        `SELECT r.source_record,r.npi FROM qhp_provider_record r JOIN provider_shard s USING(snapshot_id)
+      WHERE s.source_set_id=$1 ORDER BY r.source_record`,
+        [setId],
+      )
+    ).rows;
+
+  it("an isolated non-NPI value rejects only its record; positive evidence publishes as partial and absence stays unknown", async () => {
+    const records = [
+      ...valid(100),
+      { ...base, npi: rejectedNpi, facility_name: "synthetic placeholder" },
+    ];
+    await h.replace(records);
+    const r = await importProviders(h.db, scope);
+    expect(r).toMatchObject({
+      status: "ACTIVE",
+      completeness: "partial",
+      reason: "source_records_rejected",
+      expected_children: 1,
+      complete_children: 0,
+      records: 100,
+      edges: 100,
+      issues: { invalid_npi_record_rejected: 1 },
+    });
+    const stored = await rows(r.snapshot_id);
+    expect(stored).toHaveLength(100);
+    expect(stored.some((row) => Number(row.source_record) === 100)).toBe(false);
+    expect(stored.some((row) => row.npi === rejectedNpi)).toBe(false);
+    const shard = (
+      await h.db.query(
+        `SELECT s.status,s.reason,s.record_count,s.edge_count,q.source_record,q.explanation
+      FROM provider_shard s JOIN quality_issue q ON q.snapshot_id=s.snapshot_id
+      WHERE s.source_set_id=$1 AND q.issue_code='invalid_npi_record_rejected'`,
+        [r.snapshot_id],
+      )
+    ).rows;
+    expect(shard).toEqual([
+      expect.objectContaining({
+        status: "partial",
+        reason: "source_records_rejected",
+        record_count: 100,
+        edge_count: 100,
+        source_record: "100",
+      }),
+    ]);
+    expect(JSON.parse(String(shard[0]!.explanation))).toMatchObject({
+      count: 1,
+    });
+    const listed = await providerParticipation(h.db, plan, synthetic(7), 2026);
+    expect(listed).toMatchObject({ status: "listed_participating" });
+    expect(listed.warnings).toContain("SOURCE_INCOMPLETE");
+    // Neither the rejected value nor an unlisted provider becomes negative evidence.
+    for (const absent of ["1999988881", `${r.snapshot_id}:100`])
+      expect(
+        (await providerParticipation(h.db, plan, absent, 2026)).status,
+      ).toBe("unknown");
+  });
+
+  it("negative: a non-string NPI is rejected the same way and never stored as a null-NPI record", async () => {
+    await h.replace([...valid(100), { ...base, npi: 1999900017 }]);
+    const r = await importProviders(h.db, scope);
+    expect(r).toMatchObject({
+      status: "ACTIVE",
+      completeness: "partial",
+      records: 100,
+      issues: { invalid_npi_record_rejected: 1 },
+    });
+    expect((await rows(r.snapshot_id)).every((row) => row.npi !== null)).toBe(
+      true,
+    );
+  });
+
+  it("negative: more than 1% rejected records quarantines the whole child", async () => {
+    await h.replace([...valid(49), { ...base, npi: rejectedNpi }]);
+    const r = await importProviders(h.db, scope);
+    expect(r).toMatchObject({
+      status: "QUARANTINED",
+      completeness: "partial",
+      reason: "invalid_source_records",
+      records: 0,
+      edges: 0,
+      issues: {
+        invalid_npi_record_rejected: 1,
+        rejected_records_over_limit: 1,
+      },
+    });
+    expect(
+      (await providerParticipation(h.db, plan, "1999988881", 2026)).status,
+    ).toBe("unknown");
+  });
+
+  it("negative: a rejected record with a structural defect still quarantines the child", async () => {
+    const bad = structuredClone({ ...base, npi: rejectedNpi });
+    bad.plans[0].plan_id_type = "SYNTHETIC-BAD";
+    await h.replace([...valid(100), bad]);
+    const r = await importProviders(h.db, scope);
+    expect(r).toMatchObject({
+      status: "QUARANTINED",
+      reason: "invalid_source_records",
+      records: 0,
+      issues: { invalid_npi_record_rejected: 1, unsupported_plan_id_type: 1 },
+    });
+  });
+
+  it("negative: a rejected child cannot publish when another child failed", async () => {
+    await h.replace([...valid(100), { ...base, npi: rejectedNpi }]);
+    const broken = await h.child([]);
+    await h.db.query("UPDATE snapshot SET raw_path=NULL WHERE snapshot_id=$1", [
+      broken,
+    ]);
+    const r = await importProviders(h.db, scope);
+    expect(r).toMatchObject({ status: "QUARANTINED", completeness: "partial" });
+    expect(r.reason).toContain("source_records_rejected");
+  });
+});

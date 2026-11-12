@@ -308,6 +308,20 @@ export const ichraRegistry: Readonly<Record<number, unknown>> = {
             "section": "Prop. 54.4980H-5(f)(5)(iii) (application to individual coverage HRAs)"
           }
         ]
+      },
+      "look_back_current_circumstances": {
+        "value": {
+          "status": "proposed_reliance_permitted",
+          "summary": "Look-back premiums use the applicable age for the current plan year and the applicable location for the current month. A mid-year entrant uses age on the date the HRA can first take effect."
+        },
+        "citations": [
+          {
+            "url": "https://www.federalregister.gov/documents/2019/09/30/2019-20034/application-of-the-employer-shared-responsibility-provisions-and-certain-nondiscrimination-rules-to",
+            "title": "Proposed rule REG-136401-18, 84 FR 51471 (2019-09-30)",
+            "retrievedOn": "2026-11-11",
+            "section": "Prop. 54.4980H-5(f)(4)(ii), (f)(7)(i)-(ii)"
+          }
+        ]
       }
     }
   },
@@ -617,6 +631,20 @@ export const ichraRegistry: Readonly<Record<number, unknown>> = {
             "title": "Proposed rule REG-136401-18, 84 FR 51471 (2019-09-30)",
             "retrievedOn": "2026-11-09",
             "section": "Prop. 54.4980H-5(f)(5)(iii) (application to individual coverage HRAs)"
+          }
+        ]
+      },
+      "look_back_current_circumstances": {
+        "value": {
+          "status": "proposed_reliance_permitted",
+          "summary": "Look-back premiums use the applicable age for the current plan year and the applicable location for the current month. A mid-year entrant uses age on the date the HRA can first take effect."
+        },
+        "citations": [
+          {
+            "url": "https://www.federalregister.gov/documents/2019/09/30/2019-20034/application-of-the-employer-shared-responsibility-provisions-and-certain-nondiscrimination-rules-to",
+            "title": "Proposed rule REG-136401-18, 84 FR 51471 (2019-09-30)",
+            "retrievedOn": "2026-11-11",
+            "section": "Prop. 54.4980H-5(f)(4)(ii), (f)(7)(i)-(ii)"
           }
         ]
       }

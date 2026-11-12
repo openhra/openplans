@@ -18,7 +18,7 @@ import { mapProviders } from "../../../src/compat/v1/providers.js";
 import { ingestGeo } from "../../../src/ingest/geo/index.js";
 import { importPufs } from "../../../src/ingest/puf/import.js";
 import { ingestStateRates } from "../../../src/ingest/state/index.js";
-import { importTaxonomy } from "../../../src/ingest/taxonomy/import.js";
+import { importTaxonomy } from "../../../src/plugins/core-plugin.js";
 import { coreMigrations, testDatabase } from "../../pglite.js";
 import { fixtureFiles as geoFiles } from "../../ingest/geo/helpers.js";
 import { fixtureFiles } from "../../api/helpers.js";

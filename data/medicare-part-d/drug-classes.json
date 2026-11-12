@@ -1,0 +1,203 @@
+{
+  "schemaVersion": 1,
+  "years": {
+    "2026": {
+      "benefitType": {
+        "table": "pbp_mrx",
+        "field": "mrx_benefit_type",
+        "codes": {
+          "1": {
+            "type": "DS",
+            "label": "Defined Standard",
+            "citations": [
+              {
+                "document": "C13",
+                "section": "PBP data dictionary, pbp_mrx.mrx_benefit_type (Type of drug benefit)",
+                "member": "PBP_Benefits_2026_dictionary.xlsx",
+                "sheet": "PBP2026_dictionary (1)",
+                "row": 25379,
+                "quote": "1 Defined Standard"
+              }
+            ]
+          },
+          "2": {
+            "type": "AE",
+            "label": "Actuarially Equivalent Standard",
+            "citations": [
+              {
+                "document": "C13",
+                "section": "PBP data dictionary, pbp_mrx.mrx_benefit_type (Type of drug benefit)",
+                "member": "PBP_Benefits_2026_dictionary.xlsx",
+                "sheet": "PBP2026_dictionary (1)",
+                "row": 25380,
+                "quote": "2 Actuarially Equivalent Standard"
+              }
+            ]
+          },
+          "3": {
+            "type": "BA",
+            "label": "Basic Alternative",
+            "citations": [
+              {
+                "document": "C13",
+                "section": "PBP data dictionary, pbp_mrx.mrx_benefit_type (Type of drug benefit)",
+                "member": "PBP_Benefits_2026_dictionary.xlsx",
+                "sheet": "PBP2026_dictionary (1)",
+                "row": 25381,
+                "quote": "3 Basic Alternative"
+              }
+            ]
+          },
+          "4": {
+            "type": "EA",
+            "label": "Enhanced Alternative",
+            "citations": [
+              {
+                "document": "C13",
+                "section": "PBP data dictionary, pbp_mrx.mrx_benefit_type (Type of drug benefit)",
+                "member": "PBP_Benefits_2026_dictionary.xlsx",
+                "sheet": "PBP2026_dictionary (1)",
+                "row": 25382,
+                "quote": "4 Enhanced Alternative"
+              }
+            ]
+          }
+        }
+      },
+      "selectedDrugFlag": {
+        "table": "formulary",
+        "field": "SELECTED_DRUG_YN",
+        "yes": "Y",
+        "no": "N",
+        "citations": [
+          {
+            "document": "C1",
+            "section": "Basic Drugs Formulary File, field SELECTED_DRUG_YN",
+            "page": 7,
+            "quote": "Does this NDC represent one of the Part D drugs selected for negotiation under the Medicare Drug Price Negotiation Program?"
+          },
+          {
+            "document": "C3",
+            "section": "IRA policy 1, Medicare Drug Price Negotiation Program: the Selected Drug flag in the Basic Drugs Formulary file",
+            "page": 2,
+            "quote": "The newly added Selected Drug flag in the Basic Drugs Formulary file can be used to determine which dispensing fee in the Pharmacy Network file applies to the drug."
+          }
+        ]
+      },
+      "unsourced": {
+        "insulin": {
+          "reason": "insulin_product_list_not_cached",
+          "note": "The cached files give insulin cost sharing per plan and tier, not which products are covered insulin. The CMS pages checked publish no covered insulin product list (drug-lists.json)."
+        },
+        "acip_vaccine": {
+          "reason": "acip_vaccine_list_not_cached",
+          "note": "No cached file lists the ACIP-recommended adult vaccines by RxCUI."
+        },
+        "manufacturer_discount": {
+          "reason": "applicable_drug_list_not_cached",
+          "note": "CMS lists the labeler codes under a discount program agreement and the NDC-9s eligible for the phase-in (drug-lists.json, C20 to C22). Neither says whether a drug that is not selected was approved under an NDA or BLA, so whether it is an applicable drug stays open."
+        },
+        "selected_drug_list": {
+          "reason": "name_only_list_needs_rxnorm",
+          "note": "The CMS selected-drug NDC list (C16) is pinned in drug-lists.json and checked against the formulary flag. The fact sheets (C17, C18) name the drugs only and are never matched to a drug."
+        }
+      }
+    },
+    "2027": {
+      "benefitType": {
+        "table": "pbp_mrx",
+        "field": "mrx_benefit_type",
+        "codes": {
+          "1": {
+            "type": "DS",
+            "label": "Defined Standard",
+            "citations": [
+              {
+                "document": "C14",
+                "section": "PBP data dictionary, pbp_mrx.mrx_benefit_type (Type of drug benefit)",
+                "member": "PBP_Benefits_2027_dictionary.xlsx",
+                "sheet": "PBP_Benefits_2027_dictionary",
+                "row": 26544,
+                "quote": "1 Defined Standard"
+              }
+            ]
+          },
+          "2": {
+            "type": "AE",
+            "label": "Actuarially Equivalent Standard",
+            "citations": [
+              {
+                "document": "C14",
+                "section": "PBP data dictionary, pbp_mrx.mrx_benefit_type (Type of drug benefit)",
+                "member": "PBP_Benefits_2027_dictionary.xlsx",
+                "sheet": "PBP_Benefits_2027_dictionary",
+                "row": 26545,
+                "quote": "2 Actuarially Equivalent Standard"
+              }
+            ]
+          },
+          "3": {
+            "type": "BA",
+            "label": "Basic Alternative",
+            "citations": [
+              {
+                "document": "C14",
+                "section": "PBP data dictionary, pbp_mrx.mrx_benefit_type (Type of drug benefit)",
+                "member": "PBP_Benefits_2027_dictionary.xlsx",
+                "sheet": "PBP_Benefits_2027_dictionary",
+                "row": 26546,
+                "quote": "3 Basic Alternative"
+              }
+            ]
+          },
+          "4": {
+            "type": "EA",
+            "label": "Enhanced Alternative",
+            "citations": [
+              {
+                "document": "C14",
+                "section": "PBP data dictionary, pbp_mrx.mrx_benefit_type (Type of drug benefit)",
+                "member": "PBP_Benefits_2027_dictionary.xlsx",
+                "sheet": "PBP_Benefits_2027_dictionary",
+                "row": 26547,
+                "quote": "4 Enhanced Alternative"
+              }
+            ]
+          }
+        }
+      },
+      "selectedDrugFlag": {
+        "table": "formulary",
+        "field": "SELECTED_DRUG_YN",
+        "yes": "Y",
+        "no": "N",
+        "citations": [
+          {
+            "document": "C2",
+            "section": "Basic Drugs Formulary File, field SELECTED_DRUG_YN",
+            "page": 7,
+            "quote": "Does this NDC represent one of the Part D drugs selected for negotiation under the Medicare Drug Price Negotiation Program?"
+          }
+        ]
+      },
+      "unsourced": {
+        "insulin": {
+          "reason": "insulin_product_list_not_cached",
+          "note": "The cached files give insulin cost sharing per plan and tier, not which products are covered insulin. The CMS pages checked publish no covered insulin product list (drug-lists.json)."
+        },
+        "acip_vaccine": {
+          "reason": "acip_vaccine_list_not_cached",
+          "note": "No cached file lists the ACIP-recommended adult vaccines by RxCUI."
+        },
+        "manufacturer_discount": {
+          "reason": "applicable_drug_list_not_cached",
+          "note": "CMS lists the labeler codes under a discount program agreement and the NDC-9s eligible for the phase-in (drug-lists.json, C20 to C22). Neither says whether a drug that is not selected was approved under an NDA or BLA, so whether it is an applicable drug stays open."
+        },
+        "selected_drug_list": {
+          "reason": "name_only_list_needs_rxnorm",
+          "note": "The CMS selected-drug NDC list (C16) is pinned in drug-lists.json and checked against the formulary flag. The fact sheets (C17, C18) name the drugs only and are never matched to a drug."
+        }
+      }
+    }
+  }
+}

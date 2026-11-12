@@ -1,0 +1,1191 @@
+{
+  "schema_version": "vt-plan-metals-v1",
+  "plan_year": 2026,
+  "rate_url": "https://info.healthconnect.vermont.gov/sites/vhc/files/documents/2026_PlanDesigns_FinalRates.pdf",
+  "rate_sha256": "8353a9b2d90f2b4b23173c154e0de8ef426b90ec8a897eed965f4b97c82f68c3",
+  "bundle_url": "https://www.cms.gov/files/zip/vermontsbepuf2026.zip",
+  "bundle_sha256": "a16f28e7d50ecf93c1d92335f116dd272cffbfc5c261088459bb866cc4aa6342",
+  "member": "VTPlans05052026.csv",
+  "plans": [
+    {
+      "plan_key": "BCBSVT:Platinum Plan",
+      "source_record": "page=1;issuer=BCBSVT;column=1",
+      "prices": {
+        "single": 157972,
+        "couple": 315944,
+        "adult_children": 304886,
+        "family": 443901
+      },
+      "hios_id": "13627VT0340002",
+      "metal": "Platinum",
+      "attributes": [
+        {
+          "source_row": 10,
+          "plan_id": "13627VT0340002-01",
+          "metal": "Platinum",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 11,
+          "plan_id": "13627VT0340002-02",
+          "metal": "Platinum",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 12,
+          "plan_id": "13627VT0340002-03",
+          "metal": "Platinum",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        }
+      ]
+    },
+    {
+      "plan_key": "BCBSVT:Gold Plan",
+      "source_record": "page=1;issuer=BCBSVT;column=2",
+      "prices": {
+        "single": 134545,
+        "couple": 269090,
+        "adult_children": 259672,
+        "family": 378071
+      },
+      "hios_id": "13627VT0340003",
+      "metal": "Gold",
+      "attributes": [
+        {
+          "source_row": 13,
+          "plan_id": "13627VT0340003-01",
+          "metal": "Gold",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 14,
+          "plan_id": "13627VT0340003-02",
+          "metal": "Gold",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 15,
+          "plan_id": "13627VT0340003-03",
+          "metal": "Gold",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        }
+      ]
+    },
+    {
+      "plan_key": "BCBSVT:Silver Plan",
+      "source_record": "page=1;issuer=BCBSVT;column=3",
+      "prices": {
+        "single": 153188,
+        "couple": 306376,
+        "adult_children": 295653,
+        "family": 430458
+      },
+      "hios_id": "13627VT0340004",
+      "metal": "Silver",
+      "attributes": [
+        {
+          "source_row": 16,
+          "plan_id": "13627VT0340004-01",
+          "metal": "Silver",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 17,
+          "plan_id": "13627VT0340004-02",
+          "metal": "Silver",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 18,
+          "plan_id": "13627VT0340004-03",
+          "metal": "Silver",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 19,
+          "plan_id": "13627VT0340004-04",
+          "metal": "Silver",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 20,
+          "plan_id": "13627VT0340004-05",
+          "metal": "Silver",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 21,
+          "plan_id": "13627VT0340004-06",
+          "metal": "Silver",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        }
+      ]
+    },
+    {
+      "plan_key": "BCBSVT:Bronze Plan",
+      "source_record": "page=1;issuer=BCBSVT;column=4",
+      "prices": {
+        "single": 93315,
+        "couple": 186630,
+        "adult_children": 180098,
+        "family": 262215
+      },
+      "hios_id": "13627VT0340005",
+      "metal": "Expanded Bronze",
+      "attributes": [
+        {
+          "source_row": 22,
+          "plan_id": "13627VT0340005-01",
+          "metal": "Expanded Bronze",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 23,
+          "plan_id": "13627VT0340005-02",
+          "metal": "Expanded Bronze",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 24,
+          "plan_id": "13627VT0340005-03",
+          "metal": "Expanded Bronze",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        }
+      ]
+    },
+    {
+      "plan_key": "BCBSVT:Bronze Integrated Plan",
+      "source_record": "page=1;issuer=BCBSVT;column=5",
+      "prices": {
+        "single": 98653,
+        "couple": 197306,
+        "adult_children": 190400,
+        "family": 277215
+      },
+      "hios_id": "13627VT0340006",
+      "metal": "Expanded Bronze",
+      "attributes": [
+        {
+          "source_row": 25,
+          "plan_id": "13627VT0340006-01",
+          "metal": "Expanded Bronze",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 26,
+          "plan_id": "13627VT0340006-02",
+          "metal": "Expanded Bronze",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 27,
+          "plan_id": "13627VT0340006-03",
+          "metal": "Expanded Bronze",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        }
+      ]
+    },
+    {
+      "plan_key": "BCBSVT:Silver CDHP Plan",
+      "source_record": "page=1;issuer=BCBSVT;column=6",
+      "prices": {
+        "single": 159588,
+        "couple": 319176,
+        "adult_children": 308005,
+        "family": 448442
+      },
+      "hios_id": "13627VT0350001",
+      "metal": "Silver",
+      "attributes": [
+        {
+          "source_row": 28,
+          "plan_id": "13627VT0350001-01",
+          "metal": "Silver",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 29,
+          "plan_id": "13627VT0350001-02",
+          "metal": "Silver",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 30,
+          "plan_id": "13627VT0350001-03",
+          "metal": "Silver",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 31,
+          "plan_id": "13627VT0350001-04",
+          "metal": "Silver",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 32,
+          "plan_id": "13627VT0350001-05",
+          "metal": "Silver",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 33,
+          "plan_id": "13627VT0350001-06",
+          "metal": "Silver",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        }
+      ]
+    },
+    {
+      "plan_key": "BCBSVT:Bronze CDHP Plan",
+      "source_record": "page=1;issuer=BCBSVT;column=7",
+      "prices": {
+        "single": 98806,
+        "couple": 197612,
+        "adult_children": 190696,
+        "family": 277645
+      },
+      "hios_id": "13627VT0350002",
+      "metal": "Expanded Bronze",
+      "attributes": [
+        {
+          "source_row": 34,
+          "plan_id": "13627VT0350002-01",
+          "metal": "Expanded Bronze",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 35,
+          "plan_id": "13627VT0350002-02",
+          "metal": "Expanded Bronze",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 36,
+          "plan_id": "13627VT0350002-03",
+          "metal": "Expanded Bronze",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        }
+      ]
+    },
+    {
+      "plan_key": "BCBSVT:Vermont Preferred Gold Plan",
+      "source_record": "page=1;issuer=BCBSVT;column=8",
+      "prices": {
+        "single": 133451,
+        "couple": 266902,
+        "adult_children": 257560,
+        "family": 374997
+      },
+      "hios_id": "13627VT0380005",
+      "metal": "Gold",
+      "attributes": [
+        {
+          "source_row": 43,
+          "plan_id": "13627VT0380005-01",
+          "metal": "Gold",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 44,
+          "plan_id": "13627VT0380005-02",
+          "metal": "Gold",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 45,
+          "plan_id": "13627VT0380005-03",
+          "metal": "Gold",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        }
+      ]
+    },
+    {
+      "plan_key": "BCBSVT:Vermont Preferred Silver Plan",
+      "source_record": "page=1;issuer=BCBSVT;column=9",
+      "prices": {
+        "single": 149826,
+        "couple": 299652,
+        "adult_children": 289164,
+        "family": 421011
+      },
+      "hios_id": "13627VT0380006",
+      "metal": "Silver",
+      "attributes": [
+        {
+          "source_row": 46,
+          "plan_id": "13627VT0380006-01",
+          "metal": "Silver",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 47,
+          "plan_id": "13627VT0380006-02",
+          "metal": "Silver",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 48,
+          "plan_id": "13627VT0380006-03",
+          "metal": "Silver",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 49,
+          "plan_id": "13627VT0380006-04",
+          "metal": "Silver",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 50,
+          "plan_id": "13627VT0380006-05",
+          "metal": "Silver",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 51,
+          "plan_id": "13627VT0380006-06",
+          "metal": "Silver",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        }
+      ]
+    },
+    {
+      "plan_key": "BCBSVT:Vermont Preferred Bronze Plan",
+      "source_record": "page=1;issuer=BCBSVT;column=10",
+      "prices": {
+        "single": 95149,
+        "couple": 190298,
+        "adult_children": 183638,
+        "family": 267369
+      },
+      "hios_id": "13627VT0380007",
+      "metal": "Expanded Bronze",
+      "attributes": [
+        {
+          "source_row": 52,
+          "plan_id": "13627VT0380007-01",
+          "metal": "Expanded Bronze",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 53,
+          "plan_id": "13627VT0380007-02",
+          "metal": "Expanded Bronze",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 54,
+          "plan_id": "13627VT0380007-03",
+          "metal": "Expanded Bronze",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        }
+      ]
+    },
+    {
+      "plan_key": "BCBSVT:Vermont Select Gold CDHP Plan",
+      "source_record": "page=1;issuer=BCBSVT;column=11",
+      "prices": {
+        "single": 133543,
+        "couple": 267086,
+        "adult_children": 257738,
+        "family": 375256
+      },
+      "hios_id": "13627VT0390001",
+      "metal": "Gold",
+      "attributes": [
+        {
+          "source_row": 55,
+          "plan_id": "13627VT0390001-01",
+          "metal": "Gold",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 56,
+          "plan_id": "13627VT0390001-02",
+          "metal": "Gold",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 57,
+          "plan_id": "13627VT0390001-03",
+          "metal": "Gold",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        }
+      ]
+    },
+    {
+      "plan_key": "BCBSVT:Vermont Select Silver CDHP Plan",
+      "source_record": "page=1;issuer=BCBSVT;column=12",
+      "prices": {
+        "single": 150604,
+        "couple": 301208,
+        "adult_children": 290666,
+        "family": 423197
+      },
+      "hios_id": "13627VT0390002",
+      "metal": "Silver",
+      "attributes": [
+        {
+          "source_row": 58,
+          "plan_id": "13627VT0390002-01",
+          "metal": "Silver",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 59,
+          "plan_id": "13627VT0390002-02",
+          "metal": "Silver",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 60,
+          "plan_id": "13627VT0390002-03",
+          "metal": "Silver",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 61,
+          "plan_id": "13627VT0390002-04",
+          "metal": "Silver",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 62,
+          "plan_id": "13627VT0390002-05",
+          "metal": "Silver",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 63,
+          "plan_id": "13627VT0390002-06",
+          "metal": "Silver",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        }
+      ]
+    },
+    {
+      "plan_key": "BCBSVT:Vermont Select Bronze CDHP Plan",
+      "source_record": "page=1;issuer=BCBSVT;column=13",
+      "prices": {
+        "single": 94529,
+        "couple": 189058,
+        "adult_children": 182441,
+        "family": 265626
+      },
+      "hios_id": "13627VT0390003",
+      "metal": "Expanded Bronze",
+      "attributes": [
+        {
+          "source_row": 64,
+          "plan_id": "13627VT0390003-01",
+          "metal": "Expanded Bronze",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 65,
+          "plan_id": "13627VT0390003-02",
+          "metal": "Expanded Bronze",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 66,
+          "plan_id": "13627VT0390003-03",
+          "metal": "Expanded Bronze",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        }
+      ]
+    },
+    {
+      "plan_key": "MVP:MVP VT Platinum 1",
+      "source_record": "page=1;issuer=MVP;column=1",
+      "prices": {
+        "single": 136559,
+        "couple": 273118,
+        "adult_children": 263559,
+        "family": 383731
+      },
+      "hios_id": "77566VT0040001",
+      "metal": "Platinum",
+      "attributes": [
+        {
+          "source_row": 68,
+          "plan_id": "77566VT0040001-01",
+          "metal": "Platinum",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 69,
+          "plan_id": "77566VT0040001-02",
+          "metal": "Platinum",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 70,
+          "plan_id": "77566VT0040001-03",
+          "metal": "Platinum",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        }
+      ]
+    },
+    {
+      "plan_key": "MVP:MVP VT Gold 1",
+      "source_record": "page=1;issuer=MVP;column=2",
+      "prices": {
+        "single": 114462,
+        "couple": 228924,
+        "adult_children": 220912,
+        "family": 321638
+      },
+      "hios_id": "77566VT0040002",
+      "metal": "Gold",
+      "attributes": [
+        {
+          "source_row": 71,
+          "plan_id": "77566VT0040002-01",
+          "metal": "Gold",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 72,
+          "plan_id": "77566VT0040002-02",
+          "metal": "Gold",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 73,
+          "plan_id": "77566VT0040002-03",
+          "metal": "Gold",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        }
+      ]
+    },
+    {
+      "plan_key": "MVP:MVP VT Silver 3",
+      "source_record": "page=1;issuer=MVP;column=3",
+      "prices": {
+        "single": 128859,
+        "couple": 257718,
+        "adult_children": 248698,
+        "family": 362094
+      },
+      "hios_id": "77566VT0040005",
+      "metal": "Silver",
+      "attributes": [
+        {
+          "source_row": 74,
+          "plan_id": "77566VT0040005-01",
+          "metal": "Silver",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 75,
+          "plan_id": "77566VT0040005-02",
+          "metal": "Silver",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 76,
+          "plan_id": "77566VT0040005-03",
+          "metal": "Silver",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 77,
+          "plan_id": "77566VT0040005-04",
+          "metal": "Silver",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 78,
+          "plan_id": "77566VT0040005-05",
+          "metal": "Silver",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 79,
+          "plan_id": "77566VT0040005-06",
+          "metal": "Silver",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        }
+      ]
+    },
+    {
+      "plan_key": "MVP:MVP VT Bronze 2",
+      "source_record": "page=1;issuer=MVP;column=4",
+      "prices": {
+        "single": 83073,
+        "couple": 166146,
+        "adult_children": 160331,
+        "family": 233435
+      },
+      "hios_id": "77566VT0040009",
+      "metal": "Expanded Bronze",
+      "attributes": [
+        {
+          "source_row": 92,
+          "plan_id": "77566VT0040009-01",
+          "metal": "Expanded Bronze",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 93,
+          "plan_id": "77566VT0040009-02",
+          "metal": "Expanded Bronze",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 94,
+          "plan_id": "77566VT0040009-03",
+          "metal": "Expanded Bronze",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        }
+      ]
+    },
+    {
+      "plan_key": "MVP:MVP VT Bronze 4",
+      "source_record": "page=1;issuer=MVP;column=5",
+      "prices": {
+        "single": 84160,
+        "couple": 168320,
+        "adult_children": 162429,
+        "family": 236490
+      },
+      "hios_id": "77566VT0040025",
+      "metal": "Expanded Bronze",
+      "attributes": [
+        {
+          "source_row": 111,
+          "plan_id": "77566VT0040025-01",
+          "metal": "Expanded Bronze",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 112,
+          "plan_id": "77566VT0040025-02",
+          "metal": "Expanded Bronze",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 113,
+          "plan_id": "77566VT0040025-03",
+          "metal": "Expanded Bronze",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        }
+      ]
+    },
+    {
+      "plan_key": "MVP:MVP VT Silver 4 HDHP",
+      "source_record": "page=1;issuer=MVP;column=6",
+      "prices": {
+        "single": 130340,
+        "couple": 260680,
+        "adult_children": 251556,
+        "family": 366255
+      },
+      "hios_id": "77566VT0040006",
+      "metal": "Silver",
+      "attributes": [
+        {
+          "source_row": 80,
+          "plan_id": "77566VT0040006-01",
+          "metal": "Silver",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 81,
+          "plan_id": "77566VT0040006-02",
+          "metal": "Silver",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 82,
+          "plan_id": "77566VT0040006-03",
+          "metal": "Silver",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 83,
+          "plan_id": "77566VT0040006-04",
+          "metal": "Silver",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 84,
+          "plan_id": "77566VT0040006-05",
+          "metal": "Silver",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 85,
+          "plan_id": "77566VT0040006-06",
+          "metal": "Silver",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        }
+      ]
+    },
+    {
+      "plan_key": "MVP:MVP VT Bronze 3 HDHP",
+      "source_record": "page=1;issuer=MVP;column=7",
+      "prices": {
+        "single": 84783,
+        "couple": 169566,
+        "adult_children": 163631,
+        "family": 238240
+      },
+      "hios_id": "77566VT0040010",
+      "metal": "Expanded Bronze",
+      "attributes": [
+        {
+          "source_row": 95,
+          "plan_id": "77566VT0040010-01",
+          "metal": "Expanded Bronze",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 96,
+          "plan_id": "77566VT0040010-02",
+          "metal": "Expanded Bronze",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 97,
+          "plan_id": "77566VT0040010-03",
+          "metal": "Expanded Bronze",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        }
+      ]
+    },
+    {
+      "plan_key": "MVP:MVP VT Plus Gold 4",
+      "source_record": "page=1;issuer=MVP;column=8",
+      "prices": {
+        "single": 113539,
+        "couple": 227078,
+        "adult_children": 219130,
+        "family": 319045
+      },
+      "hios_id": "77566VT0040032",
+      "metal": "Gold",
+      "attributes": [
+        {
+          "source_row": 117,
+          "plan_id": "77566VT0040032-01",
+          "metal": "Gold",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 118,
+          "plan_id": "77566VT0040032-02",
+          "metal": "Gold",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 119,
+          "plan_id": "77566VT0040032-03",
+          "metal": "Gold",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        }
+      ]
+    },
+    {
+      "plan_key": "MVP:MVP VT Plus Silver 1",
+      "source_record": "page=1;issuer=MVP;column=9",
+      "prices": {
+        "single": 129894,
+        "couple": 259788,
+        "adult_children": 250695,
+        "family": 365002
+      },
+      "hios_id": "77566VT0040007",
+      "metal": "Silver",
+      "attributes": [
+        {
+          "source_row": 86,
+          "plan_id": "77566VT0040007-01",
+          "metal": "Silver",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 87,
+          "plan_id": "77566VT0040007-02",
+          "metal": "Silver",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 88,
+          "plan_id": "77566VT0040007-03",
+          "metal": "Silver",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 89,
+          "plan_id": "77566VT0040007-04",
+          "metal": "Silver",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 90,
+          "plan_id": "77566VT0040007-05",
+          "metal": "Silver",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 91,
+          "plan_id": "77566VT0040007-06",
+          "metal": "Silver",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        }
+      ]
+    },
+    {
+      "plan_key": "MVP:MVP VT Plus Bronze 1",
+      "source_record": "page=1;issuer=MVP;column=10",
+      "prices": {
+        "single": 86223,
+        "couple": 172446,
+        "adult_children": 166410,
+        "family": 242287
+      },
+      "hios_id": "77566VT0040011",
+      "metal": "Expanded Bronze",
+      "attributes": [
+        {
+          "source_row": 98,
+          "plan_id": "77566VT0040011-01",
+          "metal": "Expanded Bronze",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 99,
+          "plan_id": "77566VT0040011-02",
+          "metal": "Expanded Bronze",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 100,
+          "plan_id": "77566VT0040011-03",
+          "metal": "Expanded Bronze",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        }
+      ]
+    },
+    {
+      "plan_key": "MVP:MVP VT Plus Bronze 5",
+      "source_record": "page=1;issuer=MVP;column=11",
+      "prices": {
+        "single": 82414,
+        "couple": 164828,
+        "adult_children": 159059,
+        "family": 231583
+      },
+      "hios_id": "77566VT0040026",
+      "metal": "Expanded Bronze",
+      "attributes": [
+        {
+          "source_row": 114,
+          "plan_id": "77566VT0040026-01",
+          "metal": "Expanded Bronze",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 115,
+          "plan_id": "77566VT0040026-02",
+          "metal": "Expanded Bronze",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 116,
+          "plan_id": "77566VT0040026-03",
+          "metal": "Expanded Bronze",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        }
+      ]
+    },
+    {
+      "plan_key": "MVP:MVP VT Plus Gold 3 HDHP",
+      "source_record": "page=1;issuer=MVP;column=12",
+      "prices": {
+        "single": 120515,
+        "couple": 241030,
+        "adult_children": 232594,
+        "family": 338647
+      },
+      "hios_id": "77566VT0040023",
+      "metal": "Gold",
+      "attributes": [
+        {
+          "source_row": 102,
+          "plan_id": "77566VT0040023-01",
+          "metal": "Gold",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 103,
+          "plan_id": "77566VT0040023-02",
+          "metal": "Gold",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 104,
+          "plan_id": "77566VT0040023-03",
+          "metal": "Gold",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        }
+      ]
+    },
+    {
+      "plan_key": "MVP:MVP VT Plus Silver 2 HDHP",
+      "source_record": "page=1;issuer=MVP;column=13",
+      "prices": {
+        "single": 135713,
+        "couple": 271426,
+        "adult_children": 261926,
+        "family": 381354
+      },
+      "hios_id": "77566VT0040024",
+      "metal": "Silver",
+      "attributes": [
+        {
+          "source_row": 105,
+          "plan_id": "77566VT0040024-01",
+          "metal": "Silver",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 106,
+          "plan_id": "77566VT0040024-02",
+          "metal": "Silver",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 107,
+          "plan_id": "77566VT0040024-03",
+          "metal": "Silver",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 108,
+          "plan_id": "77566VT0040024-04",
+          "metal": "Silver",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 109,
+          "plan_id": "77566VT0040024-05",
+          "metal": "Silver",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        },
+        {
+          "source_row": 110,
+          "plan_id": "77566VT0040024-06",
+          "metal": "Silver",
+          "exchange": "Both",
+          "child_only_offering": "Allows Adult and Child-Only",
+          "ehb_fraction": "99%"
+        }
+      ]
+    }
+  ]
+}

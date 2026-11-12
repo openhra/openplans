@@ -2,7 +2,10 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   test: {
-    dir: "tests",
+    include: [
+      "tests/**/*.{test,spec}.?(c|m)[jt]s?(x)",
+      "plugins/*/tests/**/*.test.ts",
+    ],
     setupFiles: ["tests/response-columns.setup.ts"],
     pool: "forks",
     minWorkers: 1,

@@ -1,10 +1,13 @@
 import { homedir } from "node:os";
-import { readFile, readdir } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import {
   AdmissionSession,
   fetchToCache,
+  payloadLocation,
+  readCachedText,
   shippedManifestPaths,
+  sidecarNames,
 } from "../../fetch/index.js";
 import type { FetchOptions, SnapshotMetadata } from "../../fetch/index.js";
 import {
@@ -52,17 +55,22 @@ export function medicareSession(
   );
 }
 
-/** Snapshots already in the cache for one family, newest release label first. */
+/**
+ * Snapshots already in the cache for one family, newest release label first. Sidecars are read
+ * through the fetch cache's store. With a remote store `path` is where the payload will be once
+ * `ensureCachedPayload` copies it down, so listing never downloads an archive.
+ */
 export async function cachedArchives(
   family: MedicareFamily,
   dataDir = dataDirectory(),
 ): Promise<CachedArchive[]> {
-  const directory = join(dataDir, "raw", sourceIds[family]);
+  const source = sourceIds[family];
   const found: CachedArchive[] = [];
-  for (const name of await readdir(directory).catch(() => [] as string[])) {
-    if (!name.endsWith(".meta.json")) continue;
+  for (const name of await sidecarNames(dataDir, source).catch(
+    () => [] as string[],
+  )) {
     const metadata = JSON.parse(
-      await readFile(join(directory, name), "utf8"),
+      await readCachedText(dataDir, source, name),
     ) as SnapshotMetadata;
     const archive = parseArchiveUrl(metadata.url);
     if (
@@ -74,7 +82,7 @@ export async function cachedArchives(
     found.push({
       archive,
       metadata,
-      path: join(directory, metadata.snapshot_id, "payload"),
+      path: payloadLocation(dataDir, source, metadata.snapshot_id),
     });
   }
   return found.sort(

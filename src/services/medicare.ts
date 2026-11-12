@@ -12,6 +12,13 @@ import { countyMap } from "../ingest/medicare/county-codes.js";
 import * as v from "../api/validation.js";
 import { ReadError } from "./errors.js";
 import { partDDrug, partDPharmacies, partDStatus } from "./medicare-part-d.js";
+import {
+  drugCostCapability,
+  drugCostDeps,
+  drugCostEnabled,
+  drugCostEstimate,
+} from "./medicare-drug-cost.js";
+import type { DrugCostDeps } from "./medicare-drug-cost.js";
 
 export const pageSize = 50;
 const types: Record<string, string> = {
@@ -745,6 +752,16 @@ export async function medicareAvailability(db: SqlSession) {
           plan_crosswalk: status("crosswalk"),
           provider_network: providerNetwork,
           part_d_drug_data: await partDStatus(db, year),
+          // Only with the estimator switch on, so the default answer keeps its shape.
+          ...(drugCostEnabled()
+            ? {
+                part_d_drug_cost_estimates: await drugCostCapability(
+                  db,
+                  year,
+                  of("pbp"),
+                ),
+              }
+            : {}),
           excluded: [
             "employer_group_plans",
             "national_pace",
@@ -796,4 +813,23 @@ export async function getMedicarePharmacies(
     contract_year: year,
     ...(await partDPharmacies(db, key, year, zip)),
   };
+}
+
+/**
+ * POST /v1/medicare/plans/{key}/drug-cost-estimates. Validates the year, key and body before any
+ * read, then checks the plan exists like the other plan routes. The body is a personal schedule:
+ * it is never stored or logged.
+ */
+export async function estimateMedicareDrugCost(
+  db: SqlSession,
+  id: unknown,
+  params: Record<string, string>,
+  body: unknown,
+  deps: DrugCostDeps = drugCostDeps,
+) {
+  const year = medicareYear(params.year);
+  const key = planKey(id);
+  const input = deps.parse(body);
+  await planRow(db, key, year);
+  return drugCostEstimate(db, key, year, input, deps);
 }

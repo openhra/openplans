@@ -100,15 +100,22 @@ export function preparedQhpFetcher(profile: QhpProfile): typeof fetchToCache {
 }
 
 export function preparedQhpOutcome(report: Record<string, unknown>): boolean {
+  const reasons =
+    typeof report.reason === "string" && report.reason.length > 0
+      ? report.reason.split(",")
+      : [];
   return (
     report.completeness === "complete" ||
     (report.status === "QUARANTINED" &&
-      typeof report.reason === "string" &&
-      report.reason.length > 0 &&
-      !report.reason
-        .split(",")
-        .some((reason) =>
-          ["issuer_import_failed", "run_budget_exceeded"].includes(reason),
-        ))
+      reasons.length > 0 &&
+      !reasons.some((reason) =>
+        ["issuer_import_failed", "run_budget_exceeded"].includes(reason),
+      )) ||
+    // Only invalid-NPI records were dropped. The set publishes its positive rows and stays
+    // labelled partial, so absence there stays unknown. Any other partial reason still fails.
+    (report.status === "ACTIVE" &&
+      report.completeness === "partial" &&
+      reasons.length > 0 &&
+      reasons.every((reason) => reason === "source_records_rejected"))
   );
 }

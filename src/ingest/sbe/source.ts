@@ -1,7 +1,11 @@
 import { createHash } from "node:crypto";
-import { readFile, readdir } from "node:fs/promises";
-import { join } from "node:path";
-import { fetchToCache } from "../../fetch/index.js";
+import { readFile } from "node:fs/promises";
+import {
+  cachedPayloadPath,
+  fetchToCache,
+  readCachedText,
+  sidecarNames,
+} from "../../fetch/index.js";
 import type { SnapshotMetadata } from "../../fetch/index.js";
 import type { ImportFile, ImportKind } from "../puf/import-source.js";
 import { IMPORT_KINDS, verifyImportFile } from "../puf/import-source.js";
@@ -88,7 +92,7 @@ export async function sbePublications(
   const sha = await cachedHash(dataDir, source, SBE_LANDING);
   if (!network) {
     if (!sha) throw new Error("No cached SBE publication page");
-    const bytes = await readFile(join(dataDir, "raw", source, sha, "payload"));
+    const bytes = await readFile(await cachedPayloadPath(dataDir, source, sha));
     if (createHash("sha256").update(bytes).digest("hex") !== sha)
       throw new Error("SBE page cache integrity failed");
     return [2026, 2027].flatMap((year) =>
@@ -132,17 +136,11 @@ export async function cachedSbe(
   dataDir: string,
 ): Promise<ImportFile[]> {
   for (const source of ["cms-sbe-puf", "cms-sbe-ga-2026"]) {
-    let names: string[];
-    try {
-      names = await readdir(join(dataDir, "raw", source));
-    } catch (e) {
-      if ((e as NodeJS.ErrnoException).code === "ENOENT") continue;
-      throw e;
-    }
+    // Through the fetch cache's store: a source with nothing stored lists no sidecars.
     const matches: SnapshotMetadata[] = [];
-    for (const name of names.filter((name) => name.endsWith(".meta.json"))) {
+    for (const name of await sidecarNames(dataDir, source)) {
       const m = JSON.parse(
-        await readFile(join(dataDir, "raw", source, name), "utf8"),
+        await readCachedText(dataDir, source, name),
       ) as SnapshotMetadata;
       if (m.url === link.url) matches.push(m);
     }
@@ -151,7 +149,10 @@ export async function cachedSbe(
     )[0];
     if (m)
       return bundleFiles(
-        join(dataDir, "raw", source, m.sha256, "payload"),
+        await cachedPayloadPath(dataDir, source, m.sha256, {
+          bytes: m.bytes,
+          sha256: m.sha256,
+        }),
         m,
         link.state,
       );

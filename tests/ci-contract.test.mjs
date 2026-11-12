@@ -1,6 +1,13 @@
 import { expect, it } from "vitest";
 import { spawnSync } from "node:child_process";
-import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import {
+  mkdtemp,
+  mkdir,
+  readdir,
+  readFile,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -176,6 +183,145 @@ it("pins the same Node and npm versions for project and Docker checks", async ()
   expect(docker).toContain(installNpm);
   const ci = await readFile(join(root, "scripts/ci.sh"), "utf8");
   expect(ci).toContain("export npm_config_offline=true");
+});
+
+it("builds workspace packages before core and discovers their tests", async () => {
+  const pkg = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
+  expect(pkg.workspaces).toEqual(["plugins/*"]);
+  expect(pkg.scripts.build).toBe(
+    "npm run build:plugins && tsc -p tsconfig.build.json",
+  );
+  expect(pkg.scripts["build:sdk"]).toBe(
+    "npm run build -w @openplans/plugin-sdk",
+  );
+  expect(pkg.scripts["build:plugins"]).toBe(
+    "npm run build:sdk && npm run build --workspaces --if-present",
+  );
+  expect(pkg.scripts.pretypecheck).toBe("npm run build:plugins");
+  const sdk = JSON.parse(
+    await readFile(join(root, "plugins/sdk/package.json"), "utf8"),
+  );
+  expect(pkg.dependencies[sdk.name]).toBe(sdk.version);
+  const lock = JSON.parse(
+    await readFile(join(root, "package-lock.json"), "utf8"),
+  );
+  expect(lock.packages["node_modules/@openplans/plugin-sdk"]).toEqual({
+    resolved: "plugins/sdk",
+    link: true,
+  });
+  const config = (await import("../vitest.config.ts")).default;
+  expect(config.test.dir).toBeUndefined();
+  expect(config.test.include).toContain("plugins/*/tests/**/*.test.ts");
+});
+
+const installScripts = ["preinstall", "install", "postinstall", "prepare"];
+
+// npm does not order workspace lifecycle scripts by dependency, so during `npm ci` a plugin's
+// install-time build can run before the SDK exists. Only the SDK may build on install, and
+// plugins may depend on no workspace package but the SDK, so "SDK first, then the rest" holds.
+function installOrderProblems(packages, sdkName) {
+  const names = new Set(packages.map(({ manifest }) => manifest.name));
+  const problems = [];
+  for (const { dir, manifest } of packages) {
+    if (manifest.name === sdkName) {
+      if (
+        Object.keys(manifest.dependencies ?? {}).some((name) => names.has(name))
+      )
+        problems.push(`${dir}: SDK depends on a workspace package`);
+      continue;
+    }
+    for (const script of installScripts) {
+      if (manifest.scripts?.[script])
+        problems.push(`${dir}: ${script} script runs before the SDK is built`);
+    }
+    for (const section of [
+      "dependencies",
+      "devDependencies",
+      "peerDependencies",
+    ]) {
+      for (const name of Object.keys(manifest[section] ?? {})) {
+        if (names.has(name) && name !== sdkName)
+          problems.push(`${dir}: depends on workspace package ${name}`);
+      }
+    }
+  }
+  return problems;
+}
+
+it("builds only the SDK during install so a clean npm ci never needs a missing SDK", async () => {
+  const plugins = join(root, "plugins");
+  const packages = [];
+  for (const dir of (await readdir(plugins, { withFileTypes: true }))
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name)
+    .sort()) {
+    const manifest = JSON.parse(
+      await readFile(join(plugins, dir, "package.json"), "utf8"),
+    );
+    packages.push({ dir: `plugins/${dir}`, manifest });
+  }
+  const sdk = packages.find(({ dir }) => dir === "plugins/sdk");
+  expect(sdk.manifest.scripts.prepare).toBe("npm run build");
+  expect(packages.length).toBeGreaterThan(1);
+  expect(installOrderProblems(packages, sdk.manifest.name)).toEqual([]);
+
+  // Negative controls: each planted mutant must be reported.
+  const mutate = (dir, change) =>
+    packages.map((entry) =>
+      entry.dir === dir
+        ? { dir, manifest: change(structuredClone(entry.manifest)) }
+        : entry,
+    );
+  const plugin = packages.find(({ dir }) => dir !== "plugins/sdk").dir;
+  for (const script of installScripts) {
+    const mutant = mutate(plugin, (manifest) => {
+      manifest.scripts = { ...manifest.scripts, [script]: "npm run build" };
+      return manifest;
+    });
+    expect(installOrderProblems(mutant, sdk.manifest.name)).toEqual([
+      `${plugin}: ${script} script runs before the SDK is built`,
+    ]);
+  }
+  const other = packages.find(
+    ({ dir }) => dir !== "plugins/sdk" && dir !== plugin,
+  ).manifest.name;
+  const chained = mutate(plugin, (manifest) => {
+    manifest.dependencies = { ...manifest.dependencies, [other]: "0.1.0" };
+    return manifest;
+  });
+  expect(installOrderProblems(chained, sdk.manifest.name)).toEqual([
+    `${plugin}: depends on workspace package ${other}`,
+  ]);
+});
+
+it("packages workspace manifests before install and retains only runtime plugin files", async () => {
+  const docker = await readFile(join(root, "Dockerfile"), "utf8");
+  expect(docker.indexOf("COPY plugins ./plugins")).toBeLessThan(
+    docker.indexOf("&& npm ci"),
+  );
+  expect(
+    docker.indexOf(
+      "COPY scripts/source-mutation.mjs scripts/source-mutation.d.mts ./scripts/",
+    ),
+  ).toBeGreaterThan(-1);
+  expect(
+    docker.indexOf(
+      "COPY scripts/source-mutation.mjs scripts/source-mutation.d.mts ./scripts/",
+    ),
+  ).toBeLessThan(docker.indexOf("RUN npm run build"));
+  expect(docker.indexOf("COPY plugins ./plugins")).toBeLessThan(
+    docker.indexOf("RUN npm run build"),
+  );
+  expect(docker).toContain(
+    "-name dist -o -name package.json -o -name migrations",
+  );
+  expect(docker).toContain(
+    "COPY --from=build --chown=node:node /runtime/plugins ./plugins",
+  );
+  const ignore = await readFile(join(root, ".dockerignore"), "utf8");
+  for (const path of ["**/node_modules", "**/dist", "**/.env", "**/.env.*"]) {
+    expect(ignore.split("\n")).toContain(path);
+  }
 });
 
 it.each([

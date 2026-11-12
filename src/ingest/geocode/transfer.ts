@@ -1,12 +1,16 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { createReadStream } from "node:fs";
-import { open, readFile, rename, rm } from "node:fs/promises";
+import { open, rename, rm } from "node:fs/promises";
 import { createInterface } from "node:readline";
-import { join } from "node:path";
 import type { Database, SqlSession } from "../../db/database.js";
 import { rowJson } from "../../db/row-provenance.js";
-import { assertSnapshotAdmissible } from "../../fetch/index.js";
+import {
+  assertSnapshotAdmissible,
+  cachedPayloadPath,
+  payloadLocation,
+  readCachedText,
+} from "../../fetch/index.js";
 import { geocodeState, geocodeStates, checkCountyPoint } from "./counties.js";
 import type { County } from "./counties.js";
 import { createRun, stageStatewide, publishStatewide } from "./statewide.js";
@@ -52,9 +56,10 @@ export async function verifyTransferSnapshot(snapshot: Row, root: string) {
     "unsupported transfer source",
   );
   assert.match(String(snapshot.sha256), /^[a-f0-9]{64}$/);
-  const dir = join(root, "raw", String(snapshot.source_id));
+  // The sidecar and payload are read through the fetch cache's store, local or remote.
+  const source = String(snapshot.source_id);
   const metadata = JSON.parse(
-    await readFile(join(dir, snapshot.sha256 + ".meta.json"), "utf8"),
+    await readCachedText(root, source, snapshot.sha256 + ".meta.json"),
   );
   assert.equal(metadata.source, snapshot.source_id);
   assert.equal(metadata.snapshot_id, snapshot.sha256);
@@ -65,7 +70,10 @@ export async function verifyTransferSnapshot(snapshot: Row, root: string) {
   const hash = createHash("sha256");
   let bytes = 0;
   for await (const chunk of createReadStream(
-    join(dir, metadata.sha256, "payload"),
+    await cachedPayloadPath(root, source, metadata.sha256, {
+      bytes: metadata.bytes,
+      sha256: metadata.sha256,
+    }),
   )) {
     hash.update(chunk);
     bytes += chunk.length;
@@ -308,13 +316,7 @@ export async function importGeocodes(
   );
   const snapshots = header.snapshots.map((s) => ({
     ...s,
-    raw_path: join(
-      root,
-      "raw",
-      String(s.source_id),
-      String(s.sha256),
-      "payload",
-    ),
+    raw_path: payloadLocation(root, String(s.source_id), String(s.sha256)),
   }));
   await db.transaction(async (tx) => {
     await insertRows(tx, "source", header.sources);

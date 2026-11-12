@@ -1,0 +1,150 @@
+{
+  "schemaVersion": 1,
+  "cacheSource": "cms-partd-rules",
+  "documents": [
+    {
+      "id": "C1",
+      "title": "Prescription Drug Plan Formulary, Pharmacy Network, and Pricing Information Files: record layout, CY 2026",
+      "use": "Field layouts for the 2026 quarterly plan, formulary, cost, insulin, network and pricing files",
+      "publisher": "Centers for Medicare & Medicaid Services",
+      "url": "https://data.cms.gov/sites/default/files/2025-10/83da019f-fa24-483e-87de-cc089780a6a5/SPUFRecordLayout-2026.pdf",
+      "contentType": "application/pdf",
+      "sha256": "6d54cd9b336cc919cc03de2434c57014557fa9495b5ebfad8b029c4dd57bcb79",
+      "bytes": 267685,
+      "retrievedOn": "2026-11-11",
+      "lastModified": "Wed, 01 Oct 2025 13:24:49 GMT"
+    },
+    {
+      "id": "C2",
+      "title": "Prescription Drug Plan Formulary and Pharmacy Network Information Files: record layout, CY 2027",
+      "use": "Field layouts for the 2027 monthly plan, formulary, cost, insulin, excluded-drug and indication files",
+      "publisher": "Centers for Medicare & Medicaid Services",
+      "url": "https://data.cms.gov/sites/default/files/2026-10/PUFRecordLayout-2027.pdf",
+      "contentType": "application/pdf",
+      "sha256": "ec4a56883ab56e159737a10ba704fe878f21b6eac560102f99da08675ab93ead",
+      "bytes": 243911,
+      "retrievedOn": "2026-11-11",
+      "lastModified": "Thu, 08 Oct 2026 13:15:42 GMT"
+    },
+    {
+      "id": "C3",
+      "title": "Prescription Drug Plan Formulary, Pharmacy Network, and Pricing Information Files: methodology, 2026",
+      "use": "Suppression, file list and pricing caveats",
+      "publisher": "Centers for Medicare & Medicaid Services",
+      "url": "https://data.cms.gov/sites/default/files/2025-10/cf6b8476-ca42-48c6-9fc4-281b08c6ea87/Methodology-SPUF-2026.pdf",
+      "contentType": "application/pdf",
+      "sha256": "e9aa15469a3e0e33a44818cc4e9a44509ef101ba3d0ddbed7e559c8f2b200821",
+      "bytes": 121203,
+      "retrievedOn": "2026-11-11",
+      "lastModified": "Wed, 01 Oct 2025 13:58:18 GMT"
+    },
+    {
+      "id": "C4",
+      "title": "Final CY 2026 Part D Redesign Program Instructions",
+      "use": "2026 defined standard benefit phases and cost sharing",
+      "publisher": "Centers for Medicare & Medicaid Services",
+      "url": "https://www.cms.gov/files/document/finalcalendaryear2026partdredesignprograminstructionsg.pdf",
+      "contentType": "application/pdf",
+      "sha256": "e48ad7fee52468385cbb0ca9f82a578f58a435a96bb57f247252fe4f2a79723a",
+      "bytes": 460891,
+      "retrievedOn": "2026-11-11",
+      "lastModified": "Tue, 15 Apr 2025 14:11:19 GMT"
+    },
+    {
+      "id": "C5",
+      "title": "CY 2027 Rate Announcement",
+      "use": "Finalized 2026 and 2027 defined standard deductible and out-of-pocket threshold",
+      "publisher": "Centers for Medicare & Medicaid Services",
+      "url": "https://www.cms.gov/files/document/2027-announcement.pdf",
+      "contentType": "application/pdf",
+      "sha256": "8bb37a0969062c57600f5cea9a0f2f281ee1377d91444afc36554f58ad0d8504",
+      "bytes": 1622523,
+      "retrievedOn": "2026-11-11",
+      "lastModified": "Mon, 06 Apr 2026 16:22:34 GMT"
+    },
+    {
+      "id": "C6",
+      "title": "Final CY 2025 Part D Redesign Program Instructions",
+      "use": "Continuing TrOOP and benefit-phase rules; its 2025 dollar figures are not used",
+      "publisher": "Centers for Medicare & Medicaid Services",
+      "url": "https://www.cms.gov/files/document/final-cy-2025-part-d-redesign-program-instructions.pdf",
+      "contentType": "application/pdf",
+      "sha256": "6c22e65c51d38048b519b8326f5d24631a8fa090b4d85fc8642232b7ec8556f0",
+      "bytes": 569021,
+      "retrievedOn": "2026-11-11",
+      "lastModified": "Mon, 01 Apr 2024 19:42:04 GMT"
+    },
+    {
+      "id": "C7",
+      "title": "Prescription Drug Event Record Reporting Instructions for the Implementation of the Inflation Reduction Act for Contract Year 2026",
+      "use": "Worked 2026 claim examples",
+      "publisher": "Centers for Medicare & Medicaid Services",
+      "url": "https://www.cms.gov/files/document/prescriptiondrugeventrecordreportinginstructionsg.pdf",
+      "contentType": "application/pdf",
+      "sha256": "a0204ea74694dd1083213fbffb249d066e2902a9cd42441e8c15f7aa86e18337",
+      "bytes": 301520,
+      "retrievedOn": "2026-11-11",
+      "lastModified": "Tue, 22 Apr 2025 13:28:52 GMT"
+    },
+    {
+      "id": "C8",
+      "title": "Fact sheet: Contract Year 2026 Policy and Technical Changes final rule (CMS-4208-F)",
+      "use": "Vaccine and insulin cost-sharing rules",
+      "publisher": "Centers for Medicare & Medicaid Services",
+      "url": "https://www.cms.gov/newsroom/fact-sheets/contract-year-2026-policy-and-technical-changes-medicare-advantage-program-medicare-prescription-final",
+      "contentType": "text/html",
+      "sha256": "95d0d9df997b73ab550596943c7f560aaa8cf8e792724bcbd484749f61e86266",
+      "bytes": 63616,
+      "retrievedOn": "2026-11-11",
+      "lastModified": "Wed, 11 Nov 2026 13:59:03 GMT"
+    },
+    {
+      "id": "C9",
+      "title": "Fact sheet: Contract Year 2027 Medicare Advantage and Part D final rule",
+      "use": "Catastrophic-phase cost sharing codified for 2027 and later",
+      "publisher": "Centers for Medicare & Medicaid Services",
+      "url": "https://www.cms.gov/newsroom/fact-sheets/contract-year-2027-Medicare-advantage-part-d-final-rule",
+      "contentType": "text/html",
+      "sha256": "70aa3acea47ddab6f374954288c3ab04fa9d48565fb4ea943613564f02853041",
+      "bytes": 56499,
+      "retrievedOn": "2026-11-11",
+      "lastModified": "Wed, 11 Nov 2026 13:49:00 GMT"
+    },
+    {
+      "id": "C10",
+      "title": "CY 2027 Advance Notice",
+      "use": "2027 defined standard cost-sharing percentages, read with the final Rate Announcement",
+      "publisher": "Centers for Medicare & Medicaid Services",
+      "url": "https://www.cms.gov/files/document/2027-advance-notice.pdf",
+      "contentType": "application/pdf",
+      "sha256": "0c1e7655f85d25ff84e0bb9b179bd1bde8133f82738ed6bd3c48f2b1b7410b2c",
+      "bytes": 1764448,
+      "retrievedOn": "2026-11-11",
+      "lastModified": "Mon, 26 Jan 2026 21:07:30 GMT"
+    },
+    {
+      "id": "C11",
+      "title": "Additional Prescription Drug Event Record Reporting Examples for the Implementation of the Inflation Reduction Act, CY 2025",
+      "use": "Enhanced alternative boundary cases with 2025 figures; never relabelled as 2026 or 2027",
+      "publisher": "Centers for Medicare & Medicaid Services",
+      "url": "https://www.cms.gov/files/document/additionalprescriptiondrugeventrecordreportingexamplesfortheimplementationoftheinflationreductionact.pdf",
+      "contentType": "application/pdf",
+      "sha256": "c72ab7629f49330593ac422d382a8c8df1cf5173b0c6352308952027403df08c",
+      "bytes": 506778,
+      "retrievedOn": "2026-11-11",
+      "lastModified": "Tue, 17 Dec 2024 17:32:20 GMT"
+    },
+    {
+      "id": "C12",
+      "title": "Additional Prescription Drug Event Record Reporting Examples for the Implementation of the Inflation Reduction Act, CY 2026",
+      "use": "Selected insulin example with lesser-of logic",
+      "publisher": "Centers for Medicare & Medicaid Services",
+      "url": "https://www.cms.gov/files/document/additional-prescription-drug-event-record-reporting-examples-implementation-inflation-reduction-act.pdf",
+      "contentType": "application/pdf",
+      "sha256": "ed255dc087703424824f7bb0edb7a25b39dff3c932057ffc84966bb87b2faaab",
+      "bytes": 2330940,
+      "retrievedOn": "2026-11-11",
+      "lastModified": "Tue, 13 Jan 2026 13:36:33 GMT"
+    }
+  ]
+}

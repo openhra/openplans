@@ -1,0 +1,135 @@
+{
+  "schemaVersion": 1,
+  "years": {
+    "2026": {
+      "greaterOf": {
+        "code": "3",
+        "citations": [
+          {
+            "document": "C13",
+            "section": "PBP data dictionary, pbp_mrx_tier.mrx_tier_cstshr_struct_type (Cost-Share Structure)",
+            "member": "PBP_Benefits_2026_dictionary.xlsx",
+            "sheet": "PBP2026_dictionary (1)",
+            "row": 25630,
+            "quote": "3 Greater of Coinsurance and Copayment"
+          }
+        ]
+      },
+      "lesserOf": {
+        "code": "4",
+        "citations": [
+          {
+            "document": "C13",
+            "section": "PBP data dictionary, pbp_mrx_tier.mrx_tier_cstshr_struct_type (Cost-Share Structure)",
+            "member": "PBP_Benefits_2026_dictionary.xlsx",
+            "sheet": "PBP2026_dictionary (1)",
+            "row": 25631,
+            "quote": "4 Lesser of Coinsurance and Copayment"
+          }
+        ]
+      },
+      "definedStandard": {
+        "code": "1",
+        "citations": [
+          {
+            "document": "C13",
+            "section": "PBP data dictionary, pbp_mrx.mrx_benefit_type (Type of drug benefit)",
+            "member": "PBP_Benefits_2026_dictionary.xlsx",
+            "sheet": "PBP2026_dictionary (1)",
+            "row": 25379,
+            "quote": "1 Defined Standard"
+          }
+        ]
+      },
+      "specialNeedsPlan": {
+        "citations": [
+          {
+            "document": "C1",
+            "section": "Plan Information file, field SNP",
+            "page": 3,
+            "quote": "Is this a Special Needs Plan and, if so, what type? (0=Not a SNP, 1=Chronic or Disabling Condition, 2=Dual-Eligible, 3=Institutional)"
+          }
+        ]
+      },
+      "lisMaximumCopays": {
+        "genericUpTo100FplCents": 160,
+        "otherUpTo100FplCents": 490,
+        "genericAbove100FplCents": 510,
+        "otherAbove100FplCents": 1265,
+        "citations": [
+          {
+            "document": "C5",
+            "section": "Attachment V, Table V-2, 2026 column: maximum copayments for non-institutionalized full-benefit dual eligible beneficiaries",
+            "page": 95,
+            "quote": "Up to or at 100% FPL: Generic/Preferred Multi-Source Drug $1.60, Other $4.90. Between 100% and 150% of FPL: Generic/Preferred Multi-Source Drug $5.10, Other $12.65"
+          }
+        ]
+      }
+    },
+    "2027": {
+      "greaterOf": {
+        "code": "3",
+        "citations": [
+          {
+            "document": "C14",
+            "section": "PBP data dictionary, pbp_mrx_tier.mrx_tier_cstshr_struct_type (Cost-Share Structure)",
+            "member": "PBP_Benefits_2027_dictionary.xlsx",
+            "sheet": "PBP_Benefits_2027_dictionary",
+            "row": 26821,
+            "quote": "3 Greater of Coinsurance and Copayment"
+          }
+        ]
+      },
+      "lesserOf": {
+        "code": "4",
+        "citations": [
+          {
+            "document": "C14",
+            "section": "PBP data dictionary, pbp_mrx_tier.mrx_tier_cstshr_struct_type (Cost-Share Structure)",
+            "member": "PBP_Benefits_2027_dictionary.xlsx",
+            "sheet": "PBP_Benefits_2027_dictionary",
+            "row": 26822,
+            "quote": "4 Lesser of Coinsurance and Copayment"
+          }
+        ]
+      },
+      "definedStandard": {
+        "code": "1",
+        "citations": [
+          {
+            "document": "C14",
+            "section": "PBP data dictionary, pbp_mrx.mrx_benefit_type (Type of drug benefit)",
+            "member": "PBP_Benefits_2027_dictionary.xlsx",
+            "sheet": "PBP_Benefits_2027_dictionary",
+            "row": 26544,
+            "quote": "1 Defined Standard"
+          }
+        ]
+      },
+      "specialNeedsPlan": {
+        "citations": [
+          {
+            "document": "C2",
+            "section": "Plan Information file, field SNP",
+            "page": 3,
+            "quote": "Is this a Special Needs Plan and, if so, what type? (0=Not a SNP, 1=Chronic or Disabling Condition, 2=Dual-Eligible, 3=Institutional)"
+          }
+        ]
+      },
+      "lisMaximumCopays": {
+        "genericUpTo100FplCents": 165,
+        "otherUpTo100FplCents": 500,
+        "genericAbove100FplCents": 580,
+        "otherAbove100FplCents": 1440,
+        "citations": [
+          {
+            "document": "C5",
+            "section": "Attachment V, Table V-2, 2027 column: maximum copayments for non-institutionalized full-benefit dual eligible beneficiaries",
+            "page": 95,
+            "quote": "Up to or at 100% FPL: Generic/Preferred Multi-Source Drug $1.65, Other $5.00. Between 100% and 150% of FPL: Generic/Preferred Multi-Source Drug $5.80, Other $14.40"
+          }
+        ]
+      }
+    }
+  }
+}

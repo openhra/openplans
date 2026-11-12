@@ -12,5 +12,11 @@
     "forceConsistentCasingInFileNames": true,
     "outDir": "dist"
   },
-  "include": ["src/**/*.ts", "tests/**/*.ts", "vitest.config.ts"]
+  "include": [
+    "src/**/*.ts",
+    "tests/**/*.ts",
+    "vitest.config.ts",
+    "plugins/*/src/**/*.ts",
+    "plugins/*/tests/**/*.ts"
+  ]
 }

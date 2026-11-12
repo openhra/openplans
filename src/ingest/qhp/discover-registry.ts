@@ -1,8 +1,15 @@
 import { createHash, randomUUID } from "node:crypto";
 import { createReadStream } from "node:fs";
-import { link, mkdir, open, readFile, readdir, rm } from "node:fs/promises";
+import { link, mkdir, open, rm } from "node:fs/promises";
 import { isAbsolute, join } from "node:path";
-import { FetchError, inspectZip, streamZipMember } from "../../fetch/index.js";
+import {
+  cachedNames,
+  cachedPayloadPath,
+  FetchError,
+  inspectZip,
+  readCachedText,
+  streamZipMember,
+} from "../../fetch/index.js";
 import type { SnapshotMetadata } from "../../fetch/index.js";
 import type { PufManifest } from "../puf/acquire.js";
 import { readXlsxRows } from "../xlsx/index.js";
@@ -37,14 +44,15 @@ export async function cachedRegistry(
   year: number,
 ): Promise<RegistryInput> {
   if (!isAbsolute(dataDir)) throw new Error("Absolute data directory required");
-  const directory = join(dataDir, "raw", "cms-exchange-puf");
-  const name = (await readdir(directory))
+  // The manifest and the snapshot it names are read through the fetch cache's store.
+  const source = "cms-exchange-puf";
+  const name = (await cachedNames(dataDir, source, { missing: "throw" }))
     .filter((name) => /^manifest-.*\.json$/.test(name))
     .sort()
     .at(-1);
   if (!name) throw new Error("No acquired PUF manifest");
   const manifest = JSON.parse(
-    await readFile(join(directory, name), "utf8"),
+    await readCachedText(dataDir, source, name),
   ) as PufManifest;
   if (manifest.schema_version !== 1 || manifest.dry_run)
     throw new Error("Invalid PUF manifest");
@@ -62,7 +70,7 @@ export async function cachedRegistry(
   )
     throw new Error("Missing registry snapshot");
   const metadata = JSON.parse(
-    await readFile(join(directory, `${record.snapshot_id}.meta.json`), "utf8"),
+    await readCachedText(dataDir, source, `${record.snapshot_id}.meta.json`),
   ) as SnapshotMetadata;
   if (
     metadata.sha256 !== record.sha256 ||
@@ -70,7 +78,13 @@ export async function cachedRegistry(
     metadata.url !== record.url
   )
     throw new Error("Registry manifest mismatch");
-  return { path: join(directory, record.snapshot_id, "payload"), metadata };
+  return {
+    path: await cachedPayloadPath(dataDir, source, record.snapshot_id, {
+      bytes: metadata.bytes,
+      sha256: metadata.sha256,
+    }),
+    metadata,
+  };
 }
 
 /** An extracted workbook is a bounded derivative of the immutable P1a ZIP, never a new download. */

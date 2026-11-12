@@ -75,7 +75,7 @@ For a standalone import use `worker ingest taxonomy --accept-nucc-terms`. These
 flags acknowledge operator responsibility; they do not obtain a licence. Without
 that import, responses retain NPPES codes with `display_name: null` and
 `taxonomy_source: nppes_code_only`. Search by code works; specialty name search
-returns `unsupported_without_taxonomy`. See the [taxonomy guide](../src/ingest/taxonomy/README.md).
+returns `unsupported_without_taxonomy`. See the [taxonomy guide](../plugins/source-nucc-taxonomy/README.md).
 Provider identity enrichment and bootstrap Census geocoding support all 50 states and DC.
 Issuer access restrictions and incomplete feeds remain explicit gaps and can make
 the optional bootstrap return exit 1. See [self-hosting](self-host.md) for

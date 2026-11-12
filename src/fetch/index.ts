@@ -1,3 +1,8 @@
+export { fetchTransient } from "./transient.js";
+export type {
+  TransientFetchOptions,
+  TransientFetchResult,
+} from "./transient.js";
 export { assertSnapshotAdmissible, fetchToCache } from "./cache.js";
 export { cmsFallbackEnabled, shippedManifestPaths } from "./shipped.js";
 export type {
@@ -6,6 +11,21 @@ export type {
   RequestBody,
   SnapshotMetadata,
 } from "./cache.js";
+export {
+  cachedFilePath,
+  cachedNames,
+  cachedPayloadPath,
+  cachedSources,
+  ensureCachedPayload,
+  payloadLocation,
+  readCachedText,
+  recordedPayloadPath,
+  remoteSnapshotStore,
+  sidecarNames,
+  snapshotStore,
+  storeCachedText,
+} from "./snapshots.js";
+export type { SnapshotReadOptions } from "./snapshots.js";
 export { FetchError } from "./errors.js";
 export type { FetchErrorCode, FetchEvidence } from "./errors.js";
 export {

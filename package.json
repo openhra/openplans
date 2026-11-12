@@ -1,6 +1,6 @@
 {
   "name": "openplans",
-  "version": "0.3.8",
+  "version": "0.4.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -15,7 +15,10 @@
     "format:check": "prettier --ignore-path .prettierignore --check .",
     "lint": "eslint . --max-warnings 0 && node scripts/lint-baseline.mjs",
     "check:lint-setup": "node scripts/lint-setup-selftest.mjs",
-    "build": "tsc -p tsconfig.build.json",
+    "build": "npm run build:plugins && tsc -p tsconfig.build.json",
+    "build:sdk": "npm run build -w @openplans/plugin-sdk",
+    "build:plugins": "npm run build:sdk && npm run build --workspaces --if-present",
+    "pretypecheck": "npm run build:plugins",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "start": "node dist/api/server.js",
@@ -35,7 +38,10 @@
     "@modelcontextprotocol/server": "2.4.0",
     "hono": "4.12.8",
     "pg": "8.23.1",
-    "zod": "4.6.7"
+    "zod": "4.6.7",
+    "@openplans/plugin-sdk": "0.1.0",
+    "@openplans/source-cms-marketplace-api": "0.1.0",
+    "@openplans/source-nucc-taxonomy": "0.1.0"
   },
   "devDependencies": {
     "@electric-sql/pglite": "0.5.15",
@@ -50,5 +56,8 @@
     "typescript": "5.9.3",
     "typescript-eslint": "8.72.1",
     "vitest": "2.1.9"
-  }
+  },
+  "workspaces": [
+    "plugins/*"
+  ]
 }

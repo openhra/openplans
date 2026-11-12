@@ -1,3 +1,5 @@
+import { loadConfig } from "../../config/index.js";
+import type { CoreConfig } from "../../config/index.js";
 import { createHash } from "node:crypto";
 import type { MiddlewareHandler } from "hono";
 import type { SqlSession } from "../../db/database.js";
@@ -5,7 +7,10 @@ import { compatKeyHeader, credentialMatches } from "../../compat/v1/auth.js";
 import { dataGeneration } from "./generation.js";
 import { MemoryCache } from "./store.js";
 import type { CacheStats, CacheStore } from "./store.js";
-import { MAX_ENTRY_BYTES, RespCache } from "./resp.js";
+import { MAX_ENTRY_BYTES } from "./resp.js";
+import type { PluginRegistries } from "../../plugins/registries.js";
+import { providerTables, selectCacheStore } from "../../plugins/providers.js";
+import { runWithScope, scopeStoreTtl } from "../../plugins/request-scope.js";
 
 export type CacheOutcome = "hit" | "miss" | "bypass";
 export type ResponseCache = ReturnType<typeof createResponseCache>;
@@ -14,12 +19,24 @@ const caches = new WeakMap<SqlSession, ResponseCache>();
 /** Share the API backend with transport adapters, including request-scoped MCP factories. */
 export function sharedResponseCache(db: SqlSession): ResponseCache {
   return (
-    caches.get(db) ?? createResponseCache(db, process.env.OPENPLANS_API_TOKEN)
+    caches.get(db) ?? createResponseCache(db, loadConfig().tokens.api?.reveal())
   );
+}
+
+/** The cache `createApp` built for this database, if any; it never builds one. */
+export function responseCacheFor(db: SqlSession): ResponseCache | undefined {
+  return caches.get(db);
 }
 
 export interface ResponseCacheOptions {
   store?: CacheStore;
+  config?: CoreConfig;
+  /**
+   * Loaded plugin registries. Their routes are mounted after the core routes; their cache stores
+   * can be selected with `cache.provider`.
+   */
+  plugins?: Pick<PluginRegistries, "routes"> &
+    Partial<Pick<PluginRegistries, "cacheStores" | "sources">>;
 }
 interface Entry {
   body: string;
@@ -56,7 +73,10 @@ export function canonical(value: unknown): string {
       .join(",")}}`;
   return JSON.stringify(value);
 }
-function hasCredentials(value: unknown, publicEvidence = false): boolean {
+export function hasCredentials(
+  value: unknown,
+  publicEvidence = false,
+): boolean {
   const pending = [value];
   while (pending.length) {
     const item = pending.pop();
@@ -93,27 +113,38 @@ function publicDto(value: unknown): boolean {
     );
   return true;
 }
-function ttl(method: string, path: string): number | undefined {
-  if (method === "GET") {
+// Response TTLs by "METHOD /path". Core entries are fixed; plugin routes add theirs (design 5.5).
+const CORE_TTLS: readonly (readonly [string, number])[] = [
+  ["GET /v1/plans", 60],
+  ["GET /v1/providers", 60],
+  ["GET /v1/drugs", 60],
+  ["GET /compat/v1/drugs", 60],
+  ["GET /v1/zip-counties", 300],
+  ["GET /compat/v1/zip_counties", 300],
+  ["GET /v1/benchmark", 30],
+  ["POST /v1/quotes", 30],
+  ["POST /v1/premium-quotes", 30],
+  ["POST /compat/v1/plans/medical/search", 30],
+  ["POST /compat/v1/plans/dental/search", 30],
+  ["POST /compat/v1/providers/search", 60],
+];
+/** Core entries plus public plugin routes that declare `cache`. Operator routes are never stored. */
+export function ttlTable(
+  routes: PluginRegistries["routes"] = [],
+): ReadonlyMap<string, number> {
+  const table = new Map<string, number>(CORE_TTLS);
+  for (const { spec } of routes) {
+    const key = `${spec.method} ${spec.path}`;
     if (
-      ["/v1/plans", "/v1/providers", "/v1/drugs", "/compat/v1/drugs"].includes(
-        path,
-      )
+      spec.exposure === "public" &&
+      spec.cache &&
+      Number.isSafeInteger(spec.cache.ttlSeconds) &&
+      spec.cache.ttlSeconds > 0 &&
+      !table.has(key)
     )
-      return 60;
-    if (["/v1/zip-counties", "/compat/v1/zip_counties"].includes(path))
-      return 300;
-    if (path === "/v1/benchmark") return 30;
+      table.set(key, spec.cache.ttlSeconds);
   }
-  if (method === "POST") {
-    if (
-      ["/v1/quotes", "/v1/premium-quotes"].includes(path) ||
-      /^\/compat\/v1\/plans\/(medical|dental)\/search$/.test(path)
-    )
-      return 30;
-    if (path === "/compat/v1/providers/search") return 60;
-  }
-  return undefined;
+  return table;
 }
 async function boundedText(response: Response): Promise<string | undefined> {
   const reader = response.body?.getReader();
@@ -141,25 +172,26 @@ export function createResponseCache(
   premiumToken?: string,
   options: ResponseCacheOptions = {},
 ) {
-  const disabled = process.env.OPENPLANS_API_CACHE === "off";
-  const mb = Number(process.env.OPENPLANS_API_CACHE_MB ?? 64);
-  if (!Number.isSafeInteger(mb) || mb < 0 || mb > 4096)
-    throw new Error("OPENPLANS_API_CACHE_MB must be an integer from 0 to 4096");
+  const config = options.config ?? loadConfig();
+  const disabled = !config.cache.enabled;
+  // Design 5.7: off is a zero-byte memory store; otherwise the registry's configured provider.
   const store = disabled
     ? new MemoryCache(0)
     : (options.store ??
-      (process.env.OPENPLANS_CACHE_URL
-        ? new RespCache(process.env.OPENPLANS_CACHE_URL)
-        : new MemoryCache(mb * 1024 * 1024)));
+      selectCacheStore(config, providerTables(options.plugins)));
+  const ttls = ttlTable(options.plugins?.routes);
   const stats: Omit<CacheStats, "bytes"> = { hits: 0, misses: 0, bypasses: 0 };
-  const extraHeader = compatKeyHeader();
+  const extraHeader = compatKeyHeader(config.tokens.compatKeyHeader);
   const bypass: MiddlewareHandler = async (c, next) => {
     stats.bypasses++;
     c.header("X-Cache", "bypass");
     await next();
   };
-  const middleware: MiddlewareHandler = async (c, next) => {
-    const seconds = ttl(c.req.method, c.req.path);
+  // Design 5.10.5: every request runs in a scope, so a pass-through answer's level is known here.
+  const middleware: MiddlewareHandler = (c, next) =>
+    runWithScope(() => respond(c, next));
+  const respond: MiddlewareHandler = async (c, next) => {
+    const seconds = ttls.get(`${c.req.method} ${c.req.path}`);
     if (disabled || !seconds) return bypass(c, next);
     const compat = c.req.path.startsWith("/compat/v1/");
     const personalized = ["/v1/premium-quotes", "/v1/benchmark"].includes(
@@ -167,7 +199,7 @@ export function createResponseCache(
     );
     // Recheck before hits; the routers retain their own authentication and error responses.
     if (compat) {
-      const token = process.env.OPENPLANS_COMPAT_API_KEY;
+      const token = (options.config ?? loadConfig()).tokens.compatKey?.reveal();
       if (
         !token ||
         !(
@@ -271,7 +303,10 @@ export function createResponseCache(
       return bypass(c, next);
     }
     await next();
+    // A `none` or `request` answer is never shared; `memory` shortens the TTL.
+    const ttl = scopeStoreTtl(seconds);
     if (
+      ttl === null ||
       c.res.status !== 200 ||
       c.res.headers.has("set-cookie") ||
       !c.res.headers.get("content-type")?.includes("application/json")
@@ -319,7 +354,7 @@ export function createResponseCache(
         c.res.headers.set("X-Cache", "bypass");
         return;
       }
-      await store.set(key, value, seconds);
+      await store.set(key, value, ttl);
       stats.misses++;
       c.res.headers.set("X-Cache", "miss");
     } catch {
@@ -379,9 +414,13 @@ export function createResponseCache(
       report("bypass");
       return load();
     }
-    let dto: T;
+    // load() runs in its own scope so this entry obeys the levels of the answers inside it.
+    let dto: T, ttl: number | null;
     try {
-      dto = await load();
+      [dto, ttl] = await runWithScope(async () => {
+        const value = await load();
+        return [value, scopeStoreTtl(request.ttlSeconds)] as const;
+      });
     } catch (error) {
       report("bypass");
       throw error;
@@ -392,11 +431,11 @@ export function createResponseCache(
     }
     try {
       const serialized = JSON.stringify(dto);
-      if (Buffer.byteLength(serialized) > MAX_ENTRY_BYTES) {
+      if (ttl === null || Buffer.byteLength(serialized) > MAX_ENTRY_BYTES) {
         report("bypass");
         return dto;
       }
-      await store.set(key, serialized, request.ttlSeconds);
+      await store.set(key, serialized, ttl);
       report("miss");
     } catch {
       report("bypass");

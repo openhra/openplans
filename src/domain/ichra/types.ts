@@ -31,6 +31,7 @@ export type RuleId =
   | "age_safe_harbor"
   | "lowest_age_band"
   | "look_back_month"
+  | "look_back_current_circumstances"
   | "w2_safe_harbor"
   | "rate_of_pay_safe_harbor"
   | "fpl_safe_harbor";

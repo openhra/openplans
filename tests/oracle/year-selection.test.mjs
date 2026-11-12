@@ -24,6 +24,7 @@ const parsers = [
   ["sbe.mjs", "const mutant ="],
   ["medicare.mjs", "const dataDir ="],
   ["medicare-part-d.mjs", "const dataDir ="],
+  ["medicare-cost.mjs", "const dataDir ="],
 ].filter(
   ([name]) => name !== "run.mjs" || existsSync(`scripts/oracle/${name}`),
 );
@@ -62,7 +63,10 @@ it("selects the requested year in every realdata Node entry point without openin
 
 it("rejects unsupported and missing years in the constrained Node parsers and catches a whitelist mutant", async () => {
   for (const [name, end] of parsers.filter(
-    ([name]) => !["medicare.mjs", "medicare-part-d.mjs"].includes(name),
+    ([name]) =>
+      !["medicare.mjs", "medicare-part-d.mjs", "medicare-cost.mjs"].includes(
+        name,
+      ),
   )) {
     const source = await parserSource(name, end);
     for (const args of [["--year", "2024"], ["--year", "2028"], ["--year"]])
@@ -73,7 +77,7 @@ it("rejects unsupported and missing years in the constrained Node parsers and ca
   }
 });
 
-it("dispatches the same shell commands for existing years and routes 2025 through every check", async () => {
+it("dispatches the requested years and runs the NY identity check only for 2026", async () => {
   const bin = join(directory, "bin");
   await mkdir(bin);
   for (const command of ["npm", "node"]) {
@@ -112,6 +116,21 @@ it("dispatches the same shell commands for existing years and routes 2025 throug
       ...years.flatMap((y) =>
         nodeCommand("medicare-part-d", y, ["--max-old-space-size=8192"]),
       ),
+      "node",
+      "node_modules/vitest/vitest.mjs",
+      "run",
+      "tests/ingest/medicare/medicare-cost-oracle.test.ts",
+      ...years.flatMap((y) =>
+        nodeCommand("medicare-cost", y, ["--max-old-space-size=8192"]),
+      ),
+      ...(years.includes(2026)
+        ? [
+            "node",
+            "src/ingest/state/ny-identitycheck.mjs",
+            "node",
+            "src/ingest/state/vt-metalcheck.mjs",
+          ]
+        : []),
       ...years.flatMap((y) => nodeCommand("sbe", y)),
       "PASS",
       "",

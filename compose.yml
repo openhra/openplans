@@ -88,6 +88,10 @@ services:
       OPENPLANS_API_CACHE: ${OPENPLANS_API_CACHE:-on}
       OPENPLANS_API_CACHE_MB: ${OPENPLANS_API_CACHE_MB:-64}
       OPENPLANS_CACHE_URL: ${OPENPLANS_CACHE_URL:-}
+      # Comma-separated plugin packages, e.g. @openplans/plugin-status. Empty loads none.
+      OPENPLANS_PLUGINS: ${OPENPLANS_PLUGINS:-}
+      # Bearer token for /status/operator*. Unset keeps those routes at 404.
+      OPENPLANS_OPERATOR_TOKEN: ${OPENPLANS_OPERATOR_TOKEN:-}
     command: ["node", "dist/api/server.js"]
     ports:
       - "127.0.0.1:${API_PORT:-3000}:3000"
@@ -161,6 +165,40 @@ services:
           create_host_path: false
     entrypoint: ["worker"]
     command: ["status"]
+    depends_on:
+      api:
+        condition: service_healthy
+
+  # Optional: runs `worker schedule run --loop` (deliver-events every minute, plus plugin
+  # schedules). Start it with `docker compose --profile scheduler up -d scheduler`.
+  scheduler:
+    image: ${OPENPLANS_IMAGE:-openplans:local}
+    profiles: ["scheduler"]
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      OPENPLANS_DATA_DIR: /data
+      OPENPLANS_ACCESS_MANIFEST: ${OPENPLANS_ACCESS_MANIFEST:-}
+      OPENPLANS_EGRESS_COUNTRY: ${OPENPLANS_EGRESS_COUNTRY:-}
+    volumes:
+      - type: bind
+        source: ${OPENPLANS_DATA_DIR:-/var/lib/openplans}/raw
+        target: /data/raw
+        read_only: ${OPENPLANS_RAW_READ_ONLY:-true}
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${OPENPLANS_DATA_DIR:-/var/lib/openplans}/reports
+        target: /data/reports
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${OPENPLANS_DATA_DIR:-/var/lib/openplans}/work
+        target: /data/work
+        bind:
+          create_host_path: false
+    entrypoint: ["worker"]
+    command: ["schedule", "run", "--loop"]
+    restart: unless-stopped
     depends_on:
       api:
         condition: service_healthy

@@ -36,6 +36,14 @@ export class MemoryCache implements CacheStore {
       if (entry.expires <= this.now()) this.remove(key);
     return this.size;
   }
+  /**
+   * Test seam: the live keys, oldest first. Tests use it to check each cache namespace
+   * separately. Request handling never calls it.
+   */
+  keys(): string[] {
+    this.bytes();
+    return [...this.entries.keys()];
+  }
   async get(key: string) {
     const entry = this.entries.get(key);
     if (!entry) return null;

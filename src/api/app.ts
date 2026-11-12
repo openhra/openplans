@@ -11,6 +11,8 @@ import { compatRoutes } from "../compat/v1/index.js";
 import { createResponseCache } from "./cache/index.js";
 import type { ResponseCacheOptions } from "./cache/index.js";
 import { publicQuoteAdmission } from "./quotes.js";
+import { loadConfig } from "../config/index.js";
+import { pluginRoutes } from "../plugins/routes.js";
 
 export function createApp(
   db: SqlSession,
@@ -19,8 +21,20 @@ export function createApp(
 ) {
   const app = new Hono();
   const cache = createResponseCache(db, options.premiumToken, cacheOptions);
+  const config = () => cacheOptions?.config ?? loadConfig();
+  const plugins = cacheOptions?.plugins?.routes.length
+    ? pluginRoutes(cacheOptions.plugins, {
+        db,
+        operatorToken: () => config().tokens.operator?.reveal(),
+        trustedProxies: options.trustedProxies ?? config().trustProxy,
+        peerAddress: options.peerAddress,
+        now: options.now,
+      })
+    : undefined;
   // Admission precedes the cache so cached quotes count against the same limits.
   app.use("/v1/quotes", ...publicQuoteAdmission(options));
+  // Plugin exposure and rate limits too; their handlers mount after the core routes.
+  plugins?.guard(app);
   app.use("*", cache.middleware);
 
   app.get("/healthz", async (c) => {
@@ -60,6 +74,7 @@ export function createApp(
   app.route("/", createMcpHttp(db));
   app.route("/v1", nativeRoutes(db, options));
   app.route("/", compatRoutes(db, options));
+  plugins?.mount(app);
 
   app.onError((error, c) => {
     logInternalError(error);

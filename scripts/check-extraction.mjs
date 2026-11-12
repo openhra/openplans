@@ -88,7 +88,12 @@ async function scan(directory) {
     }
     if (entry.name === "package.json") {
       const pkg = JSON.parse(await readFile(path, "utf8"));
-      if (pkg.workspaces)
+      const internalWorkspaces =
+        path === resolve(root, "package.json") &&
+        Array.isArray(pkg.workspaces) &&
+        pkg.workspaces.length === 1 &&
+        pkg.workspaces[0] === "plugins/*";
+      if (pkg.workspaces && !internalWorkspaces)
         failures.push(`${relative(root, path)}: workspace coupling`);
       for (const section of [
         "dependencies",

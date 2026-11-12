@@ -1,6 +1,8 @@
 # Configuration and command reference
 
-Native Node entry points read the process environment. They do not load `.env`.
+Native Node entry points read the process environment and an optional JSON config
+file. They do not load `.env`. Environment variables override core settings in the
+file for migrated settings. Plugin options go in the file.
 Compose reads `.env` for interpolation and forwards only variables listed under
 that service's `environment`. Adding a variable to `.env` alone does not pass it
 into the container. Use `docker compose run --rm -e NAME=value worker ...` for a
@@ -10,6 +12,71 @@ API service in a local Compose override and recreate the service.
 [.env.example](../.env.example) lists placeholders, including native developer
 options. Keep credentials in local environment files. See [self-hosting](self-host.md)
 for publisher reviews, cache mounts, backups and proxy configuration.
+
+## Config file and plugins
+
+| Variable                   | Default and effect                                                                                                                                                             |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `OPENPLANS_CONFIG`         | Optional. Absolute path to a JSON file with `"version": 1` and `"plugins": []`. Core sections use the names in `src/config/index.ts`, such as `listen.port` and `cache.maxMb`. |
+| `OPENPLANS_PLUGINS`        | Optional. Comma-separated package names. Overrides the file's plugin list, with default options. Empty selects no plugins.                                                     |
+| `OPENPLANS_OPERATOR_TOKEN` | Unset. Bearer token for the status plugin's `/status/operator` routes, which answer 404 without one. Use at least 32 random characters.                                        |
+
+The signed webhook plugin reads these variables. See its
+[README](../plugins/webhook/README.md).
+
+| Variable                   | Default and effect                                                                                                                                                                                              |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OPENPLANS_WEBHOOK_HOST`   | Unset. Not secret. The receiver's host name, read when the worker loads the plugin. It is the plugin's only network host and must be `allowed` in an admission manifest. Setup refuses a URL on any other host. |
+| `OPENPLANS_WEBHOOK_URL`    | Required with the plugin. Secret. The receiver's full `https://` URL.                                                                                                                                           |
+| `OPENPLANS_WEBHOOK_SECRET` | Required with the plugin. Secret, 32 characters or more. The HMAC key for `X-OpenPlans-Signature`.                                                                                                              |
+
+The Slack plugin reads these variables. See its [README](../plugins/slack/README.md).
+
+| Variable                      | Default and effect                                                                                                                                                                           |
+| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OPENPLANS_SLACK_HOST`        | `hooks.slack.com`. Not secret. The incoming webhook's host name, read when the worker loads the plugin. It is the plugin's only network host and must be `allowed` in an admission manifest. |
+| `OPENPLANS_SLACK_WEBHOOK_URL` | Required with the plugin. Secret. The incoming webhook URL, on that host. Never logged.                                                                                                      |
+
+This file sets the listener and leaves plugins disabled:
+
+```json
+{
+  "version": 1,
+  "listen": { "port": 3000 },
+  "plugins": []
+}
+```
+
+The typed loader wraps credentials so logs and JSON show `"<set>"`. It freezes the
+result and gives plugins a view without credentials. The API server and the worker
+load the configured plugins at startup. Compose and developer-runner settings are mapped as optional strings;
+their existing readers still apply the defaults listed below. Use environment
+variables for settings read by ingestion commands and REST handlers that have not
+yet moved to the typed loader.
+
+### Database and blob providers
+
+The API server, the worker and the MCP stdio server pick their database and blob
+store by name from the config file, after plugins load. There are no environment
+variables for these names. With no config file, `pg` opens the Postgres pool at
+`DATABASE_URL` and `local` keeps the fetch cache under `OPENPLANS_DATA_DIR`.
+
+```json
+{
+  "version": 1,
+  "db": { "provider": "pg" },
+  "blobs": { "provider": "local" },
+  "plugins": []
+}
+```
+
+A plugin can add another provider. Name it here and list the plugin under
+`plugins`. If no core or plugin provider has the name, startup stops with exit
+code 1 and one line, such as
+`{"plugin":"@openplans/core","code":"plugin_provider_unknown","reason":"db.provider"}`.
+The stdio server keeps no plugin blob stores. A plugin blob store becomes the
+fetch cache's default. The cache stages each download in `blob-spool` and keeps
+read-back copies in `blob-read`, both under `OPENPLANS_DATA_DIR`.
 
 ## Database, listener and cache
 
@@ -28,27 +95,34 @@ for publisher reviews, cache mounts, backups and proxy configuration.
 
 ## Access and optional sources
 
-| Variable                                 | Default and effect                                                                                                                       |
-| ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `OPENPLANS_PUBLIC_QUOTING`               | `on`. `off` disables `/v1/quotes` and MCP `quote_plans`.                                                                                 |
-| `OPENPLANS_PUBLIC_HOUSEHOLD`             | `on`. Anonymous household REST and MCP access when their respective token is unset.                                                      |
-| `OPENPLANS_API_TOKEN`                    | Unset. If set, requires a bearer token for household REST routes, benchmark and ICHRA.                                                   |
-| `OPENPLANS_PUBLIC_COMPAT`                | `on`. Anonymous compatibility access when no compatibility key is set.                                                                   |
-| `OPENPLANS_COMPAT_API_KEY`               | Unset. If set, requires `X-Api-Key` or the configured extra credential header.                                                           |
-| `OPENPLANS_COMPAT_KEY_HEADER`            | Unset. One additional RFC 7230 token header name; invalid values prevent startup.                                                        |
-| `OPENPLANS_COMPAT_CATASTROPHIC_AGE_RULE` | Off. `on` filters catastrophic plans for applicants aged 30 or older unless exempted.                                                    |
-| `OPENPLANS_COMPAT_BENEFIT_TEXT`          | Full cells. `compact` selects short compatibility benefit phrases.                                                                       |
-| `OPENPLANS_CMS_FALLBACK`                 | Off. `on` admits keyed CMS requests and enables coverage fallback with a key.                                                            |
-| `OPENPLANS_CMS_FALLBACK_QUOTES`          | Off. `on` also allows coverage calls for public REST quotes and compatibility medical search; requires the main fallback switch and key. |
-| `CMS_API_KEY`                            | Unset. Enables eligible live ZIP-county lookups; coverage also needs its opt-in switches. No key is needed for bulk imports.             |
-| `OPENPLANS_MEDICARE_PART_D`              | Off. `on` serves loaded Part D drug and pharmacy data after the operator reviews its agreement.                                          |
-| `OPENPLANS_GA_QUOTE_RECOVERY`            | Off. `on` permits the documented Georgia CSV quote recovery and records a warning per recovered row.                                     |
+| Variable                                 | Default and effect                                                                                                                        |
+| ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `OPENPLANS_PUBLIC_QUOTING`               | `on`. `off` disables `/v1/quotes` and MCP `quote_plans`.                                                                                  |
+| `OPENPLANS_PUBLIC_HOUSEHOLD`             | `on`. Anonymous household REST and MCP access when their respective token is unset.                                                       |
+| `OPENPLANS_API_TOKEN`                    | Unset. If set, requires a bearer token for household REST routes, benchmark and ICHRA. The Medicare drug-cost estimate always needs it.   |
+| `OPENPLANS_PUBLIC_COMPAT`                | `on`. Anonymous compatibility access when no compatibility key is set.                                                                    |
+| `OPENPLANS_COMPAT_API_KEY`               | Unset. If set, requires `X-Api-Key` or the configured extra credential header.                                                            |
+| `OPENPLANS_COMPAT_KEY_HEADER`            | Unset. One additional RFC 7230 token header name; invalid values prevent startup.                                                         |
+| `OPENPLANS_COMPAT_CATASTROPHIC_AGE_RULE` | Off. `on` filters catastrophic plans for applicants aged 30 or older unless exempted.                                                     |
+| `OPENPLANS_COMPAT_BENEFIT_TEXT`          | Full cells. `compact` selects short compatibility benefit phrases.                                                                        |
+| `OPENPLANS_CMS_FALLBACK`                 | Off. `on` admits keyed CMS requests and enables coverage fallback with a key.                                                             |
+| `OPENPLANS_CMS_FALLBACK_QUOTES`          | Off. `on` also allows coverage calls for public REST quotes and compatibility medical search; requires the main fallback switch and key.  |
+| `CMS_API_KEY`                            | Unset. Enables eligible live ZIP-county lookups; coverage also needs its opt-in switches. No key is needed for bulk imports.              |
+| `OPENPLANS_MEDICARE_PART_D`              | Off. `on` serves loaded Part D drug and pharmacy data after the operator reviews its agreement.                                           |
+| `OPENPLANS_MEDICARE_DRUG_COST`           | Off. `on` turns on Part D drug-cost estimates. Also needs `OPENPLANS_MEDICARE_PART_D=on` and a Bearer token; see [Medicare](medicare.md). |
+| `OPENPLANS_GA_QUOTE_RECOVERY`            | Off. `on` permits the documented Georgia CSV quote recovery and records a warning per recovered row.                                      |
 
 Public access switches accept `on`, `off` or empty. Empty means on; other values
 fail. A configured REST/MCP token or compatibility key still grants access with
 the corresponding public switch off. Credentials for one protocol do not grant
 access to another. NUCC taxonomy has no enabling environment variable; the
 operator must pass its explicit command-line opt-in.
+
+The Medicare drug-cost estimate is stricter than the household routes and never opens to
+anonymous callers. `POST /v1/medicare/plans/{plan_key}/drug-cost-estimates` needs
+`Authorization: Bearer` with `OPENPLANS_API_TOKEN`. While that token is unset the route answers
+`503 AUTH_NOT_CONFIGURED`. Answers carry `Cache-Control: no-store`, the response cache never keeps
+them and the fill schedule is not logged.
 
 ## MCP tools
 
@@ -72,10 +146,16 @@ With default access, the server lists these 15 tools:
 | `list_carriers_networks`    | List loaded carriers and networks.               |
 | `search_medicare_plans`     | Search loaded Medicare catalogs.                 |
 
+`estimate_medicare_drug_costs` is listed after these only when `OPENPLANS_MEDICARE_PART_D=on` and
+`OPENPLANS_MEDICARE_DRUG_COST=on` and the caller holds the estimate grant. Over HTTP that grant is
+`Authorization: Bearer` with `OPENPLANS_MCP_TOKEN`; household access never grants it. Over stdio it
+follows `OPENPLANS_MCP_ALLOW_PERSONALIZED`. Plugin tools count it against the one-page tool list
+whenever both switches are on. See [Medicare](medicare.md).
+
 | Variable                           | Default and effect                                                                                                                                  |
 | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `OPENPLANS_MCP`                    | On unless `off`, which removes HTTP `/mcp`.                                                                                                         |
-| `OPENPLANS_MCP_TOKEN`              | Unset. If set, HTTP household tools require this bearer token.                                                                                      |
+| `OPENPLANS_MCP_TOKEN`              | Unset. If set, HTTP household tools require this bearer token. Over HTTP the Medicare drug-cost estimate tool needs it.                             |
 | `OPENPLANS_MCP_ALLOW_PERSONALIZED` | Stdio only. `1` grants household tools; `0` withholds them. Unset inherits anonymous household access and withholds tools when an MCP token is set. |
 | `OPENPLANS_MCP_CURSOR_SECRET`      | Random per process. Set a shared private value across replicas for stable cursors.                                                                  |
 | `OPENPLANS_MCP_ALLOWED_HOSTS`      | Loopback names `127.0.0.1`, `localhost`, `[::1]`, with and without `:PORT`. Exact comma-separated authorities.                                      |
@@ -148,6 +228,50 @@ required cache inputs and source-access limits.
 | `ingest rating-rules [--file PATH]`                                                                                                                                                                                                                                        | [Rating rules](../data/rating-rules/README.md). Default file is the TX rule set.                                                                                                                                                                              |
 | `ingest geo [--year 2026\|2027] [--state ST \| --all-states]`, `ingest geo --source geonames`                                                                                                                                                                              | [Geography](../src/ingest/geo/README.md). Defaults TX 2026. GeoNames acquisition remains held.                                                                                                                                                                |
 | `ingest qhp discover --year YEAR --state ST`, `ingest qhp providers\|formulary --year YEAR --state ST (--issuer NNNNN \| --all-readable)`                                                                                                                                  | [Discovery](../src/ingest/qhp/discover-README.md), [providers](../src/ingest/qhp/provider-README.md), [formularies](../src/ingest/qhp/formulary-README.md).                                                                                                   |
-| `ingest nppes --state ST [--kind full\|weekly\|deactivation\|all]`, `ingest rxnorm`, `ingest taxonomy --accept-nucc-terms`                                                                                                                                                 | NPPES defaults to all three update kinds. [NPPES](../src/ingest/nppes/README.md), [RxNorm](../src/ingest/rxnorm/README.md), [taxonomy](../src/ingest/taxonomy/README.md).                                                                                     |
+| `ingest nppes --state ST [--kind full\|weekly\|deactivation\|all]`, `ingest rxnorm`, `ingest taxonomy --accept-nucc-terms`                                                                                                                                                 | NPPES defaults to all three update kinds. [NPPES](../src/ingest/nppes/README.md), [RxNorm](../src/ingest/rxnorm/README.md), [taxonomy](../plugins/source-nucc-taxonomy/README.md).                                                                            |
 | `ingest geocode [--state TX] [--county FIPS] [--zips ZIP,ZIP] [--source npi_address\|qhp_provider_address]`                                                                                                                                                                | [Census and optional geocoders](../src/ingest/geocode/README.md). This legacy command accepts TX counties only and defaults to both address sources. Bootstrap uses the statewide geocoder and accepts all 50 states and DC.                                  |
 | `ingest medicare acquire\|import --year 2026\|2027 [--family landscape\|pbp\|stars\|crosswalk\|service_area] [--service-area-month YYYY-MM]`, `ingest medicare part-d acquire --url URL`, `ingest medicare part-d import --kind quarterly\|monthly [--tables TABLE,TABLE]` | [Medicare](medicare.md).                                                                                                                                                                                                                                      |
+
+### Ingest event source ids
+
+Each `ingest *` command writes `ingest.started`, then `ingest.completed` or
+`ingest.failed`, to the plugin event outbox. `sourceId` is the `source.source_id` row
+the command's arguments name. When the arguments name no single row, it is a fixed
+label instead. `ingest.completed` lists the active snapshots that this run inserted
+or changed the state of, never another run's, up to 1,000 ids.
+
+| Command                                                      | `sourceId`                                                                                                                  |
+| ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------- |
+| `ingest puf import --year YEAR --state ST`                   | `cms-exchange-puf:YEAR:ST`                                                                                                  |
+| `ingest sbe import --year YEAR --state ST`                   | `cms_sbe_puf:YEAR:ST`                                                                                                       |
+| `ingest state --state NY\|VT`                                | `state-rates:ST:2026`                                                                                                       |
+| `ingest qhp providers --year YEAR --state ST --issuer NNNNN` | `qhp-provider-NNNNN-YEAR-ST`                                                                                                |
+| `ingest qhp formulary --year YEAR --state ST --issuer NNNNN` | `qhp-formulary-NNNNN-YEAR-ST`                                                                                               |
+| `ingest qhp discover`                                        | `qhp-registry`                                                                                                              |
+| `ingest medicare acquire\|import --family FAMILY`            | `cms-medicare-landscape`, `cms-medicare-pbp`, `cms-medicare-stars`, `cms-medicare-crosswalk` or `cms-medicare-service-area` |
+| `ingest medicare part-d import --kind KIND`                  | `cms-partd-spuf-quarterly` or `cms-partd-spuf-monthly`                                                                      |
+| `ingest nppes`                                               | `cms-nppes`                                                                                                                 |
+| `ingest rxnorm`                                              | `nlm-rxnorm-prescribe`                                                                                                      |
+| `ingest taxonomy`                                            | `nucc-provider-taxonomy`                                                                                                    |
+| `ingest geocode`                                             | `census-geocoder-batch`                                                                                                     |
+| `ingest geo --source geonames`                               | `geonames-us-postal`                                                                                                        |
+| Feed source commands                                         | The source's registered id                                                                                                  |
+
+Labels, used where no single row exists:
+
+| Label                | Used for                                                                                         |
+| -------------------- | ------------------------------------------------------------------------------------------------ |
+| `cms-exchange-puf`   | `ingest puf acquire`, `ingest puf lineage`, and `ingest puf import --all-states`                 |
+| `cms-sbe-puf`        | `ingest sbe acquire`, `--all-states`, and Georgia, which can import Georgia Access files instead |
+| `state-rates`        | `ingest state` without a valid `--state`                                                         |
+| `qhp-provider`       | `ingest qhp providers --all-readable`                                                            |
+| `qhp-formulary`      | `ingest qhp formulary --all-readable`                                                            |
+| `cms-medicare`       | `ingest medicare` without `--family`, which covers several families                              |
+| `cms-partd-spuf`     | `ingest medicare part-d acquire`                                                                 |
+| `rating-rules`       | `ingest rating-rules`; the row id carries the plan year from inside the rules file               |
+| `census-geographies` | `ingest geo`, which writes several geography sources                                             |
+| Plugin argv words    | A plugin command that declares no `source`, such as `synthetic-feed` for `ingest synthetic-feed` |
+
+The API server and the worker each write `plugin.loaded` at startup when at least one
+plugin loaded. Both use the same idempotency key for a given set of plugin names and
+versions, so each distinct set gets one row.

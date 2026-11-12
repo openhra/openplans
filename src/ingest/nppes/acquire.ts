@@ -1,7 +1,11 @@
 import { homedir } from "node:os";
-import { readFile, readdir } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { fetchToCache } from "../../fetch/index.js";
+import {
+  fetchToCache,
+  readCachedText,
+  sidecarNames,
+} from "../../fetch/index.js";
 import type {
   FetchOptions,
   SnapshotMetadata,
@@ -77,11 +81,12 @@ export async function acquireRelease(
   dependencies: FetchDependencies = {},
 ): Promise<AcquiredRelease> {
   let expectedSha256: string | undefined;
-  const root = join(dataDir, "raw", sourceId);
-  for (const name of await readdir(root).catch(() => [] as string[])) {
-    if (!name.endsWith(".meta.json")) continue;
+  // Sidecars are read through the fetch cache's store, local or remote.
+  for (const name of await sidecarNames(dataDir, sourceId).catch(
+    () => [] as string[],
+  )) {
     const meta = JSON.parse(
-      await readFile(join(root, name), "utf8"),
+      await readCachedText(dataDir, sourceId, name),
     ) as SnapshotMetadata;
     if (meta.url === release.url) {
       expectedSha256 = meta.sha256;

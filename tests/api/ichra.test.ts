@@ -390,3 +390,36 @@ console.log(JSON.stringify(ichraRequest(JSON.parse(readFileSync(0, "utf8"))).w2P
     });
   });
 });
+
+it("HTTP non-calendar look-back prices a mid-year entrant at eligibility age", async () => {
+  const { response, json } = await post(
+    body({
+      plan_start: "2026-07-01",
+      employee: { date_of_birth: "1985-08-15", eligible_from: "2026-08-15" },
+      months_available: 11,
+      hra: { self_only_annual_cents: 330_000 },
+      safe_harbors: { look_back: true },
+      income: [{ measure: "rate_of_pay_hourly", hourly_cents: 2_300 }],
+    }),
+  );
+  expect(response.status).toBe(200);
+  expect(json).toMatchObject({
+    status: "calculated",
+    applicable_age: 41,
+    employer_lcsp: {
+      coverage_month: "2026-01-01",
+      priced_at_age: 41,
+      monthly_cents: 60_316,
+    },
+  });
+  expect(json.verdicts[0]).toMatchObject({
+    affordable: false,
+    required_hra_contribution_cents: { display: 30_316 },
+  });
+  expect(json.rules).toContainEqual(
+    expect.objectContaining({
+      id: "look_back_current_circumstances",
+      status: "proposed_reliance_permitted",
+    }),
+  );
+});

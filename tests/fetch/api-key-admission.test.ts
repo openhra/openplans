@@ -2,7 +2,7 @@
 import { createHash } from "node:crypto";
 import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { Readable } from "node:stream";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -22,6 +22,9 @@ vi.mock("../../src/fetch/limiter.js", () => ({
   leaseHost: async () => async () => {},
 }));
 
+/** Manifest file names only, so the checkout's own directory names cannot affect the check. */
+const shippedManifestNames = (paths: readonly string[]) =>
+  paths.map((path) => basename(path));
 const digest = (value: string) =>
   createHash("sha256").update(value).digest("hex");
 const plantedKey = "PLANTED-synthetic-key-7f3a9c1e";
@@ -273,8 +276,14 @@ describe("keyed API admission", () => {
 
   it("ships the CMS entry only with OPENPLANS_CMS_FALLBACK=on, and it parses", async () => {
     vi.stubEnv("OPENPLANS_CMS_FALLBACK", "");
-    expect(shippedManifestPaths().some((p) => p.includes("cms-"))).toBe(false);
+    expect(shippedManifestNames(shippedManifestPaths())).toEqual([
+      "federal-publishers.json",
+    ]);
     vi.stubEnv("OPENPLANS_CMS_FALLBACK", "on");
+    expect(shippedManifestNames(shippedManifestPaths())).toEqual([
+      "federal-publishers.json",
+      "cms-marketplace-api.json",
+    ]);
     const path = shippedManifestPaths().find((p) =>
       p.endsWith("cms-marketplace-api.json"),
     )!;
@@ -287,5 +296,27 @@ describe("keyed API admission", () => {
       apiKey: { env: "CMS_API_KEY", queryParam: "apikey" },
       delayMs: 1000,
     });
+  });
+
+  it("judges shipped manifests by file name, whatever directory holds the checkout", () => {
+    const at = (root: string) =>
+      shippedManifestNames([`${root}/data/access/federal-publishers.json`]);
+    // A checkout under a directory whose name contains "cms-" still passes, where a substring
+    // test of the full path would not.
+    expect(
+      [
+        "/work/lane-cms-pins/openplans/data/access/federal-publishers.json",
+      ].some((path) => path.includes("cms-")),
+    ).toBe(true);
+    expect(at("/work/lane-cms-pins/openplans")).toEqual([
+      "federal-publishers.json",
+    ]);
+    // A shipped CMS manifest is still caught, wherever it lives.
+    expect(
+      shippedManifestNames([
+        "/work/plain/openplans/data/access/federal-publishers.json",
+        "/work/plain/openplans/data/access/cms-marketplace-api.json",
+      ]),
+    ).not.toEqual(["federal-publishers.json"]);
   });
 });

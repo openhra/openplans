@@ -6,6 +6,9 @@ import type {
 } from "../../domain/rating/index.js";
 import { parseCommunityRules } from "./index.js";
 import { reflectivePublication } from "./reflective.js";
+import { normalizeEhbColumns } from "../ehb.js";
+import { nyFiledIdentity } from "./ny-identity.js";
+import { vtFiledMetal } from "./vt-metal.js";
 
 const geography = JSON.parse(
   await readFile(
@@ -284,7 +287,6 @@ export function stateDetailColumns(raw: Record<string, string>) {
     );
   // State publications name the federal design and EHB share columns differently.
   aliases.set("plandesigntype", "DesignType");
-  aliases.set("ehbpercentpremium", "EHBPercentTotalPremium");
   aliases.set(
     "urlforsummaryofbenefitscoverage",
     "URLForSummaryofBenefitsCoverage",
@@ -305,11 +307,11 @@ export function stateDetailColumns(raw: Record<string, string>) {
       throw new Error("Conflicting supplemental detail columns");
     result[canonical] = value;
   }
-  return result;
+  return normalizeEhbColumns(result);
 }
 
-/** Exact filed HIOS identity in an active CMS SBE Plan Attributes publication.
- * Presence in this file is Exchange-offer evidence for the NY LCSP calculation. */
+/** CMS Plan Attributes membership supplies Exchange-offer evidence.
+ * Reviewed DFS identity cells also identify filed off-Exchange and non-silver rows. */
 export async function nyLcspCatalog(
   db: SqlSession,
   year: number,
@@ -351,6 +353,7 @@ export async function nyLcspCatalog(
     const source = matched[0];
     return {
       row,
+      filed_identity: nyFiledIdentity(row),
       attributes: matched.map((a) => ({
         metal: a.metal,
         source_row: a.source_row,
@@ -368,6 +371,72 @@ export async function nyLcspCatalog(
             source_rows: matched.map((a) => a.source_row),
           }
         : null,
+    };
+  });
+}
+
+/** VT attributes must belong to the same fully active set as the identity join. */
+export async function vtLcspCatalog(
+  db: SqlSession,
+  year: number,
+  region?: string,
+) {
+  const catalog = await stateCatalog(db, year, "VT", undefined, region);
+  const { rows: attributes } = await db.query<{
+    plan_key: string;
+    on_exchange: boolean;
+    off_exchange: boolean;
+    metal: string;
+    raw: Record<string, string>;
+    source_row: number;
+    snapshot_id: string;
+    import_id: string;
+    bundle_url: string;
+    bundle_sha256: string;
+  }>(
+    `SELECT h.plan_key,pa.on_exchange,pa.off_exchange,pa.metal,pa.raw,pa.source_row,f.snapshot_id,
+      c.import_id,c.bundle_url,c.bundle_sha256
+    FROM state_vt_hios_current h
+    JOIN sbe_catalog c ON c.import_id=h.sbe_import_id
+    JOIN puf_import_file f ON f.import_id=c.import_id AND f.kind='plan-attributes'
+    JOIN plan_attribute pa ON pa.snapshot_id=f.snapshot_id AND pa.base_plan_id=h.hios_id
+    WHERE h.hios_match='matched' AND pa.state='VT' AND pa.plan_year=$1
+      AND pa.market='Individual' AND NOT pa.dental_only
+    ORDER BY h.plan_key,pa.source_row`,
+    [year],
+  );
+  return catalog.map((row) => {
+    const matched = attributes.filter((a) => a.plan_key === row.plan_key);
+    const source = matched[0];
+    const cells = matched.map((a) => ({
+      ...a,
+      raw: stateDetailColumns(a.raw),
+    }));
+    const filed_identity = vtFiledMetal(row, cells, source);
+    const reflective =
+      row.sbe_exchange?.on_exchange === false &&
+      reflectivePublication(
+        row.rate.provenance.sourceUrl,
+        row.rate.provenance.sourceSha256,
+      );
+    return {
+      row,
+      filed_identity,
+      attributes: cells,
+      exchange_evidence:
+        filed_identity && source
+          ? {
+              source: "cms_sbe_puf_plan_attributes",
+              evidence: "exchange_offer",
+              hios_id: row.hios_id,
+              snapshot_id: source.snapshot_id,
+              import_id: source.import_id,
+              bundle_url: source.bundle_url,
+              bundle_sha256: source.bundle_sha256,
+              source_rows: matched.map((a) => a.source_row),
+            }
+          : null,
+      off_exchange: Boolean(reflective),
     };
   });
 }

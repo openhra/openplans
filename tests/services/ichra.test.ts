@@ -661,3 +661,228 @@ describe("rate of pay safe harbor inputs, 26 CFR 54.4980H-5(e)(2)(iii)", () => {
     expect(unreduced).toEqual(await salary());
   });
 });
+
+describe("non-calendar look-back and mid-year entrants", () => {
+  const lookBack = { location: false, lookBack: true };
+  function requireEntrant(result: Result) {
+    // SYNTHETIC employee. The real cut prices the lowest-band winner at $603.16 at age 41.
+    // $603.16 - $3,300 / 11 = $303.16 > 130 x $23 x 9.96% = $297.804.
+    expect(result).toMatchObject({
+      status: "calculated",
+      applicable_age: 41,
+      employer_lcsp: {
+        coverage_month: "2026-01-01",
+        identified_at_age: 14,
+        priced_at_age: 41,
+        plan_ids: [GROSS_PLAN],
+        monthly_cents: 60_316,
+      },
+    });
+    expect(result.verdicts[0]).toMatchObject({
+      purpose: "employer_4980H",
+      required_hra_contribution_cents: { display: 30_316 },
+      affordable: false,
+    });
+    expect(result.rules).toContainEqual(
+      expect.objectContaining({
+        id: "look_back_current_circumstances",
+        status: "proposed_reliance_permitted",
+        citations: expect.arrayContaining([
+          expect.objectContaining({
+            section: "Prop. 54.4980H-5(f)(4)(ii), (f)(7)(i)-(ii)",
+          }),
+        ]),
+      }),
+    );
+  }
+  it.each(Array.from({ length: 11 }, (_, i) => String(i + 2).padStart(2, "0")))(
+    "plan start in month %s uses current January prices at current age",
+    async (month) => {
+      // Age 40 at every start, but 39 in January. $592.05 - $250 = $342.05.
+      const result = await run({
+        planStart: `2026-${month}-01`,
+        dateOfBirth: "1986-01-31",
+        safeHarbors: lookBack,
+      });
+      expect(result).toMatchObject({
+        status: "calculated",
+        applicable_age: 40,
+        employer_lcsp: {
+          coverage_month: "2026-01-01",
+          priced_at_age: 40,
+          monthly_cents: 59_205,
+        },
+      });
+      expect(result.verdicts[0]).toMatchObject({
+        purpose: "employer_4980H",
+        required_hra_contribution_cents: { display: 34_205 },
+        affordable: false,
+      });
+    },
+  );
+  it("an entrant in the next calendar year keeps the plan-start look-back and percentage", async () => {
+    // SYNTHETIC employee. $592.05 - $300 = $292.05 > 130 x $22.50 x 9.96% = $291.33.
+    const result = await run({
+      planStart: "2026-07-01",
+      dateOfBirth: "1986-12-31",
+      eligibleFrom: "2027-01-01",
+      monthsAvailable: 6,
+      hraAnnualCents: 180_000,
+      safeHarbors: lookBack,
+      income: [{ measure: "rate_of_pay_hourly", hourlyCents: 2_250 }],
+    });
+    expect(result).toMatchObject({
+      status: "calculated",
+      applicable_age: 40,
+      required_contribution_percentage_bp: 996,
+      employer_lcsp: {
+        coverage_month: "2026-01-01",
+        priced_at_age: 40,
+        monthly_cents: 59_205,
+      },
+    });
+    expect(result.verdicts[0]).toMatchObject({
+      affordable: false,
+      threshold_cents: { display: 29_133 },
+      required_hra_contribution_cents: { display: 29_205 },
+    });
+  });
+  it("a January calendar plan keeps the prior-year look-back and response rule list", async () => {
+    const result = await run({
+      planStart: "2027-01-01",
+      dateOfBirth: "1986-08-15",
+      safeHarbors: lookBack,
+    });
+    expect(result).toMatchObject({
+      status: "calculated",
+      applicable_age: 40,
+      required_contribution_percentage_bp: 1022,
+      employer_lcsp: { coverage_month: "2026-01-01", monthly_cents: 59_205 },
+    });
+    expect(result.safe_harbors_applied).toEqual([
+      "age_safe_harbor",
+      "lowest_age_band",
+      "look_back_month",
+    ]);
+  });
+  it("a January start after the first day keeps the existing non-calendar response", async () => {
+    const result = await run({
+      planStart: "2026-01-15",
+      safeHarbors: lookBack,
+    });
+    expect(result).toMatchObject({
+      status: "calculated",
+      applicable_age: 40,
+      employer_lcsp: { coverage_month: "2026-01-01", monthly_cents: 59_205 },
+    });
+    expect(result.safe_harbors_applied).toEqual([
+      "age_safe_harbor",
+      "lowest_age_band",
+      "look_back_month",
+    ]);
+  });
+  const entrant: Partial<IchraRequest> = {
+    planStart: "2026-07-01",
+    dateOfBirth: "1985-08-15",
+    eligibleFrom: "2026-08-15",
+    monthsAvailable: 11,
+    hraAnnualCents: 330_000,
+    safeHarbors: lookBack,
+    income: [{ measure: "rate_of_pay_hourly", hourlyCents: 2_300 }],
+  };
+  it("prices the mid-year entrant on the birthday, with the current-year percentage", async () => {
+    requireEntrant(await run(entrant));
+  });
+  it.each([
+    [null, 40, 59_205, true],
+    ["2026-06-30", 40, 59_205, true],
+    ["2026-07-01", 40, 59_205, true],
+    ["2026-08-14", 40, 59_205, true],
+    ["2026-08-15", 41, 60_316, false],
+    ["2026-08-16", 41, 60_316, false],
+  ] as const)(
+    "eligibility %s fixes age %s",
+    async (eligibleFrom, age, cents, affordable) => {
+      const result = await run({ ...entrant, eligibleFrom });
+      expect(result.applicable_age).toBe(age);
+      expect(result.employer_lcsp.monthly_cents).toBe(cents);
+      expect(result.verdicts[0].affordable).toBe(affordable);
+    },
+  );
+  it("uses the supplied current worksite even though the rate month precedes it", async () => {
+    const result = await run({
+      ...entrant,
+      residence: { county: "36061" },
+      worksite: { zip: "77002", remote: false },
+      safeHarbors: { location: true, lookBack: true },
+    });
+    requireEntrant(result);
+    expect(result.employer_lcsp.location).toMatchObject({
+      source: "worksite",
+      county_fips: "48201",
+    });
+  });
+  it("keeps a missing current-January catalog unknown without substituting another year", async () => {
+    const result = await run({
+      ...entrant,
+      planStart: "2027-07-01",
+      eligibleFrom: "2027-08-15",
+    });
+    expect(result).toMatchObject({
+      status: "unknown",
+      reason: "lookback_catalog_not_loaded",
+      verdicts: [],
+      employer_lcsp: { coverage_month: "2027-01-01", monthly_cents: null },
+    });
+  });
+  it.each([
+    "prior January",
+    "ignore eligibility",
+    "age in January",
+    "omit current-circumstances citation",
+  ])(
+    "planted defect: rejects %s in a disposable service copy",
+    async (defect) => {
+      const original = new URL("../../dist/services/ichra.js", import.meta.url);
+      const directory = mkdtempSync(join(tmpdir(), "openplans-lookback-"));
+      try {
+        const source = readFileSync(original, "utf8");
+        let mutant: string;
+        switch (defect) {
+          case "prior January":
+            mutant = replaceSyntax(
+              source,
+              "lookBackMonth(request.planStart)",
+              '"2025-01-01"',
+            );
+            break;
+          case "ignore eligibility":
+            mutant = replaceSyntax(source, "request.eligibleFrom", "null");
+            break;
+          case "age in January":
+            mutant = replaceSyntax(
+              source,
+              "applicableAge(request.dateOfBirth, request.planStart, request.eligibleFrom)",
+              "applicableAge(request.dateOfBirth, lookBackMonth(request.planStart), null)",
+            );
+            break;
+          default:
+            mutant = replaceSyntax(
+              source,
+              'applied.push("look_back_current_circumstances")',
+              'applied.push("look_back_month")',
+            );
+        }
+        const path = join(directory, "ichra.mjs");
+        writeFileSync(path, rebaseImports(mutant, original));
+        const module = (await import(
+          pathToFileURL(path).href
+        )) as typeof IchraService;
+        const result = await module.ichraAffordability(h.db, request(entrant));
+        expect(() => requireEntrant(result)).toThrow();
+      } finally {
+        rmSync(directory, { recursive: true, force: true });
+      }
+    },
+  );
+});

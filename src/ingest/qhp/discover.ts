@@ -1,10 +1,15 @@
 import { homedir } from "node:os";
 import { createReadStream } from "node:fs";
 import { createHash, randomUUID } from "node:crypto";
-import { readFile, readdir } from "node:fs/promises";
 import { isAbsolute, join } from "node:path";
 import type { Database } from "../../db/database.js";
-import { checkedUrl, fetchToCache, FetchError } from "../../fetch/index.js";
+import {
+  checkedUrl,
+  fetchToCache,
+  FetchError,
+  readCachedText,
+  sidecarNames,
+} from "../../fetch/index.js";
 import type {
   FetchOptions,
   FetchResult,
@@ -131,13 +136,16 @@ export async function cacheOnlyFetch(
   options: FetchOptions,
 ): Promise<FetchResult> {
   const url = safeUrl(String(input));
-  const directory = join(options.dataDir!, "raw", options.source);
+  // Sidecars are read through the fetch cache's store, local or remote.
+  const read = { blobStore: options.blobStore };
   let newest: SnapshotMetadata | undefined;
-  for (const entry of (await readdir(directory).catch(() => [])).filter(
-    (name) => name.endsWith(".meta.json"),
-  )) {
+  for (const entry of await sidecarNames(
+    options.dataDir!,
+    options.source,
+    read,
+  ).catch(() => [] as string[])) {
     const metadata = JSON.parse(
-      await readFile(join(directory, entry), "utf8"),
+      await readCachedText(options.dataDir!, options.source, entry, read),
     ) as SnapshotMetadata;
     if (
       metadata.url === url &&
@@ -161,17 +169,16 @@ async function cachedFetch(
   options: FetchOptions,
   fetcher: typeof fetchToCache,
 ): Promise<Cached> {
-  let entries: string[] = [];
-  const directory = join(options.dataDir!, "raw", options.source);
-  try {
-    entries = await readdir(directory);
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-  }
+  // Sidecars are read through the store `fetcher` writes to; nothing stored lists nothing.
+  const read = { blobStore: options.blobStore };
   let prior: SnapshotMetadata | undefined;
-  for (const entry of entries.filter((name) => name.endsWith(".meta.json"))) {
+  for (const entry of await sidecarNames(
+    options.dataDir!,
+    options.source,
+    read,
+  )) {
     const metadata = JSON.parse(
-      await readFile(join(directory, entry), "utf8"),
+      await readCachedText(options.dataDir!, options.source, entry, read),
     ) as SnapshotMetadata;
     if (
       !new URL(url).search &&

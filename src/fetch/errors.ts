@@ -23,6 +23,8 @@ export type FetchErrorCode =
   | "unsupported_encoding"
   | "cache_error"
   | "snapshot_conflict"
+  | "storage_forbidden"
+  | "aborted"
   | "invalid_zip"
   | "zip_bomb"
   | "zip_path_traversal"

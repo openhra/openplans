@@ -71,3 +71,19 @@ resident keys/values; external bytes count cumulative successfully transferred
 payload bytes, not Valkey resident memory. Inspect shared memory/evictions with
 `docker compose --profile cache exec cache valkey-cli INFO memory` and `INFO stats`.
 Counters reset when the API restarts; they never include requests or credentials.
+
+## Store providers
+
+The store comes from a provider registry (`src/plugins/providers.ts`). The core
+registers `memory` (the LRU above) and `valkey` (the RESP client). A plugin can add
+another store with `ctx.cacheStores.provide(name, factory)` and select it with
+`cache.provider` in the `OPENPLANS_CONFIG` file. Selection works like this:
+
+- `OPENPLANS_API_CACHE=off` uses a zero-byte memory store and never calls a provider.
+- `OPENPLANS_CACHE_URL` set selects `valkey`, whatever `cache.provider` says.
+- Otherwise `cache.provider` applies, default `memory`, capped by `OPENPLANS_API_CACHE_MB`.
+
+A provider name that no loaded plugin offers stops startup with
+`plugin_provider_unknown`. `/v1/cache-stats` reports a plugin store as `external`.
+`checkCacheStore` in `src/plugins/testing/` runs the store contract: TTL expiry,
+UTF-8 byte accounting, 2 MiB entries, and failure falling back to `X-Cache: bypass`.

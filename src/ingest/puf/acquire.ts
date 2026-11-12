@@ -1,8 +1,15 @@
 import { homedir } from "node:os";
-import { mkdir, readFile, readdir, rename, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { join, isAbsolute } from "node:path";
 import { randomUUID } from "node:crypto";
-import { fetchToCache, FetchError } from "../../fetch/index.js";
+import {
+  fetchToCache,
+  FetchError,
+  readCachedText,
+  remoteSnapshotStore,
+  sidecarNames,
+  storeCachedText,
+} from "../../fetch/index.js";
 import type {
   FetchOptions,
   FetchResult,
@@ -193,20 +200,14 @@ async function cachedFetch(
   options: FetchOptions,
   fetcher: typeof fetchToCache,
 ): Promise<Exclude<FetchResult, { outcome: "not_modified" }>> {
-  const directory = join(options.dataDir!, "raw", source);
-  let entries: string[];
-  try {
-    entries = await readdir(directory);
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-    entries = [];
-  }
+  // Sidecars are read through the store `fetcher` writes to; nothing stored lists nothing.
+  const read = { blobStore: options.blobStore };
   let prior: SnapshotMetadata | undefined;
-  for (const entry of entries.filter((name) => name.endsWith(".meta.json"))) {
+  for (const entry of await sidecarNames(options.dataDir!, source, read)) {
     let metadata: SnapshotMetadata;
     try {
       metadata = JSON.parse(
-        await readFile(join(directory, entry), "utf8"),
+        await readCachedText(options.dataDir!, source, entry, read),
       ) as SnapshotMetadata;
     } catch {
       throw new FetchError("cache_error", "Cached PUF metadata is unreadable");
@@ -316,16 +317,21 @@ export async function acquirePufs(
   }
   // Discovery mode snapshots the provenance page but never downloads archives or publishes a manifest.
   if (options.dryRun) return { manifest, manifestPath: null };
+  const name = `manifest-${manifest.created_at.replace(/:/g, "-")}.json`;
+  const text = `${JSON.stringify(manifest, null, 2)}\n`;
+  // A manifest lives beside the snapshots it names: in a remote store when snapshots do, so
+  // every host sharing the store imports the same set.
+  const remote = remoteSnapshotStore(dataDir);
+  if (remote)
+    return {
+      manifest,
+      manifestPath: await storeCachedText(remote, source, name, text),
+    };
   const directory = join(dataDir, "raw", source);
   await mkdir(directory, { recursive: true });
-  const manifestPath = join(
-    directory,
-    `manifest-${manifest.created_at.replace(/:/g, "-")}.json`,
-  );
+  const manifestPath = join(directory, name);
   const temporary = join(directory, `.manifest-${randomUUID()}.part`);
-  await writeFile(temporary, `${JSON.stringify(manifest, null, 2)}\n`, {
-    flag: "wx",
-  });
+  await writeFile(temporary, text, { flag: "wx" });
   await rename(temporary, manifestPath);
   return { manifest, manifestPath };
 }

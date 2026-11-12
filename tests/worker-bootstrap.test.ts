@@ -22,7 +22,7 @@ import type { BootstrapStep } from "../src/worker/bootstrap.js";
 import * as qhpDiscovery from "../src/ingest/qhp/discover.js";
 import * as qhpBatch from "../src/ingest/qhp/formulary-batch.js";
 import * as qhpRegistry from "../src/ingest/qhp/discover-registry.js";
-import * as taxonomyAcquire from "../src/ingest/taxonomy/acquire.js";
+import * as taxonomyAcquire from "../src/plugins/core-plugin.js";
 import * as fetcher from "../src/fetch/index.js";
 import * as geoSources from "../src/ingest/geo/sources.js";
 import { fixtureFiles as geoFiles } from "./ingest/geo/helpers.js";
@@ -377,16 +377,26 @@ describe("one-command bootstrap", () => {
         expect(open).not.toHaveBeenCalled();
         expect(out.errors[0]).toContain("--accept-nucc-terms");
       }
+      // The command runs on the feed lifecycle: with only the shipped manifest, which holds
+      // www.nucc.org, it refuses before opening the database or sending a request.
+      vi.stubEnv("OPENPLANS_ACCESS_MANIFEST", "");
+      const open = vi.fn(() => db),
+        refused = output();
       expect(
         await runWorker(
           ["ingest", "taxonomy", "--accept-nucc-terms"],
-          () => ({ ...db, close: async () => {} }),
-          output(),
+          open,
+          refused,
           core.directory,
         ),
-      ).toBe(0);
-      expect(acquire).toHaveBeenCalledTimes(2);
+      ).toBe(1);
+      expect(refused.errors[0]).toContain("terms-restricted");
+      expect(open).not.toHaveBeenCalled();
+      expect(acquire).toHaveBeenCalledTimes(1);
       expect(request).not.toHaveBeenCalled();
+      expect(
+        (await db.query("SELECT code FROM provider_taxonomy")).rows,
+      ).toHaveLength(3);
     } finally {
       acquire.mockRestore();
       request.mockRestore();
@@ -686,6 +696,88 @@ describe("one-command bootstrap", () => {
         true,
       );
       expect(graph.some((step) => step.id === "qhp-sbe-GA-2026")).toBe(false);
+    } finally {
+      batch.mockRestore();
+      await h.close();
+    }
+  });
+
+  it("lets a prepared step pass rejected-record sets and still stop on other partial sets", async () => {
+    const h = await providerHarness();
+    const batch = vi.spyOn(qhpBatch, "ingestQhpBatch");
+    try {
+      const path = join(h.directory, "inputs.json");
+      await writeFile(
+        path,
+        JSON.stringify({
+          schema: 1,
+          providers: true,
+          drugs: false,
+          taxonomy_names: false,
+          scopes: [{ state: "TX", year: 2026 }],
+          provider_feeds: [
+            { issuer: "00010", state: "TX", set: "qhp-00010-2026-index" },
+          ],
+          feed_raw: [
+            {
+              source: "qhp-00010-2026-index",
+              sha256: "a".repeat(64),
+              bytes: 1,
+              url: "https://issuer.example/index",
+            },
+          ],
+        }),
+      );
+      const step = async () =>
+        (
+          await bootstrapPlan(
+            parseBootstrapOptions([
+              "--states",
+              "TX",
+              "--years",
+              "2026",
+              "--with-providers",
+              "--qhp-profile",
+              path,
+            ]),
+            () => h.db,
+            h.directory,
+            h.core.directory,
+          )
+        ).find((step) => step.id === "qhp-providers-TX-2026")!;
+      const outcome = (reason: string) => ({
+        year: 2026,
+        state: "TX",
+        kind: "providers" as const,
+        not_run: [],
+        issuers: [
+          {
+            issuer: "00010",
+            status: "ACTIVE",
+            completeness: "partial",
+            reason,
+          },
+        ],
+      });
+      batch.mockResolvedValue(outcome("source_records_rejected") as never);
+      expect(await (await step()).run()).toMatchObject({
+        evidence: {
+          imported: 1,
+          issuers: [
+            {
+              status: "ACTIVE",
+              completeness: "partial",
+              reason: "source_records_rejected",
+            },
+          ],
+        },
+      });
+      batch.mockResolvedValue(
+        outcome("catalog_plan_year_not_in_definitions") as never,
+      );
+      await expect((await step()).run()).rejects.toThrow(
+        "prepared_qhp_import_failed",
+      );
     } finally {
       batch.mockRestore();
       await h.close();

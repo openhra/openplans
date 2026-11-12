@@ -1,6 +1,6 @@
 import type { SqlSession } from "../db/database.js";
 import { providerParticipation } from "../domain/providers/repository.js";
-import { applyCmsFallback } from "../ingest/cms-api/fallback.js";
+import { passThrough } from "../plugins/sources/passthrough.js";
 import type { CmsFallbackContext } from "../ingest/cms-api/fallback.js";
 import { providerAvailability } from "../domain/providers/availability.js";
 import { zipCentroid } from "../domain/geo/index.js";
@@ -186,7 +186,9 @@ export async function checkProviderNetwork(
     npi(code),
     providerYear(year),
   );
-  return (await applyCmsFallback("provider", [answer], cms))[0]!;
+  return cms
+    ? (await passThrough.apply("provider", [answer], cms))[0]!
+    : answer;
 }
 
 export async function checkProviderNetworks(
@@ -224,5 +226,7 @@ export async function checkProviderNetworks(
   for (const plan of plans)
     for (const code of npis)
       results.push(await providerParticipation(db, plan, code, year));
-  return { results: await applyCmsFallback("provider", results, cms) };
+  return {
+    results: cms ? await passThrough.apply("provider", results, cms) : results,
+  };
 }

@@ -3,10 +3,8 @@ import { providerParticipation } from "../domain/providers/repository.js";
 import { drugCoverage } from "../domain/drugs/repository.js";
 import type { ProviderParticipation } from "../domain/providers/index.js";
 import type { DrugCoverage } from "../domain/drugs/index.js";
-import {
-  applyCmsFallback,
-  cmsFallbackContext,
-} from "../ingest/cms-api/fallback.js";
+import { cmsFallbackContext } from "../ingest/cms-api/fallback.js";
+import { passThrough } from "../plugins/sources/passthrough.js";
 import type { CmsFallbackContext } from "../ingest/cms-api/fallback.js";
 
 export function quoteFallbackEnabled(): boolean {
@@ -54,12 +52,13 @@ export async function applyQuoteFallback<T extends QuoteCoverage>(
   cms?: CmsFallbackContext,
 ): Promise<T[]> {
   if (!quoteFallbackEnabled() || !cms) return quotes;
-  const providers = await applyCmsFallback(
+  // The pass-through core runs the CMS source registered while OPENPLANS_CMS_FALLBACK=on.
+  const providers = await passThrough.apply(
     "provider",
     quotes.flatMap((q) => q.providers),
     cms,
   );
-  const drugs = await applyCmsFallback(
+  const drugs = await passThrough.apply(
     "drug",
     quotes.flatMap((q) => q.drugs),
     cms,

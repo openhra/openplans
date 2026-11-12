@@ -10,12 +10,24 @@ npm test -- tests/migrate.test.ts tests/worker.test.ts tests/extraction.test.ts
 scratch="$(mktemp -d "${TMPDIR:-/tmp}/openplans-negative.XXXXXX")"
 cleanup() { rm -rf "$scratch"; }
 trap cleanup EXIT
-cp package.json package-lock.json tsconfig*.json vitest.config.ts "$scratch/"
-# The copy runs the same format and lint gates, so it needs their configuration.
-cp .prettierignore .prettierrc.json .editorconfig eslint.config.mjs \
-  eslint-baseline.json eslint-suppressions.json "$scratch/"
-# check-publisher-review.mjs reads the shipped manifests in data/access.
-cp -R src migrations scripts tests data "$scratch/"
+node --input-type=module - "$PWD" "$scratch" <<'JS'
+import { cp } from "node:fs/promises";
+import { basename, join } from "node:path";
+
+const [source, destination] = process.argv.slice(2);
+const generated = new Set([
+  "node_modules", "dist", "coverage", ".git", ".claude-plan",
+  ".venv", "venv", "__pycache__", ".vercel", ".lanes",
+]);
+await cp(source, destination, {
+  recursive: true,
+  filter(path) {
+    const name = basename(path);
+    return !generated.has(name) &&
+      (!name.toLowerCase().startsWith(".env") || path === join(source, ".env.example"));
+  },
+});
+JS
 # Share only dependencies; the boundary checker deliberately rejects symlinks
 # outside the package except ignored generated node_modules.
 ln -s "$PWD/node_modules" "$scratch/node_modules"

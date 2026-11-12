@@ -1,8 +1,9 @@
+import { loadConfig } from "../config/index.js";
 import { fileURLToPath } from "node:url";
 
 /** True only when the operator opted in with `OPENPLANS_CMS_FALLBACK=on` (default off). */
 export function cmsFallbackEnabled(): boolean {
-  return process.env.OPENPLANS_CMS_FALLBACK === "on";
+  return loadConfig().cmsFallback.enabled;
 }
 
 /**
@@ -12,11 +13,12 @@ export function cmsFallbackEnabled(): boolean {
  * CMS Marketplace API entry is added only with `OPENPLANS_CMS_FALLBACK=on`.
  */
 export function shippedManifestPaths(): readonly string[] {
-  if (process.env.OPENPLANS_SHIPPED_ACCESS === "off") return [];
+  const config = loadConfig();
+  if (!config.access.shipped) return [];
   const path = (name: string) =>
     fileURLToPath(new URL(`../../data/access/${name}`, import.meta.url));
   return [
     path("federal-publishers.json"),
-    ...(cmsFallbackEnabled() ? [path("cms-marketplace-api.json")] : []),
+    ...(config.cmsFallback.enabled ? [path("cms-marketplace-api.json")] : []),
   ];
 }

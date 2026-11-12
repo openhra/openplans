@@ -1,5 +1,8 @@
-import { readFile, readdir } from "node:fs/promises";
-import { join } from "node:path";
+import {
+  cachedPayloadPath,
+  readCachedText,
+  sidecarNames,
+} from "../../fetch/index.js";
 import type { SnapshotMetadata } from "../../fetch/index.js";
 import type { ImportFile, ImportKind } from "../puf/import-source.js";
 import { IMPORT_KINDS, verifyImportFile } from "../puf/import-source.js";
@@ -30,13 +33,13 @@ export async function cachedGeorgiaRegistry(
   dataDir: string,
   year: number,
 ): Promise<{ path: string; metadata: SnapshotMetadata }> {
-  const directory = join(dataDir, "raw", GEORGIA_ACCESS_SOURCE);
+  // Read through the fetch cache's store; a source with nothing cached fails with ENOENT.
   const found: SnapshotMetadata[] = [];
-  for (const name of (await readdir(directory)).filter((n) =>
-    n.endsWith(".meta.json"),
-  )) {
+  for (const name of await sidecarNames(dataDir, GEORGIA_ACCESS_SOURCE, {
+    missing: "throw",
+  })) {
     const metadata = JSON.parse(
-      await readFile(join(directory, name), "utf8"),
+      await readCachedText(dataDir, GEORGIA_ACCESS_SOURCE, name),
     ) as SnapshotMetadata & {
       access_policy?: { hosts?: { host: string; state: string }[] };
     };
@@ -62,7 +65,15 @@ export async function cachedGeorgiaRegistry(
   const metadata = found.sort((a, b) =>
     b.fetched_at.localeCompare(a.fetched_at),
   )[0]!;
-  return { path: join(directory, metadata.sha256, "payload"), metadata };
+  return {
+    path: await cachedPayloadPath(
+      dataDir,
+      GEORGIA_ACCESS_SOURCE,
+      metadata.sha256,
+      { bytes: metadata.bytes, sha256: metadata.sha256 },
+    ),
+    metadata,
+  };
 }
 
 export interface GeorgiaAccessFile {
@@ -111,13 +122,12 @@ export async function cachedGeorgiaAccess(
   year: number,
   options: { recoverUnescapedQuotes?: boolean } = {},
 ): Promise<ImportFile[]> {
-  const directory = join(dataDir, "raw", GEORGIA_ACCESS_SOURCE);
   const found = new Map<ImportKind, GeorgiaAccessFile[]>();
-  for (const name of (await readdir(directory)).filter((n) =>
-    n.endsWith(".meta.json"),
-  )) {
+  for (const name of await sidecarNames(dataDir, GEORGIA_ACCESS_SOURCE, {
+    missing: "throw",
+  })) {
     const metadata = JSON.parse(
-      await readFile(join(directory, name), "utf8"),
+      await readCachedText(dataDir, GEORGIA_ACCESS_SOURCE, name),
     ) as SnapshotMetadata & {
       access_policy?: { hosts?: { host: string; state: string }[] };
     };
@@ -142,7 +152,12 @@ export async function cachedGeorgiaAccess(
     const file = candidates.sort((a, b) =>
       b.metadata.fetched_at.localeCompare(a.metadata.fetched_at),
     )[0]!;
-    const path = join(directory, file.metadata.sha256, "payload");
+    const path = await cachedPayloadPath(
+      dataDir,
+      GEORGIA_ACCESS_SOURCE,
+      file.metadata.sha256,
+      { bytes: file.metadata.bytes, sha256: file.metadata.sha256 },
+    );
     const importFile: ImportFile = {
       kind,
       path,

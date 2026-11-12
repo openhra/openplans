@@ -52,5 +52,5 @@ docs/usage.md
 docs/self-host.md
 src/ingest/geo/README.md
 src/ingest/rxnorm/README.md
-src/ingest/taxonomy/README.md
+plugins/source-nucc-taxonomy/README.md
 src/ingest/state/README.md

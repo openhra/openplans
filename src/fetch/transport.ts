@@ -12,6 +12,8 @@ export interface TransportContext {
   /** GET unless the caller supplied an upload body (FetchOptions.requestBody). */
   method?: "GET" | "POST";
   body?: Buffer;
+  /** Closes the connection when it aborts. Implementations may ignore it; callers race it too. */
+  signal?: AbortSignal;
 }
 export interface FetchResponse {
   status: number;
@@ -36,6 +38,7 @@ export const httpsTransport: Transport = (url, context) =>
         : context.headers,
       agent: false,
       rejectUnauthorized: true,
+      ...(context.signal && { signal: context.signal }),
       // Pin the validated address through connect. TLS SNI/certificate checks still use the publisher hostname.
       lookup: (_hostname, _options, callback) =>
         callback(null, context.address.address, context.address.family),
@@ -73,10 +76,11 @@ export const httpsTransport: Transport = (url, context) =>
     });
     req.once("error", (error) => {
       clearTimeout(timer);
-      const failure =
-        error instanceof FetchError
-          ? error
-          : new FetchError("network_error", "HTTPS request failed");
+      let failure: FetchError;
+      if (error instanceof FetchError) failure = error;
+      else if (context.signal?.aborted)
+        failure = new FetchError("aborted", "HTTPS request aborted");
+      else failure = new FetchError("network_error", "HTTPS request failed");
       const code = (error as NodeJS.ErrnoException).code;
       failure.connection = {
         phase,

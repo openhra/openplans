@@ -3,17 +3,19 @@ import { readFile, mkdtemp, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { PGlite } from "@electric-sql/pglite";
-import { testDatabase } from "./pglite.js";
+import { coreMigrations, testDatabase } from "./pglite.js";
 import {
   classifyMigration,
   classifyMigrationBatch,
   smallTableRows,
   smallTableBytes,
   type MigrationTableSizes,
+  migrationStatementHash,
   migrationStatements,
   missingContractNotes,
 } from "../src/db/migrate-safety.js";
-import { checkMigrations, loadMigrations } from "../src/db/migrate.js";
+import { runWorker } from "../src/worker/commands.js";
+import { checkMigrations, loadMigrations, migrate } from "../src/db/migrate.js";
 import type { Database, SqlSession } from "../src/db/database.js";
 const history: Record<string, string> = JSON.parse(
   await readFile(new URL("./migrate-history.json", import.meta.url), "utf8"),
@@ -157,7 +159,7 @@ describe("conservative migration preflight", () => {
     rate: { rows: 1_600_000, bytes: 200_000_000 },
     plan_benefit: { rows: 900_000, bytes: 100_000_000 },
   };
-  const historicalCases = [
+  const regressionCases = [
     ["910_open_geocoder.sql", "additive-safe"],
     ["920_api_data_generation.sql", "risky"],
     ["930_provider_search_covering_keys.sql", "additive-safe"],
@@ -177,33 +179,193 @@ describe("conservative migration preflight", () => {
     ["990_row_provenance.sql", "risky"],
     ["991_cms_api_breaker.sql", "additive-safe"],
     ["992_record_policy.sql", "risky"],
+    ["1000_plugin_events.sql", "additive-safe"],
+    ["1001_passthrough.sql", "additive-safe"],
+    ["1002_ingest_run_snapshot.sql", "additive-safe"],
   ] as const;
-  it.each(historicalCases)(
-    "pins historical %s as %s with explicit size evidence",
+  it.each(regressionCases)(
+    "pins %s as %s with explicit size evidence",
     async (name, expected) => {
       const migration = (await loadMigrations()).find((m) => m.name === name)!;
+      if (
+        ![
+          "1000_plugin_events.sql",
+          "1001_passthrough.sql",
+          "1002_ingest_run_snapshot.sql",
+        ].includes(name)
+      )
+        expect(migration.sha256).toBe(history[name]);
+      const expectedWithoutSizes = [
+        "910_open_geocoder.sql",
+        "935_provider_search_execution.sql",
+        "936_provider_search_operator_points.sql",
+      ].includes(name)
+        ? "additive-safe"
+        : "risky";
+      expect(classifyMigration(migration.sql).classification).toBe(
+        expectedWithoutSizes,
+      );
       const result = classifyMigration(migration.sql, tableSizes);
       expect(result.classification).toBe(expected);
       expect(result.reasons.length === 0).toBe(expected === "additive-safe");
+      if (expected === "additive-safe") {
+        for (const tail of [
+          "ALTER TABLE synthetic DROP COLUMN old;",
+          "ALTER TABLE synthetic RENAME COLUMN old TO replacement;",
+          "ALTER TABLE synthetic ALTER COLUMN old SET NOT NULL;",
+        ])
+          expect(
+            classifyMigration(migration.sql + "\n" + tail, tableSizes)
+              .classification,
+          ).toBe("risky");
+      }
     },
   );
-  it("pins the complete historical inventory and preserves unknown-size review", async () => {
+  it("pins the complete regression inventory and preserves unknown-size review", async () => {
     const migrations = (await loadMigrations()).filter(
-      (m) => m.name in history && m.version >= 910 && m.version <= 992,
+      (m) => m.version >= 910 && m.version <= 1002,
     );
     expect(migrations.map((m) => m.name)).toEqual(
-      historicalCases.map(([name]) => name),
+      regressionCases.map(([name]) => name),
     );
     expect(
       migrations.filter(
         (m) => classifyMigration(m.sql).classification === "risky",
       ),
-    ).toHaveLength(16);
+    ).toHaveLength(19);
     expect(
       migrations.filter(
         (m) => classifyMigration(m.sql, tableSizes).classification === "risky",
       ),
     ).toHaveLength(6);
+  });
+  it("rates 1002 by its seed row, not its snapshot trigger, and needs no allow annotation", async () => {
+    const migration = (await loadMigrations()).find(
+      (m) => m.name === "1002_ingest_run_snapshot.sql",
+    )!;
+    // Without size evidence only the literal row_provenance_rule seed is held for review.
+    expect(classifyMigration(migration.sql).reasons).toEqual([
+      'Statement 2: Unbounded INSERT or source scan; "public"."row_provenance_rule" size is unknown',
+    ]);
+    // The AFTER trigger is accepted even when snapshot is large.
+    const largeSnapshot = {
+      ...tableSizes,
+      snapshot: { rows: 5_000_000, bytes: 2_000_000_000 },
+    };
+    expect(classifyMigration(migration.sql, largeSnapshot)).toEqual({
+      classification: "additive-safe",
+      reasons: [],
+    });
+    // In one pending batch after 1000 and 1001 it stays additive-safe.
+    const batch = (await loadMigrations()).filter((m) => m.version >= 1000);
+    expect(batch.map((m) => m.name)).toEqual([
+      "1000_plugin_events.sql",
+      "1001_passthrough.sql",
+      "1002_ingest_run_snapshot.sql",
+    ]);
+    expect(
+      classifyMigrationBatch(
+        batch.map((m) => m.sql),
+        tableSizes,
+      ).map((r) => r.classification),
+    ).toEqual(["additive-safe", "additive-safe", "additive-safe"]);
+    // An allow marker on the seed would turn the measured, safe case risky: none is added.
+    const statements = migrationStatements(migration.sql);
+    const marked = migration.sql.replace(
+      "INSERT INTO row_provenance_rule",
+      `-- openplans-migration-allow: ${migrationStatementHash(statements[1]!)} One literal seed row in a small registry table\nINSERT INTO row_provenance_rule`,
+    );
+    expect(classifyMigration(marked).classification).toBe("reviewed-exception");
+    expect(classifyMigration(marked, tableSizes).classification).toBe("risky");
+    expect(migration.sql).not.toContain("openplans-migration-allow");
+    // Planted mutant: a seed copied from snapshot is caught once snapshot is large.
+    const mutant = migration.sql.replace(
+      "VALUES\n  ('ingest_run_snapshot', 'openplans', 'app:ingest_run_snapshot', 'application ingest run log', 'app_state');",
+      "SELECT snapshot_id, 'openplans', 'app:x', 'x', 'app_state' FROM snapshot;",
+    );
+    expect(mutant).not.toBe(migration.sql);
+    expect(classifyMigration(mutant, largeSnapshot).classification).toBe(
+      "risky",
+    );
+  });
+  it("worker migrate --check reports migration 1000 additive-safe on a PGlite copy", async () => {
+    const core = await coreMigrations();
+    const db = testDatabase(new PGlite());
+    const path = join(core.directory, "1000_plugin_events.sql");
+    try {
+      const sql = await readFile(path, "utf8");
+      await rm(path);
+      await migrate(db, core.directory);
+      await writeFile(path, sql);
+      const out: string[] = [],
+        errors: string[] = [];
+      expect(
+        await runWorker(
+          ["migrate", "--check"],
+          () => ({ ...db, close: async () => {} }),
+          { out: (line) => out.push(line), error: (line) => errors.push(line) },
+          core.directory,
+        ),
+      ).toBe(0);
+      expect(errors).toEqual([]);
+      expect(out).toHaveLength(1);
+      expect(JSON.parse(out[0]!)).toMatchObject({
+        format: 1,
+        pending: [
+          {
+            name: "1000_plugin_events.sql",
+            classification: "additive-safe",
+            reasons: [],
+          },
+        ],
+      });
+      expect(
+        (await db.query("SELECT to_regclass('plugin_event_outbox') AS present"))
+          .rows,
+      ).toEqual([{ present: null }]);
+    } finally {
+      await db.close();
+      await core.cleanup();
+    }
+  });
+  it("worker migrate --check reports migration 1001 additive-safe on a PGlite copy", async () => {
+    const core = await coreMigrations();
+    const db = testDatabase(new PGlite());
+    const path = join(core.directory, "1001_passthrough.sql");
+    try {
+      const sql = await readFile(path, "utf8");
+      await rm(path);
+      await migrate(db, core.directory);
+      await writeFile(path, sql);
+      const out: string[] = [],
+        errors: string[] = [];
+      expect(
+        await runWorker(
+          ["migrate", "--check"],
+          () => ({ ...db, close: async () => {} }),
+          { out: (line) => out.push(line), error: (line) => errors.push(line) },
+          core.directory,
+        ),
+      ).toBe(0);
+      expect(errors).toEqual([]);
+      expect(JSON.parse(out[0]!)).toMatchObject({
+        format: 1,
+        pending: [
+          {
+            name: "1001_passthrough.sql",
+            classification: "additive-safe",
+            reasons: [],
+          },
+        ],
+      });
+      expect(
+        (await db.query("SELECT to_regclass('passthrough_answer') AS present"))
+          .rows,
+      ).toEqual([{ present: null }]);
+    } finally {
+      await db.close();
+      await core.cleanup();
+    }
   });
   it.each([
     "CREATE INDEX synthetic ON rate(id)",

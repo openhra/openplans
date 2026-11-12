@@ -1,0 +1,7 @@
+{
+  "name": "@synthetic/migrations",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "Synthetic plugin fixture with two migrations. No source data."
+}

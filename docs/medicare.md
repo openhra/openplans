@@ -123,6 +123,151 @@ Two routes read these tables when serving is on.
 
 CMS suppresses some plans' pharmacy data. Those plans answer `plan_suppressed_by_cms`.
 
+## Part D drug-cost estimates
+
+The estimator applies the CMS Part D rules for contract years 2026 and 2027 to one plan and a fill
+schedule supplied by the caller. It reads the plan's filed benefit from the loaded Part D and PBP
+files and returns each figure with the rows and rule documents it rests on. It runs only on
+evidence. When the evidence leaves a figure open, that figure is `unknown` with a reason, never a
+guess and never zero.
+
+### What it does
+
+- `POST /v1/medicare/plans/{plan_key}/drug-cost-estimates?year=2026` and the MCP tool
+  `estimate_medicare_drug_costs` call the same service and return the same answer.
+- The request names the scenario (`non_lis_no_other_payer`, the only one supported), a pharmacy
+  channel, an opening state and up to 50 fills of at most 10 products. Each fill has an id, a date,
+  an exact RxCUI, an optional proxy NDC, a quantity with its unit and the days supply. The opening
+  state is either `new_calendar_year` or `provided`, with the gross covered drug cost, TrOOP and
+  plan deductible met so far, which the answer labels as the caller's assertion.
+- The plan's benefit type (defined standard, actuarially equivalent, basic alternative or enhanced
+  alternative) comes from its PBP filing. Its deductible, tier cost sharing, insulin rows and
+  selected-drug flags come from the Part D files. The standard deductible and the out-of-pocket
+  threshold come from the CMS rate announcement. The request has no field for a benefit type or drug class.
+  Sending one gives `400 UNSUPPORTED_FIELD`.
+- A drug is a selected drug when the formulary flag and the CMS selected-drug NDC list for the
+  year agree. If they disagree, the program stays unknown.
+- For each fill the answer gives the listing and its conditions, the filed cost sharing for the
+  tier, supply and channel, the phase at the start and end of the fill, and these figures: patient
+  pay, TrOOP increment, gross cost below and above the threshold, selected-drug subsidy,
+  manufacturer discount, and plan paid inside and outside the standard benefit. It also gives the
+  accumulators before and after the fill. Totals add a labelled subtotal of the fills whose amount
+  is known. That subtotal is not a lower bound for the year.
+- Every figure is `{status, cents, reason, evidence_refs}`. The refs point into one `evidence`
+  list of source rows, PBP rows, rule citations and request fields. Before an answer leaves the
+  service, a check confirms that every value cites evidence, every unknown has a reason and no
+  answer says "not covered". The MCP tool also checks that every cited snapshot and document can
+  be resolved.
+- `bindable_quote` is always `false`. Premiums come back as `not_evaluated`.
+
+### What it does not do yet
+
+The estimator is evidence-only today. Four gaps keep almost every amount unknown:
+
+- **No prices.** No drug price source is loaded for estimates, so `price_basis` accepts only
+  `none`. Without a price, the engine cannot split a claim between deductible, initial coverage
+  and catastrophic phases, so fill amounts are `unknown` with `pricing_not_loaded`. The exception
+  is a fill that starts at or past the out-of-pocket threshold, covered below.
+  `cms_plan_average` answers `unsupported` with `price_basis_not_supported`.
+- **Insulin and vaccine status.** No admitted file lists covered insulin products or ACIP adult
+  vaccines by drug, so both stay open (`insulin_product_list_not_cached`,
+  `acip_vaccine_list_not_cached`). A plan's insulin row for a tier never makes a drug on that tier
+  insulin.
+- **Applicable-drug status.** Whether a drug that is not selected falls under the manufacturer
+  discount program stays open (`applicable_drug_list_not_cached`).
+- **RxNorm not loaded.** The estimate matches drugs only by exact RxCUI and proxy NDC as filed.
+  It returns no drug names, does no name or ingredient search and makes no substitutions.
+
+Each unsettled fact is tried both ways. A figure is a value only when every reading gives the same
+amount. A reading where a drug would be both covered insulin and an ACIP vaccine is not a valid
+reading and is skipped. If the files settle a drug as both, its fills stay unknown with
+`classification_conflict`.
+
+A fill that starts once TrOOP has reached the out-of-pocket threshold is in the catastrophic
+phase. The enrollee pays nothing there, whatever the price, and an ACIP vaccine costs the enrollee
+nothing in any phase. So patient pay and the TrOOP increment are $0 in every valid reading. The
+answer reports both as values and cites the year's catastrophic rule. The gross cost, the subsidy,
+the manufacturer discount and the plan's payments still depend on the price. They stay unknown
+with `pricing_not_loaded`, or with `vaccine_payer_split_not_modelled` for the vaccine reading. Before the threshold, every fill
+amount on a real plan still needs a price. The Checks section says how that is counted.
+
+It also does not cover the low-income subsidy, other payers, premiums, IRMAA, late enrollment
+penalties, drugs outside Part D, pharmacy network membership (the channel is the caller's
+assumption, `channel_verification: "unknown"`) or Medicare Prescription Payment Plan billing.
+
+### Switches and access
+
+Two operator switches must both be `on`:
+
+- `OPENPLANS_MEDICARE_PART_D=on` serves Part D data. Without it the estimate answers
+  `{status: "unknown", reason: "pending_terms_review"}`.
+- `OPENPLANS_MEDICARE_DRUG_COST=on` turns the estimator on. Without it the answer is
+  `{status: "unknown", reason: "estimator_disabled"}` and no plan data is read.
+
+A fill schedule is personal, so access needs a Bearer token on both transports. Public household
+access never opens it.
+
+- HTTP: `Authorization: Bearer <OPENPLANS_API_TOKEN>`. With no API token configured the route
+  answers `503 AUTH_NOT_CONFIGURED`. A missing or wrong token gets `401`.
+- MCP over HTTP: `Authorization: Bearer <OPENPLANS_MCP_TOKEN>`. The tool is listed only when both
+  switches are on and the caller holds that token. With no MCP token configured a call gets
+  `503 AUTH_NOT_CONFIGURED`. A missing or wrong token gets `401` with a Bearer challenge.
+- MCP over stdio follows the local personalized-tool rule: `OPENPLANS_MCP_ALLOW_PERSONALIZED=1`
+  grants the tool and `0` withholds it. Left unset, it is granted only while household tools are
+  open, meaning no MCP token is set and `OPENPLANS_PUBLIC_HOUSEHOLD` is on.
+
+`GET /v1/medicare/data-availability` adds a `part_d_drug_cost_estimates` section per year only
+while the estimator switch is on. It shows which inputs are available and which stay unknown.
+
+### Nothing is stored or logged
+
+Estimate answers carry `Cache-Control: no-store`. The route and the tool mark their request so no
+response cache keeps them, and the tool reports a cache bypass. The service does not log the
+schedule, and the MCP request log records only the tool name, status, timing, size and cache
+result. Nothing from a request is written to the database.
+
+### Unknown reasons
+
+A closed answer has no figures and one `reason`:
+
+| Reason                       | Meaning                                                                                |
+| ---------------------------- | -------------------------------------------------------------------------------------- |
+| `pending_terms_review`       | `OPENPLANS_MEDICARE_PART_D` is off.                                                    |
+| `estimator_disabled`         | `OPENPLANS_MEDICARE_DRUG_COST` is off.                                                 |
+| `not_loaded`                 | No active Part D release with every core table is loaded for the year.                 |
+| `plan_not_in_part_d_files`   | The plan is in the Medicare catalog but not in the Part D files.                       |
+| `plan_suppressed_by_cms`     | CMS suppressed the plan's Part D data.                                                 |
+| `several_formularies_listed` | The plan's rows name more than one formulary.                                          |
+| `rules_not_loaded`           | The year has no reviewed CMS rules. Only 2026 and 2027 do.                             |
+| `too_many_unsettled_facts`   | The open facts across the schedule give more than 1,024 readings. Send fewer products. |
+| `scenario_not_supported`     | The scenario is not `non_lis_no_other_payer` (status `unsupported`).                   |
+| `price_basis_not_supported`  | `price_basis` is not `none` (status `unsupported`).                                    |
+
+An unknown figure names its reason. When several readings disagree, their reasons are joined with
+`+`, for example `insulin_cost_row_missing+pricing_not_loaded`.
+
+| Reason                                                                                                             | Meaning                                                                                                                                                              |
+| ------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pricing_not_loaded`                                                                                               | The fill has no price, so its amount cannot be split between phases.                                                                                                 |
+| `drug_program_unknown`                                                                                             | Whether the drug is a selected drug, an applicable drug or neither is open and changes the amount.                                                                   |
+| `insulin_classification_unknown`                                                                                   | Whether the drug is covered insulin is open and changes the amount.                                                                                                  |
+| `vaccine_classification_unknown`                                                                                   | Whether the drug is an ACIP adult vaccine is open and changes the amount.                                                                                            |
+| `classification_conflict`                                                                                          | The files settle the drug as both covered insulin and an ACIP vaccine. While either fact is open, that reading is skipped.                                           |
+| `benefit_type_unknown`                                                                                             | The plan's PBP filing gives no benefit type and the amount depends on it.                                                                                            |
+| `channel_not_offered`                                                                                              | The plan does not offer the chosen channel for this tier and supply.                                                                                                 |
+| `not_listed`, `supplemental_listing_only`                                                                          | The RxCUI is not on the plan's formulary, or only on its supplemental excluded-drug list. Neither means the drug is not covered.                                     |
+| `ambiguous_drug_product`, `proxy_ndc_not_listed`                                                                   | Several proxy NDCs match, or the given proxy NDC is not listed. Send one listed proxy NDC.                                                                           |
+| `supply_bucket_unproved`                                                                                           | The days supply does not map to a filed 30, 60 or 90-day bucket.                                                                                                     |
+| `earlier_fill_unknown`                                                                                             | An earlier fill left the accumulators unknown, so later amounts depend on it.                                                                                        |
+| `plan_deductible_unknown`, `deductible_applies_unknown`                                                            | The plan deductible or the tier's deductible flag is unreadable.                                                                                                     |
+| `bound_class_unrecognised`, `lis_range_not_no_subsidy_charge`                                                      | The tier's minimum and maximum cost sharing follow no reviewed rule, or they are the low-income subsidy range in a phase where the no-subsidy charge is not settled. |
+| `insulin_cost_row_missing`, `insulin_cost_not_reported`, `insulin_cost_unknown`, `insulin_supply_ceiling_unproved` | The plan's insulin cost sharing for the tier is missing or unreadable, or the supply is not the 30-day bucket the insulin ceiling is read for.                       |
+
+The answer's `gaps` list also names the missing source behind an open fact:
+`insulin_product_list_not_cached`, `acip_vaccine_list_not_cached`,
+`applicable_drug_list_not_cached`, `selected_drug_flag_disagrees_with_cms_list`,
+`selected_drug_flag_unknown` and `benefit_type_not_reported`.
+
 ## Checks
 
 `scripts/realdata.sh` runs `scripts/oracle/medicare.mjs` for each year. The check imports the
@@ -146,3 +291,28 @@ the corresponding reasons. The Part D archive contains no names to check. Synthe
 in `tests/api/medicare-drug-names.test.ts` check exact name matches, missing terminology, inactive
 releases, synonym selection and unchanged flag-off responses. Moving a loaded name to another RxCUI
 must fail the expected-name assertion.
+
+The drug-cost estimator has two checks.
+
+- `tests/ingest/medicare/medicare-cost-oracle.test.ts` runs the CMS worked examples in
+  `tests/fixtures/medicare-costs/oracles.json` end to end. Each example's plan is a synthetic edit
+  of the fixture Part D and PBP files that files the benefit the example describes. The test
+  imports those files, posts the schedule to the HTTP route with a Bearer token and calls the MCP
+  tool. Every expected figure must match to the cent on both, and the two answers must be equal.
+  No price source is loaded, so the test supplies each example's CMS price and the insulin facts
+  the example states. Everything else comes from the imported rows. Five planted mutants must each
+  break an example: the price dropped, 2027 rules used for 2026, an enhanced alternative filing
+  read as basic, the selected-drug flag ignored and the plan deductible ignored.
+- `scripts/realdata.sh` runs `scripts/oracle/medicare-cost.mjs` for each year with cached Part D,
+  Landscape and PBP archives. It imports them into a throwaway database, turns both switches on and
+  asks the HTTP route, for every Part D plan, about the lowest RxCUI on each formulary tier and the
+  lowest selected drug. The plan gets one request for the whole schedule. Each drug also gets a
+  request of its own, once from a new calendar year and once from an opening TrOOP at the
+  out-of-pocket threshold. Every answer must pass the provenance check and cite only listed
+  documents. Without a price, an amount may be calculated only for a fill that starts in the
+  catastrophic phase, where it is $0. About one plan in a hundred also goes through the MCP tool,
+  whose answer must equal the HTTP body. The tool sends each answer twice, as data and as text, and refuses one over its 128 KiB output limit with `RESULT_TOO_LARGE` rather than cut it.
+  An answer for a single fill can reach that limit when the plan's evidence list is long. The
+  check counts those refusals and fails on any other error. Six planted mutants on a real answer
+  must each be caught. The counts of calculated and unknown results, by reason, go to
+  `reports/medicare-cost-oracle-<year>.json` under the data directory.

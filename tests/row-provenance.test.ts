@@ -37,6 +37,9 @@ async function migrations(
   if (omit) {
     await rm(path);
     await rm(join(core.directory, "992_record_policy.sql"));
+    await rm(join(core.directory, "1000_plugin_events.sql"));
+    await rm(join(core.directory, "1001_passthrough.sql"));
+    await rm(join(core.directory, "1002_ingest_run_snapshot.sql"));
   } else if (mutate) {
     const before = await readFile(path, "utf8");
     const after = mutate(before);
@@ -290,6 +293,9 @@ describe("row provenance values", () => {
     expect(await migrate(db, full)).toEqual([
       MIGRATION,
       "992_record_policy.sql",
+      "1000_plugin_events.sql",
+      "1001_passthrough.sql",
+      "1002_ingest_run_snapshot.sql",
     ]);
     expect(await receiptViolations(db)).toEqual([]);
     const { rows } = await db.query(
@@ -346,6 +352,186 @@ describe("row provenance values", () => {
     expect(rows).toEqual([
       { sourced_by: "cms-nppes", sourced_at: "2026-11-07 00:00:00+00" },
     ]);
+  });
+});
+
+describe("plugin event migration", () => {
+  async function activate() {
+    await db.query(`UPDATE snapshot SET validation_state='ACTIVE',
+      expected_children=1, fetched_children=1, sha256=repeat('a',64), activated_at=now()
+      WHERE snapshot_id='synthetic-event'`);
+  }
+
+  async function assertSingleActivation() {
+    const { rows } = await db.query(
+      `SELECT event_type, idempotency_key, schema_version, emitted_by, payload
+       FROM plugin_event_outbox WHERE idempotency_key='snapshot:synthetic-event:ACTIVE'`,
+    );
+    expect(rows).toEqual([
+      {
+        event_type: "snapshot.activated",
+        idempotency_key: "snapshot:synthetic-event:ACTIVE",
+        schema_version: 1,
+        emitted_by: "db",
+        payload: {
+          sourceId: "synthetic-source",
+          snapshotId: "synthetic-event",
+          rows: null,
+        },
+      },
+    ]);
+  }
+
+  it("installs metadata for all plugin tables and emits one activation on repeated updates", async () => {
+    await migrate(db, await migrations());
+    expect(await schemaViolations(db)).toEqual([]);
+    await syntheticReceipt("synthetic-event", "2026-01-01T00:00:00Z");
+    expect((await db.query("SELECT * FROM plugin_event_outbox")).rows).toEqual(
+      [],
+    );
+    await activate();
+    await assertSingleActivation();
+    await activate();
+    await assertSingleActivation();
+    const { rows: events } = await db.query<{ event_id: string }>(
+      "SELECT event_id FROM plugin_event_outbox",
+    );
+    expect(events[0]!.event_id).toMatch(/^[0-9a-f-]{36}$/);
+    await db.query(
+      "INSERT INTO plugin_event_delivery(event_id, subscriber) VALUES ($1,'synthetic-subscriber')",
+      [events[0]!.event_id],
+    );
+    await db.query(
+      "INSERT INTO plugin_state(plugin,key,value) VALUES ('synthetic-plugin','cursor','{}')",
+    );
+    for (const table of [
+      "plugin_event_outbox",
+      "plugin_event_delivery",
+      "plugin_state",
+    ]) {
+      expect(
+        (
+          await db.query(
+            `SELECT sourced_by,sourced_at,sourced_slug,record_policy,record_ttl,expired_at FROM ${table}`,
+          )
+        ).rows,
+      ).toEqual([
+        {
+          sourced_by: "openplans",
+          sourced_at: null,
+          sourced_slug: `app:${table}`,
+          record_policy: "app_state",
+          record_ttl: null,
+          expired_at: null,
+        },
+      ]);
+    }
+    expect(await receiptViolations(db)).toEqual([]);
+    await db.query("DELETE FROM plugin_event_outbox");
+    expect(
+      (await db.query("SELECT * FROM plugin_event_delivery")).rows,
+    ).toEqual([]);
+  });
+
+  it("emits quarantine codes or unknown, ignores intermediate states and retains per-state idempotency", async () => {
+    await migrate(db, await migrations());
+    await syntheticReceipt("synthetic-event", "2026-01-01T00:00:00Z");
+    await db.query(
+      "UPDATE snapshot SET validation_state='PARSED' WHERE snapshot_id='synthetic-event'",
+    );
+    expect((await db.query("SELECT * FROM plugin_event_outbox")).rows).toEqual(
+      [],
+    );
+    await activate();
+    await db.query(`INSERT INTO quality_issue(snapshot_id,severity,issue_code,explanation)
+      VALUES ('synthetic-event','warning','synthetic_warning','Synthetic warning'),
+        ('synthetic-event','error','synthetic_invalid','Synthetic error')`);
+    await db.query(
+      "UPDATE snapshot SET validation_state='QUARANTINED' WHERE snapshot_id='synthetic-event'",
+    );
+    await db.query(
+      "UPDATE snapshot SET validation_state='QUARANTINED' WHERE snapshot_id='synthetic-event'",
+    );
+    expect(
+      (
+        await db.query(
+          `SELECT payload,emitted_by,idempotency_key FROM plugin_event_outbox WHERE event_type='snapshot.quarantined'`,
+        )
+      ).rows,
+    ).toEqual([
+      {
+        payload: {
+          sourceId: "synthetic-source",
+          snapshotId: "synthetic-event",
+          reasonCode: "synthetic_invalid",
+        },
+        emitted_by: "db",
+        idempotency_key: "snapshot:synthetic-event:QUARANTINED",
+      },
+    ]);
+    await activate();
+    await assertSingleActivation();
+    await syntheticReceipt("synthetic-unknown", null);
+    await db.query(
+      "UPDATE snapshot SET validation_state='QUARANTINED' WHERE snapshot_id='synthetic-unknown'",
+    );
+    expect(
+      (
+        await db.query(
+          "SELECT payload->>'reasonCode' AS reason FROM plugin_event_outbox WHERE idempotency_key='snapshot:synthetic-unknown:QUARANTINED'",
+        )
+      ).rows,
+    ).toEqual([{ reason: "unknown" }]);
+  });
+
+  it("rolls back the snapshot change and its event together", async () => {
+    await migrate(db, await migrations());
+    await syntheticReceipt("synthetic-event", "2026-01-01T00:00:00Z");
+    const marker = Error("synthetic rollback");
+    await expect(
+      db.transaction(async (tx) => {
+        await tx.query(
+          "UPDATE snapshot SET validation_state='QUARANTINED' WHERE snapshot_id='synthetic-event'",
+        );
+        expect(
+          (await tx.query("SELECT event_id FROM plugin_event_outbox")).rows,
+        ).toHaveLength(1);
+        throw marker;
+      }),
+    ).rejects.toBe(marker);
+    expect((await db.query("SELECT * FROM plugin_event_outbox")).rows).toEqual(
+      [],
+    );
+    expect(
+      (
+        await db.query(
+          "SELECT validation_state FROM snapshot WHERE snapshot_id='synthetic-event'",
+        )
+      ).rows,
+    ).toEqual([{ validation_state: "DISCOVERED" }]);
+  });
+
+  it("mutant: removing idempotency uniqueness fails the duplicate-event assertion", async () => {
+    const dir = await migrations();
+    const path = join(dir, "1000_plugin_events.sql");
+    const sql = await readFile(path, "utf8");
+    await writeFile(
+      path,
+      replaceAll(
+        sql,
+        "idempotency_key text NOT NULL UNIQUE",
+        "idempotency_key text NOT NULL",
+      ),
+    );
+    await migrate(db, dir);
+    await syntheticReceipt("synthetic-event", "2026-01-01T00:00:00Z");
+    await activate();
+    await assertSingleActivation();
+    await activate();
+    await expect(assertSingleActivation()).rejects.toThrow();
+    expect(
+      (await db.query("SELECT event_id FROM plugin_event_outbox")).rows,
+    ).toHaveLength(2);
   });
 });
 

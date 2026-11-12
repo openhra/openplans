@@ -38,7 +38,7 @@ export function nativeRoutes(db: SqlSession, options: ApiOptions) {
 
   app.route("/", drugRoutes(db));
   app.route("/", providerRoutes(db));
-  app.route("/", medicareRoutes(db));
+  app.route("/", medicareRoutes(db, options));
 
   app.get("/zip-counties", async (c) =>
     c.json(await lookupZip(db, c.req.query("zip"))),

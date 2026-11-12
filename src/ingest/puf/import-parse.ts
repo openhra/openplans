@@ -1,3 +1,4 @@
+import { normalizeEhbColumns } from "../ehb.js";
 import { parse_hios } from "../../domain/hios/index.js";
 import { parseCents, parseRateRow } from "../../domain/rating/index.js";
 import { FAMILY_RATE_FIELDS } from "../../domain/rating/types.js";
@@ -142,7 +143,9 @@ export function parseImportRow(
     issuer = r.IssuerId!;
   if (!/^\d{5}$/.test(issuer)) throw new Error("Invalid issuer identity");
   const head = [snapshot, row.rowNumber, year, state, issuer];
-  const raw = JSON.stringify(r);
+  const raw = JSON.stringify(
+    kind === "plan-attributes" ? normalizeEhbColumns(r) : r,
+  );
   switch (kind) {
     case "plan-attributes": {
       const base = hios(r.StandardComponentId!, state, issuer, true),

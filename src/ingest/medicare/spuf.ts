@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { createWriteStream } from "node:fs";
-import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
+import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Readable } from "node:stream";
@@ -9,6 +9,9 @@ import type { Database, SqlSession } from "../../db/database.js";
 import {
   fetchToCache,
   inspectZip,
+  payloadLocation,
+  readCachedText,
+  sidecarNames,
   streamZipMember,
 } from "../../fetch/index.js";
 import type { SnapshotMetadata, ZipLimits } from "../../fetch/index.js";
@@ -92,17 +95,22 @@ export async function acquireSpuf(
   });
 }
 
+/**
+ * Cached Part D archives of one kind, newest label first, read through the fetch cache's store.
+ * With a remote store `path` is filled in by `ensureCachedPayload`, so listing downloads nothing.
+ */
 export async function cachedSpuf(kind: SpufKind, dataDir = dataDirectory()) {
-  const directory = join(dataDir, "raw", spufSources[kind]);
+  const source = spufSources[kind];
   const out: {
     archive: SpufArchive;
     path: string;
     metadata: SnapshotMetadata;
   }[] = [];
-  for (const name of await readdir(directory).catch(() => [] as string[])) {
-    if (!name.endsWith(".meta.json")) continue;
+  for (const name of await sidecarNames(dataDir, source).catch(
+    () => [] as string[],
+  )) {
     const metadata = JSON.parse(
-      await readFile(join(directory, name), "utf8"),
+      await readCachedText(dataDir, source, name),
     ) as SnapshotMetadata;
     const archive = parseSpufUrl(metadata.url);
     if (
@@ -114,7 +122,7 @@ export async function cachedSpuf(kind: SpufKind, dataDir = dataDirectory()) {
     out.push({
       archive,
       metadata,
-      path: join(directory, metadata.snapshot_id, "payload"),
+      path: payloadLocation(dataDir, source, metadata.snapshot_id),
     });
   }
   return out.sort((a, b) => b.archive.label.localeCompare(a.archive.label));
@@ -130,6 +138,28 @@ export const coreTables = [
   "county",
 ] as const;
 export const largeTables = ["pharmacy_network", "pricing"] as const;
+
+/**
+ * Codes of the Beneficiary Cost and Insulin Beneficiary Cost files, as the 2026 and 2027 record
+ * layouts define them. A code missing here is unknown to the reader, never a default.
+ */
+export const spufCodes = {
+  coverageLevel: {
+    "0": "pre_deductible",
+    "1": "initial_coverage",
+    "3": "catastrophic",
+  },
+  daysSupply: { "1": "30_days", "2": "90_days", "3": "other", "4": "60_days" },
+  costType: { "0": "not_offered", "1": "copay", "2": "coinsurance" },
+} as const;
+/** The four pharmacy channels and their column suffixes, in record-layout order. */
+export const spufChannels = [
+  { channel: "preferred_retail", suffix: "PREF" },
+  { channel: "standard_retail", suffix: "NONPREF" },
+  { channel: "preferred_mail", suffix: "MAIL_PREF" },
+  { channel: "standard_mail", suffix: "MAIL_NONPREF" },
+] as const;
+export type SpufChannel = (typeof spufChannels)[number]["channel"];
 export type SpufTable =
   (typeof coreTables)[number] | (typeof largeTables)[number];
 const members: Record<SpufTable, RegExp> = {
@@ -164,6 +194,7 @@ const required: Record<SpufTable, string[]> = {
   ],
   excluded_drug: ["CONTRACT_ID", "PLAN_ID", "RXCUI", "TIER"],
   indication_coverage: ["CONTRACT_ID", "PLAN_ID", "RXCUI", "DISEASE"],
+  // Every channel column is required: a missing one would otherwise read as an absent benefit.
   beneficiary_cost: [
     "CONTRACT_ID",
     "PLAN_ID",
@@ -171,10 +202,25 @@ const required: Record<SpufTable, string[]> = {
     "COVERAGE_LEVEL",
     "TIER",
     "DAYS_SUPPLY",
-    "COST_TYPE_PREF",
-    "COST_AMT_PREF",
+    ...spufChannels.flatMap((channel) =>
+      ["COST_TYPE", "COST_AMT", "COST_MIN_AMT", "COST_MAX_AMT"].map(
+        (field) => `${field}_${channel.suffix}`,
+      ),
+    ),
+    "TIER_SPECIALTY_YN",
+    "DED_APPLIES_YN",
   ],
-  insulin_cost: ["CONTRACT_ID", "PLAN_ID", "SEGMENT_ID", "TIER", "DAYS_SUPPLY"],
+  insulin_cost: [
+    "CONTRACT_ID",
+    "PLAN_ID",
+    "SEGMENT_ID",
+    "TIER",
+    "DAYS_SUPPLY",
+    ...spufChannels.flatMap((channel) => [
+      `COPAY_AMT_${channel.suffix}_INSLN`,
+      `COIN_AMT_${channel.suffix}_INSLN`,
+    ]),
+  ],
   county: ["COUNTY_CODE", "STATENAME", "COUNTY"],
   pharmacy_network: [
     "CONTRACT_ID",
@@ -194,13 +240,19 @@ const required: Record<SpufTable, string[]> = {
   ],
 };
 
-/** The inner archives hold one pipe-delimited table each; they are copied to a private temp file. */
-async function* innerRows(path: string, table: SpufTable) {
+/**
+ * Rows of one table of a cached archive. The inner archives hold one pipe-delimited table each;
+ * they are copied to a private temp file. Core tables must be a single member, because stored
+ * rows cite their table and row number only.
+ */
+export async function* spufTableRows(path: string, table: SpufTable) {
   const outer = (await inspectZip(path, outerLimits)).members
     .map((entry) => entry.name)
     .filter((name) => members[table].test(name))
     .sort();
   if (!outer.length) throw new Error(`Part D archive has no ${table} file`);
+  if (outer.length > 1 && table !== "pharmacy_network")
+    throw new Error(`Part D ${table} file is split into several members`);
   for (const name of outer) {
     const directory = await mkdtemp(join(tmpdir(), "openplans-spuf-"));
     try {
@@ -262,6 +314,7 @@ export function pharmacyNpi(value: string): string {
 async function loadTable(
   tx: SqlSession,
   snapshotId: string,
+  archive: SpufArchive,
   path: string,
   table: SpufTable,
   counts: Record<string, number>,
@@ -344,7 +397,7 @@ async function loadTable(
         );
     };
     const done = new Set<string>();
-    for await (const row of innerRows(path, table)) {
+    for await (const row of spufTableRows(path, table)) {
       rows++;
       const k = key(row.values);
       const id = `${k.contractId}-${k.planId}-${k.segmentId}`;
@@ -395,7 +448,7 @@ async function loadTable(
     counts.pharmacy_network_plans = done.size;
     return;
   }
-  for await (const row of innerRows(path, table)) {
+  for await (const row of spufTableRows(path, table)) {
     rows++;
     const v = row.values;
     if (table === "plan") {
@@ -423,6 +476,12 @@ async function loadTable(
     } else if (table === "formulary") {
       if (!/^\d+$/.test(v.RXCUI ?? "") || !/^\d{11}$/.test(v.NDC ?? ""))
         throw new Error("Part D formulary row has an invalid RxCUI or NDC");
+      // The archive name gives the contract year; a formulary row for another year is rejected.
+      if (
+        v.CONTRACT_YEAR !== undefined &&
+        v.CONTRACT_YEAR !== String(archive.year)
+      )
+        throw new Error("Part D formulary row is for another contract year");
       batch.push([
         snapshotId,
         v.FORMULARY_ID,
@@ -636,7 +695,7 @@ export async function importSpuf(
       );
       const counts: Record<string, number> = {};
       for (const table of tables)
-        await loadTable(tx, snapshotId, cached.path, table, counts);
+        await loadTable(tx, snapshotId, archive, cached.path, table, counts);
       const suppressed = (
         await tx.query<{ n: number }>(
           "SELECT count(DISTINCT (contract_id,plan_id,segment_id))::int AS n FROM partd_plan WHERE snapshot_id=$1 AND suppressed",

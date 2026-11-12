@@ -1,0 +1,2405 @@
+{
+  "schema_version": 1,
+  "description": "Synthetic requests over the existing API quote fixture. No new source data.",
+  "http": [
+    {
+      "id": "healthz",
+      "method": "GET",
+      "path": "/healthz",
+      "status": 200,
+      "source": "tests/api.test.ts"
+    },
+    {
+      "id": "healthz-db-down",
+      "method": "GET",
+      "path": "/healthz",
+      "status": 503,
+      "source": "tests/api.test.ts",
+      "unavailable": true
+    },
+    {
+      "id": "cache-stats",
+      "method": "GET",
+      "path": "/v1/cache-stats",
+      "status": 200,
+      "source": "tests/api/cache/generation.test.ts"
+    },
+    {
+      "id": "zip-counties",
+      "method": "GET",
+      "path": "/v1/zip-counties?zip=75034",
+      "status": 200,
+      "source": "tests/api/routes.test.ts"
+    },
+    {
+      "id": "zip-unknown",
+      "method": "GET",
+      "path": "/v1/zip-counties?zip=77001",
+      "status": 200,
+      "source": "tests/api/routes.test.ts"
+    },
+    {
+      "id": "plans",
+      "method": "GET",
+      "path": "/v1/plans?zip=77002&year=2026",
+      "status": 200,
+      "source": "tests/api/routes.test.ts"
+    },
+    {
+      "id": "plans-ambiguous",
+      "method": "GET",
+      "path": "/v1/plans?zip=75034&year=2026",
+      "status": 200,
+      "source": "tests/api/routes.test.ts"
+    },
+    {
+      "id": "plans-unknown",
+      "method": "GET",
+      "path": "/v1/plans?zip=77001&year=2026",
+      "status": 200,
+      "source": "tests/api/routes.test.ts"
+    },
+    {
+      "id": "plans-page-2",
+      "method": "GET",
+      "path": "/v1/plans?zip=77002&year=2026&page=2",
+      "status": 200,
+      "source": "tests/api/routes.test.ts"
+    },
+    {
+      "id": "plan-detail",
+      "method": "GET",
+      "path": "/v1/plans/87226TX0100013?year=2026",
+      "status": 200,
+      "source": "tests/api/routes.test.ts"
+    },
+    {
+      "id": "plan-variant",
+      "method": "GET",
+      "path": "/v1/plans/87226TX0100013-00?year=2026",
+      "status": 200,
+      "source": "tests/api/routes.test.ts"
+    },
+    {
+      "id": "carriers",
+      "method": "GET",
+      "path": "/v1/carriers?state=TX",
+      "status": 200,
+      "source": "tests/api/routes.test.ts"
+    },
+    {
+      "id": "networks",
+      "method": "GET",
+      "path": "/v1/networks?state=TX&year=2026",
+      "status": 200,
+      "source": "tests/api/routes.test.ts"
+    },
+    {
+      "id": "availability",
+      "method": "GET",
+      "path": "/v1/data-availability?state=TX&year=2026",
+      "status": 200,
+      "source": "tests/api/routes.test.ts"
+    },
+    {
+      "id": "availability-unknown",
+      "method": "GET",
+      "path": "/v1/data-availability?state=NY",
+      "status": 200,
+      "source": "tests/api/routes.test.ts"
+    },
+    {
+      "id": "invalid-catalog-0",
+      "method": "GET",
+      "path": "/v1/zip-counties?zip=1234",
+      "status": 400,
+      "source": "tests/api/routes.test.ts"
+    },
+    {
+      "id": "invalid-catalog-1",
+      "method": "GET",
+      "path": "/v1/plans?zip=77002",
+      "status": 400,
+      "source": "tests/api/routes.test.ts"
+    },
+    {
+      "id": "invalid-catalog-2",
+      "method": "GET",
+      "path": "/v1/plans?zip=77002&year=2026&page=0",
+      "status": 400,
+      "source": "tests/api/routes.test.ts"
+    },
+    {
+      "id": "invalid-catalog-3",
+      "method": "GET",
+      "path": "/v1/plans?zip=77002&year=2026&metal=plastic",
+      "status": 400,
+      "source": "tests/api/routes.test.ts"
+    },
+    {
+      "id": "invalid-catalog-4",
+      "method": "GET",
+      "path": "/v1/plans?zip=77002&county=48085&year=2026",
+      "status": 400,
+      "source": "tests/api/routes.test.ts"
+    },
+    {
+      "id": "invalid-catalog-5",
+      "method": "GET",
+      "path": "/v1/plans/bad?year=2026",
+      "status": 400,
+      "source": "tests/api/routes.test.ts"
+    },
+    {
+      "id": "invalid-catalog-6",
+      "method": "GET",
+      "path": "/v1/networks?state=XX",
+      "status": 400,
+      "source": "tests/api/routes.test.ts"
+    },
+    {
+      "id": "invalid-catalog-7",
+      "method": "GET",
+      "path": "/v1/data-availability?year=bad",
+      "status": 400,
+      "source": "tests/api/routes.test.ts"
+    },
+    {
+      "id": "plan-missing",
+      "method": "GET",
+      "path": "/v1/plans/99999TX0100001?year=2026",
+      "status": 404,
+      "source": "tests/api/routes.test.ts"
+    },
+    {
+      "id": "variant-missing",
+      "method": "GET",
+      "path": "/v1/plans/87226TX0100013-99?year=2026",
+      "status": 404,
+      "source": "tests/api/routes.test.ts"
+    },
+    {
+      "id": "availability-db-down",
+      "method": "GET",
+      "path": "/v1/data-availability",
+      "status": 503,
+      "source": "tests/api.test.ts",
+      "unavailable": true
+    },
+    {
+      "id": "quotes-open",
+      "method": "POST",
+      "path": "/v1/quotes",
+      "status": 200,
+      "source": "tests/api/quotes.test.ts",
+      "body": {
+        "year": 2026,
+        "zip": "77002",
+        "county": "48201",
+        "members": [
+          {
+            "age": 35
+          }
+        ],
+        "plan_ids": [
+          "87226TX0100013"
+        ]
+      }
+    },
+    {
+      "id": "quotes-token",
+      "method": "POST",
+      "path": "/v1/quotes",
+      "status": 200,
+      "source": "tests/api/quotes.test.ts",
+      "body": {
+        "year": 2026,
+        "zip": "77002",
+        "county": "48201",
+        "members": [
+          {
+            "age": 35
+          }
+        ],
+        "plan_ids": [
+          "87226TX0100013"
+        ]
+      },
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "quotes-invalid-json",
+      "method": "POST",
+      "path": "/v1/quotes",
+      "status": 400,
+      "source": "tests/api/quotes.test.ts",
+      "body": "{bad",
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "premium-open",
+      "method": "POST",
+      "path": "/v1/premium-quotes",
+      "status": 200,
+      "source": "tests/api/routes.test.ts",
+      "body": {
+        "plan_ids": [
+          "87226TX0100013"
+        ],
+        "county": "48201",
+        "coverage_start": "2026-01-01",
+        "members": [
+          {
+            "age": 35,
+            "tobacco": false,
+            "relationship": "subscriber"
+          }
+        ]
+      }
+    },
+    {
+      "id": "premium-token",
+      "method": "POST",
+      "path": "/v1/premium-quotes",
+      "status": 200,
+      "source": "tests/api/routes.test.ts",
+      "body": {
+        "plan_ids": [
+          "87226TX0100013"
+        ],
+        "county": "48201",
+        "coverage_start": "2026-01-01",
+        "members": [
+          {
+            "age": 35,
+            "tobacco": false,
+            "relationship": "subscriber"
+          }
+        ]
+      },
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "premium-denied",
+      "method": "POST",
+      "path": "/v1/premium-quotes",
+      "status": 401,
+      "source": "tests/api/routes.test.ts",
+      "body": {
+        "plan_ids": [
+          "87226TX0100013"
+        ],
+        "county": "48201",
+        "coverage_start": "2026-01-01",
+        "members": [
+          {
+            "age": 35,
+            "tobacco": false,
+            "relationship": "subscriber"
+          }
+        ]
+      },
+      "token": true
+    },
+    {
+      "id": "premium-wrong-token",
+      "method": "POST",
+      "path": "/v1/premium-quotes",
+      "status": 401,
+      "source": "tests/api/routes.test.ts",
+      "body": {
+        "plan_ids": [
+          "87226TX0100013"
+        ],
+        "county": "48201",
+        "coverage_start": "2026-01-01",
+        "members": [
+          {
+            "age": 35,
+            "tobacco": false,
+            "relationship": "subscriber"
+          }
+        ]
+      },
+      "token": true,
+      "auth": "wrong"
+    },
+    {
+      "id": "premium-disabled",
+      "method": "POST",
+      "path": "/v1/premium-quotes",
+      "status": 503,
+      "source": "tests/api/routes.test.ts",
+      "body": {
+        "plan_ids": [
+          "87226TX0100013"
+        ],
+        "county": "48201",
+        "coverage_start": "2026-01-01",
+        "members": [
+          {
+            "age": 35,
+            "tobacco": false,
+            "relationship": "subscriber"
+          }
+        ]
+      },
+      "env": {
+        "OPENPLANS_PUBLIC_HOUSEHOLD": "off"
+      }
+    },
+    {
+      "id": "premium-invalid-json",
+      "method": "POST",
+      "path": "/v1/premium-quotes",
+      "status": 400,
+      "source": "tests/api/routes.test.ts",
+      "body": "{bad",
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "ichra-open",
+      "method": "POST",
+      "path": "/v1/ichra/affordability",
+      "status": 200,
+      "source": "tests/api/ichra.test.ts",
+      "body": {
+        "plan_start": "2026-01-01",
+        "employee": {
+          "date_of_birth": "1985-10-01"
+        },
+        "residence": {
+          "zip": "77002"
+        },
+        "hra": {
+          "self_only_annual_cents": 300000
+        },
+        "income": [
+          {
+            "measure": "household",
+            "annual_cents": 4118000
+          }
+        ]
+      }
+    },
+    {
+      "id": "ichra-token",
+      "method": "POST",
+      "path": "/v1/ichra/affordability",
+      "status": 200,
+      "source": "tests/api/ichra.test.ts",
+      "body": {
+        "plan_start": "2026-01-01",
+        "employee": {
+          "date_of_birth": "1985-10-01"
+        },
+        "residence": {
+          "zip": "77002"
+        },
+        "hra": {
+          "self_only_annual_cents": 300000
+        },
+        "income": [
+          {
+            "measure": "household",
+            "annual_cents": 4118000
+          }
+        ]
+      },
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "ichra-denied",
+      "method": "POST",
+      "path": "/v1/ichra/affordability",
+      "status": 401,
+      "source": "tests/api/ichra.test.ts",
+      "body": {
+        "plan_start": "2026-01-01",
+        "employee": {
+          "date_of_birth": "1985-10-01"
+        },
+        "residence": {
+          "zip": "77002"
+        },
+        "hra": {
+          "self_only_annual_cents": 300000
+        },
+        "income": [
+          {
+            "measure": "household",
+            "annual_cents": 4118000
+          }
+        ]
+      },
+      "token": true
+    },
+    {
+      "id": "ichra-wrong-token",
+      "method": "POST",
+      "path": "/v1/ichra/affordability",
+      "status": 401,
+      "source": "tests/api/ichra.test.ts",
+      "body": {
+        "plan_start": "2026-01-01",
+        "employee": {
+          "date_of_birth": "1985-10-01"
+        },
+        "residence": {
+          "zip": "77002"
+        },
+        "hra": {
+          "self_only_annual_cents": 300000
+        },
+        "income": [
+          {
+            "measure": "household",
+            "annual_cents": 4118000
+          }
+        ]
+      },
+      "token": true,
+      "auth": "wrong"
+    },
+    {
+      "id": "ichra-disabled",
+      "method": "POST",
+      "path": "/v1/ichra/affordability",
+      "status": 503,
+      "source": "tests/api/ichra.test.ts",
+      "body": {
+        "plan_start": "2026-01-01",
+        "employee": {
+          "date_of_birth": "1985-10-01"
+        },
+        "residence": {
+          "zip": "77002"
+        },
+        "hra": {
+          "self_only_annual_cents": 300000
+        },
+        "income": [
+          {
+            "measure": "household",
+            "annual_cents": 4118000
+          }
+        ]
+      },
+      "env": {
+        "OPENPLANS_PUBLIC_HOUSEHOLD": "off"
+      }
+    },
+    {
+      "id": "ichra-invalid-json",
+      "method": "POST",
+      "path": "/v1/ichra/affordability",
+      "status": 400,
+      "source": "tests/api/ichra.test.ts",
+      "body": "{bad",
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "quotes-disabled",
+      "method": "POST",
+      "path": "/v1/quotes",
+      "status": 503,
+      "source": "tests/api/quotes.test.ts",
+      "body": {
+        "year": 2026,
+        "zip": "77002",
+        "county": "48201",
+        "members": [
+          {
+            "age": 35
+          }
+        ],
+        "plan_ids": [
+          "87226TX0100013"
+        ]
+      },
+      "env": {
+        "OPENPLANS_PUBLIC_QUOTING": "off"
+      }
+    },
+    {
+      "id": "quotes-income-refused",
+      "method": "POST",
+      "path": "/v1/quotes",
+      "status": 400,
+      "source": "tests/api/quotes.test.ts",
+      "body": {
+        "year": 2026,
+        "zip": "77002",
+        "county": "48201",
+        "members": [
+          {
+            "age": 35
+          }
+        ],
+        "plan_ids": [
+          "87226TX0100013"
+        ],
+        "household_income_annual": 40000
+      }
+    },
+    {
+      "id": "quotes-unknown",
+      "method": "POST",
+      "path": "/v1/quotes",
+      "status": 200,
+      "source": "tests/api/quotes.test.ts",
+      "body": {
+        "year": 2026,
+        "zip": "77001",
+        "members": [
+          {
+            "age": 35
+          }
+        ],
+        "plan_ids": [
+          "87226TX0100013"
+        ]
+      }
+    },
+    {
+      "id": "premium-missing-plan",
+      "method": "POST",
+      "path": "/v1/premium-quotes",
+      "status": 404,
+      "source": "tests/api/routes.test.ts",
+      "body": {
+        "plan_ids": [
+          "99999TX0100001"
+        ],
+        "county": "48201",
+        "coverage_start": "2026-01-01",
+        "members": [
+          {
+            "age": 35,
+            "tobacco": false,
+            "relationship": "subscriber"
+          }
+        ]
+      }
+    },
+    {
+      "id": "benchmark-open",
+      "method": "GET",
+      "path": "/v1/benchmark?zip=77002&year=2026&ages=40",
+      "status": 200,
+      "source": "tests/api/subsidies.test.ts"
+    },
+    {
+      "id": "benchmark-token",
+      "method": "GET",
+      "path": "/v1/benchmark?zip=77002&year=2026&ages=40",
+      "status": 200,
+      "source": "tests/api/subsidies.test.ts",
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "benchmark-denied",
+      "method": "GET",
+      "path": "/v1/benchmark?zip=77002&year=2026&ages=40",
+      "status": 401,
+      "source": "tests/api/subsidies.test.ts",
+      "token": true
+    },
+    {
+      "id": "benchmark-disabled",
+      "method": "GET",
+      "path": "/v1/benchmark?zip=77002&year=2026&ages=40",
+      "status": 503,
+      "source": "tests/api/subsidies.test.ts",
+      "env": {
+        "OPENPLANS_PUBLIC_HOUSEHOLD": "off"
+      }
+    },
+    {
+      "id": "premium-estimates-retired",
+      "method": "POST",
+      "path": "/v1/premium-estimates",
+      "status": 404,
+      "source": "tests/api/quotes.test.ts",
+      "body": {
+        "plan_ids": [
+          "87226TX0100013"
+        ],
+        "county": "48201",
+        "coverage_start": "2026-01-01",
+        "members": [
+          {
+            "age": 35,
+            "tobacco": false,
+            "relationship": "subscriber"
+          }
+        ]
+      }
+    },
+    {
+      "id": "no-such-route",
+      "method": "GET",
+      "path": "/v1/no-such-route",
+      "status": 404,
+      "source": "tests/api/quotes.test.ts"
+    },
+    {
+      "id": "drug-search",
+      "method": "GET",
+      "path": "/v1/drugs?q=metformin",
+      "status": 200,
+      "source": "tests/api/drugs.test.ts"
+    },
+    {
+      "id": "drug-invalid",
+      "method": "GET",
+      "path": "/v1/drugs?ndc=71015523",
+      "status": 400,
+      "source": "tests/api/drugs.test.ts"
+    },
+    {
+      "id": "drug-detail",
+      "method": "GET",
+      "path": "/v1/drugs/999999999999",
+      "status": 404,
+      "source": "tests/api/drugs.test.ts"
+    },
+    {
+      "id": "drug-plan",
+      "method": "GET",
+      "path": "/v1/plans/87226TX0100013/drugs/860975?year=2026",
+      "status": 200,
+      "source": "tests/api/drugs.test.ts"
+    },
+    {
+      "id": "drug-coverage",
+      "method": "POST",
+      "path": "/v1/drug-coverage",
+      "status": 200,
+      "source": "tests/api/drugs.test.ts",
+      "body": {
+        "plan_ids": [
+          "87226TX0100013"
+        ],
+        "rxcuis": [
+          "860975"
+        ],
+        "year": 2026
+      }
+    },
+    {
+      "id": "drug-coverage-invalid",
+      "method": "POST",
+      "path": "/v1/drug-coverage",
+      "status": 400,
+      "source": "tests/api/drugs.test.ts",
+      "body": "{bad"
+    },
+    {
+      "id": "provider-search",
+      "method": "GET",
+      "path": "/v1/providers?plan_id=87226TX0100013&year=2026",
+      "status": 200,
+      "source": "tests/api/providers.test.ts"
+    },
+    {
+      "id": "provider-invalid",
+      "method": "GET",
+      "path": "/v1/providers?lat=91&lon=0",
+      "status": 400,
+      "source": "tests/api/providers.test.ts"
+    },
+    {
+      "id": "provider-detail",
+      "method": "GET",
+      "path": "/v1/providers/1000000099",
+      "status": 404,
+      "source": "tests/api/providers.test.ts"
+    },
+    {
+      "id": "provider-plan",
+      "method": "GET",
+      "path": "/v1/plans/87226TX0100013/providers/1234567893?year=2026",
+      "status": 200,
+      "source": "tests/api/providers.test.ts"
+    },
+    {
+      "id": "provider-participation",
+      "method": "POST",
+      "path": "/v1/provider-participation",
+      "status": 200,
+      "source": "tests/api/providers.test.ts",
+      "body": {
+        "plan_ids": [
+          "87226TX0100013"
+        ],
+        "npis": [
+          "1234567893"
+        ],
+        "year": 2026
+      }
+    },
+    {
+      "id": "provider-participation-invalid",
+      "method": "POST",
+      "path": "/v1/provider-participation",
+      "status": 400,
+      "source": "tests/api/providers.test.ts",
+      "body": "{bad"
+    },
+    {
+      "id": "medicare-availability",
+      "method": "GET",
+      "path": "/v1/medicare/data-availability",
+      "status": 200,
+      "source": "tests/api/medicare.test.ts"
+    },
+    {
+      "id": "medicare-search",
+      "method": "GET",
+      "path": "/v1/medicare/plans?county_fips=48201&year=2026&type=ma_pd",
+      "status": 200,
+      "source": "tests/api/medicare.test.ts"
+    },
+    {
+      "id": "medicare-invalid",
+      "method": "GET",
+      "path": "/v1/medicare/plans?year=2026",
+      "status": 400,
+      "source": "tests/api/medicare.test.ts"
+    },
+    {
+      "id": "medicare-detail",
+      "method": "GET",
+      "path": "/v1/medicare/plans/H0028-042-0?year=2026",
+      "status": 404,
+      "source": "tests/api/medicare.test.ts"
+    },
+    {
+      "id": "medicare-detail-benefits",
+      "method": "GET",
+      "path": "/v1/medicare/plans/H0028-042-0/benefits?year=2026",
+      "status": 404,
+      "source": "tests/api/medicare.test.ts"
+    },
+    {
+      "id": "medicare-detail-service-area",
+      "method": "GET",
+      "path": "/v1/medicare/plans/H0028-042-0/service-area?year=2026",
+      "status": 404,
+      "source": "tests/api/medicare.test.ts"
+    },
+    {
+      "id": "medicare-detail-lineage",
+      "method": "GET",
+      "path": "/v1/medicare/plans/H0028-042-0/lineage?year=2026",
+      "status": 200,
+      "source": "tests/api/medicare.test.ts"
+    },
+    {
+      "id": "medicare-detail-drugs",
+      "method": "GET",
+      "path": "/v1/medicare/plans/H0028-042-0/drugs?year=2026&rxcui=860975",
+      "status": 404,
+      "source": "tests/api/medicare.test.ts"
+    },
+    {
+      "id": "medicare-detail-pharmacies",
+      "method": "GET",
+      "path": "/v1/medicare/plans/H0028-042-0/pharmacies?year=2026&zip=77002",
+      "status": 404,
+      "source": "tests/api/medicare.test.ts"
+    },
+    {
+      "id": "medicare-drug-cost-no-grant",
+      "method": "POST",
+      "path": "/v1/medicare/plans/H0028-042-0/drug-cost-estimates?year=2026",
+      "status": 503,
+      "source": "tests/api/medicare-cost-estimates.test.ts",
+      "body": {
+        "scenario": "non_lis_no_other_payer",
+        "channel": "preferred_retail",
+        "opening_state": {
+          "kind": "new_calendar_year"
+        },
+        "fills": [
+          {
+            "fill_id": "synthetic-1",
+            "date": "2026-02-03",
+            "rxcui": "860975",
+            "quantity": "30",
+            "unit": "tablet",
+            "days_supply": 30
+          }
+        ]
+      }
+    },
+    {
+      "id": "compat-zip",
+      "method": "GET",
+      "path": "/compat/v1/zip_counties?zip_prefix=75034",
+      "status": 200,
+      "source": "tests/compat/v1/routes.test.ts"
+    },
+    {
+      "id": "compat-zip-invalid",
+      "method": "GET",
+      "path": "/compat/v1/zip_counties",
+      "status": 400,
+      "source": "tests/compat/v1/routes.test.ts"
+    },
+    {
+      "id": "compat-search-medical",
+      "method": "POST",
+      "path": "/compat/v1/plans/medical/search",
+      "status": 200,
+      "source": "tests/compat/v1/routes.test.ts",
+      "body": {
+        "fips_code": "48201",
+        "market": "individual",
+        "applicants": [
+          {
+            "age": 35,
+            "smoker": false,
+            "child": false
+          }
+        ],
+        "enrollment_date": "2026-01-01",
+        "per_page": 10
+      }
+    },
+    {
+      "id": "compat-detail-medical",
+      "method": "GET",
+      "path": "/compat/v1/plans/medical/87226TX0100013?year=2026",
+      "status": 200,
+      "source": "tests/compat/v1/routes.test.ts"
+    },
+    {
+      "id": "compat-search-dental",
+      "method": "POST",
+      "path": "/compat/v1/plans/dental/search",
+      "status": 200,
+      "source": "tests/compat/v1/routes.test.ts",
+      "body": {
+        "fips_code": "48201",
+        "market": "individual",
+        "applicants": [
+          {
+            "age": 35,
+            "smoker": false,
+            "child": false
+          }
+        ],
+        "enrollment_date": "2026-01-01",
+        "per_page": 10
+      }
+    },
+    {
+      "id": "compat-detail-dental",
+      "method": "GET",
+      "path": "/compat/v1/plans/dental/87226TX0100013?year=2026",
+      "status": 404,
+      "source": "tests/compat/v1/routes.test.ts"
+    },
+    {
+      "id": "compat-search-vision",
+      "method": "POST",
+      "path": "/compat/v1/plans/vision/search",
+      "status": 200,
+      "source": "tests/compat/v1/routes.test.ts",
+      "body": {
+        "fips_code": "48201",
+        "market": "individual",
+        "applicants": [
+          {
+            "age": 35,
+            "smoker": false,
+            "child": false
+          }
+        ],
+        "enrollment_date": "2026-01-01",
+        "per_page": 10
+      }
+    },
+    {
+      "id": "compat-detail",
+      "method": "GET",
+      "path": "/compat/v1/plans/87226TX0100013?year=2026",
+      "status": 200,
+      "source": "tests/compat/v1/routes.test.ts"
+    },
+    {
+      "id": "compat-search-invalid",
+      "method": "POST",
+      "path": "/compat/v1/plans/medical/search",
+      "status": 400,
+      "source": "tests/compat/v1/routes.test.ts",
+      "body": "{bad"
+    },
+    {
+      "id": "compat-carriers",
+      "method": "GET",
+      "path": "/compat/v1/carriers?state=TX&year=2026",
+      "status": 200,
+      "source": "tests/compat/v1/routes.test.ts"
+    },
+    {
+      "id": "compat-networks",
+      "method": "GET",
+      "path": "/compat/v1/networks?state=TX&year=2026",
+      "status": 200,
+      "source": "tests/compat/v1/routes.test.ts"
+    },
+    {
+      "id": "compat-drugs",
+      "method": "GET",
+      "path": "/compat/v1/drugs?search_term=metformin",
+      "status": 200,
+      "source": "tests/compat/v1/drugs.test.ts"
+    },
+    {
+      "id": "compat-providers",
+      "method": "POST",
+      "path": "/compat/v1/providers/search",
+      "status": 200,
+      "source": "tests/compat/v1/providers.test.ts",
+      "body": {
+        "zip_code": "77002"
+      }
+    },
+    {
+      "id": "compat-provider-detail",
+      "method": "GET",
+      "path": "/compat/v1/providers/1000000099",
+      "status": 404,
+      "source": "tests/compat/v1/providers.test.ts"
+    },
+    {
+      "id": "compat-specialties",
+      "method": "GET",
+      "path": "/compat/v1/specialties",
+      "status": 200,
+      "source": "tests/compat/v1/providers.test.ts"
+    },
+    {
+      "id": "compat-unsupported-vision",
+      "method": "GET",
+      "path": "/compat/v1/plans/vision/synthetic",
+      "status": 501,
+      "source": "tests/compat/v1/routes.test.ts"
+    },
+    {
+      "id": "compat-unsupported-medadv",
+      "method": "GET",
+      "path": "/compat/v1/plans/medadv/synthetic",
+      "status": 501,
+      "source": "tests/compat/v1/routes.test.ts"
+    },
+    {
+      "id": "compat-auth-granted",
+      "method": "GET",
+      "path": "/compat/v1/zip_counties?zip_prefix=75034",
+      "status": 200,
+      "source": "tests/compat/v1/auth.test.ts",
+      "env": {
+        "OPENPLANS_COMPAT_API_KEY": "synthetic-digest-token"
+      },
+      "headers": {
+        "X-Api-Key": "synthetic-digest-token"
+      }
+    },
+    {
+      "id": "compat-auth-denied",
+      "method": "GET",
+      "path": "/compat/v1/zip_counties?zip_prefix=75034",
+      "status": 401,
+      "source": "tests/compat/v1/auth.test.ts",
+      "env": {
+        "OPENPLANS_COMPAT_API_KEY": "synthetic-digest-token"
+      }
+    },
+    {
+      "id": "compat-auth-disabled",
+      "method": "GET",
+      "path": "/compat/v1/zip_counties?zip_prefix=75034",
+      "status": 503,
+      "source": "tests/compat/v1/auth.test.ts",
+      "env": {
+        "OPENPLANS_PUBLIC_COMPAT": "off"
+      }
+    },
+    {
+      "id": "compat-options",
+      "method": "OPTIONS",
+      "path": "/compat/v1/plans/medical/search",
+      "status": 204,
+      "source": "tests/compat/v1/auth.test.ts"
+    },
+    {
+      "id": "warm-plans",
+      "method": "GET",
+      "path": "/v1/plans?zip=77002&year=2026",
+      "status": 200,
+      "source": "tests/api/cache/middleware.test.ts",
+      "warm": true
+    },
+    {
+      "id": "warm-zip",
+      "method": "GET",
+      "path": "/v1/zip-counties?zip=75034",
+      "status": 200,
+      "source": "tests/api/cache/middleware.test.ts",
+      "warm": true
+    },
+    {
+      "id": "healthz-with-api-token",
+      "method": "GET",
+      "path": "/healthz",
+      "status": 200,
+      "source": "tests/api.test.ts",
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "cache-stats-with-api-token",
+      "method": "GET",
+      "path": "/v1/cache-stats",
+      "status": 200,
+      "source": "tests/api/cache/generation.test.ts",
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "zip-counties-with-api-token",
+      "method": "GET",
+      "path": "/v1/zip-counties?zip=75034",
+      "status": 200,
+      "source": "tests/api/routes.test.ts",
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "zip-unknown-with-api-token",
+      "method": "GET",
+      "path": "/v1/zip-counties?zip=77001",
+      "status": 200,
+      "source": "tests/api/routes.test.ts",
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "plans-with-api-token",
+      "method": "GET",
+      "path": "/v1/plans?zip=77002&year=2026",
+      "status": 200,
+      "source": "tests/api/routes.test.ts",
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "plans-ambiguous-with-api-token",
+      "method": "GET",
+      "path": "/v1/plans?zip=75034&year=2026",
+      "status": 200,
+      "source": "tests/api/routes.test.ts",
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "plans-unknown-with-api-token",
+      "method": "GET",
+      "path": "/v1/plans?zip=77001&year=2026",
+      "status": 200,
+      "source": "tests/api/routes.test.ts",
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "plans-page-2-with-api-token",
+      "method": "GET",
+      "path": "/v1/plans?zip=77002&year=2026&page=2",
+      "status": 200,
+      "source": "tests/api/routes.test.ts",
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "plan-detail-with-api-token",
+      "method": "GET",
+      "path": "/v1/plans/87226TX0100013?year=2026",
+      "status": 200,
+      "source": "tests/api/routes.test.ts",
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "plan-variant-with-api-token",
+      "method": "GET",
+      "path": "/v1/plans/87226TX0100013-00?year=2026",
+      "status": 200,
+      "source": "tests/api/routes.test.ts",
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "carriers-with-api-token",
+      "method": "GET",
+      "path": "/v1/carriers?state=TX",
+      "status": 200,
+      "source": "tests/api/routes.test.ts",
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "networks-with-api-token",
+      "method": "GET",
+      "path": "/v1/networks?state=TX&year=2026",
+      "status": 200,
+      "source": "tests/api/routes.test.ts",
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "availability-with-api-token",
+      "method": "GET",
+      "path": "/v1/data-availability?state=TX&year=2026",
+      "status": 200,
+      "source": "tests/api/routes.test.ts",
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "availability-unknown-with-api-token",
+      "method": "GET",
+      "path": "/v1/data-availability?state=NY",
+      "status": 200,
+      "source": "tests/api/routes.test.ts",
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "invalid-catalog-0-with-api-token",
+      "method": "GET",
+      "path": "/v1/zip-counties?zip=1234",
+      "status": 400,
+      "source": "tests/api/routes.test.ts",
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "invalid-catalog-1-with-api-token",
+      "method": "GET",
+      "path": "/v1/plans?zip=77002",
+      "status": 400,
+      "source": "tests/api/routes.test.ts",
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "invalid-catalog-2-with-api-token",
+      "method": "GET",
+      "path": "/v1/plans?zip=77002&year=2026&page=0",
+      "status": 400,
+      "source": "tests/api/routes.test.ts",
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "invalid-catalog-3-with-api-token",
+      "method": "GET",
+      "path": "/v1/plans?zip=77002&year=2026&metal=plastic",
+      "status": 400,
+      "source": "tests/api/routes.test.ts",
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "invalid-catalog-4-with-api-token",
+      "method": "GET",
+      "path": "/v1/plans?zip=77002&county=48085&year=2026",
+      "status": 400,
+      "source": "tests/api/routes.test.ts",
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "invalid-catalog-5-with-api-token",
+      "method": "GET",
+      "path": "/v1/plans/bad?year=2026",
+      "status": 400,
+      "source": "tests/api/routes.test.ts",
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "invalid-catalog-6-with-api-token",
+      "method": "GET",
+      "path": "/v1/networks?state=XX",
+      "status": 400,
+      "source": "tests/api/routes.test.ts",
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "invalid-catalog-7-with-api-token",
+      "method": "GET",
+      "path": "/v1/data-availability?year=bad",
+      "status": 400,
+      "source": "tests/api/routes.test.ts",
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "plan-missing-with-api-token",
+      "method": "GET",
+      "path": "/v1/plans/99999TX0100001?year=2026",
+      "status": 404,
+      "source": "tests/api/routes.test.ts",
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "variant-missing-with-api-token",
+      "method": "GET",
+      "path": "/v1/plans/87226TX0100013-99?year=2026",
+      "status": 404,
+      "source": "tests/api/routes.test.ts",
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "quotes-open-with-api-token",
+      "method": "POST",
+      "path": "/v1/quotes",
+      "status": 200,
+      "source": "tests/api/quotes.test.ts",
+      "body": {
+        "year": 2026,
+        "zip": "77002",
+        "county": "48201",
+        "members": [
+          {
+            "age": 35
+          }
+        ],
+        "plan_ids": [
+          "87226TX0100013"
+        ]
+      },
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "premium-open-with-api-token",
+      "method": "POST",
+      "path": "/v1/premium-quotes",
+      "status": 200,
+      "source": "tests/api/routes.test.ts",
+      "body": {
+        "plan_ids": [
+          "87226TX0100013"
+        ],
+        "county": "48201",
+        "coverage_start": "2026-01-01",
+        "members": [
+          {
+            "age": 35,
+            "tobacco": false,
+            "relationship": "subscriber"
+          }
+        ]
+      },
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "ichra-open-with-api-token",
+      "method": "POST",
+      "path": "/v1/ichra/affordability",
+      "status": 200,
+      "source": "tests/api/ichra.test.ts",
+      "body": {
+        "plan_start": "2026-01-01",
+        "employee": {
+          "date_of_birth": "1985-10-01"
+        },
+        "residence": {
+          "zip": "77002"
+        },
+        "hra": {
+          "self_only_annual_cents": 300000
+        },
+        "income": [
+          {
+            "measure": "household",
+            "annual_cents": 4118000
+          }
+        ]
+      },
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "quotes-income-refused-with-api-token",
+      "method": "POST",
+      "path": "/v1/quotes",
+      "status": 400,
+      "source": "tests/api/quotes.test.ts",
+      "body": {
+        "year": 2026,
+        "zip": "77002",
+        "county": "48201",
+        "members": [
+          {
+            "age": 35
+          }
+        ],
+        "plan_ids": [
+          "87226TX0100013"
+        ],
+        "household_income_annual": 40000
+      },
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "quotes-unknown-with-api-token",
+      "method": "POST",
+      "path": "/v1/quotes",
+      "status": 200,
+      "source": "tests/api/quotes.test.ts",
+      "body": {
+        "year": 2026,
+        "zip": "77001",
+        "members": [
+          {
+            "age": 35
+          }
+        ],
+        "plan_ids": [
+          "87226TX0100013"
+        ]
+      },
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "premium-missing-plan-with-api-token",
+      "method": "POST",
+      "path": "/v1/premium-quotes",
+      "status": 404,
+      "source": "tests/api/routes.test.ts",
+      "body": {
+        "plan_ids": [
+          "99999TX0100001"
+        ],
+        "county": "48201",
+        "coverage_start": "2026-01-01",
+        "members": [
+          {
+            "age": 35,
+            "tobacco": false,
+            "relationship": "subscriber"
+          }
+        ]
+      },
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "benchmark-open-with-api-token",
+      "method": "GET",
+      "path": "/v1/benchmark?zip=77002&year=2026&ages=40",
+      "status": 200,
+      "source": "tests/api/subsidies.test.ts",
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "premium-estimates-retired-with-api-token",
+      "method": "POST",
+      "path": "/v1/premium-estimates",
+      "status": 404,
+      "source": "tests/api/quotes.test.ts",
+      "body": {
+        "plan_ids": [
+          "87226TX0100013"
+        ],
+        "county": "48201",
+        "coverage_start": "2026-01-01",
+        "members": [
+          {
+            "age": 35,
+            "tobacco": false,
+            "relationship": "subscriber"
+          }
+        ]
+      },
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "no-such-route-with-api-token",
+      "method": "GET",
+      "path": "/v1/no-such-route",
+      "status": 404,
+      "source": "tests/api/quotes.test.ts",
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "drug-search-with-api-token",
+      "method": "GET",
+      "path": "/v1/drugs?q=metformin",
+      "status": 200,
+      "source": "tests/api/drugs.test.ts",
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "drug-invalid-with-api-token",
+      "method": "GET",
+      "path": "/v1/drugs?ndc=71015523",
+      "status": 400,
+      "source": "tests/api/drugs.test.ts",
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "drug-detail-with-api-token",
+      "method": "GET",
+      "path": "/v1/drugs/999999999999",
+      "status": 404,
+      "source": "tests/api/drugs.test.ts",
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "drug-plan-with-api-token",
+      "method": "GET",
+      "path": "/v1/plans/87226TX0100013/drugs/860975?year=2026",
+      "status": 200,
+      "source": "tests/api/drugs.test.ts",
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "drug-coverage-with-api-token",
+      "method": "POST",
+      "path": "/v1/drug-coverage",
+      "status": 200,
+      "source": "tests/api/drugs.test.ts",
+      "body": {
+        "plan_ids": [
+          "87226TX0100013"
+        ],
+        "rxcuis": [
+          "860975"
+        ],
+        "year": 2026
+      },
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "drug-coverage-invalid-with-api-token",
+      "method": "POST",
+      "path": "/v1/drug-coverage",
+      "status": 400,
+      "source": "tests/api/drugs.test.ts",
+      "body": "{bad",
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "provider-search-with-api-token",
+      "method": "GET",
+      "path": "/v1/providers?plan_id=87226TX0100013&year=2026",
+      "status": 200,
+      "source": "tests/api/providers.test.ts",
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "provider-invalid-with-api-token",
+      "method": "GET",
+      "path": "/v1/providers?lat=91&lon=0",
+      "status": 400,
+      "source": "tests/api/providers.test.ts",
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "provider-detail-with-api-token",
+      "method": "GET",
+      "path": "/v1/providers/1000000099",
+      "status": 404,
+      "source": "tests/api/providers.test.ts",
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "provider-plan-with-api-token",
+      "method": "GET",
+      "path": "/v1/plans/87226TX0100013/providers/1234567893?year=2026",
+      "status": 200,
+      "source": "tests/api/providers.test.ts",
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "provider-participation-with-api-token",
+      "method": "POST",
+      "path": "/v1/provider-participation",
+      "status": 200,
+      "source": "tests/api/providers.test.ts",
+      "body": {
+        "plan_ids": [
+          "87226TX0100013"
+        ],
+        "npis": [
+          "1234567893"
+        ],
+        "year": 2026
+      },
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "provider-participation-invalid-with-api-token",
+      "method": "POST",
+      "path": "/v1/provider-participation",
+      "status": 400,
+      "source": "tests/api/providers.test.ts",
+      "body": "{bad",
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "medicare-availability-with-api-token",
+      "method": "GET",
+      "path": "/v1/medicare/data-availability",
+      "status": 200,
+      "source": "tests/api/medicare.test.ts",
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "medicare-search-with-api-token",
+      "method": "GET",
+      "path": "/v1/medicare/plans?county_fips=48201&year=2026&type=ma_pd",
+      "status": 200,
+      "source": "tests/api/medicare.test.ts",
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "medicare-invalid-with-api-token",
+      "method": "GET",
+      "path": "/v1/medicare/plans?year=2026",
+      "status": 400,
+      "source": "tests/api/medicare.test.ts",
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "medicare-detail-with-api-token",
+      "method": "GET",
+      "path": "/v1/medicare/plans/H0028-042-0?year=2026",
+      "status": 404,
+      "source": "tests/api/medicare.test.ts",
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "medicare-detail-benefits-with-api-token",
+      "method": "GET",
+      "path": "/v1/medicare/plans/H0028-042-0/benefits?year=2026",
+      "status": 404,
+      "source": "tests/api/medicare.test.ts",
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "medicare-detail-service-area-with-api-token",
+      "method": "GET",
+      "path": "/v1/medicare/plans/H0028-042-0/service-area?year=2026",
+      "status": 404,
+      "source": "tests/api/medicare.test.ts",
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "medicare-detail-lineage-with-api-token",
+      "method": "GET",
+      "path": "/v1/medicare/plans/H0028-042-0/lineage?year=2026",
+      "status": 200,
+      "source": "tests/api/medicare.test.ts",
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "medicare-detail-drugs-with-api-token",
+      "method": "GET",
+      "path": "/v1/medicare/plans/H0028-042-0/drugs?year=2026&rxcui=860975",
+      "status": 404,
+      "source": "tests/api/medicare.test.ts",
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "medicare-detail-pharmacies-with-api-token",
+      "method": "GET",
+      "path": "/v1/medicare/plans/H0028-042-0/pharmacies?year=2026&zip=77002",
+      "status": 404,
+      "source": "tests/api/medicare.test.ts",
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "medicare-drug-cost-with-api-token",
+      "method": "POST",
+      "path": "/v1/medicare/plans/H0028-042-0/drug-cost-estimates?year=2026",
+      "status": 404,
+      "source": "tests/api/medicare-cost-estimates.test.ts",
+      "body": {
+        "scenario": "non_lis_no_other_payer",
+        "channel": "preferred_retail",
+        "opening_state": {
+          "kind": "new_calendar_year"
+        },
+        "fills": [
+          {
+            "fill_id": "synthetic-1",
+            "date": "2026-02-03",
+            "rxcui": "860975",
+            "quantity": "30",
+            "unit": "tablet",
+            "days_supply": 30
+          }
+        ]
+      },
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "compat-zip-with-api-token",
+      "method": "GET",
+      "path": "/compat/v1/zip_counties?zip_prefix=75034",
+      "status": 200,
+      "source": "tests/compat/v1/routes.test.ts",
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "compat-zip-invalid-with-api-token",
+      "method": "GET",
+      "path": "/compat/v1/zip_counties",
+      "status": 400,
+      "source": "tests/compat/v1/routes.test.ts",
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "compat-search-medical-with-api-token",
+      "method": "POST",
+      "path": "/compat/v1/plans/medical/search",
+      "status": 200,
+      "source": "tests/compat/v1/routes.test.ts",
+      "body": {
+        "fips_code": "48201",
+        "market": "individual",
+        "applicants": [
+          {
+            "age": 35,
+            "smoker": false,
+            "child": false
+          }
+        ],
+        "enrollment_date": "2026-01-01",
+        "per_page": 10
+      },
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "compat-detail-medical-with-api-token",
+      "method": "GET",
+      "path": "/compat/v1/plans/medical/87226TX0100013?year=2026",
+      "status": 200,
+      "source": "tests/compat/v1/routes.test.ts",
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "compat-search-dental-with-api-token",
+      "method": "POST",
+      "path": "/compat/v1/plans/dental/search",
+      "status": 200,
+      "source": "tests/compat/v1/routes.test.ts",
+      "body": {
+        "fips_code": "48201",
+        "market": "individual",
+        "applicants": [
+          {
+            "age": 35,
+            "smoker": false,
+            "child": false
+          }
+        ],
+        "enrollment_date": "2026-01-01",
+        "per_page": 10
+      },
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "compat-detail-dental-with-api-token",
+      "method": "GET",
+      "path": "/compat/v1/plans/dental/87226TX0100013?year=2026",
+      "status": 404,
+      "source": "tests/compat/v1/routes.test.ts",
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "compat-search-vision-with-api-token",
+      "method": "POST",
+      "path": "/compat/v1/plans/vision/search",
+      "status": 200,
+      "source": "tests/compat/v1/routes.test.ts",
+      "body": {
+        "fips_code": "48201",
+        "market": "individual",
+        "applicants": [
+          {
+            "age": 35,
+            "smoker": false,
+            "child": false
+          }
+        ],
+        "enrollment_date": "2026-01-01",
+        "per_page": 10
+      },
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "compat-detail-with-api-token",
+      "method": "GET",
+      "path": "/compat/v1/plans/87226TX0100013?year=2026",
+      "status": 200,
+      "source": "tests/compat/v1/routes.test.ts",
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "compat-search-invalid-with-api-token",
+      "method": "POST",
+      "path": "/compat/v1/plans/medical/search",
+      "status": 400,
+      "source": "tests/compat/v1/routes.test.ts",
+      "body": "{bad",
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "compat-carriers-with-api-token",
+      "method": "GET",
+      "path": "/compat/v1/carriers?state=TX&year=2026",
+      "status": 200,
+      "source": "tests/compat/v1/routes.test.ts",
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "compat-networks-with-api-token",
+      "method": "GET",
+      "path": "/compat/v1/networks?state=TX&year=2026",
+      "status": 200,
+      "source": "tests/compat/v1/routes.test.ts",
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "compat-drugs-with-api-token",
+      "method": "GET",
+      "path": "/compat/v1/drugs?search_term=metformin",
+      "status": 200,
+      "source": "tests/compat/v1/drugs.test.ts",
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "compat-providers-with-api-token",
+      "method": "POST",
+      "path": "/compat/v1/providers/search",
+      "status": 200,
+      "source": "tests/compat/v1/providers.test.ts",
+      "body": {
+        "zip_code": "77002"
+      },
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "compat-provider-detail-with-api-token",
+      "method": "GET",
+      "path": "/compat/v1/providers/1000000099",
+      "status": 404,
+      "source": "tests/compat/v1/providers.test.ts",
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "compat-specialties-with-api-token",
+      "method": "GET",
+      "path": "/compat/v1/specialties",
+      "status": 200,
+      "source": "tests/compat/v1/providers.test.ts",
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "compat-unsupported-vision-with-api-token",
+      "method": "GET",
+      "path": "/compat/v1/plans/vision/synthetic",
+      "status": 501,
+      "source": "tests/compat/v1/routes.test.ts",
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "compat-unsupported-medadv-with-api-token",
+      "method": "GET",
+      "path": "/compat/v1/plans/medadv/synthetic",
+      "status": 501,
+      "source": "tests/compat/v1/routes.test.ts",
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "compat-options-with-api-token",
+      "method": "OPTIONS",
+      "path": "/compat/v1/plans/medical/search",
+      "status": 204,
+      "source": "tests/compat/v1/auth.test.ts",
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "warm-plans-with-api-token",
+      "method": "GET",
+      "path": "/v1/plans?zip=77002&year=2026",
+      "status": 200,
+      "source": "tests/api/cache/middleware.test.ts",
+      "warm": true,
+      "token": true,
+      "auth": "granted"
+    },
+    {
+      "id": "warm-zip-with-api-token",
+      "method": "GET",
+      "path": "/v1/zip-counties?zip=75034",
+      "status": 200,
+      "source": "tests/api/cache/middleware.test.ts",
+      "warm": true,
+      "token": true,
+      "auth": "granted"
+    }
+  ],
+  "mcp": [
+    {
+      "id": "initialize-anonymous",
+      "method": "initialize",
+      "params": {
+        "protocolVersion": "2025-11-25",
+        "clientInfo": {
+          "name": "synthetic-digest-client",
+          "version": "1"
+        },
+        "capabilities": {}
+      },
+      "grant": false,
+      "legacy": true
+    },
+    {
+      "id": "tools-list-anonymous",
+      "method": "tools/list",
+      "params": {},
+      "grant": false
+    },
+    {
+      "id": "initialize-granted",
+      "method": "initialize",
+      "params": {
+        "protocolVersion": "2025-11-25",
+        "clientInfo": {
+          "name": "synthetic-digest-client",
+          "version": "1"
+        },
+        "capabilities": {}
+      },
+      "grant": true,
+      "legacy": true
+    },
+    {
+      "id": "tools-list-granted",
+      "method": "tools/list",
+      "params": {},
+      "grant": true
+    },
+    {
+      "id": "call-check_drug_coverage",
+      "method": "tools/call",
+      "params": {
+        "name": "check_drug_coverage",
+        "arguments": {
+          "plan_ids": [
+            "87226TX0100013"
+          ],
+          "rxcuis": [
+            "860975"
+          ],
+          "year": 2026
+        }
+      },
+      "grant": true
+    },
+    {
+      "id": "call-check_ichra_affordability",
+      "method": "tools/call",
+      "params": {
+        "name": "check_ichra_affordability",
+        "arguments": {
+          "plan_start": "2026-01-01",
+          "employee": {
+            "date_of_birth": "1985-10-01"
+          },
+          "residence": {
+            "zip": "77002"
+          },
+          "hra": {
+            "self_only_annual_cents": 300000
+          },
+          "income": [
+            {
+              "measure": "household",
+              "annual_cents": 4118000
+            }
+          ]
+        }
+      },
+      "grant": true
+    },
+    {
+      "id": "call-check_provider_network",
+      "method": "tools/call",
+      "params": {
+        "name": "check_provider_network",
+        "arguments": {
+          "plan_ids": [
+            "87226TX0100013"
+          ],
+          "npis": [
+            "1234567893"
+          ],
+          "year": 2026
+        }
+      },
+      "grant": true
+    },
+    {
+      "id": "call-fetch",
+      "method": "tools/call",
+      "params": {
+        "name": "fetch",
+        "arguments": {
+          "id": "plan:2026:87226TX0100013"
+        }
+      },
+      "grant": true
+    },
+    {
+      "id": "call-get_data_status",
+      "method": "tools/call",
+      "params": {
+        "name": "get_data_status",
+        "arguments": {
+          "state": "TX",
+          "year": 2026
+        }
+      },
+      "grant": true
+    },
+    {
+      "id": "call-get_plan",
+      "method": "tools/call",
+      "params": {
+        "name": "get_plan",
+        "arguments": {
+          "plan_ref": "87226TX0100013",
+          "year": 2026
+        }
+      },
+      "grant": true
+    },
+    {
+      "id": "call-list_carriers_networks",
+      "method": "tools/call",
+      "params": {
+        "name": "list_carriers_networks",
+        "arguments": {
+          "state": "TX",
+          "year": 2026,
+          "kind": "carriers"
+        }
+      },
+      "grant": true
+    },
+    {
+      "id": "call-lookup_geography",
+      "method": "tools/call",
+      "params": {
+        "name": "lookup_geography",
+        "arguments": {
+          "zip": "75034"
+        }
+      },
+      "grant": true
+    },
+    {
+      "id": "call-quote_plans",
+      "method": "tools/call",
+      "params": {
+        "name": "quote_plans",
+        "arguments": {
+          "year": 2026,
+          "location": {
+            "zip": "77002",
+            "county": "48201"
+          },
+          "members": [
+            {
+              "age": 35
+            }
+          ],
+          "plan_refs": [
+            "87226TX0100013"
+          ]
+        }
+      },
+      "grant": true
+    },
+    {
+      "id": "call-quote_premiums",
+      "method": "tools/call",
+      "params": {
+        "name": "quote_premiums",
+        "arguments": {
+          "plan_refs": [
+            "87226TX0100013"
+          ],
+          "location": {
+            "county": "48201"
+          },
+          "coverage_start": "2026-01-01",
+          "members": [
+            {
+              "age": 35,
+              "tobacco": false,
+              "relationship": "subscriber"
+            }
+          ]
+        }
+      },
+      "grant": true
+    },
+    {
+      "id": "call-search",
+      "method": "tools/call",
+      "params": {
+        "name": "search",
+        "arguments": {
+          "query": "87226TX0100013",
+          "entity": "plan",
+          "location": {
+            "county": "48201"
+          },
+          "year": 2026
+        }
+      },
+      "grant": true
+    },
+    {
+      "id": "call-search_drugs",
+      "method": "tools/call",
+      "params": {
+        "name": "search_drugs",
+        "arguments": {
+          "query": "metformin",
+          "limit": 1
+        }
+      },
+      "grant": true
+    },
+    {
+      "id": "call-search_medicare_plans",
+      "method": "tools/call",
+      "params": {
+        "name": "search_medicare_plans",
+        "arguments": {
+          "location": {
+            "county": "48201"
+          },
+          "year": 2026
+        }
+      },
+      "grant": true
+    },
+    {
+      "id": "call-search_plans",
+      "method": "tools/call",
+      "params": {
+        "name": "search_plans",
+        "arguments": {
+          "location": {
+            "county": "48201"
+          },
+          "year": 2026,
+          "limit": 1
+        }
+      },
+      "grant": true
+    },
+    {
+      "id": "call-search_providers",
+      "method": "tools/call",
+      "params": {
+        "name": "search_providers",
+        "arguments": {
+          "plan_id": "87226TX0100013",
+          "year": 2026
+        }
+      },
+      "grant": true
+    },
+    {
+      "id": "call-denied",
+      "method": "tools/call",
+      "params": {
+        "name": "quote_premiums",
+        "arguments": {
+          "plan_refs": [
+            "87226TX0100013"
+          ],
+          "location": {
+            "county": "48201"
+          },
+          "coverage_start": "2026-01-01",
+          "members": [
+            {
+              "age": 35,
+              "tobacco": false,
+              "relationship": "subscriber"
+            }
+          ]
+        }
+      },
+      "grant": false
+    },
+    {
+      "id": "call-check_drug_coverage-anonymous",
+      "method": "tools/call",
+      "params": {
+        "name": "check_drug_coverage",
+        "arguments": {
+          "plan_ids": [
+            "87226TX0100013"
+          ],
+          "rxcuis": [
+            "860975"
+          ],
+          "year": 2026
+        }
+      },
+      "grant": false
+    },
+    {
+      "id": "call-check_provider_network-anonymous",
+      "method": "tools/call",
+      "params": {
+        "name": "check_provider_network",
+        "arguments": {
+          "plan_ids": [
+            "87226TX0100013"
+          ],
+          "npis": [
+            "1234567893"
+          ],
+          "year": 2026
+        }
+      },
+      "grant": false
+    },
+    {
+      "id": "call-fetch-anonymous",
+      "method": "tools/call",
+      "params": {
+        "name": "fetch",
+        "arguments": {
+          "id": "plan:2026:87226TX0100013"
+        }
+      },
+      "grant": false
+    },
+    {
+      "id": "call-get_data_status-anonymous",
+      "method": "tools/call",
+      "params": {
+        "name": "get_data_status",
+        "arguments": {
+          "state": "TX",
+          "year": 2026
+        }
+      },
+      "grant": false
+    },
+    {
+      "id": "call-get_plan-anonymous",
+      "method": "tools/call",
+      "params": {
+        "name": "get_plan",
+        "arguments": {
+          "plan_ref": "87226TX0100013",
+          "year": 2026
+        }
+      },
+      "grant": false
+    },
+    {
+      "id": "call-list_carriers_networks-anonymous",
+      "method": "tools/call",
+      "params": {
+        "name": "list_carriers_networks",
+        "arguments": {
+          "state": "TX",
+          "year": 2026,
+          "kind": "carriers"
+        }
+      },
+      "grant": false
+    },
+    {
+      "id": "call-lookup_geography-anonymous",
+      "method": "tools/call",
+      "params": {
+        "name": "lookup_geography",
+        "arguments": {
+          "zip": "75034"
+        }
+      },
+      "grant": false
+    },
+    {
+      "id": "call-quote_plans-anonymous",
+      "method": "tools/call",
+      "params": {
+        "name": "quote_plans",
+        "arguments": {
+          "year": 2026,
+          "location": {
+            "zip": "77002",
+            "county": "48201"
+          },
+          "members": [
+            {
+              "age": 35
+            }
+          ],
+          "plan_refs": [
+            "87226TX0100013"
+          ]
+        }
+      },
+      "grant": false
+    },
+    {
+      "id": "call-search-anonymous",
+      "method": "tools/call",
+      "params": {
+        "name": "search",
+        "arguments": {
+          "query": "87226TX0100013",
+          "entity": "plan",
+          "location": {
+            "county": "48201"
+          },
+          "year": 2026
+        }
+      },
+      "grant": false
+    },
+    {
+      "id": "call-search_drugs-anonymous",
+      "method": "tools/call",
+      "params": {
+        "name": "search_drugs",
+        "arguments": {
+          "query": "metformin",
+          "limit": 1
+        }
+      },
+      "grant": false
+    },
+    {
+      "id": "call-search_medicare_plans-anonymous",
+      "method": "tools/call",
+      "params": {
+        "name": "search_medicare_plans",
+        "arguments": {
+          "location": {
+            "county": "48201"
+          },
+          "year": 2026
+        }
+      },
+      "grant": false
+    },
+    {
+      "id": "call-search_plans-anonymous",
+      "method": "tools/call",
+      "params": {
+        "name": "search_plans",
+        "arguments": {
+          "location": {
+            "county": "48201"
+          },
+          "year": 2026,
+          "limit": 1
+        }
+      },
+      "grant": false
+    },
+    {
+      "id": "call-search_providers-anonymous",
+      "method": "tools/call",
+      "params": {
+        "name": "search_providers",
+        "arguments": {
+          "plan_id": "87226TX0100013",
+          "year": 2026
+        }
+      },
+      "grant": false
+    }
+  ]
+}

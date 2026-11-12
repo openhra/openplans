@@ -1,8 +1,15 @@
 import { homedir } from "node:os";
-import { readFile, readdir } from "node:fs/promises";
 import { join } from "node:path";
 import type { SqlSession } from "../../db/database.js";
-import { checkedUrl, fetchToCache, FetchError } from "../../fetch/index.js";
+import {
+  cachedNames,
+  cachedSources,
+  checkedUrl,
+  fetchToCache,
+  FetchError,
+  readCachedText,
+  recordedPayloadPath,
+} from "../../fetch/index.js";
 import { httpsTransport } from "../../fetch/transport.js";
 import type { Transport } from "../../fetch/index.js";
 import type { FetchOptions, SnapshotMetadata } from "../../fetch/index.js";
@@ -88,16 +95,43 @@ export const childFailureCodes = new Set([
   "snapshot_conflict",
 ]);
 
+/**
+ * A cached child's payload, readable on this host. `raw_path` is where the acquiring host's
+ * fetch cache put it; with a remote store a path missing here is copied down through the store.
+ * With the `local` store it is `raw_path` itself.
+ */
+export function childPayloadPath(
+  child: {
+    raw_path: string | null;
+    sha256: string | null;
+    compressed_bytes: string | null;
+  },
+  dataDir = process.env.OPENPLANS_DATA_DIR ??
+    join(homedir(), ".local", "share", "openplans"),
+): Promise<string> {
+  const bytes = Number(child.compressed_bytes);
+  return recordedPayloadPath(
+    child.raw_path!,
+    dataDir,
+    child.compressed_bytes !== null &&
+      Number.isSafeInteger(bytes) &&
+      child.sha256
+      ? { bytes, sha256: child.sha256 }
+      : undefined,
+  );
+}
+
 /** Reuse immutable, previously hashed QHP acquisitions. Query-bearing URLs require their
- * original URL hash in the source directory because provenance deliberately redacts queries. */
-async function priorHash(
+ * original URL hash in the source directory because provenance deliberately redacts queries.
+ * Sources and sidecars are read through the fetch cache's store, local or remote. */
+export async function priorHash(
   dataDir: string,
   source: string,
   url: string,
 ): Promise<{ source: string; sha256: string } | undefined> {
   let names: string[];
   try {
-    names = await readdir(join(dataDir, "raw"));
+    names = await cachedSources(dataDir);
   } catch {
     return;
   }
@@ -109,14 +143,14 @@ async function priorHash(
   ]) {
     let entries: string[];
     try {
-      entries = await readdir(join(dataDir, "raw", name));
+      entries = await cachedNames(dataDir, name, { missing: "throw" });
     } catch {
       continue;
     }
     if (new URL(url).search && name !== source) continue;
     for (const entry of entries.filter((n) => n.endsWith(".meta.json"))) {
       const meta = JSON.parse(
-        await readFile(join(dataDir, "raw", name, entry), "utf8"),
+        await readCachedText(dataDir, name, entry),
       ) as SnapshotMetadata;
       if (
         (name === source || meta.url === url) &&

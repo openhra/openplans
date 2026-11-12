@@ -20,6 +20,8 @@ export interface Database extends SqlSession {
   /** Run on one connection, including autocommit statements. Discard it on failure. */
   withSession?<T>(run: (session: SqlSession) => Promise<T>): Promise<T>;
   close(): Promise<void>;
+  /** Clients queued for a pooled connection; undefined where there is no pool. */
+  poolWaiting?(): number;
 }
 
 function session(
@@ -41,6 +43,7 @@ function session(
   };
 }
 
+/** The `pg` database provider (design 5.7); `src/plugins/providers.ts` registers it. */
 export function createDatabase(
   connectionString = process.env.DATABASE_URL,
 ): Database {
@@ -64,6 +67,7 @@ export function createDatabase(
 
   return {
     ...session(pool),
+    poolWaiting: () => pool.waitingCount,
     async withRequest(signal, run, options) {
       signal.throwIfAborted();
       const client = await pool.connect();

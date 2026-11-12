@@ -108,3 +108,51 @@ export const medicareDrugResponseSchema = z.union([
 ]);
 
 export type PartDDrugName = z.infer<typeof partDDrugNameSchema>;
+
+const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+const wholeCents = z.int().min(0).max(Number.MAX_SAFE_INTEGER);
+
+/**
+ * A Part D drug-cost estimate request has one supported scenario, an opening state and an ordered fill
+ * schedule. The schema is strict, so a caller cannot assert the plan's benefit type or a drug's
+ * insulin, vaccine or program status. Those come from the CMS files or stay unknown. Nothing here
+ * identifies a person.
+ */
+export const drugCostRequestSchema = z.strictObject({
+  scenario: z.string().min(1).max(64),
+  price_basis: z.enum(["none", "cms_plan_average"]).default("none"),
+  channel: z.enum([
+    "preferred_retail",
+    "standard_retail",
+    "preferred_mail",
+    "standard_mail",
+  ]),
+  opening_state: z.discriminatedUnion("kind", [
+    z.strictObject({ kind: z.literal("new_calendar_year") }),
+    z.strictObject({
+      kind: z.literal("provided"),
+      as_of: isoDate,
+      gross_covered_drug_cost_cents: wholeCents,
+      troop_cents: wholeCents,
+      plan_deductible_met_cents: wholeCents,
+    }),
+  ]),
+  fills: z
+    .array(
+      z.strictObject({
+        fill_id: z.string().regex(/^[A-Za-z0-9_.-]{1,40}$/),
+        date: isoDate,
+        rxcui: z.string().regex(/^\d{1,8}$/),
+        proxy_ndc: z
+          .string()
+          .regex(/^\d{11}$/)
+          .optional(),
+        quantity: z.string().regex(/^\d{1,7}(\.\d{1,4})?$/),
+        unit: z.string().regex(/^[A-Za-z][A-Za-z0-9 _-]{0,23}$/),
+        days_supply: z.int().min(1).max(366),
+      }),
+    )
+    .min(1)
+    .max(50),
+});
+export type DrugCostRequest = z.infer<typeof drugCostRequestSchema>;

@@ -1,5 +1,6 @@
 import type { Database } from "../../db/database.js";
 import { migrate, migrationsDirectory } from "../../db/migrate.js";
+import { ensureCachedPayload } from "../../fetch/index.js";
 import {
   acquireArchive,
   cachedArchives,
@@ -78,11 +79,20 @@ export async function runPartD(
   let db: Database | undefined,
     code = 0;
   try {
-    const cached = (await cachedSpuf(value as SpufKind, dataDirectory()))[0];
+    const dataDir = dataDirectory();
+    const cached = (await cachedSpuf(value as SpufKind, dataDir))[0];
     if (!cached) throw new Error(`No cached ${value} Part D archive`);
     db = openDatabase();
     await migrate(db, directory);
-    output.out(JSON.stringify(await importSpuf(db, cached, tables)));
+    output.out(
+      JSON.stringify(
+        await importSpuf(
+          db,
+          await ensureCachedPayload(dataDir, cached),
+          tables,
+        ),
+      ),
+    );
   } catch (error) {
     output.error(
       `worker ingest medicare part-d import failed: ${error instanceof Error ? error.message.slice(0, 200) : "unknown error"}`,
@@ -168,7 +178,13 @@ export async function importMedicare(
       const newest = cached.find((entry) =>
         entry.archive.label.startsWith(`${kind}-`),
       );
-      if (newest) reports.push(await importServiceArea(db, newest));
+      if (newest)
+        reports.push(
+          await importServiceArea(
+            db,
+            await ensureCachedPayload(dataDir, newest),
+          ),
+        );
     }
   }
   const importers: Partial<
@@ -190,7 +206,7 @@ export async function importMedicare(
     );
     if (!newest)
       throw new Error(`No cached ${family} archive for ${options.year}`);
-    reports.push(await run(db, newest));
+    reports.push(await run(db, await ensureCachedPayload(dataDir, newest)));
   }
   return reports;
 }

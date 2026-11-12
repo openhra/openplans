@@ -25,12 +25,16 @@ import {
 } from "../services/discovery.js";
 import {
   assertHonest,
+  evidenceCaution,
   HonestyError,
+  inputJsonSchemas,
+  outputJsonSchemas,
   parseToolInput,
   PERSONALIZED_TOOLS,
   planRefSchema,
   QUOTING_TOOLS,
   quoteBody,
+  toolAnnotations,
 } from "./schemas.js";
 import type {
   HonestyContext,
@@ -43,6 +47,8 @@ import type { CursorBinding } from "./cursor.js";
 import { projector, row, rows } from "./projection.js";
 import type { Row } from "./projection.js";
 import { ZodError } from "zod";
+import type { Tool } from "@modelcontextprotocol/server";
+import type { PluginTool } from "../plugins/mcp-tools.js";
 
 export interface McpPrincipal {
   id: string;
@@ -62,6 +68,13 @@ export interface McpDependencies {
   /** Share across processes if cursors must survive load balancing/restarts. Never log this value. */
   cursorSecret?: string | Uint8Array;
   now?: () => number;
+  /** Plugin MCP tools listed after the core tools. Defaults to the loaded plugin registry. */
+  pluginTools?: readonly PluginTool[];
+  /**
+   * The Medicare drug-cost estimate grant: a verified MCP Bearer token over HTTP, or the stdio
+   * personalized-tool rules. Public household access never sets it.
+   */
+  medicareEstimateGrant?: boolean;
 }
 export const mayEstimate = (deps: McpDependencies) =>
   Boolean(deps.principal && deps.policy?.canEstimate(deps.principal));
@@ -76,8 +89,84 @@ export function mayCall(deps: McpDependencies, tool: ToolName) {
 export const MAX_OUTPUT_BYTES = 128 * 1024;
 // Discovery includes every output schema, so it has a separate transport budget.
 export const MAX_TOOL_LIST_BYTES = 512 * 1024;
-export const TOOL_LIST_PAGE_SIZE = 15;
+// Core tools plus plugin tools; the loader refuses a configuration that would need a second page.
+export const TOOL_LIST_PAGE_SIZE = 32;
 export const MAX_INPUT_ELEMENTS = 512;
+/** Core titles and descriptions, in the words every client has seen; never reworded. */
+export const toolDescriptions: Record<ToolName, [string, string]> = {
+  search: [
+    "Search public evidence",
+    "Discover literal plan, provider, drug, geography, carrier, network and dataset matches; scope gaps are explicit.",
+  ],
+  fetch: [
+    "Fetch an evidence record",
+    "Read a typed ID returned by this server, with bounded detail sections; never accepts a URL or path.",
+  ],
+  search_plans: [
+    "Find health plans",
+    "List plans for an explicit year and ZIP/county. Ambiguous counties need a selection; eligibility is unknown.",
+  ],
+  get_plan: [
+    "Read a plan",
+    "Read an exact HIOS or state plan key and year, with optional CSR variant and paged benefits, documents or provenance.",
+  ],
+  quote_premiums: [
+    "Quote household premiums",
+    "Household quote with gross, estimated credit/net and full rate evidence. Income and ages are never logged. Not a bindable quote; CSR eligibility is not evaluated.",
+  ],
+  check_ichra_affordability: [
+    "Check ICHRA affordability",
+    "Check whether an individual coverage HRA is affordable for one employee. Returns the lowest cost silver plan on gross and EHB-portion premiums, the required HRA contribution and one verdict per income measure, with cited rules. Not a bindable quote. Employer safe harbors come from a proposed rule and say so.",
+  ],
+  quote_plans: [
+    "Quote plans by age and ZIP",
+    "Quote plans by age and ZIP. Public tier: no income, subsidy or names; tobacco is optional. Provider and drug coverage per plan with evidence status. Not a bindable quote.",
+  ],
+  search_providers: [
+    "Find provider identities",
+    "Search literal names, exact NPIs, taxonomy or plan records with optional radius filtering before pagination. Identity alone proves no network membership.",
+  ],
+  search_drugs: [
+    "Find exact drug concepts",
+    "Search unique RxCUIs by literal name or published NDC; select an exact concept before checking coverage.",
+  ],
+  check_drug_coverage: [
+    "Check formulary evidence",
+    "Evaluate up to 100 exact plan/drug pairs, preserving five-state evidence, unresolved tiers and nullable restrictions.",
+  ],
+  check_provider_network: [
+    "Check network evidence",
+    "Evaluate up to 100 exact plan/NPI pairs using issuer record scope; addresses never establish participation.",
+  ],
+  lookup_geography: [
+    "Resolve ZIP counties",
+    "Resolve imported ZIP/county evidence, preserving multi-county ambiguity and labelled approximate fallbacks.",
+  ],
+  search_medicare_plans: [
+    "Search Medicare plans",
+    "List the Medicare Advantage, Part D and SNP plans CMS lists for one county and contract year, with their filed premiums, MOOP and stars. Provider networks stay unknown because CMS publishes no central file.",
+  ],
+  get_data_status: [
+    "Inspect loaded data",
+    "Read the local capability manifest, issuer/year/state gaps, source completeness and personalized access policy.",
+  ],
+  list_carriers_networks: [
+    "List carriers or networks",
+    "List scoped issuer or network records for an explicit state and optional year. IDs retain publication scope.",
+  ],
+};
+/** One `tools/list` entry; key order is part of the recorded discovery bytes. */
+export function coreToolDefinition(tool: ToolName): Tool {
+  const [title, description] = toolDescriptions[tool];
+  return {
+    name: tool,
+    title,
+    description: `${description} ${evidenceCaution}`,
+    annotations: toolAnnotations,
+    inputSchema: inputJsonSchemas[tool] as Tool["inputSchema"],
+    outputSchema: outputJsonSchemas[tool],
+  };
+}
 export const limits = {
   input_bytes: 64 * 1024,
   output_bytes: MAX_OUTPUT_BYTES,

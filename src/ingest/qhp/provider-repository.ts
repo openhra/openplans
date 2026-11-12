@@ -115,12 +115,14 @@ export async function publishSet(
   complete: number,
   markets: string[],
   publishPositive = status === "complete",
+  // Children whose evidence was kept: complete ones plus those with only rejected records.
+  fetched = complete,
 ) {
   const active = publishPositive;
   await db.query(
     `UPDATE snapshot SET validation_state=$2,fetched_children=$3,activated_at=CASE WHEN $4 THEN now() ELSE NULL END
     WHERE snapshot_id=$1`,
-    [id, active ? "ACTIVE" : "QUARANTINED", complete, active],
+    [id, active ? "ACTIVE" : "QUARANTINED", fetched, active],
   );
   if (active) {
     await db.query(

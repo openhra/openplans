@@ -1,11 +1,17 @@
 import { homedir } from "node:os";
 import { createHash } from "node:crypto";
 import { createReadStream } from "node:fs";
-import { open, readFile, readdir } from "node:fs/promises";
-import { isAbsolute, join } from "node:path";
+import { open, readFile } from "node:fs/promises";
+import { basename, dirname, isAbsolute, join } from "node:path";
 import { createInflateRaw } from "node:zlib";
 import { createInterface } from "node:readline";
-import { streamZipMember } from "../../fetch/index.js";
+import {
+  cachedFilePath,
+  cachedNames,
+  cachedPayloadPath,
+  readCachedText,
+  streamZipMember,
+} from "../../fetch/index.js";
 import { normalizeSbeRow } from "../sbe/normalize.js";
 import { Readable } from "node:stream";
 import { readCsv } from "../csv/index.js";
@@ -68,12 +74,16 @@ export async function newestPufManifest(
   if (!isAbsolute(dataDir))
     throw new Error("An absolute data directory is required");
   const directory = join(dataDir, "raw", "cms-exchange-puf");
-  const name = (await readdir(directory))
+  // Manifests live beside the snapshots they name, in the fetch cache's store (local or
+  // remote). A remote manifest is copied down so `manifestPath` names a readable file.
+  const name = (
+    await cachedNames(dataDir, "cms-exchange-puf", { missing: "throw" })
+  )
     .filter((name) => /^manifest-.*\.json$/.test(name))
     .sort()
     .at(-1);
   if (!name) throw new Error("No acquired PUF manifest");
-  const manifestPath = join(directory, name);
+  const manifestPath = await cachedFilePath(dataDir, "cms-exchange-puf", name);
   const manifest = JSON.parse(
     await readFile(manifestPath, "utf8"),
   ) as PufManifest;
@@ -104,8 +114,12 @@ export async function manifestArchive(
   ) {
     throw new Error("Incomplete acquired PUF source set");
   }
+  // `directory` is `<dataDir>/raw/<source>`, where the manifest lives. The snapshot it names is
+  // read through the fetch cache's store, local or remote.
+  const dataDir = dirname(dirname(directory));
+  const source = basename(directory);
   const metadata = JSON.parse(
-    await readFile(join(directory, `${file.snapshot_id}.meta.json`), "utf8"),
+    await readCachedText(dataDir, source, `${file.snapshot_id}.meta.json`),
   ) as SnapshotMetadata;
   if (
     metadata.sha256 !== file.sha256 ||
@@ -114,7 +128,10 @@ export async function manifestArchive(
   )
     throw new Error("Manifest metadata mismatch");
   return {
-    path: join(directory, file.snapshot_id, "payload"),
+    path: await cachedPayloadPath(dataDir, source, file.snapshot_id, {
+      bytes: file.bytes!,
+      sha256: file.sha256,
+    }),
     format: "zip",
     sha256: file.sha256,
     bytes: file.bytes!,

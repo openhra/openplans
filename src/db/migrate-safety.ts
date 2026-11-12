@@ -1,6 +1,8 @@
+import { createHash } from "node:crypto";
+
 /** A SQL allow-list, not a proof of application compatibility or a PostgreSQL parser. */
 export interface MigrationSafety {
-  classification: "additive-safe" | "risky";
+  classification: "additive-safe" | "reviewed-exception" | "risky";
   reasons: string[];
 }
 
@@ -8,6 +10,14 @@ export interface MigrationStatement {
   sql: string;
   tokens: string[];
   bodies: string[];
+  reviews: string[];
+}
+
+/** Bind review to executable tokens and opaque bodies, excluding SQL comments. */
+export function migrationStatementHash(statement: MigrationStatement): string {
+  return createHash("sha256")
+    .update(JSON.stringify([statement.tokens, statement.bodies]))
+    .digest("hex");
 }
 
 /** Keep bodies and quoted values opaque; only unquoted semicolons end statements. */
@@ -15,6 +25,7 @@ export function migrationStatements(sql: string): MigrationStatement[] {
   const statements: MigrationStatement[] = [];
   let tokens: string[] = [];
   let bodies: string[] = [];
+  let reviews: string[] = [];
   let start = 0;
   let i = 0;
   let depth = 0;
@@ -26,6 +37,9 @@ export function migrationStatements(sql: string): MigrationStatement[] {
     }
     if (rest.startsWith("--")) {
       const end = sql.indexOf("\n", i + 2);
+      const comment = sql.slice(i + 2, end < 0 ? sql.length : end).trim();
+      if (comment.startsWith("openplans-migration-allow"))
+        reviews.push(tokens.length ? "misplaced annotation" : comment);
       i = end < 0 ? sql.length : end + 1;
       continue;
     }
@@ -80,9 +94,11 @@ export function migrationStatements(sql: string): MigrationStatement[] {
     if (sql[i] === ";") {
       if (depth !== 0) throw new Error("Unbalanced SQL parentheses");
       if (tokens.length)
-        statements.push({ sql: sql.slice(start, i), tokens, bodies });
+        statements.push({ sql: sql.slice(start, i), tokens, bodies, reviews });
+      else if (reviews.length) throw new Error("Orphan migration annotation");
       tokens = [];
       bodies = [];
+      reviews = [];
       start = ++i;
       continue;
     }
@@ -93,11 +109,14 @@ export function migrationStatements(sql: string): MigrationStatement[] {
     if (token === "(") depth++;
     if (token === ")" && --depth < 0)
       throw new Error("Unbalanced SQL parentheses");
-    tokens.push(token.toUpperCase());
+    // PostgreSQL does not fold distinct Unicode identifiers through JS case expansion.
+    tokens.push(token.replace(/[a-z]/g, (letter) => letter.toUpperCase()));
     i += token.length;
   }
   if (depth !== 0) throw new Error("Unbalanced SQL parentheses");
-  if (tokens.length) statements.push({ sql: sql.slice(start), tokens, bodies });
+  if (tokens.length)
+    statements.push({ sql: sql.slice(start), tokens, bodies, reviews });
+  else if (reviews.length) throw new Error("Orphan migration annotation");
   return statements;
 }
 
@@ -109,7 +128,7 @@ const literal =
   "(?:NULL|TRUE|FALSE|[+-]? ?\\d+(?:\\.\\d+)?(?:E[+-]?\\d+)?|'(?:[^']|'')*'|INTERVAL '(?:[^']|'')*')";
 const constant = new RegExp(`^${literal}(?: :: ${builtinType})?$`, "i");
 
-function columnAddition(tokens: string[]): boolean {
+function columnAddition(tokens: string[], emptyTable = false): boolean {
   let text = tokens.join(" ");
   const added = new RegExp(
     `^ADD COLUMN (?:IF NOT EXISTS )?(${identifier}) (${builtinType})(.*)$`,
@@ -118,7 +137,7 @@ function columnAddition(tokens: string[]): boolean {
   text = added[3]!.trim();
   const notNull = /(?:^| )NOT NULL(?: |$)/.test(text);
   text = text.replace(/(?:^| )NOT NULL(?= |$)/, "").trim();
-  if (!text) return !notNull;
+  if (!text) return !notNull || emptyTable;
   if (!text.startsWith("DEFAULT ")) return false;
   const value = text.slice(8).trim();
   return constant.test(value) && (!notNull || !/^NULL(?: |$)/.test(value));
@@ -281,12 +300,19 @@ export function classifyMigrationBatch(
     empty.delete(key);
     tables[key] = null;
   };
+  const invalidateAll = () => {
+    inventoryReliable = false;
+    empty.clear();
+    for (const key of Object.keys(tables)) tables[key] = null;
+  };
   return sqls.map((sql) => {
     const reasons: string[] = [];
+    let reviewed = 0;
     let statements: MigrationStatement[];
     try {
       statements = migrationStatements(sql);
     } catch {
+      invalidateAll();
       return {
         classification: "risky",
         reasons: ["Malformed or unterminated SQL token/parentheses"],
@@ -347,11 +373,17 @@ export function classifyMigrationBatch(
         let actionStart = tokens[2] === "ONLY" ? 4 : 3;
         if (tokens[actionStart] === ".") actionStart += 2;
         const actionTokens = tokens.slice(actionStart);
+        const newEmptyTable = empty.has(tableKey(target));
         const allowed = additions(actionTokens).every((part) => {
-          if (columnAddition(part)) return true;
+          if (columnAddition(part, newEmptyTable)) return true;
           const value = part.join(" ");
           if (
             new RegExp(`^ALTER COLUMN ${identifier} DROP NOT NULL$`).test(value)
+          )
+            return true;
+          if (
+            newEmptyTable &&
+            new RegExp(`^ALTER COLUMN ${identifier} SET NOT NULL$`).test(value)
           )
             return true;
           // These scans are allowed only with current small-table evidence.
@@ -474,6 +506,19 @@ export function classifyMigrationBatch(
                 previous.rows,
           };
       } else if (
+        new RegExp(
+          `^CREATE VIEW ${relation}(?: \\( ${identifier}(?: , ${identifier})* \\))? AS (?:SELECT|WITH) `,
+        ).test(text) &&
+        !tokens.includes("INTO")
+      ) {
+        // A plain view stores a query; materialization and replacement need review.
+      } else if (
+        new RegExp(
+          `^COMMENT ON (?:TABLE|VIEW|INDEX|COLUMN|FUNCTION|TRIGGER|CONSTRAINT) .+ IS (?:NULL|'(?:[^']|'')*')$`,
+        ).test(text)
+      ) {
+        // Catalog comments execute no query or function body.
+      } else if (
         new RegExp(`^CREATE FUNCTION ${relation} \\(`).test(text) &&
         / LANGUAGE (?:SQL|PLPGSQL)(?: |$)/.test(text) &&
         tokens.some(
@@ -505,10 +550,22 @@ export function classifyMigrationBatch(
             const children = migrationStatements(body[1]!);
             if (children.some(concurrentIndex))
               reason = "Concurrent index cannot run inside DO";
-            else
+            else {
+              const firstChildReason = reasons.length;
               children.forEach((child, i) =>
                 inspect(child, `${label}.${i + 1}`, nesting + 1),
               );
+              const childReasons = reasons.slice(firstChildReason);
+              if (
+                statement.reviews.length &&
+                childReasons.length &&
+                childReasons.every(
+                  (child) =>
+                    !/Malformed|Concurrent index|annotation/.test(child),
+                )
+              )
+                reason = reasons.splice(firstChildReason).join("; ");
+            }
           } catch {
             reason = "Malformed procedural block";
           }
@@ -521,18 +578,40 @@ export function classifyMigrationBatch(
           "Unknown or non-additive statement; possible rewrite, scan, or long lock";
       }
       if (reason) {
-        reasons.push(`Statement ${label}: ${reason}`);
-        // Approval of an opaque operation must not let later statements reuse stale sizes.
-        if (!index) {
-          inventoryReliable = false;
-          empty.clear();
-          for (const key of Object.keys(tables)) tables[key] = null;
+        const review =
+          statement.reviews.length === 1 &&
+          nesting === 0 &&
+          !/Malformed|Concurrent index/.test(reason)
+            ? /^openplans-migration-allow: ([a-f0-9]{64}) ([!-~][\x20-\x7e]{11,499})$/.exec(
+                statement.reviews[0]!,
+              )
+            : null;
+        if (review && review[1] === migrationStatementHash(statement)) {
+          reviewed++;
+          reasons.push(
+            `Statement ${label}: Reviewed exception: ${review[2]}; ${reason}`,
+          );
+        } else {
+          reasons.push(`Statement ${label}: ${reason}`);
+          if (statement.reviews.length)
+            reasons.push(
+              `Statement ${label}: Invalid, misplaced, duplicate or stale allow annotation`,
+            );
         }
-      }
+        // Approval of an opaque operation must not let later statements reuse stale sizes.
+        if (!index) invalidateAll();
+      } else if (statement.reviews.length)
+        reasons.push(
+          `Statement ${label}: Allow annotation must target a risky top-level statement`,
+        );
     };
     statements.forEach((statement, i) => inspect(statement, `${i + 1}`));
+    let classification: MigrationSafety["classification"] = "additive-safe";
+    if (reasons.length)
+      classification =
+        reviewed === reasons.length ? "reviewed-exception" : "risky";
     return {
-      classification: reasons.length ? "risky" : "additive-safe",
+      classification,
       reasons,
     };
   });

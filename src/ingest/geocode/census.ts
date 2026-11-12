@@ -1,8 +1,13 @@
 import { homedir } from "node:os";
 import { createHash } from "node:crypto";
-import { mkdir, readFile, writeFile, rename } from "node:fs/promises";
+import { mkdir, writeFile, rename } from "node:fs/promises";
 import { join } from "node:path";
-import { fetchToCache } from "../../fetch/index.js";
+import {
+  fetchToCache,
+  readCachedText,
+  remoteSnapshotStore,
+  storeCachedText,
+} from "../../fetch/index.js";
 import type {
   AdmissionSession,
   FetchOptions,
@@ -10,6 +15,8 @@ import type {
   RequestBody,
   Transport,
 } from "../../fetch/index.js";
+/** Request identities (input CSV and index) kept beside the cached responses. */
+const requestSource = "census-geocoder-requests";
 export const endpoint =
   "https://geocoding.geo.census.gov/geocoder/locations/addressbatch";
 export const geographyEndpoint =
@@ -63,12 +70,16 @@ export async function acquireBatch(
           : "Public_AR_Current\n") + csv,
       )
       .digest("hex");
-  const requestDir = join(dataDir, "raw", "census-geocoder-requests");
+  const requestDir = join(dataDir, "raw", requestSource);
   const index = join(requestDir, `${requestHash}.json`);
   let sha256: string | undefined;
   try {
-    sha256 = (JSON.parse(await readFile(index, "utf8")) as { sha256: string })
-      .sha256;
+    // The request index sits beside the snapshots, in the fetch cache's store.
+    sha256 = (
+      JSON.parse(
+        await readCachedText(dataDir, requestSource, `${requestHash}.json`),
+      ) as { sha256: string }
+    ).sha256;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
   }
@@ -96,20 +107,25 @@ export async function acquireBatch(
   });
   if (file.outcome === "not_modified")
     throw new Error("Unexpected Census conditional response");
+  const entry = JSON.stringify({
+    requestHash,
+    benchmark: "Public_AR_Current",
+    vintage: options.geographies ? "Current_Current" : null,
+    sha256: file.metadata.sha256,
+    records,
+  });
+  const remote = remoteSnapshotStore(dataDir);
+  if (remote) {
+    // With a remote store the input and index go there too, so another host reuses the answer.
+    await storeCachedText(remote, requestSource, `${requestHash}.csv`, csv);
+    await storeCachedText(remote, requestSource, `${requestHash}.json`, entry);
+    return { file, requests };
+  }
   await mkdir(requestDir, { recursive: true });
   // Input is retained with the request identity; raw response bytes are content addressed by fetchToCache.
   await writeFile(join(requestDir, `${requestHash}.csv`), csv, { flag: "w" });
   const temp = `${index}.${process.pid}.part`;
-  await writeFile(
-    temp,
-    JSON.stringify({
-      requestHash,
-      benchmark: "Public_AR_Current",
-      vintage: options.geographies ? "Current_Current" : null,
-      sha256: file.metadata.sha256,
-      records,
-    }),
-  );
+  await writeFile(temp, entry);
   await rename(temp, index);
   return { file, requests };
 }

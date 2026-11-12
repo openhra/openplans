@@ -8,7 +8,7 @@ import {
   ProtocolError,
   ProtocolErrorCode,
 } from "@modelcontextprotocol/server";
-import type { Tool } from "@modelcontextprotocol/server";
+import type { JsonSchemaType, Tool } from "@modelcontextprotocol/server";
 import {
   toolNames,
   inputJsonSchemas,
@@ -19,12 +19,19 @@ import {
   PERSONALIZED_TOOLS,
 } from "./schemas.js";
 import {
+  callPluginTool,
+  loadedPluginTools,
+  pluginToolDefinition,
+} from "../plugins/mcp-tools.js";
+import {
   callTool,
   limits,
   MAX_INPUT_ELEMENTS,
   MAX_OUTPUT_BYTES,
   MAX_TOOL_LIST_BYTES,
   TOOL_LIST_PAGE_SIZE,
+  coreToolDefinition,
+  toolDescriptions,
   messageBytes,
   mayCall,
   errorResult,
@@ -36,6 +43,7 @@ import { getDataStatus } from "../services/provenance.js";
 import { dataGeneration } from "../api/cache/generation.js";
 import { projector } from "./projection.js";
 import { ToolError, cursorCodec } from "./cursor.js";
+import { registerEstimateTool } from "./medicare-estimate.js";
 
 export type { McpDependencies, McpPolicy, McpPrincipal } from "./tools.js";
 export const instructions =
@@ -46,68 +54,6 @@ export const instructions =
   "Quotes are not bindable and never determine CSR eligibility. " +
   "Follow next_cursor with the same filters; restart after CURSOR_EXPIRED. Results describe the current local data generation, not a live publisher check.";
 
-const descriptions: Record<ToolName, [string, string]> = {
-  search: [
-    "Search public evidence",
-    "Discover literal plan, provider, drug, geography, carrier, network and dataset matches; scope gaps are explicit.",
-  ],
-  fetch: [
-    "Fetch an evidence record",
-    "Read a typed ID returned by this server, with bounded detail sections; never accepts a URL or path.",
-  ],
-  search_plans: [
-    "Find health plans",
-    "List plans for an explicit year and ZIP/county. Ambiguous counties need a selection; eligibility is unknown.",
-  ],
-  get_plan: [
-    "Read a plan",
-    "Read an exact HIOS or state plan key and year, with optional CSR variant and paged benefits, documents or provenance.",
-  ],
-  quote_premiums: [
-    "Quote household premiums",
-    "Household quote with gross, estimated credit/net and full rate evidence. Income and ages are never logged. Not a bindable quote; CSR eligibility is not evaluated.",
-  ],
-  check_ichra_affordability: [
-    "Check ICHRA affordability",
-    "Check whether an individual coverage HRA is affordable for one employee. Returns the lowest cost silver plan on gross and EHB-portion premiums, the required HRA contribution and one verdict per income measure, with cited rules. Not a bindable quote. Employer safe harbors come from a proposed rule and say so.",
-  ],
-  quote_plans: [
-    "Quote plans by age and ZIP",
-    "Quote plans by age and ZIP. Public tier: no income, subsidy or names; tobacco is optional. Provider and drug coverage per plan with evidence status. Not a bindable quote.",
-  ],
-  search_providers: [
-    "Find provider identities",
-    "Search literal names, exact NPIs, taxonomy or plan records with optional radius filtering before pagination. Identity alone proves no network membership.",
-  ],
-  search_drugs: [
-    "Find exact drug concepts",
-    "Search unique RxCUIs by literal name or published NDC; select an exact concept before checking coverage.",
-  ],
-  check_drug_coverage: [
-    "Check formulary evidence",
-    "Evaluate up to 100 exact plan/drug pairs, preserving five-state evidence, unresolved tiers and nullable restrictions.",
-  ],
-  check_provider_network: [
-    "Check network evidence",
-    "Evaluate up to 100 exact plan/NPI pairs using issuer record scope; addresses never establish participation.",
-  ],
-  lookup_geography: [
-    "Resolve ZIP counties",
-    "Resolve imported ZIP/county evidence, preserving multi-county ambiguity and labelled approximate fallbacks.",
-  ],
-  search_medicare_plans: [
-    "Search Medicare plans",
-    "List the Medicare Advantage, Part D and SNP plans CMS lists for one county and contract year, with their filed premiums, MOOP and stars. Provider networks stay unknown because CMS publishes no central file.",
-  ],
-  get_data_status: [
-    "Inspect loaded data",
-    "Read the local capability manifest, issuer/year/state gaps, source completeness and personalized access policy.",
-  ],
-  list_carriers_networks: [
-    "List carriers or networks",
-    "List scoped issuer or network records for an explicit state and optional year. IDs retain publication scope.",
-  ],
-};
 const mutable = { ttlMs: 0, cacheScope: "private" as const };
 const definition = { ttlMs: 300_000, cacheScope: "public" as const };
 const immutable = { ttlMs: 3_600_000, cacheScope: "public" as const };
@@ -140,16 +86,8 @@ export function buildServer(deps: McpDependencies): McpServer {
     // Denied personalized tools are never registered. A disabled public quote tool stays
     // callable so that it answers QUOTING_DISABLED, but it is not listed.
     if (PERSONALIZED_TOOLS.has(tool) && !mayCall(deps, tool)) continue;
-    const [title, description] = descriptions[tool];
-    if (mayCall(deps, tool))
-      definitions.push({
-        name: tool,
-        title,
-        description: `${description} ${evidenceCaution}`,
-        annotations: toolAnnotations,
-        inputSchema: inputJsonSchemas[tool] as Tool["inputSchema"],
-        outputSchema: outputJsonSchemas[tool],
-      });
+    const [title, description] = toolDescriptions[tool];
+    if (mayCall(deps, tool)) definitions.push(coreToolDefinition(tool));
     server.registerTool(
       tool,
       {
@@ -173,6 +111,34 @@ export function buildServer(deps: McpDependencies): McpServer {
           ctx.mcpReq.id,
         );
       },
+    );
+  }
+  // The default-off Medicare estimate follows the core tools when both switches are on and the
+  // caller holds its grant. Otherwise nothing is registered and discovery bytes stay the same.
+  // The plugin loader counts it in the page budget, so it always fits.
+  const estimate = registerEstimateTool(server, deps);
+  if (estimate) definitions.push(estimate);
+  // Plugin tools follow the core list, so the first entries never move for existing clients.
+  for (const tool of deps.pluginTools ?? loadedPluginTools()) {
+    const listed = pluginToolDefinition(tool.spec);
+    definitions.push(listed);
+    server.registerTool(
+      listed.name,
+      {
+        title: listed.title,
+        description: listed.description,
+        annotations: toolAnnotations,
+        inputSchema: fromJsonSchema(listed.inputSchema as JsonSchemaType),
+        outputSchema: fromJsonSchema(listed.outputSchema as JsonSchemaType),
+      },
+      async (args, ctx) =>
+        callPluginTool(
+          requestDependencies(deps, ctx.mcpReq.signal),
+          tool.spec,
+          args,
+          ctx.mcpReq.signal,
+          ctx.mcpReq.id,
+        ),
     );
   }
   // Keep the catalogue on one page; signed cursors still resume earlier listings.

@@ -1,18 +1,7 @@
 import { homedir } from "node:os";
 import { createHash } from "node:crypto";
 import { createReadStream } from "node:fs";
-import {
-  link,
-  mkdir,
-  mkdtemp,
-  open,
-  readFile,
-  readdir,
-  rename,
-  rm,
-  stat,
-  writeFile,
-} from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { isAbsolute, join } from "node:path";
 import { StringDecoder } from "node:string_decoder";
 import type { IncomingHttpHeaders } from "node:http";
@@ -41,6 +30,14 @@ import {
 import type { AdmissionReceipt, PolicyDocument } from "./admission.js";
 import { leaseHost } from "./limiter.js";
 import { shippedManifestPaths } from "./shipped.js";
+import {
+  asFetchBlobStore,
+  hostBlobStore,
+  LocalBlobStore,
+} from "./blob/index.js";
+import type { FetchBlobStore } from "./blob/index.js";
+import type { BlobStore } from "@openplans/plugin-sdk";
+import { scopeForbidsStorage } from "../plugins/request-scope.js";
 
 export interface SnapshotMetadata {
   snapshot_id: string;
@@ -95,6 +92,13 @@ export interface FetchOptions {
   onRequest?: (url: URL) => void;
   sleep?: (milliseconds: number) => Promise<void>;
   random?: () => number;
+  /**
+   * Where payloads, `meta.json` and sidecars go (design 5.7). Defaults to the store the entry
+   * point selected from `blobs.provider`, else the `local` store rooted at `dataDir`, which
+   * writes the tree this cache always wrote. Leases, quarantine markers and readmissions stay
+   * plain files next to the store's source directory.
+   */
+  blobStore?: BlobStore;
 }
 export interface RequestBody {
   contentType: string;
@@ -217,6 +221,57 @@ function sha256Hex(bytes: Buffer): string {
   return createHash("sha256").update(bytes).digest("hex");
 }
 
+/** Blob keys: `raw/<source>` holds `<snapshot>/payload`, `<snapshot>/meta.json` and sidecars. */
+const sourceKey = (source: string) => `raw/${source}`;
+const snapshotKey = (source: string, snapshotId: string) =>
+  `${sourceKey(source)}/${snapshotId}`;
+
+function storeOf(options: FetchOptions): FetchBlobStore {
+  return asFetchBlobStore(
+    options.blobStore ??
+      hostBlobStore() ??
+      new LocalBlobStore(options.dataDir!),
+    options.dataDir!,
+  );
+}
+
+async function* single(bytes: Buffer): AsyncGenerator<Buffer> {
+  yield bytes;
+}
+const asBuffer = (chunk: Uint8Array) =>
+  Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+
+/**
+ * A store whose keys are not local files copies the snapshot down through its verifying `get`
+ * before the cache hands out `path` and `metadataPath`. A local store has nothing to do.
+ */
+async function localCopies(
+  store: FetchBlobStore,
+  cached: Cached,
+  fresh = false,
+): Promise<void> {
+  if (!store.materialize) return;
+  const key = snapshotKey(cached.metadata.source, cached.snapshotId);
+  await store.materialize(
+    `${key}/payload`,
+    { bytes: cached.metadata.bytes, sha256: cached.metadata.sha256 },
+    fresh,
+  );
+  await store.materialize(`${key}.meta.json`, undefined, fresh);
+}
+
+/** A whole blob, or undefined when the key does not exist. */
+async function readBlob(
+  store: FetchBlobStore,
+  key: string,
+): Promise<Buffer | undefined> {
+  const body = await store.get(key);
+  if (!body) return;
+  const chunks: Buffer[] = [];
+  for await (const chunk of body) chunks.push(asBuffer(chunk));
+  return Buffer.concat(chunks);
+}
+
 /**
  * Snapshots fetched before admission existed are listed in a per-source QUARANTINE.json marker.
  * One is reused only with `<id>.readmitted.json` naming the same bytes and a stored admission
@@ -337,32 +392,25 @@ async function writeReadmission(
 }
 
 async function findSnapshot(
-  sourceDir: string,
+  store: FetchBlobStore,
   source: string,
   sha256: string,
   freshReceipt?: AdmissionReceipt,
 ): Promise<Cached | undefined> {
-  let names: string[];
-  try {
-    names = await readdir(sourceDir);
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return;
-    throw error;
-  }
-  for (const name of names) {
+  const prefix = sourceKey(source);
+  const sourceDir = store.controlDir?.(prefix) ?? store.localPath(prefix);
+  for await (const entry of store.list(prefix)) {
+    const name = entry.slice(prefix.length + 1).replace(/\/$/, "");
     if (!identifier.test(name)) continue;
     let metadata: SnapshotMetadata;
     try {
-      metadata = JSON.parse(
-        await readFile(join(sourceDir, name, "meta.json"), "utf8"),
-      ) as SnapshotMetadata;
-    } catch (error) {
-      if (
-        ["ENOENT", "ENOTDIR"].includes(
-          (error as NodeJS.ErrnoException).code ?? "",
-        )
-      )
-        continue;
+      const bytes = await readBlob(
+        store,
+        `${snapshotKey(source, name)}/meta.json`,
+      );
+      if (!bytes) continue;
+      metadata = JSON.parse(bytes.toString("utf8")) as SnapshotMetadata;
+    } catch {
       throw new FetchError(
         "cache_error",
         "Cached snapshot metadata is unreadable",
@@ -380,23 +428,21 @@ async function findSnapshot(
       );
     }
     await assertNotQuarantined(sourceDir, metadata, freshReceipt);
-    const path = join(sourceDir, name, "payload");
-    if ((await stat(path)).size !== metadata.bytes)
+    const key = snapshotKey(source, name);
+    const payload = await store.stat(`${key}/payload`);
+    // A missing payload fails as an unexpected cache error, as a failed stat always did.
+    if (!payload) throw new Error("Cached snapshot payload is missing");
+    if (payload.bytes !== metadata.bytes)
       throw new FetchError(
         "cache_error",
         "Cached snapshot size is inconsistent",
       );
-    const metadataPath = join(sourceDir, `${name}.meta.json`);
-    try {
-      await link(join(sourceDir, name, "meta.json"), metadataPath);
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
-    }
+    await store.alias(`${key}/meta.json`, `${key}.meta.json`);
     return {
       outcome: "reused",
       snapshotId: name,
-      path,
-      metadataPath,
+      path: store.localPath(`${key}/payload`),
+      metadataPath: store.localPath(`${key}.meta.json`),
       metadata,
     };
   }
@@ -466,7 +512,7 @@ async function requestChain(
     evidence.address = address.address;
     const headers: Record<string, string> = {
       "accept-encoding": "identity",
-      "user-agent": `openplans/0.3.8 (public health-plan source discovery; +${projectUrl(options)})`,
+      "user-agent": `openplans/0.4.0 (public health-plan source discovery; +${projectUrl(options)})`,
     };
     if (options.expectedContent === "json")
       headers.accept = "application/json, */*;q=0.1";
@@ -581,7 +627,10 @@ async function readPublisherPolicy(
     return {
       status: 200,
       sha256: result.metadata.sha256,
-      text: await readFile(result.path, "utf8"),
+      text: (await readBlob(
+        storeOf(options),
+        `${snapshotKey("publisher-policy", result.snapshotId)}/payload`,
+      ))!.toString("utf8"),
       contentType: result.metadata.content_type,
     };
   } catch (error) {
@@ -755,7 +804,16 @@ async function validateCacheHit(
   const probe = htmlProbe(options.expectedContent !== "binary");
   const probeChallenge = challengeProbe();
   const hash = createHash("sha256");
-  for await (const chunk of createReadStream(cached.path)) {
+  const store = storeOf(options);
+  await localCopies(store, cached);
+  const body = store.materialize
+    ? createReadStream(cached.path)
+    : await store.get(
+        `${snapshotKey(cached.metadata.source, cached.snapshotId)}/payload`,
+      );
+  if (!body) throw new Error("Cached snapshot payload is missing");
+  for await (const item of body) {
+    const chunk = asBuffer(item);
     probeChallenge(chunk);
     probe(chunk);
     hash.update(chunk);
@@ -813,7 +871,7 @@ async function saveBody(
   url: URL,
   chain: string[],
   response: FetchResponse,
-  sourceDir: string,
+  store: FetchBlobStore,
   options: FetchOptions,
   policyProbe: boolean,
 ): Promise<Cached> {
@@ -840,14 +898,12 @@ async function saveBody(
     checkContentType(type, options.expectedContent);
     const probe = htmlProbe(options.expectedContent !== "binary");
     const probeChallenge = challengeProbe();
-    await mkdir(sourceDir, { recursive: true });
-    staging = await mkdtemp(join(sourceDir, ".pending-"));
-    const partial = join(staging, "payload.part");
-    const file = await open(partial, "wx");
+    staging = await store.stage(sourceKey(options.source));
+    const partial = `${staging}/payload.part`;
     let bytes = 0,
       transferredBytes = 0;
-    const hash = createHash("sha256");
-    try {
+    let written: { bytes: number; sha256: string };
+    {
       const wire = new Transform({
         transform(chunk: Buffer, _encoding, callback) {
           try {
@@ -873,71 +929,76 @@ async function saveBody(
           callback(null, chunk);
         },
       });
-      let decoder;
-      if (encoding === "gzip") {
-        decoder = createGunzip();
-      } else if (encoding === "deflate") {
-        decoder = createInflate();
-      } else if (encoding === "br") {
-        decoder = createBrotliDecompress();
-      } else {
-        decoder = undefined;
-      }
-      output = decoder ?? wire;
-      transfer = decoder
-        ? pipeline(response.body, wire, decoder)
-        : pipeline(response.body, wire);
-      // The reader observes pipeline failures; attach immediately to avoid an unhandled rejection.
-      void transfer.catch(() => {});
-      const iterator = output[Symbol.asyncIterator]();
-      for (;;) {
-        let item: IteratorResult<unknown>;
-        try {
-          item = await nextChunk(
-            iterator,
-            output,
-            options.readTimeoutMs ?? 30_000,
-          );
-        } catch (error) {
-          if (error instanceof FetchError) throw error;
-          if (encoding !== "identity")
-            throw new FetchError(
-              "truncated",
-              "Publisher compressed body is invalid or incomplete",
-            );
-          if (expectedLength !== undefined && transferredBytes < expectedLength)
-            throw new FetchError(
-              "truncated",
-              "Publisher closed before Content-Length",
-            );
-          throw new FetchError("network_error", "Publisher stream failed");
+      // The store writes what this yields; a throw here makes `put` remove the partial key.
+      // The body starts flowing only once the store has opened its partial key, as before.
+      async function* checked(): AsyncGenerator<Buffer> {
+        let decoder;
+        if (encoding === "gzip") {
+          decoder = createGunzip();
+        } else if (encoding === "deflate") {
+          decoder = createInflate();
+        } else if (encoding === "br") {
+          decoder = createBrotliDecompress();
+        } else {
+          decoder = undefined;
         }
-        if (item.done) break;
-        const chunk = Buffer.isBuffer(item.value)
-          ? item.value
-          : Buffer.from(item.value as Uint8Array);
-        bytes += chunk.length;
-        if (bytes > decodedLimit)
+        output = decoder ?? wire;
+        transfer = decoder
+          ? pipeline(response.body, wire, decoder)
+          : pipeline(response.body, wire);
+        // The reader observes pipeline failures; attach immediately to avoid an unhandled rejection.
+        void transfer.catch(() => {});
+        const reading = output;
+        const iterator = reading[Symbol.asyncIterator]();
+        for (;;) {
+          let item: IteratorResult<unknown>;
+          try {
+            item = await nextChunk(
+              iterator,
+              reading,
+              options.readTimeoutMs ?? 30_000,
+            );
+          } catch (error) {
+            if (error instanceof FetchError) throw error;
+            if (encoding !== "identity")
+              throw new FetchError(
+                "truncated",
+                "Publisher compressed body is invalid or incomplete",
+              );
+            if (
+              expectedLength !== undefined &&
+              transferredBytes < expectedLength
+            )
+              throw new FetchError(
+                "truncated",
+                "Publisher closed before Content-Length",
+              );
+            throw new FetchError("network_error", "Publisher stream failed");
+          }
+          if (item.done) break;
+          const chunk = Buffer.isBuffer(item.value)
+            ? item.value
+            : Buffer.from(item.value as Uint8Array);
+          bytes += chunk.length;
+          if (bytes > decodedLimit)
+            throw new FetchError(
+              "too_large",
+              "Publisher decoded body exceeds byte limit",
+            );
+          probeChallenge(chunk);
+          probe(chunk);
+          yield chunk;
+        }
+        await transfer;
+        if (expectedLength !== undefined && transferredBytes !== expectedLength)
           throw new FetchError(
-            "too_large",
-            "Publisher decoded body exceeds byte limit",
+            "truncated",
+            "Publisher body differs from Content-Length",
           );
-        probeChallenge(chunk);
-        probe(chunk);
-        hash.update(chunk);
-        await file.writeFile(chunk);
       }
-      await transfer;
-      if (expectedLength !== undefined && transferredBytes !== expectedLength)
-        throw new FetchError(
-          "truncated",
-          "Publisher body differs from Content-Length",
-        );
-      await file.sync();
-    } finally {
-      await file.close();
+      written = await store.put(partial, checked(), {});
     }
-    const sha256 = hash.digest("hex");
+    const sha256 = written.sha256;
     if (
       options.expectedSha256 !== undefined &&
       sha256 !== options.expectedSha256
@@ -948,7 +1009,7 @@ async function saveBody(
       );
     }
     if (options.expectedContent === "zip")
-      await inspectZip(partial, {
+      await inspectZip(store.localPath(partial), {
         ...options.zipLimits,
         maxCompressedBytes: Math.min(
           decodedLimit,
@@ -962,7 +1023,7 @@ async function saveBody(
         );
     }
     const existing = await findSnapshot(
-      sourceDir,
+      store,
       options.source,
       sha256,
       options.admission && !policyProbe
@@ -999,27 +1060,26 @@ async function saveBody(
             transferred_bytes: transferredBytes,
           }),
     };
-    await writeFile(
-      join(staging, "meta.json"),
-      `${JSON.stringify(metadata, null, 2)}\n`,
-      { flag: "wx" },
+    await store.put(
+      `${staging}/meta.json`,
+      single(Buffer.from(`${JSON.stringify(metadata, null, 2)}\n`)),
+      {},
     );
-    await rename(partial, join(staging, "payload"));
-    const destination = join(sourceDir, snapshotId);
+    await store.publish(partial, `${staging}/payload`);
+    const destination = snapshotKey(options.source, snapshotId);
     try {
-      await rename(staging, destination);
+      await store.publish(staging, destination);
     } catch (error) {
       if (
         ["EEXIST", "ENOTEMPTY"].includes(
           (error as NodeJS.ErrnoException).code ?? "",
         )
       ) {
-        const concurrent = await findSnapshot(
-          sourceDir,
-          options.source,
-          sha256,
-        );
-        if (concurrent) return concurrent;
+        const concurrent = await findSnapshot(store, options.source, sha256);
+        if (concurrent) {
+          await localCopies(store, concurrent);
+          return concurrent;
+        }
         throw new FetchError(
           "snapshot_conflict",
           "Snapshot ID already contains different content",
@@ -1028,24 +1088,22 @@ async function saveBody(
       throw error;
     }
     staging = undefined;
-    const metadataPath = join(sourceDir, `${snapshotId}.meta.json`);
-    try {
-      await link(join(destination, "meta.json"), metadataPath);
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
-    }
-    return {
+    await store.alias(`${destination}/meta.json`, `${destination}.meta.json`);
+    const downloaded: Cached = {
       outcome: "downloaded",
       snapshotId,
-      path: join(destination, "payload"),
-      metadataPath,
+      path: store.localPath(`${destination}/payload`),
+      metadataPath: store.localPath(`${destination}.meta.json`),
       metadata,
     };
+    // Read back what the store now holds, so the path never names bytes it did not keep.
+    await localCopies(store, downloaded, true);
+    return downloaded;
   } finally {
     output?.destroy();
     response.body.destroy();
     await transfer?.catch(() => {});
-    if (staging) await rm(staging, { recursive: true, force: true });
+    if (staging) await store.discard(staging);
   }
 }
 
@@ -1086,6 +1144,12 @@ export async function fetchToCache(
   input: string | URL,
   options: FetchOptions,
 ): Promise<FetchResult> {
+  // Design 5.10.4: inside a `none` or `request` scope nothing touches disk; use fetchTransient.
+  if (scopeForbidsStorage())
+    throw new FetchError(
+      "storage_forbidden",
+      "The request's cache level forbids storing a payload",
+    );
   const shipped = shippedManifestPaths();
   const operatorManifest = process.env.OPENPLANS_ACCESS_MANIFEST;
   const admission =
@@ -1130,12 +1194,12 @@ async function acquire(
       "invalid_options",
       "Data cache directory must be absolute",
     );
-  options = { ...options, dataDir };
-  const sourceDir = join(dataDir, "raw", options.source);
+  const store = storeOf({ ...options, dataDir });
+  options = { ...options, dataDir, blobStore: store };
   try {
     if (options.expectedSha256) {
       const existing = await findSnapshot(
-        sourceDir,
+        store,
         options.source,
         options.expectedSha256,
       );
@@ -1209,7 +1273,7 @@ async function acquire(
           result.url,
           result.chain,
           response,
-          sourceDir,
+          store,
           options,
           policyProbe,
         );

@@ -2,11 +2,18 @@ FROM node:22.23.4 AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
 COPY .github/npm-version .github/npm-version
+COPY plugins ./plugins
 RUN npm install --global "npm@$(cat .github/npm-version)" --no-audit --no-fund \
     && npm ci --no-audit --no-fund
 COPY tsconfig*.json ./
 COPY src ./src
-RUN npm run build && npm prune --omit=dev --no-audit --no-fund
+# The plugin test kit in src/plugins/testing imports this helper at compile time.
+COPY scripts/source-mutation.mjs scripts/source-mutation.d.mts ./scripts/
+RUN npm run build && npm prune --omit=dev --no-audit --no-fund \
+    && mkdir /runtime \
+    && find plugins -mindepth 2 -maxdepth 2 \
+      \( -name dist -o -name package.json -o -name migrations \) \
+      -exec cp --parents -r {} /runtime/ \;
 
 FROM node:22.23.4-slim AS runtime
 ENV NODE_ENV=production
@@ -14,6 +21,7 @@ WORKDIR /app
 COPY --from=build --chown=node:node /app/package.json /app/package-lock.json ./
 COPY --from=build --chown=node:node /app/node_modules ./node_modules
 COPY --from=build --chown=node:node /app/dist ./dist
+COPY --from=build --chown=node:node /runtime/plugins ./plugins
 COPY --chown=node:node migrations ./migrations
 COPY --chown=node:node data/rating-rules ./data/rating-rules
 COPY --chown=node:node data/access ./data/access

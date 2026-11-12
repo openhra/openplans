@@ -105,6 +105,16 @@ Parser `qhp-provider-v4` uses a savepoint for each child. Invalid schema, trunca
 mismatch or an interrupted parse discards every record/address/edge from that child, including
 batches already inserted. The shard still records the reason and offending source ordinal.
 Complete children remain private if another child fails. Prior ACTIVE source sets stay intact.
+There is one narrow exception. If an otherwise well-formed record publishes an `npi` value that
+is not a string, or not ten digits starting with 1 or 2, the parser rejects that record alone.
+It writes no record, address or edge row for it, and the shard counts it as
+`invalid_npi_record_rejected` with the first source ordinal. The parser still checks the
+rejected record's plans and addresses, so a structural defect in it quarantines the child. When
+more than 1% of a child's records are rejected, the parser quarantines the whole child with
+`rejected_records_over_limit`. A child with rejected records is `partial` with reason
+`source_records_rejected`. If every other child is complete, the set publishes its positive
+evidence and stays `partial`. Lookups then carry `SOURCE_INCOMPLETE`, and an unlisted provider
+stays `unknown`, never `not_listed`.
 Other-issuer TX associations are omitted with counted `plan_outside_issuer_scope` issues;
 national/shared files remain supported without cross-issuer edges. An `onShard` callback gives
 records, edges and elapsed milliseconds (including acquisition) after each child.

@@ -1,9 +1,14 @@
 import { homedir } from "node:os";
 import { createReadStream } from "node:fs";
-import { open, readdir, readFile } from "node:fs/promises";
+import { open } from "node:fs/promises";
 import { join } from "node:path";
 import { createInflateRaw } from "node:zlib";
-import { fetchToCache, inspectZip } from "../../fetch/index.js";
+import {
+  fetchToCache,
+  inspectZip,
+  readCachedText,
+  sidecarNames,
+} from "../../fetch/index.js";
 import type { FetchOptions, SnapshotMetadata } from "../../fetch/index.js";
 
 export const GEO_SOURCES = {
@@ -65,17 +70,11 @@ export async function cachedHash(
   source: string,
   url: string,
 ): Promise<string | undefined> {
-  let names: string[];
-  try {
-    names = await readdir(join(directory, "raw", source));
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return;
-    throw error;
-  }
+  // Read through the fetch cache's store, so a remote store's snapshots count too.
   const matches: SnapshotMetadata[] = [];
-  for (const name of names.filter((name) => name.endsWith(".meta.json"))) {
+  for (const name of await sidecarNames(directory, source)) {
     const metadata = JSON.parse(
-      await readFile(join(directory, "raw", source, name), "utf8"),
+      await readCachedText(directory, source, name),
     ) as SnapshotMetadata;
     if (metadata.source === source && metadata.url === url)
       matches.push(metadata);

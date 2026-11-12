@@ -1,0 +1,137 @@
+{
+  "schemaVersion": 1,
+  "scope": "Defined standard Part D benefit for a beneficiary without the low-income subsidy. Plan files take precedence for a plan's own deductible and cost sharing.",
+  "years": {
+    "2026": {
+      "standardDeductibleCents": {
+        "value": 61500,
+        "citations": [
+          {
+            "document": "C5",
+            "section": "Attachment V, Table V-2, Standard Benefit, Deductible, 2026 column",
+            "page": 95,
+            "quote": "Deductible $615 $700"
+          }
+        ]
+      },
+      "outOfPocketThresholdCents": {
+        "value": 210000,
+        "citations": [
+          {
+            "document": "C5",
+            "section": "Attachment V, Table V-2, Standard Benefit, Out-of-Pocket Threshold, 2026 column",
+            "page": 95,
+            "quote": "Out-of-Pocket Threshold $2,100 $2,400"
+          },
+          {
+            "document": "C4",
+            "section": "Section 20, Redesigned Part D Benefit in CY 2026, Initial coverage",
+            "page": 25,
+            "quote": "reached the annual OOP threshold of $2,100 for CY 2026"
+          }
+        ]
+      },
+      "deductibleCostSharingBasisPoints": {
+        "value": 10000,
+        "citations": [
+          {
+            "document": "C4",
+            "section": "Section 20, Redesigned Part D Benefit in CY 2026, Annual deductible",
+            "page": 25,
+            "quote": "The enrollee pays 100 percent of their gross covered prescription drug costs (GCPDC) until the deductible is met."
+          }
+        ]
+      },
+      "initialCoverageCostSharingBasisPoints": {
+        "value": 2500,
+        "citations": [
+          {
+            "document": "C4",
+            "section": "Section 20, Redesigned Part D Benefit in CY 2026, Initial coverage",
+            "page": 25,
+            "quote": "The enrollee pays 25 percent coinsurance for covered Part D drugs."
+          }
+        ]
+      },
+      "catastrophicCostSharingBasisPoints": {
+        "value": 0,
+        "citations": [
+          {
+            "document": "C4",
+            "section": "Section 20, Redesigned Part D Benefit in CY 2026, Catastrophic",
+            "page": 25,
+            "quote": "The enrollee pays no cost sharing for Part D drugs."
+          }
+        ]
+      }
+    },
+    "2027": {
+      "standardDeductibleCents": {
+        "value": 70000,
+        "citations": [
+          {
+            "document": "C5",
+            "section": "Attachment V, Table V-2, Standard Benefit, Deductible, 2027 column",
+            "page": 95,
+            "quote": "Deductible $615 $700"
+          }
+        ]
+      },
+      "outOfPocketThresholdCents": {
+        "value": 240000,
+        "citations": [
+          {
+            "document": "C5",
+            "section": "Attachment V, Table V-2, Standard Benefit, Out-of-Pocket Threshold, 2027 column",
+            "page": 95,
+            "quote": "Out-of-Pocket Threshold $2,100 $2,400"
+          }
+        ]
+      },
+      "deductibleCostSharingBasisPoints": {
+        "value": 10000,
+        "citations": [
+          {
+            "document": "C10",
+            "section": "Attachment III, section A3, Table III-6, Deductible Phase, 2027 column",
+            "page": 76,
+            "quote": "Cost sharing: 100%"
+          },
+          {
+            "document": "C5",
+            "section": "Policies Adopted as Described",
+            "page": 4,
+            "quote": "policies in the Advance Notice that are not modified or retracted in the Rate Announcement become effective for the upcoming payment year"
+          }
+        ]
+      },
+      "initialCoverageCostSharingBasisPoints": {
+        "value": 2500,
+        "citations": [
+          {
+            "document": "C10",
+            "section": "Attachment III, section A3, Table III-6, Initial Coverage Phase, 2027 column",
+            "page": 76,
+            "quote": "Cost sharing: 25%"
+          },
+          {
+            "document": "C5",
+            "section": "Policies Adopted as Described",
+            "page": 4,
+            "quote": "policies in the Advance Notice that are not modified or retracted in the Rate Announcement become effective for the upcoming payment year"
+          }
+        ]
+      },
+      "catastrophicCostSharingBasisPoints": {
+        "value": 0,
+        "citations": [
+          {
+            "document": "C9",
+            "section": "Implementing Certain Provisions of the Inflation Reduction Act (IRA) of 2022",
+            "quote": "CMS is codifying these changes for 2027 and beyond, including eliminating the coverage gap phase, establishing a reduced annual out-of-pocket threshold, removing cost sharing for enrollees in the catastrophic phase"
+          }
+        ]
+      }
+    }
+  }
+}

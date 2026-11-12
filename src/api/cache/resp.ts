@@ -2,6 +2,8 @@ import { createConnection } from "node:net";
 import type { CacheStore } from "./store.js";
 
 export const MAX_ENTRY_BYTES = 2 * 1024 * 1024;
+export const CACHE_URL_MESSAGE =
+  "Cache URL must be redis://host:port without credentials or a database";
 
 /** One bounded, deadline-limited connection per command; no reconnect queue or idle sockets. */
 export class RespCache implements CacheStore {
@@ -21,9 +23,7 @@ export class RespCache implements CacheStore {
       url.hash ||
       !["", "/"].includes(url.pathname)
     ) {
-      throw new Error(
-        "Cache URL must be redis://host:port without credentials or a database",
-      );
+      throw new Error(CACHE_URL_MESSAGE);
     }
     this.host = url.hostname.replace(/^\[|\]$/g, "");
     this.port = Number(url.port || 6379);

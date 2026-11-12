@@ -8,6 +8,7 @@ import {
   AdmissionSession,
   admissionManifestSchema,
   fetchToCache,
+  fetchTransient,
   observedHostHolds,
 } from "../../src/fetch/index.js";
 import type {
@@ -37,6 +38,14 @@ let dataStatus: number;
 let dataHeaders: Record<string, string>;
 let options: FetchOptions;
 let transport: Transport;
+const fetchPaths = [
+  ["cache", fetchToCache],
+  [
+    "transient",
+    (input: string | URL, options: FetchOptions) =>
+      fetchTransient(input, { ...options, expectedContent: "json" }),
+  ],
+] as const;
 const paths = () => requested.map((entry) => new URL(entry.url).pathname);
 
 function publisher(host = "publisher.test"): PublisherPolicy {
@@ -166,6 +175,44 @@ describe("publisher admission before acquisition and publication", () => {
     expect(await readFile(first.path, "utf8")).toBe(dataBody);
   });
 
+  describe.each(fetchPaths)("%s admission controls", (_path, fetch) => {
+    it.each([
+      "robots-disallowed",
+      "terms-restricted",
+      "bot-protected",
+      "geo-restricted",
+      "unknown",
+    ] as const)("refuses held state %s", async (state) => {
+      manifest.publishers[0]!.state = state;
+      await saveManifest();
+      await expect(
+        fetch("https://publisher.test/feed/index.json", options),
+      ).rejects.toMatchObject({ code: "admission_denied" });
+      expect(requested).toEqual([]);
+    });
+    it("rejects a private address before transport", async () => {
+      await expect(
+        fetch("https://publisher.test/feed/index.json", {
+          ...options,
+          lookup: async () => [{ address: "127.0.0.1", family: 4 }],
+        }),
+      ).rejects.toMatchObject({ code: "blocked_address" });
+      expect(requested).toEqual([]);
+    });
+    it.each(observedHostHolds)(
+      "preserves observed hold for $host",
+      async (hold) => {
+        await expect(
+          fetch(`https://${hold.host}/`, {
+            ...options,
+            allowHosts: [hold.host],
+          }),
+        ).rejects.toMatchObject({ code: "admission_denied" });
+        expect(requested).toEqual([]);
+      },
+    );
+  });
+
   it.each([
     "robots-disallowed",
     "terms-restricted",
@@ -195,19 +242,31 @@ describe("publisher admission before acquisition and publication", () => {
     },
   );
 
-  it("rejects an unreviewed host even if it is allowlisted", async () => {
-    manifest.publishers.shift();
-    await saveManifest();
-    await expect(run()).rejects.toMatchObject({ code: "admission_denied" });
-    expect(requested).toEqual([]);
-  });
+  it.each(fetchPaths)(
+    "rejects an unreviewed host even if it is allowlisted (%s)",
+    async (_path, fetch) => {
+      manifest.publishers.shift();
+      await saveManifest();
+      await expect(
+        fetch("https://publisher.test/feed/index.json", options),
+      ).rejects.toMatchObject({ code: "admission_denied" });
+      expect(requested).toEqual([]);
+    },
+  );
 
-  it("rejects a disallowed path before a data request", async () => {
-    robots = "User-agent: *\nDisallow: /feed\n";
-    await expect(run()).rejects.toMatchObject({ code: "admission_denied" });
-    expect(requested.every((entry) => !entry.url.includes("/feed"))).toBe(true);
-    expect(await dataEntries()).toEqual([]);
-  });
+  it.each(fetchPaths)(
+    "rejects a disallowed path before a data request (%s)",
+    async (_path, fetch) => {
+      robots = "User-agent: *\nDisallow: /feed\n";
+      await expect(
+        fetch("https://publisher.test/feed/index.json", options),
+      ).rejects.toMatchObject({ code: "admission_denied" });
+      expect(requested.every((entry) => !entry.url.includes("/feed"))).toBe(
+        true,
+      );
+      expect(await dataEntries()).toEqual([]);
+    },
+  );
 
   it("rejects changed terms bytes before a data request", async () => {
     termsBody = "Synthetic changed terms.";
@@ -216,12 +275,17 @@ describe("publisher admission before acquisition and publication", () => {
     expect(await dataEntries()).toEqual([]);
   });
 
-  it("rejects expired or unreviewed terms without network access", async () => {
-    manifest.publishers[0]!.terms!.expiresAt = "2020-01-01T00:00:00Z";
-    await saveManifest();
-    await expect(run()).rejects.toMatchObject({ code: "admission_denied" });
-    expect(requested).toEqual([]);
-  });
+  it.each(fetchPaths)(
+    "rejects expired or unreviewed terms without network access (%s)",
+    async (_path, fetch) => {
+      manifest.publishers[0]!.terms!.expiresAt = "2020-01-01T00:00:00Z";
+      await saveManifest();
+      await expect(
+        fetch("https://publisher.test/feed/index.json", options),
+      ).rejects.toMatchObject({ code: "admission_denied" });
+      expect(requested).toEqual([]);
+    },
+  );
 
   it.each(["/feed-other/index.json", "/private/feed.json"])(
     "requires a reviewed path boundary for %s",
@@ -289,14 +353,19 @@ describe("publisher admission before acquisition and publication", () => {
     expect(requested).toHaveLength(6);
   });
 
-  it("rejects an allowlisted delegate without explicit delegation", async () => {
-    manifest.publishers[0]!.delegates = [];
-    await saveManifest();
-    dataStatus = 302;
-    dataHeaders = { location: "https://delegate.test/feed/file.json" };
-    await expect(run()).rejects.toMatchObject({ code: "admission_denied" });
-    expect(requested).toHaveLength(3);
-  });
+  it.each(fetchPaths)(
+    "rejects an allowlisted delegate without explicit delegation (%s)",
+    async (_path, fetch) => {
+      manifest.publishers[0]!.delegates = [];
+      await saveManifest();
+      dataStatus = 302;
+      dataHeaders = { location: "https://delegate.test/feed/file.json" };
+      await expect(
+        fetch("https://publisher.test/feed/index.json", options),
+      ).rejects.toMatchObject({ code: "admission_denied" });
+      expect(requested).toHaveLength(3);
+    },
+  );
 
   it.each([
     "<title>Just a moment...</title>",
@@ -330,18 +399,28 @@ describe("publisher admission before acquisition and publication", () => {
     expect(await dataEntries()).toEqual([]);
   });
 
-  it("enforces per-response and collection byte caps before publication", async () => {
-    await expect(run({ maxBytes: 5 })).rejects.toMatchObject({
-      code: "too_large",
-    });
-    expect(await dataEntries()).toEqual([]);
-    options.admission = new AdmissionSession(manifestPath, {
-      maxRequests: 200,
-      maxTransferBytes: Buffer.byteLength(robots + terms) + 1,
-    });
-    await expect(run()).rejects.toMatchObject({ code: "too_large" });
-    expect(await dataEntries()).toEqual([]);
-  });
+  it.each(fetchPaths)(
+    "enforces per-response and collection byte caps before publication (%s)",
+    async (_path, fetch) => {
+      await expect(
+        fetch("https://publisher.test/feed/index.json", {
+          ...options,
+          maxBytes: 5,
+        }),
+      ).rejects.toMatchObject({
+        code: "too_large",
+      });
+      expect(await dataEntries()).toEqual([]);
+      options.admission = new AdmissionSession(manifestPath, {
+        maxRequests: 200,
+        maxTransferBytes: Buffer.byteLength(robots + terms) + 1,
+      });
+      await expect(
+        fetch("https://publisher.test/feed/index.json", options),
+      ).rejects.toMatchObject({ code: "too_large" });
+      expect(await dataEntries()).toEqual([]);
+    },
+  );
 
   it("counts policy requests against the discovery request cap", async () => {
     options.admission = new AdmissionSession(manifestPath, {

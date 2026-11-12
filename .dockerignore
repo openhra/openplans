@@ -8,3 +8,10 @@ dist
 coverage
 docs
 tests
+**/node_modules
+**/dist
+**/coverage
+**/.env
+**/.env.*
+!.env.example
+plugins/*/tests
