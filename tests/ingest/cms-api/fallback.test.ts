@@ -39,6 +39,7 @@ import {
 } from "../../../src/ingest/cms-api/export.js";
 import { importFormulary } from "../../../src/ingest/qhp/formulary.js";
 import { fixture, scope, setup } from "../qhp/formulary-helpers.js";
+import { importMutant, plantMutantFile } from "../../mutant-file.js";
 
 vi.mock("../../../src/fetch/limiter.js", () => ({
   leaseHost: async () => async () => {},
@@ -67,42 +68,44 @@ const transport: Transport = async (url) => {
 const dataCalls = () => sent.filter((url) => url.pathname.startsWith("/api/"));
 
 /**
- * Planted mutants of the pass-through core that runs the CMS source. Writes a mutated copy of
+ * Planted mutants of the pass-through core that runs the CMS source. Plants a mutated copy of
  * src/plugins/sources/passthrough.ts plus copies of the modules above it that import the copy,
  * and returns their URLs; `cleanup` removes them.
  */
 async function coreMutant(
-  name: string,
   anchor: string,
   replacement: string,
 ): Promise<{ fallback: URL; quote: URL; cleanup: () => Promise<void> }> {
   const at = (path: string) => new URL(`../../../src/${path}`, import.meta.url);
   const core = await readFile(at("plugins/sources/passthrough.ts"), "utf8");
   expect(core).toContain(anchor);
-  const written = [
-    at(`plugins/sources/.passthrough-mutant-${name}.ts`),
-    at(`ingest/cms-api/.fallback-mutant-${name}.ts`),
-    at(`services/.quote-coverage-mutant-${name}.ts`),
-  ];
-  await writeFile(written[0]!, core.replace(anchor, replacement));
-  for (const [source, target] of [
-    ["ingest/cms-api/fallback.ts", written[1]!],
-    ["services/quote-coverage.ts", written[2]!],
-  ] as const)
-    await writeFile(
-      target,
-      (await readFile(at(source), "utf8")).replaceAll(
-        "plugins/sources/passthrough.js",
-        `plugins/sources/.passthrough-mutant-${name}.js`,
-      ),
-    );
-  return {
-    fallback: written[1]!,
-    quote: written[2]!,
-    cleanup: async () => {
-      for (const url of written) await rm(url, { force: true });
-    },
+  const planted: Awaited<ReturnType<typeof plantMutantFile>>[] = [];
+  const cleanup = async () => {
+    for (const mutant of planted) await mutant.cleanup();
   };
+  try {
+    const passthrough = await plantMutantFile(
+      at("plugins/sources/passthrough.ts"),
+      core.replace(anchor, replacement),
+    );
+    planted.push(passthrough);
+    for (const source of [
+      "ingest/cms-api/fallback.ts",
+      "services/quote-coverage.ts",
+    ]) {
+      const wired = (await readFile(at(source), "utf8")).replaceAll(
+        /"(?:\.\.\/)+plugins\/sources\/passthrough\.js"/g,
+        JSON.stringify(passthrough.url.href),
+      );
+      // The copy must import the planted core, not the real one.
+      expect(wired).toContain(passthrough.url.href);
+      planted.push(await plantMutantFile(at(source), wired));
+    }
+  } catch (error) {
+    await cleanup();
+    throw error;
+  }
+  return { fallback: planted[1]!.url, quote: planted[2]!.url, cleanup };
 }
 
 function context(
@@ -901,21 +904,17 @@ describe("quote fallback request contracts", () => {
     async (kind) => {
       const mutant =
         kind === "cap"
-          ? await coreMutant(
-              `quote-${kind}`,
-              "if (remaining(scope, source) <= 0)",
-              "if (false)",
-            )
+          ? await coreMutant("if (remaining(scope, source) <= 0)", "if (false)")
           : // Treat settled pairs as eligible, so batches cross officially answered cells.
             await coreMutant(
-              `quote-${kind}`,
               "if (eligible(source, answer, question)) pairs.push(pair);",
               "if (true) pairs.push(pair);",
             );
       try {
-        const module = (await import(
-          /* @vite-ignore */ mutant.quote.href
-        )) as typeof QuoteCoverage;
+        const module = await importMutant<typeof QuoteCoverage>(
+          mutant.quote,
+          "readQuoteCoverage",
+        );
         await expect(
           kind === "cap" ? capContract(module) : officialContract(module),
         ).rejects.toThrow();
@@ -1022,15 +1021,12 @@ it("rechecks identity on stored NotCovered reads without changing the stored CMS
 });
 
 it("negative control: rejects a projection mutant that treats every identity as known", async () => {
-  const planted = await coreMutant(
-    "identity",
-    "known.has(pair.question.identity)",
-    "true",
-  );
+  const planted = await coreMutant("known.has(pair.question.identity)", "true");
   try {
-    const mutant = (await import(
-      /* @vite-ignore */ planted.fallback.href
-    )) as typeof Fallback;
+    const mutant = await importMutant<typeof Fallback>(
+      planted.fallback,
+      "applyCmsFallback",
+    );
     reply = covered("NotCovered");
     const out = (
       await mutant.applyCmsFallback(

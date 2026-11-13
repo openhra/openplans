@@ -48,6 +48,20 @@ ZIP's imported relationship rows. County-only searches exclude ZIP-restricted
 plans because availability cannot be established without a ZIP. Searches with no
 active state/year catalog return unknown.
 
+Plan search and public quotes add `issues`, a list of reason codes that say why the
+plan list may be short or empty. It is empty when no plan is known to be missing.
+
+| Code                               | Meaning                                                                    |
+| ---------------------------------- | -------------------------------------------------------------------------- |
+| `zip_limited_service_area`         | County only, and some plans serve only part of the county. Send a ZIP |
+| `zip_not_in_loaded_geography`      | The ZIP is not in the loaded geography                                     |
+| `state_catalog_not_loaded`         | A New York or Vermont county whose filed state catalog is not loaded       |
+| `template_saved_before_submission` | A refused New York rate template leaves that issuer's plans out             |
+
+Other refusal codes from the New York template check (see the state ingest README) can
+appear the same way. The MCP tools `search_plans` and `quote_plans` return the same list as
+`location_issues`. The compatibility API adds each code to `x-openplans-gaps`; see its README.
+
 ## Rating rules and authentication
 
 Run `worker ingest rating-rules` after migration. The default committed source is
@@ -129,9 +143,21 @@ silver plan there serves only some of the county's ZIP codes, the status is
 `location_requires_zip` with reason `zip_limited_service_area`. A stand-alone dental
 plan that serves only some of the county's ZIP codes gives the same answer when a
 child under 19 needs the pediatric dental adjustment. The benchmark, credit
-and net stay null until the request includes a ZIP. Gross premiums do not change. A requested plan that cannot be rated has no
+and net stay null until the request includes a ZIP. Gross premiums do not change.
+A ZIP outside the loaded geography gives status `unknown` with reason
+`zip_not_in_loaded_geography`. A New York or Vermont county without its filed state catalog
+gives `unsupported_rating_method` with reason `state_catalog_not_loaded`. Both codes also
+appear in `benchmark.issues`. A requested plan that cannot be rated has no
 applied credit/net. Off-exchange and catastrophic plans receive no estimated
 credit (`plan_ineligible_for_tax_credit`). CSR variant eligibility is not inferred.
+
+Two more benchmark answers carry a reason in `issues`. A ZIP outside the loaded geography gives
+`unknown` with `zip_not_in_loaded_geography`. Request routes read the database read-only, so the
+optional CMS ZIP lookup uses only its cached rows there and never calls out. New York and Vermont
+rate by filed family tier. When no state catalog is loaded for the year, they give
+`unsupported_rating_method` with `state_catalog_not_loaded`. With one loaded, the household
+benchmark is `requires_state_rules`. On premium quotes these appear as `subsidy.status`, with
+the reason code in `subsidy.benchmark.issues`.
 
 `GET /v1/benchmark?zip=77002&year=2026&ages=40` also accepts `county=48201`
 instead of ZIP, or county plus ZIP to disambiguate. It follows the same

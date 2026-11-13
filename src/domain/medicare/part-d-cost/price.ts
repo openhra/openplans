@@ -77,23 +77,54 @@ export type PriceFigure =
 
 /** One way to price the claim; a null gross is a reading no file settles. */
 export type PriceReadingKey =
-  "unit_cost" | "lowest_fee" | "highest_fee" | "floor_price" | "fee_unknown";
+  | "unit_cost"
+  | "lowest_fee"
+  | "highest_fee"
+  | "floor_price"
+  | "fee_unknown"
+  | "mfp_lowest_fee"
+  | "mfp_highest_fee"
+  | "mfp_unknown";
 export interface PriceReading {
   key: PriceReadingKey;
   gross: Rational | null;
 }
 
+/**
+ * A fill's maximum fair price (mfp.ts): the unit price times the quantity, rounded to the cent,
+ * or why there is none. Null when the fill is not priced from plan averages.
+ */
+export type FillMfp =
+  | {
+      status: "value";
+      unit_price: string;
+      total: Rational;
+      effective_from: string;
+      effective_to: string | null;
+    }
+  | { status: "unknown"; reason: string };
+
+/**
+ * What the ingredient cost of a fill is: the plan-average unit cost, the maximum fair price of a
+ * selected drug, or either while the drug's program is open.
+ */
+export type Ingredient = "plan_average" | "maximum_fair_price" | "open";
+
 /** The readings and the price figures for one fill once its fee set is known. */
 export interface FillPricing {
   fee_set: FeeSet;
+  ingredient: Ingredient;
   readings: PriceReading[];
-  /** Why the readings disagree; null when one reading prices the claim. */
-  reason: "dispensing_fee_unknown" | "floor_price_may_apply" | null;
+  /** Why the readings disagree or give no price; null when one reading prices the claim. */
+  reason: string | null;
+  /** The maximum fair price the claim uses for a selected drug; null when there is none. */
+  mfp: Extract<FillMfp, { status: "value" }> | null;
   figures: {
     unit_cost_total: PriceFigure;
     total_lowest_fee: PriceFigure;
     total_highest_fee: PriceFigure;
     gross: PriceFigure;
+    maximum_fair_price_total: PriceFigure;
   };
 }
 
@@ -106,6 +137,9 @@ const RELEASE_FEE_REASONS = new Set([
 ]);
 export const FEE_UNKNOWN = "dispensing_fee_unknown";
 export const FLOOR_MAY_APPLY = "floor_price_may_apply";
+/** The program is open and the maximum fair price and the plan average give different prices. */
+export const MFP_MAY_APPLY = "maximum_fair_price_may_apply";
+export const NOT_SELECTED = "drug_not_selected";
 
 const tenThousandths = (text: string | null): Rational | null =>
   text === null ? null : parseDecimal(text);
@@ -156,14 +190,28 @@ function selectedSpan(
     : { status: "unknown", reason: FEE_UNKNOWN };
 }
 
-/** The two rules a planted mutant may replace; production uses `pricingDeps`. */
+/**
+ * Which ingredient cost a fill's program options call for. A drug settled as selected is priced
+ * from its maximum fair price alone; a drug that may or may not be selected is priced both ways;
+ * a drug that is not selected never uses a maximum fair price.
+ */
+export function ingredientFor(programs: readonly string[]): Ingredient {
+  if (programs.length && programs.every((item) => item === "selected"))
+    return "maximum_fair_price";
+  return programs.includes("selected") ? "open" : "plan_average";
+}
+
+/** The rules a planted mutant may replace; production uses `pricingDeps`. */
 export interface PricingDeps {
   /** Lowest and highest readable fee over some fee types; no readable fee is unknown, never 0. */
   feeSpan: typeof feeSpan;
   /** The figure for two different amounts in cents: both bounds, in order, never one value. */
   between: (low: number, high: number) => PriceFigure;
+  /** Which ingredient cost the program options call for. */
+  ingredient: typeof ingredientFor;
 }
 export const pricingDeps: PricingDeps = {
+  ingredient: ingredientFor,
   feeSpan,
   between: (low, high) => ({
     status: "bounded",
@@ -273,15 +321,92 @@ const unknownFigure = (reason: string): PriceFigure => ({
  * The readings for one fill and its price figures. The gross cost is a value when every reading
  * gives the same cents, bounded by the lowest and highest fee when only the fee moves it, and
  * unknown when a fee is missing or a floor price could bind.
+ *
+ * A selected drug's ingredient cost is its maximum fair price, not the plan average: the law caps
+ * a selected drug's negotiated price at the maximum fair price plus any dispensing fee (C7,
+ * footnote 7) and CMS prices its worked example at that cap (C12, example 1). Its readings are the
+ * maximum fair price plus the lowest and plus the highest selected-drug fee. The maximum fair
+ * price excludes the fee, so there is no "already includes the fee" reading, and no floor price
+ * can raise the price above the cap. Without a maximum fair price in effect the gross cost stays
+ * unknown. While the program is open both sets of readings count.
  */
 export function fillPricing(
   price: PlanAveragePrice,
   programs: readonly string[],
   deps: PricingDeps = pricingDeps,
+  mfp: FillMfp | null = null,
 ): FillPricing {
   const feeSet = feeSetFor(programs);
-  const fee = price.fees[feeSet];
+  const ingredient = deps.ingredient(programs);
   const unitTotal = parseDecimal(price.unit_cost_total)!;
+  const known = mfp?.status === "value" ? mfp : null;
+  const mfpMissing =
+    mfp?.status === "unknown" ? mfp.reason : "maximum_fair_price_not_in_effect";
+  const mfpFigure: PriceFigure = known
+    ? valueFigure(known.total)
+    : unknownFigure(ingredient === "plan_average" ? NOT_SELECTED : mfpMissing);
+
+  // The maximum fair price readings, with the selected-drug fee.
+  const selectedFee = price.fees.selected_or_brand;
+  const mfpReadings: PriceReading[] = [];
+  let mfpLow: Rational | null = null;
+  let mfpHigh: Rational | null = null;
+  let mfpReason: string | null = null;
+  if (!known) {
+    mfpReadings.push({ key: "mfp_unknown", gross: null });
+    mfpReason = mfpMissing;
+  } else if (selectedFee.status !== "value") {
+    mfpReadings.push({ key: "fee_unknown", gross: null });
+    mfpReason = selectedFee.reason;
+  } else {
+    mfpLow = add(known.total, parseDecimal(selectedFee.lowest)!);
+    mfpHigh = add(known.total, parseDecimal(selectedFee.highest)!);
+    mfpReadings.push(
+      { key: "mfp_lowest_fee", gross: mfpLow },
+      { key: "mfp_highest_fee", gross: mfpHigh },
+    );
+  }
+
+  if (ingredient === "maximum_fair_price") {
+    const figures = {
+      unit_cost_total: valueFigure(unitTotal),
+      maximum_fair_price_total: mfpFigure,
+    };
+    if (!mfpLow || !mfpHigh) {
+      const missing = unknownFigure(mfpReason!);
+      return {
+        fee_set: feeSet,
+        ingredient,
+        readings: mfpReadings,
+        reason: mfpReason,
+        mfp: known,
+        figures: {
+          ...figures,
+          total_lowest_fee: missing,
+          total_highest_fee: missing,
+          gross: missing,
+        },
+      };
+    }
+    const agree = cents(mfpLow) === cents(mfpHigh);
+    return {
+      fee_set: feeSet,
+      ingredient,
+      readings: agree ? [mfpReadings[0]!] : mfpReadings,
+      reason: agree ? null : FEE_UNKNOWN,
+      mfp: known,
+      figures: {
+        ...figures,
+        total_lowest_fee: valueFigure(mfpLow),
+        total_highest_fee: valueFigure(mfpHigh),
+        gross: agree
+          ? valueFigure(mfpLow)
+          : deps.between(cents(mfpLow), cents(mfpHigh)),
+      },
+    };
+  }
+
+  const fee = price.fees[feeSet];
   const readings: PriceReading[] = [{ key: "unit_cost", gross: unitTotal }];
   let low: Rational | null = null;
   let high: Rational | null = null;
@@ -305,6 +430,11 @@ export function fillPricing(
       readings.push({ key: "floor_price", gross: floor });
     }
   }
+  // While the program is open, the selected-drug readings count as well.
+  if (ingredient === "open")
+    for (const reading of mfpReadings)
+      if (!readings.some((item) => item.key === reading.key))
+        readings.push(reading);
   const priced = readings.every((reading) => reading.gross !== null);
   const distinct = new Set(
     readings.map((reading) =>
@@ -312,23 +442,30 @@ export function fillPricing(
     ),
   );
   const agree = priced && distinct.size === 1;
-  let reason: FillPricing["reason"] = null;
-  if (!agree) reason = floorBinds ? FLOOR_MAY_APPLY : FEE_UNKNOWN;
+  let reason: string | null = null;
+  if (!agree) {
+    if (floorBinds) reason = FLOOR_MAY_APPLY;
+    else reason = ingredient === "open" ? MFP_MAY_APPLY : FEE_UNKNOWN;
+  }
   const feeReason = fee.status === "unknown" ? fee.reason : FEE_UNKNOWN;
   let gross: PriceFigure;
   if (agree) gross = valueFigure(unitTotal);
   else if (floorBinds || !low || !high)
     gross = unknownFigure(floorBinds ? FLOOR_MAY_APPLY : feeReason);
+  else if (ingredient === "open") gross = unknownFigure(reason!);
   else gross = deps.between(cents(low), cents(high));
   return {
     fee_set: feeSet,
+    ingredient,
     readings: agree ? [readings[0]!] : readings,
     reason,
+    mfp: ingredient === "open" ? known : null,
     figures: {
       unit_cost_total: valueFigure(unitTotal),
       total_lowest_fee: low ? valueFigure(low) : unknownFigure(feeReason),
       total_highest_fee: high ? valueFigure(high) : unknownFigure(feeReason),
       gross,
+      maximum_fair_price_total: mfpFigure,
     },
   };
 }

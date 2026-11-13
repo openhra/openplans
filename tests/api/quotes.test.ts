@@ -1,4 +1,4 @@
-import { readFile, rm, writeFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { Hono } from "hono";
 import {
   afterAll,
@@ -13,6 +13,7 @@ import { createApp } from "../../src/api/app.js";
 import type { SqlSession } from "../../src/db/database.js";
 import type * as QuoteCoverage from "../../src/services/quote-coverage.js";
 import type * as QuoteRoutes from "../../src/api/quotes.js";
+import { importMutant, withMutantFile } from "../mutant-file.js";
 import { replaceSyntax } from "../source-mutation.js";
 import {
   PLAN,
@@ -239,38 +240,33 @@ describe("coverage honesty with no provider or formulary feeds (negative control
       "../../src/services/quote-coverage.ts",
       import.meta.url,
     );
-    const temporary = new URL(
-      "../../src/services/.quote-coverage-mutant-honesty.ts",
-      import.meta.url,
-    );
-    await writeFile(
-      temporary,
+    await withMutantFile(
+      source,
       replaceSyntax(
         await readFile(source, "utf8"),
         "providers.push(await providerParticipation(db, requestedId, code, year));",
         'providers.push({ ...(await providerParticipation(db, requestedId, code, year)), status: "out_of_network" as "unknown" });',
       ),
+      async (temporary) => {
+        const mutant = await importMutant<typeof QuoteCoverage>(
+          temporary,
+          "readQuoteCoverage",
+        );
+        const coverage = await mutant.readQuoteCoverage(
+          fixture.db,
+          PLAN,
+          ["1234567893", "1003000126"],
+          ["860975"],
+          2026,
+        );
+        expect(() =>
+          expectHonest({
+            quotes: [coverage],
+            data_availability: { providers: "unknown", drugs: "unknown" },
+          }),
+        ).toThrow();
+      },
     );
-    try {
-      const mutant = (await import(
-        /* @vite-ignore */ temporary.href
-      )) as typeof QuoteCoverage;
-      const coverage = await mutant.readQuoteCoverage(
-        fixture.db,
-        PLAN,
-        ["1234567893", "1003000126"],
-        ["860975"],
-        2026,
-      );
-      expect(() =>
-        expectHonest({
-          quotes: [coverage],
-          data_availability: { providers: "unknown", drugs: "unknown" },
-        }),
-      ).toThrow();
-    } finally {
-      await rm(temporary, { force: true });
-    }
   });
 });
 
@@ -365,26 +361,21 @@ describe("personalized premium quotes; the old premium-estimates name is gone (n
   });
   it("negative control: a quotes.ts copy that re-adds the old route fails", async () => {
     const source = new URL("../../src/api/quotes.ts", import.meta.url);
-    const temporary = new URL(
-      "../../src/api/.quotes-mutant-old-name.ts",
-      import.meta.url,
-    );
-    await writeFile(
-      temporary,
+    await withMutantFile(
+      source,
       replaceSyntax(
         await readFile(source, "utf8"),
         'app.use("/premium-quotes", household);',
         'app.use("/premium-quotes", household); app.use("/premium-estimates", household); app.post("/premium-estimates", async (c) => c.json(await estimatePremiums(db, await jsonBody(c))));',
       ),
+      async (temporary) => {
+        const mutant = await importMutant<typeof QuoteRoutes>(
+          temporary,
+          "quoteRoutes",
+        );
+        await expect(expectRemoved(mutant)).rejects.toThrow();
+      },
     );
-    try {
-      const mutant = (await import(
-        /* @vite-ignore */ temporary.href
-      )) as typeof QuoteRoutes;
-      await expect(expectRemoved(mutant)).rejects.toThrow();
-    } finally {
-      await rm(temporary, { force: true });
-    }
   });
 });
 
@@ -459,26 +450,21 @@ describe("public quote rate limit (negative control 5)", () => {
   });
   it("negative control: a limiter copy with perMinute = Infinity fails", async () => {
     const source = new URL("../../src/api/quotes.ts", import.meta.url);
-    const temporary = new URL(
-      "../../src/api/.quotes-mutant-limit.ts",
-      import.meta.url,
-    );
-    await writeFile(
-      temporary,
+    await withMutantFile(
+      source,
       replaceSyntax(
         await readFile(source, "utf8"),
         "perMinute: 30,",
         "perMinute: Infinity,",
       ),
+      async (temporary) => {
+        const mutant = await importMutant<typeof QuoteRoutes>(
+          temporary,
+          "publicQuoteAdmission",
+        );
+        await expect(verdict(mutant)).rejects.toThrow();
+      },
     );
-    try {
-      const mutant = (await import(
-        /* @vite-ignore */ temporary.href
-      )) as typeof QuoteRoutes;
-      await expect(verdict(mutant)).rejects.toThrow();
-    } finally {
-      await rm(temporary, { force: true });
-    }
   });
 });
 

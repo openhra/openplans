@@ -30,9 +30,12 @@ import type {
   ProgramRules,
 } from "./program-rules.js";
 import { programRules } from "./program-rules.js";
+import { maximumFairPrice, mfpTotal } from "./mfp.js";
 import type {
   FeeRangeRef,
+  FillMfp,
   FillPricing,
+  Ingredient,
   PlanAveragePrice,
   PriceFigure,
   PriceReadingKey,
@@ -177,11 +180,20 @@ export interface FillPrice {
   quantity_basis: "caller_asserted_ndc_units" | null;
   caveat: string | null;
   fee_set: FillPricing["fee_set"] | null;
+  /** Null until the drug is classified. */
+  ingredient: Ingredient | null;
+  /** The maximum fair price in effect for a selected drug on the fill date, per NDC unit. */
+  maximum_fair_price: {
+    unit_price: string;
+    effective_from: string;
+    effective_to: string | null;
+  } | null;
   readings: PriceReadingKey[];
   unit_cost_total: Figure;
   total_lowest_fee: Figure;
   total_highest_fee: Figure;
   gross: Figure;
+  maximum_fair_price_total: Figure;
 }
 
 export interface FillResult {
@@ -269,6 +281,8 @@ export interface EngineDeps {
   /** Whether the readings' values for one figure settle it: all of them must be the same. */
   agree: (values: readonly string[]) => boolean;
   pricing: PricingDeps;
+  /** The maximum fair price in effect for an NDC-11 on a fill date (mfp.ts). */
+  maximumFairPrice: typeof maximumFairPrice;
 }
 export const engineDeps: EngineDeps = {
   claim: claimDeps,
@@ -278,6 +292,7 @@ export const engineDeps: EngineDeps = {
   classify: { drug: classifyDrug, benefitType: resolveBenefitType },
   agree: (values) => values.length > 0 && new Set(values).size === 1,
   pricing: pricingDeps,
+  maximumFairPrice: (year, ndc, date) => maximumFairPrice(year, ndc, date),
 };
 
 // ---------- readings ----------
@@ -307,6 +322,8 @@ interface ResolvedFill {
   /** Plan-average readings; the engine runs each one when they disagree. */
   pricing: FillPricing | null;
   mfp: Rational | null;
+  /** The CMS rows behind a selected drug's maximum fair price. */
+  mfpCitations: Citation[];
   programs: DrugProgram[];
   insulin: boolean[];
   vaccine: boolean[];
@@ -430,6 +447,7 @@ export function createEstimator(deps: EngineDeps = engineDeps) {
         gross: null,
         pricing: null,
         mfp: null,
+        mfpCitations: [],
         programs: [],
         insulin: [],
         vaccine: [],
@@ -469,13 +487,34 @@ export function createEstimator(deps: EngineDeps = engineDeps) {
       base.classification = classified;
       base.programs = classified.program.options;
       if (price.status === "plan_average") {
+        const lookup = deps.maximumFairPrice(year, pkg.proxy_ndc, fill.date);
+        let mfp: FillMfp = {
+          status: "unknown",
+          reason:
+            lookup.status === "unknown" ? lookup.reason : "quantity_unreadable",
+        };
+        if (lookup.status === "value") {
+          const total = mfpTotal(lookup.unit_price, price.quantity);
+          if (total)
+            mfp = {
+              status: "value",
+              unit_price: lookup.unit_price,
+              total,
+              effective_from: lookup.effective_from,
+              effective_to: lookup.effective_to,
+            };
+        }
         base.pricing = fillPricing(
           price,
           classified.program.options,
           deps.pricing,
+          mfp,
         );
         if (base.pricing.readings.length === 1)
           base.gross = base.pricing.readings[0]!.gross;
+        base.mfp = base.pricing.mfp?.total ?? null;
+        if (base.pricing.ingredient !== "plan_average")
+          base.mfpCitations = lookup.citations;
       }
       const tri = (value: Tri) =>
         value === "unknown" ? [false, true] : [value];
@@ -621,8 +660,10 @@ export function createEstimator(deps: EngineDeps = engineDeps) {
       const priceVariable = variables.find((item) => item.key === key);
       const bound = (values: readonly bigint[]): Figure | null => {
         if (fill.pricing?.reason !== FEE_UNKNOWN || !priceVariable) return null;
-        if (priceVariable.options.join() !== BOUNDED_READINGS.join())
-          return null;
+        const order = [BOUNDED_READINGS, MFP_BOUNDED_READINGS].find(
+          (keys) => priceVariable.options.join() === keys.join(),
+        );
+        if (!order) return null;
         const byReading = new Map<string, Set<bigint>>();
         worlds.forEach((world, i) => {
           const set = byReading.get(world[key]!) ?? new Set<bigint>();
@@ -630,9 +671,10 @@ export function createEstimator(deps: EngineDeps = engineDeps) {
           byReading.set(world[key]!, set);
         });
         if ([...byReading.values()].some((set) => set.size !== 1)) return null;
-        const [alone, low, high] = BOUNDED_READINGS.map(
-          (reading) => [...byReading.get(reading)!][0]!,
-        );
+        const ends = order.map((reading) => [...byReading.get(reading)!][0]!);
+        // A maximum fair price has no reading without the fee: its lowest-fee reading starts.
+        const [alone, low, high] =
+          ends.length === 3 ? ends : [ends[0]!, ...ends];
         if (alone! > low! || low! > high!)
           return {
             status: "unknown",
@@ -760,6 +802,11 @@ export function createEstimator(deps: EngineDeps = engineDeps) {
               ]
             : []),
           { kind: "request" as const, field: `fills.${fill.request.fill_id}` },
+          ...fill.mfpCitations.map((citation) => ({
+            kind: "rule" as const,
+            contract_year: year,
+            ...citation,
+          })),
           ...(fill.pricing && fill.price.status === "plan_average"
             ? [
                 { kind: "source_row" as const, ...fill.price.pricing_row },
@@ -1262,7 +1309,8 @@ export function createEstimator(deps: EngineDeps = engineDeps) {
           );
           gross = reading?.gross ?? null;
           unpricedReason = fill.pricing.reason ?? FEE_UNKNOWN;
-        }
+        } else if (fill.pricing && !gross)
+          unpricedReason = fill.pricing.reason ?? FEE_UNKNOWN;
         // Without a price only the catastrophic phase is settled: the enrollee pays nothing there
         // (an ACIP vaccine pays nothing in any phase), so patient pay and TrOOP are known while the
         // gross cost and the payer split stay unknown.
@@ -1301,7 +1349,11 @@ export function createEstimator(deps: EngineDeps = engineDeps) {
           design,
           sharing,
           special: special(insulin, vaccine),
-          maximumFairPrice: fill.mfp,
+          // A plan-average fill's maximum fair price counts only where the drug is selected.
+          maximumFairPrice:
+            fill.price.status === "plan_average" && cls !== "selected"
+              ? null
+              : fill.mfp,
           program: {
             payer: programClass.payer,
             initial,
@@ -1368,6 +1420,11 @@ const BOUNDED_READINGS: readonly PriceReadingKey[] = [
   "lowest_fee",
   "highest_fee",
 ];
+/** The same for a selected drug priced from its maximum fair price. */
+const MFP_BOUNDED_READINGS: readonly PriceReadingKey[] = [
+  "mfp_lowest_fee",
+  "mfp_highest_fee",
+];
 /** Listing gaps come before any price: a drug the plan does not list has no plan price. */
 const LISTING_BLOCKS = new Set([
   "drug_not_in_bundle",
@@ -1389,6 +1446,7 @@ function fillPrice(fill: ResolvedFill): FillPrice | null {
     quantity_basis: planAverage ? price.quantity_basis : null,
     caveat: planAverage ? price.caveat : null,
   };
+  const mfp = fill.pricing?.mfp ?? null;
   let reason: string | null = null;
   if (fill.blocked && LISTING_BLOCKS.has(fill.blocked)) reason = fill.blocked;
   else if (price.status === "unknown") reason = price.reason;
@@ -1402,16 +1460,27 @@ function fillPrice(fill: ResolvedFill): FillPrice | null {
     return {
       ...head,
       fee_set: null,
+      ingredient: null,
+      maximum_fair_price: null,
       readings: [],
       unit_cost_total: none,
       total_lowest_fee: none,
       total_highest_fee: none,
       gross: none,
+      maximum_fair_price_total: none,
     };
   }
   return {
     ...head,
     fee_set: fill.pricing.fee_set,
+    ingredient: fill.pricing.ingredient,
+    maximum_fair_price: mfp
+      ? {
+          unit_price: mfp.unit_price,
+          effective_from: mfp.effective_from,
+          effective_to: mfp.effective_to,
+        }
+      : null,
     readings: fill.pricing.readings.map((reading) => reading.key),
     ...fill.pricing.figures,
   };

@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-import { homedir } from "node:os";
 // Real Postgres + TCP HTTP check. Requires a lane-owned, empty migrated database.
 // Never points this at the shared production catalog. Raw files stay in the data cache.
 import assert from "node:assert/strict";
@@ -25,11 +24,9 @@ import {
 import { estimatePremium } from "../../../dist/api/premiums.js";
 import { premiumRequest } from "../../../dist/api/validation.js";
 import { Readable } from "node:stream";
+import { dataDirectory } from "../../../dist/config/access.js";
 
-const data = resolve(
-  process.env.OPENPLANS_DATA_DIR ??
-    join(homedir(), ".local", "share", "openplans"),
-);
+const data = resolve(dataDirectory());
 const db = createDatabase();
 const token = randomUUID(); // ephemeral, never written or logged
 const report = {

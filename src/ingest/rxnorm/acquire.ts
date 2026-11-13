@@ -1,19 +1,16 @@
-import { homedir } from "node:os";
 import { readFile } from "node:fs/promises";
-import { join } from "node:path";
 import {
   fetchToCache,
   readCachedText,
   sidecarNames,
 } from "../../fetch/index.js";
 import type { FetchOptions, SnapshotMetadata } from "../../fetch/index.js";
+import { dataDirectory } from "../../config/access.js";
 
 export const filesPage =
   "https://www.nlm.nih.gov/research/umls/rxnorm/docs/rxnormfiles.html";
 export const sourceId = "nlm-rxnorm-prescribe";
-export const dataDirectory = () =>
-  process.env.OPENPLANS_DATA_DIR ??
-  join(homedir(), ".local", "share", "openplans");
+export { dataDirectory };
 export interface Release {
   version: string;
   url: string;

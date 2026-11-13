@@ -18,6 +18,9 @@ const guide = join(root, "docs/plugins.md");
 const tsc = join(root, "node_modules/typescript/bin/tsc");
 const vitest = join(root, "node_modules/vitest/vitest.mjs");
 const EXAMPLE = "plugins/hello/";
+// The outer test runs two tsc builds and a nested vitest run.
+const OUTER_TIMEOUT_MS = 180_000;
+const INNER_TIMEOUT_MS = 150_000;
 const REQUIRED = [
   "plugins/hello/src/index.ts",
   "plugins/hello/tests/hello.test.ts",
@@ -113,23 +116,43 @@ function run(command: string, args: string[], cwd: string) {
 const build = (pkg: string) => run(tsc, ["-p", "tsconfig.json"], pkg);
 
 describe("plugin guide example", () => {
-  it("builds against the SDK and passes its own test with the kit", async () => {
-    const blocks = exampleBlocks(await readFile(guide, "utf8"));
-    expect([...blocks.keys()].sort()).toEqual(REQUIRED);
-    const pkg = await writeExample(blocks);
+  it(
+    "builds against the SDK and passes its own test with the kit",
+    async () => {
+      const blocks = exampleBlocks(await readFile(guide, "utf8"));
+      expect([...blocks.keys()].sort()).toEqual(REQUIRED);
+      const pkg = await writeExample(blocks);
 
-    const built = build(pkg);
-    expect(built.output).toBe("");
-    expect(built.status).toBe(0);
+      const built = build(pkg);
+      expect(built.output).toBe("");
+      expect(built.status).toBe(0);
 
-    const typed = run(tsc, ["-p", "tsconfig.tests.json"], pkg);
-    expect(typed.output).toBe("");
-    expect(typed.status).toBe(0);
+      const typed = run(tsc, ["-p", "tsconfig.tests.json"], pkg);
+      expect(typed.output).toBe("");
+      expect(typed.status).toBe(0);
 
-    const tested = run(vitest, ["run", "--root", pkg, "--dir", "tests"], pkg);
-    expect(tested.status, tested.output).toBe(0);
-    expect(tested.output).toMatch(/Tests\s+1 passed \(1\)/);
-  }, 180_000);
+      // The scratch package has no vitest config, so its test would get vitest's 5-second default.
+      // That test loads the plugin with the kit, which creates a PGlite database and applies every
+      // core migration. On a hosted macOS runner that took over 5 seconds. The outer timeout is
+      // the real budget, so the inner one only has to stay out of its way.
+      const tested = run(
+        vitest,
+        [
+          "run",
+          "--root",
+          pkg,
+          "--dir",
+          "tests",
+          `--testTimeout=${INNER_TIMEOUT_MS}`,
+          `--hookTimeout=${INNER_TIMEOUT_MS}`,
+        ],
+        pkg,
+      );
+      expect(tested.status, tested.output).toBe(0);
+      expect(tested.output).toMatch(/Tests\s+1 passed \(1\)/);
+    },
+    OUTER_TIMEOUT_MS,
+  );
 
   it("fails when the guide's code has a broken identifier (planted mutant)", async () => {
     const markdown = await readFile(guide, "utf8");

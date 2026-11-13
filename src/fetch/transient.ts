@@ -1,7 +1,6 @@
 import { createHash } from "node:crypto";
 import type { IncomingHttpHeaders } from "node:http";
-import { homedir } from "node:os";
-import { isAbsolute, join } from "node:path";
+import { isAbsolute } from "node:path";
 import { StringDecoder } from "node:string_decoder";
 import { Transform } from "node:stream";
 import type { Readable } from "node:stream";
@@ -26,6 +25,7 @@ import {
 import { shippedManifestPaths } from "./shipped.js";
 import { httpsTransport } from "./transport.js";
 import type { FetchResponse } from "./transport.js";
+import { dataDirectory, egressCountry } from "../config/access.js";
 
 export interface TransientFetchOptions extends Pick<
   FetchOptions,
@@ -246,10 +246,7 @@ export async function fetchTransient(
   };
   const initial = checkedUrl(input, options.allowHosts);
   assertObservedHostAllowed(initial);
-  const dataDir =
-    options.dataDir ??
-    process.env.OPENPLANS_DATA_DIR ??
-    join(homedir(), ".local", "share", "openplans");
+  const dataDir = options.dataDir ?? dataDirectory();
   if (!isAbsolute(dataDir))
     throw new FetchError(
       "invalid_options",
@@ -269,7 +266,7 @@ export async function fetchTransient(
             maxRequests: 200,
             maxTransferBytes: Math.max(50 * 1024 ** 2, limit + 4 * 512 * 1024),
           },
-          { egressCountry: process.env.OPENPLANS_EGRESS_COUNTRY || undefined },
+          { egressCountry: egressCountry() },
         )
       : undefined);
   if (!admission)
@@ -553,7 +550,7 @@ export async function fetchTransient(
           admission!.reserveRequest(url);
           const headers: Record<string, string> = {
             "accept-encoding": "identity",
-            "user-agent": `openplans/0.4.2 (public health-plan source discovery; +${projectUrl(options)})`,
+            "user-agent": `openplans/0.4.3 (public health-plan source discovery; +${projectUrl(options)})`,
           };
           if (!policy && options.expectedContent === "json")
             headers.accept = "application/json, */*;q=0.1";

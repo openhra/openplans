@@ -36,6 +36,7 @@ import { drugCostRequestSchema } from "../api/medicare-schemas.js";
 import type { DrugCostRequest } from "../api/medicare-schemas.js";
 import * as v from "../api/validation.js";
 import { partDEnabled, partDStatus } from "./medicare-part-d.js";
+import { loadConfig } from "../config/index.js";
 
 /**
  * Part D drug-cost estimates for one plan and a supplied fill schedule. The estimate stays off
@@ -53,11 +54,11 @@ import { partDEnabled, partDStatus } from "./medicare-part-d.js";
  * priced.
  */
 export function drugCostEnabled(): boolean {
-  return process.env.OPENPLANS_MEDICARE_DRUG_COST === "on";
+  return loadConfig().medicareDrugCost;
 }
 /** The plan-average price switch. It only counts while the estimator itself is on. */
 export function drugCostPricingEnabled(): boolean {
-  return process.env.OPENPLANS_MEDICARE_DRUG_COST_PRICES === "on";
+  return loadConfig().medicareDrugCostPrices;
 }
 
 export interface DrugCostDeps {
@@ -287,6 +288,7 @@ const priceFigures = [
   "total_lowest_fee",
   "total_highest_fee",
   "gross",
+  "maximum_fair_price_total",
 ] as const;
 /** A plan-average fill's price block; every figure cites the fill's evidence. */
 function priceOut(
@@ -301,6 +303,8 @@ function priceOut(
     quantity: price.quantity,
     quantity_basis: price.quantity_basis,
     fee_set: price.fee_set,
+    ingredient: price.ingredient,
+    maximum_fair_price: price.maximum_fair_price,
     readings: price.readings,
     caveat: price.caveat,
     figures: Object.fromEntries(
@@ -640,16 +644,31 @@ type FigureLike = {
 };
 /**
  * A plan-average gross cost is one value only when the unit cost alone and both fee readings give
- * that value; a bounded gross runs exactly from the lowest-fee total to the highest-fee total.
+ * that value; a bounded gross runs exactly from the lowest-fee total to the highest-fee total. A
+ * selected drug priced from its maximum fair price has no unit-cost-alone reading: its unit cost
+ * total is information only, and its maximum fair price total must be a value.
  */
 function grossProblem(price: unknown): string | null {
-  const figures = (price as { figures?: Record<string, FigureLike> } | null)
-    ?.figures;
+  const block = price as {
+    ingredient?: string | null;
+    figures?: Record<string, FigureLike>;
+  } | null;
+  const figures = block?.figures;
   if (!figures) return null;
   const { gross, unit_cost_total, total_lowest_fee, total_highest_fee } =
     figures;
+  const mfp = block?.ingredient === "maximum_fair_price";
+  if (
+    mfp &&
+    gross?.status !== "unknown" &&
+    figures.maximum_fair_price_total?.status !== "value"
+  )
+    return "gross priced for a selected drug without its maximum fair price";
   if (gross?.status === "value") {
-    const agree = [unit_cost_total, total_lowest_fee, total_highest_fee].every(
+    const readings = mfp
+      ? [total_lowest_fee, total_highest_fee]
+      : [unit_cost_total, total_lowest_fee, total_highest_fee];
+    const agree = readings.every(
       (item) => item?.status === "value" && item.cents === gross.cents,
     );
     return agree ? null : "gross given as one value while its readings differ";
@@ -738,7 +757,7 @@ export function estimateProvenanceProblems(answer: unknown): string[] {
   return problems;
 }
 
-const PRICE_ASSUMPTION = `Prices are plan averages. ${UNIT_COST_CAVEAT} The estimate prices each fill from the unit cost alone and with the lowest and highest dispensing fee. Where those differ, an amount is a minimum and a maximum, never one value.`;
+const PRICE_ASSUMPTION = `Prices are plan averages. ${UNIT_COST_CAVEAT} The estimate prices each fill from the unit cost alone and with the lowest and highest dispensing fee. Where those differ, an amount is a minimum and a maximum, never one value. A selected drug is priced at its maximum fair price from the CMS file for the fill date, times the quantity, plus the lowest and the highest selected-drug fee. The law caps a selected drug's negotiated price at that amount, and CMS prices its worked example there.`;
 
 /**
  * Plan-average prices for each fill from the bundle's own release. The proxy NDC is the fill's,

@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-import { homedir } from "node:os";
 /** Isolated native Postgres developer run; the caller owns the openplans-<lane> container. */
 import pg from "pg";
 import { bootstrapEnrichment } from "./postgres-enrichment.js";
@@ -11,10 +10,9 @@ import { migrate } from "../../db/migrate.js";
 import { ingestQhpBatch } from "./formulary-batch.js";
 import { discoverQhp } from "./discover.js";
 import type { QhpBatchOptions } from "./formulary-batch.js";
+import { dataDirectory } from "../../config/access.js";
 
-const cache =
-  process.env.OPENPLANS_DATA_DIR ??
-  join(homedir(), ".local", "share", "openplans");
+const cache = dataDirectory();
 const url = process.env.OPENPLANS_QHP_DATABASE_URL;
 const state = process.env.OPENPLANS_QHP_STATE ?? "TX";
 const year = Number(process.env.OPENPLANS_QHP_YEAR ?? 2026);

@@ -26,8 +26,9 @@ import {
   rebaseImports,
   replaceSyntax,
 } from "../../../scripts/source-mutation.mjs";
+import { configuredDataDirectory } from "../../../dist/config/access.js";
 
-const data = resolve(process.argv[2] ?? process.env.OPENPLANS_DATA_DIR ?? ".");
+const data = resolve(process.argv[2] ?? configuredDataDirectory() ?? ".");
 const root = fileURLToPath(new URL("../../../", import.meta.url));
 const reportDir = join(data, "reports/vt-metal-2026");
 await mkdir(reportDir, { recursive: true });

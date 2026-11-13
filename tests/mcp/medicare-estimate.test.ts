@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { readFile, rm, writeFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { Readable } from "node:stream";
 import { McpServer } from "@modelcontextprotocol/server";
 import {
@@ -59,6 +59,7 @@ import type { Loaded } from "../ingest/medicare/helpers.js";
 import type { SqlSession } from "../../src/db/database.js";
 import { replaceSyntax } from "../source-mutation.js";
 import { post } from "./transport-helpers.js";
+import { importMutant, plantMutantFile } from "../mutant-file.js";
 
 // Synthetic credentials and schedules over the fixture cut of the 2026 Q3 Part D files.
 type Json = ReturnType<typeof JSON.parse>;
@@ -683,23 +684,32 @@ describe("stdio follows the personalized-tool rules", () => {
 describe("negative controls", () => {
   async function mutant<T>(
     file: string,
-    kind: string,
+    _kind: string,
     edits: [string, string][],
   ): Promise<{ module: T; cleanup: () => Promise<void> }> {
-    // `file` is relative to src/mcp; the copy sits beside its source so imports resolve.
+    // `file` is relative to src/mcp.
     const source = new URL(`../../src/mcp/${file}.ts`, import.meta.url);
-    const temporary = new URL(
-      `${file.split("/").pop()!.replace(/^/, ".")}-mutant-${kind}.ts`,
-      source,
-    );
     let text = await readFile(source, "utf8");
     for (const [before, after] of edits)
       text = replaceSyntax(text, before, after);
-    await writeFile(temporary, text);
-    return {
-      module: (await import(/* @vite-ignore */ temporary.href)) as T,
-      cleanup: () => rm(temporary, { force: true }),
-    };
+    const planted = await plantMutantFile(source, text);
+    try {
+      // The copy must load every function the real module exports.
+      const real = (await import(/* @vite-ignore */ source.href)) as object;
+      const functions = Object.entries(real)
+        .filter(([, value]) => typeof value === "function")
+        .map(([name]) => name);
+      return {
+        module: await importMutant<T & object>(
+          planted.url,
+          ...(functions as (keyof T & string)[]),
+        ),
+        cleanup: planted.cleanup,
+      };
+    } catch (error) {
+      await planted.cleanup();
+      throw error;
+    }
   }
 
   it("a tool listed with the switch off is caught", async () => {

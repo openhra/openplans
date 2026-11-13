@@ -26,6 +26,8 @@ import {
 import { estimatePremium } from "../../api/premiums.js";
 import { householdSubsidy, withSubsidy } from "../../api/subsidies.js";
 import * as v from "../../api/validation.js";
+import { compatReasonGap } from "../../api/reason-codes.js";
+import { locationIssues } from "../../services/location-issues.js";
 import { createRxnormRepository } from "../../ingest/rxnorm/repository.js";
 import {
   cmsNetworkId,
@@ -37,7 +39,13 @@ import {
   PLAN_GAPS,
   planResponse,
 } from "./mapping.js";
+import { loadConfig } from "../../config/index.js";
 
+/** Adds the gap for a native reason code from `src/api/reason-codes.ts`; other text is skipped. */
+function addReasonGap(reasons: Set<string>, code: string | null | undefined) {
+  const gap = code ? compatReasonGap(code) : undefined;
+  if (gap) reasons.add(gap);
+}
 function gaps(
   c: { header(name: string, value: string): void },
   reasons: Iterable<string>,
@@ -45,8 +53,8 @@ function gaps(
   c.header("x-openplans-gaps", [...new Set(reasons)].join(", "));
 }
 /** Owner-gated (default off): compact benefit phrases instead of the verbose cells. */
-const benefitTextOptions = () => ({
-  compact: process.env.OPENPLANS_COMPAT_BENEFIT_TEXT === "compact",
+export const benefitTextOptions = () => ({
+  compact: loadConfig().compat.benefitText,
 });
 
 function object(value: unknown): Record<string, unknown> {
@@ -373,10 +381,13 @@ export function compatRoutes(db: SqlSession, options: ApiOptions = {}) {
           typeof body.catastrophic_exemption !== "boolean"
         )
           return v.fail("catastrophic_exemption");
+        // One configuration read per search, not per plan.
+        const { compat } = loadConfig();
+        const textOptions = { compact: compat.benefitText };
         // Owner-gated (default off): 45 CFR 156.155(a) age rule for catastrophic plans.
         const catastrophicRule =
           product === "medical" &&
-          process.env.OPENPLANS_COMPAT_CATASTROPHIC_AGE_RULE === "on" &&
+          compat.catastrophicAgeRule &&
           catastrophicEligibility(
             request.members,
             request.coverage,
@@ -390,6 +401,14 @@ export function compatRoutes(db: SqlSession, options: ApiOptions = {}) {
           return true;
         };
         const location = await resolveLocation(db, request.location);
+        // Why the list may be short or empty, in this API's gap vocabulary.
+        for (const code of await locationIssues(
+          db,
+          location,
+          request.year,
+          product,
+        ))
+          addReasonGap(reasons, code);
         if (location.status !== "available" || !location.county) {
           gaps(c, [...reasons, "zip_not_in_loaded_zcta_data"]);
           return c.json(emptySearch());
@@ -440,6 +459,11 @@ export function compatRoutes(db: SqlSession, options: ApiOptions = {}) {
           else {
             reasons.add("household_subsidies_unavailable");
             reasons.add(`subsidy_${subsidy?.status ?? "unsupported_product"}`);
+            if (subsidy) {
+              addReasonGap(reasons, subsidy.reason);
+              for (const issue of subsidy.benchmark.issues)
+                addReasonGap(reasons, issue);
+            }
           }
         }
         const plans: Record<string, unknown>[] = [];
@@ -503,14 +527,11 @@ export function compatRoutes(db: SqlSession, options: ApiOptions = {}) {
               ? { ...mapDentalPlan(view, id), premium: mapQuote(quote).premium }
               : {
                   ...mapPlan(view, id, plan.service_area_id || null),
-                  ...mapVariantAccumulators(
-                    view.cost_sharing,
-                    benefitTextOptions(),
-                  ),
+                  ...mapVariantAccumulators(view.cost_sharing, textOptions),
                   ...mapVariantBenefits(
                     view.cost_sharing.benefits,
                     view.cost_sharing.selected_variant_id ?? "",
-                    benefitTextOptions(),
+                    textOptions,
                   ),
                   ...mapQuote(quote, request.members),
                 },
@@ -587,16 +608,18 @@ export function compatRoutes(db: SqlSession, options: ApiOptions = {}) {
     const mapped = plan.dental_only
       ? mapDentalPlan(view, parsed.full)
       : mapPlan(view, parsed.full, plan.service_area_id || null);
-    if (!plan.dental_only)
+    if (!plan.dental_only) {
+      const textOptions = benefitTextOptions();
       Object.assign(
         mapped,
-        mapVariantAccumulators(view.cost_sharing, benefitTextOptions()),
+        mapVariantAccumulators(view.cost_sharing, textOptions),
         mapVariantBenefits(
           view.cost_sharing.benefits,
           view.cost_sharing.selected_variant_id ?? "",
-          benefitTextOptions(),
+          textOptions,
         ),
       );
+    }
     return {
       mapped,
       dental: plan.dental_only,

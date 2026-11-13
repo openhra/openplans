@@ -1,4 +1,3 @@
-import { homedir } from "node:os";
 import { createHash } from "node:crypto";
 import { mkdir, writeFile, rename } from "node:fs/promises";
 import { join } from "node:path";
@@ -15,6 +14,7 @@ import type {
   RequestBody,
   Transport,
 } from "../../fetch/index.js";
+import { dataDirectory } from "../../config/access.js";
 /** Request identities (input CSV and index) kept beside the cached responses. */
 const requestSource = "census-geocoder-requests";
 export const endpoint =
@@ -23,9 +23,7 @@ export const geographyEndpoint =
   "https://geocoding.geo.census.gov/geocoder/geographies/addressbatch";
 export const documentation =
   "https://geocoding.geo.census.gov/geocoder/Geocoding_Services_API.html";
-export const dataDirectory = () =>
-  process.env.OPENPLANS_DATA_DIR ??
-  join(homedir(), ".local", "share", "openplans");
+export { dataDirectory };
 export type BatchFile = Exclude<FetchResult, { outcome: "not_modified" }>;
 export interface CensusOptions {
   dataDir?: string;

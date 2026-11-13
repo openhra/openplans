@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-import { homedir } from "node:os";
 // Developer-only real corpus check. Run after npm run build; no network in CI.
 import assert from "node:assert/strict";
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
@@ -10,13 +9,10 @@ import {
   ingestStateRates,
   stagedStatePremium,
 } from "../../../dist/ingest/state/index.js";
+import { dataDirectory } from "../../../dist/config/access.js";
 
 const root = fileURLToPath(new URL("../../../", import.meta.url));
-const dataDir = resolve(
-  process.argv[2] ??
-    process.env.OPENPLANS_DATA_DIR ??
-    join(homedir(), ".local", "share", "openplans"),
-);
+const dataDir = resolve(process.argv[2] ?? dataDirectory());
 const pg = new PGlite();
 const db = {
   query: (sql, parameters) => pg.query(sql, parameters),

@@ -1,13 +1,14 @@
 import type { SqlSession } from "../db/database.js";
 import type { PartDDrugName } from "../api/medicare-schemas.js";
+import { loadConfig } from "../config/index.js";
 
 /**
  * Part D formulary, pharmacy network and unit-cost serving waits on an owner decision about which
  * published terms govern the free files. It stays off unless the operator sets
- * OPENPLANS_MEDICARE_PART_D=on, and then serves only loaded releases with their as-of date.
+ * OPENPLANS_MEDICARE_PART_D=on (or `medicarePartD` in the config file), and then serves only loaded releases with their as-of date.
  */
 export function partDEnabled(): boolean {
-  return process.env.OPENPLANS_MEDICARE_PART_D === "on";
+  return loadConfig().medicarePartD;
 }
 
 export async function partDStatus(db: SqlSession, year: number) {

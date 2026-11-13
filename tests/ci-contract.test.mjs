@@ -12,7 +12,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { getFileInfo } from "prettier";
-import { checkRequired, requiredJobs } from "../.github/check-required.mjs";
+import {
+  checkRequired,
+  macosShardJobs,
+  requiredJobs,
+} from "../.github/check-required.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const workflow = JSON.parse(
@@ -87,19 +91,46 @@ function commandContract(value) {
     "docker",
     "linux",
     "macos",
+    "macos-shard",
     "required",
   ]);
-  for (const [id, name] of Object.entries(requiredJobs)) {
+  for (const id of ["linux", "docker"]) {
     const job = value.jobs[id];
-    expect(job.name).toBe(name);
-    expect(job["runs-on"]).toBe(
-      id === "macos" ? "macos-15-intel" : "ubuntu-24.04",
-    );
-    expect(retiredRunnerLabels).not.toContain(job["runs-on"]);
+    expect(job.name).toBe(requiredJobs[id]);
+    expect(job["runs-on"]).toBe("ubuntu-24.04");
     expect(job.if).toBeUndefined();
     expect(job.needs).toBeUndefined();
     expect(job.strategy).toBeUndefined();
   }
+  // macOS runs the project checks as a matrix of test shards on separate runners. Each shard
+  // tells ci.sh its slice; the count comes from the matrix itself, so the slices always cover
+  // every test file exactly once.
+  const shard = value.jobs["macos-shard"];
+  expect(shard.name).toBe("OpenPlans / macOS shard ${{ matrix.shard }}");
+  expect(shard["runs-on"]).toBe("macos-15-intel");
+  expect(retiredRunnerLabels).not.toContain(shard["runs-on"]);
+  expect(shard["timeout-minutes"]).toBeLessThanOrEqual(45);
+  expect(shard.if).toBeUndefined();
+  expect(shard.needs).toBeUndefined();
+  expect(Object.keys(shard.strategy).sort()).toEqual(["fail-fast", "matrix"]);
+  expect(shard.strategy["fail-fast"]).toBe(false);
+  expect(Object.keys(shard.strategy.matrix)).toEqual(["shard"]);
+  const slices = shard.strategy.matrix.shard;
+  expect(slices.length).toBeGreaterThan(1);
+  expect(slices).toEqual(slices.map((_, index) => index + 1));
+  // The macOS check name the release tooling requires belongs to a summary job that fails
+  // unless every shard succeeded.
+  const macos = value.jobs.macos;
+  expect(macos.name).toBe(requiredJobs.macos);
+  expect(macos["runs-on"]).toBe("ubuntu-24.04");
+  expect(macos.if).toBe("${{ always() }}");
+  expect(macos.needs).toEqual(Object.keys(macosShardJobs));
+  expect(macos.strategy).toBeUndefined();
+  expect(macos.steps).toHaveLength(3);
+  expect(macos.steps[1].with).toEqual({ "node-version-file": ".node-version" });
+  expect(macos.steps[2].run).toBe("node .github/check-required.mjs macos");
+  expect(macos.steps[2].env).toEqual({ NEEDS_RESULTS: "${{ toJSON(needs) }}" });
+  for (const step of macos.steps) expect(step.if).toBeUndefined();
   for (const job of Object.values(value.jobs)) {
     expect(job["continue-on-error"]).toBeUndefined();
     expect(job["working-directory"]).toBeUndefined();
@@ -115,7 +146,7 @@ function commandContract(value) {
         );
     }
   }
-  for (const id of ["linux", "macos"]) {
+  for (const id of ["linux", "macos-shard"]) {
     const steps = value.jobs[id].steps;
     expect(steps).toHaveLength(6);
     expect(steps[1].uses).toMatch(/^actions\/setup-node@[a-f0-9]{40}$/);
@@ -126,7 +157,14 @@ function commandContract(value) {
       "npm ci --no-audit --no-fund",
       "scripts/ci.sh",
     ]);
-    expect(steps[5].env).toEqual({ npm_config_offline: "true" });
+    expect(steps[5].env).toEqual(
+      id === "linux"
+        ? { npm_config_offline: "true" }
+        : {
+            npm_config_offline: "true",
+            OPENPLANS_CI_SHARD: "${{ matrix.shard }}/${{ strategy.job-total }}",
+          },
+    );
     for (const step of steps) expect(step.if).toBeUndefined();
   }
   const docker = value.jobs.docker.steps;
@@ -162,7 +200,7 @@ it.each(retiredRunnerLabels)(
   "negative control: rejects retired runner label %s",
   (label) => {
     const copy = structuredClone(workflow);
-    copy.jobs.macos["runs-on"] = label;
+    copy.jobs["macos-shard"]["runs-on"] = label;
     expect(() => commandContract(copy)).toThrow();
   },
 );
@@ -340,7 +378,62 @@ it.each([
   [
     "skipped project command",
     (copy) => {
-      copy.jobs.macos.steps[5].if = "${{ false }}";
+      copy.jobs["macos-shard"].steps[5].if = "${{ false }}";
+    },
+  ],
+  [
+    "macOS shards that skip the project checks",
+    (copy) => {
+      delete copy.jobs["macos-shard"].steps[5].env.OPENPLANS_CI_SHARD;
+    },
+  ],
+  [
+    "a fixed shard count that can drift from the matrix",
+    (copy) => {
+      copy.jobs["macos-shard"].steps[5].env.OPENPLANS_CI_SHARD =
+        "${{ matrix.shard }}/3";
+    },
+  ],
+  [
+    "a gap in the shard list",
+    (copy) => {
+      copy.jobs["macos-shard"].strategy.matrix.shard = [1, 3];
+    },
+  ],
+  [
+    "a single macOS shard",
+    (copy) => {
+      copy.jobs["macos-shard"].strategy.matrix.shard = [1];
+    },
+  ],
+  [
+    "fail-fast shards",
+    (copy) => {
+      copy.jobs["macos-shard"].strategy["fail-fast"] = true;
+    },
+  ],
+  [
+    "a raised macOS timeout",
+    (copy) => {
+      copy.jobs["macos-shard"]["timeout-minutes"] = 60;
+    },
+  ],
+  [
+    "a macOS summary that ignores the shards",
+    (copy) => {
+      copy.jobs.macos.needs = [];
+    },
+  ],
+  [
+    "a success-only macOS summary",
+    (copy) => {
+      delete copy.jobs.macos.if;
+    },
+  ],
+  [
+    "a macOS summary that checks the top-level set",
+    (copy) => {
+      copy.jobs.macos.steps[2].run = "node .github/check-required.mjs";
     },
   ],
   [
@@ -420,6 +513,84 @@ it("accepts only a complete successful set of required job results", () => {
   ]) {
     expect(() => checkRequired(value)).toThrow("missing or unexpected");
   }
+});
+
+it("accepts only successful macOS shards", () => {
+  const shards = { "macos-shard": { result: "success", outputs: {} } };
+  expect(() => checkRequired(shards, macosShardJobs)).not.toThrow();
+  for (const status of [
+    "skipped",
+    "failure",
+    "cancelled",
+    "pending",
+    undefined,
+  ]) {
+    expect(() =>
+      checkRequired(
+        { "macos-shard": { result: status, outputs: {} } },
+        macosShardJobs,
+      ),
+    ).toThrow("OpenPlans / macOS shards did not succeed");
+  }
+  for (const value of [null, {}, successful(), { ...shards, extra: {} }]) {
+    expect(() => checkRequired(value, macosShardJobs)).toThrow(
+      "missing or unexpected",
+    );
+  }
+});
+
+it.each([
+  [["macos"], JSON.stringify({ "macos-shard": { result: "success" } }), 0],
+  [["macos"], JSON.stringify({ "macos-shard": { result: "failure" } }), 1],
+  [["macos"], JSON.stringify(successful()), 1],
+  [[], JSON.stringify({ "macos-shard": { result: "success" } }), 1],
+  [["unknown"], JSON.stringify(successful()), 1],
+])(
+  "the shard-results command %j exits according to its group and input",
+  (args, input, code) => {
+    const result = spawnSync(
+      process.execPath,
+      [".github/check-required.mjs", ...args],
+      {
+        cwd: root,
+        env: { ...process.env, NEEDS_RESULTS: input },
+        encoding: "utf8",
+      },
+    );
+    expect(result.status).toBe(code);
+    expect(result.stdout.includes("required-jobs: PASS")).toBe(code === 0);
+  },
+);
+
+it.each(["0/3", "4/3", "a/b", "1/3x", " 1/3", "01/3", "1/0", "2"])(
+  "negative control: ci.sh rejects shard %j before running anything",
+  (value) => {
+    const result = spawnSync("bash", [join(root, "scripts/ci.sh")], {
+      cwd: root,
+      env: { ...process.env, OPENPLANS_CI_SHARD: value },
+      encoding: "utf8",
+    });
+    expect(result.status).toBe(2);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toContain("OPENPLANS_CI_SHARD must be");
+  },
+);
+
+it("passes the shard to vitest and keeps the static checks in shard 1", async () => {
+  const ci = await readFile(join(root, "scripts/ci.sh"), "utf8");
+  expect(ci).toContain('npm test -- --shard="$shard"');
+  expect(ci).toContain('[ "${BASH_REMATCH[1]}" = 1 ] || static=false');
+  for (const check of [
+    "npm run format:check",
+    "npm run lint",
+    "npm run typecheck",
+    "npm run check:extraction",
+  ])
+    expect(ci.indexOf(check)).toBeGreaterThan(
+      ci.indexOf('if [ "$static" = true ]; then'),
+    );
+  // Every shard builds: the build sits after the static block, not inside it.
+  expect(ci).toContain("  npm run check:extraction\nfi\nnpm run build\n");
 });
 
 it.each([

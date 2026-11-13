@@ -3,11 +3,14 @@
 // checked against what the one-transaction import stores from the same bytes.
 import { PGlite } from "@electric-sql/pglite";
 import { createHash } from "node:crypto";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Readable } from "node:stream";
+import { Hono } from "hono";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { createResponseCache } from "../../../src/api/cache/index.js";
+import { MemoryCache } from "../../../src/api/cache/store.js";
 import type { Database } from "../../../src/db/database.js";
 import { migrate } from "../../../src/db/migrate.js";
 import { readUnitCost } from "../../../src/domain/medicare/part-d-cost/repository.js";
@@ -87,8 +90,13 @@ async function cached(bytes = zip(members)) {
   return (await cachedSpuf("quarterly", dataDir))[0]!;
 }
 
-async function database() {
+/** A migrated database; `mutate` rewrites migration 1005 first, for planted mutants. */
+async function database(mutate?: (sql: string) => string) {
   const migrations = await coreMigrations();
+  if (mutate) {
+    const file = join(migrations.directory, "1005_partd_staged_generation.sql");
+    await writeFile(file, mutate(await readFile(file, "utf8")));
+  }
   const db = testDatabase(new PGlite());
   await migrate(db, migrations.directory);
   return {
@@ -289,4 +297,163 @@ describe("staged Part D price tables", () => {
       await state.close();
     }
   });
+});
+
+/** Each table's generation revision. */
+const revisions = async (db: Database) =>
+  Object.fromEntries(
+    (
+      await db.query<{ table_name: string; revision: string }>(
+        "SELECT table_name, revision::text FROM api_data_generation",
+      )
+    ).rows.map((row) => [row.table_name, BigInt(row.revision)]),
+  );
+/** How far each table's revision moved between two readings; unmoved tables are left out. */
+const moved = (before: Record<string, bigint>, after: Record<string, bigint>) =>
+  Object.fromEntries(
+    Object.entries(after)
+      .filter(([table, revision]) => revision !== before[table])
+      .map(([table, revision]) => [
+        table,
+        Number(revision - (before[table] ?? 0n)),
+      ]),
+  );
+/** The release tool's listing update: keep every other table, then add `tables`. */
+const setPriceTables = (db: Database, snapshotId: string, tables: string[]) =>
+  db.query(
+    `UPDATE partd_release SET tables=ARRAY(SELECT t FROM unnest(tables) WITH ORDINALITY u(t, o)
+       WHERE t NOT IN ('pricing','dispensing_fee') ORDER BY o) || $2::text[]
+     WHERE snapshot_id=$1`,
+    [snapshotId, tables],
+  );
+
+/**
+ * Stage both price tables, serve them, withdraw them as a failed check does, and record which
+ * generation revisions each step moved. A cached response for a route that reads no Part D table
+ * shows what the cache sees.
+ */
+async function generationSteps(db: Database) {
+  const input = await cached();
+  const snapshotId = (await importSpuf(db, input, ["plan"])).snapshot_id;
+  const app = new Hono();
+  app.use(
+    "*",
+    createResponseCache(db, undefined, { store: new MemoryCache(1024 * 1024) })
+      .middleware,
+  );
+  app.get("/v1/zip-counties", (c) => c.json({ counties: [] }));
+  const cacheState = async () =>
+    (await app.request("/v1/zip-counties?zip=77002")).headers.get("X-Cache");
+  const steps: Record<string, unknown> = { first: await cacheState() };
+  let before = await revisions(db);
+  const step = async (name: string, run: () => Promise<unknown>) => {
+    await run();
+    const after = await revisions(db);
+    steps[name] = moved(before, after);
+    steps[`${name}_cache`] = await cacheState();
+    before = after;
+  };
+  const batches: number[] = [];
+  await step("staging", async () => {
+    for (const table of ["pricing", "dispensing_fee"] as const)
+      batches.push(
+        (await stageLargeTable(db, input, table, { batchRows: 2 })).batches,
+      );
+  });
+  steps.batches = batches;
+  await step("serving", () =>
+    setPriceTables(db, snapshotId, ["pricing", "dispensing_fee"]),
+  );
+  await step("served_delete", () =>
+    db.query("DELETE FROM partd_plan_unit_cost WHERE source_row=7"),
+  );
+  await step("demotion", () => setPriceTables(db, snapshotId, []));
+  await step("unserved_delete", () =>
+    db.query("DELETE FROM partd_dispensing_fee_range WHERE plan_id='003'"),
+  );
+  await step("truncate", () => db.query("TRUNCATE partd_dispensing_fee_range"));
+  return steps;
+}
+
+const expectedSteps = {
+  first: "miss",
+  // Four pricing batches and three fee batches commit; nothing they write is served yet.
+  batches: [4, 3],
+  staging: {},
+  staging_cache: "hit",
+  serving: { partd_release: 1 },
+  serving_cache: "miss",
+  served_delete: { partd_plan_unit_cost: 1 },
+  served_delete_cache: "miss",
+  demotion: { partd_release: 1 },
+  demotion_cache: "miss",
+  unserved_delete: {},
+  unserved_delete_cache: "hit",
+  truncate: { partd_dispensing_fee_range: 1 },
+  truncate_cache: "miss",
+};
+
+/** Replace the one occurrence of `from` in migration 1005. */
+const swap = (from: string, to: string) => (sql: string) => {
+  expect(sql.split(from)).toHaveLength(2);
+  return sql.replace(from, to);
+};
+/** partd_release treated as a staged table: its row writes no longer reach the shared function. */
+const releaseTruncateOnly = `DROP TRIGGER api_data_changed ON partd_release;
+CREATE TRIGGER api_data_changed AFTER TRUNCATE ON partd_release
+  FOR EACH STATEMENT EXECUTE FUNCTION bump_api_data_generation();
+`;
+const mutants = [
+  {
+    name: "a staged batch bumps the generation",
+    mutate: swap("served_table = ANY (r.tables) AS served", "true AS served"),
+    wrong: "staging",
+  },
+  {
+    name: "serving does not bump the generation",
+    mutate: (sql: string) => sql + releaseTruncateOnly,
+    wrong: "serving",
+  },
+  {
+    // The release row checked only as it stands after the write: listing it bumps, withdrawing
+    // it does not.
+    name: "a demotion does not bump the generation",
+    mutate: (sql: string) =>
+      swap(
+        "ELSIF TG_TABLE_NAME IN ('partd_pricing_release',",
+        "ELSIF TG_TABLE_NAME IN ('partd_release', 'partd_pricing_release',",
+      )(sql) +
+      releaseTruncateOnly +
+      `CREATE TRIGGER api_data_served_update AFTER UPDATE ON partd_release
+        REFERENCING OLD TABLE AS old_rows NEW TABLE AS new_rows
+        FOR EACH STATEMENT EXECUTE FUNCTION bump_api_data_generation_partd_served();`,
+    wrong: "demotion",
+  },
+] as const;
+
+describe("staged Part D price tables and the data generation", () => {
+  it("staging leaves the generation alone; serving and withdrawing move it once", async () => {
+    const state = await database();
+    try {
+      expect(await generationSteps(state.db)).toEqual(expectedSteps);
+    } finally {
+      await state.close();
+    }
+  });
+
+  it.each(mutants)(
+    "planted mutant fails the step check: $name",
+    async ({ mutate, wrong }) => {
+      const state = await database(mutate);
+      try {
+        const steps = await generationSteps(state.db);
+        expect(steps[wrong]).not.toEqual(
+          expectedSteps[wrong as keyof typeof expectedSteps],
+        );
+        expect(() => expect(steps).toEqual(expectedSteps)).toThrow();
+      } finally {
+        await state.close();
+      }
+    },
+  );
 });

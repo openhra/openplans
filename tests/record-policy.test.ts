@@ -188,6 +188,7 @@ it("backfills an already-provenanced fallback and is idempotent", async () => {
   await rm(join(directory, "1001_passthrough.sql"));
   await rm(join(directory, "1002_ingest_run_snapshot.sql"));
   await rm(join(directory, "1004_partd_unit_cost_key.sql"));
+  await rm(join(directory, "1005_partd_staged_generation.sql"));
   await migrate(db, directory);
   await receipt();
   await db.query(`INSERT INTO cms_api_drug_coverage(plan_id,rxcui,plan_year,coverage,snapshot_id,source_row,expires_at)

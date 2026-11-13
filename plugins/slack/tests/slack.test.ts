@@ -372,6 +372,7 @@ const catalogPayloads: { [T in EventType]: Event<T>["payload"] } = {
 const expectedText: Record<string, string> = {
   "release.deployed":
     "OpenPlans: Release 1.4.0 deployed. Previous version: 1.3.2.",
+  "release.rolled_back": "OpenPlans: Release rolled back from 1.4.0 to 1.3.2.",
   "ingest.failed": "OpenPlans: Ingest failed for cms-puf: exit_1.",
   "readiness.failed":
     "OpenPlans: Readiness check bootstrap.migrate failed: exit_1.",
@@ -420,15 +421,38 @@ async function deliverCatalog(subscribers: DurableSubscriber[]) {
   return { report, logs };
 }
 
+/**
+ * Renders one catalog event with a canary under every payload key outside the allow map, including
+ * keys the catalog lacks. The text must equal the expected message and carry no canary, URL,
+ * host, path or address.
+ */
+function assertAllowedKeysOnly(render: typeof messageText, type: EventType) {
+  const fields = MESSAGE_FIELDS[type]!;
+  const schemaKeys = Object.keys(eventPayloadSchemas[type].shape);
+  for (const name of fields) expect(schemaKeys).toContain(name);
+  const event = eventOf(type);
+  expect(render(event)).toBe(expectedText[type]);
+  const poisoned = { ...event.payload } as Record<string, unknown>;
+  for (const name of [...schemaKeys, "url", "path", "extra"])
+    if (!fields.includes(name))
+      poisoned[name] = `canary-${name}-https://leak.test/x`;
+  const text = render({ type: event.type, payload: poisoned } as never);
+  expect(text).toBe(expectedText[type]);
+  expect(text).not.toContain("canary");
+  for (const leak of ["leak.test", "/srv/", "registry", "@", "://"])
+    expect(text).not.toContain(leak);
+}
+
 /** The check a mutant that posts an event outside the settled set must fail. */
 function assertOnlySettledPosts() {
   expect(postedTexts().sort()).toEqual(Object.values(expectedText).sort());
 }
 
 describe("messages", () => {
-  it("covers the settled seven events, in catalog order", () => {
+  it("covers the settled eight events, in catalog order", () => {
     expect(SLACK_EVENTS).toEqual([
       "release.deployed",
+      "release.rolled_back",
       "ingest.failed",
       "readiness.failed",
       "audit.failed",
@@ -456,28 +480,7 @@ describe("messages", () => {
 
   it.each(Object.keys(expectedText))(
     "renders %s from allowed payload keys only",
-    (type) => {
-      const fields = MESSAGE_FIELDS[type]!;
-      const schemaKeys = Object.keys(
-        eventPayloadSchemas[type as EventType].shape,
-      );
-      for (const name of fields) expect(schemaKeys).toContain(name);
-      const event = eventOf(type as EventType);
-      expect(messageText(event)).toBe(expectedText[type]);
-      // A canary under every key outside the allow map, including keys the catalog lacks.
-      const poisoned = { ...event.payload } as Record<string, unknown>;
-      for (const name of [...schemaKeys, "url", "path", "extra"])
-        if (!fields.includes(name))
-          poisoned[name] = `canary-${name}-https://leak.test/x`;
-      const text = messageText({
-        type: event.type,
-        payload: poisoned,
-      } as never);
-      expect(text).toBe(expectedText[type]);
-      expect(text).not.toContain("canary");
-      for (const leak of ["leak.test", "/srv/", "registry", "@", "://"])
-        expect(text).not.toContain(leak);
-    },
+    (type) => assertAllowedKeysOnly(messageText, type as EventType),
   );
 
   it("withholds an allowed value that is not a short code", () => {
@@ -506,15 +509,34 @@ describe("messages", () => {
     expect(messageText(eventOf("cache.flushed"))).toBeUndefined();
   });
 
-  it("ignores a rollback event: no message, no severity, no option", () => {
-    // release.rolled_back joined the catalog after the settled seven. Until a plugin release
-    // adds a template, it stays outside the set, and the outbox never offers it here.
-    expect(SLACK_EVENTS).not.toContain("release.rolled_back");
-    expect(messageText(eventOf("release.rolled_back"))).toBeUndefined();
-    expect(eventSeverity(eventOf("release.rolled_back"))).toBeUndefined();
+  it("renders a rollback from the two versions only, as a warning", () => {
+    expect(MESSAGE_FIELDS["release.rolled_back"]).toEqual([
+      "fromVersion",
+      "version",
+    ]);
+    expect(eventSeverity(eventOf("release.rolled_back"))).toBe("warning");
     expect(
       slackOptions.safeParse({ events: ["release.rolled_back"] }).success,
-    ).toBe(false);
+    ).toBe(true);
+    // The image ID never shows, even as a short code.
+    expect(
+      messageText({
+        type: "release.rolled_back",
+        payload: { version: "1.3.2", imageId: "img-1", fromVersion: "1.4.0" },
+      }),
+    ).not.toContain("img-1");
+    for (const value of [
+      "https://leak.test/x",
+      "registry.leak.test/openplans@sha256:abc",
+      "/srv/releases/1.4.0",
+      "1.4.0 <!channel>",
+    ])
+      expect(
+        messageText({
+          type: "release.rolled_back",
+          payload: { version: value, imageId: "i", fromVersion: value },
+        }),
+      ).toBe("OpenPlans: Release rolled back from [withheld] to [withheld].");
   });
 });
 
@@ -527,7 +549,7 @@ describe("delivery to a loopback receiver", () => {
       new Set(["slack"]),
     );
     const { report, logs } = await deliverCatalog(subscribers);
-    expect(report).toMatchObject({ delivered: 7, retried: 0 });
+    expect(report).toMatchObject({ delivered: 8, retried: 0 });
     assertOnlySettledPosts();
     for (const post of posts()) {
       expect(post.path).toBe(HOOK_PATH);
@@ -656,6 +678,30 @@ describe("rate limit", () => {
       "SELECT count(*)::int AS pending FROM plugin_event_delivery WHERE delivered_at IS NULL",
     );
     expect(rows[0]!.pending).toBe(0);
+  });
+
+  it("holds rollbacks to the same limit and summarises the rest", async () => {
+    let clock = Date.parse("2026-11-11T00:00:00.000Z");
+    const target = createSlackPlugin({ host: HOST, now: () => clock });
+    const { subscribers } = await loadObject(target, {
+      events: ["release.rolled_back"],
+    });
+    const handler = subscribers[0]!.handler;
+    for (let n = 0; n < 20; n++)
+      await handler(eventOf("release.rolled_back", n));
+    for (let n = 20; n < 25; n++)
+      await expect(
+        handler(eventOf("release.rolled_back", n)),
+      ).rejects.toMatchObject({ code: "slack_rate_limited" });
+    expect(posts()).toHaveLength(20);
+    clock += 61_000;
+    await handler(eventOf("release.rolled_back", 20));
+    expect(postedTexts().at(-1)).toBe(
+      "OpenPlans: The rate limit held back 5 more rollback messages.",
+    );
+    for (let n = 21; n < 25; n++)
+      await handler(eventOf("release.rolled_back", n));
+    expect(posts()).toHaveLength(21);
   });
 
   it("gives the message back to the budget when a post fails", async () => {
@@ -818,6 +864,73 @@ describe("planted mutants", () => {
       const { subscribers } = await load({ packagePath: mutant.path });
       await deliverCatalog(subscribers);
       expect(postedTexts()).toContain("OpenPlans: Cache flushed: operator.");
+      expect(() => assertOnlySettledPosts()).toThrow();
+    } finally {
+      await mutant.cleanup();
+    }
+  });
+
+  it("a rollback message that shows the image ID fails the allowed-keys check", async () => {
+    // Adds the image ID to the rollback's allowed keys and shows it raw, without the code filter.
+    const mutant = await mutantPath(
+      `fields: ["fromVersion", "version"],
+        severity: () => "warning",
+        text: (p) =>
+          \`Release rolled back from \${code(p.fromVersion)} to \${code(p.version)}.\`,`,
+      `fields: ["fromVersion", "version", "imageId"],
+        severity: () => "warning",
+        text: (p) =>
+          \`Release rolled back from \${code(p.fromVersion)} to \${code(p.version)}. Image: \${p.imageId}.\`,`,
+    );
+    try {
+      const mutated = (await import(mutant.path)) as {
+        messageText: typeof messageText;
+      };
+      // Reading a key outside the map leaks the canary URL planted under it.
+      const text = mutated.messageText({
+        type: "release.rolled_back",
+        payload: {
+          version: "1.3.2",
+          imageId: "https://leak.test/x",
+          fromVersion: "1.4.0",
+        },
+      } as never);
+      expect(text).toContain("https://leak.test/x");
+      expect(() =>
+        assertAllowedKeysOnly(mutated.messageText, "release.rolled_back"),
+      ).toThrow();
+    } finally {
+      await mutant.cleanup();
+    }
+  });
+
+  it("a dropped rollback message fails the rendering and delivery checks", async () => {
+    // Removes the rollback template, so the plugin neither renders nor subscribes to the event.
+    const mutant = await mutantPath(
+      `"release.rolled_back": {
+        fields: ["fromVersion", "version"],
+        severity: () => "warning",
+        text: (p) =>
+          \`Release rolled back from \${code(p.fromVersion)} to \${code(p.version)}.\`,
+        plural: "rollback messages",
+      },`,
+      "",
+    );
+    try {
+      const mutated = (await import(mutant.path)) as {
+        messageText: typeof messageText;
+      };
+      expect(mutated.messageText(eventOf("release.rolled_back"))).toBe(
+        undefined,
+      );
+      expect(() =>
+        assertAllowedKeysOnly(mutated.messageText, "release.rolled_back"),
+      ).toThrow();
+      const { subscribers } = await load({ packagePath: mutant.path });
+      expect(subscribers.map(({ type }) => type)).not.toContain(
+        "release.rolled_back",
+      );
+      await deliverCatalog(subscribers);
       expect(() => assertOnlySettledPosts()).toThrow();
     } finally {
       await mutant.cleanup();

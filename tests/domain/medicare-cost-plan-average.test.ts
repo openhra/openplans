@@ -48,6 +48,10 @@ import {
 } from "../../src/services/medicare-drug-cost.js";
 import type { DrugCostDeps } from "../../src/services/medicare-drug-cost.js";
 import { spufChannels } from "../../src/ingest/medicare/spuf.js";
+import {
+  maximumFairPrice,
+  mfpTotal,
+} from "../../src/domain/medicare/part-d-cost/mfp.js";
 
 // ---------- synthetic inputs ----------
 
@@ -384,6 +388,11 @@ describe("plan-average price figures (synthetic)", () => {
         minimum_cents: LOW,
         maximum_cents: HIGH,
         reason: FEE_UNKNOWN,
+      },
+      maximum_fair_price_total: {
+        status: "unknown",
+        cents: null,
+        reason: "drug_not_selected",
       },
     });
   });
@@ -876,5 +885,318 @@ describe("plan-average estimates through the service (synthetic, no database)", 
       price: { figures: Record<string, { reason: string }> };
     }[];
     expect(fills[0]!.price.figures.gross!.reason).toBe("drug_not_in_bundle");
+  });
+});
+
+// ---------- selected drugs priced from the maximum fair price ----------
+
+// ELIQUIS 00003089321 is on the pinned 2026 CMS list (C16 row 2) at $4.145072 per unit, and its
+// formulary flag here says selected, so the program is settled. 4.145072 x 30 = 124.35216, which
+// rounds to $124.35. The unit cost, fees and benefit are the synthetic ones above.
+const ELIQUIS = "00003089321";
+const MFP = 12435;
+function withPackage(
+  bundle: BenefitBundle,
+  ndc: string,
+  selected: boolean | "unknown",
+): BenefitBundle {
+  const available = bundle as Extract<BenefitBundle, { status: "available" }>;
+  return {
+    ...available,
+    drugs: available.drugs.map((drug) => ({
+      ...drug,
+      packages: drug.packages.map((item) => ({
+        ...item,
+        proxy_ndc: ndc,
+        selected_drug: selected,
+      })),
+    })),
+  };
+}
+const selectedPlan = (sharing: { copay: number } | { rate: string }) =>
+  withPackage(plan(sharing), ELIQUIS, true);
+function estimateFacts(
+  bundle: BenefitBundle,
+  program: FillRequest["classification"]["program"],
+  deps: EngineDeps = engineDeps,
+): FillResult {
+  const request: EstimateRequest = {
+    contract_year: 2026,
+    scenario: "non_lis_no_other_payer",
+    benefit_type: "DS",
+    bundle,
+    channel: "preferred_retail",
+    opening: pastDeductible(),
+    fills: [
+      {
+        ...fill("f1"),
+        classification: { ...fill("f1").classification, program },
+      },
+    ],
+    prices: { f1: price(spread(), deps.pricing) },
+  };
+  const result = createEstimator(deps)(request);
+  if (!("fills" in result)) throw new Error(JSON.stringify(result));
+  return result.fills[0]!;
+}
+/** A synthetic maximum fair price of $2.00 per unit for any NDC: $60.00 for 30 units. */
+const anyMfp: EngineDeps["maximumFairPrice"] = () => ({
+  status: "value",
+  unit_price: "2.000000",
+  effective_from: "2026-01-01",
+  effective_to: "2026-12-31",
+  citations: [],
+});
+
+function mfpChecks(pricing: PricingDeps): Check[] {
+  const deps = { ...engineDeps, pricing };
+  return [
+    [
+      "a selected drug is priced from its maximum fair price plus the fee",
+      () => {
+        const one = estimateFacts(
+          selectedPlan({ copay: 1000 }),
+          "unknown",
+          deps,
+        );
+        return (
+          JSON.stringify(one.price?.gross) ===
+          JSON.stringify({
+            status: "bounded",
+            cents: null,
+            minimum_cents: MFP + 50,
+            maximum_cents: MFP + 200,
+            reason: FEE_UNKNOWN,
+          })
+        );
+      },
+    ],
+    [
+      "a drug that is not selected never uses a maximum fair price",
+      () => {
+        const one = estimateFacts(plan({ copay: 1000 }), "not_applicable", {
+          ...deps,
+          maximumFairPrice: anyMfp,
+        });
+        return (
+          one.price?.ingredient === "plan_average" &&
+          JSON.stringify(one.price?.gross) ===
+            JSON.stringify({
+              status: "bounded",
+              cents: null,
+              minimum_cents: LOW,
+              maximum_cents: HIGH,
+              reason: FEE_UNKNOWN,
+            })
+        );
+      },
+    ],
+  ];
+}
+
+describe("selected drugs priced from the maximum fair price", () => {
+  it("prices the maximum fair price plus the lowest and highest selected-drug fee", () => {
+    const one = estimateFacts(selectedPlan({ copay: 1000 }), "unknown");
+    expect(one.classification?.program.options).toEqual(["selected"]);
+    expect(one.price).toMatchObject({
+      ingredient: "maximum_fair_price",
+      maximum_fair_price: {
+        unit_price: "4.145072",
+        effective_from: "2026-01-01",
+        effective_to: "2026-12-31",
+      },
+      readings: ["mfp_lowest_fee", "mfp_highest_fee"],
+      // The plan-average unit cost stays in the answer as information.
+      unit_cost_total: { status: "value", cents: ALONE },
+      maximum_fair_price_total: { status: "value", cents: MFP },
+      total_lowest_fee: { status: "value", cents: MFP + 50 },
+      total_highest_fee: { status: "value", cents: MFP + 200 },
+    });
+    expect(one.patient_pay).toEqual({ status: "value", cents: 1000 });
+    expect(one.evidence).toContainEqual(
+      expect.objectContaining({ kind: "rule", document: "C16", row: 2 }),
+    );
+    expect(one.evidence).toContainEqual(
+      expect.objectContaining({ kind: "rule", document: "C7", page: 12 }),
+    );
+  });
+
+  it("bounds coinsurance on the maximum fair price and gives one value for one fee", () => {
+    const bounded = estimateFacts(selectedPlan({ rate: "0.25" }), "unknown");
+    // 25% of $124.85 and of $126.35.
+    expect(bounded.patient_pay).toEqual({
+      status: "bounded",
+      cents: null,
+      minimum_cents: 3121,
+      maximum_cents: 3159,
+      reason: FEE_UNKNOWN,
+    });
+    const request: EstimateRequest = {
+      contract_year: 2026,
+      scenario: "non_lis_no_other_payer",
+      benefit_type: "DS",
+      bundle: selectedPlan({ rate: "0.25" }),
+      channel: "preferred_retail",
+      opening: pastDeductible(),
+      fills: [
+        {
+          ...fill("f1"),
+          classification: { ...fill("f1").classification, program: "unknown" },
+        },
+      ],
+      prices: {
+        f1: price(
+          fees(
+            range("brand", "0.5000", "2.0000"),
+            range("generic", "0.2500", "1.0000"),
+            range("selected", "1.0000", "1.0000"),
+          ),
+        ),
+      },
+    };
+    const result = createEstimator(engineDeps)(request);
+    if (!("fills" in result)) throw new Error(JSON.stringify(result));
+    const one = result.fills[0]!;
+    expect(one.price?.gross).toEqual({ status: "value", cents: MFP + 100 });
+    // 25% of $125.35 = $31.3375.
+    expect(one.patient_pay).toEqual({ status: "value", cents: 3134 });
+  });
+
+  it("leaves a selected drug without a maximum fair price unknown, never the plan average", () => {
+    const one = estimateFacts(selectedPlan({ rate: "0.25" }), "unknown", {
+      ...engineDeps,
+      maximumFairPrice: () => ({
+        status: "unknown",
+        reason: "maximum_fair_price_not_in_effect",
+        citations: [],
+      }),
+    });
+    for (const key of [
+      "gross",
+      "total_lowest_fee",
+      "total_highest_fee",
+      "maximum_fair_price_total",
+    ] as const)
+      expect(one.price?.[key]).toEqual({
+        status: "unknown",
+        cents: null,
+        reason: "maximum_fair_price_not_in_effect",
+      });
+    expect(one.patient_pay).toEqual({
+      status: "unknown",
+      cents: null,
+      reason: "maximum_fair_price_not_in_effect",
+    });
+  });
+
+  it("keeps the price unknown while the program is open", () => {
+    // Flagged selected on the formulary, but the NDC is on no CMS list: the program stays open.
+    const one = estimateFacts(
+      withPackage(plan({ copay: 1000 }), "00000000001", true),
+      "unknown",
+      { ...engineDeps, maximumFairPrice: anyMfp },
+    );
+    expect(one.price?.ingredient).toBe("open");
+    expect(one.price?.gross).toEqual({
+      status: "unknown",
+      cents: null,
+      reason: "maximum_fair_price_may_apply",
+    });
+    expect(one.price?.maximum_fair_price_total).toEqual({
+      status: "value",
+      cents: 6000,
+    });
+  });
+
+  it("marks a drug that is not selected and leaves its price as before", () => {
+    const one = estimateFacts(plan({ copay: 1000 }), "not_applicable");
+    expect(one.price?.ingredient).toBe("plan_average");
+    expect(one.price?.maximum_fair_price).toBeNull();
+    expect(one.price?.maximum_fair_price_total).toEqual({
+      status: "unknown",
+      cents: null,
+      reason: "drug_not_selected",
+    });
+  });
+
+  it("passes every check with the production rules", () => {
+    expect(
+      mfpChecks(pricingDeps)
+        .filter(([, ok]) => !ok())
+        .map(([name]) => name),
+    ).toEqual([]);
+  });
+
+  it("catches the plan average used in place of the maximum fair price", () => {
+    const mutant: PricingDeps = {
+      ...pricingDeps,
+      ingredient: () => "plan_average",
+    };
+    expect(
+      mfpChecks(mutant)
+        .filter(([, ok]) => !ok())
+        .map(([name]) => name),
+    ).toEqual([
+      "a selected drug is priced from its maximum fair price plus the fee",
+    ]);
+  });
+
+  it("catches a maximum fair price applied to a drug that is not selected", () => {
+    const mutant: PricingDeps = {
+      ...pricingDeps,
+      ingredient: () => "maximum_fair_price",
+    };
+    expect(
+      mfpChecks(mutant)
+        .filter(([, ok]) => !ok())
+        .map(([name]) => name),
+    ).toEqual(["a drug that is not selected never uses a maximum fair price"]);
+  });
+});
+
+describe("maximum fair price reader (pinned CMS file)", () => {
+  it("reads the period that holds the fill date and cites its row", () => {
+    const found = maximumFairPrice(2026, ELIQUIS, "2026-03-02");
+    expect(found).toMatchObject({
+      status: "value",
+      unit_price: "4.145072",
+      effective_from: "2026-01-01",
+      effective_to: "2026-12-31",
+    });
+    expect(found.citations[0]).toMatchObject({ document: "C16", row: 2 });
+    // Two periods in 2026 with different prices (C16 rows 96 and 97): the date picks one.
+    expect(maximumFairPrice(2026, "00078123120", "2026-05-31")).toMatchObject({
+      unit_price: "1.229167",
+    });
+    expect(maximumFairPrice(2026, "00078123120", "2026-06-01")).toMatchObject({
+      unit_price: "5.521349",
+    });
+  });
+
+  it("never uses another year, a deselection row or an NDC off the file", () => {
+    expect(maximumFairPrice(2026, ELIQUIS, "2027-01-02").status).toBe(
+      "unknown",
+    );
+    expect(maximumFairPrice(2027, ELIQUIS, "2027-01-02")).toMatchObject({
+      unit_price: "4.257193",
+    });
+    // NOVOLOG 00169210011: deselected from 2027; its 2027 row ends before it starts.
+    expect(maximumFairPrice(2027, "00169210011", "2027-03-01")).toMatchObject({
+      status: "unknown",
+      reason: "maximum_fair_price_not_in_effect",
+    });
+    expect(maximumFairPrice(2026, "00000000001", "2026-03-01")).toMatchObject({
+      status: "unknown",
+      reason: "maximum_fair_price_not_in_effect",
+    });
+    expect(maximumFairPrice(2028, ELIQUIS, "2028-01-02")).toMatchObject({
+      status: "unknown",
+      reason: "maximum_fair_price_not_pinned",
+    });
+  });
+
+  it("rounds the unit price times the quantity to the cent", () => {
+    expect(mfpTotal("4.145072", "30")).toEqual(mfpTotal("124.35", "1"));
+    expect(mfpTotal("4.145072", "0")).toBeNull();
   });
 });

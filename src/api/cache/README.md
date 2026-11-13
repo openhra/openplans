@@ -50,7 +50,13 @@ Migration 920 installs `api_data_changed` statement triggers on every current
 public import/publication table (except the migration ledger and PostGIS reference
 table). The trigger updates a per-table counter once per writer transaction;
 commit publishes the data and counters atomically, and rollback publishes neither.
-`COPY`, INSERT, UPDATE, DELETE, and TRUNCATE all invalidate. Independent tables have
+`COPY`, INSERT, UPDATE, DELETE, and TRUNCATE all invalidate. The Part D price tables
+(`partd_plan_unit_cost`, `partd_pricing_release`, `partd_dispensing_fee_range`) are the one
+exception, from migration 1005. Their rows are staged in short batches before the release lists
+the table, and readers ignore them until then. Their `api_data_changed` trigger fires on TRUNCATE only, and
+served-row triggers bump the generation only for rows of a release that lists the table, so a
+staged load leaves cached answers valid. Listing
+or withdrawing the tables updates `partd_release`, which bumps it. TRUNCATE always bumps. Independent tables have
 separate generation locks. Concurrent writers of the same table serialize as they
 already can on publication rows; bulk importers should keep their transactions
 bounded. The ledger includes a database-specific seed to isolate separate catalogs

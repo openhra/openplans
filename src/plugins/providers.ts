@@ -149,8 +149,9 @@ export function selectDatabase(
 
 /**
  * The configured blob store (`config.blobs.provider`, default `local`), rooted at `blobs.root`,
- * which OPENPLANS_DATA_DIR sets. `fetchToCache` takes it as `blobStore`; without one it uses
- * `local` under its own data directory. A plugin store comes back wrapped by `guardBlobStore`.
+ * which OPENPLANS_DATA_DIR or the file's `access.dataDir` sets. `fetchToCache` takes it as
+ * `blobStore`; without one it uses `local` under its own data directory. A plugin store comes back
+ * wrapped by `guardBlobStore`.
  */
 export function selectBlobStore(
   config: CoreConfig,

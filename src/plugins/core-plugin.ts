@@ -1,6 +1,4 @@
 import { readFile } from "node:fs/promises";
-import { homedir } from "node:os";
-import { join } from "node:path";
 import taxonomyPlugin, {
   createTaxonomySource,
   CSV_MAX_BYTES,
@@ -27,6 +25,7 @@ import {
 import type { FetchOptions } from "../fetch/index.js";
 import { runFeedSource } from "./sources/feed.js";
 import type { FeedRunOptions } from "./sources/feed.js";
+import { dataDirectory } from "../config/access.js";
 
 /**
  * First-party source packages the core plugin loads itself (design 5.14). The NUCC taxonomy
@@ -41,10 +40,6 @@ interface WorkerOutput {
   error(message: string): void;
 }
 type FetchDependencies = Pick<FetchOptions, "lookup" | "transport" | "sleep">;
-
-const dataDirectory = () =>
-  process.env.OPENPLANS_DATA_DIR ??
-  join(homedir(), ".local", "share", "openplans");
 
 /**
  * `worker ingest taxonomy --accept-nucc-terms` on the feed lifecycle. The feed core checks the

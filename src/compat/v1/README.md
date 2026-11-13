@@ -131,6 +131,23 @@ estimates instead retain `puf_calculation_non_bindable`,
 Unrated plan premiums still add the relevant premium/subsidy gap. A zero credit
 above the confirmed income cliff is a resolved calculation; an unknown credit is null.
 
+## Reason codes in `x-openplans-gaps`
+
+Native reason codes reach medical and dental search as gap entries. The list lives in
+`src/api/reason-codes.ts`, and a table-driven test checks every entry against this route.
+
+| Native code                        | Gap entry                          | When                                                                    |
+| ---------------------------------- | ---------------------------------- | ----------------------------------------------------------------------- |
+| `location_requires_zip`            | `subsidy_location_requires_zip`    | Income was sent and the benchmark needs a ZIP                           |
+| `zip_limited_service_area`         | `zip_limited_service_area`         | County only, and some plans serve only part of the county               |
+| `zip_not_in_loaded_geography`      | `zip_not_in_loaded_geography`      | The ZIP is not in the loaded geography (with `zip_not_in_loaded_zcta_data`) |
+| `state_catalog_not_loaded`         | `state_catalog_not_loaded`         | A New York or Vermont county whose filed state catalog is not loaded    |
+| `template_saved_before_submission` | `template_saved_before_submission` | A refused New York rate template leaves that issuer's plans out         |
+
+The Medicare codes `pricing_not_loaded`, `dispensing_fees_not_loaded`, `dispensing_fee_unknown`
+and `maximum_fair_price_not_in_effect` have no gap entry, because this API has no Medicare
+routes.
+
 ## Defaults and evidence gaps
 
 Search requests may omit a year. The facade defaults omitted `enrollment_date`

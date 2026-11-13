@@ -52,10 +52,20 @@
         }
       ]
     },
-    "macos": {
-      "name": "OpenPlans / macOS",
+    "macos-shard": {
+      "name": "OpenPlans / macOS shard ${{ matrix.shard }}",
       "runs-on": "macos-15-intel",
-      "timeout-minutes": 60,
+      "timeout-minutes": 45,
+      "strategy": {
+        "fail-fast": false,
+        "matrix": {
+          "shard": [
+            1,
+            2,
+            3
+          ]
+        }
+      },
       "steps": [
         {
           "uses": "actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5",
@@ -85,8 +95,39 @@
           "name": "Offline project checks",
           "run": "scripts/ci.sh",
           "env": {
-            "npm_config_offline": "true"
+            "npm_config_offline": "true",
+            "OPENPLANS_CI_SHARD": "${{ matrix.shard }}/${{ strategy.job-total }}"
           }
+        }
+      ]
+    },
+    "macos": {
+      "name": "OpenPlans / macOS",
+      "runs-on": "ubuntu-24.04",
+      "timeout-minutes": 5,
+      "if": "${{ always() }}",
+      "needs": [
+        "macos-shard"
+      ],
+      "steps": [
+        {
+          "uses": "actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5",
+          "with": {
+            "persist-credentials": false
+          }
+        },
+        {
+          "uses": "actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020",
+          "with": {
+            "node-version-file": ".node-version"
+          }
+        },
+        {
+          "name": "Require every macOS shard to succeed",
+          "env": {
+            "NEEDS_RESULTS": "${{ toJSON(needs) }}"
+          },
+          "run": "node .github/check-required.mjs macos"
         }
       ]
     },

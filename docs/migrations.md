@@ -24,7 +24,9 @@ A failed release gets a new forward-fix migration. Switching to an older API ima
 does not restore the database or undo migrations. If that image cannot use the
 expanded schema, deploy a compatible fix image instead.
 
-Migration numbers 1000 and above are reserved for plugin-system core tables.
+Core migrations from 1000 on started with the plugin-system tables (1000 to 1002). Later core
+files continue the same sequence, such as the Part D price tables in 1003 to 1005. Plugins
+number their own migrations separately; see [Plugin migrations](#plugin-migrations).
 
 ## Preflight and lock limits
 
@@ -76,21 +78,24 @@ because creating a function does not execute it. A familiar function name does n
 exempt an installer or backfill call. Successful earlier execution and historical
 migration hashes never exempt SQL from runtime preflight.
 
-The 910 through 1002 regression cases pin all twenty-four migrations in that range
+The 910 through 1005 regression cases pin all twenty-seven migrations in that range
 under an explicit synthetic size scenario. With eligible existing tables below both
-limits, six still need review: 920 and 934 execute procedural blocks; 937 and 946
+limits, seven still need review: 920 and 934 execute procedural blocks; 937 and 946
 drop constraints or indexes; 990 executes an installer; 992 executes installers and
-backfills and renames a function. The other eighteen qualify as additive-safe in
-that scenario. Migration 993 creates the empty `rate_plan_count` table, which is
+backfills and renames a function; 1005 drops and recreates triggers. The other twenty
+qualify as additive-safe in that scenario. Migration 993 creates the empty `rate_plan_count` table, which is
 additive-safe even without size evidence. Migration 994 adds a function, a trigger
 and a comment, so it is additive-safe without size evidence too. Migration 1000 creates the plugin event,
 delivery and state tables. Its snapshot trigger is a recognized new trigger, so the
 file is additive-safe in this scenario. Migration 1001 creates the pass-through
 tables and seeds a small registry with literal rows, so it is additive-safe in this
 scenario too. Migration 1002 adds the ingest-run table, its seed row and its snapshot
-trigger, and is additive-safe for the same reasons.
+trigger, and is additive-safe for the same reasons. Migration 1003 creates the empty
+dispensing-fee range table and 1004 the keyed unit-cost tables; each seeds small registries
+with literal rows, so both are additive-safe in this scenario. Migration 1005 stays risky in
+every scenario, because no size rule clears a `DROP TRIGGER`.
 Actual preflight uses the connected database's sizes. Without size evidence,
-nineteen of the twenty-four still require review. A second synthetic scenario
+twenty-two of the twenty-seven still require review. A second synthetic scenario
 gives the provider and address tables tens of millions of rows and gigabytes each.
 There the index files 930 through 933 stay risky, because a blocking index build
 on such a table needs review.
@@ -346,3 +351,15 @@ Compatibility: Images with this migration write and read only the keyed table. `
 Forward fix: Add a new migration to repair the tables or their triggers. Keep applied SQL files unchanged.
 
 Lock budget: Two-second lock acquisition limit. Both tables are new and empty. `row_provenance_rule` and `api_data_generation` each get literal rows and must qualify as small during preflight. The foreign key takes a SHARE ROW EXCLUSIVE lock on `partd_release`, which only Part D imports write. Rehearse on a restored database before release.
+
+### 1005_partd_staged_generation.sql
+
+Stage: expand
+
+Expand release: Part D price rows staged for a release no longer move the API data generation. Only writes that change an answer do.
+
+Compatibility: `stageLargeTable` writes unit costs and fee ranges in short transactions while the release's `tables` list does not name them, so readers answer `pricing_not_loaded` until the release tool lists them. Before this migration every staged batch moved the generation, so the response cache recomputed every answer for the whole load. Now `partd_plan_unit_cost`, `partd_pricing_release` and `partd_dispensing_fee_range` each have three served-row triggers (`api_data_served_insert`, `_update`, `_delete`). They read the statement's rows from its transition tables and move the generation only when a row, before or after the write, belongs to a release that lists `pricing` (unit costs and release keys) or `dispensing_fee` (fee ranges). They call `bump_api_data_generation_partd_served`, which refuses any other table. On these three tables only, the migration drops `api_data_changed` and creates it again for TRUNCATE alone, still on the shared `bump_api_data_generation`. The shared function and every other table's trigger are unchanged. Listing the tables, or withdrawing them after a failed check, updates `partd_release`, and its trigger moves the generation once. The served-row check locks the release row `FOR SHARE`. A listing that starts during a batch waits for the batch to commit, so no batch commits after the generation it should have moved. `checkCatalogTriggers` expects the TRUNCATE-only `api_data_changed` and the three served-row triggers on these tables, and reports a missing or disabled one. Older images write the same rows and keep working; while they run against this schema, staged writes stop moving the generation for them too.
+
+Forward fix: Add a new migration that replaces the two new functions or the triggers on the three tables. Keep applied SQL files unchanged.
+
+Lock budget: Two-second lock acquisition limit. Dropping and creating triggers takes an ACCESS EXCLUSIVE lock (DROP) and SHARE ROW EXCLUSIVE locks (CREATE) on the three price tables only. Only Part D imports write them. Readers of those tables wait until the migration commits, and the tables are empty until the first price load. The three `DROP TRIGGER` statements make the file `risky`: the classifier has no rule that clears a dropped trigger, and size evidence covers only indexes, constraints, inserts, updates and NOT NULL. A release needs `--allow-risky-migration 1005_partd_staged_generation.sql`. Rehearse on a restored database before release.

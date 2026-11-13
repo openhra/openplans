@@ -1,4 +1,4 @@
-import { mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -8,6 +8,7 @@ import * as requestScope from "../../src/plugins/request-scope.js";
 import { fetchToCache } from "../../src/fetch/cache.js";
 import { FetchError } from "../../src/fetch/errors.js";
 import { replaceSyntax } from "../source-mutation.js";
+import { importMutant, withMutantFile } from "../mutant-file.js";
 
 type ScopeModule = typeof requestScope;
 const root = fileURLToPath(new URL("../../", import.meta.url));
@@ -115,21 +116,19 @@ describe("request scope", () => {
     ],
   ])(
     "negative control: %s mutant fails the contract",
-    async (kind, before, after) => {
+    async (_kind, before, after) => {
       const source = join(root, "src/plugins/request-scope.ts");
-      const temporary = join(root, `src/plugins/.scope-mutant-${kind}.ts`);
-      await writeFile(
-        temporary,
+      await withMutantFile(
+        source,
         replaceSyntax(await readFile(source, "utf8"), before, after),
+        async (temporary) => {
+          const mutant = await importMutant<ScopeModule>(
+            temporary,
+            "scopeStoreTtl",
+          );
+          await expect(scopeContract(mutant)).rejects.toThrow();
+        },
       );
-      try {
-        const mutant = (await import(
-          /* @vite-ignore */ temporary
-        )) as ScopeModule;
-        await expect(scopeContract(mutant)).rejects.toThrow();
-      } finally {
-        await rm(temporary, { force: true });
-      }
     },
   );
 });
@@ -235,24 +234,21 @@ describe("fetchToCache inside a request scope", () => {
   );
   it("negative control: without the guard a none request reaches the fetch", async () => {
     const source = join(root, "src/fetch/cache.ts");
-    const temporary = join(root, "src/fetch/.scope-mutant-cache.ts");
-    await writeFile(
-      temporary,
+    await withMutantFile(
+      source,
       replaceSyntax(
         await readFile(source, "utf8"),
         "if (scopeForbidsStorage())",
         "if (false)",
       ),
+      async (temporary) => {
+        const mutant = await importMutant<{
+          fetchToCache: typeof fetchToCache;
+        }>(temporary, "fetchToCache");
+        expect((await attempt("none", mutant.fetchToCache)).code).toBe(
+          "blocked_address",
+        );
+      },
     );
-    try {
-      const mutant = (await import(/* @vite-ignore */ temporary)) as {
-        fetchToCache: typeof fetchToCache;
-      };
-      expect((await attempt("none", mutant.fetchToCache)).code).toBe(
-        "blocked_address",
-      );
-    } finally {
-      await rm(temporary, { force: true });
-    }
   });
 });

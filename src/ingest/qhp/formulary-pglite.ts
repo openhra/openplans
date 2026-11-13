@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-import { homedir } from "node:os";
 /** Real-data developer runner; isolated PGlite DB and report stay in the data cache. */
 import { PGlite } from "@electric-sql/pglite";
 import {
@@ -19,10 +18,9 @@ import { migrationsDirectory } from "../../db/migrate.js";
 import { runWorker } from "../../worker/commands.js";
 import { readJsonArray } from "../json/index.js";
 import { createDrugRepository } from "../../domain/drugs/repository.js";
+import { dataDirectory } from "../../config/access.js";
 
-const cache =
-  process.env.OPENPLANS_DATA_DIR ??
-  join(homedir(), ".local", "share", "openplans");
+const cache = dataDirectory();
 const path =
   process.env.OPENPLANS_FORMULARY_DB ?? join(cache, "formulary-pglite-p2c");
 const directory = await mkdtemp(

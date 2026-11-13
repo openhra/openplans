@@ -1,4 +1,3 @@
-import { homedir } from "node:os";
 import { createHash } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { open, readFile } from "node:fs/promises";
@@ -19,6 +18,7 @@ import type { CsvRow } from "../csv/index.js";
 import { inspectPufArchive } from "./acquire-archive.js";
 import type { PufManifest } from "./acquire.js";
 import type { SnapshotMetadata } from "../../fetch/index.js";
+import { dataDirectory } from "../../config/access.js";
 
 export const IMPORT_KINDS = [
   "plan-attributes",
@@ -63,9 +63,7 @@ export interface ImportFile {
   /** Georgia Access only. Read unescaped quotes literally. Owner-gated, off by default. */
   recoverUnescapedQuotes?: boolean;
 }
-export const importDataDirectory = () =>
-  process.env.OPENPLANS_DATA_DIR ??
-  join(homedir(), ".local", "share", "openplans");
+export const importDataDirectory = () => dataDirectory();
 
 /** The newest acquired manifest. Never downloads or falls back to older publications. */
 export async function newestPufManifest(

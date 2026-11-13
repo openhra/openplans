@@ -10,7 +10,15 @@ members and reports:
   an applicable type over in-area retail network pharmacies of the requested preferred status;
 - gross: a value only when every reading gives the same cents, otherwise unknown;
 - member_cost: the enrollee's initial-coverage cost sharing under the plan's tier row, a value
-  only when every reading gives the same cents.
+  only when every reading gives the same cents;
+- maximum_fair_price_total: for a drug the formulary flags as selected, the per-unit maximum fair
+  price in effect on the fill date (CMS Selected Drug List and Maximum Fair Price file, passed with
+  --mfp-file) times the quantity, rounded to the cent.
+
+A selected drug's readings replace R0 with that total: the total plus the lowest and plus the
+highest selected-drug fee (the selected fee, or the brand fee where none is filed). The total
+excludes the fee, so there is no reading without one, and no floor price applies. The fill date is
+January 2 of the contract year, as the application check sends it.
 
 A missing, zero or unreadable price is unknown with a reason, never $0. No days supply other than
 the fill's own is used, and no fee is averaged or assumed.
@@ -49,7 +57,10 @@ CHANNELS = {
 THRESHOLD = {2026: Decimal("2100")}
 INITIAL_SUBSIDY_SHARE = {2026: Decimal("0.10")}
 CENT = Decimal("0.01")
-FIGURES = ("unit_cost_total", "total_lowest_fee", "total_highest_fee", "gross", "member_cost")
+FIGURES = ("unit_cost_total", "total_lowest_fee", "total_highest_fee", "gross", "member_cost",
+           "maximum_fair_price_total")
+MFP_UNIT_PRICE = re.compile(r"\$?(\d{1,3}(?:,\d{3})*|\d+)\.(\d{1,6})")
+US_DATE = re.compile(r"(\d{2})/(\d{2})/(\d{4})")
 FOUR_PLACES = re.compile(r"\d{1,8}(?:\.\d{1,4})?|\.\d{1,4}")
 DOLLARS = re.compile(r"\d{0,12}(?:\.\d{1,2})?")
 RATE = re.compile(r"\d*(?:\.\d{1,4})?")
@@ -188,6 +199,60 @@ def collect(path, cases):
     return facts
 
 
+def read_mfp_file(path):
+    """{NDC-11: [(from, to or None, unit price or None, row)]} from the CMS zip's CSV member."""
+    import csv
+    import io
+
+    periods = {}
+    if path is None:
+        return None
+    with zipfile.ZipFile(path) as archive:
+        members = [n for n in archive.namelist() if n.lower().endswith(".csv")]
+        assert len(members) == 1, members
+        text = archive.read(members[0]).decode("utf-8-sig")
+    rows = list(csv.reader(io.StringIO(text, newline="")))
+    head = rows[0]
+    col = {name: head.index(name) for name in ("NDC-11", "MFP Effective Date", "MFP End Date", "NDC-9 MFP per Unit Price")}
+
+    def iso(cell):
+        match = US_DATE.fullmatch(cell.strip())
+        return f"{match[3]}-{match[1]}-{match[2]}" if match else None
+
+    for number, cells in enumerate(rows[1:], 2):
+        if not any(c.strip() for c in cells):
+            continue
+        start = iso(cells[col["MFP Effective Date"]])
+        end_text = cells[col["MFP End Date"]].strip()
+        end = iso(end_text) if end_text else None
+        if start is None or (end_text and end is None):
+            raise ValueError(f"row {number}: unreadable date")
+        if end is not None and end < start:
+            continue  # a deselection row: it never applies
+        match = MFP_UNIT_PRICE.fullmatch(cells[col["NDC-9 MFP per Unit Price"]].strip())
+        price = Decimal(match[1].replace(",", "") + "." + match[2]) if match else None
+        ndc = cells[col["NDC-11"]].strip().replace("-", "")
+        periods.setdefault(ndc, []).append((start, end, price, number))
+    return periods
+
+
+def mfp_in_effect(mfp, ndc, date, evidence):
+    """(unit price, None) for the NDC on the date, or (None, reason)."""
+    if mfp is None:
+        return None, "maximum_fair_price_not_loaded"
+    found = [p for p in mfp.get(ndc, []) if p[0] <= date and (p[1] is None or p[1] >= date)]
+    evidence["mfp_rows"] = [p[3] for p in found]
+    if not found:
+        return None, "maximum_fair_price_not_in_effect"
+    prices = {p[2] for p in found}
+    if len(prices) != 1:
+        return None, "maximum_fair_price_rows_disagree"
+    price = prices.pop()
+    if price is None or price <= 0:
+        return None, "maximum_fair_price_not_in_effect"
+    return price, None
+
+
 # ---------- answering one case ----------
 
 
@@ -231,6 +296,21 @@ def price_readings(case, facts, plan, selected, evidence):
         "min": None if fee["min"] is None else str(fee["min"]), "max": None if fee["max"] is None else str(fee["max"]),
         "floor_max": None if group["floor_max"] is None else str(group["floor_max"]),
         "floor_unreadable": group["floor_unreadable"], "members": sorted(group["members"])}
+    if selected:
+        # The maximum fair price replaces the unit cost; the fee comes on top and no floor applies.
+        price, reason = mfp_in_effect(facts.get("mfp"), case["ndc"], f'{case["contract_year"]}-01-02', evidence)
+        if price is None:
+            evidence["mfp_reason"] = reason
+            return {"r0": r0, "mfp_unknown": None}, None
+        mfp = Decimal(cents(price * quantity)) * CENT
+        evidence["mfp_unit_price"] = str(price)
+        readings = {"r0": r0, "mfp": mfp}
+        if fee and fee["readable"]:
+            readings["low"] = mfp + fee["min"]
+            readings["high"] = mfp + fee["max"]
+        else:
+            readings["fee_unknown"] = None
+        return readings, None
     if fee and fee["readable"]:
         readings["low"] = r0 + fee["min"]
         readings["high"] = r0 + fee["max"]
@@ -248,7 +328,7 @@ def disagreement(readings):
     return "dispensing_fee_unknown"
 
 
-def member_cost(case, facts, plan, tier, readings, year, evidence):
+def member_cost(case, facts, plan, tier, readings, year, evidence, base=None):
     if case["phase"] != "initial_coverage":
         return unknown("phase_not_supported")
     rows = facts["cost"].get((plan, tier, SUPPLY_CODE[case["days_supply"]]), [])
@@ -291,9 +371,14 @@ def member_cost(case, facts, plan, tier, readings, year, evidence):
     # Each reading's charge, so a bounded answer can be checked end by end.
     charges = evidence["member_charges"] = {}
     for key, gross in readings.items():
+        if gross is None and key == "mfp_unknown":
+            values.add(None)
+            charges[key] = None
+            continue
         if gross is None:
             # A fee or floor no file settles: only a copay well below R0 holds for any gross above it.
-            r0 = Decimal(cents(readings["r0"])) * CENT
+            # A selected drug's lowest price is its maximum fair price.
+            r0 = Decimal(cents(readings["r0"] if base is None else base)) * CENT
             if copay is None or copay > cap * r0:
                 values.add(None)
                 charges[key] = None
@@ -310,6 +395,8 @@ def member_cost(case, facts, plan, tier, readings, year, evidence):
         charges[key] = cents(charge)
     if blocked:
         return unknown(blocked)
+    if "mfp_unknown" in readings:
+        return unknown(evidence["mfp_reason"])
     if len(values) != 1 or None in values:
         return unknown(disagreement(readings))
     return known(values.pop())
@@ -349,10 +436,25 @@ def answer(case, facts):
         "unit_cost_total": known(cents(readings["r0"])),
         "total_lowest_fee": known(cents(readings["low"])) if fee_known else unknown("dispensing_fee_unknown"),
         "total_highest_fee": known(cents(readings["high"])) if fee_known else unknown("dispensing_fee_unknown"),
+        "maximum_fair_price_total": unknown("drug_not_selected"),
     }
-    gross = {None if v is None else cents(v) for v in readings.values()}
-    figures["gross"] = known(gross.pop()) if len(gross) == 1 and None not in gross else unknown(disagreement(readings))
-    figures["member_cost"] = member_cost(case, facts, plan, tier, readings, year, evidence)
+    gross_readings = dict(readings)
+    if selected:
+        # The plan-average unit cost is information only; the maximum fair price readings decide.
+        gross_readings.pop("r0")
+        if "mfp_unknown" in readings:
+            for name in ("total_lowest_fee", "total_highest_fee", "maximum_fair_price_total"):
+                figures[name] = unknown(evidence["mfp_reason"])
+            figures["gross"] = unknown(evidence["mfp_reason"])
+            figures["member_cost"] = unknown(evidence["mfp_reason"])
+            return {**result, "figures": figures}
+        base = gross_readings.pop("mfp")
+        figures["maximum_fair_price_total"] = known(cents(base))
+    gross = {None if v is None else cents(v) for v in gross_readings.values()}
+    figures["gross"] = (known(gross.pop()) if len(gross) == 1 and None not in gross
+                        else unknown(disagreement(gross_readings)))
+    figures["member_cost"] = member_cost(case, facts, plan, tier, gross_readings if selected else readings, year,
+                                         evidence, base if selected else None)
     return {**result, "figures": figures}
 
 
@@ -418,6 +520,7 @@ def main():
     parser.add_argument("--count", type=int, default=200)
     parser.add_argument("--cases")
     parser.add_argument("--output", required=True)
+    parser.add_argument("--mfp-file", help="the cached CMS Selected Drug List and Maximum Fair Price zip")
     args = parser.parse_args()
     if args.make_cases:
         result = make_cases(args.archive, args.count)
@@ -425,6 +528,7 @@ def main():
         with open(args.cases, encoding="utf-8") as stream:
             cases = json.load(stream)["cases"]
         facts = collect(args.archive, cases)
+        facts["mfp"] = read_mfp_file(args.mfp_file)
         answers = [answer(case, facts) for case in cases]
         tally = {}
         for item in answers:

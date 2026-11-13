@@ -1,7 +1,6 @@
-import { homedir } from "node:os";
 import { createReadStream } from "node:fs";
 import { createHash, randomUUID } from "node:crypto";
-import { isAbsolute, join } from "node:path";
+import { isAbsolute } from "node:path";
 import type { Database } from "../../db/database.js";
 import {
   checkedUrl,
@@ -31,10 +30,9 @@ import {
   saveDiscoverySnapshot,
 } from "./discover-repository.js";
 import type { DiscoveryChild, DiscoveryIndex } from "./discover-repository.js";
+import { dataDirectory } from "../../config/access.js";
 
-export const qhpDataDirectory = () =>
-  process.env.OPENPLANS_DATA_DIR ??
-  join(homedir(), ".local", "share", "openplans");
+export const qhpDataDirectory = () => dataDirectory();
 const kinds = ["plan_urls", "provider_urls", "formulary_urls"] as const;
 type Cached = Exclude<FetchResult, { outcome: "not_modified" }>;
 export interface DiscoverOptions {

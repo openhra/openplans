@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-import { homedir } from "node:os";
 /** Isolated real-data batch runner. Uses existing discovery/catalog databases; no fixture data. */
 import { PGlite } from "@electric-sql/pglite";
 import {
@@ -17,10 +16,9 @@ import type { Database, SqlSession } from "../../db/database.js";
 import { migrate, migrationsDirectory } from "../../db/migrate.js";
 import type { QhpBatchOptions } from "./formulary-batch.js";
 import { ingestQhpBatch } from "./formulary-batch.js";
+import { dataDirectory } from "../../config/access.js";
 
-const cache =
-  process.env.OPENPLANS_DATA_DIR ??
-  join(homedir(), ".local", "share", "openplans");
+const cache = dataDirectory();
 const path = process.env.OPENPLANS_QHP_DB ?? join(cache, "qhp-pglite-p6a");
 const directory = await mkdtemp(join(tmpdir(), "openplans-p6a-"));
 const pg = new PGlite(path);

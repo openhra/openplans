@@ -221,16 +221,16 @@ signature test vector and a minimal receiver.
 ### Slack
 
 `@openplans/plugin-slack` posts one short message per event to a Slack channel through an
-incoming webhook. It handles seven events: `release.deployed`, `ingest.failed`,
-`readiness.failed`, `audit.failed`, `passthrough.budget_exhausted`, `passthrough.breaker_open`
-and `health.changed`.
+incoming webhook. It handles eight events: `release.deployed`, `release.rolled_back`,
+`ingest.failed`, `readiness.failed`, `audit.failed`, `passthrough.budget_exhausted`,
+`passthrough.breaker_open` and `health.changed`.
 
 | Variable                      | Secret | Value                                         |
 | ----------------------------- | ------ | --------------------------------------------- |
 | `OPENPLANS_SLACK_WEBHOOK_URL` | yes    | The incoming webhook URL                      |
 | `OPENPLANS_SLACK_HOST`        | no     | The webhook's host. Default `hooks.slack.com` |
 
-Options: `events`, a subset of the seven (default all), and `minSeverity`, one of `info`,
+Options: `events`, a subset of the eight (default all), and `minSeverity`, one of `info`,
 `warning` or `error` (default `info`). Messages carry short codes only; anything else shows as
 `[withheld]`. The plugin sends at most 20 messages a minute and summarises the rest. Details:
 [Slack plugin](../plugins/slack/README.md).
@@ -450,9 +450,10 @@ reason codes and timestamps only.
 | `record_policy.changed`        | `policy`, `ttl`, `staleWindow`                       |
 | `plugin.loaded`                | `plugins`: name and version of each                  |
 
-`release.rolled_back` follows an operator's hard-release rollback. `version` and `imageId`
-name the release the pin went back to; `fromVersion` is the version it left. The Slack plugin
-does not post it yet. The webhook plugin posts it when `events` lists it.
+`release.rolled_back` follows a release rollback. Release tooling sends it with `worker emit`
+once the rollback has passed its checks. `version` and `imageId` name the release the pin went
+back to; `fromVersion` is the version it left. The Slack plugin posts it from version 0.2.0 on,
+with both versions and without the image ID. The webhook plugin posts it when `events` lists it.
 
 Each event also has `id`, `type`, `emittedAt`, `emittedBy` and `idempotencyKey`. The `sourceId`
 of each `ingest *` command is listed in the

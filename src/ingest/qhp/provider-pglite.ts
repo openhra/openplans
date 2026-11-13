@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-import { homedir } from "node:os";
 /** Real-data runner; all DB/download/report bytes stay in the external cache. */
 import { PGlite } from "@electric-sql/pglite";
 import { cp, mkdir, mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
@@ -12,10 +11,9 @@ import { providerCachedRecords } from "./provider.js";
 import { acquireProviders } from "./provider-acquire.js";
 import { sourceSet } from "./provider-repository.js";
 import { createProviderRepository } from "../../domain/providers/index.js";
+import { dataDirectory } from "../../config/access.js";
 
-const cache =
-  process.env.OPENPLANS_DATA_DIR ??
-  join(homedir(), ".local", "share", "openplans");
+const cache = dataDirectory();
 const path =
   process.env.OPENPLANS_PROVIDER_DB ?? join(cache, "provider-pglite-p3b");
 const directory = await mkdtemp(

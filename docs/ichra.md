@@ -110,13 +110,24 @@ entrant. `eligible_from` does not move the look-back month to the eligibility ye
 catalog returns `unknown` with `lookback_catalog_not_loaded`; another year's rates cannot fill
 the gap. The supplied worksite or residence describes the current offer's location.
 
+A calendar-year 2026 plan looks back to January 2025, so it needs the PY2025 catalog.
+`data/rating-rules/2025.json` prices 31 states per member: the 2026 set plus Illinois. New York
+and Vermont are not in the PY2025 Exchange PUF and stay unsupported for 2025, so their look-back
+stays `unknown`. A past year's geography uses the CMS rating-area table only if that page was
+last modified before the year began. South Dakota's page changed in 2026, so its 2025 rating
+areas are unknown. A look-back there answers `incomplete_lcsp` with an `UNRESOLVED_RATING_AREA`
+reason. Without a ZIP it answers `location_requires_zip` with `rating_area_needs_zip`.
+
 ## Premium basis
 
 The LCSP uses the full monthly premium by default, as 26 CFR 1.36B-2(c)(5)(ii)(A) says ("monthly
 premium"); (c)(5)(iii)(A) lists the only adjustments and does not include an
 essential-health-benefits allocation. The figure ranked on the EHB portion of each premium
 (`EHBPercentTotalPremium` in the Plan Attributes file) is always computed too and can be selected
-with `lcsp_premium_basis: "ehb_portion"`. `lcsp.by_basis` returns both, every verdict has
+with `lcsp_premium_basis: "ehb_portion"`. The fraction is read as an exact decimal from 0 to 1 with up
+to 15 decimal places, and only the resulting monthly premium is rounded to the cent, half up. A
+value with 16 or more places, or outside 0 to 1, leaves that plan's EHB figure unknown
+(`ehb_allocation_unknown`). `lcsp.by_basis` returns both, every verdict has
 `affordable_by_basis`, and `basis_sensitive` is `true` when the plan or a verdict differs between
 the two, `false` when neither does, and `null` when the EHB figure could not be computed.
 
@@ -189,20 +200,20 @@ HRA is affordable for the premium tax credit test. At $20.00 an hour the rate-of
 Without the evidence, the response gives a status and no verdicts. It never reports affordable
 or unaffordable in these cases:
 
-| `status`                    | `reason`                                             | Meaning                                                                                |
-| --------------------------- | ---------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| `unknown`                   | `catalog_not_loaded`                                 | No loaded catalog for that state and year; no other year is used                       |
-| `unknown`                   | `lookback_catalog_not_loaded`                        | The look-back January needs the prior year's catalog                                   |
-| `unknown`                   | `month_rate_rows_missing`                            | A silver plan lacks a rate row for that month and age, or the plan starts January 2-31 |
-| `unknown`                   | `location_ambiguous`, `location_unknown`             | The ZIP spans counties without a county, or is not known                               |
-| `location_requires_zip`     | `zip_limited_service_area`, `sub_county_rating_area` | A ZIP is needed to know which plans are offered or which rating area applies           |
-| `requires_state_rules`      | `state_filed_tier_pending`                           | The required filed-tier rating rule is unavailable                                     |
-| `unsupported_state`         |                                                      | Territories have no Exchange LCSP in these files                                       |
-| `unsupported_rating_method` |                                                      | The state's rating method is not supported                                             |
-| `incomplete_lcsp`           | plan and cause                                       | A silver plan is unrated, or its child-only offering is unknown                        |
-| `ambiguous_lcsp`            |                                                      | Conflicting duplicate prices for one plan                                              |
-| `no_silver_plans`           |                                                      | No on-Exchange silver plan is offered                                                  |
-| `parameters_unconfirmed`    |                                                      | No cited parameters for the plan year                                                  |
+| `status`                    | `reason`                                                                      | Meaning                                                                                |
+| --------------------------- | ----------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `unknown`                   | `catalog_not_loaded`                                                          | No loaded catalog for that state and year; no other year is used                       |
+| `unknown`                   | `lookback_catalog_not_loaded`                                                 | The look-back January needs the prior year's catalog                                   |
+| `unknown`                   | `month_rate_rows_missing`                                                     | A silver plan lacks a rate row for that month and age, or the plan starts January 2-31 |
+| `unknown`                   | `location_ambiguous`, `location_unknown`                                      | The ZIP spans counties without a county, or is not known                               |
+| `location_requires_zip`     | `zip_limited_service_area`, `sub_county_rating_area`, `rating_area_needs_zip` | A ZIP is needed to know which plans are offered or which rating area applies           |
+| `requires_state_rules`      | `state_filed_tier_pending`                                                    | The required filed-tier rating rule is unavailable                                     |
+| `unsupported_state`         |                                                                               | Territories have no Exchange LCSP in these files                                       |
+| `unsupported_rating_method` |                                                                               | The state's rating method is not supported                                             |
+| `incomplete_lcsp`           | plan and cause                                                                | A silver plan is unrated, or its child-only offering is unknown                        |
+| `ambiguous_lcsp`            |                                                                               | Conflicting duplicate prices for one plan                                              |
+| `no_silver_plans`           |                                                                               | No on-Exchange silver plan is offered                                                  |
+| `parameters_unconfirmed`    |                                                                               | No cited parameters for the plan year                                                  |
 
 A single verdict can also be `unknown`. It still lists the rules it falls under, with citations.
 
@@ -235,7 +246,9 @@ the route computes them, and each rule's status with its citation URLs. It is ne
 `GET /v1/data-availability` rows carry `ichra_status` (`available`, `unknown`, `unsupported`,
 `requires_state_rules`, `incomplete_lcsp`), `ichra_reason`, `ichra_lookback_status` and `ichra_rules`. `available`
 means premiums are available for the row, the year's catalog is loaded and the year's parameters
-are confirmed. The EHB-portion figure can still be unknown in some counties.
+are confirmed. The EHB-portion figure can still be unknown in some counties. `ichra_lookback_status` is
+`available` when `ichra_status` is `available` and the prior plan year's catalog for the state is
+loaded too, and `unknown` otherwise.
 
 ### New York and Vermont
 
@@ -286,6 +299,14 @@ listed plan is ruled out only when CMS Plan Attributes give it one non-silver me
 their answers. In the PY2026 cache one issuer is refused and it lists a possible silver plan
 in all eight regions. Every NY LCSP stays `unknown` until the cache holds approved rates for
 that issuer.
+
+An operator can turn on a second source for a refused issuer with `ny.rateSourceOverrides` in the
+[config file](configuration.md#ny-rate-source-override). Its family-tier rates then come from the
+CMS state-based exchange rate file for New York, which must match every DFS approved rate it
+lists for the other issuers to the cent. Each rate cell names the CMS column it came from, and
+the issuer carries an `info` quality issue `rate_source_override`. A plan the CMS file prices no
+longer blocks its regions. A plan it does not price stays `unknown` and still makes its regions'
+LCSP `unknown`. The switch is off by default.
 
 A silver plan without CMS offer evidence or an explicit off-Exchange exclusion makes the LCSP `incomplete_lcsp` with reason
 `exchange_offering_unverified`. Missing or conflicting metal evidence also makes the result

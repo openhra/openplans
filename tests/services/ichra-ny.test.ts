@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { PGlite } from "@electric-sql/pglite";
-import { afterAll, beforeAll, expect, it } from "vitest";
+import { afterAll, beforeAll, expect, it, vi } from "vitest";
 import { migrate } from "../../src/db/migrate.js";
 import type { SqlSession } from "../../src/db/database.js";
 import { ingestStateRates } from "../../src/ingest/state/index.js";
@@ -622,5 +622,55 @@ it("planted source mutants: a benchmark computed without the refused issuer fail
       expect(bad.status, name).toBe("calculated");
       expect(() => unknownBenchmark(bad)).toThrow(assert.AssertionError);
     });
+  }
+});
+
+it("plan lists in a region with a refused template name the refusal on every surface", async () => {
+  vi.stubEnv("OPENPLANS_COMPAT_API_KEY", "synthetic-ny-compat-key");
+  const code = "template_saved_before_submission";
+  const surfaces = async (tx: SqlSession, county: string) => {
+    const app = createApp(tx);
+    const compat = await app.request("/compat/v1/plans/medical/search", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "X-Api-Key": "synthetic-ny-compat-key",
+      },
+      body: JSON.stringify({
+        fips_code: county,
+        applicants: [{ age: 40 }],
+        enrollment_date: "2026-01-01",
+      }),
+    });
+    const native = (await (
+      await app.request(`/v1/plans?county=${county}&year=2026`)
+    ).json()) as Json;
+    const tool = (
+      await callTool({ db: tx as never }, "search_plans", {
+        year: 2026,
+        location: { county },
+      })
+    ).structuredContent as Json;
+    return {
+      compat: (compat.headers.get("x-openplans-gaps") ?? "").split(", "),
+      native: native.issues,
+      mcp: tool.data?.location_issues,
+    };
+  };
+  try {
+    await rollback(async (tx) => {
+      await refuse(tx, [{ plan_id: refusedPlan, region: "Rating Area 4" }]);
+      const area4 = await surfaces(tx, "36061");
+      expect(area4.compat).toContain(code);
+      expect(area4.native).toEqual([code]);
+      expect(area4.mcp).toEqual([code]);
+      // Rating Area 1 lists no refused plan.
+      const area1 = await surfaces(tx, "36001");
+      expect(area1.compat).not.toContain(code);
+      expect(area1.native).toEqual([]);
+      expect(area1.mcp).toEqual([]);
+    });
+  } finally {
+    vi.unstubAllEnvs();
   }
 });

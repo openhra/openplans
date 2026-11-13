@@ -185,6 +185,9 @@ describe("conservative migration preflight", () => {
     ["1000_plugin_events.sql", "additive-safe"],
     ["1001_passthrough.sql", "additive-safe"],
     ["1002_ingest_run_snapshot.sql", "additive-safe"],
+    ["1003_partd_dispensing_fee.sql", "additive-safe"],
+    ["1004_partd_unit_cost_key.sql", "additive-safe"],
+    ["1005_partd_staged_generation.sql", "risky"],
   ] as const;
   it.each(regressionCases)(
     "pins %s as %s with explicit size evidence",
@@ -197,6 +200,9 @@ describe("conservative migration preflight", () => {
           "1000_plugin_events.sql",
           "1001_passthrough.sql",
           "1002_ingest_run_snapshot.sql",
+          "1003_partd_dispensing_fee.sql",
+          "1004_partd_unit_cost_key.sql",
+          "1005_partd_staged_generation.sql",
         ].includes(name)
       )
         expect(migration.sha256).toBe(history[name]);
@@ -230,7 +236,7 @@ describe("conservative migration preflight", () => {
   );
   it("pins the complete regression inventory and preserves unknown-size review", async () => {
     const migrations = (await loadMigrations()).filter(
-      (m) => m.version >= 910 && m.version <= 1002,
+      (m) => m.version >= 910 && m.version <= 1005,
     );
     expect(migrations.map((m) => m.name)).toEqual(
       regressionCases.map(([name]) => name),
@@ -239,12 +245,12 @@ describe("conservative migration preflight", () => {
       migrations.filter(
         (m) => classifyMigration(m.sql).classification === "risky",
       ),
-    ).toHaveLength(19);
+    ).toHaveLength(22);
     expect(
       migrations.filter(
         (m) => classifyMigration(m.sql, tableSizes).classification === "risky",
       ),
-    ).toHaveLength(6);
+    ).toHaveLength(7);
   });
   it("rates 1002 by its seed row, not its snapshot trigger, and needs no allow annotation", async () => {
     const migration = (await loadMigrations()).find(

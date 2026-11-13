@@ -1,4 +1,3 @@
-import { homedir } from "node:os";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { join, isAbsolute } from "node:path";
 import { randomUUID } from "node:crypto";
@@ -17,6 +16,7 @@ import type {
 } from "../../fetch/index.js";
 import { inspectPufArchive } from "./acquire-archive.js";
 import type { AcquiredMember } from "./acquire-archive.js";
+import { dataDirectory } from "../../config/access.js";
 
 export const PUF_LANDING_URL =
   "https://www.cms.gov/marketplace/resources/data/public-use-files";
@@ -257,10 +257,7 @@ export async function acquirePufs(
       "Supported PUF years are 2025, 2026 and 2027",
     );
   }
-  const dataDir =
-    options.dataDir ??
-    process.env.OPENPLANS_DATA_DIR ??
-    join(homedir(), ".local", "share", "openplans");
+  const dataDir = options.dataDir ?? dataDirectory();
   if (!isAbsolute(dataDir))
     throw new FetchError(
       "invalid_options",

@@ -1,9 +1,10 @@
 import { spawn } from "node:child_process";
 import type { ChildProcess } from "node:child_process";
-import { cp, readFile, rm, writeFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { createServer } from "node:net";
 import { afterAll, describe, expect, it } from "vitest";
 import { metadata } from "../mcp/transport-helpers.js";
+import { plantMutantFile, plantMutantPackage } from "../mutant-file.js";
 
 // The built entry points, started as production starts them. The database address is synthetic
 // and unreachable: the status plugin reports `db: "down"` and still answers.
@@ -18,10 +19,8 @@ const baseEnv = {
   DATABASE_URL: "postgresql://synthetic:synthetic@127.0.0.1:1/synthetic",
 };
 const children = new Set<ChildProcess>();
-const mutants: string[] = [];
 afterAll(async () => {
   for (const child of children) child.kill("SIGKILL");
-  for (const file of mutants) await rm(file, { force: true, recursive: true });
 });
 
 function freePort(): Promise<number> {
@@ -323,89 +322,91 @@ describe("the API server loads configured plugins at startup", () => {
   });
 
   it("negative control: a server that never loads plugins fails the status check", async () => {
-    const mutant = new URL(
-      "../../dist/api/.server-unloaded-mutant.js",
-      import.meta.url,
-    ).pathname;
-    mutants.push(mutant);
     const original = await readFile(server, "utf8");
     const call = "await loadApiPlugins({ statusHost })";
     expect(original).toContain(call);
-    await writeFile(
-      mutant,
+    const mutant = await plantMutantFile(
+      server,
       original.replace(call, "await loadApiPlugins({ env: {} })"),
     );
-    const api = await startApi({ OPENPLANS_PLUGINS: STATUS }, mutant);
     try {
-      expect((await get(api.port, "/status.json")).status).toBe(404);
-      expect(await toolNames(api.port)).not.toContain("get_status");
+      // startApi waits for the copy's "listening" line, so it loaded and ran.
+      const api = await startApi({ OPENPLANS_PLUGINS: STATUS }, mutant.path);
+      try {
+        expect((await get(api.port, "/status.json")).status).toBe(404);
+        expect(await toolNames(api.port)).not.toContain("get_status");
+      } finally {
+        await api.stop();
+      }
     } finally {
-      await api.stop();
+      await mutant.cleanup();
     }
   });
 
   it("negative control: without the API database the host view has no pool waits", async () => {
-    const mutant = new URL(
-      "../../dist/api/.server-no-status-host-mutant.js",
-      import.meta.url,
-    ).pathname;
-    mutants.push(mutant);
     const original = await readFile(server, "utf8");
     const call = "statusHost.database = db;";
     expect(original).toContain(call);
-    await writeFile(mutant, original.replace(call, ""));
-    const api = await startApi(
-      { OPENPLANS_PLUGINS: STATUS, OPENPLANS_OPERATOR_TOKEN: TOKEN },
-      mutant,
-    );
+    const mutant = await plantMutantFile(server, original.replace(call, ""));
     try {
-      const operator = await get(api.port, "/status/operator.json", {
-        authorization: `Bearer ${TOKEN}`,
-      });
-      const view = (await operator.json()) as { pool: { waiting: unknown } };
-      expect(view.pool.waiting).toBeNull();
+      const api = await startApi(
+        { OPENPLANS_PLUGINS: STATUS, OPENPLANS_OPERATOR_TOKEN: TOKEN },
+        mutant.path,
+      );
+      try {
+        const operator = await get(api.port, "/status/operator.json", {
+          authorization: `Bearer ${TOKEN}`,
+        });
+        const view = (await operator.json()) as { pool: { waiting: unknown } };
+        expect(view.pool.waiting).toBeNull();
+      } finally {
+        await api.stop();
+      }
     } finally {
-      await api.stop();
+      await mutant.cleanup();
     }
   });
 
   it("negative control: an operator route declared public answers without the token", async () => {
-    // A copy of the built status plugin next to the real one, so its imports resolve the same way.
-    const dist = new URL("../../plugins/status/dist/", import.meta.url)
-      .pathname;
-    const copy = new URL(
-      "../../plugins/status/.dist-operator-public-mutant/",
-      import.meta.url,
-    ).pathname;
-    mutants.push(copy);
-    await cp(dist, copy, { recursive: true });
-    const index = await readFile(`${copy}index.js`, "utf8");
-    const before =
-      'path: "/status/operator.json",\n                exposure: "operator",';
-    expect(index).toContain(before);
-    await writeFile(
-      `${copy}index.js`,
-      index.replace(
-        before,
-        'path: "/status/operator.json",\n                exposure: "public",',
-      ),
+    // A copy of the built status plugin with its package.json, so it loads as a package of its own.
+    const mutant = await plantMutantPackage(
+      new URL("../../plugins/status/", import.meta.url),
+      "dist",
     );
-    const real = await startApi({
-      OPENPLANS_PLUGINS: STATUS,
-      OPENPLANS_OPERATOR_TOKEN: TOKEN,
-    });
-    const planted = await startApi({
-      OPENPLANS_PLUGINS: `${copy}index.js`,
-      OPENPLANS_OPERATOR_TOKEN: TOKEN,
-    });
     try {
-      expect((await get(real.port, "/status/operator.json")).status).toBe(401);
-      expect((await get(planted.port, "/status/operator.json")).status).toBe(
-        200,
+      const copy = `${mutant.path}/`;
+      const index = await readFile(`${copy}index.js`, "utf8");
+      const before =
+        'path: "/status/operator.json",\n                exposure: "operator",';
+      expect(index).toContain(before);
+      await writeFile(
+        `${copy}index.js`,
+        index.replace(
+          before,
+          'path: "/status/operator.json",\n                exposure: "public",',
+        ),
       );
+      const real = await startApi({
+        OPENPLANS_PLUGINS: STATUS,
+        OPENPLANS_OPERATOR_TOKEN: TOKEN,
+      });
+      const planted = await startApi({
+        OPENPLANS_PLUGINS: `${copy}index.js`,
+        OPENPLANS_OPERATOR_TOKEN: TOKEN,
+      });
+      try {
+        expect((await get(real.port, "/status/operator.json")).status).toBe(
+          401,
+        );
+        expect((await get(planted.port, "/status/operator.json")).status).toBe(
+          200,
+        );
+      } finally {
+        await real.stop();
+        await planted.stop();
+      }
     } finally {
-      await real.stop();
-      await planted.stop();
+      await mutant.cleanup();
     }
   });
 });

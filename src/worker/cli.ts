@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { loadConfig } from "../config/index.js";
+import { EnvironmentOnlyKeyError, loadConfig } from "../config/index.js";
 import type { CoreConfig } from "../config/index.js";
 import { openHostDatabase, startHostStorage } from "../plugins/host-storage.js";
 import {
@@ -21,7 +21,12 @@ if (process.argv[2] === "schedule")
 let config: CoreConfig | undefined;
 try {
   config = loadConfig();
-} catch {
+} catch (error) {
+  // A file key that would be ignored stops the worker before any command runs.
+  if (error instanceof EnvironmentOnlyKeyError) {
+    console.error(error.message);
+    process.exit(1);
+  }
   config = undefined;
 }
 if (config) startHostStorage(config);

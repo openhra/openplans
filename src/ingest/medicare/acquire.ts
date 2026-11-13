@@ -1,6 +1,4 @@
-import { homedir } from "node:os";
 import { readFile } from "node:fs/promises";
-import { join } from "node:path";
 import {
   AdmissionSession,
   fetchToCache,
@@ -20,10 +18,9 @@ import {
   sourceIds,
 } from "./sources.js";
 import type { Archive, MedicareFamily } from "./sources.js";
+import { dataDirectory, egressCountry } from "../../config/access.js";
 
-export const dataDirectory = () =>
-  process.env.OPENPLANS_DATA_DIR ??
-  join(homedir(), ".local", "share", "openplans");
+export { dataDirectory };
 
 export type FetchDependencies = Pick<
   FetchOptions,
@@ -51,7 +48,7 @@ export function medicareSession(
   return new AdmissionSession(
     [...shippedManifestPaths(), manifest],
     { maxRequests: 60, maxTransferBytes: 512 * 1024 ** 2 },
-    { egressCountry: process.env.OPENPLANS_EGRESS_COUNTRY || undefined },
+    { egressCountry: egressCountry() },
   );
 }
 

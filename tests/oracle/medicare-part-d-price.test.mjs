@@ -18,7 +18,9 @@ const SCRIPT = "scripts/oracle/medicare-part-d-price-reference.py";
 const P1 = "S9001-001-0",
   P2 = "S9002-001-0",
   P3 = "S9003-001-0";
-const [A, B, C, D, E, F] = [1, 2, 3, 4, 5, 6].map((n) => `9000000000${n}`);
+const [A, B, C, D, E, F, G] = [1, 2, 3, 4, 5, 6, 7].map(
+  (n) => `9000000000${n}`,
+);
 
 const table = (head, rows) =>
   Buffer.from([head, ...rows].map((r) => r.join("|")).join("\r\n") + "\r\n");
@@ -124,6 +126,7 @@ function archiveBytes() {
       drug(D, "2"),
       drug(E, "1"),
       drug(F, "1"),
+      drug(G, "1", "Y"),
     ]),
     "beneficiary cost file  PPUF_2026Q3": table(COST, [
       ...costRows("S9001"),
@@ -138,6 +141,7 @@ function archiveBytes() {
       price("S9001", C, "30", "100.0000"),
       price("S9001", E, "30", "0"),
       price("S9001", F, "30", "0.1000"),
+      price("S9001", G, "30", "1.0000"),
       price("S9002", A, "30", "0.5000"),
       price("S9003", A, "30", "0.5000"),
     ]),
@@ -171,6 +175,50 @@ function archiveBytes() {
   );
 }
 
+// SYNTHETIC maximum fair price file in the CMS column layout. C has a 2026 price (79.995 per unit
+// rounds to $80.00 for one unit) and a 2027 one; A, which the formulary does not flag as selected,
+// has a price too; G's only row is a deselection (it ends before it starts) and never applies.
+const MFP_HEADER = [
+  ...[
+    "IPAY",
+    "Selected Drug Name",
+    "Active Ingredient Name or Active Moiety Name",
+  ],
+  ...["NDC-9", "NDC-11", "XREF NDC-11", "HCPCS Code", "MFP Effective Date"],
+  ...["MFP End Date", "Single MFP per 30 DES", "NDC-9 MFP per Unit Price"],
+  ...["HCPCS Code Dosage Price", "As of Date", "Type of Update", "Remarks"],
+];
+const mfpRow = (ndc, from, to, unit) => [
+  ...[
+    "2026",
+    "SYNTHETIC",
+    "SYNTHETIC",
+    `${ndc.slice(0, 5)}-${ndc.slice(5, 9)}`,
+  ],
+  ...[
+    `${ndc.slice(0, 5)}-${ndc.slice(5, 9)}-${ndc.slice(9)}`,
+    "",
+    "",
+    from,
+    to,
+  ],
+  ...["$1.00", unit, "", "01/01/2026", "Synthetic", "Synthetic"],
+];
+const mfpBytes = () =>
+  zip({
+    "synthetic_mfp.csv": Buffer.from(
+      [
+        MFP_HEADER,
+        mfpRow(C, "01/01/2026", "12/31/2026", "$79.995000"),
+        mfpRow(C, "01/01/2027", "", "$1,000.000000"),
+        mfpRow(A, "01/01/2026", "", "$0.400000"),
+        mfpRow(G, "01/01/2027", "12/31/2026", "$2.000000"),
+      ]
+        .map((r) => r.join(","))
+        .join("\r\n") + "\r\n",
+    ),
+  });
+
 const fill = (id, planKey, ndc, days, channel, extra = {}) => ({
   case_id: id,
   contract_year: 2026,
@@ -203,6 +251,7 @@ const CASES = [
   fill("cap", P1, F, 30, "preferred_retail"),
   fill("threshold", P1, B, 90, "preferred_retail", { quantity: "1000" }),
   fill("floor", P3, A, 30, "preferred_retail"),
+  fill("selected-no-mfp", P1, G, 30, "preferred_retail"),
 ];
 
 const v = (cents) => ({ status: "value", cents });
@@ -213,7 +262,10 @@ const all = (reason) => ({
   total_highest_fee: u(reason),
   gross: u(reason),
   member_cost: u(reason),
+  maximum_fair_price_total: u(reason),
 });
+const NOT_SELECTED = { maximum_fair_price_total: u("drug_not_selected") };
+const NO_MFP = u("maximum_fair_price_not_in_effect");
 const FEE = u("dispensing_fee_unknown");
 // Worked by hand from the synthetic rows above, independently of the script.
 const EXPECTED = [
@@ -224,8 +276,16 @@ const EXPECTED = [
   ["no-60", all("price_days_supply_not_published")],
   // 12.3456 x 10 = 123.456; 25% of 123.46, 123.96 and 125.96 differ.
   ["coinsurance", { ...prices(12346, 12396, 12596), member_cost: FEE }],
-  // Selected drug: selected fee 4.00, or the brand fee 2.00 where the selected fee is missing.
-  ["selected", { ...prices(10000, 10200, 10400), member_cost: v(4700) }],
+  // Selected drug: the $80.00 maximum fair price replaces the $100.00 unit cost; selected fee
+  // 4.00, or the brand fee 2.00 where the selected fee is missing. The $47 copay holds.
+  [
+    "selected",
+    {
+      ...prices(10000, 8200, 8400),
+      member_cost: v(4700),
+      maximum_fair_price_total: v(8000),
+    },
+  ],
   ["unpriced", all("price_days_supply_not_published")],
   ["zero-cost", all("unit_cost_unreadable")],
   ["mail", all("unit_cost_retail_only")],
@@ -237,6 +297,18 @@ const EXPECTED = [
     { ...prices(1500, 1550, 1750), member_cost: u("phase_not_supported") },
   ],
   ["off-formulary", all("proxy_ndc_not_on_formulary")],
+  // Flagged selected with no maximum fair price in effect: only the unit cost total is known.
+  [
+    "selected-no-mfp",
+    {
+      unit_cost_total: v(3000),
+      total_lowest_fee: NO_MFP,
+      total_highest_fee: NO_MFP,
+      gross: NO_MFP,
+      member_cost: NO_MFP,
+      maximum_fair_price_total: NO_MFP,
+    },
+  ],
   // 0.1 x 30 = 3.00 is below the $5 copay, so the enrollee pays more than 90% of the price.
   ["cap", { ...prices(300, 350, 550), member_cost: u("subsidy_cap_may_bind") }],
   // 11.5 x 1000 = 11,500.00; 25% is more than the $2,100 threshold.
@@ -265,14 +337,17 @@ function prices(r0, low, high) {
     total_lowest_fee: figure(low),
     total_highest_fee: figure(high),
     gross: FEE,
+    ...NOT_SELECTED,
   };
 }
 
-let directory, archive;
+let directory, archive, mfpFile;
 beforeAll(async () => {
   directory = await mkdtemp(join(tmpdir(), "partd-price-oracle-"));
   archive = join(directory, "SPUF_synthetic.zip");
   await writeFile(archive, archiveBytes());
+  mfpFile = join(directory, "mfp_synthetic.zip");
+  await writeFile(mfpFile, mfpBytes());
   await writeFile(
     join(directory, "cases.json"),
     JSON.stringify({ cases: CASES }),
@@ -292,6 +367,8 @@ async function reference(script = SCRIPT) {
       join(directory, "cases.json"),
       "--output",
       output,
+      "--mfp-file",
+      mfpFile,
     ],
     { encoding: "utf8" },
   );
@@ -396,6 +473,55 @@ describe("Part D plan-average price reference (synthetic archive)", () => {
     ]);
   });
 
+  it("leaves a member cost uncompared only when the reference lost the price", async () => {
+    const LOGIC = "scripts/oracle/medicare-part-d-price-logic.mjs";
+    const answer = (figures, id) =>
+      figures.find((item) => item.case_id === id).figures;
+    const application = structuredClone(EXPECTED);
+    // No unit cost, and a selected drug with no maximum fair price in effect. The application
+    // names its cost-sharing reason instead.
+    answer(application, "unpriced").member_cost = u("cost_row_missing");
+    answer(application, "selected-no-mfp").member_cost = u(
+      "channel_not_offered",
+    );
+    const ok = compareApplicationAnswers(EXPECTED, application);
+    expect(ok.differences).toEqual([]);
+    expect(ok.notCompared.filter((line) => line.includes("no price"))).toEqual([
+      "unpriced member_cost: no price (price_days_supply_not_published), application cost_row_missing",
+      "selected-no-mfp member_cost: no price (maximum_fair_price_not_in_effect), application channel_not_offered",
+    ]);
+
+    // Member-cost differences the price does not explain still fail.
+    const wrong = structuredClone(application);
+    answer(wrong, "selected-no-mfp").member_cost = v(4700);
+    answer(wrong, "coinsurance").member_cost = u("channel_not_offered");
+    answer(wrong, "copay").member_cost = u("cost_row_missing");
+    const reference = structuredClone(EXPECTED);
+    answer(reference, "selected").member_cost = u("cost_sharing_row_missing");
+    answer(wrong, "selected").member_cost = u("channel_not_offered");
+    const caught = [
+      "copay member_cost: application gives unknown cost_row_missing, raw files give value 500",
+      "coinsurance member_cost: application gives unknown channel_not_offered, raw files give unknown dispensing_fee_unknown",
+      "selected member_cost: application gives unknown channel_not_offered, raw files give unknown cost_sharing_row_missing",
+      "selected-no-mfp member_cost: application gives value 4700, raw files give unknown maximum_fair_price_not_in_effect",
+    ];
+    expect(compareApplicationAnswers(reference, wrong).differences).toEqual(
+      caught,
+    );
+
+    // A planted mutant that takes any unknown gross as a lost price hides the fee-caused difference.
+    const source = await readFile(LOGIC, "utf8");
+    const from = "priceLostAt(want) === b.reason";
+    expect(source.split(from).length).toBe(2);
+    const loose = join(directory, "price-logic-any-gross.mjs");
+    await writeFile(
+      loose,
+      source.replace(from, 'want.figures.gross?.status === "unknown"'),
+    );
+    const mutantCompare = (await import(loose)).compareApplicationAnswers;
+    expect(mutantCompare(reference, wrong).differences).not.toEqual(caught);
+  });
+
   describe("planted mutants must be caught", () => {
     it("a missing price treated as $0", async () => {
       const answers = await mutant("missing-price-zero", [
@@ -429,7 +555,14 @@ describe("Part D plan-average price reference (synthetic archive)", () => {
 
     it("the dispensing fee ignored", async () => {
       const answers = await mutant("fee-ignored", [
-        ["    return readings, None", '    return {"r0": r0}, None'],
+        [
+          "        return readings, None\n    if fee and",
+          '        return {"r0": r0, "mfp": mfp, "low": mfp, "high": mfp}, None\n    if fee and',
+        ],
+        [
+          "    return readings, None\n\n\ndef disagreement",
+          '    return {"r0": r0}, None\n\n\ndef disagreement',
+        ],
       ]);
       const differences = comparePriceAnswers(EXPECTED, answers).join("\n");
       expect(differences).toContain(
@@ -437,6 +570,43 @@ describe("Part D plan-average price reference (synthetic archive)", () => {
       );
       expect(differences).toContain(
         "coinsurance member_cost: application gives value 3087",
+      );
+      expect(differences).toContain(
+        "selected gross: application gives value 8000, raw files give unknown dispensing_fee_unknown",
+      );
+    });
+
+    it("the plan-average unit cost used for a selected drug", async () => {
+      const answers = await mutant("plan-average-for-selected", [
+        ["mfp = Decimal(cents(price * quantity)) * CENT", "mfp = r0"],
+      ]);
+      const differences = comparePriceAnswers(EXPECTED, answers).join("\n");
+      expect(differences).toContain(
+        "selected total_lowest_fee: application gives value 10200, raw files give value 8200",
+      );
+      expect(differences).toContain(
+        "selected maximum_fair_price_total: application gives value 10000, raw files give value 8000",
+      );
+    });
+
+    it("a maximum fair price used for a drug that is not selected", async () => {
+      const answers = await mutant("mfp-for-not-selected", [
+        [
+          "    if selected:\n        # The maximum fair price replaces",
+          "    if True:\n        # The maximum fair price replaces",
+        ],
+        [
+          "    if selected:\n        # The plan-average",
+          "    if True:\n        # The plan-average",
+        ],
+      ]);
+      const differences = comparePriceAnswers(EXPECTED, answers).join("\n");
+      // A: 0.40 x 30 = 12.00 in place of the 15.00 unit cost total.
+      expect(differences).toContain(
+        "copay total_lowest_fee: application gives value 1250, raw files give value 1550",
+      );
+      expect(differences).toContain(
+        "copay maximum_fair_price_total: application gives value 1200, raw files give unknown drug_not_selected",
       );
     });
   });

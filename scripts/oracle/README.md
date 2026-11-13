@@ -46,7 +46,7 @@ runs with `python3 -I`, imports nothing from the application and uses exact `Dec
 arithmetic. It reads the cached quarterly SPUF archive directly: Plan Information, the Basic
 Drugs Formulary, the Beneficiary Cost file, the Pricing file and all parts of the Pharmacy
 Networks file. A case names a plan, a proxy NDC, a days supply, a quantity in units of that NDC
-with `unit: "ndc_unit"`, a channel and a phase. For each case the script reports five figures.
+with `unit: "ndc_unit"`, a channel and a phase. For each case the script reports six figures.
 
 - `unit_cost_total` is `UNIT_COST` times the quantity, for the fill's exact days supply of 30, 60
   or 90. In this reading the unit cost already includes the fee.
@@ -65,6 +65,14 @@ with `unit: "ndc_unit"`, a channel and a phase. For each case the script reports
   `crosses_out_of_pocket_threshold`, and a tier row with a minimum or maximum gives
   `cost_sharing_bounds_not_modelled`. Insulin and vaccine status are taken as the case states
   them.
+- `maximum_fair_price_total` is for a drug the formulary flags as selected. It is the per-unit
+  maximum fair price in effect on January 2 of the contract year, times the quantity, rounded to
+  the cent. The price comes from the CMS Selected Drug List and Maximum Fair Price file, passed
+  with `--mfp-file`. For such a drug this total takes the place of `unit_cost_total` in the
+  readings: `total_lowest_fee` and `total_highest_fee` add the fees to it, there is no reading
+  without a fee, and no floor price applies. `unit_cost_total` is still reported. A drug not
+  flagged as selected gets `drug_not_selected`. A selected drug with no price in effect gets
+  `maximum_fair_price_not_in_effect` for every figure but `unit_cost_total`.
 
 A missing price row, a zero or unreadable unit cost, a mail channel, a days supply other than 30,
 60 or 90, or a unit other than `ndc_unit` makes every figure unknown. The reasons are
@@ -89,11 +97,14 @@ the out-of-pocket threshold, filed minimum and maximum cost sharing. The applica
 on enhanced alternative plans that would pay less than the standard benefit. Those figures are
 listed under `not_compared` in `reports/medicare-part-d-price-<year>.json`, and never counted as
 matches. Without a database the runner writes `app_database_missing` and exits 1. `--cached`
-takes the year's newest quarterly archive from the data directory instead of `--archive`.
+takes the year's newest quarterly archive from the data directory instead of `--archive`. The
+runner passes the cached maximum fair price file pinned in
+`data/medicare-part-d/drug-lists.json` to the reference when the data directory holds it.
 `tests/oracle/medicare-part-d-price.test.mjs` runs the reference on a synthetic mini-archive
-against hand-worked answers and checks the bounded comparison. It must catch three planted
-defects: a missing price read as $0, the nearest days supply in place of the fill's own,
-and the dispensing fee ignored. `scripts/realdata.sh` runs it for 2026 with `--cached --optional`
+against hand-worked answers and checks the bounded comparison. It must catch five planted
+defects: a missing price read as $0, the nearest days supply in place of the fill's own, the
+dispensing fee ignored, the plan-average unit cost used for a selected drug, and a maximum fair
+price used for a drug that is not selected. `scripts/realdata.sh` runs it for 2026 with `--cached --optional`
 when `OPENPLANS_PRICE_CHECK_DATABASE_URL` names a database holding that release with its pricing
 and dispensing-fee tables. Loading only the sample's plans is enough. Without that database or the cached
 archive it prints `SKIP` and writes no report.

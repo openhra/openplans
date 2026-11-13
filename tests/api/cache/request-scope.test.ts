@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { readFile, rm, writeFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
 import type { CacheLevel } from "@openplans/plugin-sdk";
 import { createResponseCache } from "../../../src/api/cache/index.js";
@@ -13,6 +13,7 @@ import {
   scopeCacheLevel,
 } from "../../../src/plugins/request-scope.js";
 import { replaceSyntax } from "../../source-mutation.js";
+import { importMutant, withMutantFile } from "../../mutant-file.js";
 
 // Synthetic route and DTO values only. A route stands in for a pass-through answer by calling
 // restrictCacheLevel the way the pass-through core will (design 5.10.5).
@@ -287,26 +288,23 @@ const mutants = [
 describe("planted mutants", () => {
   it.each(mutants)(
     "negative control: $kind lets a none answer into the cache and is caught",
-    async ({ kind, before, after, contract }) => {
+    async ({ before, after, contract }) => {
       const source = new URL(
         "../../../src/api/cache/index.ts",
         import.meta.url,
       );
-      const temporary = new URL(
-        `../../../src/api/cache/.scope-mutant-${kind}.ts`,
-        import.meta.url,
-      );
       const original = await readFile(source, "utf8");
-      await writeFile(temporary, replaceSyntax(original, before, after));
-      try {
-        const mutant = (await import(/* @vite-ignore */ temporary.href)) as {
-          createResponseCache: typeof createResponseCache;
-        };
-        await expect(contract(createResponseCache)).resolves.toBeUndefined();
-        await expect(contract(mutant.createResponseCache)).rejects.toThrow();
-      } finally {
-        await rm(temporary, { force: true });
-      }
+      await withMutantFile(
+        source,
+        replaceSyntax(original, before, after),
+        async (temporary) => {
+          const mutant = await importMutant<{
+            createResponseCache: typeof createResponseCache;
+          }>(temporary, "createResponseCache");
+          await expect(contract(createResponseCache)).resolves.toBeUndefined();
+          await expect(contract(mutant.createResponseCache)).rejects.toThrow();
+        },
+      );
     },
   );
 });

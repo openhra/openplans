@@ -756,6 +756,7 @@ async function quoteAnswer(
       bindable_quote: false,
       tier: native.tier,
       location_status: native.location.status,
+      location_issues: native.issues,
       tobacco_rating: native.tobacco_rating,
       subsidy_status: "not_evaluated",
       data_availability: native.data_availability,
@@ -876,7 +877,8 @@ async function dispatch(
     case "search_plans": {
       const input = parseToolInput(tool, value);
       let location: Row = {},
-        nativeStatus: unknown;
+        nativeStatus: unknown,
+        issues: string[] = [];
       const page = await nativeWindow(offset, input.limit, async (page) => {
         const found = await catalog.searchPlans(
           db,
@@ -890,6 +892,7 @@ async function dispatch(
         );
         location = row(found.location);
         nativeStatus = found.status;
+        issues = found.issues;
         return { items: found.plans, total: found.total };
       });
       const p = await projector(db, [page.items, location]);
@@ -897,6 +900,7 @@ async function dispatch(
         data: {
           plans: page.items.map(p.plan),
           location_status: location.status,
+          location_issues: issues,
           counties: rows(location.counties).map(p.geography),
         },
         p,

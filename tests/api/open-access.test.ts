@@ -1,4 +1,4 @@
-import { readFile, rm, writeFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { Hono } from "hono";
 import {
   afterAll,
@@ -18,6 +18,7 @@ import { createMcpHttp } from "../../src/mcp/http.js";
 import { setup, BASE, searchBody } from "../compat/v1/helpers.js";
 import { listedToolNames, post as mcpPost } from "../mcp/transport-helpers.js";
 import { replaceSyntax } from "../source-mutation.js";
+import { importMutant, withMutantFile } from "../mutant-file.js";
 
 /**
  * Owner, 2026-11-09: every feature is on by default. Household quotes, the benchmark,
@@ -205,26 +206,21 @@ describe("one anonymous household bucket (negative control)", () => {
   });
   it("negative control: an open path that skips the limiter fails", async () => {
     const source = new URL("../../src/api/quotes.ts", import.meta.url);
-    const temporary = new URL(
-      "../../src/api/.quotes-mutant-open-unmetered.ts",
-      import.meta.url,
-    );
-    await writeFile(
-      temporary,
+    await withMutantFile(
+      source,
       replaceSyntax(
         await readFile(source, "utf8"),
         "if (admission) return admission(c, next);",
         "if (admission) return next();",
       ),
+      async (temporary) => {
+        const mutant = await importMutant<typeof QuoteRoutes>(
+          temporary,
+          "quoteRoutes",
+        );
+        await expect(verdict(mutant)).rejects.toThrow();
+      },
     );
-    try {
-      const mutant = (await import(
-        /* @vite-ignore */ temporary.href
-      )) as typeof QuoteRoutes;
-      await expect(verdict(mutant)).rejects.toThrow();
-    } finally {
-      await rm(temporary, { force: true });
-    }
   });
 });
 

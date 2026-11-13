@@ -1,8 +1,9 @@
 # Configuration and command reference
 
 Native Node entry points read the process environment and an optional JSON config
-file. They do not load `.env`. Environment variables override core settings in the
-file for migrated settings. Plugin options go in the file.
+file. They do not load `.env`. An environment variable overrides the same core
+setting in the file. Plugin options go in the file. Some settings come only from the
+environment; see [Environment-only settings](#environment-only-settings).
 Compose reads `.env` for interpolation and forwards only variables listed under
 that service's `environment`. Adding a variable to `.env` alone does not pass it
 into the container. Use `docker compose run --rm -e NAME=value worker ...` for a
@@ -135,6 +136,16 @@ read-back copies in `blob-read`, both under `OPENPLANS_DATA_DIR`.
 | `OPENPLANS_MEDICARE_DRUG_COST_PRICES`    | Off. `on` accepts the `cms_plan_average` price basis in drug-cost estimates. Counts only while the estimator is on, and needs loaded prices and fee ranges; see [Medicare](medicare.md). |
 | `OPENPLANS_GA_QUOTE_RECOVERY`            | Off. `on` permits the documented Georgia CSV quote recovery and records a warning per recovered row.                                                                                     |
 
+OpenPlans reads the switches in this table when a request or import runs. Each one except
+`CMS_API_KEY` can also be set in the config file: `compat.catastrophicAgeRule`,
+`compat.benefitText` (`true` for compact), `cmsFallback.enabled`, `cmsFallback.quotes`,
+`medicarePartD`, `medicareDrugCost`, `medicareDrugCostPrices` and `gaQuoteRecovery`, all `true`
+or `false`. A variable that is set wins over the file, so `OPENPLANS_MEDICARE_PART_D=off` turns
+Part D serving off even when the file has `"medicarePartD": true`. With neither set, every
+switch stays off. `compose.yml` forwards none of the Medicare or Georgia variables. Add the Medicare switches to the API
+service in a local override, and pass the Georgia switch to the worker run with `-e`, as
+described at the top of this page.
+
 Public access switches accept `on`, `off` or empty. Empty means on; other values
 fail. A configured REST/MCP token or compatibility key still grants access with
 the corresponding public switch off. Credentials for one protocol do not grant
@@ -210,6 +221,20 @@ whenever both switches are on. See [Medicare](medicare.md).
 
 ## Downloads and geocoding
 
+The config file can set the data directory as `access.dataDir` and the egress country
+as `access.egressCountry`. The API, the worker, the import runners and the state check
+scripts all take the variable first, then the file, then the default in the table below.
+`access.dataDir` in the file also sets the root of the `local` blob store unless the file
+sets `blobs.root`. Two shell scripts read only `OPENPLANS_DATA_DIR`: `scripts/smoke.sh`
+and `src/ingest/geocode/geocoder.sh`.
+
+```json
+{
+  "version": 1,
+  "access": { "dataDir": "/var/lib/openplans", "egressCountry": "US" }
+}
+```
+
 | Variable                                                                                       | Default and effect                                                                                                                                                              |
 | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `OPENPLANS_DATA_DIR`                                                                           | Native `$HOME/.local/share/openplans`; Compose host mounts default to `/var/lib/openplans`, seen as `/data` in the worker. Keep it outside Git.                                 |
@@ -225,6 +250,23 @@ whenever both switches are on. See [Medicare](medicare.md).
 | `OPENPLANS_GEOCODER_STORE`                                                                     | Off. `1` permits external storage when the operator's provider terms allow it. Serving stored points also requires `OPENPLANS_API_CACHE=off`.                                   |
 | `OPENPLANS_OPEN_GEOCODER_URL`                                                                  | Unset. Optional self-hosted Nominatim on a literal loopback IP.                                                                                                                 |
 | `OPENPLANS_GEOCODER_STATE`, `OPENPLANS_GEOCODER_SNAPSHOT`, `OPENPLANS_GEOCODER_PORT`           | Regional deployment requires a state `tx`, `fl` or `nc` and an explicit `YYMMDD` snapshot; port defaults to `58080`. See the [geocoder guide](../src/ingest/geocode/README.md). |
+
+## Environment-only settings
+
+Some programs read these variables directly, so the config file cannot set them. A
+file that sets one of these keys stops the API, worker, stdio server and PGlite
+runner at startup with one line naming the key and the variable to use, for example
+`OPENPLANS_CONFIG sets compose.user, which is read only from the environment; set POSTGRES_USER instead`.
+
+| File keys                                  | Set instead                                                                       |
+| ------------------------------------------ | --------------------------------------------------------------------------------- |
+| `compose.*`                                | The Compose variables in `.env`, such as `POSTGRES_USER`.                         |
+| `geocoder.*`                               | The `OPENPLANS_GEOCODER_*` and `OPENPLANS_OPEN_GEOCODER_URL` variables.           |
+| `runners.*`                                | The runner variables in the next section.                                         |
+| `cmsFallback.apiKey`                       | `CMS_API_KEY`, which fetch admission reads by name.                               |
+| `access.egressFile`, `access.egressSha256` | `OPENPLANS_EGRESS_FILE`, `OPENPLANS_EGRESS_SHA256`, bound by every fetch session. |
+
+The loader still accepts an empty section, such as `"compose": {}`.
 
 ## Native developer and check runners
 
@@ -249,6 +291,9 @@ Paths and generated reports stay in the external data cache unless overridden.
 | `OPENPLANS_QHP_REPORT_PREFIX`                          | Runner-specific: `p6a-postgres`, provider audit `p6c`, state audit `qhp-state-year` with lowercase state.                     |
 | `OPENPLANS_REFERENCE_CAPTURES_DIR`                     | Optional external regression fixture directory. Checks needing it skip when unset.                                            |
 | `OPENPLANS_DENYLIST_FILE`                              | Publication checks, external nonempty regex policy. Unset contributor CI skips the optional policy audit; export requires it. |
+
+The real-data check scripts under `scripts/oracle/` read their own database variables, such as
+the optional Part D price check's; [the oracle README](../scripts/oracle/README.md) lists them.
 
 Docker smoke checks use `OPENPLANS_COMPOSE_PROJECT`, default `openplans-h2`,
 and `OPENPLANS_SMOKE_TMPDIR`, default `$HOME/.cache`. Use a project beginning with

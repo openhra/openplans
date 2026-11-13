@@ -13,6 +13,7 @@ import type { CmsFallbackContext } from "../ingest/cms-api/fallback.js";
 import { dataAvailability } from "./availability.js";
 import { estimatePremium } from "./premiums.js";
 import { ReadError } from "./errors.js";
+import { locationIssues } from "./location-issues.js";
 
 export type QuoteTier = "public_quote";
 type QuoteRequest = ReturnType<typeof v.publicQuoteRequest>;
@@ -165,6 +166,7 @@ export async function quotePlans(
     coverage_start: premium.coverage,
     coverage: request.coverage,
     location,
+    issues: await locationIssues(db, location, premium.year, request.coverage),
     members: premium.members.map((member) => ({
       member_id: member.id,
       age: member.age,

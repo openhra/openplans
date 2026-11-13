@@ -25,6 +25,7 @@ const payloads: Record<ToolName, unknown> = {
   search_plans: {
     plans: [shellPlan],
     location_status: "available",
+    location_issues: [],
     counties: [],
   },
   get_plan: { plan: shellPlan, section: "summary", records: [] },
@@ -48,6 +49,7 @@ const payloads: Record<ToolName, unknown> = {
     bindable_quote: false,
     tier: "public_quote",
     location_status: "unknown",
+    location_issues: [],
     tobacco_rating: "requested_flags",
     subsidy_status: "not_evaluated",
     data_availability: {
@@ -265,6 +267,7 @@ describe("fifteen closed MCP tool contracts (no transport)", () => {
     const dangling = envelope({
       plans: [{ ...shellPlan, evidence_refs: ["no-such-source"] }],
       location_status: "available",
+      location_issues: [],
       counties: [],
     });
     expect(() => assertHonest("search_plans", dangling)).toThrow(

@@ -12,6 +12,7 @@ import { backupExcludedTables } from "../src/worker/backup-args.js";
 import * as Step from "../src/worker/backup-restored.js";
 import { coreMigrations, testDatabase } from "./pglite.js";
 import { rebaseImports } from "./source-mutation.js";
+import { importMutant } from "./mutant-file.js";
 
 type Source = PassThroughSource<Question, unknown>;
 const stored = (id: string, excludeFromBackups?: boolean): Source =>
@@ -324,7 +325,9 @@ describe("worker backup-restored", () => {
         path,
         rebaseImports(text.replace(before, after), original),
       );
-      const mutant = await import(pathToFileURL(path).href);
+      const mutant = await importMutant<{
+        runBackupRestored: Parameters<typeof contract>[0];
+      }>(pathToFileURL(path), "runBackupRestored");
       await expect(contract(mutant.runBackupRestored)).rejects.toThrow();
     } finally {
       await rm(directory, { recursive: true, force: true });

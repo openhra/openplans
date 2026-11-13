@@ -6,12 +6,12 @@ import type { DrugCoverage } from "../domain/drugs/index.js";
 import { cmsFallbackContext } from "../ingest/cms-api/fallback.js";
 import { passThrough } from "../plugins/sources/passthrough.js";
 import type { CmsFallbackContext } from "../ingest/cms-api/fallback.js";
+import { loadConfig } from "../config/index.js";
 
 export function quoteFallbackEnabled(): boolean {
+  const { cmsFallback } = loadConfig();
   return (
-    process.env.OPENPLANS_CMS_FALLBACK_QUOTES === "on" &&
-    process.env.OPENPLANS_CMS_FALLBACK === "on" &&
-    Boolean(process.env.CMS_API_KEY)
+    cmsFallback.quotes && cmsFallback.enabled && Boolean(cmsFallback.apiKey)
   );
 }
 

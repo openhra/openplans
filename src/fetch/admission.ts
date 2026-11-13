@@ -378,9 +378,9 @@ export class AdmissionSession {
     if (options.egressFile === undefined)
       return egressFromEnvironment(options.egressCountry);
     return egressFromEnvironment(options.egressCountry, {
+      ...process.env,
       OPENPLANS_EGRESS_FILE: options.egressFile,
       OPENPLANS_EGRESS_SHA256: options.egressSha256,
-      OPENPLANS_EGRESS_COUNTRY: process.env.OPENPLANS_EGRESS_COUNTRY,
     });
   }
 

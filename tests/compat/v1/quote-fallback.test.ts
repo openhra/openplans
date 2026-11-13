@@ -38,6 +38,7 @@ import type { Transport } from "../../../src/fetch/index.js";
 import { BASE, headers, searchBody, setup } from "./helpers.js";
 import { assertShape } from "./shape.js";
 import { quoteBody } from "../../api/quote-fixture.js";
+import { importMutant, withMutantFile } from "../../mutant-file.js";
 
 vi.mock("node:crypto", async (importOriginal) => {
   const crypto = await importOriginal<typeof NodeCrypto>();
@@ -369,7 +370,7 @@ it("leaves native and compatibility response bytes unchanged with the quote swit
   await native();
   sent = [];
   const expected = {
-    native: "98f13a532a75b0d4ae88d1e1e5e01d2c4088b666d65d626717e32d3c069c32b2",
+    native: "f0be5a7d7bc6295b91b5a11f5f6af6232a282772d6a36e0f3c1d017d9486d2e4",
     compat: "903988b143c112191de7020fd685f79e63c1a50c45a1dbf5536c020cc868a1ce",
   };
   for (const value of [undefined, "off"]) {
@@ -534,35 +535,30 @@ it.each(coverageCases)(
 
 it("negative control: the matrix rejects the original read-only fallback writer", async () => {
   const source = new URL("../../../src/api/quotes.ts", import.meta.url);
-  const temporary = new URL(
-    "../../../src/api/.quotes-mutant-read-only.ts",
-    import.meta.url,
-  );
-  await writeFile(
-    temporary,
+  await withMutantFile(
+    source,
     replaceSyntax(
       await readFile(source, "utf8"),
       "boundedDatabase(db, deadline, { readOnly: false })",
       "scoped",
     ),
+    async (temporary) => {
+      const mutant = await importMutant<typeof QuoteRoutes>(
+        temporary,
+        "quoteRoutes",
+      );
+      const api = new Hono().onError((_error, c) =>
+        c.json({ error: "synthetic_failure" }, 500),
+      );
+      api.route("/v1", mutant.quoteRoutes(productionDb(), {}));
+      await expect(
+        coverageMatrixCase(
+          { inputs: "both", switchValue: "on", rxnorm: false },
+          api,
+        ),
+      ).rejects.toThrow();
+    },
   );
-  try {
-    const mutant = (await import(
-      /* @vite-ignore */ temporary.href
-    )) as typeof QuoteRoutes;
-    const api = new Hono().onError((_error, c) =>
-      c.json({ error: "synthetic_failure" }, 500),
-    );
-    api.route("/v1", mutant.quoteRoutes(productionDb(), {}));
-    await expect(
-      coverageMatrixCase(
-        { inputs: "both", switchValue: "on", rxnorm: false },
-        api,
-      ),
-    ).rejects.toThrow();
-  } finally {
-    await rm(temporary, { force: true });
-  }
 });
 
 it.each([

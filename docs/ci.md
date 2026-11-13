@@ -28,9 +28,21 @@ Require these exact check names when activating branch protection and release
 validation:
 
 - `OpenPlans / Linux`, Ubuntu 24.04, clean install and offline project checks.
-- `OpenPlans / macOS`, macOS 15 on Intel x64, the same commands.
+- `OpenPlans / macOS`, which passes only when every macOS shard passed.
 - `OpenPlans / Docker Linux`, Ubuntu 24.04, Docker build and compiled entry check.
 - `OpenPlans / required`, checks every prerequisite result, even after failure.
+
+The macOS checks run on macOS 15 on Intel x64 as three `OpenPlans / macOS shard <n>` jobs on
+separate runners. Those runners take about twice as long as Linux for the same tests, and the
+tests run one file at a time, so one macOS job no longer fits its time limit. Each shard sets
+`OPENPLANS_CI_SHARD=<n>/<count>`, and `scripts/ci.sh` then builds everything and runs that
+slice of the test files with `vitest --shard`. Shard 1 also runs the formatting, lint,
+typecheck, publisher-review and extraction checks. Vitest assigns every test file to exactly
+one slice, so the shards together run the whole suite. To run one slice locally:
+
+```sh
+OPENPLANS_CI_SHARD=2/3 scripts/ci.sh
+```
 
 The final job rejects missing, skipped, canceled and failed prerequisites. Required
 jobs have no path filters or conditional skips. Contract tests check the workflow's

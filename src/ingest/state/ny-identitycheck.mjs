@@ -11,7 +11,6 @@ import {
   rm,
   writeFile,
 } from "node:fs/promises";
-import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import {
@@ -33,12 +32,9 @@ import {
   ichraAffordability,
   nyLcspAvailability,
 } from "../../../dist/services/ichra.js";
+import { dataDirectory } from "../../../dist/config/access.js";
 
-const data = resolve(
-  process.argv[2] ??
-    process.env.OPENPLANS_DATA_DIR ??
-    join(homedir(), ".local/share/openplans"),
-);
+const data = resolve(process.argv[2] ?? dataDirectory());
 const project = fileURLToPath(new URL("../../../", import.meta.url));
 const reportDir = join(data, "reports/ny-ehb-2026");
 await mkdir(reportDir, { recursive: true });

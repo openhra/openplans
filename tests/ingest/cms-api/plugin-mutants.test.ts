@@ -41,6 +41,7 @@ import type { CmsFallbackContext } from "../../../src/ingest/cms-api/fallback.js
 import { implicitPassThroughSources } from "../../../src/plugins/core-plugin.js";
 import { createPassThrough } from "../../../src/plugins/sources/passthrough.js";
 import { fixture, setup } from "../qhp/formulary-helpers.js";
+import { importMutant } from "../../mutant-file.js";
 
 vi.mock("../../../src/fetch/limiter.js", () => ({
   leaseHost: async () => async () => {},
@@ -143,19 +144,23 @@ async function plantedFactory(
   replacement: string,
 ): Promise<{ factory: Factory; cleanup: () => Promise<void> }> {
   const copy = await mkdtemp(join(packageSource, ".mutant-"));
-  for (const name of await readdir(packageSource))
-    if (name.endsWith(".ts"))
-      await cp(join(packageSource, name), join(copy, name));
-  const text = await readFile(join(copy, file), "utf8");
-  expect(text).toContain(anchor);
-  await writeFile(join(copy, file), text.replace(anchor, replacement));
-  const module = (await import(
-    /* @vite-ignore */ new URL(`file://${join(copy, "index.ts")}`).href
-  )) as typeof Package;
-  return {
-    factory: module.createCmsMarketplaceSource,
-    cleanup: () => rm(copy, { recursive: true, force: true }),
-  };
+  const cleanup = () => rm(copy, { recursive: true, force: true });
+  try {
+    for (const name of await readdir(packageSource))
+      if (name.endsWith(".ts"))
+        await cp(join(packageSource, name), join(copy, name));
+    const text = await readFile(join(copy, file), "utf8");
+    expect(text).toContain(anchor);
+    await writeFile(join(copy, file), text.replace(anchor, replacement));
+    const module = await importMutant<typeof Package>(
+      new URL(`file://${join(copy, "index.ts")}`),
+      "createCmsMarketplaceSource",
+    );
+    return { factory: module.createCmsMarketplaceSource, cleanup };
+  } catch (error) {
+    await cleanup();
+    throw error;
+  }
 }
 const host = { planBase: (id: string) => parse_hios(id).base };
 /** Runs `answers` through a core that has only `source` registered. */

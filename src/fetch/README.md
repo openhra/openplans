@@ -62,7 +62,8 @@ The session fetches robots before terms or data, verifies the current terms hash
 rechecks both at least daily. A 404 or 410 at `/robots.txt`, answered directly with no
 redirect, means the host publishes no robots rules (RFC 9309 section 2.3.1.3). It counts only
 when the manifest also recorded that absence, with the country it was observed from. The
-session's egress country (`egressCountry`, or `OPENPLANS_EGRESS_COUNTRY`) goes into every
+session's egress country (`egressCountry`, else `OPENPLANS_EGRESS_COUNTRY`, else
+`access.egressCountry` in the config file) goes into every
 receipt, or `null` when unset. It does not restrict collection, because self-hosters collect
 from many countries. Terms still need review. Every other unsuccessful robots
 response holds collection: 401, 403, 429, 451, 5xx, timeouts and any 404 reached through a
@@ -167,7 +168,7 @@ separate access decision. The hold blocks requests and cache reuse. `observedHos
 keeps the reported country and status evidence. This module does not change network
 routes, solve challenges or import browser sessions.
 
-The fetcher selects its data directory from `dataDir`, then `OPENPLANS_DATA_DIR`, then `$HOME/.local/share/openplans`. Tests always provide a temporary directory. The fetcher does not write to the database.
+The fetcher selects its data directory from `dataDir`, then `OPENPLANS_DATA_DIR`, then `access.dataDir` in the config file, then `$HOME/.local/share/openplans`. Tests always provide a temporary directory. The fetcher does not write to the database.
 
 Results use `outcome: downloaded | reused | not_modified`. Downloads default to a SHA-256 snapshot ID; optional `snapshotId` identifiers cannot overwrite existing content. A source-scoped hash match reuses its original snapshot and provenance. Pass `expectedSha256` to skip the request when that content is already cached; otherwise the hash is known only after streaming. Pre-request cache hits verify the stored hash and reapply the caller's current content and size limits. Pass `conditional: { etag, lastModified }` from a previous result to send validators. A 304 writes nothing. The fetcher withholds validators when a redirect changes origin.
 
@@ -185,7 +186,7 @@ response stays refused. `onRequest` is called before each data request, not befo
 Defaults: three attempts, five redirect hops, 10-second DNS/connect timeout, 30-second response/read inactivity timeout, 1 GiB transfer limit and 60-second maximum retry delay. Transient connection failures, truncation, 408/429 and 500/502/503/504 may retry with jitter. Retry-After accepts seconds and HTTP dates; a value beyond the delay budget stops retries rather than retrying too soon. 401/403 and policy/content/cache rejections never retry. Requests still ask for identity encoding. If the publisher sends HTTP `Content-Encoding: gzip`, `deflate` (zlib-wrapped) or `br`, a streaming decoder enforces `maxDecompressedBytes` on actual emitted bytes before writing them. This cap defaults to `maxBytes`, so existing callers also bound decoded output. `maxBytes` independently bounds transfer bytes, and Content-Length is checked against that transfer count. Unsupported or stacked encodings fail with `unsupported_encoding`; invalid/incomplete compressed streams fail with `truncated`. Crossing either byte cap fails with `too_large`, destroys the streams and removes the staging directory and `payload.part` without publishing a snapshot. Stream backpressure bounds decoder buffering. The fetcher never writes the first chunk that crosses the cap.
 
 JSON requests send `Accept: application/json, */*;q=0.1` (some publishers answer 406 to a strict JSON-only Accept, e.g. issuer 66252 serves its index as text/plain). The client identifies itself as
-`openplans/0.4.2 (public health-plan source discovery; +<project URL>)`. Configure the public
+`openplans/0.4.3 (public health-plan source discovery; +<project URL>)`. Configure the public
 contact page with `OPENPLANS_PROJECT_URL` (or `FetchOptions.projectUrl`); the default is
 `https://plans.openhra.com/`, which contains the captcha-protected contact form. A self-hoster may point it at their own contact page. Credentials, contact-email literals, query
 values and fragments are rejected in this identity URL. It does not identify itself as a browser.

@@ -1,4 +1,3 @@
-import { homedir } from "node:os";
 import { createHash } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
@@ -38,6 +37,7 @@ import {
 import type { FetchBlobStore } from "./blob/index.js";
 import type { BlobStore } from "@openplans/plugin-sdk";
 import { scopeForbidsStorage } from "../plugins/request-scope.js";
+import { dataDirectory, egressCountry } from "../config/access.js";
 
 export interface SnapshotMetadata {
   snapshot_id: string;
@@ -512,7 +512,7 @@ async function requestChain(
     evidence.address = address.address;
     const headers: Record<string, string> = {
       "accept-encoding": "identity",
-      "user-agent": `openplans/0.4.2 (public health-plan source discovery; +${projectUrl(options)})`,
+      "user-agent": `openplans/0.4.3 (public health-plan source discovery; +${projectUrl(options)})`,
     };
     if (options.expectedContent === "json")
       headers.accept = "application/json, */*;q=0.1";
@@ -1131,7 +1131,7 @@ function implicitSession(
         (options.maxBytes ?? 1024 ** 3) + policyAllowanceBytes,
       ),
     },
-    { egressCountry: process.env.OPENPLANS_EGRESS_COUNTRY || undefined },
+    { egressCountry: egressCountry() },
   );
 }
 
@@ -1185,10 +1185,7 @@ async function acquire(
   const initial = checkedUrl(input, options.allowHosts);
   assertObservedHostAllowed(initial);
   // Built from components to keep the configurable external data cache independent of a checkout path.
-  const dataDir =
-    options.dataDir ??
-    process.env.OPENPLANS_DATA_DIR ??
-    join(homedir(), ".local", "share", "openplans");
+  const dataDir = options.dataDir ?? dataDirectory();
   if (!isAbsolute(dataDir))
     throw new FetchError(
       "invalid_options",

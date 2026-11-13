@@ -1,7 +1,8 @@
-import { readFile, rm, writeFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
 import * as v from "../../src/api/validation.js";
 import { replaceSyntax } from "../source-mutation.js";
+import { importMutant, withMutantFile } from "../mutant-file.js";
 
 type Validator = typeof v.publicQuoteRequest;
 // Synthetic request values only; no real person's data.
@@ -231,31 +232,25 @@ describe("public quote request allow-list", () => {
     ],
   ] as const)(
     "negative control: %s fails the refusal assertion",
-    async (kind, before, after, extra, code) => {
+    async (_kind, before, after, extra, code) => {
       const source = new URL("../../src/api/validation.ts", import.meta.url);
-      const temporary = new URL(
-        `../../src/api/.validation-mutant-${kind.replace(/ /g, "-")}.ts`,
-        import.meta.url,
-      );
-      await writeFile(
-        temporary,
+      await withMutantFile(
+        source,
         replaceSyntax(await readFile(source, "utf8"), before, after),
+        async (temporary) => {
+          const mutant = await importMutant<{
+            publicQuoteRequest: Validator;
+          }>(temporary, "publicQuoteRequest");
+          const assertion = () =>
+            expect(() =>
+              mutant.publicQuoteRequest({ ...base(), ...extra }),
+            ).toThrow(expect.objectContaining({ code }));
+          expect(assertion).toThrow();
+          expect(() => v.publicQuoteRequest({ ...base(), ...extra })).toThrow(
+            expect.objectContaining({ code }),
+          );
+        },
       );
-      try {
-        const mutant = (await import(/* @vite-ignore */ temporary.href)) as {
-          publicQuoteRequest: Validator;
-        };
-        const assertion = () =>
-          expect(() =>
-            mutant.publicQuoteRequest({ ...base(), ...extra }),
-          ).toThrow(expect.objectContaining({ code }));
-        expect(assertion).toThrow();
-        expect(() => v.publicQuoteRequest({ ...base(), ...extra })).toThrow(
-          expect.objectContaining({ code }),
-        );
-      } finally {
-        await rm(temporary, { force: true });
-      }
     },
   );
 });

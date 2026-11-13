@@ -1,11 +1,12 @@
 import { afterAll, beforeAll, expect, it } from "vitest";
-import { readFile, rm, writeFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import type { SqlSession } from "../../src/db/database.js";
 import { dataAvailability } from "../../src/services/availability.js";
 import { quotePlans } from "../../src/services/quotes.js";
 import type * as Quotes from "../../src/services/quotes.js";
 import { quoteBody, quoteFixture } from "../api/quote-fixture.js";
+import { importMutant, withMutantFile } from "../mutant-file.js";
 
 let fixture: Awaited<ReturnType<typeof quoteFixture>>;
 beforeAll(async () => {
@@ -78,16 +79,9 @@ async function unscopedQuotes() {
     ` (await dataAvailability(db)).filter(row => row.state === state && row.plan_year === year && (!issuers.size || issuers.has(row.issuer_id as string)))`,
   );
   expect(mutant).not.toBe(text);
-  const path = source.replace(
-    /quotes\.ts$/,
-    `.quotes-unscoped-${process.pid}.ts`,
+  return withMutantFile(source, mutant, (file) =>
+    importMutant<typeof Quotes>(file, "quotePlans"),
   );
-  await writeFile(path, mutant);
-  try {
-    return (await import(path)) as typeof Quotes;
-  } finally {
-    await rm(path, { force: true });
-  }
 }
 
 function requireQuoteBudget(evidence: unknown[][]) {

@@ -1,5 +1,4 @@
-import { randomUUID } from "node:crypto";
-import { readFile, writeFile, rm } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { createMcpHandler } from "@modelcontextprotocol/server";
 import { afterEach, expect, it } from "vitest";
@@ -18,6 +17,7 @@ import {
 } from "../../src/mcp/tools.js";
 import { replaceSyntax } from "../source-mutation.js";
 import { post } from "./transport-helpers.js";
+import { importMutant, plantMutantFile } from "../mutant-file.js";
 
 const unused: SqlSession = {
   query: async () => {
@@ -265,23 +265,15 @@ it.each([
   ],
 ] as const)("negative control: rejects %s", async (name, before, after) => {
   const source = new URL("../../src/mcp/server.ts", import.meta.url);
-  // The mutant sits next to server.ts so its relative imports resolve. The pid and
-  // a random suffix keep two test runs in the same checkout from writing, reading
-  // and deleting each other's copy.
-  const temporary = new URL(
-    `../../src/mcp/.server-list-mutant-${name.replaceAll(" ", "-")}-${process.pid}-${randomUUID()}.ts`,
-    import.meta.url,
-  );
-  await writeFile(
-    temporary,
+  const mutant = await plantMutantFile(
+    source,
     replaceSyntax(await readFile(source, "utf8"), before, after),
   );
   let handler: ReturnType<typeof createMcpHandler> | undefined;
   try {
-    const module = (await import(/* @vite-ignore */ temporary.href)) as {
+    const module = await importMutant<{
       buildServer: typeof buildServer;
-    };
-    expect(module.buildServer).toBeTypeOf("function");
+    }>(mutant.url, "buildServer");
     const plugin = name === "page size back to fifteen with sixteen tools";
     const pluginTools = plugin ? (await loadTools({ count: 1 })).tools! : [];
     const names =
@@ -335,6 +327,6 @@ it.each([
     }
   } finally {
     await handler?.close();
-    await rm(temporary, { force: true });
+    await mutant.cleanup();
   }
 });

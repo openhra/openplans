@@ -11,6 +11,7 @@ The plugin posts one short message for each of these events:
 | Event                          | Severity                                 | Example message                                                                      |
 | ------------------------------ | ---------------------------------------- | ------------------------------------------------------------------------------------ |
 | `release.deployed`             | info                                     | `OpenPlans: Release 1.4.0 deployed. Previous version: 1.3.2.`                        |
+| `release.rolled_back`          | warning                                  | `OpenPlans: Release rolled back from 1.4.0 to 1.3.2.`                                |
 | `ingest.failed`                | error                                    | `OpenPlans: Ingest failed for cms-puf: exit_1.`                                      |
 | `readiness.failed`             | error                                    | `OpenPlans: Readiness check bootstrap.migrate failed: exit_1.`                       |
 | `audit.failed`                 | error                                    | `OpenPlans: Audit step row_provenance failed: missing_rule.`                         |
@@ -18,8 +19,12 @@ The plugin posts one short message for each of these events:
 | `passthrough.breaker_open`     | warning                                  | `OpenPlans: Fallback paused for cms-marketplace-api after failed calls, until 2026-11-11T01:00:00.000Z.` |
 | `health.changed`               | info to `ok`, warning to `degraded`, error to `down` | `OpenPlans: Health of db changed from ok to degraded.`                   |
 
-Other catalog events get no message and never reach the plugin. That includes
-`release.rolled_back`, which was added to the catalog after these seven.
+Other catalog events get no message and never reach the plugin.
+
+`release.rolled_back` follows an operator's hard-release rollback. The message names the version
+the rollback left (`fromVersion`) and the version it went back to (`version`). Versions before
+0.2.0 have no message for it. The [operations guide](../../docs/plugins-operations.md#upgrade-to-slack-020)
+covers the upgrade and the new approved-list entry.
 
 The API emits `passthrough.budget_exhausted` once per source and UTC day, when the pass-through core
 refuses a call because that day's allowance is spent. A refusal for call spacing alone does not count.
@@ -55,7 +60,7 @@ restarts while events are held, the retries post them one by one, still within t
    `allowed` in an admission manifest (step 4).
 
 3. Add the plugin to the config file that `OPENPLANS_CONFIG` points at. Both options are
-   optional: `events` is a subset of the seven events above (default: all seven), and
+   optional: `events` is a subset of the eight events above (default: all eight), and
    `minSeverity` is `info`, `warning` or `error` (default: `info`). The plugin drops
    events below `minSeverity` without a message.
 

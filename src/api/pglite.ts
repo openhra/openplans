@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { loadConfig } from "../config/index.js";
+import { EnvironmentOnlyKeyError, loadConfig } from "../config/index.js";
 /** Developer-only native API/worker runner; requires dev dependencies, never PostGIS. */
 import { PGlite } from "@electric-sql/pglite";
 import { serve } from "@hono/node-server";
@@ -16,9 +16,11 @@ import { createApp } from "./app.js";
 let config: ReturnType<typeof loadConfig> | undefined;
 try {
   config = loadConfig(process.env, undefined, { port: 3001 });
-} catch {
+} catch (error) {
   console.error(
-    "Set an absolute OPENPLANS_PGLITE_DIR and a valid PORT (default 3001)",
+    error instanceof EnvironmentOnlyKeyError
+      ? error.message
+      : "Set an absolute OPENPLANS_PGLITE_DIR and a valid PORT (default 3001)",
   );
   process.exitCode = 1;
 }

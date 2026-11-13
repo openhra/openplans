@@ -3,7 +3,6 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { once } from "node:events";
-import { homedir } from "node:os";
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { resolve, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -13,12 +12,9 @@ import { createApp } from "../../../dist/api/app.js";
 import { ingestStateRates } from "../../../dist/ingest/state/index.js";
 import { importSbe } from "../../../dist/ingest/sbe/import.js";
 import { cachedSbe, sbePublications } from "../../../dist/ingest/sbe/source.js";
+import { dataDirectory } from "../../../dist/config/access.js";
 
-const data = resolve(
-  process.argv[2] ??
-    process.env.OPENPLANS_DATA_DIR ??
-    join(homedir(), ".local/share/openplans"),
-);
+const data = resolve(process.argv[2] ?? dataDirectory());
 const root = fileURLToPath(new URL("../../../", import.meta.url));
 const pg = new PGlite(),
   wrap = (tx) => ({

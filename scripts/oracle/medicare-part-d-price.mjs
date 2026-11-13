@@ -20,7 +20,9 @@
  *
  * Usage: DATABASE_URL=... node scripts/oracle/medicare-part-d-price.mjs [--cases FILE]
  *   [--reference FILE] [--archive SPUF_ZIP | --cached] [--optional] [--year 2026]
- * With --archive and no --reference, the Python reference runs on the archive first. --cached
+ * With --archive and no --reference, the Python reference runs on the archive first, with the
+ * cached CMS maximum fair price file when the data directory holds it (without it, selected
+ * drugs answer `maximum_fair_price_not_loaded` and differ from the application). --cached
  * takes the year's newest quarterly archive from the data directory instead, without network.
  * --optional (scripts/realdata.sh) prints SKIP and exits 0, writing no report, when there is no
  * database or no cached archive; it never turns a check that ran into a pass.
@@ -96,7 +98,31 @@ const FIGURES = [
   "total_lowest_fee",
   "total_highest_fee",
   "gross",
+  "maximum_fair_price_total",
 ];
+
+/**
+ * The cached CMS Selected Drug List and Maximum Fair Price zip pinned in drug-lists.json, or
+ * null. The reference reads it for drugs the formulary flags as selected.
+ */
+async function mfpFile() {
+  const lists = JSON.parse(
+    await readFile(
+      join(here, "../../data/medicare-part-d/drug-lists.json"),
+      "utf8",
+    ),
+  );
+  const doc = lists.documents.find(
+    (item) => item.id === lists.maximumFairPrices.document,
+  );
+  const path = join(dataDir, "raw", lists.cacheSource, doc.sha256, "payload");
+  try {
+    await readFile(path);
+    return path;
+  } catch {
+    return null;
+  }
+}
 const out = (figure) => {
   if (!figure) return { status: "unknown", reason: "no_figure" };
   if (figure.status === "value")
@@ -259,6 +285,7 @@ async function referenceAnswers(cached) {
       "reports",
       `medicare-part-d-price-reference-${year}.json`,
     );
+    const mfp = await mfpFile();
     const run = spawnSync(
       "python3",
       [
@@ -269,6 +296,7 @@ async function referenceAnswers(cached) {
         casesFile,
         "--output",
         file,
+        ...(mfp ? ["--mfp-file", mfp] : []),
       ],
       { stdio: ["ignore", "inherit", "inherit"] },
     );

@@ -180,7 +180,7 @@ The scheduler needs the same plugin variables as the API and worker. See the ove
 2. Write your access manifest with an `allowed` entry for `hooks.slack.com`, using the template in
    the [Slack README](../plugins/slack/README.md#setup).
 3. Add the plugin to the config file, as in the example above. `events` picks a subset of the
-   seven events, and `minSeverity` is `info`, `warning` or `error`. Both are optional.
+   eight events, and `minSeverity` is `info`, `warning` or `error`. Both are optional.
 4. Add the override from the variables section, set `OPENPLANS_ACCESS_MANIFEST_FILE` in `.env` to
    the manifest's host path, then recreate everything that loads plugins:
 
@@ -209,6 +209,38 @@ Switch it off:
   Deliveries still pending stay in the outbox, and nothing reads them while the plugin is off.
 - To be sure nothing more reaches the channel, delete the incoming webhook in Slack as well.
 
+### Upgrade to Slack 0.2.0
+
+Version 0.2.0 adds a message for `release.rolled_back`, at severity `warning`:
+`OpenPlans: Release rolled back from 1.4.0 to 1.3.2.` It shows the version the rollback left and
+the version it went back to, never the image ID. Rollback messages count toward the same 20 a
+minute as every other message.
+
+- Without an `events` option, the plugin posts rollbacks as soon as the new version loads.
+- With an `events` list, add `"release.rolled_back"` to it to get them. Version 0.1.0 refuses
+  that value with `plugin_options_invalid`, so change the list only together with the upgrade.
+- With `minSeverity` set to `error`, rollbacks are dropped.
+
+The new files give the plugin a new package hash, so the
+[approved list](#the-approved-plugin-list) needs a new entry. Replace the
+`@openplans/plugin-slack` entry for `0.1.0` with this one, and keep your other entries:
+
+```json
+[
+  {
+    "name": "@openplans/plugin-slack",
+    "version": "0.2.0",
+    "sha256": "06b2d48366308984ab001a46143c0d3314e91e2cbaeaa929770c82a3efce4004"
+  }
+]
+```
+
+That hash covers what the image holds of the plugin: `package.json` and `dist/`, built with the
+compiler in `package-lock.json`. Before you edit the file, start the new image on the side and
+read the Slack entry from `/status/operator.json`, as in [release preflight](#release-preflight)
+step 2. A different hash there means your build differs from this release. Review the plugin again
+before you approve it.
+
 ## Signed webhook
 
 The setup is the Slack setup with three variables, an entry for your receiver's host in the
@@ -219,6 +251,11 @@ signature, a Node receiver and the delivery rules. For a test, add `health.chang
 answers outside 2xx makes the outbox retry, so answer 204 and drop repeats by
 `X-OpenPlans-Event-Id`. Switch it off the same way as Slack, and rotate `OPENPLANS_WEBHOOK_SECRET`
 by changing it on the receiver and in `.env` together, then recreating the services.
+
+To hear about rollbacks, add `release.rolled_back` to the webhook's `events`. It carries the
+version and image the release went back to and the version it left (`version`, `imageId`,
+`fromVersion`). Slack posts it from version 0.2.0 on; see
+[upgrade to Slack 0.2.0](#upgrade-to-slack-020).
 
 ## Pass-through cache levels
 

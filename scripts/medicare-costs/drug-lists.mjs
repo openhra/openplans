@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Checks the pinned CMS drug lists behind the Part D cost engine's drug classes, and builds the
-// per-year selected-drug NDC lists from the cached CMS file.
+// per-year selected-drug NDC lists and maximum fair price periods from the cached CMS file.
 //
 //   node scripts/medicare-costs/drug-lists.mjs                         # structure and citations
 //   node scripts/medicare-costs/drug-lists.mjs --data-dir DIR          # also rehash the cache and
@@ -173,6 +173,78 @@ export function buildSelectedLists(csv, years = YEARS) {
   return out;
 }
 
+/** Column of the selected-drug file that holds the maximum fair price per unit. */
+export const MFP_UNIT_COLUMN = "NDC-9 MFP per Unit Price";
+const UNIT_PRICE = /^\$?(\d{1,3}(?:,\d{3})*|\d+)\.(\d{1,6})$/;
+
+/** A per-unit price cell ("$4.145072", "$8,979.645026") as a plain decimal string, or null. */
+export function unitPrice(value) {
+  const match = UNIT_PRICE.exec((value ?? "").trim());
+  if (!match) return null;
+  const text = `${match[1].replaceAll(",", "")}.${match[2]}`;
+  return Number(text) > 0 ? text : null;
+}
+
+/**
+ * Builds the maximum fair price periods of each year from the CMS file: every row in effect on
+ * some day of the year, with its per-unit price and its data row number. A row that ends before
+ * it starts records a deselection and never applies. A row in effect during the year with no
+ * readable per-unit price stops the build: the file would then not say what the price is.
+ */
+export function buildMaximumFairPrices(csv, years = YEARS) {
+  const [header, ...rows] = parseCsv(csv);
+  const names = [...SELECTED_COLUMNS, MFP_UNIT_COLUMN];
+  const columns = Object.fromEntries(
+    names.map((name) => [name, header.indexOf(name)]),
+  );
+  for (const [name, at] of Object.entries(columns))
+    if (at < 0) throw new Error(`selected-drug file has no ${name} column`);
+  const periods = [];
+  for (const [index, cells] of rows.entries()) {
+    if (cells.length === 1 && cells[0] === "") continue;
+    const row = index + 2;
+    const cell = (name) => (cells[columns[name]] ?? "").trim();
+    const ndc = cell("NDC-11").replaceAll("-", "");
+    if (!NDC11.test(ndc))
+      throw new Error(`row ${row}: NDC-11 ${cell("NDC-11")}`);
+    const from = usDate(cell("MFP Effective Date"));
+    if (!from) throw new Error(`row ${row}: effective date unreadable`);
+    const end = cell("MFP End Date");
+    const to = end ? usDate(end) : null;
+    if (end && !to) throw new Error(`row ${row}: end date unreadable`);
+    if (to && to < from) continue;
+    periods.push({ ndc, from, to, row, raw: cell(MFP_UNIT_COLUMN) });
+  }
+  const out = {};
+  for (const year of years) {
+    const start = `${year}-01-01`;
+    const last = `${year}-12-31`;
+    out[year] = periods
+      .filter((item) => item.from <= last && (item.to ?? last) >= start)
+      .map((item) => {
+        const price = unitPrice(item.raw);
+        if (!price)
+          throw new Error(
+            `row ${item.row}: ${MFP_UNIT_COLUMN} unreadable for ${year}`,
+          );
+        return {
+          ndc11: item.ndc,
+          from: item.from,
+          to: item.to,
+          unit_price: price,
+          row: item.row,
+        };
+      })
+      .sort(
+        (a, b) =>
+          a.ndc11.localeCompare(b.ndc11) ||
+          a.from.localeCompare(b.from) ||
+          a.row - b.row,
+      );
+  }
+  return out;
+}
+
 const REASONS = {
   nameOnly: "name_only_list_needs_rxnorm",
 };
@@ -280,6 +352,7 @@ export function drugListErrors(lists, otherManifests = []) {
     if (part(entry, "listed") === 0)
       errors.push(`selectedDrugs ${year}: no NDCs listed`);
   }
+  errors.push(...mfpErrors(lists, otherManifests, documents));
   for (const [index, list] of (lists.nameOnlyLists ?? []).entries()) {
     const at = `nameOnlyLists ${index + 1}`;
     if (!documents.has(list?.document)) errors.push(`${at}: unknown document`);
@@ -311,6 +384,60 @@ export function drugListErrors(lists, otherManifests = []) {
   }
   return errors;
 }
+const ISO = /^\d{4}-\d{2}-\d{2}$/;
+const DECIMAL = /^\d+\.\d{1,6}$/;
+
+/** Problems with the maximum fair price periods; they may cite the rule documents too. */
+function mfpErrors(lists, otherManifests, documents) {
+  const prices = lists.maximumFairPrices;
+  if (!isObject(prices)) return ["maximumFairPrices is missing"];
+  const errors = [];
+  if (
+    prices.document !== lists.selectedDrugs?.document ||
+    prices.member !== lists.selectedDrugs?.member
+  )
+    errors.push(
+      "maximumFairPrices: must come from the selected-drug file member",
+    );
+  if (prices.column !== MFP_UNIT_COLUMN)
+    errors.push(`maximumFairPrices: column must be ${MFP_UNIT_COLUMN}`);
+  if (!text(prices.rule)) errors.push("maximumFairPrices: rule is missing");
+  const cited = new Map(documents);
+  for (const manifest of otherManifests)
+    for (const doc of manifest?.documents ?? []) cited.set(doc.id, doc);
+  errors.push(...citationErrors("maximumFairPrices", prices.citations, cited));
+  const years = Object.keys(prices.years ?? {}).sort();
+  if (years.join() !== YEARS.join())
+    errors.push(
+      `maximumFairPrices: years must be ${YEARS.join(", ")}, not ${years.join(", ")}`,
+    );
+  for (const year of years) {
+    const list = prices.years[year];
+    if (!Array.isArray(list) || !list.length) {
+      errors.push(`maximumFairPrices ${year}: needs a list of periods`);
+      continue;
+    }
+    for (const item of list) {
+      const at = `maximumFairPrices ${year} ${item?.ndc11} row ${item?.row}`;
+      if (!NDC11.test(item?.ndc11 ?? ""))
+        errors.push(`${at}: ndc11 must be 11 digits`);
+      if (!ISO.test(item?.from ?? "")) errors.push(`${at}: from date`);
+      if (item?.to !== null && !ISO.test(item?.to ?? ""))
+        errors.push(`${at}: to must be a date or null`);
+      if (item?.to && item.to < item.from)
+        errors.push(`${at}: ends before it starts`);
+      if (
+        !DECIMAL.test(item?.unit_price ?? "") ||
+        !(Number(item.unit_price) > 0)
+      )
+        errors.push(`${at}: unit_price must be a positive decimal`);
+      if (!Number.isSafeInteger(item?.row) || item.row < 2)
+        errors.push(`${at}: row must be a data row number`);
+    }
+  }
+  return errors;
+}
+
 const part = (entry, name) =>
   Array.isArray(entry?.[name]) ? entry[name].length : 0;
 
@@ -337,8 +464,10 @@ export async function drugListCacheErrors(lists, dataDir) {
     ...(await memberPinErrors(lists, dataDir)),
   ];
   if (errors.length) return errors;
-  const rebuilt = buildSelectedLists(await selectedCsv(lists, dataDir));
-  for (const year of YEARS)
+  const csv = await selectedCsv(lists, dataDir);
+  const rebuilt = buildSelectedLists(csv);
+  const prices = buildMaximumFairPrices(csv);
+  for (const year of YEARS) {
     if (
       JSON.stringify(rebuilt[year]) !==
       JSON.stringify(lists.selectedDrugs.years[year])
@@ -346,6 +475,14 @@ export async function drugListCacheErrors(lists, dataDir) {
       errors.push(
         `selectedDrugs ${year}: differs from a rebuild of the cached file`,
       );
+    if (
+      JSON.stringify(prices[year]) !==
+      JSON.stringify(lists.maximumFairPrices?.years?.[year])
+    )
+      errors.push(
+        `maximumFairPrices ${year}: differs from a rebuild of the cached file`,
+      );
+  }
   return errors;
 }
 
@@ -356,9 +493,9 @@ async function main(argv) {
   const lists = await readJson(drugListsFile);
   if (argv.includes("--write")) {
     if (!dataDir) throw new Error("--write needs --data-dir");
-    lists.selectedDrugs.years = buildSelectedLists(
-      await selectedCsv(lists, resolve(dataDir)),
-    );
+    const csv = await selectedCsv(lists, resolve(dataDir));
+    lists.selectedDrugs.years = buildSelectedLists(csv);
+    lists.maximumFairPrices.years = buildMaximumFairPrices(csv);
     await writeFile(drugListsFile, `${JSON.stringify(lists, null, 2)}\n`);
   }
   const others = [

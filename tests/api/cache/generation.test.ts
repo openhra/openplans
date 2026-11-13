@@ -18,6 +18,10 @@ import { createApp } from "../../../src/api/app.js";
 import { createResponseCache } from "../../../src/api/cache/index.js";
 import { dataGeneration } from "../../../src/api/cache/generation.js";
 import { MemoryCache } from "../../../src/api/cache/store.js";
+import {
+  checkCatalogTriggers,
+  STAGED_CATALOG_TABLES,
+} from "../../../src/plugins/testing/checks.js";
 import { migrate } from "../../../src/db/migrate.js";
 import { ingestGeo } from "../../../src/ingest/geo/index.js";
 import { zipToCounties } from "../../../src/ingest/geo/repository.js";
@@ -153,6 +157,26 @@ describe("transactional catalog generations", () => {
     const inserted = await dataGeneration(db);
     await db.exec("TRUNCATE synthetic_generation_copy");
     expect(await dataGeneration(db)).not.toBe(inserted);
+  });
+  it("staged Part D price tables keep served-row triggers, and the catalog check names a missing one", async () => {
+    expect(await checkCatalogTriggers(db)).toEqual([]);
+    await db.exec(
+      "ALTER TABLE partd_plan_unit_cost DISABLE TRIGGER api_data_served_insert",
+    );
+    try {
+      expect(await checkCatalogTriggers(db)).toEqual([
+        "partd_plan_unit_cost: no api_data_served_insert trigger",
+      ]);
+    } finally {
+      await db.exec(
+        "ALTER TABLE partd_plan_unit_cost ENABLE TRIGGER api_data_served_insert",
+      );
+    }
+    const { rows } = await db.query<{ table_name: string }>(
+      `SELECT DISTINCT c.relname AS table_name FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid
+       WHERE t.tgfoid=to_regproc('bump_api_data_generation_partd_served') ORDER BY 1`,
+    );
+    expect(rows.map((row) => row.table_name)).toEqual(STAGED_CATALOG_TABLES);
   });
   it("negative control: a public table without a generation trigger fails the guard", async () => {
     await db.exec("CREATE TABLE synthetic_missing_generation(id integer)");

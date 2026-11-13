@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-import { homedir } from "node:os";
 /** Read-only per-state HTTP validation against an explicitly selected loopback developer DB. */
 import pg from "pg";
 import { serve } from "@hono/node-server";
@@ -8,10 +7,9 @@ import { join } from "node:path";
 import { createDatabase } from "../../db/database.js";
 import { createApp } from "../../api/app.js";
 import type { SqlSession } from "../../db/database.js";
+import { dataDirectory } from "../../config/access.js";
 
-const cache =
-  process.env.OPENPLANS_DATA_DIR ??
-  join(homedir(), ".local", "share", "openplans");
+const cache = dataDirectory();
 const url = process.env.OPENPLANS_QHP_DATABASE_URL;
 const state = process.env.OPENPLANS_QHP_STATE ?? "TX";
 const year = Number(process.env.OPENPLANS_QHP_YEAR ?? 2026);

@@ -1,4 +1,7 @@
-import { afterAll, afterEach, beforeAll, expect, it } from "vitest";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterAll, afterEach, beforeAll, expect, it, vi } from "vitest";
 import { BASE, headers, searchBody, setup } from "./helpers.js";
 
 let h: Awaited<ReturnType<typeof setup>>;
@@ -16,6 +19,7 @@ afterAll(async () => {
 });
 afterEach(() => {
   delete process.env.OPENPLANS_COMPAT_CATASTROPHIC_AGE_RULE;
+  vi.unstubAllEnvs();
 });
 
 const search = async (extra: Record<string, unknown>) => {
@@ -69,4 +73,25 @@ it("negative control: requesting the catastrophic plan by id at age 30 reports i
   expect(result.ids).toEqual([]);
   expect(result.gaps).toContain(`public_plan_unavailable:${CATASTROPHIC}`);
   expect(result.gaps).toContain("catastrophic_requires_exemption");
+});
+
+it("reads compat.catastrophicAgeRule from the config file, with the environment overriding it", async () => {
+  const directory = mkdtempSync(join(tmpdir(), "openplans-catastrophic-"));
+  try {
+    const file = join(directory, "config.json");
+    writeFileSync(
+      file,
+      JSON.stringify({ version: 1, compat: { catastrophicAgeRule: true } }),
+    );
+    vi.stubEnv("OPENPLANS_CONFIG", file);
+    vi.stubEnv("OPENPLANS_COMPAT_CATASTROPHIC_AGE_RULE", undefined);
+    // Ages unused above, so no cached answer from an earlier test applies.
+    const ruled = await search(applicants(41));
+    expect(ruled.ids).not.toContain(CATASTROPHIC);
+    expect(ruled.gaps).toContain("catastrophic_requires_exemption");
+    vi.stubEnv("OPENPLANS_COMPAT_CATASTROPHIC_AGE_RULE", "off");
+    expect((await search(applicants(42))).ids).toContain(CATASTROPHIC);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
 });

@@ -194,7 +194,7 @@ describe("medicare", () => {
     await mutant<typeof MedicareAcquire>(
       "ingest/medicare/acquire.ts",
       "sidecarNames(dataDir, source)",
-      `${fsRead}.readdir(join(dataDir, "raw", source))`,
+      `${fsRead}.readdir((await import("node:path")).join(dataDir, "raw", source))`,
       async (module) => {
         expect(await module.cachedArchives("landscape", root)).toEqual([]);
       },

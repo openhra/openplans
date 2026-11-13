@@ -20,6 +20,7 @@ import {
   startHostStorage,
 } from "../../src/plugins/host-storage.js";
 import { providerTables } from "../../src/plugins/providers.js";
+import { plantMutantFile } from "../mutant-file.js";
 
 // The built entry points, started as production starts them. The database address is synthetic
 // and unreachable; the synthetic providers never connect anywhere.
@@ -155,27 +156,24 @@ function start(
   });
 }
 
-/** A copy of a built entry point next to the original, so its relative imports resolve. */
-async function mutant(
-  path: string,
-  edit: (source: string) => string,
-): Promise<string> {
+/** A planted copy of a built entry point; its relative imports point at the originals. */
+async function mutant(path: string, edit: (source: string) => string) {
   const original = await readFile(dist(path), "utf8");
   const changed = edit(original);
   expect(changed).not.toBe(original);
-  const file = dist(path.replace(/([^/]+)$/, ".host-storage-mutant-$1"));
-  cleanup.push(file);
-  await writeFile(file, changed);
-  return file;
+  return plantMutantFile(dist(path), changed);
 }
 
 // The planted bypass: every database open goes straight to the pg pool, as before this change.
+// It also writes a marker to stderr, so a test can tell the copy loaded and ran.
+const BYPASS_LOADED = "synthetic bypass copy loaded";
 const bypass = (source: string) =>
   source
     .replace(
       /^((?:#!.*\n)?)/,
       '$1import { createDatabase as bypassCreate } from "../db/database.js";\n' +
-        "const bypassOpen = (config, connection) => bypassCreate(connection ?? config.db.connectionString?.reveal());\n",
+        "const bypassOpen = (config, connection) => bypassCreate(connection ?? config.db.connectionString?.reveal());\n" +
+        `console.error(${JSON.stringify(BYPASS_LOADED)});\n`,
     )
     .replaceAll("openHostDatabase(", "bypassOpen(");
 
@@ -232,8 +230,13 @@ describe("entry points select storage providers from config (design 5.7)", () =>
         }[entry],
         bypass,
       );
-      const result = await run(entry, { OPENPLANS_CONFIG: path }, file);
-      expect(result.stderr).not.toContain(DB_MARKER);
+      try {
+        const result = await run(entry, { OPENPLANS_CONFIG: path }, file.path);
+        expect(result.stderr).toContain(BYPASS_LOADED);
+        expect(result.stderr).not.toContain(DB_MARKER);
+      } finally {
+        await file.cleanup();
+      }
     },
     30_000,
   );
@@ -276,19 +279,27 @@ describe("entry points select storage providers from config (design 5.7)", () =>
         .replace("if (missing) {", "if (false) {")
         .replace("config.db.provider,", '"pg",'),
     );
-    const file = await mutant("api/server.js", (source) =>
-      source.replace(
-        '"../plugins/host-storage.js"',
-        JSON.stringify(`../plugins/${checker.split("/").pop()}`),
-      ),
-    );
-    const path = await configFile("unknown-accepted", {
-      plugins: [],
-      db: { provider: "synthetic-missing" },
-    });
-    const result = await run("api", { OPENPLANS_CONFIG: path }, file);
-    expect(result.stderr).not.toContain(refusal("db.provider"));
-    expect(result.stdout).toContain("listening");
+    try {
+      const file = await mutant("api/server.js", (source) =>
+        source.replace(
+          '"../plugins/host-storage.js"',
+          JSON.stringify(checker.url.href),
+        ),
+      );
+      try {
+        const path = await configFile("unknown-accepted", {
+          plugins: [],
+          db: { provider: "synthetic-missing" },
+        });
+        const result = await run("api", { OPENPLANS_CONFIG: path }, file.path);
+        expect(result.stderr).not.toContain(refusal("db.provider"));
+        expect(result.stdout).toContain("listening");
+      } finally {
+        await file.cleanup();
+      }
+    } finally {
+      await checker.cleanup();
+    }
   }, 30_000);
 
   it("without a config file, the API output is unchanged and pg stays selected", async () => {

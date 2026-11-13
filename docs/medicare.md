@@ -111,7 +111,11 @@ Each range names the network file members it came from and the SHA-256 of each m
 files call the selected-drug fee `SELECTED_DISPENSING_FEE_30`, `_60` and `_90`, but the record
 layout says `SELECTED_DRUG_DISPENSING_FEE_30`. The importer accepts either spelling. On a release
 that is already loaded, importing a large table adds it to that release and leaves the core tables
-alone. Drug-cost estimates read unit costs and fee ranges only with
+alone. Unit costs live in `partd_plan_unit_cost` (migration 1004). Pricing imported before that
+migration reads as not loaded, so import it again with `--tables pricing`. A table can also be
+written in short batches with `stageLargeTable` (`src/ingest/medicare/spuf.ts`), which leaves it
+off the release's `tables` list until the caller adds it. While such staged rows exist, the
+one-transaction import refuses to add that table; finish the staged load instead. Drug-cost estimates read unit costs and fee ranges only with
 `price_basis: "cms_plan_average"`, behind its own switch. See
 [Plan-average prices](#plan-average-prices).
 
@@ -172,7 +176,9 @@ guess and never zero.
 - Every figure is `{status, cents, reason, evidence_refs}`. `status` is `value`, `bounded` or
   `unknown`. A `bounded` figure has `cents: null` and adds `minimum_cents` and `maximum_cents`.
   The refs are ids in one top-level `evidence` list, which holds each source row, PBP row, fee
-  range, rule citation and request field once.
+  range, rule citation and request field once. Each fill's `status` follows its patient pay:
+  `estimated` for a value, `bounded` or `unknown`. The estimate's own `status` is `estimated`
+  when every fill's patient pay is a value, `partial` when some are and `unknown` when none is.
 - The plan file has one row per county, so a plan can file the same deductible and SNP code on
   ninety rows or more. When every county row holds the same raw value in each cited field, the
   answer lists them as one `source_rows` item. That item gives the snapshot, the table, the
@@ -252,6 +258,23 @@ as `unit_cost_total`, `total_lowest_fee` and `total_highest_fee`, with `gross` b
 cites the pricing row (snapshot, table and row number) and the fee range, which names its
 snapshot, source files, the SHA-256 of each file and its first row.
 
+A selected drug is priced from its maximum fair price instead of the plan-average unit cost. The
+negotiated price of a selected drug can be no more than the maximum fair price plus the dispensing
+fee, and CMS prices its worked example at exactly that amount. The estimator takes the price per
+unit in effect on the fill date from the CMS Selected Drug List and Maximum Fair Price file. `data/medicare-part-d/drug-lists.json` pins that file with the other CMS drug lists. The price is
+multiplied by the quantity and rounded to the cent, then priced two ways: plus the lowest and plus
+the highest selected-drug fee. The maximum fair price leaves out the fee, so there is no reading
+without one, and a floor price cannot raise the amount. The `price` block reports
+`ingredient: "maximum_fair_price"`, the per-unit price with its effective dates, and
+`maximum_fair_price_total`. Its evidence cites the row of the CMS file. `unit_cost_total` stays as information.
+`total_lowest_fee` and `total_highest_fee` are the maximum fair price plus each fee. A selected
+drug with no price in effect on the fill date has an unknown gross cost
+(`maximum_fair_price_not_in_effect`). The plan average is never used in its place. When the
+formulary flag and the CMS list disagree, the program stays open and both ways count
+(`ingredient: "open"`). The gross cost is then a value only when both give the same cents, and
+otherwise unknown with `maximum_fair_price_may_apply`. Any other drug reports
+`maximum_fair_price_total` as unknown with `drug_not_selected`.
+
 When all three agree to the cent, a figure is a `value`. When they differ, the gross cost is
 `bounded`. It lies somewhere from the unit cost plus the lowest fee to the unit cost plus the
 highest fee, both ends included. The answer does not know where in that range a real claim falls
@@ -272,8 +295,7 @@ What stays unknown on this basis, each with its reason:
   pricing row (`unit_cost_not_published`) and a zero or blank unit cost (`unit_cost_unreadable`).
 - Every year whose loaded release has no pricing file. The 2027 monthly files carry none, so
   2027 answers `pricing_not_published_for_year` until CMS posts a quarterly file for that year.
-- Prices at a named pharmacy, the selected-drug maximum fair price, and anything listed under
-  "What it does not do yet".
+- Prices at a named pharmacy, and anything listed under "What it does not do yet".
 
 ### Switches and access
 
@@ -339,8 +361,12 @@ An unknown figure names its reason. When several readings disagree, their reason
 | Reason                                                                                                             | Meaning                                                                                                                                                              |
 | ------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `pricing_not_loaded`                                                                                               | The fill has no price, so its amount cannot be split between phases.                                                                                                 |
-| `dispensing_fee_unknown`                                                                                           | The amount depends on a dispensing fee the files do not settle, or no pharmacy lists a readable fee.                                                                 |
+| `dispensing_fee_unknown`                                                                                           | The amount depends on a dispensing fee the files do not settle, no pharmacy lists a readable fee, or the plan has no in-area pharmacy for the channel and supply.    |
 | `floor_price_may_apply`                                                                                            | A pharmacy's floor price could exceed the plan-average price, and the files do not say how it applies.                                                               |
+| `maximum_fair_price_not_in_effect`, `maximum_fair_price_not_pinned`                                                | A selected drug has no maximum fair price in effect on the fill date, or none is pinned for the year. The plan average is never used instead.                        |
+| `maximum_fair_price_rows_disagree`                                                                                 | Two rows of the CMS file in effect on the fill date give different prices for the NDC.                                                                               |
+| `maximum_fair_price_may_apply`                                                                                     | Whether the drug is selected is open, and the maximum fair price and the plan average give different amounts.                                                        |
+| `drug_not_selected`                                                                                                | Only on `maximum_fair_price_total`: the drug is not a selected drug, so it has no maximum fair price.                                                                |
 | `cost_sharing_not_monotonic_in_price`                                                                              | Patient pay does not rise with the price, so the lowest and highest fee do not bound it.                                                                             |
 | `unit_cost_retail_only`, `unit_cost_not_published`, `unit_cost_unreadable`                                         | A mail-order fill, no pricing row for the plan, NDC and days supply, or a zero or blank unit cost.                                                                   |
 | `price_days_supply_not_published`, `quantity_unit_not_ndc_unit`, `proxy_ndc_ambiguous`                             | The days supply is not 30, 60 or 90, the unit is not `ndc_unit`, or several proxy NDCs are listed and none was chosen.                                               |
@@ -387,7 +413,7 @@ in `tests/api/medicare-drug-names.test.ts` check exact name matches, missing ter
 releases, synonym selection and unchanged flag-off responses. Moving a loaded name to another RxCUI
 must fail the expected-name assertion.
 
-The drug-cost estimator has two checks.
+The drug-cost estimator has three checks.
 
 - `tests/ingest/medicare/medicare-cost-oracle.test.ts` runs the CMS worked examples in
   `tests/fixtures/medicare-costs/oracles.json` end to end. Each example's plan is a synthetic edit
@@ -399,6 +425,12 @@ The drug-cost estimator has two checks.
   the example states. Everything else comes from the imported rows. Five planted mutants must each
   break an example: the price dropped, 2027 rules used for 2026, an enhanced alternative filing
   read as basic, the selected-drug flag ignored and the plan deductible ignored.
+  The same test runs every example again with `price_basis: "cms_plan_average"`, from synthetic
+  pricing and fee-range rows. The example's ingredient cost comes from the unit cost, or for a
+  selected drug from its maximum fair price in the pinned CMS file. Both transports must match the example and cite the
+  pricing row and fee range. Five more planted mutants must each break an example: the fee
+  dropped, the brand fee charged for a selected drug, the quantity read as one unit, the plan
+  average used for a selected drug and a maximum fair price used for a drug that is not selected.
 - `scripts/realdata.sh` runs `scripts/oracle/medicare-cost.mjs` for each year with cached Part D,
   Landscape and PBP archives. It imports them into a throwaway database, turns both switches on and
   asks the HTTP route, for every Part D plan, about the lowest RxCUI on each formulary tier and the
@@ -414,3 +446,11 @@ The drug-cost estimator has two checks.
   them target grouped county rows: a row dropped from a group, a group without its shared values
   and an MCP answer that no longer matches the HTTP body. The counts of calculated and unknown results, by reason, go to
   `reports/medicare-cost-oracle-<year>.json` under the data directory.
+- `scripts/realdata.sh` also runs `scripts/oracle/medicare-part-d-price.mjs` for 2026 when
+  `OPENPLANS_PRICE_CHECK_DATABASE_URL` names a database that holds the year's quarterly release
+  with its pricing and dispensing-fee tables. It prices a fixed sample of 200 plans
+  (`scripts/oracle/medicare-part-d-price-cases.json`) through the estimate service and compares
+  each answer with a separate Python reading of the cached archive. A bounded answer matches only
+  when its ends equal that reading's lowest-fee and highest-fee amounts. Without the database or
+  the archive the step prints `SKIP`. The report goes to
+  `reports/medicare-part-d-price-<year>.json` under the data directory.

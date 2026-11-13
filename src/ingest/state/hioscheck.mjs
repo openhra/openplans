@@ -5,7 +5,6 @@ import assert from "node:assert/strict";
 import { createHash, randomUUID } from "node:crypto";
 import { once } from "node:events";
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
-import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -16,13 +15,10 @@ import { stateCatalog } from "../../../dist/ingest/state/catalog.js";
 import { ingestStateRates } from "../../../dist/ingest/state/index.js";
 import { importSbe } from "../../../dist/ingest/sbe/import.js";
 import { cachedSbe, sbePublications } from "../../../dist/ingest/sbe/source.js";
+import { dataDirectory } from "../../../dist/config/access.js";
 
 const root = fileURLToPath(new URL("../../../", import.meta.url));
-const data = resolve(
-  process.argv[2] ??
-    process.env.OPENPLANS_DATA_DIR ??
-    join(homedir(), ".local/share/openplans"),
-);
+const data = resolve(process.argv[2] ?? dataDirectory());
 const work = join(data, "work/p8d"),
   reports = join(data, "reports");
 await mkdir(work, { recursive: true });

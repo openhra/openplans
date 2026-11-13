@@ -35,6 +35,7 @@ import { ratePremium } from "./premiums.js";
 import { agreedField, familyOffer } from "./coverage-family.js";
 import type { estimatePremium } from "./premiums.js";
 import type { premiumRequest } from "../api/validation.js";
+import { isReasonCode } from "../api/reason-codes.js";
 
 type Request = ReturnType<typeof premiumRequest>;
 type Location = Awaited<ReturnType<typeof resolveLocation>>;
@@ -415,8 +416,8 @@ export async function householdSubsidy(
     status: b.status,
     reason:
       b.status === "location_requires_zip"
-        ? "zip_limited_service_area"
-        : b.status,
+        ? ZIP_LIMITED
+        : (b.issues.find(isReasonCode) ?? b.status),
     slcsp_monthly_cents: b.slcsp_monthly_cents,
     benchmark: b,
     rounding_policy: "form_8962_lines_8a_8b_whole_dollars" as const,

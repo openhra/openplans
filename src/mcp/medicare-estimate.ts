@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { MEDICARE_REASON_CODES, reasonCodeList } from "../api/reason-codes.js";
 import type {
   McpServer,
   JsonSchemaType,
@@ -72,6 +73,7 @@ export const estimateInputSchema = z.strictObject({
 });
 
 const label = z.string().min(1).max(240);
+const reason = label.describe(reasonCodeList(MEDICARE_REASON_CODES));
 const cents = z.int().min(0).max(Number.MAX_SAFE_INTEGER);
 const refs = z.array(z.string().min(1).max(32)).max(10_000);
 /**
@@ -90,13 +92,13 @@ const figureSchema = z.discriminatedUnion("status", [
     cents: z.null(),
     minimum_cents: cents,
     maximum_cents: cents,
-    reason: label,
+    reason,
     evidence_refs: refs,
   }),
   z.strictObject({
     status: z.literal("unknown"),
     cents: z.null(),
-    reason: label.nullable(),
+    reason: reason.nullable(),
     evidence_refs: refs,
   }),
 ]);
@@ -111,7 +113,7 @@ const head = {
 const closedSchema = z.strictObject({
   ...head,
   status: z.enum(["unknown", "unsupported"]),
-  reason: label,
+  reason,
   as_of: z.string().max(64).nullable(),
 });
 const evidenceItemSchema = z.looseObject({
@@ -134,6 +136,7 @@ const priceSchema = z.looseObject({
     total_lowest_fee: figureSchema,
     total_highest_fee: figureSchema,
     gross: figureSchema,
+    maximum_fair_price_total: figureSchema,
   }),
 });
 const fillSchema = z.looseObject({

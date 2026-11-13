@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { loadConfig } from "../config/index.js";
+import { EnvironmentOnlyKeyError, loadConfig } from "../config/index.js";
 import type { CoreConfig } from "../config/index.js";
 import { realpathSync } from "node:fs";
 import { pathToFileURL } from "node:url";
@@ -84,9 +84,13 @@ if (
       process.once("SIGINT", stop);
       process.once("SIGTERM", stop);
     }
-  } catch {
+  } catch (error) {
     await plugins.teardown();
-    console.error("MCP startup failed; check DATABASE_URL");
+    console.error(
+      error instanceof EnvironmentOnlyKeyError
+        ? error.message
+        : "MCP startup failed; check DATABASE_URL",
+    );
     process.exitCode = 1;
   }
 }

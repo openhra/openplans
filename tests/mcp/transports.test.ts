@@ -1,4 +1,7 @@
-import { symlink, rm } from "node:fs/promises";
+import { mkdtemp, symlink, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
 import { createApp } from "../../src/api/app.js";
 import {
@@ -252,15 +255,20 @@ it("mounts MCP without applying its Host/Origin checks to REST health", async ()
   ).toBe(403);
 });
 it("modern official stdio client reads resources through the executable symlink", async () => {
-  const temporary = new URL("../../dist/mcp/.stdio-entry", import.meta.url);
-  await symlink("stdio.js", temporary);
+  // The link lives in a fresh temp folder, so two runs in one checkout never share it.
+  const directory = await mkdtemp(join(tmpdir(), "openplans-stdio-entry-"));
+  const link = join(directory, "stdio-entry");
+  await symlink(
+    fileURLToPath(new URL("../../dist/mcp/stdio.js", import.meta.url)),
+    link,
+  );
   const client = new Client(
     { name: "synthetic-stdio-modern-client", version: "1" },
     { versionNegotiation: { mode: { pin: "2026-07-28" } } },
   );
   const transport = new StdioClientTransport({
     command: process.execPath,
-    args: [temporary.pathname],
+    args: [link],
     env: { DATABASE_URL: "postgresql://synthetic@127.0.0.1:1/synthetic" },
     stderr: "pipe",
   });
@@ -276,6 +284,6 @@ it("modern official stdio client reads resources through the executable symlink"
     ).toBe("application/json");
   } finally {
     await client.close();
-    await rm(temporary, { force: true });
+    await rm(directory, { recursive: true, force: true });
   }
 });

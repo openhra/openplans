@@ -1,5 +1,5 @@
 import { replaceSyntax } from "../../source-mutation.js";
-import { readFile, rm, writeFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createResponseCache } from "../../../src/api/cache/index.js";
 import type { CacheOutcome } from "../../../src/api/cache/index.js";
@@ -7,6 +7,7 @@ import { MemoryCache } from "../../../src/api/cache/store.js";
 import { MAX_ENTRY_BYTES } from "../../../src/api/cache/resp.js";
 import type { CacheStore } from "../../../src/api/cache/store.js";
 import type { SqlSession } from "../../../src/db/database.js";
+import { importMutant, withMutantFile } from "../../mutant-file.js";
 
 const db = {
   query: async () => {
@@ -175,46 +176,43 @@ it.each([
   "negative control: removing %s protection fails its contract",
   async (kind, before, after) => {
     const source = new URL("../../../src/api/cache/index.ts", import.meta.url);
-    const temporary = new URL(
-      `../../../src/api/cache/.catalog-mutant-${kind}.ts`,
-      import.meta.url,
-    );
     const original = await readFile(source, "utf8");
-    await writeFile(temporary, replaceSyntax(original, before, after));
-    try {
-      const mutant = (await import(/* @vite-ignore */ temporary.href)) as {
-        createResponseCache: typeof createResponseCache;
-      };
-      async function contract(factory: typeof createResponseCache) {
-        const h = harness(factory);
-        if (kind === "generation") {
-          await h.read();
-          await h.read({ generation: "synthetic-generation-2" });
-          expect(h.outcomes).toEqual(["miss", "miss"]);
-        } else if (kind === "authorization") {
-          await h.read();
-          const denied = await h.read(
-            { authorized: () => false },
-            async () => ({ public_label: "AUTH_REQUIRED" }),
-          );
-          expect(denied.public_label).toBe("AUTH_REQUIRED");
-          expect(h.reads()).toBe(1);
-        } else {
-          await h.cache.catalog(request, async () =>
-            kind === "household"
-              ? {
-                  public_label: "Synthetic public DTO",
-                  household_income_annual: 41000,
-                }
-              : { error: { code: "SYNTHETIC_FAILURE" } },
-          );
-          expect(h.stored).toEqual([]);
+    await withMutantFile(
+      source,
+      replaceSyntax(original, before, after),
+      async (temporary) => {
+        const mutant = await importMutant<{
+          createResponseCache: typeof createResponseCache;
+        }>(temporary, "createResponseCache");
+        async function contract(factory: typeof createResponseCache) {
+          const h = harness(factory);
+          if (kind === "generation") {
+            await h.read();
+            await h.read({ generation: "synthetic-generation-2" });
+            expect(h.outcomes).toEqual(["miss", "miss"]);
+          } else if (kind === "authorization") {
+            await h.read();
+            const denied = await h.read(
+              { authorized: () => false },
+              async () => ({ public_label: "AUTH_REQUIRED" }),
+            );
+            expect(denied.public_label).toBe("AUTH_REQUIRED");
+            expect(h.reads()).toBe(1);
+          } else {
+            await h.cache.catalog(request, async () =>
+              kind === "household"
+                ? {
+                    public_label: "Synthetic public DTO",
+                    household_income_annual: 41000,
+                  }
+                : { error: { code: "SYNTHETIC_FAILURE" } },
+            );
+            expect(h.stored).toEqual([]);
+          }
         }
-      }
-      await expect(contract(createResponseCache)).resolves.toBeUndefined();
-      await expect(contract(mutant.createResponseCache)).rejects.toThrow();
-    } finally {
-      await rm(temporary, { force: true });
-    }
+        await expect(contract(createResponseCache)).resolves.toBeUndefined();
+        await expect(contract(mutant.createResponseCache)).rejects.toThrow();
+      },
+    );
   },
 );

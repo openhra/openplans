@@ -149,7 +149,7 @@ export const coreConfigSchema = z
         .record(z.string().regex(/^\d{5}$/), z.literal("cms-sbe"))
         .default({}),
     }),
-    // These readers migrate later; their defaults depend on the selected runner or Compose service.
+    // Environment only: the file refuses these sections (see environmentOnlyPaths).
     compose: section({
       user: text,
       password: secret,
@@ -260,7 +260,7 @@ const list = (value: string) =>
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
-// Every documented variable has one destination, including options whose readers migrate later.
+// Every documented variable has one destination; environmentOnlyPaths lists those the file refuses.
 export const environmentPaths = {
   DATABASE_URL: "db.connectionString",
   PORT: "listen.port",
@@ -339,6 +339,46 @@ export const environmentPaths = {
   OPENPLANS_COMPOSE_PROJECT: "runners.composeProject",
   OPENPLANS_SMOKE_TMPDIR: "runners.smokeTmpdir",
 } as const;
+/**
+ * Keys the environment fills but the config file may not set, because their readers take the
+ * environment variable directly: Compose interpolation, the geocoder and developer runners, the
+ * CMS key that fetch admission reads by name, and the egress record that every fetch session
+ * binds. A file that sets one is refused at startup instead of being ignored.
+ */
+const environmentOnlySections = ["compose", "geocoder", "runners"];
+export const environmentOnlyPaths: ReadonlyMap<string, string> = new Map(
+  Object.entries(environmentPaths)
+    .filter(
+      ([, path]) =>
+        environmentOnlySections.includes(path.split(".")[0]!) ||
+        [
+          "cmsFallback.apiKey",
+          "access.egressFile",
+          "access.egressSha256",
+        ].includes(path),
+    )
+    .map(([name, path]) => [path, name]),
+);
+
+/** A config file key that must come from the environment; the message names both. */
+export class EnvironmentOnlyKeyError extends Error {
+  constructor(path: string, variable: string) {
+    super(
+      `OPENPLANS_CONFIG sets ${path}, which is read only from the environment; set ${variable} instead`,
+    );
+    this.name = "EnvironmentOnlyKeyError";
+  }
+}
+
+function refuseEnvironmentOnlyKeys(settings: Record<string, unknown>): void {
+  for (const [path, variable] of environmentOnlyPaths) {
+    const [group, field] = path.split(".") as [string, string];
+    const section = settings[group];
+    if (section && typeof section === "object" && Object.hasOwn(section, field))
+      throw new EnvironmentOnlyKeyError(path, variable);
+  }
+}
+
 const publicSwitches = new Set([
   "OPENPLANS_PUBLIC_QUOTING",
   "OPENPLANS_PUBLIC_HOUSEHOLD",
@@ -407,6 +447,7 @@ export function loadConfig(
     ? envelope.data
     : {};
   delete settings.version;
+  refuseEnvironmentOnlyKeys(settings);
   if (defaults.port !== undefined)
     settings.listen = { port: defaults.port, ...Object(settings.listen) };
   for (const [name, path] of Object.entries(environmentPaths)) {
@@ -443,6 +484,8 @@ export function loadConfig(
   }
   const config = result.data;
   if (config.cache.url) config.cache.provider = "valkey";
+  // The data directory roots local blobs unless the file names its own blob root.
+  config.blobs.root ??= config.access.dataDir;
   const port = env.PORT ?? String(config.listen.port);
   return freeze({
     ...config,

@@ -1,6 +1,4 @@
 import { randomBytes } from "node:crypto";
-import { homedir } from "node:os";
-import { join } from "node:path";
 import {
   FEED_REASON_CODE,
   FEED_SOURCE_ID,
@@ -34,6 +32,7 @@ import type {
 } from "../../fetch/index.js";
 import { provenanceUrl } from "../../fetch/policy.js";
 import { hostRefusal, readPublishers } from "../hosts.js";
+import { dataDirectory } from "../../config/access.js";
 
 /**
  * Core-only settings for one feed run. None of these reach the plugin, which sees only the
@@ -88,10 +87,6 @@ const noEvents: EventRegistry = Object.freeze({
   },
   emit: () => Promise.reject(new Error("Events are not available here yet")),
 });
-
-const dataDirectory = () =>
-  process.env.OPENPLANS_DATA_DIR ??
-  join(homedir(), ".local", "share", "openplans");
 
 function defaultManifests(): readonly string[] {
   const operator = process.env.OPENPLANS_ACCESS_MANIFEST;

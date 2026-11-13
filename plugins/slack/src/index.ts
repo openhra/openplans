@@ -7,7 +7,7 @@ import type {
 import { z } from "zod";
 
 export const PLUGIN_NAME = "@openplans/plugin-slack";
-export const PLUGIN_VERSION = "0.1.0";
+export const PLUGIN_VERSION = "0.2.0";
 /** Declared secret: the Slack incoming webhook URL. */
 export const URL_SECRET = "OPENPLANS_SLACK_WEBHOOK_URL";
 /** Not secret: the webhook host, which the plugin declares as its network host. */
@@ -26,6 +26,7 @@ export type Severity = (typeof SEVERITIES)[number];
 type Payload<T extends keyof EventPayloads> = EventPayloads[T];
 type SlackEventType =
   | "release.deployed"
+  | "release.rolled_back"
   | "ingest.failed"
   | "readiness.failed"
   | "audit.failed"
@@ -70,6 +71,14 @@ const TEMPLATES: { [T in SlackEventType]: Template<T> } = {
         p.previousVersion === null ? "unknown" : code(p.previousVersion)
       }.`,
     plural: "release messages",
+  },
+  // The image ID can hold a registry host, so the message leaves it out.
+  "release.rolled_back": {
+    fields: ["fromVersion", "version"],
+    severity: () => "warning",
+    text: (p) =>
+      `Release rolled back from ${code(p.fromVersion)} to ${code(p.version)}.`,
+    plural: "rollback messages",
   },
   "ingest.failed": {
     fields: ["sourceId", "reasonCode"],
@@ -168,7 +177,7 @@ export function slackBody(text: string): Buffer {
 
 export const slackOptions = z
   .strictObject({
-    /** Event types to post, a subset of the settled set. Default: all seven. */
+    /** Event types to post, a subset of the settled set. Default: all eight. */
     events: z
       .array(z.enum(SLACK_EVENTS as [SlackEventType, ...SlackEventType[]]))
       .min(1)

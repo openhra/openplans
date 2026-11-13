@@ -1,6 +1,6 @@
 import { PGlite } from "@electric-sql/pglite";
 import { afterAll, beforeAll, expect, it } from "vitest";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -16,6 +16,7 @@ import { ingestRatingRules } from "../../src/ingest/rating-rules/index.js";
 import { fixtureFiles as geoFiles } from "../ingest/geo/helpers.js";
 import { fixtureFiles } from "../api/helpers.js";
 import { coreMigrations, testDatabase } from "../pglite.js";
+import { importMutant, withMutantFile } from "../mutant-file.js";
 
 // Real regenerable CMS/Census cuts.
 const db = testDatabase(new PGlite());
@@ -92,16 +93,10 @@ async function unscopedCatalog() {
     "const scoped = db;",
   );
   expect(mutant).not.toBe(text);
-  const path = source.replace(
-    /catalog\.ts$/,
-    `.catalog-mutant-unscoped-${process.pid}.ts`,
+  // Node caches the module by URL, so it stays usable after the file is removed.
+  return withMutantFile(source, mutant, (file) =>
+    importMutant<typeof CatalogModule>(file, "searchPlans"),
   );
-  await writeFile(path, mutant);
-  try {
-    return (await import(path)) as typeof CatalogModule;
-  } finally {
-    await rm(path, { force: true });
-  }
 }
 
 /** The query budget per catalog page: two per plan plus one per distinct shared lookup. */

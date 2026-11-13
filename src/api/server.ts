@@ -1,4 +1,4 @@
-import { loadConfig } from "../config/index.js";
+import { EnvironmentOnlyKeyError, loadConfig } from "../config/index.js";
 import { serve } from "@hono/node-server";
 import { createApp } from "./app.js";
 import { emitApiPluginLoaded, loadApiPlugins } from "../plugins/api.js";
@@ -61,8 +61,9 @@ try {
   process.once("SIGTERM", shutdown);
 } catch (error) {
   if (
-    error instanceof Error &&
-    error.message === "PORT must be an integer between 1 and 65535"
+    error instanceof EnvironmentOnlyKeyError ||
+    (error instanceof Error &&
+      error.message === "PORT must be an integer between 1 and 65535")
   ) {
     console.error(error.message);
     process.exit(1);

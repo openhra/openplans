@@ -3,6 +3,152 @@
 Release notes for OpenPlans. Earlier releases are on the
 [GitHub releases page](https://github.com/openhra/openplans/releases).
 
+## v0.4.3
+
+This release prices Part D drugs selected for Medicare price negotiation from their CMS maximum
+fair price, and keeps cached API answers valid while Part D prices load in small batches. Prices
+stay behind the Part D pricing setting, which is off by default. Plan lists and quotes now say
+why plans were left out, and config-file switches now take effect.
+
+It has one migration (1005), which changes triggers on the three Part D price tables, and no
+backfill. See [Upgrading](#upgrading). Plan search and quote responses gain reason fields, and
+two subsidy reasons get more specific codes. Statuses, prices and benchmarks stay the same on a
+service that keeps `OPENPLANS_MEDICARE_DRUG_COST_PRICES` off. A config file that sets a key read
+only from the environment now stops startup.
+
+### What users notice
+
+- **Maximum fair prices for selected drugs.** With `OPENPLANS_MEDICARE_DRUG_COST_PRICES` on, a
+  drug selected for the Medicare Drug Price Negotiation Program is priced from its maximum fair
+  price instead of the plan's average unit cost. The estimator takes the price per unit in effect
+  on the fill date from the CMS Selected Drug List and Maximum Fair Price file, multiplies it by
+  the quantity, and adds the lowest and the highest selected-drug dispensing fee. When both fees
+  give the same cents, the gross cost is a `value`; otherwise it is `bounded`. CMS prices its
+  worked example at exactly the maximum fair price plus the fee, and the estimator does the same.
+  The answer says so in its assumptions. A selected drug with no price in effect on the fill date
+  answers `unknown` with `maximum_fair_price_not_in_effect`, and the plan average is never used in
+  its place. When the formulary flag and the CMS list disagree, the estimator counts both ways and
+  gives a gross cost only when they agree to the cent. Otherwise it answers `unknown` with
+  `maximum_fair_price_may_apply`. The `price` block gains `ingredient`, the per-unit price with
+  its effective dates, and a `maximum_fair_price_total` figure, which other drugs report as
+  `unknown` with `drug_not_selected`. The MCP output schema lists the new fields.
+  `data/medicare-part-d/drug-lists.json` pins the CMS file and holds its prices for 2026 and 2027.
+  See `docs/medicare.md`.
+- **CMS worked examples priced exactly.** Five CMS worked examples use selected drugs: C7
+  examples 1, 3, 4 and 5, and C12 example 1. With `price_basis: "cms_plan_average"` they are now
+  priced from the maximum fair price, and every figure matches CMS to the cent over HTTP and MCP.
+  C7 example 4 is no longer a range. C12 example 1 could not be reproduced from plan averages
+  and now can. The independent price reference
+  script reads the same CMS file with `--mfp-file` and reports `maximum_fair_price_total`.
+- **Plan lists say why they may be short.** `GET /v1/plans` and `POST /v1/quotes` add
+  `issues`, and the MCP tools `search_plans` and `quote_plans` add `location_issues`. Each lists
+  reason codes: `zip_limited_service_area` when a county-only request leaves out plans that serve
+  part of the county, `zip_not_in_loaded_geography`, `state_catalog_not_loaded`, and the New York
+  template refusal code, such as `template_saved_before_submission`, when a refused issuer's plans
+  are missing from the region. The list is empty when no plan is known to be missing.
+- **Subsidy reasons name the gap.** A subsidy for a ZIP outside the loaded geography now has
+  reason `zip_not_in_loaded_geography` instead of `unknown`. A New York or Vermont county without
+  its state catalog has reason `state_catalog_not_loaded` instead of `unsupported_rating_method`.
+  Statuses do not change.
+- **Compatibility gaps.** Medical and dental search add the same codes to `x-openplans-gaps`. The
+  compatibility README lists the mapping.
+
+### Self-hosting and operations
+
+- **Cached answers stay valid during a staged Part D price load.** Staged unit-cost and
+  dispensing-fee batches used to move the API data generation, so the response cache recomputed
+  every answer for the whole load. From migration 1005, writes to `partd_plan_unit_cost`,
+  `partd_pricing_release` and `partd_dispensing_fee_range` move the generation only when a row
+  belongs to a release that lists the table. Listing the tables, or withdrawing them after a
+  failed check, moves it once. TRUNCATE still always moves it. `checkCatalogTriggers` reports a
+  missing or disabled trigger on these tables. See `src/api/cache/README.md`.
+- **Hosted release process.** The hosted service's release tool now runs scripted public checks
+  after each release and records them in its receipt. The checks cover the reason fields added
+  in this release. A read-only checker reports whether the service is ready for a blue/green
+  release. These tools are not part of this repository.
+- **Config-file switches take effect.** The config file keys for the Medicare switches
+  (`medicarePartD`, `medicareDrugCost`, `medicareDrugCostPrices`), Georgia quote recovery
+  (`gaQuoteRecovery`), the compatibility options (`compat.catastrophicAgeRule`,
+  `compat.benefitText`) and `cmsFallback.quotes` used to be accepted and then ignored. They now
+  work. An environment variable that is set still wins over the file. With neither set, every
+  switch stays off.
+- **Environment-only keys refused in the file.** Settings that programs read straight from the
+  environment can no longer go in the config file: `compose.*`, `geocoder.*`, `runners.*`,
+  `cmsFallback.apiKey` and `access.egressFile` / `access.egressSha256`. A file that sets one
+  stops the API, worker, stdio server and PGlite runner at startup with one line naming the
+  variable to set instead. See "Environment-only settings" in `docs/configuration.md`.
+- **Data directory and egress country in the config file.** `access.dataDir` and
+  `access.egressCountry` now reach every reader: the API, the worker, the import runners and the
+  state check scripts. Each takes the environment variable first, then the file, then the
+  default. `access.dataDir` also sets the root of the `local` blob store unless the file sets
+  `blobs.root`. `scripts/smoke.sh` and `src/ingest/geocode/geocoder.sh` still read only
+  `OPENPLANS_DATA_DIR`.
+- **Slack plugin 0.2.0 posts rollbacks.** The Slack plugin posts `release.rolled_back` as a
+  `warning`, for example `OpenPlans: Release rolled back from 1.4.0 to 1.3.2.` It names the two
+  versions and never the image ID. Without an `events` option it posts rollbacks as soon as 0.2.0
+  loads. With an `events` list, add `"release.rolled_back"` to get them. With `minSeverity` set
+  to `error`, rollbacks are dropped. See "Upgrade to Slack 0.2.0" in
+  `docs/plugins-operations.md`.
+
+### Fixes
+
+- The macOS CI checks run as three shards on separate runners. One macOS job ran past its
+  60-minute limit, because the suite runs one file at a time and those runners take about
+  twice as long as Linux. `scripts/ci.sh` runs one slice of the tests when
+  `OPENPLANS_CI_SHARD` is set. The `OpenPlans / macOS` check now passes only when every shard
+  passed.
+- The plugin guide example test gives its nested test run an explicit timeout. On a hosted macOS
+  runner, loading the example plugin with a fresh database took longer than vitest's 5-second
+  default.
+- MCP `search_plans` answered a New York county with an internal error, because a filed plan
+  keyed by its HIOS ID did not match the state plan-key pattern. Such a plan is now returned as a
+  HIOS plan.
+
+### Docs
+
+- `docs/medicare.md` now lists the estimate statuses, the maximum fair price reasons and the
+  price check as the code has them.
+- `docs/ichra.md` covers the PY2025 look-back, the reasons a quote asks for a ZIP, and the New
+  York rate source override.
+- `docs/configuration.md` lists every switch with its config key and environment variable.
+  `.env.example` lists the two drug-cost switches.
+- The API README describes the `zip_not_in_loaded_geography` and `state_catalog_not_loaded`
+  benchmark reasons. `docs/migrations.md` counts migrations through 1005, and the plugin docs
+  describe `release.rolled_back`.
+
+### Development
+
+- The Part D price check no longer compares the member cost for a selected drug with no maximum
+  fair price in effect, since the independent reference stops before cost sharing there.
+- Tests that plant mutated source files write each one into a fresh temporary folder, so test
+  runs that share a checkout no longer overwrite each other's copies.
+- The checks that run before a change merges now also check the wording of every file published
+  in this repository.
+
+### Upgrading
+
+- Pull the new image and run `worker migrate`. Migration 1005 adds two functions and swaps the
+  data-generation triggers on the three Part D price tables. It creates no table and adds no
+  rows. The tables only take writes during a Part D price import, and are empty until the first
+  one.
+- `worker migrate --check` classes 1005 as `risky`, because the classifier has no rule that
+  clears a dropped trigger. The section on 1005 in `docs/migrations.md` explains the locks it
+  takes. A release runner that refuses risky files needs
+  `--allow-risky-migration 1005_partd_staged_generation.sql`. Apply it before any Part D price
+  load. Images from v0.4.2 keep working on the new schema.
+- No backfill is needed.
+- If you run the Slack plugin, replace its approved-list entry with version `0.2.0` and the
+  sha256 given in "Upgrade to Slack 0.2.0" in `docs/plugins-operations.md`. Version 0.1.0 refuses
+  `"release.rolled_back"` in `events`, so change that list only together with the upgrade.
+- If you parse plan search or quote responses, expect the new `issues` field on REST and
+  `location_issues` on MCP, and the two new subsidy reason codes. The compatibility search adds
+  the codes to `x-openplans-gaps`.
+- Check your config file before upgrading. If it sets `compose.*`, `geocoder.*`, `runners.*`,
+  `cmsFallback.apiKey`, `access.egressFile` or `access.egressSha256`, move the value to the
+  environment variable the startup error names, or the services will not start. An empty
+  section, such as `"compose": {}`, is still accepted. Keys such as `medicarePartD` that the file
+  already held now take effect, so review them too. Without a config file nothing changes.
+
 ## v0.4.2
 
 This release asks for a ZIP when a part-county dental plan would set a county-only benchmark,

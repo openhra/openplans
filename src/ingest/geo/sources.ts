@@ -1,7 +1,5 @@
-import { homedir } from "node:os";
 import { createReadStream } from "node:fs";
 import { open } from "node:fs/promises";
-import { join } from "node:path";
 import { createInflateRaw } from "node:zlib";
 import {
   fetchToCache,
@@ -10,6 +8,7 @@ import {
   sidecarNames,
 } from "../../fetch/index.js";
 import type { FetchOptions, SnapshotMetadata } from "../../fetch/index.js";
+import { dataDirectory } from "../../config/access.js";
 
 export const GEO_SOURCES = {
   relationship: {
@@ -61,9 +60,7 @@ export interface AcquisitionOptions {
   refresh?: boolean;
   fetchOptions?: Pick<FetchOptions, "lookup" | "transport" | "maxAttempts">;
 }
-export const dataDirectory = () =>
-  process.env.OPENPLANS_DATA_DIR ??
-  join(homedir(), ".local", "share", "openplans");
+export { dataDirectory };
 
 export async function cachedHash(
   directory: string,

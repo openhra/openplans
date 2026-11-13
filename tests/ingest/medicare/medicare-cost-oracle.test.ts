@@ -37,6 +37,12 @@ import {
   estimateDrugCosts,
 } from "../../../src/domain/medicare/part-d-cost/engine.js";
 import { yearRules } from "../../../src/domain/medicare/part-d-cost/repository.js";
+import { roundHalfUpCents } from "../../../src/domain/medicare/part-d-cost/decimal.js";
+import {
+  maximumFairPrice,
+  mfpTotal,
+} from "../../../src/domain/medicare/part-d-cost/mfp.js";
+import { pricingDeps } from "../../../src/domain/medicare/part-d-cost/price.js";
 import type { Transport } from "../../../src/fetch/index.js";
 import {
   acquireSpuf,
@@ -248,10 +254,14 @@ const setups: Record<string, Setup> = {
 
 /**
  * Each worked example gets a synthetic 30-day pricing row for its proxy NDC and a quantity in NDC
- * units. Unit cost x quantity is the example's ingredient cost. The fill goes to a retail channel
- * whose synthetic in-area pharmacies all file the example's dispensing fee, so ingredient cost
- * plus fee is the example's gross drug cost. Unit costs, quantities and
- * pharmacies are synthetic; the ingredient costs and fees are the CMS figures in oracles.json.
+ * units. For a drug that is not selected, unit cost x quantity is the example's ingredient cost.
+ * A selected drug is priced from the maximum fair price on the pinned CMS list for its real NDC
+ * instead, so its quantity is chosen to make that price x quantity round to the example's
+ * ingredient cost, and its plan-average unit cost total differs from it on purpose. The fill goes
+ * to a retail channel whose synthetic in-area pharmacies all file the example's dispensing fee,
+ * so ingredient cost plus fee is the example's gross drug cost. Unit costs, quantities and
+ * pharmacies are synthetic; the ingredient costs and fees are the CMS figures in oracles.json, and
+ * the maximum fair prices are the CMS file's.
  */
 interface PricedSetup {
   channel: "preferred_retail" | "standard_retail";
@@ -261,32 +271,34 @@ interface PricedSetup {
   pages: string;
 }
 const priced: Record<string, PricedSetup> = {
-  // C7 example 1: $100.00 ingredient cost, $0.00 fee.
+  // C7 example 1: $100.00 ingredient cost, $0.00 fee. Selected: $4.145072 x 24.125 = $100.00.
   "ds-deductible-crossing": {
     channel: "standard_retail",
     unitCost: "10.0000",
-    quantity: "10",
+    quantity: "24.125",
     pages: "3-4",
   },
   // C7 example 4: $390.00 ingredient cost, $10.00 fee. Same NDC and row as example 1.
+  // Selected: $4.145072 x 94.0876 = $390.00.
   "ds-catastrophic-crossing": {
     channel: "preferred_retail",
     unitCost: "10.0000",
-    quantity: "39",
+    quantity: "94.0876",
     pages: "6-7",
   },
-  // C7 example 3: $40.00 ingredient cost, $0.00 fee.
+  // C7 example 3: $40.00 ingredient cost, $0.00 fee. Selected: $6.052894 x 6.6084 = $40.00.
   "selected-drug-copay-ceiling": {
     channel: "preferred_retail",
     unitCost: "4.0000",
-    quantity: "10",
+    quantity: "6.6084",
     pages: "5-6",
   },
   // C7 example 5: $7,200.00 ingredient cost, $0.00 fee.
+  // Selected: $3.907885 x 1842.4288 = $7,200.00.
   "ea-mapping-crossing": {
     channel: "preferred_retail",
     unitCost: "720.0000",
-    quantity: "10",
+    quantity: "1842.4288",
     pages: "7-9",
   },
   // C7 example 8: $100.00 ingredient cost, $0.00 fee.
@@ -303,11 +315,12 @@ const priced: Record<string, PricedSetup> = {
     quantity: "10",
     pages: "13-14",
   },
-  // C12 example 1: $119.00 ingredient cost, $10.00 fee.
+  // C12 example 1: $119.00 ingredient cost (the maximum fair price), $10.00 fee.
+  // Selected: $6.956927 x 17.1053 = $119.00.
   "selected-insulin-mfp-ceiling": {
     channel: "preferred_retail",
     unitCost: "11.9000",
-    quantity: "10",
+    quantity: "17.1053",
     pages: "1-3",
   },
 };
@@ -579,33 +592,27 @@ const ingredientOf = (oracle: Oracle) =>
 
 /**
  * Figures the dispensing fee cannot move, worked by hand from each example's own arithmetic. The
- * plan-average path also prices every fill as if the unit cost already included the fee (unit
- * cost alone), so a figure is exact only when the example's figure is the same with and without
- * the fee:
+ * plan-average path also prices every fill of a drug that is not selected as if the unit cost
+ * already included the fee (unit cost alone), so a figure is exact only when the example's figure
+ * is the same with and without the fee:
  *
- * - C7 example 4: the $60.00 left to the threshold is 25% of the first $240.00 either way, so
- *   patient pay, TrOOP, the amount below the threshold, the selected-drug subsidy (10% of it) and
- *   the phases do not move; the amount above the threshold ($150.00 or $160.00) and the plan's
- *   share do.
  * - C7 example 9: the $20.00 left to the threshold fixes patient pay and TrOOP. The amount below
  *   the threshold is $20.00 over the $35.00 copay's share of the gross cost ($285.71 of $500.00,
  *   $281.14 of $492.00), so it moves, and so do the amounts that follow from it.
- * - C12 example 1: 25% of the $119.00 maximum fair price caps patient pay at $29.75. The
- *   plan-average path has no maximum fair price, and without it the plan's $30.00 copay and 25%
- *   coinsurance give different amounts, so nothing here is exact: every figure must stay unknown
- *   (the dispensing fee among the reasons), never $30.00 or another guess.
+ *
+ * A selected drug is priced from its maximum fair price, which excludes the fee, so its examples
+ * (C7 examples 1, 3, 4 and 5, C12 example 1) have no such reading and every figure is exact. In
+ * C12 example 1, 25% of the $119.00 maximum fair price caps patient pay at $29.75.
  */
 const feeIndependent: Record<string, string[]> = {
-  "ds-catastrophic-crossing": [
-    "patientPay",
-    "troopIncrement",
-    "grossBelowThreshold",
-    "selectedDrugSubsidy",
-    "beginningPhase",
-    "endingPhase",
-  ],
   "insulin-catastrophic-crossing": ["patientPay", "troopIncrement"],
-  "selected-insulin-mfp-ceiling": [],
+};
+/** Selected drugs: the flag says so and the proxy NDC is on the CMS list. */
+const viaMfp = (oracle: Oracle) => setups[oracle.id]!.selected === "Y";
+/** Unit cost x quantity in cents, rounded half up as the application rounds it. */
+const unitCostCents = (oracle: Oracle) => {
+  const price = priced[oracle.id]!;
+  return Number(roundHalfUpCents(mfpTotal(price.unitCost, price.quantity)!));
 };
 
 /**
@@ -627,9 +634,16 @@ function planAverageMismatches(
   const out: string[] = [];
   const priceFigures = fill.price?.figures ?? {};
   const gross = cents(grossOf(oracle));
-  const hasFee = cents(feeOf(oracle)) !== 0;
+  const selected = viaMfp(oracle);
+  const hasFee = cents(feeOf(oracle)) !== 0 && !selected;
   const want: Record<string, Json> = {
-    unit_cost_total: { status: "value", cents: cents(ingredientOf(oracle)) },
+    unit_cost_total: {
+      status: "value",
+      cents: selected ? unitCostCents(oracle) : cents(ingredientOf(oracle)),
+    },
+    maximum_fair_price_total: selected
+      ? { status: "value", cents: cents(ingredientOf(oracle)) }
+      : { status: "unknown", cents: null, reason: "drug_not_selected" },
     total_lowest_fee: { status: "value", cents: gross },
     total_highest_fee: { status: "value", cents: gross },
     gross: hasFee
@@ -948,10 +962,24 @@ describe("CMS worked examples through the HTTP route and the MCP tool", () => {
       expect(Object.keys(priced).sort()).toEqual(Object.keys(setups).sort());
       for (const oracle of oracleFile.workedExamples) {
         const price = priced[oracle.id]!;
-        // Unit cost x quantity is the CMS ingredient cost, to the cent.
-        expect(cents(price.unitCost) * Number(price.quantity), oracle.id).toBe(
-          cents(ingredientOf(oracle)),
-        );
+        const setup = setups[oracle.id]!;
+        // A selected drug's maximum fair price x quantity is the CMS ingredient cost, to the
+        // cent; for any other drug the unit cost x quantity is.
+        const mfp = maximumFairPrice(2026, setup.ndc, "2026-06-01");
+        if (viaMfp(oracle)) {
+          expect(mfp.status, oracle.id).toBe("value");
+          if (mfp.status !== "value") continue;
+          expect(
+            Number(roundHalfUpCents(mfpTotal(mfp.unit_price, price.quantity)!)),
+            oracle.id,
+          ).toBe(cents(ingredientOf(oracle)));
+          expect(unitCostCents(oracle)).not.toBe(cents(ingredientOf(oracle)));
+        } else {
+          expect(mfp.status, oracle.id).toBe("unknown");
+          expect(unitCostCents(oracle), oracle.id).toBe(
+            cents(ingredientOf(oracle)),
+          );
+        }
         expect(cents(ingredientOf(oracle)) + cents(feeOf(oracle))).toBe(
           cents(grossOf(oracle)),
         );
@@ -1019,6 +1047,26 @@ describe("CMS worked examples through the HTTP route and the MCP tool", () => {
         quantity: "1",
         unit_cost_total: price.unit_cost,
       })),
+      "plan average used in place of the maximum fair price for a selected drug":
+        createEstimator({
+          ...engineDeps,
+          pricing: { ...pricingDeps, ingredient: () => "plan_average" },
+        }),
+      "maximum fair price applied to a drug that is not selected":
+        createEstimator({
+          ...engineDeps,
+          pricing: { ...pricingDeps, ingredient: () => "maximum_fair_price" },
+        }),
+    };
+    // Examples each maximum fair price mutant must break: every selected one, every other one.
+    const ids = (selected: boolean) =>
+      oracleFile.workedExamples
+        .filter((oracle) => viaMfp(oracle) === selected)
+        .map((oracle) => oracle.id);
+    const mustFail: Record<string, string[]> = {
+      "plan average used in place of the maximum fair price for a selected drug":
+        ids(true),
+      "maximum fair price applied to a drug that is not selected": ids(false),
     };
     for (const [name, mutant] of Object.entries(priceMutants))
       it(`catches the planted mutant: ${name}`, async () => {
@@ -1040,6 +1088,11 @@ describe("CMS worked examples through the HTTP route and the MCP tool", () => {
           failures.push(...planAverageMismatches(oracle, answer, "http"));
         }
         expect(failures.length, name).toBeGreaterThan(0);
+        for (const id of mustFail[name] ?? [])
+          expect(
+            failures.some((line) => line.startsWith(id)),
+            `${name}: ${id}`,
+          ).toBe(true);
       });
   });
 

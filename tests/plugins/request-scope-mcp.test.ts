@@ -1,5 +1,5 @@
 import { PGlite } from "@electric-sql/pglite";
-import { readFile, rm, writeFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { CacheLevel } from "@openplans/plugin-sdk";
 import { createResponseCache } from "../../src/api/cache/index.js";
@@ -13,6 +13,7 @@ import { restrictCacheLevel } from "../../src/plugins/request-scope.js";
 import { post } from "../mcp/transport-helpers.js";
 import { coreMigrations, testDatabase } from "../pglite.js";
 import { replaceSyntax } from "../source-mutation.js";
+import { importMutant, withMutantFile } from "../mutant-file.js";
 
 // Synthetic: an empty migrated catalog and a ZIP with no rows. The level is injected from the
 // tool's own SQL, as a pass-through answer would restrict it from inside catalog()'s load().
@@ -115,28 +116,22 @@ describe("MCP streaming path sees the cache level before the first byte", () => 
   );
   it("negative control: an MCP handler without its scope does not see the level", async () => {
     const source = new URL("../../src/mcp/http.ts", import.meta.url);
-    const temporary = new URL(
-      "../../src/mcp/.scope-mutant-http.ts",
-      import.meta.url,
-    );
-    await writeFile(
-      temporary,
+    await withMutantFile(
+      source,
       replaceSyntax(
         await readFile(source, "utf8"),
         "runWithScope(",
         "((fn: (h: ScopeHandle) => Promise<Response>) => fn({ level: () => null }))(",
       ),
+      async (temporary) => {
+        const mutant = await importMutant<{
+          createMcpHttp: typeof createMcpHttp;
+        }>(temporary, "createMcpHttp");
+        const real = await call({ level: "none" });
+        expect(real.events[0]).toBe("level:none");
+        const changed = await call({ level: "none" }, mutant.createMcpHttp);
+        expect(changed.events[0]).not.toBe("level:none");
+      },
     );
-    try {
-      const mutant = (await import(/* @vite-ignore */ temporary.href)) as {
-        createMcpHttp: typeof createMcpHttp;
-      };
-      const real = await call({ level: "none" });
-      expect(real.events[0]).toBe("level:none");
-      const changed = await call({ level: "none" }, mutant.createMcpHttp);
-      expect(changed.events[0]).not.toBe("level:none");
-    } finally {
-      await rm(temporary, { force: true });
-    }
   });
 });

@@ -4,6 +4,7 @@ import { normalizeNdc } from "../domain/drugs/concepts.js";
 import { FAMILY_RATE_FIELDS } from "../domain/rating/types.js";
 import { parseCents } from "../domain/rating/index.js";
 import * as v from "../api/validation.js";
+import { LOCATION_REASON_CODES, reasonCodeList } from "../api/reason-codes.js";
 import type { estimatePremiums } from "../services/catalog.js";
 import type { quotePlans } from "../services/quotes.js";
 
@@ -514,7 +515,10 @@ export const datasetSchema = z.strictObject({
   ichra_status: z
     .enum(["available", "incomplete_lcsp", "requires_state_rules", "unknown"])
     .optional(),
-  ichra_reason: label.nullable().optional(),
+  ichra_reason: label
+    .nullable()
+    .optional()
+    .describe(reasonCodeList(["template_saved_before_submission"])),
   ichra_lookback_status: z.literal("unknown").optional(),
   ichra_lookback_reason: label.optional(),
   ichra_documentation: text.optional(),
@@ -644,6 +648,14 @@ const dentalOffer = z.strictObject({
   ehb_monthly_cents: cents,
   ...evidenceFields,
 });
+const locationIssues = gaps.describe(
+  `Why a plan list for this location may be short or empty. ${reasonCodeList([
+    "zip_limited_service_area",
+    "zip_not_in_loaded_geography",
+    "state_catalog_not_loaded",
+    "template_saved_before_submission",
+  ])}`,
+);
 const benchmarkTrace = z.strictObject({
   status: z.enum([
     "calculated",
@@ -663,12 +675,12 @@ const benchmarkTrace = z.strictObject({
   lowest_silver_plans: z.array(benchmarkPlan).max(2),
   pediatric_dental_monthly_cents: nullableCents,
   pediatric_dental_offers: z.array(dentalOffer).max(100),
-  issues: gaps,
+  issues: gaps.describe(reasonCodeList(LOCATION_REASON_CODES.slice(1))),
   ...evidenceFields,
 });
 const subsidyTrace = z.strictObject({
   status: subsidyStatusSchema,
-  reason: label,
+  reason: label.describe(reasonCodeList(LOCATION_REASON_CODES.slice(1))),
   rounding_policy: z.literal("form_8962_lines_8a_8b_whole_dollars"),
   fpl_percent: z.number().nonnegative().nullable(),
   applicable_percentage: z.number().min(0).max(1).nullable(),
@@ -862,6 +874,7 @@ const payloadSchemas = {
   search_plans: z.strictObject({
     plans: z.array(planSchema).max(25),
     location_status: z.enum(["available", "ambiguous", "unknown"]),
+    location_issues: locationIssues,
     counties: z.array(geographySchema).max(25),
   }),
   get_plan: z.strictObject({
@@ -875,7 +888,14 @@ const payloadSchemas = {
   }),
   check_ichra_affordability: z.strictObject({
     status: text,
-    reason: label.nullable(),
+    reason: label
+      .nullable()
+      .describe(
+        reasonCodeList([
+          "zip_limited_service_area",
+          "template_saved_before_submission",
+        ]),
+      ),
     plan_start: z.iso.date(),
     applicable_age: z.int().min(0).max(120).nullable(),
     basis_sensitive: z.boolean().nullable(),
@@ -892,6 +912,7 @@ const payloadSchemas = {
     bindable_quote: z.literal(false),
     tier: z.literal("public_quote"),
     location_status: z.enum(["available", "ambiguous", "unknown"]),
+    location_issues: locationIssues,
     tobacco_rating: z.literal("requested_flags"),
     subsidy_status: z.literal("not_evaluated"),
     data_availability: z.strictObject({

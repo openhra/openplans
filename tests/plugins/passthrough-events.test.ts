@@ -37,6 +37,7 @@ import {
   URL_SECRET,
 } from "../../plugins/slack/src/index.js";
 import { setup } from "../ingest/qhp/formulary-helpers.js";
+import { importMutant, plantMutantFile } from "../mutant-file.js";
 
 vi.mock("../../src/fetch/limiter.js", () => ({
   leaseHost: async () => async () => {},
@@ -191,27 +192,42 @@ const exhaustedExpected = {
 async function mutant(anchor: string, replacement: string) {
   const core = await readFile(src("plugins/sources/passthrough.ts"), "utf8");
   expect(core.split(anchor)).toHaveLength(2);
-  const written = [
-    src("plugins/sources/.passthrough-mutant-events.ts"),
-    src("ingest/cms-api/.fallback-mutant-events.ts"),
-  ];
-  await writeFile(written[0]!, core.replace(anchor, replacement));
-  await writeFile(
-    written[1]!,
-    (await readFile(src("ingest/cms-api/fallback.ts"), "utf8")).replaceAll(
-      "plugins/sources/passthrough.js",
-      "plugins/sources/.passthrough-mutant-events.js",
-    ),
+  const passthrough = await plantMutantFile(
+    src("plugins/sources/passthrough.ts"),
+    core.replace(anchor, replacement),
   );
-  return {
-    modules: {
-      passthrough: (await import(written[0]!.href)) as typeof PassThrough,
-      fallback: (await import(written[1]!.href)) as typeof Fallback,
-    },
-    cleanup: async () => {
-      for (const url of written) await rm(url, { force: true });
-    },
+  let fallback: Awaited<ReturnType<typeof plantMutantFile>> | undefined;
+  const cleanup = async () => {
+    await fallback?.cleanup();
+    await passthrough.cleanup();
   };
+  try {
+    const wired = (
+      await readFile(src("ingest/cms-api/fallback.ts"), "utf8")
+    ).replaceAll(
+      /"(?:\.\.\/)+plugins\/sources\/passthrough\.js"/g,
+      JSON.stringify(passthrough.url.href),
+    );
+    // The fallback copy must import the planted core, not the real one.
+    expect(wired).toContain(passthrough.url.href);
+    fallback = await plantMutantFile(src("ingest/cms-api/fallback.ts"), wired);
+    return {
+      modules: {
+        passthrough: await importMutant<typeof PassThrough>(
+          passthrough.url,
+          "configureHostPassThrough",
+        ),
+        fallback: await importMutant<typeof Fallback>(
+          fallback.url,
+          "applyCmsFallback",
+        ),
+      },
+      cleanup,
+    };
+  } catch (error) {
+    await cleanup();
+    throw error;
+  }
 }
 
 let real: Modules;

@@ -11,6 +11,7 @@ import { readCsv } from "../csv/index.js";
 import { createReadStream } from "node:fs";
 import { normalizeSbeRow } from "./normalize.js";
 import type { SbeLink } from "./source.js";
+import { loadConfig } from "../../config/index.js";
 
 export const GEORGIA_ACCESS_SOURCE = "georgia-access-puf";
 export const GEORGIA_ACCESS_HOST = "georgiaaccess.gov";
@@ -203,5 +204,5 @@ async function assertGeorgiaHeader(file: ImportFile, year: number) {
   }
 }
 
-export const georgiaQuoteRecovery = () =>
-  process.env[GEORGIA_QUOTE_RECOVERY_ENV] === "on";
+/** `OPENPLANS_GA_QUOTE_RECOVERY=on`, or `gaQuoteRecovery` in the config file. */
+export const georgiaQuoteRecovery = () => loadConfig().gaQuoteRecovery;

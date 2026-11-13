@@ -1,5 +1,3 @@
-import { homedir } from "node:os";
-import { join } from "node:path";
 import type { SqlSession } from "../../db/database.js";
 import {
   cachedNames,
@@ -16,6 +14,7 @@ import type { FetchOptions, SnapshotMetadata } from "../../fetch/index.js";
 import { saveDiscoverySnapshot } from "./discover-repository.js";
 import { sourceSet } from "./formulary-repository.js";
 import type { CachedChild, FormularyScope } from "./formulary-repository.js";
+import { dataDirectory } from "../../config/access.js";
 
 export interface RunBudget {
   deadline?: number;
@@ -106,8 +105,7 @@ export function childPayloadPath(
     sha256: string | null;
     compressed_bytes: string | null;
   },
-  dataDir = process.env.OPENPLANS_DATA_DIR ??
-    join(homedir(), ".local", "share", "openplans"),
+  dataDir = dataDirectory(),
 ): Promise<string> {
   const bytes = Number(child.compressed_bytes);
   return recordedPayloadPath(
@@ -176,10 +174,7 @@ export async function acquireQhpChildren(
 ) {
   const set = await sourceSet(db, scope);
   if (!set.children.some((c) => c.kind === kind)) return;
-  const dataDir =
-    options.fetchOptions?.dataDir ??
-    process.env.OPENPLANS_DATA_DIR ??
-    join(homedir(), ".local", "share", "openplans");
+  const dataDir = options.fetchOptions?.dataDir ?? dataDirectory();
   const maxBytes = options.fetchOptions?.maxBytes ?? 4 * 1024 ** 3;
   const children = set.children.filter(
     (c) =>

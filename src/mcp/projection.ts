@@ -90,9 +90,10 @@ export async function projector(db: SqlSession, native: unknown) {
   function plan(value: unknown) {
     const r = row(value),
       sharing = row(r.cost_sharing);
-    const key =
-      r.plan_key ??
-      (String(r.base_plan_id).includes(":") ? r.base_plan_id : null);
+    // A state plan key has a scope prefix. A NY filed plan keyed by its HIOS ID is a HIOS plan.
+    const scoped = (id: unknown) =>
+      typeof id === "string" && id.includes(":") ? id : null;
+    const key = scoped(r.plan_key) ?? scoped(r.base_plan_id);
     return {
       kind: "plan",
       plan_ref: key ?? r.base_plan_id,

@@ -1,6 +1,4 @@
-import { homedir } from "node:os";
 import { readFile } from "node:fs/promises";
-import { join } from "node:path";
 import {
   fetchToCache,
   readCachedText,
@@ -11,12 +9,11 @@ import type {
   SnapshotMetadata,
   ZipLimits,
 } from "../../fetch/index.js";
+import { dataDirectory } from "../../config/access.js";
 
 export const filesPage = "https://download.cms.gov/nppes/NPI_Files.html";
 export const sourceId = "cms-nppes";
-export const dataDirectory = () =>
-  process.env.OPENPLANS_DATA_DIR ??
-  join(homedir(), ".local", "share", "openplans");
+export { dataDirectory };
 export const zipLimits: ZipLimits = {
   maxCompressedBytes: 2 * 1024 ** 3,
   maxUncompressedBytes: 25 * 1024 ** 3,

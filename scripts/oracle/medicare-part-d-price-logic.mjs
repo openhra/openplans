@@ -11,6 +11,7 @@ export const PRICE_FIGURES = [
   "total_highest_fee",
   "gross",
   "member_cost",
+  "maximum_fair_price_total",
 ];
 
 const describe = (figure) =>
@@ -157,12 +158,10 @@ export function compareApplicationAnswers(reference, application) {
       }
       // Without a price the reference stops before the cost sharing, the application after it:
       // the member cost must then be unknown, whichever of the two reasons it names.
-      const priceReason = want.figures.unit_cost_total;
       if (
         name === "member_cost" &&
         b.status === "unknown" &&
-        priceReason?.status === "unknown" &&
-        b.reason === priceReason.reason &&
+        priceLostAt(want) === b.reason &&
         a?.status === "unknown"
       ) {
         if ((APPLICATION_REASONS[a.reason] ?? a.reason) !== b.reason)
@@ -208,6 +207,25 @@ export function compareApplicationAnswers(reference, application) {
         `${id}: the application answered a case not in the sample`,
       );
   return { differences, notCompared };
+}
+
+/**
+ * The reason the reference lost the price, or null when it has one. The price goes missing either
+ * at the unit cost or, for a selected drug, at the maximum fair price that replaces it; the gross
+ * then carries the same reason. A gross left open by the fee or a floor is not a lost price.
+ */
+function priceLostAt({ figures }) {
+  const unit = figures.unit_cost_total;
+  if (unit?.status === "unknown") return unit.reason;
+  const fair = figures.maximum_fair_price_total;
+  if (
+    fair?.status === "unknown" &&
+    fair.reason !== "drug_not_selected" &&
+    figures.gross?.status === "unknown" &&
+    figures.gross.reason === fair.reason
+  )
+    return fair.reason;
+  return null;
 }
 
 /** The reference's own lowest-fee and highest-fee ends for a figure, or null. */

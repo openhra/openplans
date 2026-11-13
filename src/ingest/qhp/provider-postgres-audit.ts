@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-import { homedir } from "node:os";
 /** Read-only HTTP and attribution checks against the isolated, consolidated developer DB. */
 import pg from "pg";
 import { serve } from "@hono/node-server";
@@ -13,10 +12,9 @@ import {
 } from "./provider-postgres-report-data.js";
 import { catalogPlans } from "./provider-repository.js";
 import type { SqlSession } from "../../db/database.js";
+import { dataDirectory } from "../../config/access.js";
 
-const cache =
-  process.env.OPENPLANS_DATA_DIR ??
-  join(homedir(), ".local", "share", "openplans");
+const cache = dataDirectory();
 const prefix = process.env.OPENPLANS_QHP_REPORT_PREFIX ?? "p6c";
 const url = process.env.OPENPLANS_QHP_DATABASE_URL;
 try {

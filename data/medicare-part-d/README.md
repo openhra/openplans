@@ -31,7 +31,10 @@ directory (`raw/cms-partd-rules/<sha256>/payload`).
   (C16). An NDC is on a year's list when its rows cover the whole year, from the maximum fair
   price effective date to the end date. A row that ends before it starts records a deselection
   and never applies. Each entry keeps the data rows it rests on. The engine matches on the NDC
-  only and checks the list against the formulary flag. When one of them is silent the other
+  only and checks the list against the formulary flag. `maximumFairPrices` holds, for each year,
+  every row of the same file in effect on some day of that year: the NDC-11, the effective and
+  end dates and the price per unit. A deselection row never applies. The price path uses a period
+  only when the fill date falls inside it. When one of them is silent the other
   settles the program, and when they disagree the program stays open. The CMS fact sheets (C17,
   C18) name the selected drugs without an NDC, so the file keeps them as name-only lists with the reason
   `name_only_list_needs_rxnorm` and never matched. The discount program labeler code and phase-in

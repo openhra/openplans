@@ -21,3 +21,16 @@ export function drugListCacheErrors(
   lists: unknown,
   dataDir: string,
 ): Promise<string[]>;
+export const MFP_UNIT_COLUMN: string;
+export interface MfpPeriod {
+  ndc11: string;
+  from: string;
+  to: string | null;
+  unit_price: string;
+  row: number;
+}
+export function unitPrice(value: string | undefined): string | null;
+export function buildMaximumFairPrices(
+  csv: string,
+  years?: string[],
+): Record<string, MfpPeriod[]>;

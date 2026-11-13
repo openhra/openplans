@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { isAbsolute } from "node:path";
 import { z } from "zod";
 import { FetchError } from "./errors.js";
+import { egressCountry } from "../config/access.js";
 
 /** Clock difference tolerated between the wrapper that measured the egress and this process. */
 const clockSkewMs = 2000;
@@ -191,7 +192,8 @@ export function assertEgressCurrent(
 
 /**
  * `OPENPLANS_EGRESS_FILE` names the record and `OPENPLANS_EGRESS_SHA256` its hash. When the file is
- * set it wins over `OPENPLANS_EGRESS_COUNTRY`, which must then name the same country.
+ * set it wins over the declared egress country (`OPENPLANS_EGRESS_COUNTRY`, else
+ * `access.egressCountry` in the config file), which must then name the same country.
  */
 export function egressFromEnvironment(
   declaredCountry: string | undefined,
@@ -202,9 +204,6 @@ export function egressFromEnvironment(
   return loadEgressBinding({
     file,
     expectedSha256: env.OPENPLANS_EGRESS_SHA256 || undefined,
-    declaredCountries: [
-      declaredCountry,
-      env.OPENPLANS_EGRESS_COUNTRY || undefined,
-    ],
+    declaredCountries: [declaredCountry, egressCountry(env)],
   });
 }
