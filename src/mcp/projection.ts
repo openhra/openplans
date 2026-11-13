@@ -295,10 +295,16 @@ export async function projector(db: SqlSession, native: unknown) {
       },
     };
   }
+  /** An unknown coverage or participation answer keeps its native reason among its gaps. */
   function coverageEvidence(value: unknown) {
     const r = row(value);
     const refs = evidence(value);
-    if (r.cms_api && r.status === "unknown" && typeof r.reason === "string")
+    if (
+      r.status === "unknown" &&
+      typeof r.reason === "string" &&
+      r.reason &&
+      !refs.gaps.includes(r.reason)
+    )
       refs.gaps.push(r.reason);
     return refs;
   }

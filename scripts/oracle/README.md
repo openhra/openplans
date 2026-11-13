@@ -134,7 +134,8 @@ location goes to `/v1/plans`, `/v1/quotes`, `/v1/premium-quotes`, `/v1/benchmark
 `/v1/ichra/affordability`, the compatibility plan search and the MCP tools that take a location.
 Each state and year also goes to `/v1/data-availability`, `get_data_status`,
 `list_carriers_networks` and the drug and provider coverage tools. Requests run in process and
-nothing is fetched. A response fails when it is a 5xx, when it carries `INTERNAL_HONESTY_CHECK`,
+nothing is fetched. A response fails when it is a 5xx, when it carries `INTERNAL_HONESTY_CHECK`
+or the MCP catch-all `DATA_UNAVAILABLE` (the tools' form of an internal error),
 or when its list or answer is empty and it names no reason code (`issues`, `location_issues`, a
 `reason`, an error code or an `x-openplans-gaps` entry). The rule lives in
 `surface-sweep-logic.mjs`. `reports/surface-sweep.json` keeps every failure with its inputs,
@@ -142,7 +143,23 @@ grouped by class, and the outcomes seen on each surface. When a New York catalog
 sweep also runs `search_plans` for New York counties through a copy of the MCP tools whose
 projection reads a HIOS-shaped `plan_key` as a state plan key (control `mcpPlanKey` in
 `source-controls.mjs`). That copy must produce `INTERNAL_HONESTY_CHECK`, or the sweep fails.
-`--year`, `--state` and `--counties N` narrow a run. `tests/oracle/surface-sweep.test.mjs`
+
+The sweep also covers what loads beside the catalog. Every ZIP goes to the native, MCP and
+compatibility provider searches. Each loaded state and year samples NPPES identities, issuer
+directory listings, one plan per issuer and RxCUIs from the loaded QHP and Part D formularies.
+Each identity goes to provider detail and to participation for the sampled plans. Each drug
+goes to drug search and detail and to coverage for the sampled plans. Each Medicare plan key the
+searches return (`--medicare-plans`, default 400) goes to plan detail, benefits, service area,
+lineage, the Part D drug list and pharmacies. The sweep serves Part D
+(`OPENPLANS_MEDICARE_PART_D=on`) and keeps the drug-cost estimator and its prices off. The first
+keys (`--estimator-checks`, default 25) ask for an estimate on both price bases and through the
+MCP endpoint, and each request must be refused with a closed answer or an error. Records inside an
+answer, such as coverage and participation results, each need their own reason when unknown. An
+empty provider or drug search is a whole answer when it says its source is loaded (provider
+status `available`, MCP status `ok`, `terminology_status: "available"`). A second control,
+`mcpParticipation`, reports an unknown participation answer as `not_listed`, and
+`check_provider_network` through that copy must produce `INTERNAL_HONESTY_CHECK`.
+`--year`, `--state` and `--counties N` narrow a run; `--providers` and `--drugs` set the samples. `tests/oracle/surface-sweep.test.mjs`
 checks the rule on synthetic responses. `scripts/realdata.sh` runs the sweep with `--optional`
 when `OPENPLANS_SURFACE_SWEEP_DATABASE_URL` names a loaded database, and prints `SKIP` without
 one.

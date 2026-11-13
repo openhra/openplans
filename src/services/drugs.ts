@@ -62,6 +62,7 @@ export async function searchDrugs(
       ndc: normalized,
       rxcuis: await rx.rxcuisForNdc(normalized),
       exact_concept_required: true,
+      ...(await terminology(rx)),
     };
   }
   if (!q?.trim() || q.length > 200) return v.fail("q");
@@ -71,7 +72,20 @@ export async function searchDrugs(
   return {
     candidates: await rx.searchDrugs(q, { limit: Number(limit) }),
     exact_concept_required: true,
+    ...(await terminology(rx)),
   };
+}
+/**
+ * Whether an RxNorm release is ACTIVE. With none, an empty search says so; with one, an empty
+ * search means no concept matched.
+ */
+async function terminology(rx: ReturnType<typeof createRxnormRepository>) {
+  return (await rx.activeRelease())
+    ? { terminology_status: "available" as const }
+    : {
+        terminology_status: "unknown" as const,
+        reason: "rxnorm_terminology_unavailable" as const,
+      };
 }
 export async function getDrug(db: SqlSession, value: unknown) {
   const concept = await drugConcept(db, rxcui(value));

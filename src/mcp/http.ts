@@ -46,14 +46,31 @@ export interface HttpOptions {
   /** Called once with the request's cache level, before the first response byte is sent. */
   onCacheLevel?: (level: CacheLevel | null) => void;
 }
+/** A JSON-RPC request id: a string or a number. */
+export type RequestId = string | number;
+/**
+ * The id to echo in an error response. JSON-RPC 2.0 sends the request's id whenever it can be
+ * read, and null only when it cannot: an unread or unparseable body, a batch, or a missing or
+ * malformed id.
+ */
+export function requestId(parsed: unknown): RequestId | null {
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
+    return null;
+  const id = (parsed as { id?: unknown }).id;
+  return typeof id === "string" ||
+    (typeof id === "number" && Number.isFinite(id))
+    ? id
+    : null;
+}
 function failure(
   status: number,
   code: number,
   message: string,
   headers?: HeadersInit,
+  id: RequestId | null = null,
 ) {
   return Response.json(
-    { jsonrpc: "2.0", id: null, error: { code, message } },
+    { jsonrpc: "2.0", id, error: { code, message } },
     { status, headers },
   );
 }
@@ -122,6 +139,8 @@ export function createMcpHttp(db: SqlSession, options: HttpOptions = {}) {
       acquired = false,
       bytes = 0,
       tool: string | null = null;
+    // Stays null until the body parses; rejections before that cannot read the id.
+    let id: RequestId | null = null;
     let status = 500,
       cacheOutcome: CacheOutcome = "bypass";
     let handler: ReturnType<typeof createMcpHandler> | undefined;
@@ -205,6 +224,7 @@ export function createMcpHttp(db: SqlSession, options: HttpOptions = {}) {
         status = 400;
         return failure(status, -32600, "Invalid request");
       }
+      id = requestId(parsed);
       const responseLimit =
         parsed.method === "tools/list" ? MAX_TOOL_LIST_BYTES : MAX_OUTPUT_BYTES;
       const params = parsed.params as Record<string, unknown> | undefined;
@@ -224,7 +244,13 @@ export function createMcpHttp(db: SqlSession, options: HttpOptions = {}) {
         !c.req.header("mcp-protocol-version")
       ) {
         status = 400;
-        return failure(status, -32020, "Missing MCP-Protocol-Version");
+        return failure(
+          status,
+          -32020,
+          "Missing MCP-Protocol-Version",
+          undefined,
+          id,
+        );
       }
       const needsGrant =
         parsed.method === "tools/call" &&
@@ -237,9 +263,13 @@ export function createMcpHttp(db: SqlSession, options: HttpOptions = {}) {
         parsed.method === "tools/call" || parsed.method === "resources/read";
       if (heavy && active >= 4) {
         status = 429;
-        return failure(status, -32000, "Concurrency limit exceeded", {
-          "Retry-After": "1",
-        });
+        return failure(
+          status,
+          -32000,
+          "Concurrency limit exceeded",
+          { "Retry-After": "1" },
+          id,
+        );
       }
       if (heavy) {
         active++;
@@ -289,21 +319,29 @@ export function createMcpHttp(db: SqlSession, options: HttpOptions = {}) {
       if (needsGrant && (status === 200 || status === 404)) {
         await response.body?.cancel();
         status = 401;
-        return failure(status, -32000, "Personalized access required", {
-          "WWW-Authenticate": 'Bearer realm="openplans-mcp"',
-        });
+        return failure(
+          status,
+          -32000,
+          "Personalized access required",
+          { "WWW-Authenticate": 'Bearer realm="openplans-mcp"' },
+          id,
+        );
       }
       if (needsEstimateGrant && (status === 200 || status === 404)) {
         await response.body?.cancel();
         // Like the HTTP estimate route: no token configured means no grant can be verified.
         if (!config.tokens.mcp) {
           status = 503;
-          return failure(status, -32000, "AUTH_NOT_CONFIGURED");
+          return failure(status, -32000, "AUTH_NOT_CONFIGURED", undefined, id);
         }
         status = 401;
-        return failure(status, -32000, "Estimate access required", {
-          "WWW-Authenticate": 'Bearer realm="openplans-mcp"',
-        });
+        return failure(
+          status,
+          -32000,
+          "Estimate access required",
+          { "WWW-Authenticate": 'Bearer realm="openplans-mcp"' },
+          id,
+        );
       }
       if (!response.body) {
         seeLevel();
@@ -348,6 +386,8 @@ export function createMcpHttp(db: SqlSession, options: HttpOptions = {}) {
         status,
         -32603,
         signal.aborted ? "Request deadline or cancellation" : "Request failed",
+        undefined,
+        id,
       );
     } finally {
       // Body-bearing responses keep their request scope until EOF or disconnect.

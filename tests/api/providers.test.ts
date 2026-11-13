@@ -496,6 +496,16 @@ describe("provider API: record scope, distance and source evidence", () => {
     expect(
       (await get("/v1/providers?zip=77001&radius_miles=5")).body.status,
     ).toBe("unknown");
+    // No NPPES release is loaded here, so an empty search cannot mean "nobody nearby".
+    for (const url of [
+      "/v1/providers?zip=77030&radius_miles=5&name=Nobody",
+      "/v1/providers?name=Nobody",
+    ])
+      expect((await get(url)).body, url).toMatchObject({
+        status: "unknown",
+        reason: "provider_registry_not_loaded",
+        providers: [],
+      });
     for (const body of [
       null,
       { plan_ids: [], npis: [nearNpi], year: 2026 },

@@ -73,8 +73,32 @@ describe("drug HTTP workflow (synthetic fixtures and mutants)", () => {
     ).toEqual(["00071015523"]);
     expect((await get("/v1/drugs/999999999999")).status).toBe(404);
     expect(
-      (await get<Search>("/v1/drugs?q=nothing-matches")).body.candidates,
-    ).toEqual([]);
+      (await get<Search>("/v1/drugs?q=nothing-matches")).body,
+    ).toMatchObject({ candidates: [], terminology_status: "available" });
+  });
+  it("says why a drug search is empty when no terminology release is active", async () => {
+    // Like the MCP search_drugs tool and the compatibility drug search: an empty list alone
+    // cannot tell "no match" from "no terminology".
+    const loaded = await get<Search>("/v1/drugs?q=metformin");
+    expect(loaded.body).toMatchObject({ terminology_status: "available" });
+    expect(loaded.body).not.toHaveProperty("reason");
+    await h.db.query(
+      "UPDATE snapshot SET validation_state='QUARANTINED' WHERE snapshot_id='rx'",
+    );
+    try {
+      for (const url of [
+        "/v1/drugs?q=metformin",
+        "/v1/drugs?ndc=00071-0155-23",
+      ])
+        expect((await get(url)).body, url).toMatchObject({
+          terminology_status: "unknown",
+          reason: "rxnorm_terminology_unavailable",
+        });
+    } finally {
+      await h.db.query(
+        "UPDATE snapshot SET validation_state='ACTIVE' WHERE snapshot_id='rx'",
+      );
+    }
   });
   it("normalizes hyphenated NDCs without losing zeros; a stripped code fails validation", async () => {
     const hyphenated = await get("/v1/drugs?ndc=00071-0155-23");

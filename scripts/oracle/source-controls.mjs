@@ -43,6 +43,14 @@ export const sourceControls = {
     after:
       "const key = r.plan_key ?? (String(r.base_plan_id).includes(':') ? r.base_plan_id : null);",
   },
+  // Provider-route honesty: an unknown participation answer reported as `not_listed` claims the
+  // plan's directory was read in full, which the MCP output contract refuses (surface-sweep.mjs).
+  mcpParticipation: {
+    path: "mcp/projection",
+    before: "npi: r.identity, year: r.plan_year, status: r.status,",
+    after:
+      "npi: r.identity, year: r.plan_year, status: r.status === 'unknown' ? 'not_listed' : r.status,",
+  },
 };
 
 export function mutateSource(source, control) {

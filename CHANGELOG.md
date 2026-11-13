@@ -3,6 +3,56 @@
 Release notes for OpenPlans. Earlier releases are on the
 [GitHub releases page](https://github.com/openhra/openplans/releases).
 
+## v0.4.5
+
+This release gives a reason where provider and drug searches, and MCP coverage, network and quote
+records, answered `unknown` or an empty list without one. MCP errors that the HTTP transport sends
+after reading a request now carry the request's `id`.
+
+It has no migrations and no backfill. See [Upgrading](#upgrading). Answers change only where they
+used to be `unknown` or empty without a reason. The MCP output schema changes for
+`search_providers`.
+
+### Fixes
+
+- **Coverage and network answers keep their reason over MCP.** When `check_drug_coverage`,
+  `check_provider_network` or `quote_plans` answers `unknown`, the record's `gaps` now holds the
+  native reason, such as `source_set_not_available`. Before, only answers from the CMS fallback
+  carried it.
+- **Empty provider searches say when no registry is loaded.** `GET /v1/providers` answers an empty
+  identity search with `status: "unknown"` and `reason: "provider_registry_not_loaded"` when no
+  NPPES release covers the ZIP's state. The MCP tool `search_providers` adds the same `reason`
+  (null otherwise), and the compatibility provider search adds it to `x-openplans-gaps`.
+- **Drug search says when terminology is missing.** `GET /v1/drugs` adds `terminology_status`.
+  With no RxNorm release loaded it is `unknown`, with `reason: "rxnorm_terminology_unavailable"`.
+  An empty list with `available` means no concept matched.
+- **MCP transport errors carry the request id.** The MCP HTTP transport's own errors always
+  carried `"id": null`, though JSON-RPC 2.0 asks for the request's id whenever the server can read
+  it. Once the body parses as a single request, these errors now carry its string or number id: a
+  missing `MCP-Protocol-Version` header, the personalized and estimate access errors,
+  `AUTH_NOT_CONFIGURED`, the concurrency limit and the deadline error. Errors sent before the body
+  is parsed keep `null`: the Origin and Host checks, the method check, the rate limit, content
+  type, size limit and parse errors. So do batches, notifications and requests with a malformed
+  id.
+
+### Development
+
+- `scripts/oracle/surface-sweep.mjs` also sweeps what loads beside the catalog: provider searches
+  for every ZIP, sampled NPPES identities, directory listings and formulary drugs against provider
+  detail, participation, drug search and coverage, and Medicare plan detail routes. Unknown records
+  inside an answer need their own reason. See `scripts/oracle/README.md`.
+- The test toolchain moves to Vitest 5.0.5, with Vite 8.3.5 as a dev dependency.
+
+### Upgrading
+
+- Pull the new image. There is no migration to run and no backfill.
+- If you validate MCP output against its schema, take the new schema from `tools/list`.
+  `search_providers` gains a nullable `reason`. Clients of `GET /v1/drugs` see the new
+  `terminology_status` field, and clients of `GET /v1/providers` may get `status: "unknown"` with
+  `provider_registry_not_loaded` where they used to get an empty list.
+- The bundled plugins keep their v0.4.4 versions and package hashes, so an approved plugin list
+  needs no change.
+
 ## v0.4.4
 
 This release moves the web framework dependencies to patched versions. It fixes MCP tools that

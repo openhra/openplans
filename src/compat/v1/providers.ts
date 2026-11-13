@@ -14,6 +14,7 @@ import type {
 } from "../../api/provider-repository.js";
 import * as v from "../../api/validation.js";
 import { zipCentroid } from "../../domain/geo/index.js";
+import { registryLoaded } from "../../services/providers.js";
 import { zipToCounties } from "../../ingest/geo/repository.js";
 import { STATE_FIPS } from "../../ingest/geo/states.js";
 
@@ -388,6 +389,8 @@ export function providerCompatRoutes(db: SqlSession, native: Hono) {
               if (fallback.total) reasons.add(RADIUS_NOT_CHECKED);
               providers.push(...mapProviders(fallback.providers));
             }
+            if (!total && !(await registryLoaded(db, zip)))
+              reasons.add("provider_registry_not_loaded");
             header(c, reasons);
             return c.json({
               meta: { total },

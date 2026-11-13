@@ -64,7 +64,7 @@ try {
   if (
     result.status === 0 ||
     !output.includes(
-      "FAIL  tests/plugins/byte-identical.test.ts > byte-identical HTTP > healthz GET /healthz",
+      "FAIL  tests/plugins/byte-identical.test.ts > byte-identical HTTP, CMS fallback off > healthz GET /healthz",
     ) ||
     !output.includes("body_sha256")
   )

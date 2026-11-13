@@ -8,7 +8,7 @@ YAML dependency. Checkout v4.3.1 and setup-node v4.4.0 are pinned to commit IDs.
 
 Node is pinned in `.node-version` to 22.23.4. npm is pinned in
 `.github/npm-version` to 10.9.10. The Docker build uses the same versions. Package
-versions remain in `package-lock.json`, including TypeScript 5.9.3 and Vitest 2.1.9.
+versions remain in `package-lock.json`, including TypeScript 5.9.3 and Vitest 5.0.5.
 To reproduce a project job with that Node version on Linux or macOS, run:
 
 ```sh

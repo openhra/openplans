@@ -12,7 +12,8 @@ import { ingestRatingRules } from "../../src/ingest/rating-rules/index.js";
 import { importFormulary } from "../../src/ingest/qhp/formulary.js";
 import { importProviders } from "../../src/ingest/qhp/provider.js";
 import { getPlan, estimatePremiums } from "../../src/services/catalog.js";
-import { getDrug } from "../../src/services/drugs.js";
+import { checkDrugCoverages, getDrug } from "../../src/services/drugs.js";
+import { checkProviderNetworks } from "../../src/services/providers.js";
 import {
   discoverPlans,
   parseEntityId,
@@ -664,6 +665,15 @@ describe("in-process MCP RxNorm/formulary evidence", () => {
       year: 2026,
     });
     expect(unknown.data?.results[0]?.status).toBe("unknown");
+    // The native reason travels with the unknown answer, as it does for CMS fallback answers.
+    const native = await checkDrugCoverages(fixture.db, {
+      plan_ids: [plan],
+      rxcuis: ["99999999999999999999"],
+      year: 2026,
+    });
+    const reason = (native.results[0] as { reason?: string }).reason;
+    expect(reason).toEqual(expect.any(String));
+    expect(unknown.data?.results[0]?.gaps).toContain(reason);
     const mutant = structuredClone(unknown) as unknown as {
       data: { results: { status: string }[] };
     };
@@ -763,5 +773,23 @@ describe("in-process MCP issuer provider evidence", () => {
         })
       ).isError,
     ).toBe(true);
+  });
+  it("keeps the native reason on an unknown participation answer", async () => {
+    // Without an ACTIVE directory set the answer is unknown, and its reason must survive.
+    await fixture.db.query("DELETE FROM provider_active_set");
+    const absent = { plan_ids: [plan], npis: [npi], year: 2026 };
+    const unlisted = await h.call("check_provider_network", absent);
+    const native = await checkProviderNetworks(fixture.db, absent);
+    const reason = (native.results[0] as { reason?: string }).reason;
+    expect(unlisted.data?.results[0]?.status).toBe("unknown");
+    expect(reason).toEqual(expect.any(String));
+    expect(unlisted.data?.results[0]?.gaps).toContain(reason);
+    // No NPPES release here: an empty identity search says why, like GET /v1/providers.
+    const empty = await h.call("search_providers", { name: "Nobody" });
+    expect(empty.status).toBe("unknown");
+    expect(empty.data).toMatchObject({
+      providers: [],
+      reason: "provider_registry_not_loaded",
+    });
   });
 });

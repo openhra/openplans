@@ -12,7 +12,7 @@ import {
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, relative, sep } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   PASSTHROUGH_OPENING_REASONS,
@@ -101,6 +101,12 @@ export default { manifest, setup() {} };
   await writeFile(join(root, ".npmignore"), "ignored\n");
   return root;
 }
+
+/**
+ * Import the plugin module the loader imported. The loader imports by file URL, and Vitest 5
+ * keeps a separate module instance for the bare path, whose `received` list stays empty.
+ */
+const importLoaded = (file: string) => import(pathToFileURL(file).href);
 
 async function load(
   file: string,
@@ -191,7 +197,7 @@ describe("loader host view", () => {
     expect(loaded.plugins).toEqual([
       { name: "synthetic-hosted", version: "1.0.0", sha256: sha },
     ]);
-    const module = (await import(file)) as {
+    const module = (await importLoaded(file)) as {
       received: StatusHost[];
     };
     const host = module.received.at(-1)!;
@@ -245,7 +251,7 @@ describe("loader host view", () => {
     );
     const { loaded } = await load(file);
     expect(loaded.plugins).toHaveLength(1);
-    const module = (await import(file)) as { received: unknown[] };
+    const module = (await importLoaded(file)) as { received: unknown[] };
     expect(module.received).toEqual([]);
   });
 
@@ -258,7 +264,7 @@ describe("loader host view", () => {
       poolWaiting: () => 4,
     };
     await load(file, { statusHost: { database } });
-    const module = (await import(file)) as {
+    const module = (await importLoaded(file)) as {
       received: StatusHost[];
     };
     const host = module.received.at(-1)!;

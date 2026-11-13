@@ -562,7 +562,7 @@
   },
   "drug-search": {
     "status": 200,
-    "body_sha256": "c8787c2b4a1912770800fe4b3c07dfffb479cd46f04f9ea007a567020ffd6b3e",
+    "body_sha256": "ad3c55e4df923c228660e28bc2cadda0112f8dfd7c3ab123fcd7ccf8c4e79fc3",
     "headers": {
       "content-type": "application/json",
       "cache-control": null,
@@ -941,7 +941,7 @@
       "content-type": "application/json",
       "cache-control": "no-store",
       "x-cache": "bypass",
-      "x-openplans-gaps": "vendor_provider_and_specialty_ids_unavailable, provider_metadata_limited_to_native_evidence, vendor_state_ids_unavailable, provider_address_membership_not_evaluated, provider_radius_defaulted_to_25_miles, provider_origin_zip_centroid_approximate",
+      "x-openplans-gaps": "vendor_provider_and_specialty_ids_unavailable, provider_metadata_limited_to_native_evidence, vendor_state_ids_unavailable, provider_address_membership_not_evaluated, provider_radius_defaulted_to_25_miles, provider_origin_zip_centroid_approximate, provider_registry_not_loaded",
       "x-quote-tier": null
     }
   },
@@ -1420,7 +1420,7 @@
   },
   "drug-search-with-api-token": {
     "status": 200,
-    "body_sha256": "c8787c2b4a1912770800fe4b3c07dfffb479cd46f04f9ea007a567020ffd6b3e",
+    "body_sha256": "ad3c55e4df923c228660e28bc2cadda0112f8dfd7c3ab123fcd7ccf8c4e79fc3",
     "headers": {
       "content-type": "application/json",
       "cache-control": null,
@@ -1799,7 +1799,7 @@
       "content-type": "application/json",
       "cache-control": "no-store",
       "x-cache": "bypass",
-      "x-openplans-gaps": "vendor_provider_and_specialty_ids_unavailable, provider_metadata_limited_to_native_evidence, vendor_state_ids_unavailable, provider_address_membership_not_evaluated, provider_radius_defaulted_to_25_miles, provider_origin_zip_centroid_approximate",
+      "x-openplans-gaps": "vendor_provider_and_specialty_ids_unavailable, provider_metadata_limited_to_native_evidence, vendor_state_ids_unavailable, provider_address_membership_not_evaluated, provider_radius_defaulted_to_25_miles, provider_origin_zip_centroid_approximate, provider_registry_not_loaded",
       "x-quote-tier": null
     }
   },

@@ -960,6 +960,7 @@ async function dispatch(
           data: {
             providers: page.items.map((r) => p.provider(r, true)),
             unlocated: null,
+            reason: null,
           },
           p,
           list: "providers",
@@ -968,7 +969,8 @@ async function dispatch(
         };
       }
       let unlocated: unknown = null,
-        nativeStatus: unknown;
+        nativeStatus: unknown,
+        reason: string | null = null;
       const page = await nativeWindow(offset, input.limit, async (page) => {
         const found = await providers.findProviders(
           db,
@@ -976,6 +978,7 @@ async function dispatch(
         );
         unlocated = found.meta.unlocated;
         nativeStatus = found.status;
+        reason = "reason" in found ? (found.reason ?? null) : null;
         return { items: found.providers, total: found.total };
       });
       const p = await projector(db, page.items);
@@ -983,6 +986,7 @@ async function dispatch(
         data: {
           providers: page.items.map((r) => p.provider(r, !input.plan_id)),
           unlocated,
+          reason,
         },
         p,
         list: "providers",

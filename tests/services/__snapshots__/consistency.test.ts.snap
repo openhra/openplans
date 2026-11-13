@@ -147,7 +147,7 @@ exports[`retains pre-extraction native and compatibility status, headers and exa
     "url": "/v1/provider-participation",
   },
   {
-    "body": "{"candidates":[],"exact_concept_required":true}",
+    "body": "{"candidates":[],"exact_concept_required":true,"terminology_status":"unknown","reason":"rxnorm_terminology_unavailable"}",
     "cache_control": null,
     "content_type": "application/json",
     "gaps": null,
@@ -155,7 +155,7 @@ exports[`retains pre-extraction native and compatibility status, headers and exa
     "url": "/v1/drugs?q=aspirin",
   },
   {
-    "body": "{"ndc":"00002821501","rxcuis":[],"exact_concept_required":true}",
+    "body": "{"ndc":"00002821501","rxcuis":[],"exact_concept_required":true,"terminology_status":"unknown","reason":"rxnorm_terminology_unavailable"}",
     "cache_control": null,
     "content_type": "application/json",
     "gaps": null,

@@ -178,6 +178,8 @@ describe("drug, freshness and provenance services", () => {
     expect(await searchDrugs(h.db, { q: "metformin" })).toEqual({
       candidates: [],
       exact_concept_required: true,
+      terminology_status: "unknown",
+      reason: "rxnorm_terminology_unavailable",
     });
   });
 });

@@ -269,6 +269,10 @@ search ranking is never coverage evidence. Detail returns all concept atoms,
 ingredients, published brand/generic relationship links, NDCs and the release
 snapshot. Suppressed concepts are labelled; coverage requires a nonsuppressed atom.
 
+Name and NDC searches also return `terminology_status`. It is `available` when an RxNorm
+release is ACTIVE, and then an empty list means nothing matched. Otherwise it is `unknown`
+with `reason: "rxnorm_terminology_unavailable"`, and the empty list says nothing about the drug.
+
 NDC lookup returns every associated RxCUI. Bare NDCs must be exactly 11 digits;
 hyphenated 5-4-2, 4-4-2, 5-3-2 and 5-4-1 forms normalize to 5-4-2. A bare 10-digit
 code is ambiguous and rejected. Leading zeros are retained, never guessed after loss.

@@ -926,6 +926,11 @@ const payloadSchemas = {
   search_providers: z.strictObject({
     providers: z.array(providerSchema).max(25),
     unlocated: nonnegative.nullable(),
+    reason: label
+      .nullable()
+      .describe(
+        "Why an empty identity search says nothing about who practices there, such as provider_registry_not_loaded; null otherwise.",
+      ),
   }),
   search_drugs: z.strictObject({
     candidates: z.array(drugSchema).max(25),

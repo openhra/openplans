@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   checkResponse,
   reasonsIn,
+  refusedEstimate,
   summarize,
+  unexplainedRecords,
 } from "../../scripts/oracle/surface-sweep-logic.mjs";
 
 // SYNTHETIC responses in the shapes the sweep reads; no value here is source evidence.
@@ -89,6 +91,20 @@ describe("surface sweep pass rule", () => {
       ]);
   });
 
+  it("fails the MCP catch-all error, the tools' form of an internal error", () => {
+    expect(
+      checkResponse({
+        status: 400,
+        body: {
+          status: "error",
+          data: null,
+          error: { code: "DATA_UNAVAILABLE", field: null, retryable: false },
+        },
+        items: [],
+      }),
+    ).toEqual(["mcp_internal_error"]);
+  });
+
   it("skips the emptiness rule where the surface has no list", () => {
     expect(checkResponse({ status: 200, body: { results: [] } })).toEqual([]);
   });
@@ -100,6 +116,89 @@ describe("surface sweep pass rule", () => {
         "g1, g2",
       ),
     ).toEqual(["g1", "g2", "x", "y", "z"]);
+  });
+
+  it("asks every unknown record inside an answer for its own reason", () => {
+    // The MCP coverage answer that dropped the native reason, before the fix.
+    const dropped = {
+      kind: "drug_coverage",
+      status: "unknown",
+      gaps: ["SOURCE_METADATA_UNAVAILABLE"],
+    };
+    const kept = { ...dropped, gaps: ["source_set_not_available"] };
+    const listed = { kind: "participation", status: "listed_participating" };
+    expect(unexplainedRecords([listed, kept])).toEqual([]);
+    expect(unexplainedRecords([listed, dropped])).toEqual([dropped]);
+    expect(unexplainedRecords([{ status: "unknown", reason: "x" }])).toEqual(
+      [],
+    );
+    expect(unexplainedRecords([{ rows: [] }])).toHaveLength(1);
+    expect(
+      checkResponse({
+        status: 200,
+        body: { data: { results: [dropped] } },
+        records: [dropped],
+      }),
+    ).toEqual(["record_unknown_without_reason"]);
+    // A reason elsewhere in the response does not explain this record.
+    expect(
+      checkResponse({
+        status: 200,
+        body: { reason: "other", data: { results: [dropped] } },
+        records: [dropped],
+      }),
+    ).toEqual(["record_unknown_without_reason"]);
+  });
+
+  it("counts a gap as a reason, never the generic metadata gap", () => {
+    expect(reasonsIn({ gaps: ["SOURCE_METADATA_UNAVAILABLE"] })).toEqual([]);
+    expect(
+      reasonsIn({ gaps: ["SOURCE_METADATA_UNAVAILABLE", "not_run_budget"] }),
+    ).toEqual(["not_run_budget"]);
+  });
+
+  it("accepts only a closed answer or an error code as an estimator refusal", () => {
+    const head = {
+      plan_key: "H0000-001-0",
+      contract_year: 2026,
+      bindable_quote: false,
+      price_basis: "none",
+      estimate_scope: "supplied_schedule",
+    };
+    expect(
+      refusedEstimate({
+        status: 200,
+        body: {
+          ...head,
+          status: "unknown",
+          reason: "estimator_disabled",
+          as_of: null,
+        },
+      }),
+    ).toBe(true);
+    expect(
+      refusedEstimate({
+        status: 400,
+        body: { error: { code: "jsonrpc_-32602" } },
+      }),
+    ).toBe(true);
+    expect(refusedEstimate({ status: 503, body: { error: {} } })).toBe(false);
+    expect(
+      refusedEstimate({
+        status: 200,
+        body: { ...head, status: "unknown", reason: null },
+      }),
+    ).toBe(false);
+    // SYNTHETIC figures: an answer with any field beyond the closed head is not a refusal.
+    expect(
+      refusedEstimate({
+        status: 200,
+        body: { ...head, status: "unknown", reason: "x", fills: [] },
+      }),
+    ).toBe(false);
+    expect(
+      refusedEstimate({ status: 200, body: { ...head, status: "estimated" } }),
+    ).toBe(false);
   });
 
   it("groups failures by class and surface, with sample inputs", () => {

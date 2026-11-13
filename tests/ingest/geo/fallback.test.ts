@@ -169,7 +169,7 @@ describe("ZIP fallback source order and provenance", () => {
       expect(url.pathname).toBe("/api/v1/counties/by/zip/77001");
       expect(url.searchParams.get("year")).toBe("2026");
       expect(url.searchParams.get("apikey")).toBe(KEY);
-      expect(context.headers["user-agent"]).toMatch(/^openplans\/0\.4\.4 /);
+      expect(context.headers["user-agent"]).toMatch(/^openplans\/0\.4\.5 /);
       return response(200, body);
     });
     const guarded: SqlSession = {

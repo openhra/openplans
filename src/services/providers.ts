@@ -13,6 +13,7 @@ import type { ProviderSearch } from "../api/provider-repository.js";
 import { findPlan, variantExists } from "../api/repository.js";
 import * as v from "../api/validation.js";
 import { ReadError } from "./errors.js";
+import { STATE_FIPS } from "../ingest/geo/states.js";
 
 export function npi(value: unknown): string {
   if (typeof value !== "string" || !/^[12][0-9]{9}$/.test(value))
@@ -146,18 +147,56 @@ export async function findProviders(
       return "available";
     }
   }
+  const found = await searchProviders(db, q);
+  // An empty identity search means "nobody matched" only where an NPPES release is loaded.
+  const unloaded =
+    !q.plan &&
+    found.providers.length === 0 &&
+    !(await registryLoaded(db, params.zip));
   return {
     warnings:
       q.plan && coverage?.status !== "complete" ? ["SOURCE_INCOMPLETE"] : [],
-    status: providerSearchStatus(),
+    status: unloaded ? "unknown" : providerSearchStatus(),
+    ...(unloaded ? { reason: "provider_registry_not_loaded" } : {}),
     requested_plan_id: params.plan_id ?? null,
     base_hios_id: q.plan ?? null,
     plan_year: q.year ?? null,
     participation: q.plan ? undefined : "not_evaluated",
     provider_coverage: coverage,
-    ...(await searchProviders(db, q)),
+    ...found,
   };
 }
+
+/**
+ * Whether an ACTIVE full NPPES release covers the ZIP's state (any state of a ZIP that crosses a
+ * state line), or any state when the search has no ZIP.
+ */
+export async function registryLoaded(db: SqlSession, zip?: string) {
+  const states = zip
+    ? (
+        await db.query<{ fips: string }>(
+          "SELECT DISTINCT left(county_fips, 2) AS fips FROM zcta_county WHERE zcta=$1",
+          [zip],
+        )
+      ).rows
+        .map((r) => FIPS_STATE.get(r.fips))
+        .filter((s): s is string => Boolean(s))
+    : null;
+  if (states && !states.length) return false;
+  return (
+    (
+      await db.query(
+        `SELECT 1 FROM npi_import_run r JOIN snapshot s USING(snapshot_id)
+         WHERE s.validation_state='ACTIVE' AND r.kind='full'
+         AND ($1::text[] IS NULL OR r.state_filter = ANY($1::text[])) LIMIT 1`,
+        [states],
+      )
+    ).rows.length > 0
+  );
+}
+const FIPS_STATE = new Map(
+  Object.entries(STATE_FIPS).map(([state, fips]) => [fips, state]),
+);
 
 export async function getProvider(
   db: SqlSession,

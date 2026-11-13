@@ -58,7 +58,7 @@ const payloads: Record<ToolName, unknown> = {
       drugs: "unknown",
     },
   },
-  search_providers: { providers: [], unlocated: null },
+  search_providers: { providers: [], unlocated: null, reason: null },
   search_drugs: {
     candidates: [],
     exact_concept_required: true,
