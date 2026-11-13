@@ -37,7 +37,12 @@ import {
 import type { FetchBlobStore } from "./blob/index.js";
 import type { BlobStore } from "@openplans/plugin-sdk";
 import { scopeForbidsStorage } from "../plugins/request-scope.js";
-import { dataDirectory, egressCountry } from "../config/access.js";
+import {
+  dataDirectory,
+  egressCountry,
+  operatorManifest,
+  projectUrl as configuredProjectUrl,
+} from "../config/access.js";
 
 export interface SnapshotMetadata {
   snapshot_id: string;
@@ -143,12 +148,10 @@ function positive(value: number): boolean {
   return Number.isFinite(value) && value > 0;
 }
 function projectUrl(options: FetchOptions): string {
+  // Read outside the try, so a config file error keeps its own message.
+  const configured = options.projectUrl ?? configuredProjectUrl();
   try {
-    const url = new URL(
-      options.projectUrl ??
-        process.env.OPENPLANS_PROJECT_URL ??
-        "https://plans.openhra.com/",
-    );
+    const url = new URL(configured);
     if (
       url.protocol !== "https:" ||
       url.username ||
@@ -512,7 +515,7 @@ async function requestChain(
     evidence.address = address.address;
     const headers: Record<string, string> = {
       "accept-encoding": "identity",
-      "user-agent": `openplans/0.4.3 (public health-plan source discovery; +${projectUrl(options)})`,
+      "user-agent": `openplans/0.4.4 (public health-plan source discovery; +${projectUrl(options)})`,
     };
     if (options.expectedContent === "json")
       headers.accept = "application/json, */*;q=0.1";
@@ -1151,12 +1154,10 @@ export async function fetchToCache(
       "The request's cache level forbids storing a payload",
     );
   const shipped = shippedManifestPaths();
-  const operatorManifest = process.env.OPENPLANS_ACCESS_MANIFEST;
+  const operator = operatorManifest();
   const admission =
     options.admission ??
-    (operatorManifest
-      ? implicitSession([...shipped, operatorManifest], options)
-      : undefined);
+    (operator ? implicitSession([...shipped, operator], options) : undefined);
   const fallback =
     !admission && !options.transport && shipped.length
       ? implicitSession(shipped, options)

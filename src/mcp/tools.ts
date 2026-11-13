@@ -1105,6 +1105,7 @@ async function dispatch(
             found.part_d_drug_data.status === "available"
               ? "available"
               : (found.part_d_drug_data.reason ?? "unknown"),
+          reason: "reason" in found ? (found.reason ?? null) : null,
         },
         p,
         list: "plans",

@@ -82,3 +82,12 @@ export const CMS_COUNTY_SPELLINGS: Record<string, Record<string, string>> = {
   // ny-gra row 21 spells Delaware "Deleware".
   NY: { deleware: "delaware" },
 };
+
+/** Census FIPS codes of the inhabited territories; geography identity only, no catalog. */
+export const TERRITORY_FIPS: Record<string, string> = {
+  AS: "60",
+  GU: "66",
+  MP: "69",
+  PR: "72",
+  VI: "78",
+};

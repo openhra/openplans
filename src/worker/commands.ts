@@ -54,6 +54,7 @@ import type { ScheduledCommand } from "./schedule.js";
 import { runTaxonomyIngest } from "../plugins/core-plugin.js";
 import { runBackupArgs } from "./backup-args.js";
 import { runBackupRestored } from "./backup-restored.js";
+import { databaseUrl } from "../config/access.js";
 
 const usage =
   "Usage: worker migrate [--check|--size-evidence] | status | record-policy list|set|expire | backup-args [--tar|--manifest] | backup-restored --manifest FILE | backfill row-provenance [--table NAME] [--blocks N] | backfill rate-plan-count | ingest puf|qhp|nppes|rxnorm|taxonomy|geo|medicare";
@@ -606,7 +607,7 @@ function openWithQueryTimeout(
   openDatabase: (connectionString?: string) => Database,
   milliseconds: number,
 ): Database {
-  const connection = process.env.DATABASE_URL;
+  const connection = databaseUrl();
   if (!connection) return openDatabase();
   const url = new URL(connection);
   if (!url.searchParams.has("query_timeout"))

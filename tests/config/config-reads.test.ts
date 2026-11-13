@@ -7,6 +7,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
+import { inspect } from "node:util";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
@@ -17,7 +18,11 @@ import {
   environmentOnlyPaths,
   environmentPaths,
   loadConfig,
+  secret,
+  SecretValue,
 } from "../../src/config/index.js";
+import { compatRoutes } from "../../src/compat/v1/index.js";
+import type { SqlSession } from "../../src/db/database.js";
 import { partDEnabled } from "../../src/services/medicare-part-d.js";
 import {
   drugCostEnabled,
@@ -27,10 +32,19 @@ import { quoteFallbackEnabled } from "../../src/services/quote-coverage.js";
 import { benefitTextOptions } from "../../src/compat/v1/index.js";
 import { georgiaQuoteRecovery } from "../../src/ingest/sbe/georgia.js";
 import {
+  apiToken,
+  compatApiKey,
+  compatKeyHeaderName,
   configuredDataDirectory,
+  databaseUrl,
   dataDirectory,
   defaultDataDirectory,
   egressCountry,
+  operatorManifest,
+  projectUrl,
+  publicAccess,
+  responseCacheEnabled,
+  trustedProxies,
 } from "../../src/config/access.js";
 
 const packageRoot = fileURLToPath(new URL("../../", import.meta.url));
@@ -136,23 +150,47 @@ function directEnvironmentReaders(
 }
 
 /**
- * Keys still read from the environment in some places. Each is a known follow-up; remove an entry
- * once its last direct reader goes through `loadConfig`. The check fails on a new key and on a
- * stale entry alike.
+ * Keys still read from the environment in some places. Each would be a known follow-up, removed
+ * once its last direct reader goes through `loadConfig`; none is left. The check fails on a new
+ * key and on a stale entry alike.
  */
-const halfWiredFollowUps = [
-  "db.connectionString",
-  "cache.enabled",
-  "access.operatorManifest",
-  "access.projectUrl",
-  "public.quoting",
-  "public.household",
-  "public.compat",
-  "tokens.api",
-  "tokens.compatKey",
-  "tokens.compatKeyHeader",
-  "trustProxy",
-];
+const halfWiredFollowUps: string[] = [];
+
+/** Schema leaves typed as secrets: the loader wraps them so logs and JSON never show the value. */
+function secretPaths(): string[] {
+  const top = objectShape(coreConfigSchema as unknown as AnySchema) ?? {};
+  return Object.entries(top).flatMap(([group, child]) =>
+    Object.entries(objectShape(child) ?? {})
+      .filter(([, field]) => field === (secret as unknown as AnySchema))
+      .map(([field]) => `${group}.${field}`),
+  );
+}
+
+/**
+ * File-settable secrets whose value from the file shows up in the loaded config's JSON, string
+ * or inspected form, or reaches the config other than as a wrapped secret.
+ */
+function secretsExposedFromFile(
+  load: (file: unknown) => unknown,
+  paths: readonly string[],
+): string[] {
+  return paths.filter((path) => {
+    const [group, field] = path.split(".") as [string, string];
+    const value = `${synthetic}-${field}`;
+    const config = load({ version: 1, [group]: { [field]: value } }) as Record<
+      string,
+      Record<string, unknown>
+    >;
+    const leaf = config[group]?.[field];
+    return (
+      !(leaf instanceof SecretValue) ||
+      leaf.reveal() !== value ||
+      JSON.stringify(config).includes(value) ||
+      inspect(config, { depth: 8 }).includes(value) ||
+      String(leaf).includes(value)
+    );
+  });
+}
 
 /** Product sources that receive the loaded config; the loader itself does not count. */
 function productSources(): string[] {
@@ -236,8 +274,7 @@ describe("every config file key is read or refused", () => {
   it("leaves no key half wired: every reader of its variable goes through the config", () => {
     const direct = directEnvironmentReaders(productSourceFiles());
     expect(Object.keys(direct).sort()).toEqual([...halfWiredFollowUps].sort());
-    expect(direct).not.toHaveProperty(["access.dataDir"]);
-    expect(direct).not.toHaveProperty(["access.egressCountry"]);
+    expect(direct).toEqual({});
   });
 
   it.each([
@@ -247,6 +284,10 @@ describe("every config file key is read or refused", () => {
       'const country = env["OPENPLANS_EGRESS_COUNTRY"];',
     ],
     ["access.dataDir", "const root = process.env?.OPENPLANS_DATA_DIR;"],
+    ["db.connectionString", "const url = process.env.DATABASE_URL;"],
+    ["tokens.compatKey", 'process.env["OPENPLANS_COMPAT_API_KEY"] = token;'],
+    ["trustProxy", "proxyList(process.env.OPENPLANS_TRUST_PROXY);"],
+    ["public.compat", "read(process.env.OPENPLANS_PUBLIC_COMPAT);"],
   ])(
     "negative control: a %s reader left on the raw variable fails the check",
     (path, reader) => {
@@ -379,6 +420,258 @@ describe("file keys wired to their readers", () => {
     expect(quoteFallbackEnabled()).toBe(false);
     useFile(on, { ...key, OPENPLANS_CMS_FALLBACK: "off" });
     expect(quoteFallbackEnabled()).toBe(false);
+  });
+});
+
+describe("secrets in the config file", () => {
+  const fileSecrets = secretPaths().filter(
+    (path) => !environmentOnlyPaths.has(path),
+  );
+
+  it("finds the secret keys the file may set", () => {
+    expect(fileSecrets).toEqual(
+      expect.arrayContaining([
+        "db.connectionString",
+        "tokens.api",
+        "tokens.compatKey",
+      ]),
+    );
+    expect(fileSecrets).not.toContain("cmsFallback.apiKey");
+    expect(fileSecrets).not.toContain("tokens.compatKeyHeader");
+  });
+
+  it("keeps every secret from the file wrapped and out of output", () => {
+    expect(
+      secretsExposedFromFile((file) => loadConfig({}, file), fileSecrets),
+    ).toEqual([]);
+  });
+
+  it("negative control: a secret accepted from the file as plain text fails the check", () => {
+    const unwrapped = (file: unknown) => {
+      const config = loadConfig({}, file);
+      return {
+        ...config,
+        tokens: {
+          ...config.tokens,
+          compatKey: config.tokens.compatKey?.reveal(),
+        },
+      };
+    };
+    expect(secretsExposedFromFile(unwrapped, fileSecrets)).toEqual([
+      "tokens.compatKey",
+    ]);
+  });
+
+  it("negative control: a refused secret accepted from the file fails the refusal check", () => {
+    // A loader that drops the refusal would hand the file's CMS key to its reader.
+    const accepting = (file: unknown) => {
+      const { cmsFallback, ...rest } = file as Record<string, unknown>;
+      const config = loadConfig({}, rest);
+      const key = (cmsFallback as { apiKey?: string } | undefined)?.apiKey;
+      return {
+        ...config,
+        cmsFallback: {
+          ...config.cmsFallback,
+          apiKey: key === undefined ? undefined : new SecretValue(key),
+        },
+      };
+    };
+    const refused = (load: (file: unknown) => unknown) => {
+      try {
+        load({ version: 1, cmsFallback: { apiKey: synthetic } });
+        return false;
+      } catch (error) {
+        return error instanceof EnvironmentOnlyKeyError;
+      }
+    };
+    expect(refused((file) => loadConfig({}, file))).toBe(true);
+    expect(refused(accepting)).toBe(false);
+  });
+
+  it("keeps a malformed secret's value out of the startup error", () => {
+    for (const path of fileSecrets) {
+      const [group, field] = path.split(".") as [string, string];
+      let message = "";
+      try {
+        loadConfig({}, { version: 1, [group]: { [field]: [synthetic] } });
+      } catch (error) {
+        message = (error as Error).message;
+      }
+      expect(message).toBe("Invalid OpenPlans configuration");
+    }
+  });
+});
+
+describe("remaining keys wired through the config", () => {
+  const writeConfig = (settings: Record<string, unknown>) => {
+    const file = join(directory, `wired-${Math.random()}.json`);
+    writeFileSync(file, JSON.stringify({ version: 1, ...settings }));
+    return file;
+  };
+  const useFile = (file: string, env: Record<string, string> = {}) => {
+    vi.stubEnv("OPENPLANS_CONFIG", file);
+    for (const name of Object.keys(environmentPaths))
+      vi.stubEnv(name, env[name]);
+  };
+  const manifest = join(directory, "operator-manifest.json");
+
+  it.each([
+    [
+      "db.connectionString",
+      databaseUrl,
+      { db: { connectionString: "postgres://synthetic-file/db" } },
+      "DATABASE_URL",
+      "postgres://synthetic-env/db",
+      undefined,
+      "postgres://synthetic-file/db",
+      "postgres://synthetic-env/db",
+    ],
+    [
+      "cache.enabled",
+      responseCacheEnabled,
+      { cache: { enabled: false } },
+      "OPENPLANS_API_CACHE",
+      "on",
+      true,
+      false,
+      true,
+    ],
+    [
+      "access.operatorManifest",
+      operatorManifest,
+      { access: { operatorManifest: manifest } },
+      "OPENPLANS_ACCESS_MANIFEST",
+      "/synthetic/env-manifest.json",
+      undefined,
+      manifest,
+      "/synthetic/env-manifest.json",
+    ],
+    [
+      "access.projectUrl",
+      projectUrl,
+      { access: { projectUrl: "https://file.example/" } },
+      "OPENPLANS_PROJECT_URL",
+      "https://env.example/",
+      "https://plans.openhra.com/",
+      "https://file.example/",
+      "https://env.example/",
+    ],
+    [
+      "public.quoting",
+      () => publicAccess().quoting,
+      { public: { quoting: false } },
+      "OPENPLANS_PUBLIC_QUOTING",
+      "on",
+      true,
+      false,
+      true,
+    ],
+    [
+      "public.household",
+      () => publicAccess().household,
+      { public: { household: false } },
+      "OPENPLANS_PUBLIC_HOUSEHOLD",
+      "",
+      true,
+      false,
+      true,
+    ],
+    [
+      "public.compat",
+      () => publicAccess().compat,
+      { public: { compat: true } },
+      "OPENPLANS_PUBLIC_COMPAT",
+      "off",
+      true,
+      true,
+      false,
+    ],
+    [
+      "tokens.api",
+      apiToken,
+      { tokens: { api: `${synthetic}-file` } },
+      "OPENPLANS_API_TOKEN",
+      `${synthetic}-env`,
+      undefined,
+      `${synthetic}-file`,
+      `${synthetic}-env`,
+    ],
+    [
+      "tokens.compatKey",
+      compatApiKey,
+      { tokens: { compatKey: `${synthetic}-file` } },
+      "OPENPLANS_COMPAT_API_KEY",
+      `${synthetic}-env`,
+      undefined,
+      `${synthetic}-file`,
+      `${synthetic}-env`,
+    ],
+    [
+      "tokens.compatKeyHeader",
+      compatKeyHeaderName,
+      { tokens: { compatKeyHeader: "X-File-Key" } },
+      "OPENPLANS_COMPAT_KEY_HEADER",
+      "X-Env-Key",
+      undefined,
+      "X-File-Key",
+      "X-Env-Key",
+    ],
+    [
+      "trustProxy",
+      trustedProxies,
+      { trustProxy: ["10.0.0.1"] },
+      "OPENPLANS_TRUST_PROXY",
+      "10.0.0.2, 10.0.0.3",
+      [],
+      ["10.0.0.1"],
+      ["10.0.0.2", "10.0.0.3"],
+    ],
+  ] as const)(
+    "%s comes from the file, and the variable overrides it",
+    (_path, read, settings, variable, envValue, unset, fromFile, fromEnv) => {
+      useFile(writeConfig({}));
+      expect(read()).toEqual(unset);
+      const file = writeConfig(settings);
+      useFile(file);
+      expect(read()).toEqual(fromFile);
+      useFile(file, { [variable]: envValue });
+      expect(read()).toEqual(fromEnv);
+    },
+  );
+
+  it("an empty DATABASE_URL or compatibility key counts as unset", () => {
+    useFile(writeConfig({}), {
+      DATABASE_URL: "",
+      OPENPLANS_COMPAT_API_KEY: "",
+    });
+    expect(databaseUrl()).toBeUndefined();
+    expect(compatApiKey()).toBeUndefined();
+  });
+
+  it("tokens.compatKey in the file guards the compatibility routes", async () => {
+    const db = {} as SqlSession;
+    const key = `${synthetic}-compat`;
+    useFile(writeConfig({ tokens: { compatKey: key } }));
+    const app = compatRoutes(db);
+    const status = async (headers: Record<string, string>) =>
+      (await app.request("/compat/v1/carriers", { headers })).status;
+    expect(await status({})).toBe(401);
+    expect(await status({ "X-Api-Key": "synthetic-wrong" })).toBe(401);
+    expect(await status({ "X-Api-Key": key })).not.toBe(401);
+    // The header name from the file is accepted as the extra credential header.
+    useFile(
+      writeConfig({
+        tokens: { compatKey: key, compatKeyHeader: "X-File-Key" },
+      }),
+    );
+    const withHeader = compatRoutes(db);
+    expect(
+      (
+        await withHeader.request("/compat/v1/carriers", {
+          headers: { "X-File-Key": key },
+        })
+      ).status,
+    ).not.toBe(401);
   });
 });
 

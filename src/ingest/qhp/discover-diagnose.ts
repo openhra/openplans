@@ -14,6 +14,7 @@ import {
   verifyRegistry,
 } from "./discover-registry.js";
 import { qhpDataDirectory } from "./discover.js";
+import { projectUrl } from "../../config/access.js";
 
 const issuers = [
   "11718",
@@ -71,9 +72,7 @@ async function probe(input: string, root: boolean): Promise<Probe> {
         },
         30_000,
       );
-      const project = new URL(
-        process.env.OPENPLANS_PROJECT_URL ?? "https://plans.openhra.com/",
-      );
+      const project = new URL(projectUrl());
       if (
         project.protocol !== "https:" ||
         project.username ||
@@ -89,7 +88,7 @@ async function probe(input: string, root: boolean): Promise<Probe> {
         headers: {
           "accept-encoding": "identity",
           accept: root ? "text/html" : "application/json, */*;q=0.1",
-          "user-agent": `openplans/0.4.3 (public health-plan source discovery; +${project.href})`,
+          "user-agent": `openplans/0.4.4 (public health-plan source discovery; +${project.href})`,
         },
       });
       const socket = (response.body as IncomingMessage).socket as TLSSocket;

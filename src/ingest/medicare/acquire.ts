@@ -18,7 +18,11 @@ import {
   sourceIds,
 } from "./sources.js";
 import type { Archive, MedicareFamily } from "./sources.js";
-import { dataDirectory, egressCountry } from "../../config/access.js";
+import {
+  dataDirectory,
+  egressCountry,
+  operatorManifest,
+} from "../../config/access.js";
 
 export { dataDirectory };
 
@@ -42,7 +46,7 @@ export interface CachedArchive {
  * for www.cms.gov that permits the `/files/zip/` archives and listing pages (data/access has none).
  */
 export function medicareSession(
-  manifest = process.env.OPENPLANS_ACCESS_MANIFEST,
+  manifest = operatorManifest(),
 ): AdmissionSession | undefined {
   if (!manifest) return undefined;
   return new AdmissionSession(

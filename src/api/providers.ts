@@ -10,11 +10,11 @@ import {
 import * as v from "./validation.js";
 import { cmsFallbackContext } from "../ingest/cms-api/fallback.js";
 import type { Context } from "hono";
-import { proxyList, requestSource } from "./rate-limit.js";
+import { requestSource } from "./rate-limit.js";
+import { trustedProxies } from "../config/access.js";
 
 /** The name the rate limiter gives the caller; bounds one client's share of fallback calls. */
-const client = (c: Context) =>
-  requestSource(c, proxyList(process.env.OPENPLANS_TRUST_PROXY));
+const client = (c: Context) => requestSource(c, trustedProxies());
 
 export function providerRoutes(db: SqlSession) {
   const app = new Hono();

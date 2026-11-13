@@ -65,7 +65,7 @@ type Options = z.infer<typeof options>;
 const plugin: OpenPlansPlugin = {
   manifest: {
     name: "@openplans/blob-s3",
-    version: "0.1.0",
+    version: "0.1.1",
     apiVersion: "0.1",
     kinds: ["blobStores"],
     capabilities: {

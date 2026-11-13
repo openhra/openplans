@@ -18,7 +18,7 @@ export type { CmsApiEvidence, CmsSourceHost } from "./source.js";
 const plugin: OpenPlansPlugin = {
   manifest: {
     name: "@openplans/source-cms-marketplace-api",
-    version: "0.1.0",
+    version: "0.1.1",
     apiVersion: "0.1",
     kinds: ["sources"],
     capabilities: { network: [CMS_API_HOST] },

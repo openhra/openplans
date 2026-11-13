@@ -222,15 +222,17 @@ minute as every other message.
 - With `minSeverity` set to `error`, rollbacks are dropped.
 
 The new files give the plugin a new package hash, so the
-[approved list](#the-approved-plugin-list) needs a new entry. Replace the
-`@openplans/plugin-slack` entry for `0.1.0` with this one, and keep your other entries:
+[approved list](#the-approved-plugin-list) needs a new entry. OpenPlans v0.4.4 ships version
+0.2.1, which posts the same messages and pins a newer hono. Replace the
+`@openplans/plugin-slack` entry for `0.1.0` or `0.2.0` with this one, and keep your other
+entries:
 
 ```json
 [
   {
     "name": "@openplans/plugin-slack",
-    "version": "0.2.0",
-    "sha256": "06b2d48366308984ab001a46143c0d3314e91e2cbaeaa929770c82a3efce4004"
+    "version": "0.2.1",
+    "sha256": "949d147a1c0895b4d1d86cc78d3eed74f189437d6055398a5291ec1cf6592647"
   }
 ]
 ```

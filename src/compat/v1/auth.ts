@@ -1,8 +1,9 @@
 import { createHash, timingSafeEqual } from "node:crypto";
+import { compatKeyHeaderName } from "../../config/access.js";
 
 /** Optional additional credential header; validate once before the app listens. */
 export function compatKeyHeader(
-  value = process.env.OPENPLANS_COMPAT_KEY_HEADER,
+  value: string | undefined = compatKeyHeaderName(),
 ): string | undefined {
   if (value === undefined || value === "") return undefined;
   if (!/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/.test(value)) {

@@ -240,6 +240,8 @@ The MCP tool `check_ichra_affordability` takes the same body as the route and fo
 access rule as `quote_premiums`: open by default, restricted by a set `OPENPLANS_MCP_TOKEN`. It returns each calculated LCSP in `lcsps`
 (with `use`: `premium_tax_credit` or `employer`) with source references, the verdicts exactly as
 the route computes them, and each rule's status with its citation URLs. It is never cached.
+A Vermont LCSP lists filed plan keys such as `MVP:MVP VT Silver 3` in `plan_ids`, and its
+`identified_at_age` and `priced_at_age` are null, as on the route.
 
 ## Coverage
 

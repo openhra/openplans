@@ -3,9 +3,15 @@ import { getSnapshot } from "../services/provenance.js";
 import type { HonestyContext } from "./schemas.js";
 import { ToolError } from "./cursor.js";
 import { countyState } from "../api/repository.js";
+import { TERRITORY_FIPS } from "../ingest/geo/states.js";
 import { entityId } from "../services/discovery.js";
 
 export type Row = Record<string, unknown>;
+/** A territory's USPS code from a county FIPS code; geography has a state code even with no catalog. */
+const territory = (county: unknown) =>
+  Object.keys(TERRITORY_FIPS).find(
+    (code) => TERRITORY_FIPS[code] === String(county).slice(0, 2),
+  ) ?? null;
 export const row = (value: unknown): Row =>
   value && typeof value === "object" && !Array.isArray(value)
     ? (value as Row)
@@ -184,7 +190,7 @@ export async function projector(db: SqlSession, native: unknown) {
     return {
       kind: "geography",
       county_fips: r.county_fips,
-      state: countyState(String(r.county_fips)),
+      state: countyState(String(r.county_fips)) ?? territory(r.county_fips),
       name: nullable(r.county_name),
       source_method: r.source ?? "zcta",
       centroid: null,

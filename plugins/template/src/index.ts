@@ -34,7 +34,7 @@ export function greet(greeting: string, name = DEFAULT_NAME): HelloOutput {
 const plugin: OpenPlansPlugin = {
   manifest: {
     name: PLUGIN_NAME,
-    version: "0.1.0",
+    version: "0.1.1",
     apiVersion: "0.1",
     kinds: ["routes", "mcpTools", "workerCommands", "events"],
     options: optionsSchema,

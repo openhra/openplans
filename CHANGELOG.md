@@ -3,6 +3,85 @@
 Release notes for OpenPlans. Earlier releases are on the
 [GitHub releases page](https://github.com/openhra/openplans/releases).
 
+## v0.4.4
+
+This release moves the web framework dependencies to patched versions. It fixes MCP tools that
+answered territory ZIPs and Vermont ICHRA checks with an internal error, and gives a reason where
+a county or Medicare search used to come back empty without one. The last config-file keys that
+OpenPlans accepted but never read now take effect.
+
+It has no migrations and no backfill. See [Upgrading](#upgrading). Answers change only where
+they used to be an internal error or an empty list without a reason. The MCP output schemas
+change for `search_medicare_plans` and `check_ichra_affordability`.
+
+### Security
+
+- Security: updated the web framework dependencies (hono, @hono/node-server) to patched versions.
+
+### What users notice
+
+- **Unloaded states and years say so.** A county whose state has no active catalog for the
+  requested year, such as a state the service has not loaded or a plan year it does not hold, now
+  gets `state_catalog_not_loaded` in `issues`, `location_issues` and `x-openplans-gaps` instead of
+  an empty list with no reason.
+- **Medicare search names its reason.** The MCP tool `search_medicare_plans` adds `reason`, the
+  same code `GET /v1/medicare/plans` gives, such as `catalog_not_loaded` when no Medicare catalog
+  is loaded. It is null otherwise.
+- **Medicare search for an unknown ZIP.** `GET /v1/medicare/plans` and `search_medicare_plans`
+  give reason `zip_not_in_loaded_geography` for a ZIP outside the loaded geography.
+
+### Fixes
+
+- MCP `lookup_geography`, `search_plans` and the other tools that list counties answered a
+  Puerto Rico, Guam or other territory ZIP with an internal error, because a territory county has
+  no state code. Such a county now carries its territory code (`PR`, `GU`, `VI`, `AS`, `MP`).
+- MCP `check_ichra_affordability` answered every Vermont county with an internal error. The
+  output check wanted HIOS plan IDs and an age, but a Vermont LCSP is a filed plan key and
+  community rating has no age. `lcsps[].plan_ids` now takes plan keys too, and
+  `identified_at_age` and `priced_at_age` may be null.
+
+### Self-hosting and operations
+
+- **The remaining config-file keys take effect.** The file can now set the database URL
+  (`db.connectionString`), the response cache switch (`cache.enabled`), the public access
+  switches (`public.quoting`, `public.household`, `public.compat`), the API and compatibility
+  tokens (`tokens.api`, `tokens.compatKey`, `tokens.compatKeyHeader`), the trusted proxies
+  (`trustProxy`), the operator manifest (`access.operatorManifest`) and the project URL
+  (`access.projectUrl`). Before, the file accepted these keys and every reader ignored them.
+  An environment variable that is set still wins over the file. The compatibility routes now read
+  their key and header name once, when the API starts. See `docs/configuration.md`.
+
+### Development
+
+- `scripts/oracle/build-price-check-db.sh` builds the Part D price check database from cached
+  CMS files. It cuts the quarterly archive down to the sample's plans and loads it with the
+  application's own importers. `scripts/realdata.sh --with-price-check` builds it and then runs
+  the check. See `scripts/oracle/README.md`.
+- `scripts/oracle/surface-sweep.mjs` calls every public read route and MCP tool for every county
+  of each loaded state and plan year, by county and by ZIP. A response fails on a 5xx, on
+  `INTERNAL_HONESTY_CHECK`, or on an empty answer that names no reason. `scripts/realdata.sh`
+  runs it when `OPENPLANS_SURFACE_SWEEP_DATABASE_URL` names a loaded database.
+
+### Upgrading
+
+- Pull the new image. There is no migration to run and no backfill.
+- If you validate MCP output against its schema, take the new schemas from `tools/list`.
+  `search_medicare_plans` gains a nullable `reason` field. In `check_ichra_affordability`, the
+  `plan_ids` lists under `lcsps[]` and its `by_basis` picks accept state plan keys as well as
+  HIOS IDs, and `identified_at_age` and `priced_at_age` may be null. Clients that parse `issues` or
+  `location_issues` see `state_catalog_not_loaded` for more counties.
+- Each bundled plugin now names the new hono version as its peer dependency, so each one has a
+  new patch version and a new package hash. The status, webhook, template, S3 blob store and
+  both source plugins move from 0.1.0 to 0.1.1, and Slack moves from 0.2.0 to 0.2.1. Their code
+  and messages do not change. If you keep an approved plugin list, start the new image on the
+  side, read each entry's version and `sha256` from `/status/operator.json` as in the release
+  preflight in `docs/plugins-operations.md`, and replace the old entries. "Upgrade to Slack
+  0.2.0" there gives the Slack 0.2.1 entry.
+- Check your config file before upgrading. Keys from the list above that it already holds now
+  take effect. For example, `tokens.compatKey` in the file now guards the compatibility routes,
+  and a `public.*` switch set to `false` turns that access off. Without a config file nothing
+  changes.
+
 ## v0.4.3
 
 This release prices Part D drugs selected for Medicare price negotiation from their CMS maximum

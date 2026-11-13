@@ -1,6 +1,6 @@
 {
   "name": "openplans",
-  "version": "0.4.3",
+  "version": "0.4.4",
   "private": true,
   "type": "module",
   "engines": {
@@ -33,10 +33,10 @@
     "lint:prune": "eslint . --max-warnings 0 --prune-suppressions && node scripts/lint-baseline.mjs --prune"
   },
   "dependencies": {
-    "@hono/node-server": "1.19.11",
+    "@hono/node-server": "1.19.18",
     "@modelcontextprotocol/hono": "2.0.2",
     "@modelcontextprotocol/server": "2.4.0",
-    "hono": "4.12.8",
+    "hono": "4.13.16",
     "pg": "8.23.1",
     "zod": "4.6.7",
     "@openplans/plugin-sdk": "0.1.0",

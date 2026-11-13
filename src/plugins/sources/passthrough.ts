@@ -35,6 +35,7 @@ import { implicitPassThroughSources } from "../core-plugin.js";
 import { currentRegistries } from "../registries.js";
 import { restrictCacheLevel, scopeRequestAnswers } from "../request-scope.js";
 import { coreWriter, sourceWriter } from "./scoped-writer.js";
+import { operatorManifest } from "../../config/access.js";
 
 /**
  * Pass-through core (design 5.10.3 and 5.10.4). A pass-through source answers, at request time,
@@ -230,7 +231,7 @@ export function createPassThrough(deps: PassThroughDeps): PassThroughApi {
       return held.session;
     const operator = source.manifest.shippedOnly
       ? undefined
-      : process.env.OPENPLANS_ACCESS_MANIFEST;
+      : operatorManifest();
     const session = new AdmissionSession(
       operator ? [...shippedManifestPaths(), operator] : shippedManifestPaths(),
       { maxRequests: 1000, maxTransferBytes: 128 * 1024 ** 2 },

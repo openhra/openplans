@@ -10,6 +10,7 @@ import { acquireCounties } from "./counties.js";
 import { openGeocoder, assertOpenServerDate, openState } from "./open.js";
 import { readOpenInputs, startOpenHostStorage } from "./open-store.js";
 import { retryOpenGeocoder } from "./open-retry.js";
+import { databaseUrl } from "../../config/access.js";
 
 const args = process.argv.slice(2),
   flags = [
@@ -46,14 +47,15 @@ if (
   minutes <= 0
 )
   throw new Error("Invalid open geocoder options");
-if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL is required");
+const connectionString = databaseUrl();
+if (!connectionString) throw new Error("DATABASE_URL is required");
 await startOpenHostStorage();
 const root = dataDirectory();
 // The extract is resolved through the snapshot store: raw/open-geocoder itself with the local
 // store, else a checked copy fetched down from the store.
 const { index, dataset } = await readOpenInputs(root, state, snapshot);
 const pool = new pg.Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString,
   max: 1,
   query_timeout: 120_000,
   idleTimeoutMillis: 0,

@@ -16,7 +16,7 @@ export {
 } from "./signature.js";
 
 export const PLUGIN_NAME = "@openplans/plugin-webhook";
-export const PLUGIN_VERSION = "0.1.0";
+export const PLUGIN_VERSION = "0.1.1";
 /** Declared secret: the receiver's full HTTPS URL. */
 export const URL_SECRET = "OPENPLANS_WEBHOOK_URL";
 /** Declared secret: the HMAC key shared with the receiver. */

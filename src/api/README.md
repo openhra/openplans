@@ -55,7 +55,7 @@ plan list may be short or empty. It is empty when no plan is known to be missing
 | ---------------------------------- | -------------------------------------------------------------------------- |
 | `zip_limited_service_area`         | County only, and some plans serve only part of the county. Send a ZIP |
 | `zip_not_in_loaded_geography`      | The ZIP is not in the loaded geography                                     |
-| `state_catalog_not_loaded`         | A New York or Vermont county whose filed state catalog is not loaded       |
+| `state_catalog_not_loaded`         | No active catalog for the county's state and year, including NY/VT filings |
 | `template_saved_before_submission` | A refused New York rate template leaves that issuer's plans out             |
 
 Other refusal codes from the New York template check (see the state ingest README) can

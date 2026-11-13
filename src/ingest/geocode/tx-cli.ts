@@ -15,6 +15,7 @@ import {
   refreshStatewideFallbacks,
 } from "./statewide.js";
 import { radiusHttpChecks, statewideReport } from "./statewide-report.js";
+import { databaseUrl } from "../../config/access.js";
 
 // Dedicated bulk runner: a single connection owns the advisory lock and permits long staging queries.
 const args = process.argv.slice(2),
@@ -55,9 +56,10 @@ for (let i = 0; i < args.length; i++) {
 }
 if (!args.includes("--run-id") && options.state !== "TX")
   options.runId = `${options.state.toLowerCase()}-${new Date().toISOString().slice(0, 10).replaceAll("-", "")}`;
-if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL is required");
+const connectionString = databaseUrl();
+if (!connectionString) throw new Error("DATABASE_URL is required");
 const pool = new pg.Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString,
   max: 1,
   connectionTimeoutMillis: 10_000,
   idleTimeoutMillis: 0,

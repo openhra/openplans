@@ -27,9 +27,8 @@ const db = {
   transaction: (run) => pg.transaction((tx) => run(wrap(tx))),
   close: () => pg.close(),
 };
-const previous = process.env.OPENPLANS_COMPAT_API_KEY,
-  token = randomUUID();
-process.env.OPENPLANS_COMPAT_API_KEY = token;
+// Ephemeral credential for both protocols, passed as options and never logged.
+const token = randomUUID();
 let server;
 try {
   for (const name of (await readdir(join(root, "migrations")))
@@ -64,7 +63,7 @@ try {
   const catalog = await stateCatalog(db, 2026, "VT");
   assert.equal(catalog.length, 26);
   server = serve({
-    fetch: createApp(db, { premiumToken: token }).fetch,
+    fetch: createApp(db, { premiumToken: token, compatKey: token }).fetch,
     hostname: "127.0.0.1",
     port: 0,
   });
@@ -175,7 +174,5 @@ try {
     server.closeAllConnections();
     await new Promise((resolve) => server.close(resolve));
   }
-  if (previous === undefined) delete process.env.OPENPLANS_COMPAT_API_KEY;
-  else process.env.OPENPLANS_COMPAT_API_KEY = previous;
   await db.close();
 }

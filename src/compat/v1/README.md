@@ -141,7 +141,7 @@ Native reason codes reach medical and dental search as gap entries. The list liv
 | `location_requires_zip`            | `subsidy_location_requires_zip`    | Income was sent and the benchmark needs a ZIP                           |
 | `zip_limited_service_area`         | `zip_limited_service_area`         | County only, and some plans serve only part of the county               |
 | `zip_not_in_loaded_geography`      | `zip_not_in_loaded_geography`      | The ZIP is not in the loaded geography (with `zip_not_in_loaded_zcta_data`) |
-| `state_catalog_not_loaded`         | `state_catalog_not_loaded`         | A New York or Vermont county whose filed state catalog is not loaded    |
+| `state_catalog_not_loaded`         | `state_catalog_not_loaded`         | No active catalog for the county's state and year, including NY/VT     |
 | `template_saved_before_submission` | `template_saved_before_submission` | A refused New York rate template leaves that issuer's plans out         |
 
 The Medicare codes `pricing_not_loaded`, `dispensing_fees_not_loaded`, `dispensing_fee_unknown`

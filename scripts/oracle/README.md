@@ -109,6 +109,44 @@ when `OPENPLANS_PRICE_CHECK_DATABASE_URL` names a database holding that release 
 and dispensing-fee tables. Loading only the sample's plans is enough. Without that database or the cached
 archive it prints `SKIP` and writes no report.
 
+`build-price-check-db.sh build` makes that database from the cache. It loads the 2026 PBP release
+and cuts the newest cached quarterly archive down to the sample's plans with
+`price-check-subset.py`. The subset keeps plan, cost, pricing and pharmacy network rows for those
+plans only, and formulary rows for their formularies and for every NDC in the sample. The
+application's own importers then load it, with pricing and dispensing-fee ranges.
+Maximum fair prices come from the pinned file, not the database. Pass `--database-url` to load
+an existing database. Pass `--docker-context NAME` to start, or reuse, a disposable Postgres
+container in that Docker context (`openplans-price-check-2026-db`, published on 127.0.0.1 only).
+`remove --docker-context NAME` deletes the container and its volume. A second build reuses the
+subset and imports nothing new. The work directory (default `<data dir>/price-check/2026`)
+holds `subset.json`, which gives the SHA-256 of every archive member read and the rows kept, and
+`load.json`, which gives the import outcomes, the time taken and the database size. Filtering
+renumbers a member's rows, so a row number in the subset is not the one in the CMS file.
+`scripts/realdata.sh --with-price-check` builds the database this way, then runs the check
+without `--optional`, so a missing archive fails instead of skipping. The builder's tests are in
+`tests/oracle/price-check-db.test.mjs`.
+
+`surface-sweep.mjs` calls every public read route and MCP tool on a database that holds the loaded
+catalogs (`DATABASE_URL`). For each loaded state and plan year it asks about every county twice,
+once by county and once by one of its ZIP codes. It also asks about New York and Vermont counties
+whether or not their catalogs are loaded, and about ZIP codes outside the loaded geography. Each
+location goes to `/v1/plans`, `/v1/quotes`, `/v1/premium-quotes`, `/v1/benchmark`,
+`/v1/ichra/affordability`, the compatibility plan search and the MCP tools that take a location.
+Each state and year also goes to `/v1/data-availability`, `get_data_status`,
+`list_carriers_networks` and the drug and provider coverage tools. Requests run in process and
+nothing is fetched. A response fails when it is a 5xx, when it carries `INTERNAL_HONESTY_CHECK`,
+or when its list or answer is empty and it names no reason code (`issues`, `location_issues`, a
+`reason`, an error code or an `x-openplans-gaps` entry). The rule lives in
+`surface-sweep-logic.mjs`. `reports/surface-sweep.json` keeps every failure with its inputs,
+grouped by class, and the outcomes seen on each surface. When a New York catalog is loaded, the
+sweep also runs `search_plans` for New York counties through a copy of the MCP tools whose
+projection reads a HIOS-shaped `plan_key` as a state plan key (control `mcpPlanKey` in
+`source-controls.mjs`). That copy must produce `INTERNAL_HONESTY_CHECK`, or the sweep fails.
+`--year`, `--state` and `--counties N` narrow a run. `tests/oracle/surface-sweep.test.mjs`
+checks the rule on synthetic responses. `scripts/realdata.sh` runs the sweep with `--optional`
+when `OPENPLANS_SURFACE_SWEEP_DATABASE_URL` names a loaded database, and prints `SKIP` without
+one.
+
 Geocode bounds and disposable point controls are available in `geocode.mjs`;
 `geocode-statewide-controls.mjs` exercises transaction and resume behavior with
 Postgres. See the [geocode guide](../../src/ingest/geocode/README.md).

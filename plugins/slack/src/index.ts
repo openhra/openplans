@@ -7,7 +7,7 @@ import type {
 import { z } from "zod";
 
 export const PLUGIN_NAME = "@openplans/plugin-slack";
-export const PLUGIN_VERSION = "0.2.0";
+export const PLUGIN_VERSION = "0.2.1";
 /** Declared secret: the Slack incoming webhook URL. */
 export const URL_SECRET = "OPENPLANS_SLACK_WEBHOOK_URL";
 /** Not secret: the webhook host, which the plugin declares as its network host. */

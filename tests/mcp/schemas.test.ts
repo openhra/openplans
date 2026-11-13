@@ -81,6 +81,7 @@ const payloads: Record<ToolName, unknown> = {
     as_of: null,
     plans: [],
     part_d_drug_data: "pending_terms_review",
+    reason: "zip_not_in_loaded_geography",
   },
 };
 const validInputs: Record<ToolName, unknown> = {

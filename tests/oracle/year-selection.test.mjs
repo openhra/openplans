@@ -135,6 +135,10 @@ it("dispatches the requested years and runs the NY identity check only for 2026"
           ]
         : []),
       ...years.flatMap((y) => nodeCommand("sbe", y)),
+      "node",
+      "scripts/oracle/surface-sweep.mjs",
+      ...years.flatMap((y) => ["--year", String(y)]),
+      "--optional",
       "PASS",
       "",
     ].join("\n");
@@ -150,7 +154,7 @@ it("dispatches the requested years and runs the NY identity check only for 2026"
     expect(run.stdout).toBe(expected(years));
   }
   const source = await readFile("scripts/realdata.sh", "utf8");
-  const mutant = source.replace("[ \"$2\" != '2025' ] && ", "");
+  const mutant = source.replace("[ \"$2\" = '2025' ] || ", "");
   expect(mutant).not.toBe(source);
   const path = join(directory, "year-mutant.sh");
   await writeFile(path, mutant);

@@ -1,6 +1,6 @@
 import type { SqlSession } from "../db/database.js";
 import type { resolveLocation } from "../api/repository.js";
-import { countyState } from "../api/repository.js";
+import { activeCatalog, countyState } from "../api/repository.js";
 import { plansForCounty } from "../ingest/puf/import-repository.js";
 import {
   refusedTemplatePlans,
@@ -39,6 +39,9 @@ export async function locationIssues(
     );
     return [...new Set(refused.map((plan) => plan.reason))].sort();
   }
+  // No active catalog for the county's state and year: an empty list is not the market's answer.
+  if (!(await activeCatalog(db, year, state)).rows.length)
+    return ["state_catalog_not_loaded"];
   // Without a ZIP, a plan that serves only part of the county is left out of the list.
   if (
     !location.zip &&

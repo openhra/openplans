@@ -1,6 +1,6 @@
 {
   "name": "@openplans/plugin-webhook",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "type": "module",
   "main": "dist/index.js",
@@ -12,7 +12,7 @@
     "@openplans/plugin-sdk": "0.1.0"
   },
   "peerDependencies": {
-    "hono": "4.12.8",
+    "hono": "4.13.16",
     "zod": "4.6.7"
   }
 }

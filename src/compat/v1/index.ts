@@ -8,7 +8,8 @@ import { dentalHouseholdOffering, mapDentalPlan } from "./dental.js";
 import { countyDisplayNames, stateName } from "./geography.js";
 import { compatQuoteCoverage } from "./coverage.js";
 import { quoteFallbackContext } from "../../services/quote-coverage.js";
-import { proxyList, requestSource } from "../../api/rate-limit.js";
+import { requestSource } from "../../api/rate-limit.js";
+import { compatApiKey, trustedProxies } from "../../config/access.js";
 import { orderPlans, pageWindow } from "./search.js";
 import type { SqlSession } from "../../db/database.js";
 import type { ApiOptions } from "../../api/routes.js";
@@ -130,6 +131,8 @@ function stateGaps(
 /** One removable router. Reads public/native repositories only; never contacts a vendor. */
 export function compatRoutes(db: SqlSession, options: ApiOptions = {}) {
   const extraHeader = compatKeyHeader();
+  // Read with the header name when the app is built, like the household token.
+  const token = options.compatKey ?? compatApiKey();
   const allowedHeaders = ["Content-Type", "X-Api-Key", "Accept-Version"];
   if (
     extraHeader &&
@@ -155,7 +158,6 @@ export function compatRoutes(db: SqlSession, options: ApiOptions = {}) {
     c.header("Access-Control-Expose-Headers", "x-openplans-gaps, Link");
     c.header("Cache-Control", "no-store");
     if (c.req.method === "OPTIONS") return c.body(null, 204);
-    const token = process.env.OPENPLANS_COMPAT_API_KEY;
     // No key: open to everyone with per-source limits, unless OPENPLANS_PUBLIC_COMPAT=off.
     if (!token)
       return publicCompatEnabled(options)
@@ -546,8 +548,7 @@ export function compatRoutes(db: SqlSession, options: ApiOptions = {}) {
                 db,
                 requestSource(
                   c,
-                  options.trustedProxies ??
-                    proxyList(process.env.OPENPLANS_TRUST_PROXY),
+                  options.trustedProxies ?? trustedProxies(),
                   options.peerAddress,
                 ),
               )

@@ -116,6 +116,13 @@ read-back copies in `blob-read`, both under `OPENPLANS_DATA_DIR`.
 | `OPENPLANS_CACHE_URL`                               | Unset. Selects shared Redis-compatible storage instead of local LRU.                              |
 | `OPENPLANS_CACHE_MEMORY`                            | Compose Valkey cap `256mb`; start the `cache` profile too.                                        |
 
+The config file can also set the database URL as `db.connectionString` and the response cache
+switch as `cache.enabled` (`true` or `false`). `DATABASE_URL` and `OPENPLANS_API_CACHE` win over
+the file. OpenPlans never logs a connection string or token from the file or puts it in an error
+message. Treat a file that holds one like `.env`, and let only the services that use it read
+it. `scripts/smoke.sh`, `scripts/realdata.sh` and the checks under `scripts/oracle/` read
+only `DATABASE_URL`.
+
 ## Access and optional sources
 
 | Variable                                 | Default and effect                                                                                                                                                                       |
@@ -145,6 +152,11 @@ Part D serving off even when the file has `"medicarePartD": true`. With neither 
 switch stays off. `compose.yml` forwards none of the Medicare or Georgia variables. Add the Medicare switches to the API
 service in a local override, and pass the Georgia switch to the worker run with `-e`, as
 described at the top of this page.
+
+The access settings in this table have file keys too: `public.quoting`, `public.household` and
+`public.compat` (`true` or `false`), and `tokens.api`, `tokens.compatKey` and
+`tokens.compatKeyHeader`. The variable wins over the file. The compatibility routes read the key
+and the header name when the API starts. `scripts/smoke.sh` sets only `OPENPLANS_API_TOKEN`.
 
 Public access switches accept `on`, `off` or empty. Empty means on; other values
 fail. A configured REST/MCP token or compatibility key still grants access with
@@ -219,10 +231,14 @@ whenever both switches are on. See [Medicare](medicare.md).
 | `OPENPLANS_MCP_ALLOWED_ORIGINS`    | `http://localhost:PORT`, `http://127.0.0.1:PORT`, `http://[::1]:PORT`. Exact comma-separated origins.                                               |
 | `OPENPLANS_TRUST_PROXY`            | Empty. Only listed exact socket peers may supply forwarded client addresses.                                                                        |
 
+In the config file `trustProxy` takes the same peers as a JSON array, such as `["10.0.0.2"]`.
+`OPENPLANS_TRUST_PROXY` wins over it.
+
 ## Downloads and geocoding
 
-The config file can set the data directory as `access.dataDir` and the egress country
-as `access.egressCountry`. The API, the worker, the import runners and the state check
+The config file can set the data directory as `access.dataDir`, the egress country
+as `access.egressCountry`, the operator manifest as `access.operatorManifest` and the project URL
+as `access.projectUrl`. The API, the worker, the import runners and the state check
 scripts all take the variable first, then the file, then the default in the table below.
 `access.dataDir` in the file also sets the root of the `local` blob store unless the file
 sets `blobs.root`. Two shell scripts read only `OPENPLANS_DATA_DIR`: `scripts/smoke.sh`

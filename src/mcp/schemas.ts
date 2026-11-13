@@ -792,7 +792,7 @@ const centsRatio = z.strictObject({
 /** null when that basis could not be computed. */
 const ichraBasisPick = z
   .strictObject({
-    plan_ids: z.array(hios).max(100),
+    plan_ids: z.array(planRefSchema).max(100),
     monthly_cents: nullableCents,
   })
   .nullable();
@@ -801,7 +801,8 @@ const ichraLcspSchema = z.strictObject({
   use: z.enum(["premium_tax_credit", "employer"]),
   status: z.literal("calculated"),
   basis_used: z.enum(["gross", "ehb_portion"]),
-  plan_ids: z.array(hios).max(100),
+  /** HIOS IDs, or state plan keys for a Vermont filed catalog. */
+  plan_ids: z.array(planRefSchema).max(100),
   monthly_cents: nullableCents,
   by_basis: z.strictObject({
     gross: ichraBasisPick,
@@ -812,8 +813,9 @@ const ichraLcspSchema = z.strictObject({
   zip: zip.nullable(),
   rating_area_id: label.nullable(),
   coverage_month: z.iso.date(),
-  identified_at_age: z.int().min(0).max(120),
-  priced_at_age: z.int().min(0).max(120),
+  /** null where rates do not vary by age (Vermont community rating). */
+  identified_at_age: z.int().min(0).max(120).nullable(),
+  priced_at_age: z.int().min(0).max(120).nullable(),
   silver_plan_count: nonnegative,
   ...evidenceFields,
 });
@@ -948,6 +950,11 @@ const payloadSchemas = {
     as_of: label.nullable(),
     plans: z.array(medicarePlanSchema).max(25),
     part_d_drug_data: label,
+    reason: label
+      .nullable()
+      .describe(
+        "Why the plan list is empty or incomplete, such as catalog_not_loaded; null otherwise.",
+      ),
   }),
   get_data_status: z.strictObject({
     datasets: z.array(datasetSchema).max(25),

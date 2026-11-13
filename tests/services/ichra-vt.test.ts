@@ -17,6 +17,7 @@ import {
 import type { IchraRequest } from "../../src/services/ichra.js";
 import { vtLcspCatalog } from "../../src/ingest/state/catalog.js";
 import { dataAvailability } from "../../src/services/availability.js";
+import { callTool } from "../../src/mcp/tools.js";
 import { coreMigrations, testDatabase } from "../pglite.js";
 import cut from "../../data/rating-rules/vt-plan-metals-2026.json" with { type: "json" };
 import cms from "../ingest/state/fixtures/vt-hios-2026.json" with { type: "json" };
@@ -175,6 +176,36 @@ it("uses literal CMS metals for all 26 filed plans and selects the lowest single
   const availability = await dataAvailability(db);
   expect(availability.length).toBeGreaterThan(0);
   expect(availability.every((r) => r.ichra_status === "available")).toBe(true);
+});
+
+// Found by scripts/oracle/surface-sweep.mjs: the MCP output check required HIOS plan IDs and an
+// age, so every Vermont county answered INTERNAL_HONESTY_CHECK.
+it("MCP check_ichra_affordability returns the Vermont LCSP by plan key, with no age", async () => {
+  const out = (
+    await callTool(
+      {
+        db,
+        principal: { id: "synthetic" },
+        policy: { canEstimate: () => true },
+      } as never,
+      "check_ichra_affordability",
+      {
+        plan_start: "2026-01-01",
+        employee: { date_of_birth: "1985-10-01" },
+        residence: { county: "50007" },
+        hra: { self_only_annual_cents: 300_000 },
+        income: [{ measure: "household", annual_cents: 4_118_000 }],
+      },
+    )
+  ).structuredContent as ReturnType<typeof JSON.parse>;
+  expect(out.error).toBeNull();
+  expect(out.data.status).toBe("calculated");
+  expect(out.data.lcsps[0]).toMatchObject({
+    plan_ids: ["MVP:MVP VT Silver 3"],
+    monthly_cents: 128859,
+    identified_at_age: null,
+    priced_at_age: null,
+  });
 });
 
 it("rejects wrong metal, missing silver variants, changed prices and unverified catalog bytes", async () => {

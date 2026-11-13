@@ -12,11 +12,12 @@ import { createResponseCache } from "./cache/index.js";
 import type { ResponseCacheOptions } from "./cache/index.js";
 import { publicQuoteAdmission } from "./quotes.js";
 import { loadConfig } from "../config/index.js";
+import { apiToken } from "../config/access.js";
 import { pluginRoutes } from "../plugins/routes.js";
 
 export function createApp(
   db: SqlSession,
-  options: ApiOptions = { premiumToken: process.env.OPENPLANS_API_TOKEN },
+  options: ApiOptions = { premiumToken: apiToken() },
   cacheOptions?: ResponseCacheOptions,
 ) {
   const app = new Hono();

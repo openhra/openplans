@@ -9,6 +9,7 @@ import { dataDirectory } from "./census.js";
 import { acquireCounties, geocodeState } from "./counties.js";
 import { cleanupGeocodes } from "./cleanup.js";
 import { operatorGeocoder } from "./operator.js";
+import { databaseUrl } from "../../config/access.js";
 
 const args = process.argv.slice(2),
   value = (flag: string) => args[args.indexOf(flag) + 1];
@@ -33,9 +34,10 @@ const minutes = args.includes("--budget-minutes")
   : 60;
 if (!Number.isFinite(minutes) || minutes <= 0)
   throw new Error("Invalid cleanup time budget");
-if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL is required");
+const connectionString = databaseUrl();
+if (!connectionString) throw new Error("DATABASE_URL is required");
 const pool = new pg.Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString,
   max: 1,
   idleTimeoutMillis: 0,
 });

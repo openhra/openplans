@@ -25,7 +25,12 @@ import {
 import { shippedManifestPaths } from "./shipped.js";
 import { httpsTransport } from "./transport.js";
 import type { FetchResponse } from "./transport.js";
-import { dataDirectory, egressCountry } from "../config/access.js";
+import {
+  dataDirectory,
+  egressCountry,
+  operatorManifest,
+  projectUrl as configuredProjectUrl,
+} from "../config/access.js";
 
 export interface TransientFetchOptions extends Pick<
   FetchOptions,
@@ -94,12 +99,10 @@ function positive(value: number): boolean {
   return Number.isFinite(value) && value > 0;
 }
 function projectUrl(options: TransientFetchOptions): string {
+  // Read outside the try, so a config file error keeps its own message.
+  const configured = options.projectUrl ?? configuredProjectUrl();
   try {
-    const url = new URL(
-      options.projectUrl ??
-        process.env.OPENPLANS_PROJECT_URL ??
-        "https://plans.openhra.com/",
-    );
+    const url = new URL(configured);
     if (
       url.protocol !== "https:" ||
       url.username ||
@@ -255,7 +258,7 @@ export async function fetchTransient(
   const limit = options.maxBytes ?? defaultMaxBytes;
   const decodedLimit = options.maxDecompressedBytes ?? limit;
   const shipped = shippedManifestPaths();
-  const operator = process.env.OPENPLANS_ACCESS_MANIFEST;
+  const operator = operatorManifest();
   const manifests = operator ? [...shipped, operator] : shipped;
   const admission =
     options.admission ??
@@ -550,7 +553,7 @@ export async function fetchTransient(
           admission!.reserveRequest(url);
           const headers: Record<string, string> = {
             "accept-encoding": "identity",
-            "user-agent": `openplans/0.4.3 (public health-plan source discovery; +${projectUrl(options)})`,
+            "user-agent": `openplans/0.4.4 (public health-plan source discovery; +${projectUrl(options)})`,
           };
           if (!policy && options.expectedContent === "json")
             headers.accept = "application/json, */*;q=0.1";

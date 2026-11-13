@@ -918,14 +918,14 @@ describe("host data from core", () => {
     expect(body.plugins).toEqual([
       {
         name: PLUGIN_NAME,
-        version: "0.1.0",
+        version: "0.1.1",
         apiVersion: "0.1",
         sha256: sha,
         enabled: true,
       },
     ]);
     expect(identities(body.plugins)).toEqual(
-      identities([{ name: PLUGIN_NAME, version: "0.1.0", sha256: sha! }]),
+      identities([{ name: PLUGIN_NAME, version: "0.1.1", sha256: sha! }]),
     );
     const pass = body.passthrough.find(
       (row: { id: string }) => row.id === "synthetic-pass",
@@ -1025,7 +1025,7 @@ describe("host data from core", () => {
   it("planted mutant: a wrong plugin hash fails the approved-list comparison", async () => {
     const sha = (await packageSha256(statusRoot))!;
     const approved = identities([
-      { name: PLUGIN_NAME, version: "0.1.0", sha256: sha },
+      { name: PLUGIN_NAME, version: "0.1.1", sha256: sha },
     ]);
     const read = await plantMutant(
       readFile,

@@ -294,6 +294,10 @@ export async function searchMedicarePlans(
     return {
       ...base,
       status: location.status,
+      // A ZIP spanning counties says so in its status; an unknown one names the missing geography.
+      ...(location.status === "unknown"
+        ? { reason: "zip_not_in_loaded_geography" }
+        : {}),
       plans: [],
       page,
       page_size: pageSize,

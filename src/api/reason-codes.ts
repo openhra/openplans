@@ -54,10 +54,10 @@ export const REASON_CODES: readonly ReasonCode[] = [
   {
     code: "state_catalog_not_loaded",
     situation:
-      "A New York or Vermont county whose filed state rate catalog is not loaded",
-    native: "subsidy.reason, benchmark issues",
+      "A county whose state has no active catalog for the plan year, including a New York or Vermont county whose filed state rate catalog is not loaded",
+    native: "subsidy.reason, benchmark issues, plan search and quote issues",
     compat: "state_catalog_not_loaded",
-    mcp: "quote_premiums subsidy.reason and benchmark issues",
+    mcp: "quote_premiums subsidy.reason and benchmark issues; search_plans and quote_plans location_issues",
     doc: "src/api/README.md",
   },
   {

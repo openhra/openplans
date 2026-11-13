@@ -31,7 +31,7 @@ export type { TaxonomySource } from "./source.js";
 const plugin: OpenPlansPlugin = {
   manifest: {
     name: "@openplans/source-nucc-taxonomy",
-    version: "0.1.0",
+    version: "0.1.1",
     apiVersion: "0.1",
     kinds: ["sources"],
     capabilities: { network: [nuccHost], writes: ["staging"] },

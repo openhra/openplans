@@ -1,3 +1,4 @@
+import { databaseUrl } from "../config/access.js";
 import { ingestStateRates } from "../ingest/state/index.js";
 import { ingestSbeGeography } from "../ingest/sbe/geography.js";
 import {
@@ -1189,7 +1190,7 @@ export async function runBootstrap(
     code = 0;
   const database = () => {
     if (!db) {
-      const connection = process.env.DATABASE_URL;
+      const connection = databaseUrl();
       const url = connection ? new URL(connection) : undefined;
       // Populated-database index upgrades can take minutes (e.g. migration 740).
       if (url && !url.searchParams.has("query_timeout"))

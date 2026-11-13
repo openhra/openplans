@@ -13,6 +13,7 @@ import { dataDirectory } from "./census.js";
 import { validateOperatorPoint } from "./operator.js";
 import type { OperatorPoint } from "./operator.js";
 import type { County } from "./counties.js";
+import { responseCacheEnabled } from "../../config/access.js";
 
 export interface StoredOperatorPoint extends OperatorPoint {
   address_hash: string;
@@ -122,7 +123,7 @@ export async function searchOperatorPoints(
   db: SqlSession,
 ): Promise<StoredOperatorPoint[]> {
   // Shared response caches can be dumped separately from PostgreSQL. Private points never enter them.
-  if (process.env.OPENPLANS_API_CACHE !== "off") return [];
+  if (responseCacheEnabled()) return [];
   try {
     const points = await readOperatorPoints();
     if (!points.length) return [];

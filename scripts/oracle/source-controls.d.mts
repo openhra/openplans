@@ -9,7 +9,8 @@ export const sourceControls: Record<
   | "communityGuard"
   | "filedFamilyCell"
   | "alaskaFpl"
-  | "zctaPriority",
+  | "zctaPriority"
+  | "mcpPlanKey",
   SourceControl
 >;
 export function mutateSource(source: string, control: SourceControl): string;

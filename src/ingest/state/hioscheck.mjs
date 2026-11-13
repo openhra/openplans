@@ -36,8 +36,6 @@ const db = {
   close: () => pg.close(),
 };
 const token = randomUUID(); // ephemeral test credential, never persisted or logged
-const previousCompatToken = process.env.OPENPLANS_COMPAT_API_KEY;
-process.env.OPENPLANS_COMPAT_API_KEY = token;
 const digest = (bytes) => createHash("sha256").update(bytes).digest("hex");
 const prepared = join(data, "derived/state-rating/vt-2026.json");
 const report = {
@@ -91,7 +89,7 @@ try {
   ];
   const tiers = ["single", "couple", "adult_children", "family"];
   server = serve({
-    fetch: createApp(db, { premiumToken: token }).fetch,
+    fetch: createApp(db, { premiumToken: token, compatKey: token }).fetch,
     hostname: "127.0.0.1",
     port: 0,
   });
@@ -389,8 +387,5 @@ try {
     server.closeAllConnections();
     await new Promise((resolve) => server.close(resolve));
   }
-  if (previousCompatToken === undefined)
-    delete process.env.OPENPLANS_COMPAT_API_KEY;
-  else process.env.OPENPLANS_COMPAT_API_KEY = previousCompatToken;
   await db.close();
 }

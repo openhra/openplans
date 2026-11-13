@@ -4,6 +4,7 @@ import pg from "pg";
 import type { Database, SqlSession } from "../../db/database.js";
 import { exportGeocodes, importGeocodes } from "./transfer.js";
 import { dataDirectory } from "./census.js";
+import { databaseUrl } from "../../config/access.js";
 
 const [mode, runId, path, ...extra] = process.argv.slice(2);
 assert.ok(
@@ -11,9 +12,10 @@ assert.ok(
   "Usage: transfer-cli export|import RUN_ID FILE (DATABASE_URL required)",
 );
 assert.match(runId!, /^[a-zA-Z0-9_-]{1,80}$/);
-assert.ok(process.env.DATABASE_URL, "DATABASE_URL required");
+const connectionString = databaseUrl();
+assert.ok(connectionString, "DATABASE_URL required");
 // One bulk connection owns the same advisory lock as the statewide geocoder.
-const client = new pg.Client({ connectionString: process.env.DATABASE_URL });
+const client = new pg.Client({ connectionString });
 client.on("error", () => {});
 const sql: SqlSession = {
   query: (q, p) => client.query(q, p),

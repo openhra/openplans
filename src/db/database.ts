@@ -1,5 +1,6 @@
 import pg from "pg";
 import { POOL_MAX } from "./scope.js";
+import { databaseUrl } from "../config/access.js";
 
 export interface SqlSession {
   query<Row extends Record<string, unknown> = Record<string, unknown>>(
@@ -45,7 +46,7 @@ function session(
 
 /** The `pg` database provider (design 5.7); `src/plugins/providers.ts` registers it. */
 export function createDatabase(
-  connectionString = process.env.DATABASE_URL,
+  connectionString: string | undefined = databaseUrl(),
 ): Database {
   if (!connectionString) throw new Error("DATABASE_URL is required");
   const pool = new pg.Pool({

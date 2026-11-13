@@ -7,21 +7,28 @@ import { boundedDatabase, DEADLINE_MS } from "../db/bounded.js";
 import { estimatePremiums } from "../services/catalog.js";
 import { quotePlans } from "../services/quotes.js";
 import { quoteFallbackContext } from "../services/quote-coverage.js";
-import { proxyList, requestSource, sourceAdmission } from "./rate-limit.js";
+import { requestSource, sourceAdmission } from "./rate-limit.js";
+import { publicAccess, trustedProxies } from "../config/access.js";
 import type { PeerAddress, SourceLimits } from "./rate-limit.js";
 import * as v from "./validation.js";
 
 export interface QuoteOptions {
   /** When set, personalized requests need this Bearer token. Never logged. */
   premiumToken?: string;
-  /** Anonymous quotes by age and ZIP. Defaults to OPENPLANS_PUBLIC_QUOTING (on unless "off"). */
+  /** Anonymous quotes by age and ZIP. Defaults to OPENPLANS_PUBLIC_QUOTING, else `public.quoting`. */
   publicQuoting?: boolean;
   /** Anonymous household quotes, benchmark and ICHRA checks when no token is set.
-   * Defaults to OPENPLANS_PUBLIC_HOUSEHOLD (on unless "off"). */
+   * Defaults to OPENPLANS_PUBLIC_HOUSEHOLD, else `public.household`. */
   publicHousehold?: boolean;
-  /** Anonymous compatibility API when no key is set. Defaults to OPENPLANS_PUBLIC_COMPAT (on unless "off"). */
+  /** Anonymous compatibility API when no key is set. Defaults to OPENPLANS_PUBLIC_COMPAT, else `public.compat`. */
   publicCompat?: boolean;
-  /** Defaults to OPENPLANS_TRUST_PROXY; only these peers may supply X-Forwarded-For. */
+  /**
+   * When set, compatibility routes need this key. Defaults to OPENPLANS_COMPAT_API_KEY, else
+   * `tokens.compatKey` in the config file, read when the routes are built. Never logged.
+   */
+  compatKey?: string;
+  /** Defaults to OPENPLANS_TRUST_PROXY, else `trustProxy` in the config file; only these peers
+   * may supply X-Forwarded-For. */
   trustedProxies?: string[];
   /** Trusted socket peer supplied by a hosting adapter, never an HTTP header. */
   peerAddress?: PeerAddress;
@@ -36,49 +43,22 @@ export const PUBLIC_QUOTE_RATE: SourceLimits = {
 };
 const MAX_BODY_BYTES = 65_536;
 
-/** Parses an on/off switch whose default is on (owner, 2026-11-09: available by default). */
-function onUnlessOff(name: string, value: string | undefined): boolean {
-  if (value === undefined || value === "" || value === "on") return true;
-  if (value === "off") return false;
-  throw new Error(`${name} must be on or off`);
-}
-/** Public quoting is on for every install unless OPENPLANS_PUBLIC_QUOTING=off (owner, 2026-11-09). */
-export function publicQuotingFromEnv(value: string | undefined): boolean {
-  return onUnlessOff("OPENPLANS_PUBLIC_QUOTING", value);
-}
-/** Household routes are open without a token unless OPENPLANS_PUBLIC_HOUSEHOLD=off. */
-export function publicHouseholdFromEnv(value: string | undefined): boolean {
-  return onUnlessOff("OPENPLANS_PUBLIC_HOUSEHOLD", value);
-}
-/** The compatibility API is open without a key unless OPENPLANS_PUBLIC_COMPAT=off. */
-export function publicCompatFromEnv(value: string | undefined): boolean {
-  return onUnlessOff("OPENPLANS_PUBLIC_COMPAT", value);
-}
+/** Public switches are on unless set to off (owner, 2026-11-09: available by default). */
 export function publicQuotingEnabled(options: QuoteOptions): boolean {
-  return (
-    options.publicQuoting ??
-    publicQuotingFromEnv(process.env.OPENPLANS_PUBLIC_QUOTING)
-  );
+  return options.publicQuoting ?? publicAccess().quoting;
 }
 
 function publicHouseholdEnabled(options: QuoteOptions): boolean {
-  return (
-    options.publicHousehold ??
-    publicHouseholdFromEnv(process.env.OPENPLANS_PUBLIC_HOUSEHOLD)
-  );
+  return options.publicHousehold ?? publicAccess().household;
 }
 export function publicCompatEnabled(options: QuoteOptions): boolean {
-  return (
-    options.publicCompat ??
-    publicCompatFromEnv(process.env.OPENPLANS_PUBLIC_COMPAT)
-  );
+  return options.publicCompat ?? publicAccess().compat;
 }
 /** Same per-source limits as public quotes, for one anonymous tier. */
 export function anonymousAdmission(options: QuoteOptions): MiddlewareHandler {
   return sourceAdmission({
     limits: PUBLIC_QUOTE_RATE,
-    trustedProxies:
-      options.trustedProxies ?? proxyList(process.env.OPENPLANS_TRUST_PROXY),
+    trustedProxies: options.trustedProxies ?? trustedProxies(),
     peerAddress: options.peerAddress,
     now: options.now,
   });
@@ -162,8 +142,7 @@ export function quoteRoutes(
           scoped,
           requestSource(
             c,
-            options.trustedProxies ??
-              proxyList(process.env.OPENPLANS_TRUST_PROXY),
+            options.trustedProxies ?? trustedProxies(),
             options.peerAddress,
           ),
           boundedDatabase(db, deadline, { readOnly: false }),

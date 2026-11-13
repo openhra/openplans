@@ -35,6 +35,14 @@ export const sourceControls = {
     after:
       "const mutant = await fallbackCounties(db, zip, 'geonames'); if (mutant.length) return { zip, status: 'available', geography: 'postal_zip', source: 'geonames', counties: mutant }; if (rows.length) return",
   },
+  // The old MCP projection read any plan_key as a state plan key, so a HIOS-keyed NY plan failed
+  // the search_plans output contract with INTERNAL_HONESTY_CHECK (surface-sweep.mjs).
+  mcpPlanKey: {
+    path: "mcp/projection",
+    before: "const key = scoped(r.plan_key) ?? scoped(r.base_plan_id);",
+    after:
+      "const key = r.plan_key ?? (String(r.base_plan_id).includes(':') ? r.base_plan_id : null);",
+  },
 };
 
 export function mutateSource(source, control) {
