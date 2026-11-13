@@ -142,6 +142,58 @@ names each refused plan under `provenance.refused_templates`. Regions with no su
 keep their calculated answer. A stored refusal without a usable plan list counts as
 present in every region.
 
+### NY rate source override
+
+This switch is off by default. Turning it on is the operator's decision. With it off,
+`ny-2026.json` is byte for byte what it was before the switch existed. A refused issuer
+stays `unknown`, and so do the benchmarks it blocks.
+
+CMS also publishes New York's rates in its state-based exchange (SBE) bundle,
+`newyorksbepuf2026.zip`, in the member `NYRates*.csv`. Its annual family-tier rows hold the same
+eight cells as a DFS approved template. The operator can name a refused issuer in the
+config file:
+
+```json
+{ "version": 1, "ny": { "rateSourceOverrides": { "25303": "cms-sbe" } } }
+```
+
+Preparation reads this from `--config` or `$OPENPLANS_CONFIG`. It then takes that issuer's
+rates from the cached, admitted SBE bundle. It never downloads it, and it refuses when:
+
+- the issuer's DFS template was not refused by the guard above, or some of its DFS rows are
+  served;
+- the SBE file disagrees with the DFS approved rates of the other issuers. Every admitted DFS
+  plan and rating area that the SBE file also lists is compared in all eight tier cells,
+  to the cent. Each admitted issuer needs at least one compared row, and one differing
+  cell is enough to stop;
+- there isn't exactly one admitted, hash-verified copy of the bundle in the cache.
+
+The plans come from the refused template's `listed_plans`. A plan the SBE file prices goes
+into `rate_source_overrides.issuers[].records`. Each record keeps the SBE row itself, as
+`source_record` `NYRates….csv!row=<line>` and `raw`. A plan with no annual SBE row, or with
+dependent columns that disagree, goes into `unknown_plans` with
+`sbe_rate_row_missing` or `sbe_tier_columns_non_uniform`. Its rate stays `unknown`.
+`publication` records the bundle URL, SHA-256, byte count, retrieval time, member name and
+member SHA-256. `cross_check` records how many rows and cells were compared per issuer.
+`quality_note` explains why the issuer has another source. `sources` and `template_checks`
+don't change. The refused template stays refused, with its evidence.
+
+The importer applies the same rules again. It accepts override records only when:
+
+- the configuration names exactly the issuers the artifact overrides. Prepare again after
+  switching on or off; an import with the switch on and no override in the artifact is
+  refused;
+- the bundle's bytes match its hash;
+- every override record equals its SBE row;
+- the cross-check, re-run on those bytes, still matches to the cent.
+
+`verifyRaw: false` cannot skip this. A failed check stops the import, and the previously
+staged import stays active. The importer stages override rows under the SBE bundle's own
+publication snapshot. Each issuer gets an `info` quality issue `rate_source_override` that holds the note
+and the evidence. A priced plan no longer makes its region's benchmark `unknown`. A plan in
+`unknown_plans` still does. Rate cells name the SBE column they came from, such as
+`INDIVIDUAL RATE` or `COUPLE`.
+
 `620_state_community_rates.sql` stores immutable publication snapshots, raw rate
 records, cited rule documents, and an atomic staging pointer. Duplicate plan/area
 matches return `ambiguous`, and failed imports preserve the previous pointer.

@@ -274,17 +274,17 @@ describe("Part D network and price check on synthetic archives", () => {
     ],
     [
       "unit cost",
-      "UPDATE partd_unit_cost SET unit_cost=unit_cost+0.0001 WHERE plan_id='001'",
+      "UPDATE partd_plan_unit_cost SET unit_cost=unit_cost+0.0001 WHERE plan_id='001'",
       /^pricing /,
     ],
     [
       "days supply",
-      "UPDATE partd_unit_cost SET days_supply=60 WHERE plan_id='001' AND days_supply=30",
+      "UPDATE partd_plan_unit_cost SET days_supply=60 WHERE plan_id='001' AND days_supply=30",
       /^price_sample /,
     ],
     [
       "pricing membership",
-      "DELETE FROM partd_unit_cost WHERE plan_id='001'",
+      "DELETE FROM partd_plan_unit_cost WHERE plan_id='001'",
       /^pricing /,
     ],
   ])(

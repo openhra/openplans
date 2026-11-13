@@ -10,6 +10,13 @@ export const eventPayloadSchemas = {
     imageId: z.string(),
     previousVersion: z.string().nullable(),
   }),
+  // An operator's hard-release rollback: the version and image the pin went back to, and the
+  // version it left.
+  "release.rolled_back": z.strictObject({
+    version: z.string(),
+    imageId: z.string(),
+    fromVersion: z.string(),
+  }),
   "snapshot.activated": z.strictObject({
     sourceId: z.string(),
     snapshotId: z.string(),

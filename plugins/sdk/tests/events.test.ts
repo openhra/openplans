@@ -13,6 +13,11 @@ const examples = {
     imageId: "synthetic-image",
     previousVersion: null,
   },
+  "release.rolled_back": {
+    version: "1.0.0",
+    imageId: "synthetic-image",
+    fromVersion: "1.1.0",
+  },
   "snapshot.activated": {
     sourceId: "synthetic",
     snapshotId: "synthetic-receipt",
@@ -57,11 +62,11 @@ const examples = {
 } satisfies EventPayloads;
 
 describe("event catalog", () => {
-  it("has all 14 payload schemas and permits only inspectable, safe property names", () => {
+  it("has all 15 payload schemas and permits only inspectable, safe property names", () => {
     expect(Object.keys(eventPayloadSchemas).sort()).toEqual(
       Object.keys(examples).sort(),
     );
-    expect(Object.keys(eventPayloadSchemas)).toHaveLength(14);
+    expect(Object.keys(eventPayloadSchemas)).toHaveLength(15);
     expect(checkEventPayloads(eventPayloadSchemas)).toEqual([]);
     for (const [type, schema] of Object.entries(eventPayloadSchemas)) {
       const payload = examples[type as keyof EventPayloads];

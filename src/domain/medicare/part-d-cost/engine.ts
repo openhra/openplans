@@ -31,6 +31,15 @@ import type {
 } from "./program-rules.js";
 import { programRules } from "./program-rules.js";
 import type {
+  FeeRangeRef,
+  FillPricing,
+  PlanAveragePrice,
+  PriceFigure,
+  PriceReadingKey,
+} from "./price.js";
+import type { PricingDeps } from "./price.js";
+import { FEE_UNKNOWN, fillPricing, pricingDeps } from "./price.js";
+import type {
   BenefitBundle,
   ChannelCost,
   Conflict,
@@ -94,7 +103,11 @@ export interface FillRequest {
   };
 }
 
-/** A claim price in dollars. Test prices are CMS worked examples or labelled synthetic. */
+/**
+ * A claim price. A dollar amount comes from a CMS worked example or a labelled synthetic test; a
+ * plan average (price.ts) is priced with and without the dispensing fee, and the engine runs each
+ * reading. An unknown plan-average price names its basis so the fill still reports price figures.
+ */
 export type PriceEvidence =
   | {
       status: "value";
@@ -103,7 +116,8 @@ export type PriceEvidence =
       reference: string;
       maximum_fair_price?: string;
     }
-  | { status: "unknown"; reason: string };
+  | PlanAveragePrice
+  | { status: "unknown"; reason: string; basis?: "cms_plan_average" };
 
 export type OpeningState =
   | { kind: "new_calendar_year" }
@@ -127,14 +141,17 @@ export interface EstimateRequest {
   prices: Record<string, PriceEvidence>;
 }
 
-export type Figure =
-  | { status: "value"; cents: number }
-  | { status: "unknown"; cents: null; reason: string };
+/**
+ * A reported amount. `bounded` holds the minimum and maximum when only the dispensing fee moves
+ * the amount and the amount rises with the price; it is never a single value.
+ */
+export type Figure = PriceFigure;
 
 export type Evidence =
   | ({ kind: "source_row" } & RowRef)
   | ({ kind: "pbp_row" } & PbpRowRef)
   | ({ kind: "rule"; contract_year: number } & Citation)
+  | ({ kind: "fee_range" } & FeeRangeRef)
   | { kind: "request"; field: string };
 
 export interface ConflictNote {
@@ -152,14 +169,31 @@ export interface Accumulators {
   plan_deductible_met: Figure;
 }
 
+/** A plan-average fill's price figures and how it was priced. */
+export interface FillPrice {
+  basis: "cms_plan_average";
+  unit_cost: string | null;
+  quantity: string | null;
+  quantity_basis: "caller_asserted_ndc_units" | null;
+  caveat: string | null;
+  fee_set: FillPricing["fee_set"] | null;
+  readings: PriceReadingKey[];
+  unit_cost_total: Figure;
+  total_lowest_fee: Figure;
+  total_highest_fee: Figure;
+  gross: Figure;
+}
+
 export interface FillResult {
   fill_id: string;
   date: string;
   rxcui: string;
-  status: "estimated" | "unknown";
+  status: "estimated" | "bounded" | "unknown";
   tier: number | null;
   supply: Supply | null;
   price_basis: string | null;
+  /** Null unless the fill is priced from plan averages. */
+  price: FillPrice | null;
   listing_conditions: string[];
   patient_pay: Figure;
   troop_increment: Figure;
@@ -234,6 +268,7 @@ export interface EngineDeps {
   };
   /** Whether the readings' values for one figure settle it: all of them must be the same. */
   agree: (values: readonly string[]) => boolean;
+  pricing: PricingDeps;
 }
 export const engineDeps: EngineDeps = {
   claim: claimDeps,
@@ -242,6 +277,7 @@ export const engineDeps: EngineDeps = {
   bounds: boundDeps,
   classify: { drug: classifyDrug, benefitType: resolveBenefitType },
   agree: (values) => values.length > 0 && new Set(values).size === 1,
+  pricing: pricingDeps,
 };
 
 // ---------- readings ----------
@@ -268,6 +304,8 @@ interface ResolvedFill {
   pkg: Package | null;
   price: PriceEvidence;
   gross: Rational | null;
+  /** Plan-average readings; the engine runs each one when they disagree. */
+  pricing: FillPricing | null;
   mfp: Rational | null;
   programs: DrugProgram[];
   insulin: boolean[];
@@ -390,6 +428,7 @@ export function createEstimator(deps: EngineDeps = engineDeps) {
         pkg: null,
         price,
         gross: null,
+        pricing: null,
         mfp: null,
         programs: [],
         insulin: [],
@@ -429,6 +468,15 @@ export function createEstimator(deps: EngineDeps = engineDeps) {
       if ("conflict" in classified) return block(classified.conflict);
       base.classification = classified;
       base.programs = classified.program.options;
+      if (price.status === "plan_average") {
+        base.pricing = fillPricing(
+          price,
+          classified.program.options,
+          deps.pricing,
+        );
+        if (base.pricing.readings.length === 1)
+          base.gross = base.pricing.readings[0]!.gross;
+      }
       const tri = (value: Tri) =>
         value === "unknown" ? [false, true] : [value];
       base.insulin = tri(classified.insulin.value);
@@ -454,6 +502,12 @@ export function createEstimator(deps: EngineDeps = engineDeps) {
     for (const fill of resolved) {
       if (fill.blocked) continue;
       const rx = fill.request.rxcui;
+      if (fill.pricing?.reason)
+        addVariable(
+          priceKey(fill.request.fill_id),
+          fill.pricing.reason,
+          fill.pricing.readings.map((reading) => reading.key),
+        );
       addVariable(`program:${rx}`, "drug_program_unknown", fill.programs);
       addVariable(
         `insulin:${rx}`,
@@ -560,9 +614,37 @@ export function createEstimator(deps: EngineDeps = engineDeps) {
         }
         return [...reasons].sort().join("+") || "readings_disagree";
       };
+      // Only this fill's dispensing fee may move a bounded figure, and the figure must rise with
+      // the price: unit cost alone <= lowest fee <= highest fee. Any other disagreement stays
+      // unknown, as does a figure an earlier fill's fee moves.
+      const key = priceKey(fill.request.fill_id);
+      const priceVariable = variables.find((item) => item.key === key);
+      const bound = (values: readonly bigint[]): Figure | null => {
+        if (fill.pricing?.reason !== FEE_UNKNOWN || !priceVariable) return null;
+        if (priceVariable.options.join() !== BOUNDED_READINGS.join())
+          return null;
+        const byReading = new Map<string, Set<bigint>>();
+        worlds.forEach((world, i) => {
+          const set = byReading.get(world[key]!) ?? new Set<bigint>();
+          set.add(values[i]!);
+          byReading.set(world[key]!, set);
+        });
+        if ([...byReading.values()].some((set) => set.size !== 1)) return null;
+        const [alone, low, high] = BOUNDED_READINGS.map(
+          (reading) => [...byReading.get(reading)!][0]!,
+        );
+        if (alone! > low! || low! > high!)
+          return {
+            status: "unknown",
+            cents: null,
+            reason: "cost_sharing_not_monotonic_in_price",
+          };
+        return deps.pricing.between(Number(low), Number(high));
+      };
       const figure = (
         pick: (claim: ClaimFigures, outcome: WorldOutcome) => bigint | null,
         nullReason: string | ((outcome: WorldOutcome) => string),
+        boundable = false,
       ): Figure => {
         const values = outcomes.map((outcome) =>
           outcome.result.status === "value"
@@ -595,7 +677,10 @@ export function createEstimator(deps: EngineDeps = engineDeps) {
         }
         if (deps.agree(values.map(String)))
           return { status: "value", cents: Number(values[0]) };
-        return { status: "unknown", cents: null, reason: byVariables() };
+        const bounded = boundable ? bound(values as bigint[]) : null;
+        return (
+          bounded ?? { status: "unknown", cents: null, reason: byVariables() }
+        );
       };
       // Why a reading has no amount for a figure the price or the payer split decides.
       const missing = (outcome: WorldOutcome) => {
@@ -651,6 +736,7 @@ export function createEstimator(deps: EngineDeps = engineDeps) {
       const patient = figure(
         (claim) => claim.patientCents,
         "patient_pay_unknown",
+        true,
       );
       const conflicts = sorted(
         outcomes.flatMap((outcome) => outcome.conflicts),
@@ -674,6 +760,15 @@ export function createEstimator(deps: EngineDeps = engineDeps) {
               ]
             : []),
           { kind: "request" as const, field: `fills.${fill.request.fill_id}` },
+          ...(fill.pricing && fill.price.status === "plan_average"
+            ? [
+                { kind: "source_row" as const, ...fill.price.pricing_row },
+                ...fill.price.fee_ranges.map((ref) => ({
+                  kind: "fee_range" as const,
+                  ...ref,
+                })),
+              ]
+            : []),
           ...(fill.price.status === "value"
             ? [
                 {
@@ -720,16 +815,21 @@ export function createEstimator(deps: EngineDeps = engineDeps) {
         fill_id: fill.request.fill_id,
         date: fill.request.date,
         rxcui: fill.request.rxcui,
-        status: patient.status === "value" ? "estimated" : "unknown",
+        status: FILL_STATUS[patient.status],
         tier: fill.tier,
         supply: fill.supply,
-        price_basis: fill.price.status === "value" ? fill.price.basis : null,
+        price_basis:
+          fill.price.status === "unknown"
+            ? (fill.price.basis ?? null)
+            : fill.price.basis,
+        price: fillPrice(fill),
         listing_conditions: fill.pkg ? conditions : [],
         classification: fill.classification,
         patient_pay: patient,
         troop_increment: figure(
           (claim) => claim.troopDeltaCents,
           "troop_unknown",
+          true,
         ),
         gross_below_threshold: figure(
           (claim, outcome) =>
@@ -774,8 +874,8 @@ export function createEstimator(deps: EngineDeps = engineDeps) {
         fills.flatMap((fill) =>
           [fill.patient_pay, fill.troop_increment]
             .filter(
-              (item): item is Extract<Figure, { status: "unknown" }> =>
-                item.status === "unknown",
+              (item): item is Exclude<Figure, { status: "value" }> =>
+                item.status !== "value",
             )
             .flatMap((item) => item.reason.split("+")),
         ),
@@ -1150,14 +1250,24 @@ export function createEstimator(deps: EngineDeps = engineDeps) {
           }
         }
 
+        // A plan-average fill takes this reading's gross cost; a reading no file settles has none.
+        let gross = fill.gross;
+        let unpricedReason =
+          fill.price.status === "unknown"
+            ? fill.price.reason
+            : "pricing_not_loaded";
+        if (fill.pricing && fill.pricing.readings.length > 1) {
+          const reading = fill.pricing.readings.find(
+            (item) => item.key === world[priceKey(fill.request.fill_id)],
+          );
+          gross = reading?.gross ?? null;
+          unpricedReason = fill.pricing.reason ?? FEE_UNKNOWN;
+        }
         // Without a price only the catastrophic phase is settled: the enrollee pays nothing there
         // (an ACIP vaccine pays nothing in any phase), so patient pay and TrOOP are known while the
         // gross cost and the payer split stay unknown.
-        if (!fill.gross) {
-          const unpriced =
-            fill.price.status === "unknown"
-              ? fill.price.reason
-              : "pricing_not_loaded";
+        if (!gross) {
+          const unpriced = unpricedReason;
           if (inCatastrophe)
             return finish(
               {
@@ -1185,7 +1295,7 @@ export function createEstimator(deps: EngineDeps = engineDeps) {
         }
 
         const result = priceClaim({
-          gross: fill.gross,
+          gross,
           troop,
           planDeductibleRemaining: deductibleRemaining,
           design,
@@ -1243,6 +1353,67 @@ export function createEstimator(deps: EngineDeps = engineDeps) {
         );
       });
     }
+  };
+}
+
+const FILL_STATUS: Record<Figure["status"], FillResult["status"]> = {
+  value: "estimated",
+  bounded: "bounded",
+  unknown: "unknown",
+};
+const priceKey = (fillId: string) => `price:${fillId}`;
+/** The readings a bounded figure needs, in rising price order. */
+const BOUNDED_READINGS: readonly PriceReadingKey[] = [
+  "unit_cost",
+  "lowest_fee",
+  "highest_fee",
+];
+/** Listing gaps come before any price: a drug the plan does not list has no plan price. */
+const LISTING_BLOCKS = new Set([
+  "drug_not_in_bundle",
+  "not_listed",
+  "supplemental_listing_only",
+  "drug_evidence_unknown",
+  "ambiguous_drug_product",
+  "proxy_ndc_not_listed",
+]);
+
+function fillPrice(fill: ResolvedFill): FillPrice | null {
+  const price = fill.price;
+  const planAverage = price.status === "plan_average";
+  if (!planAverage && !(price.status === "unknown" && price.basis)) return null;
+  const head = {
+    basis: "cms_plan_average" as const,
+    unit_cost: planAverage ? price.unit_cost : null,
+    quantity: planAverage ? price.quantity : null,
+    quantity_basis: planAverage ? price.quantity_basis : null,
+    caveat: planAverage ? price.caveat : null,
+  };
+  let reason: string | null = null;
+  if (fill.blocked && LISTING_BLOCKS.has(fill.blocked)) reason = fill.blocked;
+  else if (price.status === "unknown") reason = price.reason;
+  else if (!fill.pricing) reason = fill.blocked ?? "pricing_not_loaded";
+  if (reason || !fill.pricing) {
+    const none: Figure = {
+      status: "unknown",
+      cents: null,
+      reason: reason ?? "pricing_not_loaded",
+    };
+    return {
+      ...head,
+      fee_set: null,
+      readings: [],
+      unit_cost_total: none,
+      total_lowest_fee: none,
+      total_highest_fee: none,
+      gross: none,
+    };
+  }
+  return {
+    ...head,
+    fee_set: fill.pricing.fee_set,
+    readings: fill.pricing.readings.map((reading) => reading.key),
+    ...fill.pricing.figures,
   };
 }
 

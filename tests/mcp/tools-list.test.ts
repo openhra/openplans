@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { readFile, writeFile, rm } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { createMcpHandler } from "@modelcontextprotocol/server";
@@ -264,8 +265,11 @@ it.each([
   ],
 ] as const)("negative control: rejects %s", async (name, before, after) => {
   const source = new URL("../../src/mcp/server.ts", import.meta.url);
+  // The mutant sits next to server.ts so its relative imports resolve. The pid and
+  // a random suffix keep two test runs in the same checkout from writing, reading
+  // and deleting each other's copy.
   const temporary = new URL(
-    `../../src/mcp/.server-list-mutant-${name.replaceAll(" ", "-")}.ts`,
+    `../../src/mcp/.server-list-mutant-${name.replaceAll(" ", "-")}-${process.pid}-${randomUUID()}.ts`,
     import.meta.url,
   );
   await writeFile(
@@ -277,6 +281,7 @@ it.each([
     const module = (await import(/* @vite-ignore */ temporary.href)) as {
       buildServer: typeof buildServer;
     };
+    expect(module.buildServer).toBeTypeOf("function");
     const plugin = name === "page size back to fifteen with sixteen tools";
     const pluginTools = plugin ? (await loadTools({ count: 1 })).tools! : [];
     const names =

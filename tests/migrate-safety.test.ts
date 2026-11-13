@@ -264,7 +264,9 @@ describe("conservative migration preflight", () => {
       reasons: [],
     });
     // In one pending batch after 1000 and 1001 it stays additive-safe.
-    const batch = (await loadMigrations()).filter((m) => m.version >= 1000);
+    const batch = (await loadMigrations()).filter(
+      (m) => m.version >= 1000 && m.version <= 1002,
+    );
     expect(batch.map((m) => m.name)).toEqual([
       "1000_plugin_events.sql",
       "1001_passthrough.sql",
@@ -294,6 +296,30 @@ describe("conservative migration preflight", () => {
     expect(classifyMigration(mutant, largeSnapshot).classification).toBe(
       "risky",
     );
+  });
+  it("rates 1004 by its two literal seeds, and a copy from a large pricing table as risky", async () => {
+    const migration = (await loadMigrations()).find(
+      (m) => m.name === "1004_partd_unit_cost_key.sql",
+    )!;
+    expect(classifyMigration(migration.sql).reasons).toEqual([
+      'Statement 3: Unbounded INSERT or source scan; "public"."row_provenance_rule" size is unknown',
+      'Statement 4: Unbounded INSERT or source scan; "public"."api_data_generation" size is unknown',
+    ]);
+    expect(classifyMigration(migration.sql, tableSizes)).toEqual({
+      classification: "additive-safe",
+      reasons: [],
+    });
+    // Planted mutant: copying the old rows in the migration is caught once that table is large.
+    const mutant = `${migration.sql}
+INSERT INTO partd_plan_unit_cost(release_key,days_supply,source_row,contract_id,plan_id,segment_id,ndc,unit_cost)
+SELECT k.release_key,u.days_supply,u.source_row,u.contract_id,u.plan_id,u.segment_id,u.ndc,u.unit_cost
+FROM partd_unit_cost u JOIN partd_pricing_release k ON k.snapshot_id = u.snapshot_id;`;
+    expect(
+      classifyMigration(mutant, {
+        ...tableSizes,
+        partd_unit_cost: { rows: 54_052_371, bytes: 29_600_000_000 },
+      }).classification,
+    ).toBe("risky");
   });
   it("worker migrate --check reports migration 1000 additive-safe on a PGlite copy", async () => {
     const core = await coreMigrations();

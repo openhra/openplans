@@ -51,6 +51,7 @@ function attributes(
 ) {
   return exchangeAttributeRows(db, plan.snapshot_id, plan.base_plan_id);
 }
+const ZIP_LIMITED = "zip_limited_service_area";
 async function dentalOffers(
   db: SqlSession,
   request: Request,
@@ -58,11 +59,20 @@ async function dentalOffers(
   household: SlcspHousehold,
   area: string,
 ) {
-  const plans = (
+  const inCounty = (
     await plansForCounty(db, location.county!, request.year, "Individual")
-  ).filter(
-    (p) => p.dental_only && p.on_exchange && zipEligible(p, location.zip),
-  );
+  ).filter((p) => p.dental_only && p.on_exchange);
+  // Without a ZIP, a dental plan that serves only part of the county may or may not
+  // be offered to the household, so the dental adjustment is not known.
+  if (!location.zip && inCounty.some((p) => p.zip_restricted))
+    return {
+      monthlyCents: null,
+      planIds: [],
+      offers: [],
+      issues: [ZIP_LIMITED],
+      evidence: [],
+    };
+  const plans = inCounty.filter((p) => zipEligible(p, location.zip));
   const childAgeBands = [
     ...new Set(
       household.members
@@ -155,12 +165,21 @@ export async function benchmark(
     pediatric_dental: null as Awaited<ReturnType<typeof dentalOffers>> | null,
   };
   if (location.status !== "available" || !location.county)
-    return { ...empty, status: location.status };
+    return {
+      ...empty,
+      status: location.status,
+      issues:
+        location.status === "unknown" ? ["zip_not_in_loaded_geography"] : [],
+    };
   const state = countyState(location.county);
-  if (
-    (state === "NY" || state === "VT") &&
-    (await stateCatalog(db, request.year, state)).length
-  ) {
+  if (state === "NY" || state === "VT") {
+    // Both states rate by filed tier, never per member, so a missing state catalog stays unsupported.
+    if (!(await stateCatalog(db, request.year, state)).length)
+      return {
+        ...empty,
+        status: "unsupported_rating_method",
+        issues: ["state_catalog_not_loaded"],
+      };
     return {
       ...empty,
       quote_method: "state_filed_tier" as const,
@@ -189,7 +208,7 @@ export async function benchmark(
     return {
       ...empty,
       status: "location_requires_zip",
-      issues: ["zip_limited_service_area"],
+      issues: [ZIP_LIMITED],
     };
   const offered = (
     await countyPlans(db, location.county, request.year, location.zip)
@@ -279,6 +298,12 @@ export async function benchmark(
           household,
           premium.ratingAreaId,
         );
+        if (dental.issues.includes(ZIP_LIMITED))
+          return {
+            ...empty,
+            status: "location_requires_zip",
+            issues: [ZIP_LIMITED],
+          };
         if (dental.monthlyCents === null)
           return {
             ...empty,

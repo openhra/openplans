@@ -65,7 +65,7 @@
       "path": ".github/workflows/ci.yml",
       "mode": "100644",
       "size": 4199,
-      "sha256": "6befbf00270b3e468db8343e5e5e272bf841988f0452d1c0f8b833e60d85718c"
+      "sha256": "d155cf7e500729e6a1dd2e2781e34fa597989649d4f95f51234b82b07a467460"
     },
     {
       "path": ".gitignore",
@@ -100,8 +100,8 @@
     {
       "path": "CHANGELOG.md",
       "mode": "100644",
-      "size": 12856,
-      "sha256": "37fe66de9c9137dc1291e3f4e2e1d03d29489098534e5522c2438d4a47add6f7"
+      "size": 21197,
+      "sha256": "eb0d18270cbd4fc66ba15179bc3aa073a1794fbb83b9a79d2be894044b60f7b9"
     },
     {
       "path": "CLAUDE.md",
@@ -358,8 +358,8 @@
     {
       "path": "docs/configuration.md",
       "mode": "100644",
-      "size": 41154,
-      "sha256": "af32e95ac8bd0f48b6bd1c9393e54c8277e8f65003af5604609343d6238d5a14"
+      "size": 43329,
+      "sha256": "61ad6f63e404b100e1d18292afd11e2e2720f20d9a7f9522ef83bf20e8308e62"
     },
     {
       "path": "docs/development-tools.md",
@@ -376,14 +376,14 @@
     {
       "path": "docs/medicare.md",
       "mode": "100644",
-      "size": 27574,
-      "sha256": "9dbb94e982b4fb07a103c27f4258ddae4787022a33a2e1de1cfd40e80c3445ca"
+      "size": 34991,
+      "sha256": "040251ec6e9f4dda02ba0eb4de5f0802ebd0930627d99c6452705162f72300a1"
     },
     {
       "path": "docs/migrations.md",
       "mode": "100644",
-      "size": 21730,
-      "sha256": "abbb7576dcdcffa432beb1d8005387bd61a3b0d483a58d6c3838467047936c48"
+      "size": 24130,
+      "sha256": "38016e52b1d03339e8d8337f83865da60da8fdcf2b0fc8c45e427f31a5e3c35c"
     },
     {
       "path": "docs/plugins-operations.md",
@@ -394,8 +394,8 @@
     {
       "path": "docs/plugins.md",
       "mode": "100644",
-      "size": 46405,
-      "sha256": "672ae24e30b8bea51302fa2b2be8e5fbba84e553d35572c7b72fc898264f5dad"
+      "size": 46755,
+      "sha256": "e2a893350fef11de634690a32beec58037e7585285011a23831506b429291cb1"
     },
     {
       "path": "docs/quoting.md",
@@ -480,6 +480,18 @@
       "mode": "100644",
       "size": 1225,
       "sha256": "bd5fe9c95d92974ddfc0bc72621d1e40e493786a09a9c65f062512355201bdc0"
+    },
+    {
+      "path": "migrations/1003_partd_dispensing_fee.sql",
+      "mode": "100644",
+      "size": 1960,
+      "sha256": "4d9169d2f6ce592a0adef99eed6455aed1e809a1c9ed15612345dd55ee7ca85e"
+    },
+    {
+      "path": "migrations/1004_partd_unit_cost_key.sql",
+      "mode": "100644",
+      "size": 2175,
+      "sha256": "230c74dbab43eba40ebc5ea578ec055ed341594fee936ae564a63588c18eb7c4"
     },
     {
       "path": "migrations/100_geo.sql",
@@ -833,13 +845,13 @@
       "path": "package-lock.json",
       "mode": "100644",
       "size": 114963,
-      "sha256": "189a4c64707794d47a7589676c043373231977f9e3a8d318631a2506abf99da7"
+      "sha256": "3cfdbd5f9767a12fb47e90afd4a065ea53e1598f890550132ef7501670d9279a"
     },
     {
       "path": "package.json",
       "mode": "100644",
       "size": 2284,
-      "sha256": "f5688d71ab753b94e4b01a96f793fae8821c0a5dfc432fca332190cd9153b9f1"
+      "sha256": "24faba3f45238f17e826b0570d3c9354293ef669db4ec9cb204c551e7a9528e6"
     },
     {
       "path": "plugins/blob-s3/README.md",
@@ -946,8 +958,8 @@
     {
       "path": "plugins/sdk/src/events.ts",
       "mode": "100644",
-      "size": 3181,
-      "sha256": "c775ebffbcbb659251136a2d3387119ded1cf36d86e2d358e01e8c9cc27fbc35"
+      "size": 3424,
+      "sha256": "7ab0262597dd137c46f45366c16b7125a7d9bdc443ae3ba763b6893a61d5a6aa"
     },
     {
       "path": "plugins/sdk/src/index.ts",
@@ -970,8 +982,8 @@
     {
       "path": "plugins/sdk/tests/events.test.ts",
       "mode": "100644",
-      "size": 5293,
-      "sha256": "cd40fa74fc5361a63be4c9e24628540f498c9c3040f4f101efac8f6705e770b7"
+      "size": 5405,
+      "sha256": "f9b2ff3e95b405af9db223437f436993a954dff0cbf9f3ac2bc08d15ce9aff07"
     },
     {
       "path": "plugins/sdk/tests/manifest.test.ts",
@@ -994,8 +1006,8 @@
     {
       "path": "plugins/slack/README.md",
       "mode": "100644",
-      "size": 6752,
-      "sha256": "c91903b714df68851b1b8ff3abe804a94c670fb01e4d523d39e09a7dd942ab72"
+      "size": 6904,
+      "sha256": "8f527a509da7f65e648232dc0e7fe4dc2b8da8a564aaa37e43fd3e9505f120b2"
     },
     {
       "path": "plugins/slack/package.json",
@@ -1012,8 +1024,8 @@
     {
       "path": "plugins/slack/tests/slack.test.ts",
       "mode": "100644",
-      "size": 28839,
-      "sha256": "bae58725ba8350843c3ad95602443ec8919522fbe75c3d39db18cca0168f8aee"
+      "size": 29590,
+      "sha256": "a732aedd65bd4d279fcdd192ffda030bd69f34aee90ce57a3bde8a4dd0b33cfa"
     },
     {
       "path": "plugins/slack/tsconfig.json",
@@ -1240,8 +1252,8 @@
     {
       "path": "plugins/webhook/tests/webhook.test.ts",
       "mode": "100644",
-      "size": 27907,
-      "sha256": "32e53121ec686e2e8ff89b9e49a1d9a9d2bcf0964680a705dc47eaf0cacf71fb"
+      "size": 28955,
+      "sha256": "df6d8a09d9ab0be20d465a41d0f717d98706280917b62f58e636d537bd28493d"
     },
     {
       "path": "plugins/webhook/tsconfig.json",
@@ -1366,8 +1378,8 @@
     {
       "path": "scripts/oracle/README.md",
       "mode": "100644",
-      "size": 5055,
-      "sha256": "db98bfddcf147473b85bfd88e26bccd907e1c129f5ca15f0359d4af6c01d8e47"
+      "size": 9665,
+      "sha256": "6c28a76a7ab11e7626206d025fce9bdf39acbeee6fc8f3b8f09f6e2cd3472ce5"
     },
     {
       "path": "scripts/oracle/all-states-reference.py",
@@ -1468,8 +1480,8 @@
     {
       "path": "scripts/oracle/medicare-part-d-large-logic.mjs",
       "mode": "100644",
-      "size": 7019,
-      "sha256": "585c42d56a016dbe34f5c935cde3199826470bc5d4fe7cfb6cd28373fc3b02c3"
+      "size": 7201,
+      "sha256": "d55e6a0e21b2ee62569b2f78c1a7cb665b34faeea35e69fee836aced9771173a"
     },
     {
       "path": "scripts/oracle/medicare-part-d-large-reference.py",
@@ -1494,6 +1506,30 @@
       "mode": "100644",
       "size": 7200,
       "sha256": "78530c7c8c0a509745379b5cb5ad739b9e21bf5a9dd26cccee3d7698259d5fd9"
+    },
+    {
+      "path": "scripts/oracle/medicare-part-d-price-cases.json",
+      "mode": "100644",
+      "size": 73071,
+      "sha256": "8ff5127219df928aa0d31812f9281cf3b75a52e201e3ddf418d93d7e3ad01dd4"
+    },
+    {
+      "path": "scripts/oracle/medicare-part-d-price-logic.mjs",
+      "mode": "100644",
+      "size": 9194,
+      "sha256": "07cacc5e821ee0586e9bdba1dc2a7cb15dd59a2f14d6931097ee69559df2dc6e"
+    },
+    {
+      "path": "scripts/oracle/medicare-part-d-price-reference.py",
+      "mode": "100644",
+      "size": 21735,
+      "sha256": "5127a82efcf9b26146183e709d4dc2b49d163b85dec242c81b1f24d4f86246ee"
+    },
+    {
+      "path": "scripts/oracle/medicare-part-d-price.mjs",
+      "mode": "100644",
+      "size": 12154,
+      "sha256": "424c841187bfc7af6b8b9100c5abe9989391422b0cc5468d67d84a3100ace010"
     },
     {
       "path": "scripts/oracle/medicare-part-d-reference.py",
@@ -1582,8 +1618,8 @@
     {
       "path": "scripts/realdata.sh",
       "mode": "100755",
-      "size": 2983,
-      "sha256": "cbd0d02ab8dcc643cc6f58acaad2bc1283d60921e0bf8a191b9b3b564f7cc1aa"
+      "size": 3549,
+      "sha256": "2b70ced06454bf545d7622c80a2d18e3913f0d3b7b67a9e19767f239089704f3"
     },
     {
       "path": "scripts/smoke.sh",
@@ -1624,8 +1660,8 @@
     {
       "path": "src/api/README.md",
       "mode": "100644",
-      "size": 28114,
-      "sha256": "bb330890bcde3b0a1be6d0b1138cfe0620f543c02ac32f031dec3e50157ca562"
+      "size": 28271,
+      "sha256": "acdeb338c28966b4f7a3acf67a13f06249861435a660dced9e451a55684e7f8b"
     },
     {
       "path": "src/api/app.ts",
@@ -1840,8 +1876,8 @@
     {
       "path": "src/config/index.ts",
       "mode": "100644",
-      "size": 15274,
-      "sha256": "f663a26148b07d698a7b901f2f0cd19bdc214905406b2a96adbf849a9cbb2bb0"
+      "size": 15754,
+      "sha256": "f60ab31ca7e00c074f611fab2a9ffe6f2e74246d9244452d25c92a3e502356bc"
     },
     {
       "path": "src/db/availability.ts",
@@ -2038,8 +2074,14 @@
     {
       "path": "src/domain/medicare/part-d-cost/engine.ts",
       "mode": "100644",
-      "size": 50735,
-      "sha256": "a714ff75670771655a1f76ad7630210c8123be4abd81a27cca884a8ec0df52be"
+      "size": 56860,
+      "sha256": "53340ecca980cdbe14c81317089515161add64f2da87175e23427dfba5bac5d4"
+    },
+    {
+      "path": "src/domain/medicare/part-d-cost/price.ts",
+      "mode": "100644",
+      "size": 11676,
+      "sha256": "05b847c3d255f9f39d915acb36b1d2d4a695327f396a82bac058fc5b6822dc04"
     },
     {
       "path": "src/domain/medicare/part-d-cost/program-rules.ts",
@@ -2050,8 +2092,8 @@
     {
       "path": "src/domain/medicare/part-d-cost/repository.ts",
       "mode": "100644",
-      "size": 38329,
-      "sha256": "4d3202c078a38f2b53f919c62f64d5c14066fb2d277befe28a35010e68d25304"
+      "size": 49762,
+      "sha256": "90b5e6123bad6c2e1fa2d6773569fdfc2ae9f77613ee60cb85f087a1b50095b5"
     },
     {
       "path": "src/domain/medicare/stars.ts",
@@ -2171,7 +2213,7 @@
       "path": "src/fetch/README.md",
       "mode": "100644",
       "size": 24674,
-      "sha256": "7b2c06b0703adfe6fbaa8b0f01b267770dfc0f1d77362b168ca2ef36dce82a7b"
+      "sha256": "186d2461ca3e503a5f133c853c65604f0e328db16561ee186f69ee0266124e21"
     },
     {
       "path": "src/fetch/admission.ts",
@@ -2207,7 +2249,7 @@
       "path": "src/fetch/cache.ts",
       "mode": "100644",
       "size": 43161,
-      "sha256": "dab353ef781e7d0793e709f2fd902512cf7c5a3972cfc93c45f2bbc7ee5e4a19"
+      "sha256": "067cb360463e05dc6fb58d0452f8d62325a05e110bb843d9749cf8618ac0b5eb"
     },
     {
       "path": "src/fetch/egress.ts",
@@ -2261,7 +2303,7 @@
       "path": "src/fetch/transient.ts",
       "mode": "100644",
       "size": 24079,
-      "sha256": "f70d3c686776af7d9cf7def351482bb7302c615aef2e6dfc3bede52d4ab80160"
+      "sha256": "b10410761742bcee789d4dc68f6edb452b2d811b42de1a222c5572f6e5ded2f9"
     },
     {
       "path": "src/fetch/transport.ts",
@@ -2314,8 +2356,8 @@
     {
       "path": "src/ingest/geo/cms.ts",
       "mode": "100644",
-      "size": 7071,
-      "sha256": "18cd2025ecf0e2cd29bf44171eab26b9e65fab43ed575f45330e78f1508f5b1e"
+      "size": 7364,
+      "sha256": "824e9e386bb399179c150f642dd5c917952dd67af30305d7e4cd74971c35505b"
     },
     {
       "path": "src/ingest/geo/command.ts",
@@ -2606,6 +2648,12 @@
       "sha256": "c2adab60b4706a21151b94e16df86225cf92a3c41c45d287565c294104868069"
     },
     {
+      "path": "src/ingest/medicare/dispensing-fee.ts",
+      "mode": "100644",
+      "size": 6139,
+      "sha256": "4bb8c468eb6e928d42c89909835c04395f161b484a2d0bb4403affc8cf47c83b"
+    },
+    {
       "path": "src/ingest/medicare/landscape.ts",
       "mode": "100644",
       "size": 8689,
@@ -2638,8 +2686,8 @@
     {
       "path": "src/ingest/medicare/spuf.ts",
       "mode": "100644",
-      "size": 21980,
-      "sha256": "38bb7ca9b2f7cb7133e3d47a2106258d2c2b99bdb4f598d5e1d9b9484ed278b4"
+      "size": 36272,
+      "sha256": "a7d70eaa2e1ba1acd030bf12fcd5f75474ec879c3f3ccbf1897dda6f746fcaeb"
     },
     {
       "path": "src/ingest/medicare/stars.ts",
@@ -2807,7 +2855,7 @@
       "path": "src/ingest/qhp/discover-diagnose.ts",
       "mode": "100644",
       "size": 7715,
-      "sha256": "f79b438f82f077679e155af8e5fcf492d1a2e4140d5ad5e3be3efeb706a4303a"
+      "sha256": "6eb8830527a38cdd185a9e62c38286cb0667e71e5690347010a6b1d0bcf416ef"
     },
     {
       "path": "src/ingest/qhp/discover-pglite.ts",
@@ -3052,8 +3100,8 @@
     {
       "path": "src/ingest/state/README.md",
       "mode": "100644",
-      "size": 28842,
-      "sha256": "3a07e7e977e5afdf0c91f4bbfc0b545eb19dd4769d44bfa05d6cc0c1b0fedbdb"
+      "size": 31798,
+      "sha256": "e2394d2fd8abcedb4205ca3c2b980810adad9ab2d2ba47d614407a6915d22464"
     },
     {
       "path": "src/ingest/state/biff.py",
@@ -3064,8 +3112,8 @@
     {
       "path": "src/ingest/state/catalog.ts",
       "mode": "100644",
-      "size": 19018,
-      "sha256": "a977e1da7256f37d8eedf305beaa3066428d4f0219efc13c357e2e3f810d5b18"
+      "size": 19919,
+      "sha256": "d2f019b488b22372b7b53df8343ea1bf06f6d869073f9d724c21e5765b9d312a"
     },
     {
       "path": "src/ingest/state/command.ts",
@@ -3088,8 +3136,8 @@
     {
       "path": "src/ingest/state/index.ts",
       "mode": "100644",
-      "size": 17749,
-      "sha256": "f1a7000498b64fc281cd9ba572b5f88ad9219be1bc2c85779a7c65ce5b206a26"
+      "size": 22853,
+      "sha256": "23efb801f33a544ecb7f757bae148564de7edc6a9fc21ed5e6874ee2635e0702"
     },
     {
       "path": "src/ingest/state/nativecheck.mjs",
@@ -3100,8 +3148,8 @@
     {
       "path": "src/ingest/state/ny-identity.py",
       "mode": "100644",
-      "size": 9206,
-      "sha256": "add340ecce106f3dc656249b14dd7ee09b8bddc603b99c1ee62fa41d301b2522"
+      "size": 9941,
+      "sha256": "3b0dc583e433820951f3a7eab98133a4a98beffae186d531e3c1ec64d3700094"
     },
     {
       "path": "src/ingest/state/ny-identity.ts",
@@ -3112,8 +3160,8 @@
     {
       "path": "src/ingest/state/ny-identitycheck.mjs",
       "mode": "100644",
-      "size": 14338,
-      "sha256": "6b85516073dfecf708016f3ac911b6c0bd81b0e22de587d2c77702b487cef781"
+      "size": 16924,
+      "sha256": "574159c8004a5c276520670a4f63bc52e258e9a37f4ed380a4a051e1e228c1a2"
     },
     {
       "path": "src/ingest/state/offexchange-inventory.py",
@@ -3130,8 +3178,14 @@
     {
       "path": "src/ingest/state/prepare.py",
       "mode": "100644",
-      "size": 19703,
-      "sha256": "ebb639cd34f4e9debc363efa5ec5cf89bed5f2ce8061e3b30a56892eaa241174"
+      "size": 30397,
+      "sha256": "9753d9a26ab710c9e5d985f4aebe7417d3ecb434fda112756bab9981f67ed87c"
+    },
+    {
+      "path": "src/ingest/state/rate-source-override.ts",
+      "mode": "100644",
+      "size": 13984,
+      "sha256": "4b9f6b91c35789e6fd314ea79870b25d5550a68913875b4c07da4c5f0d4ca38b"
     },
     {
       "path": "src/ingest/state/realcheck.mjs",
@@ -3143,7 +3197,7 @@
       "path": "src/ingest/state/reflective.py",
       "mode": "100644",
       "size": 11147,
-      "sha256": "ceecef9504891984ca2edc4aa9ab65a278f1f4fddc8a4e0a3d51cd11a166365a"
+      "sha256": "3edd78629850f683b96dca83dcdbadf533cfd453ffed234fc92465054eb64de4"
     },
     {
       "path": "src/ingest/state/reflective.ts",
@@ -3208,8 +3262,8 @@
     {
       "path": "src/mcp/medicare-estimate.ts",
       "mode": "100644",
-      "size": 13884,
-      "sha256": "9525145fc0d68e955a1d0dad01579af32ce15f6a00ff11ae32e143146e1c9b3a"
+      "size": 16577,
+      "sha256": "5a6b4337521fbb26e915d96f5e9195a70f09230065da65e8464a7cc6b2be51ad"
     },
     {
       "path": "src/mcp/policy.ts",
@@ -3466,14 +3520,14 @@
     {
       "path": "src/services/medicare-drug-cost.ts",
       "mode": "100644",
-      "size": 23670,
-      "sha256": "8ba55fae81b2a09b08d783e2b2b036a80deca07d70472e9896f334ad2fa5e7cb"
+      "size": 33119,
+      "sha256": "baa4af2fd1a3ea51ada6fee8b2edf9f4a36eb043160baa23dded10ea3192934f"
     },
     {
       "path": "src/services/medicare-part-d.ts",
       "mode": "100644",
-      "size": 11802,
-      "sha256": "0aade4a0ed9e53ed8990a0889ce8e20ca5f7bf01d04b5d258f5c3b9f343d207b"
+      "size": 11915,
+      "sha256": "37da3a3a876b73f09f1fa129e481f026af489ad28d2bb6814712ce3d1f18d5b9"
     },
     {
       "path": "src/services/medicare.ts",
@@ -3514,8 +3568,8 @@
     {
       "path": "src/services/subsidies.ts",
       "mode": "100644",
-      "size": 17116,
-      "sha256": "06f1000cba9454ef78a08ea47ff72991307d45e3f11536cba51f944b23603169"
+      "size": 18055,
+      "sha256": "12bde533578de35e2974b6c8c1f1bdc4f1a280aad0cd6aff759622e469d392b8"
     },
     {
       "path": "src/worker/backup-args.ts",
@@ -3776,6 +3830,12 @@
       "sha256": "bfba7133cda768ba86b931eab9a54c1d7c96c3fff26e63eba3dd6fdff480995c"
     },
     {
+      "path": "tests/api/medicare-cost-plan-average.test.ts",
+      "mode": "100644",
+      "size": 17152,
+      "sha256": "9c932e7d89b8bb12962c73ab2680c09e2aab78c12534872a14845eb07f069dbe"
+    },
+    {
       "path": "tests/api/medicare-drug-names.test.ts",
       "mode": "100644",
       "size": 6681,
@@ -3854,6 +3914,12 @@
       "sha256": "dc4f92ffa65855e24823e31cd5be9fae92bdf4fcbe48be22213e2bc2e173881b"
     },
     {
+      "path": "tests/api/read-only-zip-lookup.test.ts",
+      "mode": "100644",
+      "size": 7389,
+      "sha256": "99c1067ecb5802b223de2e497668a3cf751f80714fbd8d453b6ede14d3d743ce"
+    },
+    {
       "path": "tests/api/realdata.mjs",
       "mode": "100644",
       "size": 4011,
@@ -3904,8 +3970,8 @@
     {
       "path": "tests/api/subsidy-dental.test.ts",
       "mode": "100644",
-      "size": 8472,
-      "sha256": "70e873b3bead041bd9967a779ea3d114c384e25d65e21afbf7c13d85782f0918"
+      "size": 13986,
+      "sha256": "6d7fc4be2eba4427ab53e69b07438a7111261b2b5f28ef603e7de03dba234957"
     },
     {
       "path": "tests/api/subsidy-realdata.mjs",
@@ -3916,8 +3982,8 @@
     {
       "path": "tests/api/subsidy-zip-limited.test.ts",
       "mode": "100644",
-      "size": 8413,
-      "sha256": "415c7aa04554d70c16857c521bd7550c8ad7c75fa4ba10520cd9bde3c9335f31"
+      "size": 8417,
+      "sha256": "16a62b5cc3782faaabfbb09fd0d2625edbd2d566a88fd1fd0ba5b7221649333a"
     },
     {
       "path": "tests/backup-restored.test.ts",
@@ -4252,8 +4318,8 @@
     {
       "path": "tests/config/config.test.ts",
       "mode": "100644",
-      "size": 17151,
-      "sha256": "b5793ad8463ff3989f7ba393c86297d1e31dad4c4b1ac81372bab1ed87f3819d"
+      "size": 17204,
+      "sha256": "82b760174f35d83654aea8ea9164102e9cc33f8a770e85bcad9b822ddbfeb70e"
     },
     {
       "path": "tests/config/docs-example.test.ts",
@@ -4350,6 +4416,18 @@
       "mode": "100644",
       "size": 63558,
       "sha256": "84d8ca658b1e267117fb655a15ed743bff111f4921a57108102870a1610069c7"
+    },
+    {
+      "path": "tests/domain/medicare-cost-plan-average.test.ts",
+      "mode": "100644",
+      "size": 26875,
+      "sha256": "a60b5742c577de6ca10a10ea793fb802bab5b78db8bf22efa545b65163d6d4e1"
+    },
+    {
+      "path": "tests/domain/medicare-cost-pricing.test.ts",
+      "mode": "100644",
+      "size": 27228,
+      "sha256": "d536df0598b737cb9a5058d95932a171decfb117785c52a8ff3525d9b06f376a"
     },
     {
       "path": "tests/domain/medicare-cost-repository.test.ts",
@@ -5153,13 +5231,13 @@
       "path": "tests/fixtures/plugins/mcp-digests-cms-on.json",
       "mode": "100644",
       "size": 10698,
-      "sha256": "1577a3812b95492a263d596024ee190bf4a009dd61b70f248df6a4636c71db6b"
+      "sha256": "45bb2d90fc814a5e3b98ffd716cb803e22ecf2a3f8993a6a5c59d7bbbc289d57"
     },
     {
       "path": "tests/fixtures/plugins/mcp-digests.json",
       "mode": "100644",
       "size": 10698,
-      "sha256": "1577a3812b95492a263d596024ee190bf4a009dd61b70f248df6a4636c71db6b"
+      "sha256": "45bb2d90fc814a5e3b98ffd716cb803e22ecf2a3f8993a6a5c59d7bbbc289d57"
     },
     {
       "path": "tests/fixtures/plugins/response-digests-cms-on.json",
@@ -6166,8 +6244,8 @@
     {
       "path": "tests/ingest/geo/fallback.test.ts",
       "mode": "100644",
-      "size": 17756,
-      "sha256": "ac8996949d7bad31677e7135e9c6b1f03bbc4e345b8cf7139f16752004a75103"
+      "size": 17758,
+      "sha256": "74edf258f82b1de100eadfb93778b73f66cf821fb29f2faf3f6a2430beaea924"
     },
     {
       "path": "tests/ingest/geo/geo.test.ts",
@@ -6304,8 +6382,8 @@
     {
       "path": "tests/ingest/medicare/medicare-cost-oracle.test.ts",
       "mode": "100644",
-      "size": 22580,
-      "sha256": "7a2d72d0165597891ea20bcdf63e74454a3abc9b203be842078c63073718aef7"
+      "size": 37715,
+      "sha256": "09b34f611d2fb5304b33c2066183198f2dea6c739164b326a37f01b8e75d6830"
     },
     {
       "path": "tests/ingest/medicare/part-d-check.test.ts",
@@ -6332,10 +6410,28 @@
       "sha256": "7a082ccdd39df029a1682d79748c44b402808fb995ee9cf9cd8b6290df7a58a3"
     },
     {
+      "path": "tests/ingest/medicare/part-d-dispensing-fee.test.ts",
+      "mode": "100644",
+      "size": 14762,
+      "sha256": "5ee6853ef1fe17e0d2c3d56689bd9a490daf75e662abe5716525cca9eec37ae1"
+    },
+    {
       "path": "tests/ingest/medicare/part-d-large-check.test.ts",
       "mode": "100644",
-      "size": 10956,
-      "sha256": "06b054dfc3e64be70049e653b0ea67fc8c56ca4ad51dab0eeb1ad68a1da310c1"
+      "size": 10971,
+      "sha256": "82746189aec4e08ac0efb8df9f4d4721f6485f36c3fedccc60eb4c266b709a3d"
+    },
+    {
+      "path": "tests/ingest/medicare/part-d-pricing-cache.test.ts",
+      "mode": "100644",
+      "size": 11244,
+      "sha256": "c2e8084c6e22327870eddbdd6e6d60114e0198787999264a392e18f3556fb4c9"
+    },
+    {
+      "path": "tests/ingest/medicare/part-d-staged-load.test.ts",
+      "mode": "100644",
+      "size": 10546,
+      "sha256": "1c17652aaa265ca7b041c77c016e88a481cfd391de11fb17e0800a34be1679b4"
     },
     {
       "path": "tests/ingest/medicare/sources.test.ts",
@@ -6413,7 +6509,7 @@
       "path": "tests/ingest/qhp/discover.test.ts",
       "mode": "100644",
       "size": 23712,
-      "sha256": "5389d760eceb5cf59d788b54d0146bf1a265c2995e32ac8b0f46258a358b32c6"
+      "sha256": "8745d689c4548ef7ab3d9417f34c79981482470d878ae80764b74b1d486c1bea"
     },
     {
       "path": "tests/ingest/qhp/enrichment.test.ts",
@@ -6524,6 +6620,12 @@
       "sha256": "89f387fc80ea1195e2fced2c5f3c55f4ea4dbe40e7b3adca94ae9c67d3adc0b4"
     },
     {
+      "path": "tests/ingest/state/rate-source-override.test.ts",
+      "mode": "100644",
+      "size": 22505,
+      "sha256": "64c8fc19ef092b7156b53de060aa4d96487fe91df546067c73606146ae4a5895"
+    },
+    {
       "path": "tests/ingest/state/reflective.test.ts",
       "mode": "100644",
       "size": 9447,
@@ -6628,8 +6730,8 @@
     {
       "path": "tests/mcp/tools-list.test.ts",
       "mode": "100644",
-      "size": 11624,
-      "sha256": "e060e68351ceb0053804a0e59269f0a3162f6b0dab1454175be9275d4897bd3c"
+      "size": 11956,
+      "sha256": "b609170163ffe914223b360ac9ce727c21b89c455f39562c4579d9090fc37e42"
     },
     {
       "path": "tests/mcp/tools.test.ts",
@@ -6676,8 +6778,8 @@
     {
       "path": "tests/migrate-safety.test.ts",
       "mode": "100644",
-      "size": 25671,
-      "sha256": "af699d65376fee879b3bbdb17c1d43bdb94192014ff2cbe8f3e331238e9755f7"
+      "size": 26966,
+      "sha256": "787d5c0d940caf1e348ad374895dcf4ccd32a653c1c94d006e215d4d7f82e3cb"
     },
     {
       "path": "tests/migrate-size-evidence.test.ts",
@@ -6704,6 +6806,12 @@
       "sha256": "fc07f165d74ee1fa265c064b54586a00e0bb2ddd7e2c2af2b2a47577418f01dd"
     },
     {
+      "path": "tests/oracle/medicare-part-d-price.test.mjs",
+      "mode": "100644",
+      "size": 16579,
+      "sha256": "111e279e061d911c189f735dc0bac1e0feac1932a3328ee0ece2c681730e9fc2"
+    },
+    {
       "path": "tests/oracle/raw-evidence.test.mjs",
       "mode": "100644",
       "size": 2835,
@@ -6724,8 +6832,8 @@
     {
       "path": "tests/oracle/year-selection.test.mjs",
       "mode": "100644",
-      "size": 6915,
-      "sha256": "ec61c727d1072f309e9c358b606e8ac8559890ab8f977b8aaadf55359f46d333"
+      "size": 7024,
+      "sha256": "cd1f706741d8f050b4ba0d0474f4d9d94c4ccb02339ee1e1e9d9951074e4b1b8"
     },
     {
       "path": "tests/pglite.ts",
@@ -6922,8 +7030,8 @@
     {
       "path": "tests/record-policy.test.ts",
       "mode": "100644",
-      "size": 11451,
-      "sha256": "69ac05eb0cee9d7d98faab1c46fa9cec3444ea60f6c66a1fbd2c8ebdcd36e6bb"
+      "size": 11512,
+      "sha256": "e31ac619d331a7bae602b1db8a478d33a54122845f936d849edae271f0edeafe"
     },
     {
       "path": "tests/response-columns.setup.ts",
@@ -6946,8 +7054,8 @@
     {
       "path": "tests/row-provenance.test.ts",
       "mode": "100644",
-      "size": 20906,
-      "sha256": "8cd802c9279f7e5aa75ce00b82fcbea7722c2f398bfbabee008b36942ee15daf"
+      "size": 21012,
+      "sha256": "3873d013a3dfa00f2af05745f8d8196cfbe97153f0d515adcf6460a1d11fde09"
     },
     {
       "path": "tests/row-provenance.ts",

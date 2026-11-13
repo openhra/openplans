@@ -287,6 +287,187 @@ def template_check(url, path, metadata, final_exhibits, records):
     return check
 
 
+# Rate source override. Off unless the operator's configuration names an issuer, for example
+# {"version": 1, "ny": {"rateSourceOverrides": {"25303": "cms-sbe"}}}. An override is allowed
+# only for an issuer whose DFS template the guard refused. Its family-tier rates then come from
+# the cached CMS state-based exchange rate file, and only while that file matches every other
+# issuer's DFS approved rates to the cent.
+OVERRIDE_RULE = 'ny-rate-source-override-v1'
+CROSS_CHECK_RULE = 'ny-sbe-rates-match-dfs-approved-to-the-cent-v1'
+OVERRIDE_SOURCES = ('cms-sbe',)
+SBE_SOURCE_DIR = 'cms-sbe-puf'
+SBE_NY_URL = 'https://www.cms.gov/files/zip/newyorksbepuf2026.zip'
+SBE_RATES_MEMBER = re.compile(r'NYRates\d{8}\.csv')
+SBE_TIERS = [('4', 'INDIVIDUAL RATE'), ('6', 'COUPLE'),
+             ('7', 'PRIMARY SUBSCRIBER AND ONE DEPENDENT'), ('8', 'PRIMARY SUBSCRIBER AND TWO DEPENDENTS'),
+             ('9', 'PRIMARY SUBSCRIBER AND THREE OR MORE DEPENDENTS'),
+             ('10', 'COUPLE AND ONE DEPENDENT'), ('11', 'COUPLE AND TWO DEPENDENTS'),
+             ('12', 'COUPLE AND THREE OR MORE DEPENDENTS')]
+OVERRIDE_NOTE = ('The template guard refused this issuer\'s DFS approved-rates template, reason {reason}, so DFS '
+                 'gives no usable approved rates for it. By operator decision, this issuer\'s family-tier rates come from the CMS '
+                 'state-based exchange rate file instead. That file matches the DFS approved rates of every other '
+                 'NY issuer to the cent. Plans the file does not list stay unknown.')
+
+
+def rate_source_overrides(config_path):
+    """Issuer -> source from the operator's configuration file, or {} when none is set."""
+    if not config_path:
+        return {}
+    value = json.loads(Path(config_path).read_text())
+    if not isinstance(value, dict) or value.get('version') != 1:
+        raise ValueError('Configuration must have version 1')
+    overrides = (value.get('ny') or {}).get('rateSourceOverrides') or {}
+    if not isinstance(overrides, dict) or any(not re.fullmatch(r'\d{5}', str(k)) or v not in OVERRIDE_SOURCES
+                                              for k, v in overrides.items()):
+        raise ValueError('ny.rateSourceOverrides maps five-digit issuer IDs to "cms-sbe"')
+    return dict(sorted(overrides.items()))
+
+
+def admitted_snapshot(source_dir, meta):
+    """The fetch cache's quarantine rule: a listed snapshot needs a readmission and a receipt."""
+    marker = source_dir / 'QUARANTINE.json'
+    listed = json.loads(marker.read_text()).get('snapshots', []) if marker.is_file() else []
+    if meta['snapshot_id'] not in listed:
+        return True
+    readmission = source_dir / (meta['snapshot_id'] + '.readmitted.json')
+    if not readmission.is_file():
+        return False
+    value = json.loads(readmission.read_text())
+    if (value.get('snapshot_id'), value.get('sha256'), value.get('bytes')) != (meta['snapshot_id'], meta['sha256'], meta['bytes']):
+        return False
+    receipt = Path(str(value.get('admissionReceipt', '')))
+    if not receipt.is_absolute() or not receipt.is_file() or sha(receipt.read_bytes()) != value.get('admissionReceiptSha256'):
+        return False
+    hosts = json.loads(receipt.read_text()).get('hosts', [])
+    return any(h.get('host') == 'www.cms.gov' and h.get('state') == 'allowed' for h in hosts)
+
+
+def cached_sbe_bundle(cache):
+    """The hash-verified, admitted CMS NY SBE bundle from the fetch cache. Never downloads."""
+    source_dir = cache / 'raw' / SBE_SOURCE_DIR
+    found = {}
+    for meta_path in sorted(source_dir.glob('*.meta.json')) if source_dir.is_dir() else []:
+        meta = json.loads(meta_path.read_text())
+        if meta.get('url') != SBE_NY_URL:
+            continue
+        payload = source_dir / meta['sha256'] / 'payload'
+        if payload.is_file() and sha(payload.read_bytes()) == meta['sha256'] and payload.stat().st_size == meta['bytes'] \
+                and admitted_snapshot(source_dir, meta):
+            found[meta['sha256']] = (payload, meta)
+    if len(found) != 1:
+        raise ValueError('Rate source override needs exactly one admitted cached CMS NY SBE bundle')
+    return next(iter(found.values()))
+
+
+def sbe_rate_rows(path):
+    """(member, member sha256, {(plan, region): (row, cells)}) for the bundle's annual family-tier rows."""
+    with zipfile.ZipFile(path) as z:
+        members = [n for n in z.namelist() if SBE_RATES_MEMBER.fullmatch(n)]
+        if len(members) != 1:
+            raise ValueError('SBE bundle must hold exactly one NY rates CSV')
+        data = z.read(members[0])
+    import csv
+    reader = csv.reader(io.StringIO(data.decode('utf-8-sig'), newline=''))
+    header = next(reader)
+    rows, line = {}, reader.line_num
+    for values in reader:
+        start, line = line + 1, reader.line_num
+        if len(values) != len(header):
+            raise ValueError('SBE rate row has the wrong number of fields')
+        cells = dict(zip(header, values))
+        if cells['AGE'] != '' or (cells['RATE EFFECTIVE DATE'], cells['RATE EXPIRATION']) != ('2026-01-01', '2026-12-31'):
+            continue
+        if (cells['BUSINESS YEAR'], cells['STATE CODE']) != ('2026', 'NY'):
+            raise ValueError('Unexpected SBE rate row scope')
+        key = (cells['PLAN ID'], cells['RATING AREA ID'])
+        if key in rows:
+            raise ValueError('Duplicate SBE annual family-tier rate row')
+        rows[key] = (start, cells)
+    return members[0], sha(data), rows
+
+
+def cents(value):
+    number = Decimal(value)
+    rounded = number.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+    if number <= 0 or abs(number - rounded) > Decimal('0.000001'):
+        raise ValueError('Rate cell is not positive whole cents')
+    return rounded
+
+
+def published_cents(value):
+    try:
+        return cents(value)
+    except (ArithmeticError, ValueError):
+        return None
+
+
+def sbe_prices(cells):
+    """Community tiers from one SBE row, or None when its dependent columns differ."""
+    values = {column: published_cents(cells[name]) for column, name in SBE_TIERS}
+    if None in values.values() or len({values[c] for c in ('7', '8', '9')}) != 1 or len({values[c] for c in ('10', '11', '12')}) != 1:
+        return None
+    return dict(single=str(values['4']), couple=str(values['6']), adult_children=str(values['7']), family=str(values['10']))
+
+
+def sbe_cross_check(sources, rows):
+    """Every admitted DFS rate the SBE file also lists must equal it to the cent, in all eight cells."""
+    per_issuer, mismatches, compared = {}, [], 0
+    for source in sources:
+        for record in source['records']:
+            per_issuer.setdefault(record['issuer'], 0)
+            found = rows.get((record['plan_id'], record['region']))
+            if not found:
+                continue
+            compared += 1
+            per_issuer[record['issuer']] += 1
+            for column, name in SBE_TIERS:
+                if cents(record['raw'][column]) != published_cents(found[1][name]):
+                    mismatches.append(dict(plan_id=record['plan_id'], region=record['region'], column=name))
+    return dict(rule=CROSS_CHECK_RULE, compared_keys=compared, compared_cells=compared * len(SBE_TIERS),
+                matched_cells=compared * len(SBE_TIERS) - len(mismatches), issuers=dict(sorted(per_issuer.items()))), mismatches
+
+
+def override_template(issuer, checks, sources):
+    """The issuer's refused DFS template check. An override is allowed for nothing else."""
+    check = next((c for c in checks if issuer in c['issuer_ids']), None)
+    if check is None or check['decision'] != 'refused' or any(r['issuer'] == issuer for s in sources for r in s['records']):
+        raise ValueError(f'Rate source override refused for {issuer}: its DFS template was not refused')
+    return check
+
+
+def apply_rate_source_overrides(overrides, sources, checks, cache):
+    """The override block for the artifact. Raises instead of overriding when a guard fails."""
+    templates = {issuer: override_template(issuer, checks, sources) for issuer in overrides}
+    path, meta = cached_sbe_bundle(cache)
+    member, member_sha, rows = sbe_rate_rows(path)
+    cross_check, mismatches = sbe_cross_check(sources, rows)
+    if mismatches or not cross_check['compared_keys'] or not all(cross_check['issuers'].values()):
+        raise ValueError('Rate source override refused: SBE rates do not match the admitted DFS rates to the cent')
+    issuers = []
+    for issuer in overrides:
+        check = templates[issuer]
+        records, unknown = [], []
+        for plan in check.get('listed_plans', []):
+            if not plan['plan_id'].startswith(issuer):
+                continue
+            found = rows.get((plan['plan_id'], plan['region']))
+            prices = sbe_prices(found[1]) if found else None
+            if prices is None:
+                unknown.append(dict(**plan, reason='sbe_rate_row_missing' if not found else 'sbe_tier_columns_non_uniform'))
+                continue
+            line, cells = found
+            records.append(dict(plan_id=plan['plan_id'], issuer=issuer, region=plan['region'], prices=prices,
+                                child_only='No', metal=None, exchange='unknown',
+                                source_record=f'{member}!row={line}', raw=cells))
+        issuers.append(dict(issuer=issuer, source=overrides[issuer],
+                            refused_template=dict(url=check['url'], sha256=check['sha256'], reason=check['reason']),
+                            quality_note=OVERRIDE_NOTE.format(reason=check['reason']),
+                            records=records, unknown_plans=unknown))
+    publication = dict(url=meta['url'], sha256=meta['sha256'], bytes=meta['bytes'], retrieved_at=meta['fetched_at'],
+                       content_type=meta.get('content_type'), raw_path=str(path), member=member, member_sha256=member_sha)
+    return dict(rule=OVERRIDE_RULE, source='cms-sbe', publication=publication, cross_check=cross_check, issuers=issuers)
+
+
 def vt_records(path):
     # This mapping must be re-reviewed if the publisher changes the layout.
     if sha(path.read_bytes()) != '8353a9b2d90f2b4b23173c154e0de8ef426b90ec8a897eed965f4b97c82f68c3':
@@ -319,7 +500,10 @@ def main():
     parser.add_argument('--data-dir', default=os.environ.get('OPENPLANS_DATA_DIR', str(Path.home() / '.local' / 'share' / 'openplans')))
     parser.add_argument('--fixtures', action='store_true', help='write a small, reproducible cut into tests/fixtures/state')
     parser.add_argument('--cache-only', action='store_true', help='never download; fail when a publication is not cached')
+    parser.add_argument('--config', default=os.environ.get('OPENPLANS_CONFIG'),
+                        help='operator configuration file; only ny.rateSourceOverrides is read (default: $OPENPLANS_CONFIG)')
     args = parser.parse_args()
+    overrides = rate_source_overrides(args.config) if args.state == 'NY' else {}
     cache = Path(args.data_dir).resolve()
     package = Path(__file__).resolve().parents[3]
     roots = {package}
@@ -346,11 +530,17 @@ def main():
     value = dict(schema_version='state-rates-v1', state=args.state, plan_year=2026, sources=sources)
     if args.state == 'NY':
         value['template_checks'] = [check for _, check in prepared]
+    if overrides:
+        value['rate_source_overrides'] = apply_rate_source_overrides(overrides, sources, value['template_checks'], cache)
     out = cache / 'derived' / 'state-rating' / f'{args.state.lower()}-2026.json'
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(value, indent=2) + '\n')
-    print(json.dumps(dict(state=args.state, records=sum(len(s['records']) for s in sources), artifact=str(out))))
+    overridden = sum(len(i['records']) for i in value.get('rate_source_overrides', {}).get('issuers', []))
+    print(json.dumps(dict(state=args.state, records=sum(len(s['records']) for s in sources), artifact=str(out),
+                          **(dict(override_records=overridden) if overrides else {}))))
     if args.fixtures:
+        # The public fixture is a cut of DFS-filed rows only.
+        value.pop('rate_source_overrides', None)
         if args.state == 'NY':
             sources = [s for s in sources if 'MetroPlus' in s['url']]
             sources[0]['records'] = [r for r in sources[0]['records'] if r['plan_id'] in ['11177NY0010001', '11177NY0010002', '11177NY0220001']]

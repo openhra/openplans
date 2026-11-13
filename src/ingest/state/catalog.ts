@@ -9,6 +9,7 @@ import { reflectivePublication } from "./reflective.js";
 import { normalizeEhbColumns } from "../ehb.js";
 import { nyFiledIdentity } from "./ny-identity.js";
 import { vtFiledMetal } from "./vt-metal.js";
+import { SBE_NY_URL, SBE_TIER_COLUMNS } from "./rate-source-override.js";
 
 const geography = JSON.parse(
   await readFile(
@@ -182,17 +183,17 @@ export function catalogRule(row: StateCatalogRow): CommunityFamilyRule | null {
   }
 }
 export function stateSourceCell(row: StateCatalogRow, tier: string) {
-  const column =
-    row.state === "NY"
-      ? (
-          {
-            single: "E",
-            couple: "G",
-            adult_children: "H:J",
-            family: "K:M",
-          } as Record<string, string>
-        )[tier]
-      : tier;
+  const dfsColumns: Record<string, string> = {
+    single: "E",
+    couple: "G",
+    adult_children: "H:J",
+    family: "K:M",
+  };
+  const nyColumns =
+    row.rate.provenance.sourceUrl === SBE_NY_URL
+      ? SBE_TIER_COLUMNS
+      : dfsColumns;
+  const column = row.state === "NY" ? nyColumns[tier] : tier;
   return {
     publication_snapshot_id: row.publication_snapshot_id,
     source_url: row.rate.provenance.sourceUrl,
@@ -379,7 +380,7 @@ export async function refusedTemplatePlans(
     ORDER BY q.snapshot_id,q.source_record,q.issue_code`,
     [state, year],
   );
-  const listed: Omit<
+  let listed: Omit<
     RefusedTemplatePlan,
     "metals" | "attribute_snapshot_id" | "source_rows"
   >[] = [];
@@ -415,6 +416,22 @@ export async function refusedTemplatePlans(
       if (plan.region === region)
         listed.push({ ...base, plan_id: plan.plan_id, region });
   }
+  // A plan priced in the active import, by an operator-approved rate source override, is
+  // no longer missing. A refusal that does not list its plans stays.
+  const listedIds = listed.flatMap((p) => (p.plan_id ? [p.plan_id] : []));
+  const staged = listedIds.length
+    ? new Set(
+        (
+          await db.query<{ plan_key: string }>(
+            `SELECT r.plan_key FROM state_rate_active a
+            JOIN state_community_rate r ON r.import_id=a.import_id
+            WHERE a.state=$1 AND a.plan_year=$2 AND r.region=$3 AND r.plan_key=ANY($4::text[])`,
+            [state, year, region, listedIds],
+          )
+        ).rows.map((r) => r.plan_key),
+      )
+    : new Set<string>();
+  listed = listed.filter((p) => !p.plan_id || !staged.has(p.plan_id));
   const ids = listed.flatMap((p) => (p.plan_id ? [p.plan_id] : []));
   const attributes =
     state === "NY" && ids.length ? await nyDetailAttributes(db, year, ids) : [];

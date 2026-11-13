@@ -56,6 +56,14 @@ node node_modules/vitest/vitest.mjs run tests/ingest/medicare/medicare-cost-orac
 for year in "${years[@]}"; do
   node --max-old-space-size=8192 scripts/oracle/medicare-cost.mjs --year "$year"
 done
+# Part D plan-average prices. The fixed 200-case sample is checked against an independent reading
+# of the cached quarterly archive's pricing and pharmacy network files. This step is optional. It
+# needs a database, named by OPENPLANS_PRICE_CHECK_DATABASE_URL, that holds that release with its
+# pricing and dispensing-fee tables. Without the database or the archive it skips.
+if [[ " ${years[*]} " == *" 2026 "* ]]; then
+  DATABASE_URL="${OPENPLANS_PRICE_CHECK_DATABASE_URL:-}" \
+    node scripts/oracle/medicare-part-d-price.mjs --year 2026 --cached --optional
+fi
 # NY filed identities: cached DFS fields, regional LCSP and refusal controls.
 if [[ " ${years[*]} " == *" 2026 "* ]]; then
   node src/ingest/state/ny-identitycheck.mjs

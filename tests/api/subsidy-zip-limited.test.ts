@@ -188,8 +188,8 @@ describe("county-only quotes where a silver plan serves part of the county", () 
         rebaseImports(
           replaceSyntax(
             await readFile(original, "utf8"),
-            "!location.zip &&",
-            "false &&",
+            "!location.zip && (",
+            "false && (",
           ),
           original,
         ),

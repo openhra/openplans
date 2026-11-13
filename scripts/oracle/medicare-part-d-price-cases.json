@@ -1,0 +1,3006 @@
+{
+  "cases": [
+    {
+      "case_id": "c001",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 30,
+      "ndc": "68180071160",
+      "phase": "initial_coverage",
+      "plan_key": "H5774-046-0",
+      "quantity": "30",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c002",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 60,
+      "ndc": "70436022236",
+      "phase": "initial_coverage",
+      "plan_key": "H5774-046-0",
+      "quantity": "60",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c003",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 90,
+      "ndc": "00186037020",
+      "phase": "initial_coverage",
+      "plan_key": "H5774-046-0",
+      "quantity": "90",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c004",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 30,
+      "ndc": "50458057760",
+      "phase": "initial_coverage",
+      "plan_key": "H5774-046-0",
+      "quantity": "30",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c005",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 60,
+      "ndc": "58181304005",
+      "phase": "initial_coverage",
+      "plan_key": "H5774-046-0",
+      "quantity": "60",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c006",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 90,
+      "ndc": "59676070260",
+      "phase": "initial_coverage",
+      "plan_key": "H5774-046-0",
+      "quantity": "90",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c007",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 30,
+      "ndc": "57894006002",
+      "phase": "initial_coverage",
+      "plan_key": "H5774-046-0",
+      "quantity": "30",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c008",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 60,
+      "ndc": "00378632477",
+      "phase": "initial_coverage",
+      "plan_key": "H5774-046-0",
+      "quantity": "60",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c009",
+      "channel": "preferred_mail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 90,
+      "ndc": "00310621030",
+      "phase": "initial_coverage",
+      "plan_key": "H5774-046-0",
+      "quantity": "90",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c010",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 30,
+      "ndc": "00378181310",
+      "phase": "initial_coverage",
+      "plan_key": "S5601-044-0",
+      "quantity": "30",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c011",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 60,
+      "ndc": "65862050220",
+      "phase": "initial_coverage",
+      "plan_key": "S5601-044-0",
+      "quantity": "60",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c012",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 90,
+      "ndc": "60505083001",
+      "phase": "initial_coverage",
+      "plan_key": "S5601-044-0",
+      "quantity": "90",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c013",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 30,
+      "ndc": "00597015230",
+      "phase": "initial_coverage",
+      "plan_key": "S5601-044-0",
+      "quantity": "30",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c014",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 60,
+      "ndc": "00338113803",
+      "phase": "initial_coverage",
+      "plan_key": "S5601-044-0",
+      "quantity": "60",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c015",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 90,
+      "ndc": "49702022813",
+      "phase": "initial_coverage",
+      "plan_key": "S5601-044-0",
+      "quantity": "90",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c016",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 30,
+      "ndc": "57894044003",
+      "phase": "initial_coverage",
+      "plan_key": "S5601-044-0",
+      "quantity": "30",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c017",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 60,
+      "ndc": "68462029501",
+      "phase": "initial_coverage",
+      "plan_key": "H0710-034-0",
+      "quantity": "60",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c018",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 90,
+      "ndc": "50228017601",
+      "phase": "initial_coverage",
+      "plan_key": "H0710-034-0",
+      "quantity": "90",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c019",
+      "channel": "preferred_mail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 30,
+      "ndc": "51672408301",
+      "phase": "initial_coverage",
+      "plan_key": "H0710-034-0",
+      "quantity": "30",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c020",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 60,
+      "ndc": "00480352756",
+      "phase": "initial_coverage",
+      "plan_key": "H0710-034-0",
+      "quantity": "60",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c021",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 90,
+      "ndc": "55150012215",
+      "phase": "initial_coverage",
+      "plan_key": "H0710-034-0",
+      "quantity": "90",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c022",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 30,
+      "ndc": "00013265702",
+      "phase": "initial_coverage",
+      "plan_key": "H0710-034-0",
+      "quantity": "30",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c023",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 60,
+      "ndc": "57962042028",
+      "phase": "initial_coverage",
+      "plan_key": "H0710-034-0",
+      "quantity": "60",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c024",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 90,
+      "ndc": "33342011507",
+      "phase": "initial_coverage",
+      "plan_key": "H7617-059-0",
+      "quantity": "90",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c025",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 30,
+      "ndc": "45802022137",
+      "phase": "initial_coverage",
+      "plan_key": "H7617-059-0",
+      "quantity": "30",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c026",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 60,
+      "ndc": "13668021730",
+      "phase": "initial_coverage",
+      "plan_key": "H7617-059-0",
+      "quantity": "60",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c027",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 90,
+      "ndc": "00003376474",
+      "phase": "initial_coverage",
+      "plan_key": "H7617-059-0",
+      "quantity": "90",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c028",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 30,
+      "ndc": "60793060010",
+      "phase": "initial_coverage",
+      "plan_key": "H7617-059-0",
+      "quantity": "30",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c029",
+      "channel": "preferred_mail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 60,
+      "ndc": "84651020030",
+      "phase": "initial_coverage",
+      "plan_key": "H7617-059-0",
+      "quantity": "60",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c030",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 90,
+      "ndc": "57894044001",
+      "phase": "initial_coverage",
+      "plan_key": "H7617-059-0",
+      "quantity": "90",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c031",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 30,
+      "ndc": "68180072103",
+      "phase": "initial_coverage",
+      "plan_key": "H5521-669-0",
+      "quantity": "30",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c032",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 60,
+      "ndc": "00480352756",
+      "phase": "initial_coverage",
+      "plan_key": "H5521-669-0",
+      "quantity": "60",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c033",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 90,
+      "ndc": "68682010301",
+      "phase": "initial_coverage",
+      "plan_key": "H5521-669-0",
+      "quantity": "90",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c034",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 30,
+      "ndc": "00006057561",
+      "phase": "initial_coverage",
+      "plan_key": "H5521-669-0",
+      "quantity": "30",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c035",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 60,
+      "ndc": "00006027731",
+      "phase": "initial_coverage",
+      "plan_key": "H5521-669-0",
+      "quantity": "60",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c036",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 90,
+      "ndc": "51672127406",
+      "phase": "initial_coverage",
+      "plan_key": "H5521-669-0",
+      "quantity": "90",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c037",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 30,
+      "ndc": "50881002701",
+      "phase": "initial_coverage",
+      "plan_key": "H5521-669-0",
+      "quantity": "30",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c038",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 60,
+      "ndc": "57894006003",
+      "phase": "initial_coverage",
+      "plan_key": "H5521-669-0",
+      "quantity": "60",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c039",
+      "channel": "preferred_mail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 90,
+      "ndc": "57237010199",
+      "phase": "initial_coverage",
+      "plan_key": "H3907-059-4",
+      "quantity": "90",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c040",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 30,
+      "ndc": "64380015801",
+      "phase": "initial_coverage",
+      "plan_key": "H3907-059-4",
+      "quantity": "30",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c041",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 60,
+      "ndc": "00480352756",
+      "phase": "initial_coverage",
+      "plan_key": "H3907-059-4",
+      "quantity": "60",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c042",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 90,
+      "ndc": "70710113803",
+      "phase": "initial_coverage",
+      "plan_key": "H3907-059-4",
+      "quantity": "90",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c043",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 30,
+      "ndc": "00169320415",
+      "phase": "initial_coverage",
+      "plan_key": "H3907-059-4",
+      "quantity": "30",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c044",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 60,
+      "ndc": "45802009851",
+      "phase": "initial_coverage",
+      "plan_key": "H3907-059-4",
+      "quantity": "60",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c045",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 90,
+      "ndc": "55513002704",
+      "phase": "initial_coverage",
+      "plan_key": "H3907-059-4",
+      "quantity": "90",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c046",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 30,
+      "ndc": "57962007028",
+      "phase": "initial_coverage",
+      "plan_key": "H3907-059-4",
+      "quantity": "30",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c047",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 60,
+      "ndc": "00143992801",
+      "phase": "initial_coverage",
+      "plan_key": "H2406-075-0",
+      "quantity": "60",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c048",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 90,
+      "ndc": "45802046564",
+      "phase": "initial_coverage",
+      "plan_key": "H2406-075-0",
+      "quantity": "90",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c049",
+      "channel": "preferred_mail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 30,
+      "ndc": "00093914901",
+      "phase": "initial_coverage",
+      "plan_key": "H2406-075-0",
+      "quantity": "30",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c050",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 60,
+      "ndc": "50458057501",
+      "phase": "initial_coverage",
+      "plan_key": "H2406-075-0",
+      "quantity": "60",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c051",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 90,
+      "ndc": "55150011620",
+      "phase": "initial_coverage",
+      "plan_key": "H2406-075-0",
+      "quantity": "90",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c052",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 30,
+      "ndc": "62856071430",
+      "phase": "initial_coverage",
+      "plan_key": "H2406-075-0",
+      "quantity": "30",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c053",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 60,
+      "ndc": "57962007028",
+      "phase": "initial_coverage",
+      "plan_key": "H2406-075-0",
+      "quantity": "60",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c054",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 90,
+      "ndc": "00378172193",
+      "phase": "initial_coverage",
+      "plan_key": "H2802-044-0",
+      "quantity": "90",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c055",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 30,
+      "ndc": "70752012905",
+      "phase": "initial_coverage",
+      "plan_key": "H2802-044-0",
+      "quantity": "30",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c056",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 60,
+      "ndc": "49281021588",
+      "phase": "initial_coverage",
+      "plan_key": "H2802-044-0",
+      "quantity": "60",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c057",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 90,
+      "ndc": "00003089321",
+      "phase": "initial_coverage",
+      "plan_key": "H2802-044-0",
+      "quantity": "90",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c058",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 30,
+      "ndc": "68382091306",
+      "phase": "initial_coverage",
+      "plan_key": "H2802-044-0",
+      "quantity": "30",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c059",
+      "channel": "preferred_mail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 60,
+      "ndc": "70370408001",
+      "phase": "initial_coverage",
+      "plan_key": "H2802-044-0",
+      "quantity": "60",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c060",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 90,
+      "ndc": "58406002104",
+      "phase": "initial_coverage",
+      "plan_key": "H2802-044-0",
+      "quantity": "90",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c061",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 30,
+      "ndc": "64380080807",
+      "phase": "initial_coverage",
+      "plan_key": "H8845-001-0",
+      "quantity": "30",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c062",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 60,
+      "ndc": "58657023401",
+      "phase": "initial_coverage",
+      "plan_key": "H8845-001-0",
+      "quantity": "60",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c063",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 90,
+      "ndc": "52544069430",
+      "phase": "initial_coverage",
+      "plan_key": "H8845-001-0",
+      "quantity": "90",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c064",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 30,
+      "ndc": "00003089321",
+      "phase": "initial_coverage",
+      "plan_key": "H8845-001-0",
+      "quantity": "30",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c065",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 60,
+      "ndc": "59762002901",
+      "phase": "initial_coverage",
+      "plan_key": "H8845-001-0",
+      "quantity": "60",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c066",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 90,
+      "ndc": "00024591801",
+      "phase": "initial_coverage",
+      "plan_key": "H8845-001-0",
+      "quantity": "90",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c067",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 30,
+      "ndc": "57962014009",
+      "phase": "initial_coverage",
+      "plan_key": "H8845-001-0",
+      "quantity": "30",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c068",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 60,
+      "ndc": "68180098003",
+      "phase": "initial_coverage",
+      "plan_key": "H8845-001-0",
+      "quantity": "60",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c069",
+      "channel": "preferred_mail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 90,
+      "ndc": "00480352756",
+      "phase": "initial_coverage",
+      "plan_key": "H8845-001-0",
+      "quantity": "90",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c070",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 30,
+      "ndc": "00378632477",
+      "phase": "initial_coverage",
+      "plan_key": "H5425-119-0",
+      "quantity": "30",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c071",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 60,
+      "ndc": "00338004304",
+      "phase": "initial_coverage",
+      "plan_key": "H5425-119-0",
+      "quantity": "60",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c072",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 90,
+      "ndc": "00480352856",
+      "phase": "initial_coverage",
+      "plan_key": "H5425-119-0",
+      "quantity": "90",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c073",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 30,
+      "ndc": "64380071104",
+      "phase": "initial_coverage",
+      "plan_key": "H5425-119-0",
+      "quantity": "30",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c074",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 60,
+      "ndc": "00003376474",
+      "phase": "initial_coverage",
+      "plan_key": "H5425-119-0",
+      "quantity": "60",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c075",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 90,
+      "ndc": "63323072810",
+      "phase": "initial_coverage",
+      "plan_key": "H5425-119-0",
+      "quantity": "90",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c076",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 30,
+      "ndc": "63304009127",
+      "phase": "initial_coverage",
+      "plan_key": "H5425-119-0",
+      "quantity": "30",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c077",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 60,
+      "ndc": "57962001428",
+      "phase": "initial_coverage",
+      "plan_key": "H5425-119-0",
+      "quantity": "60",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c078",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 90,
+      "ndc": "68180056601",
+      "phase": "initial_coverage",
+      "plan_key": "H7849-155-0",
+      "quantity": "90",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c079",
+      "channel": "preferred_mail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 30,
+      "ndc": "00480352856",
+      "phase": "initial_coverage",
+      "plan_key": "H7849-155-0",
+      "quantity": "30",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c080",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 60,
+      "ndc": "47335061481",
+      "phase": "initial_coverage",
+      "plan_key": "H7849-155-0",
+      "quantity": "60",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c081",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 90,
+      "ndc": "71321050010",
+      "phase": "initial_coverage",
+      "plan_key": "H7849-155-0",
+      "quantity": "90",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c082",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 30,
+      "ndc": "00597015230",
+      "phase": "initial_coverage",
+      "plan_key": "H7849-155-0",
+      "quantity": "30",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c083",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 60,
+      "ndc": "59651031477",
+      "phase": "initial_coverage",
+      "plan_key": "H7849-155-0",
+      "quantity": "60",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c084",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 90,
+      "ndc": "50881002560",
+      "phase": "initial_coverage",
+      "plan_key": "H7849-155-0",
+      "quantity": "90",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c085",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 30,
+      "ndc": "58406005504",
+      "phase": "initial_coverage",
+      "plan_key": "H7849-155-0",
+      "quantity": "30",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c086",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 60,
+      "ndc": "60793085401",
+      "phase": "initial_coverage",
+      "plan_key": "H7220-009-2",
+      "quantity": "60",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c087",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 90,
+      "ndc": "00480352856",
+      "phase": "initial_coverage",
+      "plan_key": "H7220-009-2",
+      "quantity": "90",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c088",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 30,
+      "ndc": "13668009190",
+      "phase": "initial_coverage",
+      "plan_key": "H7220-009-2",
+      "quantity": "30",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c089",
+      "channel": "preferred_mail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 60,
+      "ndc": "13107032001",
+      "phase": "initial_coverage",
+      "plan_key": "H7220-009-2",
+      "quantity": "60",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c090",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 90,
+      "ndc": "00169320515",
+      "phase": "initial_coverage",
+      "plan_key": "H7220-009-2",
+      "quantity": "90",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c091",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 30,
+      "ndc": "68180065806",
+      "phase": "initial_coverage",
+      "plan_key": "H7220-009-2",
+      "quantity": "30",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c092",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 60,
+      "ndc": "50419025101",
+      "phase": "initial_coverage",
+      "plan_key": "H7220-009-2",
+      "quantity": "60",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c093",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 90,
+      "ndc": "58406001004",
+      "phase": "initial_coverage",
+      "plan_key": "H7220-009-2",
+      "quantity": "90",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c094",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 30,
+      "ndc": "29300017116",
+      "phase": "initial_coverage",
+      "plan_key": "H7220-009-2",
+      "quantity": "30",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c095",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 60,
+      "ndc": "52817035810",
+      "phase": "initial_coverage",
+      "plan_key": "H8768-017-1",
+      "quantity": "60",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c096",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 90,
+      "ndc": "68462012901",
+      "phase": "initial_coverage",
+      "plan_key": "H8768-017-1",
+      "quantity": "90",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c097",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 30,
+      "ndc": "00002879859",
+      "phase": "initial_coverage",
+      "plan_key": "H8768-017-1",
+      "quantity": "30",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c098",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 60,
+      "ndc": "50458058451",
+      "phase": "initial_coverage",
+      "plan_key": "H8768-017-1",
+      "quantity": "60",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c099",
+      "channel": "preferred_mail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 90,
+      "ndc": "52652200106",
+      "phase": "initial_coverage",
+      "plan_key": "H8768-017-1",
+      "quantity": "90",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c100",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 30,
+      "ndc": "63020009030",
+      "phase": "initial_coverage",
+      "plan_key": "H8768-017-1",
+      "quantity": "30",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c101",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 60,
+      "ndc": "57962000712",
+      "phase": "initial_coverage",
+      "plan_key": "H8768-017-1",
+      "quantity": "60",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c102",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 90,
+      "ndc": "75834011001",
+      "phase": "initial_coverage",
+      "plan_key": "H5216-231-0",
+      "quantity": "90",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c103",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 30,
+      "ndc": "00338005603",
+      "phase": "initial_coverage",
+      "plan_key": "H5216-231-0",
+      "quantity": "30",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c104",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 60,
+      "ndc": "60505364303",
+      "phase": "initial_coverage",
+      "plan_key": "H5216-231-0",
+      "quantity": "60",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c105",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 90,
+      "ndc": "00480352756",
+      "phase": "initial_coverage",
+      "plan_key": "H5216-231-0",
+      "quantity": "90",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c106",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 30,
+      "ndc": "00054372250",
+      "phase": "initial_coverage",
+      "plan_key": "H5216-231-0",
+      "quantity": "30",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c107",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 60,
+      "ndc": "00074055402",
+      "phase": "initial_coverage",
+      "plan_key": "H5216-231-0",
+      "quantity": "60",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c108",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 90,
+      "ndc": "58406001004",
+      "phase": "initial_coverage",
+      "plan_key": "H5216-231-0",
+      "quantity": "90",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c109",
+      "channel": "preferred_mail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 30,
+      "ndc": "68180021709",
+      "phase": "initial_coverage",
+      "plan_key": "H9572-001-2",
+      "quantity": "30",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c110",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 60,
+      "ndc": "69315031228",
+      "phase": "initial_coverage",
+      "plan_key": "H9572-001-2",
+      "quantity": "60",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c111",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 90,
+      "ndc": "00143177101",
+      "phase": "initial_coverage",
+      "plan_key": "H9572-001-2",
+      "quantity": "90",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c112",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 30,
+      "ndc": "00169320111",
+      "phase": "initial_coverage",
+      "plan_key": "H9572-001-2",
+      "quantity": "30",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c113",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 60,
+      "ndc": "64896066401",
+      "phase": "initial_coverage",
+      "plan_key": "H9572-001-2",
+      "quantity": "60",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c114",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 90,
+      "ndc": "65757065342",
+      "phase": "initial_coverage",
+      "plan_key": "H9572-001-2",
+      "quantity": "90",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c115",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 30,
+      "ndc": "57962007028",
+      "phase": "initial_coverage",
+      "plan_key": "H9572-001-2",
+      "quantity": "30",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c116",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 60,
+      "ndc": "61314054701",
+      "phase": "initial_coverage",
+      "plan_key": "H0609-040-0",
+      "quantity": "60",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c117",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 90,
+      "ndc": "55111057503",
+      "phase": "initial_coverage",
+      "plan_key": "H0609-040-0",
+      "quantity": "90",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c118",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 30,
+      "ndc": "76385013201",
+      "phase": "initial_coverage",
+      "plan_key": "H0609-040-0",
+      "quantity": "30",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c119",
+      "channel": "preferred_mail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 60,
+      "ndc": "00169320415",
+      "phase": "initial_coverage",
+      "plan_key": "H0609-040-0",
+      "quantity": "60",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c120",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 90,
+      "ndc": "60505614205",
+      "phase": "initial_coverage",
+      "plan_key": "H0609-040-0",
+      "quantity": "90",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c121",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 30,
+      "ndc": "72237010103",
+      "phase": "initial_coverage",
+      "plan_key": "H0609-040-0",
+      "quantity": "30",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c122",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 60,
+      "ndc": "57962000712",
+      "phase": "initial_coverage",
+      "plan_key": "H0609-040-0",
+      "quantity": "60",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c123",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 90,
+      "ndc": "64980028101",
+      "phase": "initial_coverage",
+      "plan_key": "H0628-010-0",
+      "quantity": "90",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c124",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 30,
+      "ndc": "00480352856",
+      "phase": "initial_coverage",
+      "plan_key": "H0628-010-0",
+      "quantity": "30",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c125",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 60,
+      "ndc": "69452015020",
+      "phase": "initial_coverage",
+      "plan_key": "H0628-010-0",
+      "quantity": "60",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c126",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 90,
+      "ndc": "64380071104",
+      "phase": "initial_coverage",
+      "plan_key": "H0628-010-0",
+      "quantity": "90",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c127",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 30,
+      "ndc": "00169330312",
+      "phase": "initial_coverage",
+      "plan_key": "H0628-010-0",
+      "quantity": "30",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c128",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 60,
+      "ndc": "70010002703",
+      "phase": "initial_coverage",
+      "plan_key": "H0628-010-0",
+      "quantity": "60",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c129",
+      "channel": "preferred_mail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 90,
+      "ndc": "00013265402",
+      "phase": "initial_coverage",
+      "plan_key": "H0628-010-0",
+      "quantity": "90",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c130",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 30,
+      "ndc": "57962028028",
+      "phase": "initial_coverage",
+      "plan_key": "H0628-010-0",
+      "quantity": "30",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c131",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 60,
+      "ndc": "29300012601",
+      "phase": "initial_coverage",
+      "plan_key": "H6851-001-0",
+      "quantity": "60",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c132",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 90,
+      "ndc": "00597015230",
+      "phase": "initial_coverage",
+      "plan_key": "H6851-001-0",
+      "quantity": "90",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c133",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 30,
+      "ndc": "33342004710",
+      "phase": "initial_coverage",
+      "plan_key": "H5594-035-0",
+      "quantity": "30",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c134",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 60,
+      "ndc": "00480352756",
+      "phase": "initial_coverage",
+      "plan_key": "H5594-035-0",
+      "quantity": "60",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c135",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 90,
+      "ndc": "00002223680",
+      "phase": "initial_coverage",
+      "plan_key": "H5594-035-0",
+      "quantity": "90",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c136",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 30,
+      "ndc": "00078123120",
+      "phase": "initial_coverage",
+      "plan_key": "H5594-035-0",
+      "quantity": "30",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c137",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 60,
+      "ndc": "66993010160",
+      "phase": "initial_coverage",
+      "plan_key": "H5594-035-0",
+      "quantity": "60",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c138",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 90,
+      "ndc": "76346042501",
+      "phase": "initial_coverage",
+      "plan_key": "H5594-035-0",
+      "quantity": "90",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c139",
+      "channel": "preferred_mail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 30,
+      "ndc": "58406002104",
+      "phase": "initial_coverage",
+      "plan_key": "H5594-035-0",
+      "quantity": "30",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c140",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 60,
+      "ndc": "58160095509",
+      "phase": "initial_coverage",
+      "plan_key": "H5522-032-0",
+      "quantity": "60",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c141",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 90,
+      "ndc": "00480352756",
+      "phase": "initial_coverage",
+      "plan_key": "H5522-032-0",
+      "quantity": "90",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c142",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 30,
+      "ndc": "00115993178",
+      "phase": "initial_coverage",
+      "plan_key": "H5522-032-0",
+      "quantity": "30",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c143",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 60,
+      "ndc": "78206014501",
+      "phase": "initial_coverage",
+      "plan_key": "H5522-032-0",
+      "quantity": "60",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c144",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 90,
+      "ndc": "00169750111",
+      "phase": "initial_coverage",
+      "plan_key": "H5522-032-0",
+      "quantity": "90",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c145",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 30,
+      "ndc": "63323013011",
+      "phase": "initial_coverage",
+      "plan_key": "H5522-032-0",
+      "quantity": "30",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c146",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 60,
+      "ndc": "00597000302",
+      "phase": "initial_coverage",
+      "plan_key": "H5522-032-0",
+      "quantity": "60",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c147",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 90,
+      "ndc": "58406004404",
+      "phase": "initial_coverage",
+      "plan_key": "H5522-032-0",
+      "quantity": "90",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c148",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 30,
+      "ndc": "00006417100",
+      "phase": "initial_coverage",
+      "plan_key": "H5608-001-0",
+      "quantity": "30",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c149",
+      "channel": "preferred_mail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 60,
+      "ndc": "00169750111",
+      "phase": "initial_coverage",
+      "plan_key": "H5608-001-0",
+      "quantity": "60",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c150",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 90,
+      "ndc": "60846080901",
+      "phase": "initial_coverage",
+      "plan_key": "H1799-005-0",
+      "quantity": "90",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c151",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 30,
+      "ndc": "45963043864",
+      "phase": "initial_coverage",
+      "plan_key": "H1799-005-0",
+      "quantity": "30",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c152",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 60,
+      "ndc": "00378061401",
+      "phase": "initial_coverage",
+      "plan_key": "H1799-005-0",
+      "quantity": "60",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c153",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 90,
+      "ndc": "00169633910",
+      "phase": "initial_coverage",
+      "plan_key": "H1799-005-0",
+      "quantity": "90",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c154",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 30,
+      "ndc": "00469133050",
+      "phase": "initial_coverage",
+      "plan_key": "H1799-005-0",
+      "quantity": "30",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c155",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 60,
+      "ndc": "63020053630",
+      "phase": "initial_coverage",
+      "plan_key": "H1799-005-0",
+      "quantity": "60",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c156",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 90,
+      "ndc": "57894044101",
+      "phase": "initial_coverage",
+      "plan_key": "H1799-005-0",
+      "quantity": "90",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c157",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 30,
+      "ndc": "66993014230",
+      "phase": "initial_coverage",
+      "plan_key": "H1799-005-0",
+      "quantity": "30",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c158",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 60,
+      "ndc": "00480352856",
+      "phase": "initial_coverage",
+      "plan_key": "H1799-005-0",
+      "quantity": "60",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c159",
+      "channel": "preferred_mail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 90,
+      "ndc": "57237006205",
+      "phase": "initial_coverage",
+      "plan_key": "H1019-151-2",
+      "quantity": "90",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c160",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 30,
+      "ndc": "62135089247",
+      "phase": "initial_coverage",
+      "plan_key": "H1019-151-2",
+      "quantity": "30",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c161",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 60,
+      "ndc": "00169750111",
+      "phase": "initial_coverage",
+      "plan_key": "H1019-151-2",
+      "quantity": "60",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c162",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 90,
+      "ndc": "72205001390",
+      "phase": "initial_coverage",
+      "plan_key": "H1019-151-2",
+      "quantity": "90",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c163",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 30,
+      "ndc": "50458058030",
+      "phase": "initial_coverage",
+      "plan_key": "H1019-151-2",
+      "quantity": "30",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c164",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 60,
+      "ndc": "51672411806",
+      "phase": "initial_coverage",
+      "plan_key": "H1019-151-2",
+      "quantity": "60",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c165",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 90,
+      "ndc": "69639012001",
+      "phase": "initial_coverage",
+      "plan_key": "H1019-151-2",
+      "quantity": "90",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c166",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 30,
+      "ndc": "57962007028",
+      "phase": "initial_coverage",
+      "plan_key": "H1019-151-2",
+      "quantity": "30",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c167",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 60,
+      "ndc": "65862005090",
+      "phase": "initial_coverage",
+      "plan_key": "H1019-151-2",
+      "quantity": "60",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c168",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 90,
+      "ndc": "68180046707",
+      "phase": "initial_coverage",
+      "plan_key": "H2292-002-0",
+      "quantity": "90",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c169",
+      "channel": "preferred_mail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 30,
+      "ndc": "68462012801",
+      "phase": "initial_coverage",
+      "plan_key": "H2292-002-0",
+      "quantity": "30",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c170",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 60,
+      "ndc": "58160074002",
+      "phase": "initial_coverage",
+      "plan_key": "H2292-002-0",
+      "quantity": "60",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c171",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 90,
+      "ndc": "50458057930",
+      "phase": "initial_coverage",
+      "plan_key": "H2292-002-0",
+      "quantity": "90",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c172",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 30,
+      "ndc": "24510013010",
+      "phase": "initial_coverage",
+      "plan_key": "H2292-002-0",
+      "quantity": "30",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c173",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 60,
+      "ndc": "62856071430",
+      "phase": "initial_coverage",
+      "plan_key": "H2292-002-0",
+      "quantity": "60",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c174",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 90,
+      "ndc": "58406003204",
+      "phase": "initial_coverage",
+      "plan_key": "H2292-002-0",
+      "quantity": "90",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c175",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 30,
+      "ndc": "65862085901",
+      "phase": "initial_coverage",
+      "plan_key": "H5253-121-0",
+      "quantity": "30",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c176",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 60,
+      "ndc": "69452020820",
+      "phase": "initial_coverage",
+      "plan_key": "H5253-121-0",
+      "quantity": "60",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c177",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 90,
+      "ndc": "66869020490",
+      "phase": "initial_coverage",
+      "plan_key": "H5253-121-0",
+      "quantity": "90",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c178",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 30,
+      "ndc": "00006022131",
+      "phase": "initial_coverage",
+      "plan_key": "H5253-121-0",
+      "quantity": "30",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c179",
+      "channel": "preferred_mail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 60,
+      "ndc": "60793070210",
+      "phase": "initial_coverage",
+      "plan_key": "H5253-121-0",
+      "quantity": "60",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c180",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 90,
+      "ndc": "62856071230",
+      "phase": "initial_coverage",
+      "plan_key": "H5253-121-0",
+      "quantity": "90",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c181",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 30,
+      "ndc": "57962042028",
+      "phase": "initial_coverage",
+      "plan_key": "H5253-121-0",
+      "quantity": "30",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c182",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 60,
+      "ndc": "29300018801",
+      "phase": "initial_coverage",
+      "plan_key": "H0174-018-0",
+      "quantity": "60",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c183",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 90,
+      "ndc": "23155005419",
+      "phase": "initial_coverage",
+      "plan_key": "H0174-018-0",
+      "quantity": "90",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c184",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 30,
+      "ndc": "00054047021",
+      "phase": "initial_coverage",
+      "plan_key": "H0174-018-0",
+      "quantity": "30",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c185",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 60,
+      "ndc": "00480352756",
+      "phase": "initial_coverage",
+      "plan_key": "H0174-018-0",
+      "quantity": "60",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c186",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 90,
+      "ndc": "00527296237",
+      "phase": "initial_coverage",
+      "plan_key": "H0174-018-0",
+      "quantity": "90",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c187",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 30,
+      "ndc": "59676057830",
+      "phase": "initial_coverage",
+      "plan_key": "H0174-018-0",
+      "quantity": "30",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c188",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 60,
+      "ndc": "57962000712",
+      "phase": "initial_coverage",
+      "plan_key": "H0174-018-0",
+      "quantity": "60",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c189",
+      "channel": "preferred_mail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 90,
+      "ndc": "49281021558",
+      "phase": "initial_coverage",
+      "plan_key": "H0174-018-0",
+      "quantity": "90",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c190",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 30,
+      "ndc": "65862001605",
+      "phase": "initial_coverage",
+      "plan_key": "H9730-004-0",
+      "quantity": "30",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c191",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 60,
+      "ndc": "69452034313",
+      "phase": "initial_coverage",
+      "plan_key": "H9730-004-0",
+      "quantity": "60",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c192",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 90,
+      "ndc": "42799080601",
+      "phase": "initial_coverage",
+      "plan_key": "H9730-004-0",
+      "quantity": "90",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c193",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 30,
+      "ndc": "00169320111",
+      "phase": "initial_coverage",
+      "plan_key": "H9730-004-0",
+      "quantity": "30",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c194",
+      "channel": "standard_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 60,
+      "ndc": "65862084003",
+      "phase": "initial_coverage",
+      "plan_key": "H9730-004-0",
+      "quantity": "60",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c195",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 45,
+      "ndc": "68180071160",
+      "phase": "initial_coverage",
+      "plan_key": "H5774-046-0",
+      "quantity": "45",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c196",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 30,
+      "ndc": "68180071160",
+      "phase": "initial_coverage",
+      "plan_key": "H5774-046-0",
+      "quantity": "30",
+      "unit": "mL"
+    },
+    {
+      "case_id": "c197",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 30,
+      "ndc": "68180071160",
+      "phase": "catastrophic",
+      "plan_key": "H5774-046-0",
+      "quantity": "30",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c198",
+      "channel": "standard_mail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 30,
+      "ndc": "68180071160",
+      "phase": "initial_coverage",
+      "plan_key": "H5774-046-0",
+      "quantity": "30",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c199",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 30,
+      "ndc": "60505083001",
+      "phase": "initial_coverage",
+      "plan_key": "H5774-046-0",
+      "quantity": "30",
+      "unit": "ndc_unit"
+    },
+    {
+      "case_id": "c200",
+      "channel": "preferred_retail",
+      "classification": {
+        "acip_vaccine": false,
+        "insulin": false
+      },
+      "contract_year": 2026,
+      "days_supply": 30,
+      "ndc": "00002143380",
+      "phase": "initial_coverage",
+      "plan_key": "H3561-009-0",
+      "quantity": "30",
+      "unit": "ndc_unit"
+    }
+  ],
+  "contract_year": 2026,
+  "selection": "plans ordered by SHA-256 of the plan key; per plan, one NDC per (tier, selected flag) group, the lowest SHA-256 of plan|NDC; days supply and channel rotate"
+}

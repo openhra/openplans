@@ -1166,3 +1166,331 @@ export async function readPbpBenefitType(
   ).rows[0];
   return decodeBenefitType(release, rows, codes?.codes ?? null);
 }
+
+// ---------- plan average unit cost (quarterly pricing file) ----------
+
+/** Days supplies the pricing file publishes; any other fill length has no row to read. */
+export const PRICED_DAYS_SUPPLY = [30, 60, 90] as const;
+/**
+ * The one quantity unit a unit cost may be multiplied by: billing units of the proxy NDC itself.
+ * No admitted file names that unit, so the caller asserts it and the answer says so.
+ */
+export const NDC_UNIT = "ndc_unit";
+export const UNIT_COST_CAVEAT =
+  "Average plan cost per unit at in-area retail pharmacies as of the release date, before manufacturer discounts; not the price at any pharmacy.";
+const RETAIL_CHANNELS: readonly SpufChannel[] = [
+  "preferred_retail",
+  "standard_retail",
+];
+
+export interface UnitCostRequest {
+  /** The release the benefit bundle was pinned to; prices are never read from another one. */
+  snapshotId: string;
+  year: number;
+  plan: PlanKey;
+  ndc: string;
+  daysSupply: number;
+  channel: SpufChannel;
+  quantityUnit: string;
+}
+export type UnitCostReason =
+  | "invalid_ndc"
+  | "price_days_supply_not_published"
+  | "unit_cost_retail_only"
+  | "quantity_unit_not_ndc_unit"
+  | "release_not_active"
+  | "pricing_release_mismatch"
+  | "pricing_not_published_for_year"
+  | "pricing_not_loaded"
+  | "unit_cost_not_published"
+  | "unit_cost_unreadable";
+export type UnitCost =
+  | {
+      status: "value";
+      basis: "cms_plan_average";
+      /** numeric(12,4) text as stored, dollars per proxy-NDC unit. */
+      unit_cost: string;
+      ten_thousandths: number;
+      days_supply: (typeof PRICED_DAYS_SUPPLY)[number];
+      quantity_basis: "caller_asserted_ndc_units";
+      caveat: string;
+      evidence: RowRef;
+    }
+  | { status: "unknown"; reason: UnitCostReason; evidence: RowRef[] };
+/** One stored pricing row of the requested plan and NDC, any days supply. */
+export type UnitCostRow = {
+  days_supply: number;
+  unit_cost: string | null;
+  source_row: number;
+};
+
+const unknownCost = (
+  reason: UnitCostReason,
+  evidence: RowRef[] = [],
+): UnitCost => ({ status: "unknown", reason, evidence });
+
+/** Ten-thousandths of a dollar from numeric(12,4) text; null when unreadable. */
+export function unitCostTenThousandths(text: string | null): number | null {
+  const match = /^(\d{1,8})(?:\.(\d{1,4}))?$/.exec(text ?? "");
+  if (!match) return null;
+  return Number(match[1]) * 10_000 + Number((match[2] ?? "").padEnd(4, "0"));
+}
+
+/** Request checks that need no database: each names why the price cannot be read. */
+export function unitCostRequestProblem(
+  request: Pick<
+    UnitCostRequest,
+    "ndc" | "daysSupply" | "channel" | "quantityUnit"
+  >,
+): UnitCostReason | null {
+  if (!/^\d{11}$/.test(request.ndc)) return "invalid_ndc";
+  if (!(PRICED_DAYS_SUPPLY as readonly number[]).includes(request.daysSupply))
+    return "price_days_supply_not_published";
+  if (!RETAIL_CHANNELS.includes(request.channel))
+    return "unit_cost_retail_only";
+  if (request.quantityUnit !== NDC_UNIT) return "quantity_unit_not_ndc_unit";
+  return null;
+}
+
+/**
+ * The exact row for the requested days supply, or unknown. No other days supply is borrowed and
+ * no zero is assumed: a missing row is `unit_cost_not_published` and a zero or blank cost is
+ * `unit_cost_unreadable`, which cites the row.
+ */
+export function pickUnitCost(
+  snapshotId: string,
+  daysSupply: number,
+  rows: readonly UnitCostRow[],
+): UnitCost {
+  const matches = rows.filter((row) => row.days_supply === daysSupply);
+  if (!matches.length) return unknownCost("unit_cost_not_published");
+  const evidence = matches.map((row): RowRef => ({
+    snapshot_id: snapshotId,
+    table: "pricing",
+    source_row: row.source_row,
+    fields: ["UNIT_COST"],
+  }));
+  // The primary key allows one row per days supply; two would mean the table is not this release.
+  if (matches.length > 1) return unknownCost("unit_cost_unreadable", evidence);
+  const amount = unitCostTenThousandths(matches[0]!.unit_cost);
+  if (amount === null || amount === 0)
+    return unknownCost("unit_cost_unreadable", evidence);
+  return {
+    status: "value",
+    basis: "cms_plan_average",
+    unit_cost: matches[0]!.unit_cost!,
+    ten_thousandths: amount,
+    days_supply: daysSupply as (typeof PRICED_DAYS_SUPPLY)[number],
+    quantity_basis: "caller_asserted_ndc_units",
+    caveat: UNIT_COST_CAVEAT,
+    evidence: evidence[0]!,
+  };
+}
+
+type PricingRelease = {
+  kind: string;
+  contract_year: number;
+  tables: string[];
+  /** The release has a key row, so its pricing rows are in partd_plan_unit_cost. */
+  priced: boolean;
+};
+/** Why a pinned release cannot answer `table`, or null when it can. */
+function pricingReleaseProblem(
+  release: PricingRelease | undefined,
+  year: number,
+  table: SpufTable,
+):
+  | "release_not_active"
+  | "pricing_release_mismatch"
+  | "pricing_not_published_for_year"
+  | "pricing_not_loaded"
+  | null {
+  if (!release) return "release_not_active";
+  if (release.contract_year !== year) return "pricing_release_mismatch";
+  // Monthly files carry no pricing table; their year has no price until a quarterly file.
+  if (release.kind !== "quarterly") return "pricing_not_published_for_year";
+  if (!release.tables.includes(table)) return "pricing_not_loaded";
+  // Pricing stored before migration 1004 has no key row and is read again before it answers.
+  if (table === "pricing" && !release.priced) return "pricing_not_loaded";
+  return null;
+}
+async function readPricingRelease(db: SqlSession, snapshotId: string) {
+  return (
+    await db.query<PricingRelease>(
+      `SELECT r.kind,r.contract_year,r.tables,k.release_key IS NOT NULL AS priced
+       FROM partd_release r JOIN snapshot s USING(snapshot_id)
+       LEFT JOIN partd_pricing_release k USING(snapshot_id)
+       WHERE r.snapshot_id=$1 AND s.validation_state='ACTIVE'`,
+      [snapshotId],
+    )
+  ).rows[0];
+}
+
+/**
+ * Every days supply stored for the plan and NDC in the pinned release. The rows hold a release
+ * key; the join to the key row is what ties them to the requested snapshot.
+ */
+export async function readUnitCostRows(
+  db: SqlSession,
+  request: Pick<UnitCostRequest, "snapshotId" | "plan" | "ndc">,
+): Promise<UnitCostRow[]> {
+  return (
+    await db.query<UnitCostRow>(
+      `SELECT c.days_supply,c.unit_cost::text AS unit_cost,c.source_row
+       FROM partd_pricing_release k JOIN partd_plan_unit_cost c ON c.release_key=k.release_key
+       WHERE k.snapshot_id=$1 AND c.contract_id=$2 AND c.plan_id=$3 AND c.segment_id=$4 AND c.ndc=$5
+       ORDER BY c.days_supply`,
+      [
+        request.snapshotId,
+        request.plan.contractId,
+        request.plan.planId,
+        request.plan.segmentId,
+        request.ndc,
+      ],
+    )
+  ).rows;
+}
+
+/**
+ * The plan's average unit cost for one proxy NDC and days supply from the pinned release. `pick`
+ * is the row choice and `readRows` the row query, replaceable only so tests can plant mutants.
+ */
+export async function readUnitCost(
+  db: SqlSession,
+  request: UnitCostRequest,
+  pick: typeof pickUnitCost = pickUnitCost,
+  readRows: typeof readUnitCostRows = readUnitCostRows,
+): Promise<UnitCost> {
+  const problem = unitCostRequestProblem(request);
+  if (problem) return unknownCost(problem);
+  const releaseProblem = pricingReleaseProblem(
+    await readPricingRelease(db, request.snapshotId),
+    request.year,
+    "pricing",
+  );
+  if (releaseProblem) return unknownCost(releaseProblem);
+  const rows = await readRows(db, request);
+  return pick(request.snapshotId, request.daysSupply, rows);
+}
+
+// ---------- dispensing-fee ranges (pharmacy networks file) ----------
+
+export interface FeeRangeEvidence {
+  snapshot_id: string;
+  table: "dispensing_fee";
+  source_files: string[];
+  source_sha256: string[];
+  first_source_row: number;
+}
+export interface FeeRangeReading {
+  fee_type: "brand" | "generic" | "selected";
+  pharmacies: number;
+  fees_readable: number;
+  fees_missing: number;
+  /** numeric(12,4) text; null when no pharmacy of the group has a readable fee. */
+  min_fee: string | null;
+  max_fee: string | null;
+  max_floor_price: string | null;
+  floors_missing: number;
+  evidence: FeeRangeEvidence;
+}
+export type FeeRanges =
+  | {
+      status: "value";
+      channel: SpufChannel;
+      days_supply: number;
+      /** In-area pharmacies only, the same pharmacies the unit cost averages over. */
+      ranges: FeeRangeReading[];
+    }
+  | {
+      status: "unknown";
+      reason:
+        | "price_days_supply_not_published"
+        | "release_not_active"
+        | "pricing_release_mismatch"
+        | "pricing_not_published_for_year"
+        | "dispensing_fees_not_loaded"
+        | "no_in_area_network_pharmacy";
+    };
+
+/** Lowest and highest in-area fee per fee type for one plan, channel and days supply. */
+export async function readDispensingFeeRanges(
+  db: SqlSession,
+  request: Omit<UnitCostRequest, "ndc" | "quantityUnit">,
+): Promise<FeeRanges> {
+  if (!(PRICED_DAYS_SUPPLY as readonly number[]).includes(request.daysSupply))
+    return { status: "unknown", reason: "price_days_supply_not_published" };
+  const problem = pricingReleaseProblem(
+    await readPricingRelease(db, request.snapshotId),
+    request.year,
+    "dispensing_fee",
+  );
+  if (problem)
+    return {
+      status: "unknown",
+      reason:
+        problem === "pricing_not_loaded"
+          ? "dispensing_fees_not_loaded"
+          : problem,
+    };
+  const rows = (
+    await db.query<
+      Omit<FeeRangeReading, "evidence"> &
+        Omit<FeeRangeEvidence, "snapshot_id" | "table">
+    >(
+      `SELECT fee_type,pharmacies,fees_readable,fees_missing,min_fee::text AS min_fee,max_fee::text AS max_fee,
+         max_floor_price::text AS max_floor_price,floors_missing,source_files,source_sha256,
+         first_source_row::integer AS first_source_row
+       FROM partd_dispensing_fee_range
+       WHERE snapshot_id=$1 AND contract_id=$2 AND plan_id=$3 AND segment_id=$4 AND channel=$5
+         AND in_area AND days_supply=$6 ORDER BY fee_type`,
+      [
+        request.snapshotId,
+        request.plan.contractId,
+        request.plan.planId,
+        request.plan.segmentId,
+        request.channel,
+        request.daysSupply,
+      ],
+    )
+  ).rows;
+  if (!rows.length)
+    return { status: "unknown", reason: "no_in_area_network_pharmacy" };
+  return {
+    status: "value",
+    channel: request.channel,
+    days_supply: request.daysSupply,
+    ranges: rows.map(
+      ({ source_files, source_sha256, first_source_row, ...range }) => ({
+        ...range,
+        evidence: {
+          snapshot_id: request.snapshotId,
+          table: "dispensing_fee",
+          source_files,
+          source_sha256,
+          first_source_row,
+        },
+      }),
+    ),
+  };
+}
+
+export type PlanAveragePricesProblem =
+  | NonNullable<ReturnType<typeof pricingReleaseProblem>>
+  | "dispensing_fees_not_loaded";
+/**
+ * Why a pinned release cannot price fills from plan averages, or null when its unit costs and its
+ * dispensing-fee ranges are both loaded. Checked once per estimate, before any fill is priced.
+ */
+export async function planAveragePricesProblem(
+  db: SqlSession,
+  snapshotId: string,
+  year: number,
+): Promise<PlanAveragePricesProblem | null> {
+  const release = await readPricingRelease(db, snapshotId);
+  const pricing = pricingReleaseProblem(release, year, "pricing");
+  if (pricing) return pricing;
+  return pricingReleaseProblem(release, year, "dispensing_fee") === null
+    ? null
+    : "dispensing_fees_not_loaded";
+}

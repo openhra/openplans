@@ -72,12 +72,34 @@ export const estimateInputSchema = z.strictObject({
 });
 
 const label = z.string().min(1).max(240);
-const figureSchema = z.strictObject({
-  status: z.enum(["value", "unknown"]),
-  cents: z.int().min(0).max(Number.MAX_SAFE_INTEGER).nullable(),
-  reason: label.nullable(),
-  evidence_refs: z.array(z.string().min(1).max(32)).max(10_000),
-});
+const cents = z.int().min(0).max(Number.MAX_SAFE_INTEGER);
+const refs = z.array(z.string().min(1).max(32)).max(10_000);
+/**
+ * A figure is one exact amount (`value`), a range with both ends and no single amount
+ * (`bounded`), or `unknown` with a reason.
+ */
+const figureSchema = z.discriminatedUnion("status", [
+  z.strictObject({
+    status: z.literal("value"),
+    cents,
+    reason: z.null(),
+    evidence_refs: refs,
+  }),
+  z.strictObject({
+    status: z.literal("bounded"),
+    cents: z.null(),
+    minimum_cents: cents,
+    maximum_cents: cents,
+    reason: label,
+    evidence_refs: refs,
+  }),
+  z.strictObject({
+    status: z.literal("unknown"),
+    cents: z.null(),
+    reason: label.nullable(),
+    evidence_refs: refs,
+  }),
+]);
 const head = {
   plan_key: z.string().min(1).max(32),
   contract_year: z.int(),
@@ -94,14 +116,33 @@ const closedSchema = z.strictObject({
 });
 const evidenceItemSchema = z.looseObject({
   id: z.string().min(1).max(32),
-  kind: z.enum(["source_row", "source_rows", "pbp_row", "rule", "request"]),
+  kind: z.enum([
+    "source_row",
+    "source_rows",
+    "pbp_row",
+    "rule",
+    "fee_range",
+    "request",
+  ]),
+});
+/** A plan-average fill's price: the unit cost total is information beside the gross range. */
+const priceSchema = z.looseObject({
+  basis: z.literal("cms_plan_average"),
+  caveat: z.string().nullable(),
+  figures: z.strictObject({
+    unit_cost_total: figureSchema,
+    total_lowest_fee: figureSchema,
+    total_highest_fee: figureSchema,
+    gross: figureSchema,
+  }),
 });
 const fillSchema = z.looseObject({
   fill_id: z.string(),
   date: z.string(),
   rxcui: z.string(),
-  status: z.enum(["estimated", "unknown"]),
+  status: z.enum(["estimated", "bounded", "unknown"]),
   figures: z.record(z.string(), figureSchema),
+  price: priceSchema.nullable().optional(),
   before: z.record(z.string(), figureSchema),
   after: z.record(z.string(), figureSchema),
 });
@@ -132,7 +173,7 @@ export type EstimateOutput = z.output<typeof estimateOutputSchema>;
 
 const title = "Estimate Medicare drug costs";
 const description =
-  "Estimate one Medicare Part D plan's covered-drug costs for an ordered fill schedule in the non-LIS scenario, from CMS benefit files and annual rules. Every figure cites its evidence; amounts without prices stay unknown. Benefit type and drug classes come from CMS files, never the caller. The server keeps no copy of the schedule. Not a bindable quote, and premiums are not evaluated.";
+  "Estimate one Medicare Part D plan's covered-drug costs for an ordered fill schedule in the non-LIS scenario, from CMS benefit files and annual rules. Every figure cites its evidence; amounts without prices stay unknown. A bounded figure is a range from minimum_cents to maximum_cents, not one cost. Benefit type and drug classes come from CMS files, never the caller. The server keeps no copy of the schedule. Not a bindable quote, and premiums are not evaluated.";
 
 function jsonSchema(schema: z.ZodType, io: "input" | "output") {
   return z.toJSONSchema(schema, {
@@ -169,6 +210,45 @@ function reject(reason: string): never {
   throw new HonestyError(reason);
 }
 type Evidence = { kind: string; snapshot_id?: string; document?: string };
+type FigureNode = {
+  status?: unknown;
+  cents?: unknown;
+  minimum_cents?: unknown;
+  maximum_cents?: unknown;
+};
+
+/**
+ * Where the answer could pass a range off as an exact cost: a bounded figure with an amount, a
+ * value with bounds, or a bounded figure missing an end. Walks every figure, price blocks too.
+ */
+export function boundsPresentedAsCost(value: unknown, path = "$"): string[] {
+  if (Array.isArray(value))
+    return value.flatMap((item, i) =>
+      boundsPresentedAsCost(item, `${path}[${i}]`),
+    );
+  if (!value || typeof value !== "object") return [];
+  const node = value as FigureNode & Record<string, unknown>;
+  const problems: string[] = [];
+  if ("evidence_refs" in node && "status" in node && "cents" in node) {
+    const ends = "minimum_cents" in node || "maximum_cents" in node;
+    if (node.status === "bounded" && node.cents !== null)
+      problems.push(`${path}: bound given as an amount`);
+    if (
+      node.status === "bounded" &&
+      !(
+        Number.isSafeInteger(node.minimum_cents) &&
+        Number.isSafeInteger(node.maximum_cents)
+      )
+    )
+      problems.push(`${path}: bound missing an end`);
+    if (node.status !== "bounded" && ends)
+      problems.push(`${path}: bounds on an exact figure`);
+  }
+  for (const [key, child] of Object.entries(node))
+    if (key !== "evidence")
+      problems.push(...boundsPresentedAsCost(child, `${path}.${key}`));
+  return problems;
+}
 
 /**
  * The answer must be the service answer byte for byte, every figure must cite evidence that
@@ -196,6 +276,7 @@ export function assertEstimateHonest(
     output.status !== envelopeStatus[data.status as keyof typeof envelopeStatus]
   )
     reject("envelope status");
+  if (boundsPresentedAsCost(data).length) reject("bound presented as a cost");
   if (estimateProvenanceProblems(data).length) reject("missing provenance");
   const sources = new Map(output.provenance.map((s) => [s.id, s]));
   if (sources.size !== output.provenance.length) reject("duplicate source IDs");
@@ -214,7 +295,8 @@ export function assertEstimateHonest(
     if (
       item.kind === "source_row" ||
       item.kind === "source_rows" ||
-      item.kind === "pbp_row"
+      item.kind === "pbp_row" ||
+      item.kind === "fee_range"
     ) {
       if (!item.snapshot_id || !available(item.snapshot_id))
         reject("unresolvable provenance");
@@ -277,6 +359,7 @@ async function provenance(deps: McpDependencies, answer: DrugCostEstimate) {
 const notes = [
   "Not a bindable quote. Premiums are not evaluated.",
   "Unknown figures lack evidence or prices; they are not zero.",
+  "A bounded figure lies between minimum_cents and maximum_cents; it is a range, never one cost.",
 ];
 
 /** One call. The schedule stays in this function; nothing is cached, stored or logged. */

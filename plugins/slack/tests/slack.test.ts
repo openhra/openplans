@@ -57,10 +57,12 @@ import { leaseHost } from "../../../src/fetch/limiter.js";
 import plugin, {
   createSlackPlugin,
   DEFAULT_HOST,
+  eventSeverity,
   MESSAGE_FIELDS,
   messageText,
   SLACK_EVENTS,
   SlackError,
+  slackOptions,
   URL_SECRET,
 } from "../src/index.js";
 
@@ -327,6 +329,11 @@ const catalogPayloads: { [T in EventType]: Event<T>["payload"] } = {
     imageId: "registry.leak.test/openplans@sha256:abc",
     previousVersion: "1.3.2",
   },
+  "release.rolled_back": {
+    version: "1.3.2",
+    imageId: "registry.leak.test/openplans@sha256:abc",
+    fromVersion: "1.4.0",
+  },
   "snapshot.activated": { sourceId: "cms-puf", snapshotId: "s1", rows: 3 },
   "snapshot.quarantined": {
     sourceId: "cms-puf",
@@ -497,6 +504,17 @@ describe("messages", () => {
 
   it("has no message for an event outside the settled set", () => {
     expect(messageText(eventOf("cache.flushed"))).toBeUndefined();
+  });
+
+  it("ignores a rollback event: no message, no severity, no option", () => {
+    // release.rolled_back joined the catalog after the settled seven. Until a plugin release
+    // adds a template, it stays outside the set, and the outbox never offers it here.
+    expect(SLACK_EVENTS).not.toContain("release.rolled_back");
+    expect(messageText(eventOf("release.rolled_back"))).toBeUndefined();
+    expect(eventSeverity(eventOf("release.rolled_back"))).toBeUndefined();
+    expect(
+      slackOptions.safeParse({ events: ["release.rolled_back"] }).success,
+    ).toBe(false);
   });
 });
 

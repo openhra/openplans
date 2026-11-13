@@ -25,6 +25,16 @@ import {
   validateTemplateChecks,
 } from "./template-guard.js";
 import type { TemplateCheck } from "./template-guard.js";
+import {
+  OVERRIDE_RULE,
+  validateRateSourceOverrides,
+  verifyRateSourceOverrides,
+} from "./rate-source-override.js";
+import type {
+  RateSourceOverrideBlock,
+  RateSourceOverrides,
+} from "./rate-source-override.js";
+import { loadConfig } from "../../config/index.js";
 
 export const communityRulesFile = fileURLToPath(
   new URL(
@@ -60,6 +70,8 @@ export interface StateArtifact {
   sources: SourceData[];
   /** NY only: one approved-template guard decision per DFS publication. */
   template_checks?: TemplateCheck[];
+  /** NY only, operator decision: refused issuers whose rates come from another public file. */
+  rate_source_overrides?: RateSourceOverrideBlock;
 }
 const hash = (text: string | Buffer) =>
   createHash("sha256").update(text).digest("hex");
@@ -238,17 +250,28 @@ export function parseStateArtifact(bytes: string): StateArtifact {
       }
     }
   }
-  if (document.state === "NY")
+  if (document.state === "NY") {
     validateTemplateChecks(document.template_checks, document.sources, (url) =>
       sourceAllowed("NY", url),
     );
-  else if (document.template_checks !== undefined)
+    if (document.rate_source_overrides !== undefined)
+      validateRateSourceOverrides(
+        document.rate_source_overrides,
+        document.sources,
+        document.template_checks!,
+      );
+  } else if (
+    document.template_checks !== undefined ||
+    document.rate_source_overrides !== undefined
+  )
     throw new Error("Template checks apply to NY publications only");
   return document;
 }
 
 const refusedTemplates = (document: StateArtifact) =>
   (document.template_checks ?? []).filter((c) => c.decision === "refused");
+const overriddenIssuers = (document: StateArtifact) =>
+  new Set((document.rate_source_overrides?.issuers ?? []).map((i) => i.issuer));
 
 export function communityRate(
   document: StateArtifact,
@@ -280,7 +303,12 @@ export async function ingestStateRates(
   db: Database,
   path: string,
   state: "NY" | "VT",
-  options: { rulesPath?: string; verifyRaw?: boolean } = {},
+  options: {
+    rulesPath?: string;
+    verifyRaw?: boolean;
+    /** Defaults to the operator configuration's `ny.rateSourceOverrides` (off). */
+    rateSourceOverrides?: RateSourceOverrides;
+  } = {},
 ) {
   if (!isAbsolute(path) || (await stat(path)).size > 25 * 1024 ** 2)
     throw new Error("Absolute, bounded state artifact required");
@@ -294,21 +322,25 @@ export async function ingestStateRates(
   );
   parseCommunityRules(rulesBytes);
   if (options.verifyRaw !== false) {
-    for (const source of document.sources) {
-      if (!source.raw_path || !isAbsolute(source.raw_path))
-        throw new Error("Original publication path required");
-      const digest = createHash("sha256");
-      let size = 0;
-      for await (const chunk of createReadStream(source.raw_path)) {
-        size += chunk.length;
-        if (size > source.bytes)
-          throw new Error("Original publication size mismatch");
-        digest.update(chunk);
-      }
-      if (size !== source.bytes || digest.digest("hex") !== source.sha256)
-        throw new Error("Original publication hash mismatch");
-    }
+    for (const source of document.sources) await verifyPublication(source);
   }
+  const override = document.rate_source_overrides;
+  const configured =
+    state === "NY"
+      ? (options.rateSourceOverrides ?? loadConfig().ny.rateSourceOverrides)
+      : {};
+  if (override) {
+    // The cross-check runs again on the original bytes; there is no unverified path.
+    if (options.verifyRaw === false)
+      throw new Error(
+        "NY rate source override refused: original publications must be verified",
+      );
+    await verifyPublication(override.publication);
+    await verifyRateSourceOverrides(override, document.sources, configured);
+  } else if (Object.keys(configured).length)
+    throw new Error(
+      "NY rate source override refused: configured, but the artifact was prepared without it",
+    );
   const artifactHash = hash(bytes),
     importId = `state-rates:${state}:2026:${hash(Buffer.concat([bytes, Buffer.from(rulesBytes)]))}`;
   return db.transaction(async (tx) => {
@@ -322,7 +354,10 @@ export async function ingestStateRates(
         state === "NY"
           ? "New York DFS"
           : "Vermont public community-rate publications",
-        JSON.stringify(document.sources.map((s) => s.url)),
+        JSON.stringify([
+          ...document.sources.map((s) => s.url),
+          ...(override ? [override.publication.url] : []),
+        ]),
       ],
     );
     await tx.query(
@@ -338,10 +373,9 @@ export async function ingestStateRates(
         document.sources.length,
       ],
     );
-    const count = document.sources.reduce(
-      (n, source) => n + source.records.length,
-      0,
-    );
+    const count =
+      document.sources.reduce((n, source) => n + source.records.length, 0) +
+      (override?.issuers ?? []).reduce((n, i) => n + i.records.length, 0);
     await tx.query(
       `INSERT INTO state_rate_import(import_id,state,plan_year,rules_document,artifact_sha256,record_count)
       VALUES($1,$2,2026,$3,$4,$5) ON CONFLICT DO NOTHING`,
@@ -377,6 +411,79 @@ export async function ingestStateRates(
             rate.region,
             JSON.stringify(rate),
             JSON.stringify(record),
+          ],
+        );
+      }
+    }
+    if (override) {
+      // Staged after the DFS sources, under the SBE bundle's own publication snapshot.
+      const p = override.publication;
+      const publication = `${sourceId}:publication:${p.sha256}`;
+      await tx.query(
+        `INSERT INTO snapshot(snapshot_id,source_id,requested_url,retrieved_at,content_type,compressed_bytes,sha256,raw_path,
+        schema_version,parser_version,expected_children,fetched_children,validation_state,activated_at)
+        VALUES($1,$2,$3,$4,$5,$6,$7,$8,'state-publication-v1',$9,0,0,'ACTIVE',now()) ON CONFLICT DO NOTHING`,
+        [
+          publication,
+          sourceId,
+          p.url,
+          p.retrieved_at,
+          p.content_type,
+          p.bytes,
+          p.sha256,
+          p.raw_path,
+          OVERRIDE_RULE,
+        ],
+      );
+      const sourceIndex = document.sources.length;
+      let recordIndex = 0;
+      for (const entry of override.issuers) {
+        for (const record of entry.records) {
+          const rate = communityRate(
+            document,
+            { ...p, records: [] },
+            record as RecordData,
+          );
+          await tx.query(
+            `INSERT INTO state_community_rate(import_id,source_index,record_index,publication_snapshot_id,plan_key,region,rate,raw_record)
+            VALUES($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT DO NOTHING`,
+            [
+              importId,
+              sourceIndex,
+              recordIndex++,
+              publication,
+              rate.planKey,
+              rate.region,
+              JSON.stringify(rate),
+              JSON.stringify(record),
+            ],
+          );
+        }
+        // Why this issuer's rates have another source, kept with the import.
+        await tx.query(
+          `INSERT INTO quality_issue(source_id,snapshot_id,source_record,severity,issue_code,explanation)
+          SELECT $1,$2,$3,'info','rate_source_override',$4 WHERE NOT EXISTS (
+            SELECT 1 FROM quality_issue WHERE snapshot_id=$2 AND source_record=$3 AND issue_code='rate_source_override')`,
+          [
+            sourceId,
+            importId,
+            entry.issuer,
+            JSON.stringify({
+              status: "filed",
+              rule: override.rule,
+              source: entry.source,
+              note: entry.quality_note,
+              publication: {
+                url: p.url,
+                sha256: p.sha256,
+                member: p.member,
+                member_sha256: p.member_sha256,
+              },
+              refused_template: entry.refused_template,
+              cross_check: override.cross_check,
+              records: entry.records.length,
+              unknown_plans: entry.unknown_plans,
+            }),
           ],
         );
       }
@@ -436,11 +543,42 @@ export async function ingestStateRates(
       records: count,
       publications: document.sources.length,
       unknown_issuers: refusedTemplates(document).flatMap((check) =>
-        check.issuer_ids.map((issuer) => ({ issuer, reason: check.reason })),
+        check.issuer_ids
+          .filter((issuer) => !overriddenIssuers(document).has(issuer))
+          .map((issuer) => ({ issuer, reason: check.reason })),
       ),
+      ...(override
+        ? {
+            rate_source_overrides: override.issuers.map((entry) => ({
+              issuer: entry.issuer,
+              source: entry.source,
+              records: entry.records.length,
+              unknown_plans: entry.unknown_plans.length,
+            })),
+          }
+        : {}),
       native_api_status: "unsupported_rating_method" as const,
     };
   });
+}
+
+async function verifyPublication(publication: {
+  raw_path?: string;
+  bytes: number;
+  sha256: string;
+}) {
+  if (!publication.raw_path || !isAbsolute(publication.raw_path))
+    throw new Error("Original publication path required");
+  const digest = createHash("sha256");
+  let size = 0;
+  for await (const chunk of createReadStream(publication.raw_path)) {
+    size += chunk.length;
+    if (size > publication.bytes)
+      throw new Error("Original publication size mismatch");
+    digest.update(chunk);
+  }
+  if (size !== publication.bytes || digest.digest("hex") !== publication.sha256)
+    throw new Error("Original publication hash mismatch");
 }
 
 export async function stagedStatePremium(

@@ -140,7 +140,15 @@ export const coreConfigSchema = z
     }),
     medicarePartD: z.boolean().default(false),
     medicareDrugCost: z.boolean().default(false),
+    medicareDrugCostPrices: z.boolean().default(false),
     gaQuoteRecovery: z.boolean().default(false),
+    // Operator decision, off by default: NY issuers whose refused DFS template is replaced by
+    // the CMS state-based exchange rate file. See src/ingest/state/README.md.
+    ny: section({
+      rateSourceOverrides: z
+        .record(z.string().regex(/^\d{5}$/), z.literal("cms-sbe"))
+        .default({}),
+    }),
     // These readers migrate later; their defaults depend on the selected runner or Compose service.
     compose: section({
       user: text,
@@ -288,6 +296,7 @@ export const environmentPaths = {
   OPENPLANS_COMPAT_BENEFIT_TEXT: "compat.benefitText",
   OPENPLANS_MEDICARE_PART_D: "medicarePartD",
   OPENPLANS_MEDICARE_DRUG_COST: "medicareDrugCost",
+  OPENPLANS_MEDICARE_DRUG_COST_PRICES: "medicareDrugCostPrices",
   OPENPLANS_GA_QUOTE_RECOVERY: "gaQuoteRecovery",
   POSTGRES_USER: "compose.user",
   POSTGRES_PASSWORD: "compose.password",
@@ -346,6 +355,7 @@ const onlyOn = new Set([
   "OPENPLANS_COMPAT_CATASTROPHIC_AGE_RULE",
   "OPENPLANS_MEDICARE_PART_D",
   "OPENPLANS_MEDICARE_DRUG_COST",
+  "OPENPLANS_MEDICARE_DRUG_COST_PRICES",
   "OPENPLANS_GA_QUOTE_RECOVERY",
 ]);
 function envValue(name: string, value: string): unknown {

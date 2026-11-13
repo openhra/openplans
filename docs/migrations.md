@@ -322,3 +322,27 @@ Compatibility: Readers of `snapshot` are unchanged; the new table has no column 
 Forward fix: Add a new migration to repair the table or its trigger. Keep applied SQL files unchanged.
 
 Lock budget: Two-second lock acquisition limit. The table is new and empty. `row_provenance_rule` receives one literal row and must qualify as small during preflight. With that size evidence the file is additive-safe and needs no allow marker. Creating the trigger takes a SHARE ROW EXCLUSIVE lock on `snapshot` for the catalog change. Readers keep running. Snapshot writes, which only ingest makes, wait for it. The trigger runs after each snapshot write and adds at most one row to `ingest_run_snapshot`, so no reader waits on it. Rehearse on a restored database before release.
+
+### 1003_partd_dispensing_fee.sql
+
+Stage: expand
+
+Expand release: A table of Part D dispensing-fee ranges per plan, channel, area, fee type and days supply, filled by `worker ingest medicare part-d import --tables dispensing_fee`.
+
+Compatibility: No route reads the table yet, and older images never write it. Its foreign key points at `partd_release`, which is unchanged. The migration runner installs provenance and record-policy metadata on the table. The catalog-generation trigger bumps the cache revision when ranges are imported, as on every other Part D table.
+
+Forward fix: Add a new migration to repair the table or its trigger. Keep applied SQL files unchanged.
+
+Lock budget: Two-second lock acquisition limit. The table is new and empty. `api_data_generation` receives one literal row and must qualify as small during preflight. The foreign key takes a SHARE ROW EXCLUSIVE lock on `partd_release`, which only Part D imports write. Rehearse on a restored database before release.
+
+### 1004_partd_unit_cost_key.sql
+
+Stage: expand
+
+Expand release: Part D plan average unit costs move to `partd_plan_unit_cost`, whose rows carry a two-byte release key in place of the snapshot id. `partd_pricing_release` maps each key to its snapshot, which keeps the file name, SHA-256 and fetch receipt.
+
+Compatibility: Images with this migration write and read only the keyed table. `partd_unit_cost` from 950 is left in place, empty on databases that never imported pricing; older images may still write it, and newer images ignore it. A release listed with pricing but without a key row reads as `pricing_not_loaded`, and `worker ingest medicare part-d import --tables pricing` reads its pricing again into the keyed table. The pricing rows carry no snapshot id, so their row provenance rule names the quarterly Part D source and the key table; the key row's own provenance points at the snapshot. A later contract migration drops `partd_unit_cost`.
+
+Forward fix: Add a new migration to repair the tables or their triggers. Keep applied SQL files unchanged.
+
+Lock budget: Two-second lock acquisition limit. Both tables are new and empty. `row_provenance_rule` and `api_data_generation` each get literal rows and must qualify as small during preflight. The foreign key takes a SHARE ROW EXCLUSIVE lock on `partd_release`, which only Part D imports write. Rehearse on a restored database before release.

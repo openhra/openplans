@@ -8,7 +8,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { PGlite } from "@electric-sql/pglite";
 import { eventPayloadSchemas } from "@openplans/plugin-sdk";
-import type { Event } from "@openplans/plugin-sdk";
+import type { Event, EventInput } from "@openplans/plugin-sdk";
 import {
   afterAll,
   afterEach,
@@ -329,18 +329,23 @@ function assertQuiet(lines: readonly string[]) {
     expect(text).not.toContain(value);
 }
 
-async function emitAndDeliver(subscribers: DurableSubscriber[]) {
+const readinessInput: EventInput = {
+  type: "readiness.failed",
+  idempotencyKey: "synthetic-delivery-1",
+  payload: { check: "bootstrap.migrate", reasonCode: "exit_1" },
+};
+
+async function emitAndDeliver(
+  subscribers: DurableSubscriber[],
+  input: EventInput = readinessInput,
+) {
   const logs: string[] = [];
   const log = (entry: Record<string, unknown>) =>
     logs.push(JSON.stringify(entry));
   // The first run records the subscriber's install time; later events reach it.
   await deliverEvents(db, subscribers, { log });
   const bus = createEventBus({ db, log });
-  await bus.registry({ kind: "core", name: "worker" }).emit({
-    type: "readiness.failed",
-    idempotencyKey: "synthetic-delivery-1",
-    payload: { check: "bootstrap.migrate", reasonCode: "exit_1" },
-  });
+  await bus.registry({ kind: "core", name: "worker" }).emit(input);
   const report = await deliverEvents(db, subscribers, { log });
   const { rows } = await db.query<{
     attempts: number;
@@ -427,6 +432,35 @@ describe("delivery to a loopback receiver", () => {
     expect(leaseHost).not.toHaveBeenCalled();
     assertSignedDelivery(posts()[0], stored);
     assertQuiet([...lines, ...logs]);
+  });
+
+  it("posts a rollback event unchanged when the operator lists it", async () => {
+    const { subscribers, refusal } = await load({
+      events: ["release.rolled_back"],
+    });
+    expect(refusal).toBeUndefined();
+    expect(subscribers.map(({ type }) => type)).toEqual([
+      "release.rolled_back",
+    ]);
+    const { report, outbox } = await emitAndDeliver(subscribers, {
+      type: "release.rolled_back",
+      idempotencyKey: "synthetic-rollback-1",
+      payload: {
+        version: "1.3.2",
+        imageId: "sha256:" + "a".repeat(64),
+        fromVersion: "1.4.0",
+      },
+    });
+    expect(report).toMatchObject({ delivered: 1, retried: 0 });
+    const row = outbox[0]!;
+    assertSignedDelivery(posts()[0], {
+      id: row.id,
+      type: row.type,
+      emittedAt: new Date(row.emitted_at as string).toISOString(),
+      emittedBy: row.emittedBy,
+      idempotencyKey: row.idempotencyKey,
+      payload: row.payload,
+    } as Event);
   });
 
   it("never requests robots or terms, and takes no pacing lease, across posts", async () => {

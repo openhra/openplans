@@ -212,8 +212,10 @@ export async function partDDrug(
             days_supply: number;
             unit_cost: string;
           }>(
-            `SELECT ndc,days_supply,unit_cost::text FROM partd_unit_cost WHERE snapshot_id=$1 AND contract_id=$2
-             AND plan_id=$3 AND segment_id=$4 AND ndc = ANY($5::text[]) ORDER BY ndc,days_supply`,
+            `SELECT c.ndc,c.days_supply,c.unit_cost::text FROM partd_pricing_release k
+             JOIN partd_plan_unit_cost c ON c.release_key=k.release_key WHERE k.snapshot_id=$1
+             AND c.contract_id=$2 AND c.plan_id=$3 AND c.segment_id=$4 AND c.ndc = ANY($5::text[])
+             ORDER BY c.ndc,c.days_supply`,
             [
               pricing.snapshot_id,
               key.contractId,

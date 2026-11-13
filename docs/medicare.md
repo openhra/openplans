@@ -99,6 +99,22 @@ large. The Q3 2026 quarterly file holds about 300 million pharmacy network rows,
 tables only on a Postgres instance sized for them. The importer stores each distinct plan network
 once and points plans at it.
 
+```sh
+worker ingest medicare part-d import --kind quarterly --tables dispensing_fee
+```
+
+`dispensing_fee` reads the pharmacy networks file again but keeps no pharmacy rows. It stores one
+range per plan, channel, in-area flag, fee type and days supply. The fee types are brand, generic
+and selected drug. Each range has the lowest and highest fee, the number of pharmacies that list a
+fee, the number that show `.` and the highest floor price. A `.` counts as missing, never as zero.
+Each range names the network file members it came from and the SHA-256 of each member. The data
+files call the selected-drug fee `SELECTED_DISPENSING_FEE_30`, `_60` and `_90`, but the record
+layout says `SELECTED_DRUG_DISPENSING_FEE_30`. The importer accepts either spelling. On a release
+that is already loaded, importing a large table adds it to that release and leaves the core tables
+alone. Drug-cost estimates read unit costs and fee ranges only with
+`price_basis: "cms_plan_average"`, behind its own switch. See
+[Plan-average prices](#plan-average-prices).
+
 Two routes read these tables when serving is on.
 
 - `GET /v1/medicare/plans/{plan_key}/drugs?year=2026&rxcui=860975` returns the formulary packages
@@ -153,8 +169,10 @@ guess and never zero.
   manufacturer discount, and plan paid inside and outside the standard benefit. It also gives the
   accumulators before and after the fill. Totals add a labelled subtotal of the fills whose amount
   is known. That subtotal is not a lower bound for the year.
-- Every figure is `{status, cents, reason, evidence_refs}`. The refs are ids in one top-level
-  `evidence` list, which holds each source row, PBP row, rule citation and request field once.
+- Every figure is `{status, cents, reason, evidence_refs}`. `status` is `value`, `bounded` or
+  `unknown`. A `bounded` figure has `cents: null` and adds `minimum_cents` and `maximum_cents`.
+  The refs are ids in one top-level `evidence` list, which holds each source row, PBP row, fee
+  range, rule citation and request field once.
 - The plan file has one row per county, so a plan can file the same deductible and SNP code on
   ninety rows or more. When every county row holds the same raw value in each cited field, the
   answer lists them as one `source_rows` item. That item gives the snapshot, the table, the
@@ -172,11 +190,12 @@ guess and never zero.
 
 The estimator is evidence-only today. Four gaps keep almost every amount unknown:
 
-- **No prices.** No drug price source is loaded for estimates, so `price_basis` accepts only
-  `none`. Without a price, the engine cannot split a claim between deductible, initial coverage
-  and catastrophic phases, so fill amounts are `unknown` with `pricing_not_loaded`. The exception
-  is a fill that starts at or past the out-of-pocket threshold, covered below.
-  `cms_plan_average` answers `unsupported` with `price_basis_not_supported`.
+- **No prices by default.** With `price_basis: "none"`, the default, no price is read. Without a
+  price, the engine cannot split a claim between deductible, initial coverage and catastrophic
+  phases, so fill amounts are `unknown` with `pricing_not_loaded`. The exception is a fill that
+  starts at or past the out-of-pocket threshold, covered below. `cms_plan_average` reads the
+  plan's average prices, but only while its switch is on and the release has them loaded. See
+  [Plan-average prices](#plan-average-prices).
 - **Insulin and vaccine status.** No admitted file lists covered insulin products or ACIP adult
   vaccines by drug, so both stay open (`insulin_product_list_not_cached`,
   `acip_vaccine_list_not_cached`). A plan's insulin row for a tier never makes a drug on that tier
@@ -203,14 +222,72 @@ It also does not cover the low-income subsidy, other payers, premiums, IRMAA, la
 penalties, drugs outside Part D, pharmacy network membership (the channel is the caller's
 assumption, `channel_verification: "unknown"`) or Medicare Prescription Payment Plan billing.
 
+### Plan-average prices
+
+`price_basis: "cms_plan_average"` prices each fill from the quarterly Part D pricing file and the
+dispensing-fee ranges described above. The unit cost is the plan's average cost per unit of the
+proxy NDC at in-area retail pharmacies, as of the release date and before manufacturer
+discounts. It is not the price at any one pharmacy. Every answer on this basis adds that caveat
+to its `assumptions`.
+
+How the estimator reads a fill's price:
+
+- The pricing rows come from the same release as the benefit rows. The estimator never borrows
+  another year, release, plan, segment or NDC.
+- The proxy NDC is the fill's own, or the only one the plan lists for the RxCUI. A drug listed
+  under several NDCs with none chosen gets no price.
+- The days supply must be 30, 60 or 90 and must match a pricing row exactly. A 30-day unit cost is
+  never reused for a 90-day fill, and nothing is pro-rated.
+- The fill's `unit` must be `ndc_unit`, meaning units of the proxy NDC itself. No public file
+  names that unit, so the answer labels the quantity `caller_asserted_ndc_units`.
+- The unit cost covers retail pharmacies only. Mail-order fills get no price.
+- The fee comes from the plan's in-area pharmacies for the requested channel and days supply. For
+  a selected drug it is the selected-drug fee, or the brand fee where none is filed. Otherwise the
+  files do not say whether the brand or the generic fee applies, so both count.
+
+The files do not say whether the unit cost already includes a dispensing fee, and the fee differs
+from pharmacy to pharmacy. So the estimator prices each fill three ways: the unit cost times the quantity,
+that plus the lowest fee, and that plus the highest fee. The fill's `price` block shows all three
+as `unit_cost_total`, `total_lowest_fee` and `total_highest_fee`, with `gross` beside them. Each
+cites the pricing row (snapshot, table and row number) and the fee range, which names its
+snapshot, source files, the SHA-256 of each file and its first row.
+
+When all three agree to the cent, a figure is a `value`. When they differ, the gross cost is
+`bounded`. It lies somewhere from the unit cost plus the lowest fee to the unit cost plus the
+highest fee, both ends included. The answer does not know where in that range a real claim falls
+and never picks one number inside it. `unit_cost_total` stays in the answer as information; it is
+not an end of the range. Patient pay and the TrOOP increment are also bounded when only this
+fill's fee moves them and they rise with the price. A copay below every reading settles as one
+value.
+
+What stays unknown on this basis, each with its reason:
+
+- Any figure the fee moves that is not a simple range: the split between plan, subsidy and
+  discount, the accumulators, and every later fill (`dispensing_fee_unknown`). A total that a
+  bounded amount feeds stays unknown.
+- A fill whose fee is missing (`.`) at every pharmacy (`dispensing_fee_unknown`), or whose floor
+  price could exceed the price (`floor_price_may_apply`). A missing fee is never $0.
+- Mail-order fills (`unit_cost_retail_only`), other days supplies
+  (`price_days_supply_not_published`), other units (`quantity_unit_not_ndc_unit`), a missing
+  pricing row (`unit_cost_not_published`) and a zero or blank unit cost (`unit_cost_unreadable`).
+- Every year whose loaded release has no pricing file. The 2027 monthly files carry none, so
+  2027 answers `pricing_not_published_for_year` until CMS posts a quarterly file for that year.
+- Prices at a named pharmacy, the selected-drug maximum fair price, and anything listed under
+  "What it does not do yet".
+
 ### Switches and access
 
-Two operator switches must both be `on`:
+Two operator switches must both be `on`, and a third adds plan-average prices:
 
 - `OPENPLANS_MEDICARE_PART_D=on` serves Part D data. Without it the estimate answers
   `{status: "unknown", reason: "pending_terms_review"}`.
 - `OPENPLANS_MEDICARE_DRUG_COST=on` turns the estimator on. Without it the answer is
   `{status: "unknown", reason: "estimator_disabled"}` and no plan data is read.
+- `OPENPLANS_MEDICARE_DRUG_COST_PRICES=on` accepts `price_basis: "cms_plan_average"`. It counts
+  only while the two switches above are on. With it off that basis answers `unsupported` with
+  `price_basis_not_supported`. With it on, a release without its pricing rows or fee ranges
+  answers `unknown` with `pricing_not_loaded` or `dispensing_fees_not_loaded`, and no fill is
+  calculated. Load both with `--tables pricing,dispensing_fee` first.
 
 A fill schedule is personal, so access needs a Bearer token on both transports. Public household
 access never opens it.
@@ -226,6 +303,8 @@ access never opens it.
 
 `GET /v1/medicare/data-availability` adds a `part_d_drug_cost_estimates` section per year only
 while the estimator switch is on. It shows which inputs are available and which stay unknown.
+Its `pricing` entry says whether the year's release has prices and fee ranges loaded and whether
+the price switch is `on` or `off`. `price_basis` lists `cms_plan_average` only when both hold.
 
 ### Nothing is stored or logged
 
@@ -238,18 +317,21 @@ result. Nothing from a request is written to the database.
 
 A closed answer has no figures and one `reason`:
 
-| Reason                       | Meaning                                                                                |
-| ---------------------------- | -------------------------------------------------------------------------------------- |
-| `pending_terms_review`       | `OPENPLANS_MEDICARE_PART_D` is off.                                                    |
-| `estimator_disabled`         | `OPENPLANS_MEDICARE_DRUG_COST` is off.                                                 |
-| `not_loaded`                 | No active Part D release with every core table is loaded for the year.                 |
-| `plan_not_in_part_d_files`   | The plan is in the Medicare catalog but not in the Part D files.                       |
-| `plan_suppressed_by_cms`     | CMS suppressed the plan's Part D data.                                                 |
-| `several_formularies_listed` | The plan's rows name more than one formulary.                                          |
-| `rules_not_loaded`           | The year has no reviewed CMS rules. Only 2026 and 2027 do.                             |
-| `too_many_unsettled_facts`   | The open facts across the schedule give more than 1,024 readings. Send fewer products. |
-| `scenario_not_supported`     | The scenario is not `non_lis_no_other_payer` (status `unsupported`).                   |
-| `price_basis_not_supported`  | `price_basis` is not `none` (status `unsupported`).                                    |
+| Reason                           | Meaning                                                                                |
+| -------------------------------- | -------------------------------------------------------------------------------------- |
+| `pending_terms_review`           | `OPENPLANS_MEDICARE_PART_D` is off.                                                    |
+| `estimator_disabled`             | `OPENPLANS_MEDICARE_DRUG_COST` is off.                                                 |
+| `not_loaded`                     | No active Part D release with every core table is loaded for the year.                 |
+| `plan_not_in_part_d_files`       | The plan is in the Medicare catalog but not in the Part D files.                       |
+| `plan_suppressed_by_cms`         | CMS suppressed the plan's Part D data.                                                 |
+| `several_formularies_listed`     | The plan's rows name more than one formulary.                                          |
+| `rules_not_loaded`               | The year has no reviewed CMS rules. Only 2026 and 2027 do.                             |
+| `too_many_unsettled_facts`       | The open facts across the schedule give more than 1,024 readings. Send fewer products. |
+| `scenario_not_supported`         | The scenario is not `non_lis_no_other_payer` (status `unsupported`).                   |
+| `price_basis_not_supported`      | `cms_plan_average` while `OPENPLANS_MEDICARE_DRUG_COST_PRICES` is off (`unsupported`). |
+| `pricing_not_loaded`             | `cms_plan_average`, but the release was imported without its pricing table.            |
+| `dispensing_fees_not_loaded`     | `cms_plan_average`, but the release was imported without its fee ranges.               |
+| `pricing_not_published_for_year` | `cms_plan_average`, but the year's loaded release has no pricing file.                 |
 
 An unknown figure names its reason. When several readings disagree, their reasons are joined with
 `+`, for example `insulin_cost_row_missing+pricing_not_loaded`.
@@ -257,6 +339,11 @@ An unknown figure names its reason. When several readings disagree, their reason
 | Reason                                                                                                             | Meaning                                                                                                                                                              |
 | ------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `pricing_not_loaded`                                                                                               | The fill has no price, so its amount cannot be split between phases.                                                                                                 |
+| `dispensing_fee_unknown`                                                                                           | The amount depends on a dispensing fee the files do not settle, or no pharmacy lists a readable fee.                                                                 |
+| `floor_price_may_apply`                                                                                            | A pharmacy's floor price could exceed the plan-average price, and the files do not say how it applies.                                                               |
+| `cost_sharing_not_monotonic_in_price`                                                                              | Patient pay does not rise with the price, so the lowest and highest fee do not bound it.                                                                             |
+| `unit_cost_retail_only`, `unit_cost_not_published`, `unit_cost_unreadable`                                         | A mail-order fill, no pricing row for the plan, NDC and days supply, or a zero or blank unit cost.                                                                   |
+| `price_days_supply_not_published`, `quantity_unit_not_ndc_unit`, `proxy_ndc_ambiguous`                             | The days supply is not 30, 60 or 90, the unit is not `ndc_unit`, or several proxy NDCs are listed and none was chosen.                                               |
 | `drug_program_unknown`                                                                                             | Whether the drug is a selected drug, an applicable drug or neither is open and changes the amount.                                                                   |
 | `insulin_classification_unknown`                                                                                   | Whether the drug is covered insulin is open and changes the amount.                                                                                                  |
 | `vaccine_classification_unknown`                                                                                   | Whether the drug is an ACIP adult vaccine is open and changes the amount.                                                                                            |

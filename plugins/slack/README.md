@@ -18,6 +18,9 @@ The plugin posts one short message for each of these events:
 | `passthrough.breaker_open`     | warning                                  | `OpenPlans: Fallback paused for cms-marketplace-api after failed calls, until 2026-11-11T01:00:00.000Z.` |
 | `health.changed`               | info to `ok`, warning to `degraded`, error to `down` | `OpenPlans: Health of db changed from ok to degraded.`                   |
 
+Other catalog events get no message and never reach the plugin. That includes
+`release.rolled_back`, which was added to the catalog after these seven.
+
 The API emits `passthrough.budget_exhausted` once per source and UTC day, when the pass-through core
 refuses a call because that day's allowance is spent. A refusal for call spacing alone does not count.
 It emits `passthrough.breaker_open` once per pause, when failed calls stop a source for a while.

@@ -47,6 +47,13 @@ export async function cmsCountySnapshot(
   if (cached?.fresh)
     return cached.outcome === "available" ? cached.snapshot_id : null;
   if (options.allowCmsLive === false) return null;
+  // Read-only request scopes cannot reserve budget or record the attempt. Serve cached rows only.
+  const mode = (
+    await db.query<{ read_only: string }>(
+      "SELECT current_setting('transaction_read_only') AS read_only",
+    )
+  ).rows[0];
+  if (mode?.read_only === "on") return null;
   // Atomic persistent reservation, shared by all processes. Never queue a batch behind this limiter.
   const reserved = await db.query(`UPDATE cms_zip_budget SET
     daily_requests=CASE WHEN day_start<(now() AT TIME ZONE 'UTC')::date THEN 1 ELSE daily_requests+1 END,

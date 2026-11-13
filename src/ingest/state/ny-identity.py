@@ -11,7 +11,7 @@ import os
 from pathlib import Path
 import re
 import zipfile
-from prepare import ooxml_sheets, ny_records
+from prepare import ooxml_sheets, ny_records, sbe_rate_rows
 
 SBE_SHA = 'add2693a835b2f042e43c1bbf1207020ac484c5d18b2cbc0cda49700bb9a30ad'
 PACKAGE = Path(__file__).resolve().parents[3]
@@ -87,9 +87,21 @@ def main():
         if (row['BUSINESS YEAR'], row['STATE CODE'], row['MARKET COVERAGE'], row['DENTAL ONLY PLAN']) == ('2026', 'NY', 'Individual', 'No'):
             by_id.setdefault(row['STANDARD COMPONENT ID'], []).append((line, row))
     regions, sources, evidence = {}, {}, []
-    for source in artifact['sources']:
+    groups = [(source['url'], source['records']) for source in artifact['sources']]
+    override = artifact.get('rate_source_overrides')
+    if override:
+        # Operator-approved override rows: re-read each one from the original SBE bytes.
+        publication = override['publication']
+        verified(Path(publication['raw_path']), publication['sha256'])
+        rate_member, _, rate_rows = sbe_rate_rows(Path(publication['raw_path']))
+        records = [r for entry in override['issuers'] for r in entry['records']]
+        for r in records:
+            line, cells = rate_rows[(r['plan_id'], r['region'])]
+            assert r['source_record'] == f'{rate_member}!row={line}' and r['raw'] == cells
+        groups.append((publication['url'], records))
+    for url, records in groups:
         totals = Counter()
-        for row in source['records']:
+        for row in records:
             region = regions.setdefault(row['region'], Counter())
             region['total'] += 1
             if row['plan_id'] in by_id:
@@ -123,7 +135,7 @@ def main():
                 continue
             totals['before_unmatched'] += 1
             region['before_unmatched'] += 1
-            publication, = [p for p in cut['publications'] if p['rate_url'] == source['url']]
+            publication, = [p for p in cut['publications'] if p['rate_url'] == url]
             column = str(69 + int(row['region'][-1]))
             matches = [r for r in publication['rows'] if r['cells']['4'][:14] == row['plan_id']]
             priced = [r for r in matches if r['cells'][column] and Decimal(r['cells'][column]).quantize(Decimal('.01'), rounding=ROUND_HALF_UP) == Decimal(row['prices']['single'])]
@@ -143,7 +155,7 @@ def main():
                                  exchange_cells=[r['cells']['7'] for r in matches],
                                  region_price_values=[r['cells'][column] for r in priced], filed_single=row['prices']['single'],
                                  metal=next(iter(metals)), off_exchange=off))
-        sources[source['url']] = dict(totals)
+        sources[url] = dict(totals)
     for region in regions.values():
         region['gross_lcsp_ids'].sort()
         region['ehb_lcsp_ids'].sort()

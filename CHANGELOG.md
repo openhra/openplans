@@ -3,6 +3,118 @@
 Release notes for OpenPlans. Earlier releases are on the
 [GitHub releases page](https://github.com/openhra/openplans/releases).
 
+## v0.4.2
+
+This release asks for a ZIP when a part-county dental plan would set a county-only benchmark,
+adds an optional New York rate source for issuers whose template was refused, and adds the first
+Part D drug pricing pieces: dispensing-fee ranges, a unit-cost reader and bounded fill pricing.
+The pricing pieces are off by default. It also adds the `release.rolled_back` plugin event.
+
+It has two additive migrations (1003 and 1004) and no backfill. See [Upgrading](#upgrading).
+One kind of answer changes: requests for a ZIP outside the loaded geography, such as New York
+and Vermont ZIPs on a service with a CMS key, used to fail with a server error and now answer
+`unknown` or `unsupported_rating_method` with a reason (see [Fixes](#fixes)). The new dental
+answer applies only where a part-county dental plan would have set the benchmark, and the New
+York and Part D pricing changes stay off until an operator turns them on.
+
+### What users notice
+
+- **County-only quotes with part-county dental plans.** For a household with a child under 19,
+  the benchmark adds the pediatric dental adjustment. Without a ZIP, that step used to drop
+  stand-alone dental plans that serve only part of the county, so the benchmark could use the
+  wrong dental premium. Such a quote now returns `location_requires_zip` with reason
+  `zip_limited_service_area`, the same answer as for part-county silver plans, and the credit
+  and net premium are `null` until you send a ZIP. Quotes with a ZIP, adult-only households and
+  counties without such plans do not change. In the current catalog no answer changes.
+- **Plan-average drug prices in Part D estimates.** A new setting,
+  `OPENPLANS_MEDICARE_DRUG_COST_PRICES`, lets drug-cost estimates accept
+  `price_basis: "cms_plan_average"`. It is off by default and counts only while the estimator is
+  on. With it on, each fill is priced from the plan's average unit cost and the lowest and highest
+  dispensing fee, and a figure is a `value`, `bounded` or `unknown`. A `bounded` figure has
+  `cents: null` with `minimum_cents` and `maximum_cents`, and the answer never picks one amount
+  inside the range. Each priced fill carries a `price` block that cites its pricing row and fee range. A
+  release without pricing rows or fee ranges answers `unknown` with `pricing_not_loaded` or
+  `dispensing_fees_not_loaded`. `/v1/data-availability` says whether prices are loaded and the
+  setting is on, and lists the basis only when both hold. The HTTP route and the MCP tool return
+  the same answer, and the MCP output schema now accepts bounded figures. If you parse estimate
+  figures, handle the `bounded` status. `docs/medicare.md` explains how prices are read and what
+  stays unknown.
+
+### Self-hosting and operations
+
+- **Optional New York rate source.** When the New York template check refuses an issuer's DFS
+  approved-rates template, that issuer's NY rates stay `unknown`. A new config file entry,
+  `ny.rateSourceOverrides`, can name the issuer and take its family-tier rates from the CMS
+  state-based exchange rate file instead. Each rate cites the publication, the file member and
+  its CSV row. Preparation and import refuse the override unless that issuer's template was
+  refused, and unless the CMS file agrees to the cent with every DFS approved rate it lists for
+  other issuers. Plans with no row in that file stay `unknown`. It is off by default, and turning
+  it on is your decision. With it off the NY artifact is byte-identical. See
+  `docs/configuration.md`.
+- **Part D dispensing-fee ranges.**
+  `worker ingest medicare part-d import --tables dispensing_fee` reads the pharmacy networks
+  file and stores, per plan, channel, in-area flag, fee type and days supply, the lowest and
+  highest fee, how many pharmacies list a fee or show `.`, and the highest floor price. It keeps
+  no pharmacy rows, and `.` counts as missing, never as zero. The importer accepts both spellings of the selected-drug fee header, and it can now add a
+  large table to a release that is already loaded.
+- **Part D unit costs in a compact table.** Plan average unit costs now go into
+  `partd_plan_unit_cost` (migration 1004), whose rows carry a two-byte release key in place of
+  the snapshot id. Answers still name the full snapshot. Pricing imported before 1004 reads as
+  not loaded; import it again with `--tables pricing`.
+- **Part D fill pricing with bounds.** A reader returns a plan's unit cost only for an exact row
+  (30, 60 or 90 days at retail), and `unknown` with a reason otherwise. The estimate engine can
+  price a fill from that unit cost and the lowest and highest dispensing fee. When the fee range
+  moves the result, the answer gives the gross cost, patient pay and TrOOP increment as a range.
+  Missing fees, floors that could bind and missing prices stay `unknown`. The new
+  `OPENPLANS_MEDICARE_DRUG_COST_PRICES` setting, described above, turns it on.
+- **New event `release.rolled_back`.** The plugin event catalog gains `release.rolled_back`
+  (`version`, `imageId`, `fromVersion`), emitted after a hard-release rollback. The webhook plugin
+  posts it when its `events` list names it. The Slack plugin does not post it.
+- **Hosted release process.** The hosted service's release tooling gained a blue/green mode with
+  a time limit on checks after a switch, recorded rollbacks and a fix for a rollback that held
+  the release lock. It can also add states to a plan year that is already served, and a load that
+  fails a later check is taken out of service again. These tools are not part of this repository.
+- **Part D prices load in small batches.** The importer can stage the unit-cost and
+  dispensing-fee rows of an imported quarterly release in transactions of a few thousand rows,
+  without listing them for the release, and a rerun resumes from the rows already stored. The
+  one-transaction import refuses to add a table that is staged.
+- **Hosted Part D price load.** The hosted release tool gained an optional
+  `--load-partd-prices <year>` step. It needs a free-disk margin before it starts, loads the price
+  and dispensing-fee data in small batches, and keeps the data unserved until row counts and
+  checksums match the reviewed release. A failed check takes the data back out of service. The
+  step does not turn on the price basis.
+- **Part D price check in the real-data script.** `scripts/realdata.sh` now checks 2026
+  plan-average prices against its own reading of the cached quarterly archive when
+  `OPENPLANS_PRICE_CHECK_DATABASE_URL` names a database with that release's pricing and
+  dispensing-fee tables. Without one, the step prints `SKIP`. The C7 and C12 CMS worked examples
+  also run over HTTP and MCP through plan-average prices.
+
+### Fixes
+
+- **No more server errors for unloaded ZIPs.** Request routes read the database in a read-only
+  transaction. For a ZIP outside the loaded geography, the CMS county lookup tried to reserve
+  its daily budget and record the attempt, Postgres refused both writes, and `/v1/benchmark`,
+  the quote and premium-quote routes and the MCP search and quote tools returned
+  `INTERNAL_ERROR`. This happened whenever a CMS key was set. In a read-only request the lookup
+  now uses cached rows only. The benchmark then answers `unknown` with
+  `zip_not_in_loaded_geography`. New York and Vermont rates come from a state catalog. When
+  none is loaded for the year, they answer `unsupported_rating_method` with
+  `state_catalog_not_loaded`.
+- The macOS CI job gets 60 minutes. A run hit the 45-minute limit.
+- The MCP tools-list negative controls give each mutated server its own file name, so two test
+  runs in one checkout no longer load each other's half-written copy.
+
+### Upgrading
+
+- Pull the new image and run `worker migrate`. Migrations 1003 (the dispensing-fee range table)
+  and 1004 (the release key and keyed unit-cost tables) create new empty tables and add a few
+  literal metadata rows. They are additive and pass `migrate --check` when size evidence shows
+  the metadata tables are small.
+- No backfill is needed. If you imported Part D pricing before, import it again with
+  `worker ingest medicare part-d import --kind quarterly --tables pricing` if you want unit costs
+  available to the reader.
+- `partd_unit_cost` from migration 950 is no longer read or written. A later migration drops it.
+
 ## v0.4.1
 
 This release fixes county-only quotes that left part-county silver plans out of the benchmark,

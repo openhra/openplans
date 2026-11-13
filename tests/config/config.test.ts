@@ -49,6 +49,7 @@ const converted: Record<string, [string, unknown]> = {
   OPENPLANS_COMPAT_CATASTROPHIC_AGE_RULE: ["on", true],
   OPENPLANS_MEDICARE_PART_D: ["on", true],
   OPENPLANS_MEDICARE_DRUG_COST: ["on", true],
+  OPENPLANS_MEDICARE_DRUG_COST_PRICES: ["on", true],
   OPENPLANS_GA_QUOTE_RECOVERY: ["on", true],
   OPENPLANS_COMPAT_BENEFIT_TEXT: ["compact", true],
   OPENPLANS_MCP_ALLOWED_HOSTS: [

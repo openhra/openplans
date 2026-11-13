@@ -244,6 +244,90 @@ const setups: Record<string, Setup> = {
   },
 };
 
+// ---------- synthetic plan-average prices for the worked examples ----------
+
+/**
+ * Each worked example gets a synthetic 30-day pricing row for its proxy NDC and a quantity in NDC
+ * units. Unit cost x quantity is the example's ingredient cost. The fill goes to a retail channel
+ * whose synthetic in-area pharmacies all file the example's dispensing fee, so ingredient cost
+ * plus fee is the example's gross drug cost. Unit costs, quantities and
+ * pharmacies are synthetic; the ingredient costs and fees are the CMS figures in oracles.json.
+ */
+interface PricedSetup {
+  channel: "preferred_retail" | "standard_retail";
+  unitCost: string;
+  quantity: string;
+  /** PDF pages of the example's narrative and PDE table in its pinned document. */
+  pages: string;
+}
+const priced: Record<string, PricedSetup> = {
+  // C7 example 1: $100.00 ingredient cost, $0.00 fee.
+  "ds-deductible-crossing": {
+    channel: "standard_retail",
+    unitCost: "10.0000",
+    quantity: "10",
+    pages: "3-4",
+  },
+  // C7 example 4: $390.00 ingredient cost, $10.00 fee. Same NDC and row as example 1.
+  "ds-catastrophic-crossing": {
+    channel: "preferred_retail",
+    unitCost: "10.0000",
+    quantity: "39",
+    pages: "6-7",
+  },
+  // C7 example 3: $40.00 ingredient cost, $0.00 fee.
+  "selected-drug-copay-ceiling": {
+    channel: "preferred_retail",
+    unitCost: "4.0000",
+    quantity: "10",
+    pages: "5-6",
+  },
+  // C7 example 5: $7,200.00 ingredient cost, $0.00 fee.
+  "ea-mapping-crossing": {
+    channel: "preferred_retail",
+    unitCost: "720.0000",
+    quantity: "10",
+    pages: "7-9",
+  },
+  // C7 example 8: $100.00 ingredient cost, $0.00 fee.
+  "insulin-lesser-of": {
+    channel: "standard_retail",
+    unitCost: "10.0000",
+    quantity: "10",
+    pages: "12-13",
+  },
+  // C7 example 9: $492.00 ingredient cost, $8.00 fee.
+  "insulin-catastrophic-crossing": {
+    channel: "preferred_retail",
+    unitCost: "49.2000",
+    quantity: "10",
+    pages: "13-14",
+  },
+  // C12 example 1: $119.00 ingredient cost, $10.00 fee.
+  "selected-insulin-mfp-ceiling": {
+    channel: "preferred_retail",
+    unitCost: "11.9000",
+    quantity: "10",
+    pages: "1-3",
+  },
+};
+/**
+ * Synthetic in-area retail pharmacies per oracle plan and preferred status: 30-day brand, generic
+ * and selected-drug fees. Every pharmacy of a group files the same fees, so the lowest and highest
+ * fee agree and the fee itself is the CMS figure. On the insulin plan the preferred pharmacies
+ * file $8.00 for brand and generic drugs (example 9, an applicable drug) and $10.00 for selected
+ * drugs (C12 example 1, a selected drug).
+ */
+const pharmacies: Record<
+  keyof typeof plans,
+  { preferred: [string, string, string]; standard: [string, string, string] }
+> = {
+  ds: { preferred: ["10", "10", "10"], standard: ["0", "0", "0"] },
+  ba: { preferred: ["0", "0", "0"], standard: ["0", "0", "0"] },
+  ea: { preferred: ["0", "0", "0"], standard: ["0", "0", "0"] },
+  insulin: { preferred: ["8", "8", "10"], standard: ["0", "0", "0"] },
+};
+
 const planKey = (plan: OraclePlan) => `${plan.contract}-${plan.plan}-0`;
 const prefixOf = (plan: OraclePlan) => `${plan.contract}|${plan.plan}|000|`;
 const oraclePlans = Object.values(plans);
@@ -317,6 +401,59 @@ function partDEdits(outer: string, inner: Record<string, Buffer>) {
           ].join("|"),
         ),
       ),
+    ]);
+  else if (outer.startsWith("pharmacy networks file"))
+    edit(inner, (lines) => [
+      ...lines.filter((line) => !ours(line)),
+      ...(outer.includes("part 1")
+        ? (Object.keys(pharmacies) as (keyof typeof plans)[]).flatMap(
+            (name, p) => {
+              const plan = plans[name]!;
+              return (["preferred", "standard"] as const).flatMap(
+                (status, s) => {
+                  const [brand, generic, selected] = pharmacies[name]![status];
+                  // Two synthetic pharmacies per group, numbers starting 99.
+                  return [1, 2].map((n) =>
+                    [
+                      plan.contract,
+                      plan.plan,
+                      "000",
+                      `99${String(p * 100 + s * 10 + n).padStart(10, "0")}`,
+                      "99999",
+                      status === "preferred" ? "Y" : "N",
+                      "N",
+                      "Y",
+                      "N",
+                      "1",
+                      "0",
+                      ...[brand, generic, selected].flatMap((fee) => [
+                        fee,
+                        fee,
+                        fee,
+                      ]),
+                    ].join("|"),
+                  );
+                },
+              );
+            },
+          )
+        : []),
+    ]);
+  else if (outer.startsWith("pricing file"))
+    edit(inner, (lines) => [
+      ...lines,
+      ...[
+        ...new Map(
+          Object.entries(priced).map(([id, price]) => {
+            const s = setups[id]!;
+            const plan = plans[s.plan]!;
+            return [
+              `${prefixOf(plan)}${s.ndc}`,
+              `${prefixOf(plan)}${s.ndc}|30|${price.unitCost}`,
+            ] as const;
+          }),
+        ).values(),
+      ],
     ]);
   else if (outer.startsWith("basic drugs formulary"))
     edit(inner, (lines) => [
@@ -417,6 +554,148 @@ function priceFor(oracle: Oracle): PriceEvidence {
   };
 }
 
+/** The same schedule priced from the synthetic plan-average rows instead of the CMS amount. */
+function planAverageScheduleFor(oracle: Oracle) {
+  const schedule = scheduleFor(oracle);
+  const price = priced[oracle.id]!;
+  return {
+    ...schedule,
+    price_basis: "cms_plan_average",
+    channel: price.channel,
+    fills: schedule.fills.map((fill) => ({
+      ...fill,
+      quantity: price.quantity,
+      unit: "ndc_unit",
+    })),
+  };
+}
+
+/** The example's CMS dispensing fee; $0.00 when its PDE table reports none. */
+const feeOf = (oracle: Oracle) => oracle.inputs.dispensingFee ?? "0.00";
+const grossOf = (oracle: Oracle) =>
+  oracle.inputs.grossDrugCost ?? oracle.inputs.negotiatedPrice!;
+const ingredientOf = (oracle: Oracle) =>
+  oracle.inputs.ingredientCost ?? grossOf(oracle);
+
+/**
+ * Figures the dispensing fee cannot move, worked by hand from each example's own arithmetic. The
+ * plan-average path also prices every fill as if the unit cost already included the fee (unit
+ * cost alone), so a figure is exact only when the example's figure is the same with and without
+ * the fee:
+ *
+ * - C7 example 4: the $60.00 left to the threshold is 25% of the first $240.00 either way, so
+ *   patient pay, TrOOP, the amount below the threshold, the selected-drug subsidy (10% of it) and
+ *   the phases do not move; the amount above the threshold ($150.00 or $160.00) and the plan's
+ *   share do.
+ * - C7 example 9: the $20.00 left to the threshold fixes patient pay and TrOOP. The amount below
+ *   the threshold is $20.00 over the $35.00 copay's share of the gross cost ($285.71 of $500.00,
+ *   $281.14 of $492.00), so it moves, and so do the amounts that follow from it.
+ * - C12 example 1: 25% of the $119.00 maximum fair price caps patient pay at $29.75. The
+ *   plan-average path has no maximum fair price, and without it the plan's $30.00 copay and 25%
+ *   coinsurance give different amounts, so nothing here is exact: every figure must stay unknown
+ *   (the dispensing fee among the reasons), never $30.00 or another guess.
+ */
+const feeIndependent: Record<string, string[]> = {
+  "ds-catastrophic-crossing": [
+    "patientPay",
+    "troopIncrement",
+    "grossBelowThreshold",
+    "selectedDrugSubsidy",
+    "beginningPhase",
+    "endingPhase",
+  ],
+  "insulin-catastrophic-crossing": ["patientPay", "troopIncrement"],
+  "selected-insulin-mfp-ceiling": [],
+};
+
+/**
+ * Compares a plan-average answer with the CMS example. The price block must rebuild the example's
+ * ingredient cost and gross drug cost to the cent. With a $0.00 fee every figure must be the CMS
+ * figure. With a fee, the fee-independent figures must be the CMS figure and every other one must
+ * be unknown for the fee, or bounded with both ends at the CMS figure; never another value.
+ */
+function planAverageMismatches(
+  oracle: Oracle,
+  answer: Json,
+  label: string,
+): string[] {
+  const fill = answer?.fills?.[0];
+  if (!fill)
+    return [
+      `${oracle.id} (${label}): no fill, ${answer?.status} ${answer?.reason}`,
+    ];
+  const out: string[] = [];
+  const priceFigures = fill.price?.figures ?? {};
+  const gross = cents(grossOf(oracle));
+  const hasFee = cents(feeOf(oracle)) !== 0;
+  const want: Record<string, Json> = {
+    unit_cost_total: { status: "value", cents: cents(ingredientOf(oracle)) },
+    total_lowest_fee: { status: "value", cents: gross },
+    total_highest_fee: { status: "value", cents: gross },
+    gross: hasFee
+      ? {
+          status: "bounded",
+          cents: null,
+          minimum_cents: gross,
+          maximum_cents: gross,
+          reason: "dispensing_fee_unknown",
+        }
+      : { status: "value", cents: gross },
+  };
+  for (const [key, expected] of Object.entries(want)) {
+    const got = priceFigures[key];
+    const picked = got
+      ? Object.fromEntries(
+          Object.keys(expected).map((name) => [name, got[name]]),
+        )
+      : null;
+    if (JSON.stringify(picked) !== JSON.stringify(expected))
+      out.push(
+        `${oracle.id}.price.${key} (${label}): expected ${JSON.stringify(expected)}, got ${JSON.stringify(got)}`,
+      );
+  }
+  if (!hasFee) return [...out, ...mismatches(oracle, answer, label)];
+  const exact = new Set(feeIndependent[oracle.id] ?? []);
+  const exactOnly: Oracle = {
+    ...oracle,
+    expected: Object.fromEntries(
+      Object.entries(oracle.expected).filter(([key]) => exact.has(key)),
+    ),
+  };
+  out.push(...mismatches(exactOnly, answer, label));
+  const figures: Record<string, Json> = {
+    patientPay: fill.figures.patient_pay,
+    troopIncrement: fill.figures.troop_increment,
+    grossBelowThreshold: fill.figures.gross_below_threshold,
+    grossAboveThreshold: fill.figures.gross_above_threshold,
+    manufacturerDiscount: fill.figures.manufacturer_discount,
+    selectedDrugSubsidy: fill.figures.selected_drug_subsidy,
+    coveredPlanPaid: fill.figures.covered_plan_paid,
+    nonCoveredPlanPaid: fill.figures.non_covered_plan_paid,
+  };
+  for (const [key, value] of Object.entries(oracle.expected)) {
+    if (exact.has(key)) continue;
+    const figure = figures[key];
+    if (!figure) {
+      out.push(`${oracle.id}.${key} (${label}): not reported`);
+      continue;
+    }
+    const atCms =
+      figure.status === "bounded" &&
+      figure.minimum_cents === cents(value) &&
+      figure.maximum_cents === cents(value);
+    const unknownForFee =
+      figure.status === "unknown" &&
+      figure.cents === null &&
+      String(figure.reason).split("+").includes("dispensing_fee_unknown");
+    if (!atCms && !unknownForFee)
+      out.push(
+        `${oracle.id}.${key} (${label}): expected unknown for the fee or bounds at ${value}, got ${JSON.stringify(figure)}`,
+      );
+  }
+  return out;
+}
+
 /** The oracle currently running; the seams read it. */
 let current: Oracle | null = null;
 type Estimate = (request: EstimateRequest) => EstimateResult;
@@ -495,10 +774,10 @@ describe("CMS worked examples through the HTTP route and the MCP tool", () => {
       dataDir: loaded.dataDir,
       dependencies: { lookup, transport },
     });
-    await importSpuf(
-      loaded.db,
-      (await cachedSpuf(archive.kind, loaded.dataDir))[0]!,
-    );
+    const cached = (await cachedSpuf(archive.kind, loaded.dataDir))[0]!;
+    await importSpuf(loaded.db, cached);
+    // The synthetic pricing rows and fee ranges, for the plan-average requests only.
+    await importSpuf(loaded.db, cached, ["pricing", "dispensing_fee"]);
     http = createApp(
       loaded.db,
       { premiumToken: API_TOKEN },
@@ -524,7 +803,10 @@ describe("CMS worked examples through the HTTP route and the MCP tool", () => {
     vi.stubEnv("OPENPLANS_MEDICARE_PART_D", "on");
     vi.stubEnv("OPENPLANS_MEDICARE_DRUG_COST", "on");
   };
-  async function viaHttp(oracle: Oracle): Promise<Json> {
+  async function viaHttp(
+    oracle: Oracle,
+    schedule: Json = scheduleFor(oracle),
+  ): Promise<Json> {
     current = oracle;
     const plan = plans[setups[oracle.id]!.plan]!;
     const response = await http.request(
@@ -535,14 +817,17 @@ describe("CMS worked examples through the HTTP route and the MCP tool", () => {
           "content-type": "application/json",
           authorization: `Bearer ${API_TOKEN}`,
         },
-        body: JSON.stringify(scheduleFor(oracle)),
+        body: JSON.stringify(schedule),
       },
     );
     expect(response.status, oracle.id).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store");
     return response.json();
   }
-  async function viaMcp(oracle: Oracle): Promise<Json> {
+  async function viaMcp(
+    oracle: Oracle,
+    schedule: Json = scheduleFor(oracle),
+  ): Promise<Json> {
     current = oracle;
     const plan = plans[setups[oracle.id]!.plan]!;
     const response = await mcp.fetch(
@@ -553,7 +838,7 @@ describe("CMS worked examples through the HTTP route and the MCP tool", () => {
           arguments: {
             plan_key: planKey(plan),
             year: oracle.contractYear,
-            ...scheduleFor(oracle),
+            ...schedule,
           },
         },
         { authorization: `Bearer ${MCP_TOKEN}` },
@@ -646,6 +931,116 @@ describe("CMS worked examples through the HTTP route and the MCP tool", () => {
       expect(pay.reason).toBeTruthy();
       expect(route.status).not.toBe("estimated");
     }
+  });
+
+  describe("priced from synthetic plan-average rows", () => {
+    const pricesOn = () => {
+      switchesOn();
+      vi.stubEnv("OPENPLANS_MEDICARE_DRUG_COST_PRICES", "on");
+    };
+    /** Only the stated insulin facts are seamed; prices come from the imported rows. */
+    const factsOnly = () =>
+      vi
+        .spyOn(drugCostDeps, "drugFacts")
+        .mockImplementation(() => setups[current!.id]!.facts);
+
+    it("prices every worked example", () => {
+      expect(Object.keys(priced).sort()).toEqual(Object.keys(setups).sort());
+      for (const oracle of oracleFile.workedExamples) {
+        const price = priced[oracle.id]!;
+        // Unit cost x quantity is the CMS ingredient cost, to the cent.
+        expect(cents(price.unitCost) * Number(price.quantity), oracle.id).toBe(
+          cents(ingredientOf(oracle)),
+        );
+        expect(cents(ingredientOf(oracle)) + cents(feeOf(oracle))).toBe(
+          cents(grossOf(oracle)),
+        );
+      }
+    });
+
+    for (const oracle of oracleFile.workedExamples)
+      it(`${oracle.document} pp. ${priced[oracle.id]!.pages} ${oracle.id}: plan-average price over HTTP and MCP`, async () => {
+        pricesOn();
+        factsOnly();
+        current = oracle;
+        const schedule = planAverageScheduleFor(oracle);
+        const route = await viaHttp(oracle, schedule);
+        expect(planAverageMismatches(oracle, route, "http")).toEqual([]);
+        expect(estimateProvenanceProblems(route)).toEqual([]);
+        expect(route.price_basis).toBe("cms_plan_average");
+        // The price cites the synthetic pricing row and the fee ranges it used.
+        expect(
+          route.evidence.some(
+            (item: Json) =>
+              item.kind === "source_row" && item.table === "pricing",
+          ),
+        ).toBe(true);
+        expect(
+          route.evidence.some((item: Json) => item.kind === "fee_range"),
+        ).toBe(true);
+        const output = await viaMcp(oracle, schedule);
+        expect(estimateOutputSchema.safeParse(output).success).toBe(true);
+        expect(output.error, JSON.stringify(output.error)).toBeNull();
+        expect(output.data).toEqual(route);
+        expect(planAverageMismatches(oracle, output.data, "mcp")).toEqual([]);
+        expect(() => assertEstimateHonest(output, route)).not.toThrow();
+      });
+
+    // Each planted mutant changes how the plan-average price is read. Some example must fail.
+    type PlanAverage = Extract<PriceEvidence, { status: "plan_average" }>;
+    const rewrite =
+      (change: (price: PlanAverage) => PlanAverage): Estimate =>
+      (request) =>
+        estimateDrugCosts({
+          ...request,
+          prices: Object.fromEntries(
+            Object.entries(request.prices).map(([id, price]) => [
+              id,
+              price.status === "plan_average" ? change(price) : price,
+            ]),
+          ),
+        });
+    const zero = { status: "value" as const, lowest: "0", highest: "0" };
+    const priceMutants: Record<string, Estimate> = {
+      "dispensing fee dropped (unit cost alone)": rewrite((price) => ({
+        ...price,
+        fees: {
+          brand_or_generic: zero,
+          selected_or_brand: zero,
+          any_fee_type: zero,
+        },
+      })),
+      "brand fee charged for a selected drug": rewrite((price) => ({
+        ...price,
+        fees: { ...price.fees, selected_or_brand: price.fees.brand_or_generic },
+      })),
+      "quantity read as one unit": rewrite((price) => ({
+        ...price,
+        quantity: "1",
+        unit_cost_total: price.unit_cost,
+      })),
+    };
+    for (const [name, mutant] of Object.entries(priceMutants))
+      it(`catches the planted mutant: ${name}`, async () => {
+        pricesOn();
+        factsOnly();
+        engine = mutant;
+        vi.spyOn(drugCostDeps, "estimate").mockImplementation((request) =>
+          engine(request),
+        );
+        const failures: string[] = [];
+        for (const oracle of oracleFile.workedExamples) {
+          let answer: Json;
+          try {
+            answer = await viaHttp(oracle, planAverageScheduleFor(oracle));
+          } catch (error) {
+            failures.push(`${oracle.id}: ${String(error)}`);
+            continue;
+          }
+          failures.push(...planAverageMismatches(oracle, answer, "http"));
+        }
+        expect(failures.length, name).toBeGreaterThan(0);
+      });
   });
 
   // Each planted mutant changes one input the oracles depend on. Some oracle must fail.

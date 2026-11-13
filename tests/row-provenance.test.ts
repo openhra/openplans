@@ -41,6 +41,7 @@ async function migrations(
     await rm(join(core.directory, "1000_plugin_events.sql"));
     await rm(join(core.directory, "1001_passthrough.sql"));
     await rm(join(core.directory, "1002_ingest_run_snapshot.sql"));
+    await rm(join(core.directory, "1004_partd_unit_cost_key.sql"));
   } else if (mutate) {
     const before = await readFile(path, "utf8");
     const after = mutate(before);
@@ -298,6 +299,7 @@ describe("row provenance values", () => {
       "1000_plugin_events.sql",
       "1001_passthrough.sql",
       "1002_ingest_run_snapshot.sql",
+      "1004_partd_unit_cost_key.sql",
     ]);
     expect(await receiptViolations(db)).toEqual([]);
     const { rows } = await db.query(

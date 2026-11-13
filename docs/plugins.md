@@ -428,13 +428,14 @@ An advisory lock keeps two schedulers from running the same schedule in the same
 
 ### Event catalog
 
-The SDK defines 14 event types in
+The SDK defines 15 event types in
 [`plugins/sdk/src/events.ts`](../plugins/sdk/src/events.ts). Payloads hold identifiers, counts,
 reason codes and timestamps only.
 
 | Type                           | Payload fields                                       |
 | ------------------------------ | ---------------------------------------------------- |
 | `release.deployed`             | `version`, `imageId`, `previousVersion`              |
+| `release.rolled_back`          | `version`, `imageId`, `fromVersion`                  |
 | `snapshot.activated`           | `sourceId`, `snapshotId`, `rows` (null when unknown) |
 | `snapshot.quarantined`         | `sourceId`, `snapshotId`, `reasonCode`               |
 | `ingest.started`               | `sourceId`, `command`, `scope`                       |
@@ -448,6 +449,10 @@ reason codes and timestamps only.
 | `health.changed`               | `component`, `from`, `to`                            |
 | `record_policy.changed`        | `policy`, `ttl`, `staleWindow`                       |
 | `plugin.loaded`                | `plugins`: name and version of each                  |
+
+`release.rolled_back` follows an operator's hard-release rollback. `version` and `imageId`
+name the release the pin went back to; `fromVersion` is the version it left. The Slack plugin
+does not post it yet. The webhook plugin posts it when `events` lists it.
 
 Each event also has `id`, `type`, `emittedAt`, `emittedBy` and `idempotencyKey`. The `sourceId`
 of each `ingest *` command is listed in the

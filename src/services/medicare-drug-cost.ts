@@ -10,12 +10,19 @@ import type {
   EstimateRequest,
   EstimateResult,
   Evidence,
+  FillPrice,
   FillRequest,
   Figure,
+  PriceEvidence,
 } from "../domain/medicare/part-d-cost/engine.js";
+import { planAveragePrice } from "../domain/medicare/part-d-cost/price.js";
 import {
   BUNDLE_VERSION,
+  UNIT_COST_CAVEAT,
+  planAveragePricesProblem,
   readBenefitBundle,
+  readDispensingFeeRanges,
+  readUnitCost,
   yearRules,
 } from "../domain/medicare/part-d-cost/repository.js";
 import type {
@@ -37,12 +44,20 @@ import { partDEnabled, partDStatus } from "./medicare-part-d.js";
  * personalized-estimate grant, and the schedule is never stored, cached or logged.
  *
  * Benefit type and drug classifications come only from the CMS files. The request schema has no
- * field for them, and the engine gets `unknown` wherever the files are silent. No price source is
- * loaded for estimates yet, so a fill's amount is a value only where the filed benefit settles it
- * whatever the price. Everything else is unknown with its reason.
+ * field for them, and the engine gets `unknown` wherever the files are silent. With
+ * `price_basis: "none"` a fill's amount is a value only where the filed benefit settles it
+ * whatever the price. `cms_plan_average` prices fills from the quarterly pricing file and the
+ * dispensing-fee ranges. It has its own switch, OPENPLANS_MEDICARE_DRUG_COST_PRICES=on, off by
+ * default; with it off the service refuses that basis with `price_basis_not_supported`. With it
+ * on, a release whose unit costs or fee ranges are not loaded answers unknown before any fill is
+ * priced.
  */
 export function drugCostEnabled(): boolean {
   return process.env.OPENPLANS_MEDICARE_DRUG_COST === "on";
+}
+/** The plan-average price switch. It only counts while the estimator itself is on. */
+export function drugCostPricingEnabled(): boolean {
+  return process.env.OPENPLANS_MEDICARE_DRUG_COST_PRICES === "on";
 }
 
 export interface DrugCostDeps {
@@ -50,6 +65,12 @@ export interface DrugCostDeps {
   enabled: () => boolean;
   /** The Part D serving switch the estimator also needs. */
   partD: () => boolean;
+  /** The switch for `price_basis: "cms_plan_average"`. */
+  pricing: () => boolean;
+  /** Why the pinned release cannot price fills, or null when its prices and fees are loaded. */
+  pricesProblem: typeof planAveragePricesProblem;
+  readUnitCost: typeof readUnitCost;
+  readFeeRanges: typeof readDispensingFeeRanges;
   parse: (body: unknown) => DrugCostRequest;
   /** What the engine is told about a fill's drug classes; the service never passes caller facts. */
   drugFacts: (
@@ -59,6 +80,8 @@ export interface DrugCostDeps {
   estimate: (request: EstimateRequest) => EstimateResult;
   /** The evidence item that cites a group of rows sharing their values once. */
   groupEvidence: (group: RowGroup) => GroupEvidence;
+  /** How an engine figure is written in the answer; replaceable only to plant test mutants. */
+  figure: (value: Figure, refs: string[]) => FigureOut;
 }
 
 const unknownFacts = (): FillRequest["classification"] => ({
@@ -82,18 +105,26 @@ export function parseDrugCostRequest(body: unknown): DrugCostRequest {
 export const drugCostDeps: DrugCostDeps = {
   enabled: drugCostEnabled,
   partD: partDEnabled,
+  pricing: drugCostPricingEnabled,
+  pricesProblem: planAveragePricesProblem,
+  readUnitCost,
+  readFeeRanges: readDispensingFeeRanges,
   parse: parseDrugCostRequest,
   drugFacts: unknownFacts,
   readBundle: readBenefitBundle,
   estimate: estimateDrugCosts,
   groupEvidence: (group) => ({ kind: "source_rows", ...group }),
+  figure: figureOut,
 };
 
 // ---------- response ----------
 
 export type FigureOut = {
-  status: "value" | "unknown";
+  status: "value" | "bounded" | "unknown";
   cents: number | null;
+  /** Only on a bounded figure: the amount lies between these, both included. */
+  minimum_cents?: number;
+  maximum_cents?: number;
   reason: string | null;
   evidence_refs: string[];
 };
@@ -225,15 +256,57 @@ function groupProblems(item: Record<string, unknown>): string[] {
 const rowEvidence = (rows: readonly RowRef[]): Evidence[] =>
   rows.map((row) => ({ kind: "source_row", ...row }));
 
-function figure(value: Figure, refs: string[]): FigureOut {
-  return value.status === "value"
-    ? { status: "value", cents: value.cents, reason: null, evidence_refs: refs }
-    : {
-        status: "unknown",
-        cents: null,
-        reason: value.reason,
-        evidence_refs: refs,
-      };
+/** A bounded figure keeps both ends and no single amount; it is never written as one number. */
+export function figureOut(value: Figure, refs: string[]): FigureOut {
+  if (value.status === "value")
+    return {
+      status: "value",
+      cents: value.cents,
+      reason: null,
+      evidence_refs: refs,
+    };
+  if (value.status === "bounded")
+    return {
+      status: "bounded",
+      cents: null,
+      minimum_cents: value.minimum_cents,
+      maximum_cents: value.maximum_cents,
+      reason: value.reason,
+      evidence_refs: refs,
+    };
+  return {
+    status: "unknown",
+    cents: null,
+    reason: value.reason,
+    evidence_refs: refs,
+  };
+}
+
+const priceFigures = [
+  "unit_cost_total",
+  "total_lowest_fee",
+  "total_highest_fee",
+  "gross",
+] as const;
+/** A plan-average fill's price block; every figure cites the fill's evidence. */
+function priceOut(
+  price: FillPrice | null,
+  refs: string[],
+  figure: DrugCostDeps["figure"],
+) {
+  if (!price) return null;
+  return {
+    basis: price.basis,
+    unit_cost: price.unit_cost,
+    quantity: price.quantity,
+    quantity_basis: price.quantity_basis,
+    fee_set: price.fee_set,
+    readings: price.readings,
+    caveat: price.caveat,
+    figures: Object.fromEntries(
+      priceFigures.map((key) => [key, figure(price[key], refs)]),
+    ) as Record<(typeof priceFigures)[number], FigureOut>,
+  };
 }
 function moneyFigure(value: MoneyFigure, refs: string[]): FigureOut {
   if (value.status === "value")
@@ -272,6 +345,7 @@ function filedRate(value: RateFigure) {
 function accumulators(
   value: Accumulators,
   refs: string[],
+  figure: DrugCostDeps["figure"],
 ): Record<keyof Accumulators, FigureOut> {
   return {
     gross_covered_drug_cost: figure(value.gross_covered_drug_cost, refs),
@@ -430,6 +504,7 @@ function project(
   deps: DrugCostDeps,
 ) {
   const table = new EvidenceTable(bundle.row_groups ?? [], deps.groupEvidence);
+  const figure = deps.figure;
   const opening: Evidence[] =
     input.opening_state.kind === "provided"
       ? [{ kind: "request", field: "opening_state" }]
@@ -474,10 +549,11 @@ function project(
       figures: Object.fromEntries(
         fillFigures.map((key) => [key, figure(fill[key], refs)]),
       ) as Record<(typeof fillFigures)[number], FigureOut>,
+      price: priceOut(fill.price, refs, figure),
       plan_phase: fill.plan_phase,
       standard_phase: fill.standard_phase,
-      before: accumulators(fill.before, refs),
-      after: accumulators(fill.after, refs),
+      before: accumulators(fill.before, refs, figure),
+      after: accumulators(fill.after, refs, figure),
       derivation: fill.derivation,
       conflicts: fill.conflicts.map((note) => ({
         code: note.code,
@@ -515,7 +591,10 @@ function project(
     channel_verification: result.channel_verification,
     opening_origin: result.opening_origin,
     benefit_type: benefitType,
-    assumptions: result.assumptions,
+    assumptions:
+      input.price_basis === "cms_plan_average"
+        ? [...result.assumptions, PRICE_ASSUMPTION]
+        : result.assumptions,
     gaps: [...new Set([...result.gaps, ...bundle.gaps])].sort(),
     plan_figures: plan,
     fills,
@@ -530,7 +609,7 @@ function project(
         fills: subtotal.fills,
         complete: subtotal.complete,
       },
-      closing: accumulators(result.totals.closing, totalRefs),
+      closing: accumulators(result.totals.closing, totalRefs, figure),
       premiums: { status: "not_evaluated" as const },
     },
     conflicts: result.conflicts.map((note) => ({
@@ -547,7 +626,62 @@ function project(
 export type DrugCostEstimate =
   ReturnType<typeof project>["answer"] | ReturnType<typeof closed>;
 
-/** Every value figure cites evidence that is in the answer, and every unknown says why. */
+/** The engine sets a fill's status from its patient pay; the answer must keep the two in step. */
+const FILL_STATUS_OF: Record<string, string> = {
+  value: "estimated",
+  bounded: "bounded",
+  unknown: "unknown",
+};
+type FigureLike = {
+  status?: string;
+  cents?: number | null;
+  minimum_cents?: number;
+  maximum_cents?: number;
+};
+/**
+ * A plan-average gross cost is one value only when the unit cost alone and both fee readings give
+ * that value; a bounded gross runs exactly from the lowest-fee total to the highest-fee total.
+ */
+function grossProblem(price: unknown): string | null {
+  const figures = (price as { figures?: Record<string, FigureLike> } | null)
+    ?.figures;
+  if (!figures) return null;
+  const { gross, unit_cost_total, total_lowest_fee, total_highest_fee } =
+    figures;
+  if (gross?.status === "value") {
+    const agree = [unit_cost_total, total_lowest_fee, total_highest_fee].every(
+      (item) => item?.status === "value" && item.cents === gross.cents,
+    );
+    return agree ? null : "gross given as one value while its readings differ";
+  }
+  if (
+    gross?.status === "bounded" &&
+    (total_lowest_fee?.cents !== gross.minimum_cents ||
+      total_highest_fee?.cents !== gross.maximum_cents)
+  )
+    return "gross bounds differ from the fee readings";
+  return null;
+}
+function fillStatusProblems(answer: unknown): string[] {
+  const fills = (answer as { fills?: unknown }).fills;
+  if (!Array.isArray(fills)) return [];
+  return fills.flatMap((fill: Record<string, unknown>, i) => {
+    const problems: string[] = [];
+    const patient = (fill.figures as Record<string, FigureLike>)?.patient_pay;
+    if (FILL_STATUS_OF[String(patient?.status)] !== fill.status)
+      problems.push(
+        `$.fills[${i}]: status ${String(fill.status)} disagrees with patient pay`,
+      );
+    const gross = grossProblem(fill.price);
+    if (gross) problems.push(`$.fills[${i}].price: ${gross}`);
+    return problems;
+  });
+}
+
+/**
+ * Every value figure cites evidence that is in the answer, every unknown says why, and a bounded
+ * figure keeps its two ends with no single amount.
+ */
 export function estimateProvenanceProblems(answer: unknown): string[] {
   const problems: string[] = [];
   const root = answer as { evidence?: Record<string, unknown>[] };
@@ -568,6 +702,26 @@ export function estimateProvenanceProblems(answer: unknown): string[] {
       const refs = node.evidence_refs as string[];
       if (node.status === "value" && !refs.length)
         problems.push(`${path}: value without evidence`);
+      // A value is one exact amount; a range must never be written as one.
+      if (
+        node.status === "value" &&
+        ("minimum_cents" in node || "maximum_cents" in node || node.reason)
+      )
+        problems.push(`${path}: value carries bounds or a reason`);
+      if (node.status === "bounded" && node.cents !== null)
+        problems.push(`${path}: bounds written as one amount`);
+      if (node.status === "bounded") {
+        if (!refs.length) problems.push(`${path}: bounds without evidence`);
+        if (!node.reason) problems.push(`${path}: bounds without a reason`);
+        const low = node.minimum_cents;
+        const high = node.maximum_cents;
+        if (
+          !Number.isSafeInteger(low) ||
+          !Number.isSafeInteger(high) ||
+          (low as number) > (high as number)
+        )
+          problems.push(`${path}: bounds out of order`);
+      }
       if (node.status === "unknown" && !node.reason)
         problems.push(`${path}: unknown without a reason`);
     }
@@ -578,9 +732,67 @@ export function estimateProvenanceProblems(answer: unknown): string[] {
       if (key !== "evidence") visit(child, `${path}.${key}`);
   };
   visit(answer, "$");
+  problems.push(...fillStatusProblems(answer));
   if (/not[ _-]?covered/i.test(JSON.stringify(answer)))
     problems.push("an answer never says not covered");
   return problems;
+}
+
+const PRICE_ASSUMPTION = `Prices are plan averages. ${UNIT_COST_CAVEAT} The estimate prices each fill from the unit cost alone and with the lowest and highest dispensing fee. Where those differ, an amount is a minimum and a maximum, never one value.`;
+
+/**
+ * Plan-average prices for each fill from the bundle's own release. The proxy NDC is the fill's,
+ * or the only one the plan lists for the drug; a drug the plan does not list, or lists under
+ * several NDCs with none chosen, gets no price.
+ */
+async function planAveragePrices(
+  db: SqlSession,
+  key: PlanKey,
+  year: number,
+  input: DrugCostRequest,
+  bundle: Extract<BenefitBundle, { status: "available" }>,
+  deps: DrugCostDeps,
+): Promise<Record<string, PriceEvidence>> {
+  const prices: Record<string, PriceEvidence> = {};
+  for (const fill of input.fills) {
+    const unknown = (reason: string): PriceEvidence => ({
+      status: "unknown",
+      reason,
+      basis: "cms_plan_average",
+    });
+    const drug = bundle.drugs.find((item) => item.rxcui === fill.rxcui);
+    const packages = (drug?.status === "listed" ? drug.packages : []).filter(
+      (item) =>
+        fill.proxy_ndc === undefined || item.proxy_ndc === fill.proxy_ndc,
+    );
+    if (packages.length !== 1) {
+      prices[fill.fill_id] = unknown(
+        packages.length ? "proxy_ndc_ambiguous" : "proxy_ndc_not_listed",
+      );
+      continue;
+    }
+    const request = {
+      snapshotId: bundle.release.snapshot_id,
+      year,
+      plan: key,
+      daysSupply: fill.days_supply,
+      channel: input.channel,
+    };
+    const unitCost = await deps.readUnitCost(db, {
+      ...request,
+      ndc: packages[0]!.proxy_ndc,
+      quantityUnit: fill.unit,
+    });
+    if (unitCost.status !== "value") {
+      prices[fill.fill_id] = unknown(unitCost.reason);
+      continue;
+    }
+    const fees = await deps.readFeeRanges(db, request);
+    const price = planAveragePrice(unitCost, fees, fill.quantity);
+    prices[fill.fill_id] =
+      price.status === "unknown" ? unknown(price.reason) : price;
+  }
+  return prices;
 }
 
 /**
@@ -603,7 +815,8 @@ export async function drugCostEstimate(
   };
   if (!deps.partD()) return closed(head, "unknown", "pending_terms_review");
   if (!deps.enabled()) return closed(head, "unknown", "estimator_disabled");
-  if (input.price_basis !== "none")
+  const planAverage = input.price_basis === "cms_plan_average";
+  if (planAverage && !deps.pricing())
     return closed(head, "unsupported", "price_basis_not_supported");
   const bundle = await deps.readBundle(db, {
     plan: key,
@@ -612,7 +825,19 @@ export async function drugCostEstimate(
   });
   if (bundle.status !== "available")
     return closed(head, "unknown", bundle.reason, bundle.release?.as_of);
+  if (planAverage) {
+    // No fill is priced, and nothing is calculated, from a release without its prices and fees.
+    const problem = await deps.pricesProblem(
+      db,
+      bundle.release.snapshot_id,
+      year,
+    );
+    if (problem) return closed(head, "unknown", problem, bundle.release.as_of);
+  }
   const opening = input.opening_state;
+  const prices = planAverage
+    ? await planAveragePrices(db, key, year, input, bundle, deps)
+    : {};
   const result = deps.estimate({
     contract_year: year,
     scenario: input.scenario,
@@ -640,7 +865,7 @@ export async function drugCostEstimate(
       unit: fill.unit,
       classification: deps.drugFacts(fill),
     })),
-    prices: {},
+    prices,
   });
   if (result.status === "invalid")
     return v.fail("body.fills", "INVALID_SCHEDULE");
@@ -655,17 +880,45 @@ export async function drugCostEstimate(
   return answer;
 }
 
+/** Whether the year's Part D release has plan-average prices and fees, and whether they are served. */
+async function pricingCapability(
+  db: SqlSession,
+  year: number,
+  partD: Awaited<ReturnType<typeof partDStatus>>,
+  deps: Pick<DrugCostDeps, "pricing" | "pricesProblem">,
+) {
+  const served = deps.pricing() ? ("on" as const) : ("off" as const);
+  if (partD.status !== "available" || !partD.snapshot_id)
+    return {
+      status: "unknown" as const,
+      reason: partD.reason ?? "pending_terms_review",
+      switch: served,
+    };
+  const problem = await deps.pricesProblem(db, partD.snapshot_id, year);
+  return problem
+    ? { status: "unknown" as const, reason: problem, switch: served }
+    : {
+        status: "available" as const,
+        snapshot_id: partD.snapshot_id,
+        as_of: partD.as_of,
+        switch: served,
+      };
+}
+
 /**
  * The estimator capability for /v1/medicare/data-availability says what it can read for a year and
  * what stays unknown. Only reported when the estimator switch is on, so the default answer keeps
- * its existing shape.
+ * its existing shape. `cms_plan_average` is listed only while its own switch is on and the year's
+ * prices and fees are loaded.
  */
 export async function drugCostCapability(
   db: SqlSession,
   year: number,
   pbp: { snapshot_id: string; as_of_label: string } | undefined,
+  deps: Pick<DrugCostDeps, "pricing" | "pricesProblem"> = drugCostDeps,
 ) {
   const partD = await partDStatus(db, year);
+  const pricing = await pricingCapability(db, year, partD, deps);
   const rules = yearRules(year);
   const parts = {
     benefit_evidence: partD,
@@ -687,7 +940,7 @@ export async function drugCostCapability(
       applicable_drug: "unknown",
     },
     terminology: { status: "unknown", reason: "drug_names_not_in_estimate" },
-    pricing: { status: "unknown", reason: "pricing_not_loaded" },
+    pricing,
     pharmacy_network: {
       status: "unknown",
       reason: "pharmacy_network_not_verified",
@@ -701,7 +954,10 @@ export async function drugCostCapability(
     status: reason ? "unknown" : "available",
     ...(reason ? { reason } : {}),
     access: "personalized_estimate_grant",
-    price_basis: ["none"],
+    price_basis:
+      pricing.switch === "on" && pricing.status === "available"
+        ? ["none", "cms_plan_average"]
+        : ["none"],
     scenarios: ["non_lis_no_other_payer"],
     ...parts,
   };

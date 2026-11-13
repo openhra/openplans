@@ -125,6 +125,9 @@ it("dispatches the requested years and runs the NY identity check only for 2026"
       ),
       ...(years.includes(2026)
         ? [
+            ...nodeCommand("medicare-part-d-price", 2026),
+            "--cached",
+            "--optional",
             "node",
             "src/ingest/state/ny-identitycheck.mjs",
             "node",

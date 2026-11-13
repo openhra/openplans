@@ -100,21 +100,63 @@ try {
   const refusals = artifact.template_checks.filter(
     (c) => c.decision === "refused",
   );
+  // An operator-approved rate source override prices a refused issuer from the SBE file.
+  const overrides = artifact.rate_source_overrides?.issuers ?? [];
+  const overridden = new Set(overrides.map((o) => o.issuer));
+  const overrideRows = overrides.flatMap((o) => o.records);
+  const pricedByOverride = new Set(
+    overrideRows.map((r) => `${r.plan_id}|${r.region}`),
+  );
   const refusedIssuers = new Set(refusals.flatMap((c) => c.issuer_ids));
-  const records = artifact.sources.reduce((n, s) => n + s.records.length, 0);
+  const records =
+    artifact.sources.reduce((n, s) => n + s.records.length, 0) +
+    overrideRows.length;
   assert.equal(staged.records, records);
   assert.deepEqual(
     staged.unknown_issuers,
     refusals.flatMap((c) =>
-      c.issuer_ids.map((issuer) => ({ issuer, reason: c.reason })),
+      c.issuer_ids
+        .filter((issuer) => !overridden.has(issuer))
+        .map((issuer) => ({ issuer, reason: c.reason })),
     ),
   );
   const catalog = await nyLcspCatalog(db, 2026);
   assert.equal(catalog.length, records);
   assert.equal(
-    catalog.filter((r) => refusedIssuers.has(r.row.plan_key.slice(0, 5)))
-      .length,
+    catalog.filter(
+      (r) =>
+        refusedIssuers.has(r.row.plan_key.slice(0, 5)) &&
+        !pricedByOverride.has(`${r.row.plan_key}|${r.row.region}`),
+    ).length,
     0,
+  );
+  const fromSbe = catalog.filter(
+    (r) =>
+      r.row.rate.provenance.sourceUrl ===
+      artifact.rate_source_overrides?.publication.url,
+  );
+  assert.equal(fromSbe.length, overrideRows.length);
+  for (const { row } of fromSbe) {
+    const filed = overrideRows.find(
+      (r) => r.plan_id === row.plan_key && r.region === row.region,
+    );
+    assert.equal(row.rate.provenance.sourceRecord, filed.source_record);
+    assert.deepEqual(row.raw_record.prices, filed.prices);
+    assert.equal(
+      row.rate.provenance.sourceSha256,
+      artifact.rate_source_overrides.publication.sha256,
+    );
+  }
+  const notes = (
+    await db.query(
+      `SELECT source_record,explanation FROM quality_issue WHERE snapshot_id=$1
+      AND issue_code='rate_source_override' ORDER BY source_record`,
+      [staged.import_id],
+    )
+  ).rows;
+  assert.deepEqual(
+    notes.map((n) => n.source_record),
+    [...overridden].sort(),
   );
   const recorded = (
     await db.query(
@@ -179,7 +221,12 @@ try {
   const refusedIn = (region) =>
     refusals.flatMap((c) =>
       c.listed_plans
-        .filter((p) => p.region === region && couldRank(p.plan_id))
+        .filter(
+          (p) =>
+            p.region === region &&
+            couldRank(p.plan_id) &&
+            !pricedByOverride.has(`${p.plan_id}|${p.region}`),
+        )
         .map((p) => ({ ...p, reason: c.reason })),
     );
   const ignoreRefusal = join(directory, "refusal-ignored-service.mjs");
@@ -354,6 +401,23 @@ try {
   // Disposable database mutants: no alteration of the cached source files. These
   // controls exercise the other candidate guards, so they set the refusal aside first.
   const checks = [];
+  if (overrides.length) {
+    // Planted mutant: without the override rows every region they price is unknown again.
+    const marker = new Error("rollback NY override control");
+    await assert.rejects(
+      db.transaction(async (tx) => {
+        await tx.query(
+          `DELETE FROM state_community_rate WHERE import_id=$1 AND source_index=$2`,
+          [staged.import_id, artifact.sources.length],
+        );
+        const { status, reason } = await nyLcspAvailability(tx, 2026);
+        assert.equal(status, "unknown");
+        checks.push({ name: "override_rows_removed", status, reason });
+        throw marker;
+      }),
+      (error) => error === marker,
+    );
+  }
   for (const [name, sql, reason] of [
     [
       "missing_silver",
@@ -391,6 +455,12 @@ try {
         imported: imported.import_id,
         state_import: staged.import_id,
         records,
+        rate_source_overrides: overrides.map((o) => ({
+          issuer: o.issuer,
+          source: o.source,
+          records: o.records.length,
+          unknown_plans: o.unknown_plans.length,
+        })),
         refusals: refusals.map((c) => ({
           url: c.url,
           filing: c.filing,
@@ -406,7 +476,7 @@ try {
     ) + "\n",
   );
   console.log(
-    `PASS: NY ${catalog.length}/${records} filed rows; refused issuers ${[...refusedIssuers].join(",") || "none"} absent and recorded; ${offExchange} off-Exchange + ${mapped - offExchange} catastrophic; ${regions.length - unknownRegions.length}/${regions.length} regions calculated (old EHB mutant rejected), ${unknownRegions.length} unknown for a refused issuer (computing without it rejected); ${checks.length} negative controls`,
+    `PASS: NY ${catalog.length}/${records} filed rows (${overrideRows.length} from a rate source override for ${[...overridden].join(",") || "none"}); refused issuers ${[...refusedIssuers].join(",") || "none"} recorded, unpriced plans absent; ${offExchange} off-Exchange + ${mapped - offExchange} catastrophic; ${regions.length - unknownRegions.length}/${regions.length} regions calculated (old EHB mutant rejected), ${unknownRegions.length} unknown for a refused issuer (computing without it rejected); ${checks.length} negative controls`,
   );
 } finally {
   await db.close();

@@ -1,5 +1,16 @@
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { createApp } from "../../src/api/app.js";
+import { resolveLocation } from "../../src/api/repository.js";
+import { premiumRequest } from "../../src/api/validation.js";
+import {
+  benchmark as benchmarkService,
+  householdSubsidy,
+} from "../../src/services/subsidies.js";
+import { replaceSyntax, rebaseImports } from "../source-mutation.js";
 import * as domain from "../../src/domain/subsidy/index.js";
 import type { SqlSession } from "../../src/db/database.js";
 import { setup, TOKEN } from "../compat/v1/helpers.js";
@@ -94,11 +105,26 @@ async function seed(tx: SqlSession) {
     );
   }
 }
-async function rollback(run: (tx: SqlSession) => Promise<void>) {
+// SYNTHETIC: move the $50 dental plan to its own service area that covers only ZIP 77002.
+async function zipLimitedDental(tx: SqlSession) {
+  await tx.exec(`INSERT INTO service_area_county SELECT (jsonb_populate_record(NULL::service_area_county,
+    to_jsonb(s) || '{"source_row":9100001,"service_area_id":"TXS9DZ","cover_entire_state":false,
+      "partial_county":true,"zip_codes":"77002"}'::jsonb)).*
+    FROM service_area_county s WHERE source_row=9100000`);
+  await tx.query(
+    `UPDATE plan SET service_area_id='TXS9DZ' WHERE base_plan_id=$1`,
+    [dental[0]],
+  );
+}
+async function rollback(
+  run: (tx: SqlSession) => Promise<void>,
+  edit?: (tx: SqlSession) => Promise<void>,
+) {
   const marker = new Error("synthetic dental rollback");
   try {
     await h.db.transaction(async (tx) => {
       await seed(tx);
+      await edit?.(tx);
       await run(tx);
       throw marker;
     });
@@ -207,4 +233,115 @@ describe("pediatric dental HTTP adapter on PGlite", () => {
       for (const age of [19, 20])
         expect((await benchmark(tx, `40,${age}`)).status).toBe("calculated");
     }));
+});
+
+type Json = ReturnType<typeof JSON.parse>;
+async function countyBenchmark(tx: SqlSession, ages: string) {
+  const response = await createApp(tx, { premiumToken: TOKEN }).request(
+    `/v1/benchmark?county=48201&year=2026&ages=${ages}`,
+    { headers },
+  );
+  expect(response.status).toBe(200);
+  return (await response.json()) as Json;
+}
+describe("county-only benchmark where a dental plan serves part of the county", () => {
+  const answers = (edit?: (tx: SqlSession) => Promise<void>) => {
+    let out: Record<string, Json> = {};
+    return rollback(async (tx) => {
+      out = {
+        countyChild: await countyBenchmark(tx, "40,10"),
+        zipChild: await benchmark(tx),
+        countyAdult: await countyBenchmark(tx, "40"),
+      };
+    }, edit).then(() => out);
+  };
+  it("leaves the benchmark unknown with location_requires_zip; ZIP and adult-only answers unchanged", async () => {
+    const plain = await answers();
+    const edited = await answers(zipLimitedDental);
+    expect(plain.countyChild.status).toBe("calculated");
+    expect(edited.countyChild).toMatchObject({
+      status: "location_requires_zip",
+      issues: ["zip_limited_service_area"],
+      slcsp_monthly_cents: null,
+      benchmark_plan_ids: [],
+      lowest_silver_plans: [],
+    });
+    // ZIP 77002 is inside the narrowed area, so every dental plan is still offered there.
+    expect(edited.zipChild).toEqual(plain.zipChild);
+    assertChild(edited.zipChild);
+    // No child, no dental adjustment: the dental plan's service area does not matter.
+    expect(edited.countyAdult).toEqual(plain.countyAdult);
+    expect(edited.countyAdult.status).toBe("calculated");
+  });
+  it("the household credit carries the same status and reason", async () =>
+    rollback(async (tx) => {
+      const request = premiumRequest({
+        plan_ids: [silver[1]],
+        county: "48201",
+        coverage_start: "2026-01-01",
+        members: [
+          { age: 40, tobacco: false, relationship: "subscriber" },
+          { age: 10, tobacco: false, relationship: "child" },
+        ],
+        household_income_annual: 40_000,
+        household_size: 2,
+        tax_filing: "single",
+      });
+      const location = await resolveLocation(tx, request.location);
+      expect(await householdSubsidy(tx, request, location)).toMatchObject({
+        status: "location_requires_zip",
+        reason: "zip_limited_service_area",
+        slcsp_monthly_cents: null,
+        estimated_monthly_tax_credit_cents: null,
+      });
+    }, zipLimitedDental));
+  it("a planted benchmark that drops the part-county dental plan fails these checks", async () => {
+    const original = new URL(
+      "../../dist/services/subsidies.js",
+      import.meta.url,
+    );
+    const directory = await mkdtemp(join(tmpdir(), "openplans-dental-mutant-"));
+    try {
+      const path = join(directory, "subsidies.mjs");
+      await writeFile(
+        path,
+        rebaseImports(
+          replaceSyntax(
+            await readFile(original, "utf8"),
+            "!location.zip && inCounty.some",
+            "false && inCounty.some",
+          ),
+          original,
+        ),
+      );
+      const mutant = (await import(pathToFileURL(path).href)) as {
+        benchmark: typeof benchmarkService;
+      };
+      let real: Json, planted: Json;
+      await rollback(async (tx) => {
+        const request = premiumRequest({
+          plan_ids: [silver[1]],
+          county: "48201",
+          coverage_start: "2026-01-01",
+          members: [
+            { age: 40, tobacco: false, relationship: "subscriber" },
+            { age: 10, tobacco: false, relationship: "child" },
+          ],
+        });
+        const location = await resolveLocation(tx, request.location);
+        real = await benchmarkService(tx, request, location);
+        planted = await mutant.benchmark(tx, request, location);
+      }, zipLimitedDental);
+      expect(real.status).toBe("location_requires_zip");
+      // The mutant prices dental from the $40 plan alone and claims a lower benchmark.
+      expect(planted.status).toBe("calculated");
+      expect(planted.pediatric_dental.planIds).toEqual([dental[1]]);
+      expect(planted.slcsp_monthly_cents).toBeLessThan(64_000);
+      expect(() =>
+        expect(planted.status).toBe("location_requires_zip"),
+      ).toThrow();
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
 });

@@ -90,8 +90,9 @@ export async function readLargeActual(
   }
   const priced = (
     await db.query(
-      `SELECT DISTINCT contract_id,plan_id,segment_id FROM partd_unit_cost
-    WHERE snapshot_id=$1 ORDER BY contract_id,plan_id,segment_id`,
+      `SELECT DISTINCT c.contract_id,c.plan_id,c.segment_id FROM partd_pricing_release k
+    JOIN partd_plan_unit_cost c ON c.release_key=k.release_key
+    WHERE k.snapshot_id=$1 ORDER BY c.contract_id,c.plan_id,c.segment_id`,
       [snapshotId],
     )
   ).rows;
@@ -101,9 +102,10 @@ export async function readLargeActual(
       days = -1;
     for (;;) {
       const { rows } = await db.query(
-        `SELECT ndc,days_supply,unit_cost::text FROM partd_unit_cost
-        WHERE snapshot_id=$1 AND contract_id=$2 AND plan_id=$3 AND segment_id=$4
-        AND (ndc,days_supply)>($5,$6) ORDER BY ndc,days_supply LIMIT 10000`,
+        `SELECT c.ndc,c.days_supply,c.unit_cost::text FROM partd_pricing_release k
+        JOIN partd_plan_unit_cost c ON c.release_key=k.release_key
+        WHERE k.snapshot_id=$1 AND c.contract_id=$2 AND c.plan_id=$3 AND c.segment_id=$4
+        AND (c.ndc,c.days_supply)>($5,$6) ORDER BY c.ndc,c.days_supply LIMIT 10000`,
         [
           snapshotId,
           plan.contract_id,

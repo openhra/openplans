@@ -117,22 +117,23 @@ read-back copies in `blob-read`, both under `OPENPLANS_DATA_DIR`.
 
 ## Access and optional sources
 
-| Variable                                 | Default and effect                                                                                                                        |
-| ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `OPENPLANS_PUBLIC_QUOTING`               | `on`. `off` disables `/v1/quotes` and MCP `quote_plans`.                                                                                  |
-| `OPENPLANS_PUBLIC_HOUSEHOLD`             | `on`. Anonymous household REST and MCP access when their respective token is unset.                                                       |
-| `OPENPLANS_API_TOKEN`                    | Unset. If set, requires a bearer token for household REST routes, benchmark and ICHRA. The Medicare drug-cost estimate always needs it.   |
-| `OPENPLANS_PUBLIC_COMPAT`                | `on`. Anonymous compatibility access when no compatibility key is set.                                                                    |
-| `OPENPLANS_COMPAT_API_KEY`               | Unset. If set, requires `X-Api-Key` or the configured extra credential header.                                                            |
-| `OPENPLANS_COMPAT_KEY_HEADER`            | Unset. One additional RFC 7230 token header name; invalid values prevent startup.                                                         |
-| `OPENPLANS_COMPAT_CATASTROPHIC_AGE_RULE` | Off. `on` filters catastrophic plans for applicants aged 30 or older unless exempted.                                                     |
-| `OPENPLANS_COMPAT_BENEFIT_TEXT`          | Full cells. `compact` selects short compatibility benefit phrases.                                                                        |
-| `OPENPLANS_CMS_FALLBACK`                 | Off. `on` admits keyed CMS requests and enables coverage fallback with a key.                                                             |
-| `OPENPLANS_CMS_FALLBACK_QUOTES`          | Off. `on` also allows coverage calls for public REST quotes and compatibility medical search; requires the main fallback switch and key.  |
-| `CMS_API_KEY`                            | Unset. Enables eligible live ZIP-county lookups; coverage also needs its opt-in switches. No key is needed for bulk imports.              |
-| `OPENPLANS_MEDICARE_PART_D`              | Off. `on` serves loaded Part D drug and pharmacy data after the operator reviews its agreement.                                           |
-| `OPENPLANS_MEDICARE_DRUG_COST`           | Off. `on` turns on Part D drug-cost estimates. Also needs `OPENPLANS_MEDICARE_PART_D=on` and a Bearer token; see [Medicare](medicare.md). |
-| `OPENPLANS_GA_QUOTE_RECOVERY`            | Off. `on` permits the documented Georgia CSV quote recovery and records a warning per recovered row.                                      |
+| Variable                                 | Default and effect                                                                                                                                                                       |
+| ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OPENPLANS_PUBLIC_QUOTING`               | `on`. `off` disables `/v1/quotes` and MCP `quote_plans`.                                                                                                                                 |
+| `OPENPLANS_PUBLIC_HOUSEHOLD`             | `on`. Anonymous household REST and MCP access when their respective token is unset.                                                                                                      |
+| `OPENPLANS_API_TOKEN`                    | Unset. If set, requires a bearer token for household REST routes, benchmark and ICHRA. The Medicare drug-cost estimate always needs it.                                                  |
+| `OPENPLANS_PUBLIC_COMPAT`                | `on`. Anonymous compatibility access when no compatibility key is set.                                                                                                                   |
+| `OPENPLANS_COMPAT_API_KEY`               | Unset. If set, requires `X-Api-Key` or the configured extra credential header.                                                                                                           |
+| `OPENPLANS_COMPAT_KEY_HEADER`            | Unset. One additional RFC 7230 token header name; invalid values prevent startup.                                                                                                        |
+| `OPENPLANS_COMPAT_CATASTROPHIC_AGE_RULE` | Off. `on` filters catastrophic plans for applicants aged 30 or older unless exempted.                                                                                                    |
+| `OPENPLANS_COMPAT_BENEFIT_TEXT`          | Full cells. `compact` selects short compatibility benefit phrases.                                                                                                                       |
+| `OPENPLANS_CMS_FALLBACK`                 | Off. `on` admits keyed CMS requests and enables coverage fallback with a key.                                                                                                            |
+| `OPENPLANS_CMS_FALLBACK_QUOTES`          | Off. `on` also allows coverage calls for public REST quotes and compatibility medical search; requires the main fallback switch and key.                                                 |
+| `CMS_API_KEY`                            | Unset. Enables eligible live ZIP-county lookups; coverage also needs its opt-in switches. No key is needed for bulk imports.                                                             |
+| `OPENPLANS_MEDICARE_PART_D`              | Off. `on` serves loaded Part D drug and pharmacy data after the operator reviews its agreement.                                                                                          |
+| `OPENPLANS_MEDICARE_DRUG_COST`           | Off. `on` turns on Part D drug-cost estimates. Also needs `OPENPLANS_MEDICARE_PART_D=on` and a Bearer token; see [Medicare](medicare.md).                                                |
+| `OPENPLANS_MEDICARE_DRUG_COST_PRICES`    | Off. `on` accepts the `cms_plan_average` price basis in drug-cost estimates. Counts only while the estimator is on, and needs loaded prices and fee ranges; see [Medicare](medicare.md). |
+| `OPENPLANS_GA_QUOTE_RECOVERY`            | Off. `on` permits the documented Georgia CSV quote recovery and records a warning per recovered row.                                                                                     |
 
 Public access switches accept `on`, `off` or empty. Empty means on; other values
 fail. A configured REST/MCP token or compatibility key still grants access with
@@ -145,6 +146,29 @@ anonymous callers. `POST /v1/medicare/plans/{plan_key}/drug-cost-estimates` need
 `Authorization: Bearer` with `OPENPLANS_API_TOKEN`. While that token is unset the route answers
 `503 AUTH_NOT_CONFIGURED`. Answers carry `Cache-Control: no-store`, the response cache never keeps
 them and the fill schedule is not logged.
+
+### NY rate source override
+
+Off by default. It is set only in the config file, with no environment variable, and turning
+it on is the operator's decision. When the NY template guard refuses an issuer's DFS approved-rates
+template, that issuer's NY rates are `unknown`, and so is the benchmark in every region where
+one of its plans could be the lowest-cost silver plan. Naming the issuer here takes its
+family-tier rates from the CMS state-based exchange rate file for New York instead:
+
+```json
+{
+  "version": 1,
+  "ny": { "rateSourceOverrides": { "25303": "cms-sbe" } }
+}
+```
+
+Keys are five-digit HIOS issuer IDs and `cms-sbe` is the only source. `prepare.py --state NY`
+reads the same file through `--config`, which defaults to `$OPENPLANS_CONFIG`. `worker ingest
+state` checks the artifact against it. Preparation and import both refuse the override when the issuer's
+template was not refused, or when the CMS file differs by even one cent from the DFS approved
+rates of any other issuer it lists. Turning the switch on or off means preparing
+`ny-2026.json` again before the next import. Details are in the
+[state rating README](../src/ingest/state/README.md#ny-rate-source-override).
 
 ## MCP tools
 
