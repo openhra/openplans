@@ -1378,8 +1378,8 @@
     {
       "path": "scripts/lint-setup-selftest.mjs",
       "mode": "100644",
-      "size": 10744,
-      "sha256": "9a7828e9bd6fb54018bdf50e4fb580799080ad5e455bd76c293474f579acc4c2"
+      "size": 11116,
+      "sha256": "308cf25b622d88452fa63b28296b2e29566ebad4a85960d5c5a2324f5c4e97f4"
     },
     {
       "path": "scripts/medicare-costs/check.d.mts",

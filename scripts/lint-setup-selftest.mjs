@@ -15,7 +15,19 @@ import {
   assertHistoryOnlyShrinks,
 } from "./lint-baseline.mjs";
 
-const eslint = new ESLint({ cwd: packageRoot });
+// The samples below lint in-memory text at paths that exist on disk. With CI=true,
+// typescript-eslint would infer a single run and type-check the files on disk instead.
+const eslint = new ESLint({
+  cwd: packageRoot,
+  overrideConfig: [
+    {
+      files: ["src/**/*.ts", "plugins/*/src/**/*.ts"],
+      languageOptions: {
+        parserOptions: { disallowAutomaticSingleRunInference: true },
+      },
+    },
+  ],
+});
 for (const [filePath, sourceType] of [
   ["scripts/example.mjs", "module"],
   ["scripts/example.cjs", "commonjs"],
