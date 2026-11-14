@@ -28,6 +28,25 @@ const body = (extra: Record<string, unknown> = {}) => ({
   ],
   ...extra,
 });
+interface Verdict {
+  affordable: boolean | null;
+}
+interface LcspEvidence {
+  basis_used: string;
+  coverage_month: string;
+  monthly_cents: number;
+  provenance: { rate_rows_by_plan: { rate_basis: unknown }[] };
+}
+interface Affordability {
+  status: string;
+  bindable_quote: boolean;
+  quote_method: string;
+  basis_sensitive: boolean;
+  verdicts: Verdict[];
+  lcsp: LcspEvidence;
+  employer_lcsp: LcspEvidence;
+  rules: { id: string; citations: { section: string }[] }[];
+}
 async function post(
   payload: unknown,
   {
@@ -51,7 +70,7 @@ async function post(
   });
   return {
     response,
-    json: (await response.json()) as ReturnType<typeof JSON.parse>,
+    json: (await response.json()) as Affordability,
   };
 }
 
@@ -64,9 +83,10 @@ describe("POST /v1/ichra/affordability", () => {
     expect(json.bindable_quote).toBe(false);
     expect(json.quote_method).toBe("puf_calculation");
     expect(json.basis_sensitive).toBe(true);
-    expect(
-      json.verdicts.map((v: { affordable: boolean }) => v.affordable),
-    ).toEqual([false, false]);
+    expect(json.verdicts.map((v: Verdict) => v.affordable)).toEqual([
+      false,
+      false,
+    ]);
     // Golden response: any change to the contract or a figure shows up as a snapshot diff.
     // Import snapshot IDs carry a random UUID per test database.
     const stable = JSON.parse(
@@ -80,7 +100,7 @@ describe("POST /v1/ichra/affordability", () => {
   it("selects the EHB-portion basis on request", async () => {
     const { json } = await post(body({ lcsp_premium_basis: "ehb_portion" }));
     expect(json.lcsp.basis_used).toBe("ehb_portion");
-    expect(json.verdicts[0].affordable).toBe(true);
+    expect(json.verdicts[0]!.affordable).toBe(true);
   });
   it("returns the annual rate basis and filed dates for a July plan start", async () => {
     const { response, json } = await post(body({ plan_start: "2026-07-01" }));
@@ -90,18 +110,18 @@ describe("POST /v1/ichra/affordability", () => {
     for (const evidence of [json.lcsp, json.employer_lcsp]) {
       expect(evidence.coverage_month).toBe("2026-07-01");
       expect(evidence.monthly_cents).toBe(59_205);
-      expect(evidence.provenance.rate_rows_by_plan[0].rate_basis).toMatchObject(
-        {
-          basis: "calendar_year_individual_rate",
-          coverage_month: "2026-07-01",
-          citation: {
-            fields: ["RateEffectiveDate", "RateExpirationDate"],
-            dates: [
-              { effective_date: "2026-01-01", expiration_date: "2026-12-31" },
-            ],
-          },
+      expect(
+        evidence.provenance.rate_rows_by_plan[0]!.rate_basis,
+      ).toMatchObject({
+        basis: "calendar_year_individual_rate",
+        coverage_month: "2026-07-01",
+        citation: {
+          fields: ["RateEffectiveDate", "RateExpirationDate"],
+          dates: [
+            { effective_date: "2026-01-01", expiration_date: "2026-12-31" },
+          ],
         },
-      );
+      });
     }
   });
   it.each([

@@ -20,7 +20,44 @@ import { coreMigrations, testDatabase } from "../pglite.js";
 import { rebaseImports, replaceSyntax } from "../source-mutation.js";
 
 // SYNTHETIC NY rates, identities, employees and SBE envelope. No real premium is asserted here.
-type Json = ReturnType<typeof JSON.parse>;
+interface NyPlanProvenance {
+  plan_key: string;
+  state_rule: { references: readonly unknown[] };
+  filed_identity: unknown;
+}
+/** The service types provenance loosely; the NY evidence it carries. */
+interface NyProv extends Record<string, unknown> {
+  plans: readonly NyPlanProvenance[];
+  geography: { references: readonly unknown[] };
+  refused_templates: unknown;
+}
+interface NyLcsp {
+  monthly_cents: number | null;
+  plan_ids: readonly string[];
+  silver_plan_count: number;
+  provenance: Record<string, unknown> | null;
+}
+/** The service response fields these assertions read. */
+interface NyResult {
+  status: string;
+  reason?: string | null;
+  lcsp: NyLcsp;
+  employer_lcsp: NyLcsp | null;
+  verdicts: readonly unknown[];
+}
+/** The stored community-rate fields the off-Exchange test rewrites. */
+interface FiledRate {
+  planKey: string;
+  prices: { single: number };
+  provenance: { sourceUrl: string; sourceSha256: string };
+}
+interface RawRecord {
+  plan_id: string;
+  issuer: string;
+  metal: string | null;
+  prices: { single: string };
+  raw: Record<string, string>;
+}
 const db = testDatabase(new PGlite());
 let directory: string, core: Awaited<ReturnType<typeof coreMigrations>>;
 const id = (n: number) => `99999NY001000${n}`;
@@ -37,7 +74,7 @@ const request: IchraRequest = {
   lcspPremiumBasis: null,
 };
 const run = async (tx: SqlSession = db, extra: Partial<IchraRequest> = {}) =>
-  (await ichraAffordability(tx, { ...request, ...extra })) as Json;
+  (await ichraAffordability(tx, { ...request, ...extra })) as NyResult;
 async function rollback(test: (tx: SqlSession) => Promise<void>) {
   const marker = new Error("synthetic NY rollback");
   await expect(
@@ -171,8 +208,8 @@ it("NY selects the lowest single silver in the DFS region and cites both publica
     },
     basis_sensitive: true,
   });
-  const plan = result.lcsp.provenance.plans.find(
-    (p: Json) => p.plan_key === id(1),
+  const plan = (result.lcsp.provenance as NyProv).plans.find(
+    (p: NyPlanProvenance) => p.plan_key === id(1),
   );
   expect(plan).toMatchObject({
     single: { column: "E", value: "500.00", source_record: "SYNTHETIC#row=1" },
@@ -185,8 +222,10 @@ it("NY selects the lowest single silver in the DFS region and cites both publica
       bundle_sha256: "a".repeat(64),
     },
   });
-  expect(plan.state_rule.references.length).toBeGreaterThan(0);
-  expect(result.lcsp.provenance.geography.references.length).toBeGreaterThan(0);
+  expect(plan!.state_rule.references.length).toBeGreaterThan(0);
+  expect(
+    (result.lcsp.provenance as NyProv).geography.references.length,
+  ).toBeGreaterThan(0);
   const ehb = await run(db, { lcspPremiumBasis: "ehb_portion" });
   expect(ehb.lcsp.monthly_cents).toBe(48_000);
   for (const dateOfBirth of ["2000-01-01", "1966-01-01"]) {
@@ -204,7 +243,7 @@ it("NY selects the lowest single silver in the DFS region and cites both publica
 });
 
 it("HTTP and MCP availability disclose the answered 2026 NY scope; look-back stays unknown", async () => {
-  const check = (r: Json) =>
+  const check = (r: unknown) =>
     expect(r).toMatchObject({
       ichra_status: "available",
       ichra_reason: null,
@@ -216,7 +255,7 @@ it("HTTP and MCP availability disclose the answered 2026 NY scope; look-back sta
     "/v1/data-availability?state=NY&year=2026",
   );
   expect(response.status).toBe(200);
-  for (const row of (await response.json()) as Json[]) check(row);
+  for (const row of (await response.json()) as unknown[]) check(row);
   const tool = await callTool({ db }, "get_data_status", {
     state: "NY",
     year: 2026,
@@ -273,7 +312,7 @@ it.each([
       verdicts: [],
     });
     expect(result.lcsp.monthly_cents).toBeNull();
-    expect(result.lcsp.provenance.plans.length).toBeGreaterThan(0);
+    expect((result.lcsp.provenance as NyProv).plans.length).toBeGreaterThan(0);
     const rows = await dataAvailability(tx);
     expect(rows.every((r) => r.ichra_status === "incomplete_lcsp")).toBe(true);
   });
@@ -378,16 +417,17 @@ it("planted source mutants: second/highest silver and silently dropping unverifi
       ichraAffordability: typeof ichraAffordability;
     };
     if (name === "price") {
-      const check = (r: Json) => assert.equal(r.lcsp.monthly_cents, 50_000);
+      const check = (r: NyResult) => assert.equal(r.lcsp.monthly_cents, 50_000);
       check(await run());
       const bad = await mutant.ichraAffordability(db, request);
-      expect(() => check(bad)).toThrow(assert.AssertionError);
+      expect(() => check(bad as NyResult)).toThrow(assert.AssertionError);
     } else
       await rollback(async (tx) => {
         await tx.exec(
           `DELETE FROM plan_attribute WHERE base_plan_id='${id(2)}'`,
         );
-        const check = (r: Json) => assert.equal(r.status, "incomplete_lcsp");
+        const check = (r: { status: string }) =>
+          assert.equal(r.status, "incomplete_lcsp");
         check(await run(tx));
         const bad = await mutant.ichraAffordability(tx, request);
         expect(() => check(bad)).toThrow(assert.AssertionError);
@@ -404,8 +444,8 @@ it("cited DFS off-Exchange silver is excluded; an unverified cell or conflicting
         id(1),
       ])
     ).rows[0]!;
-    const rate = structuredClone(template.rate) as Json;
-    const raw = structuredClone(template.raw_record) as Json;
+    const rate = structuredClone(template.rate) as FiledRate;
+    const raw = structuredClone(template.raw_record) as RawRecord;
     rate.planKey = "41046NY0020014";
     rate.prices.single = 108882;
     rate.provenance.sourceUrl =
@@ -433,9 +473,9 @@ it("cited DFS off-Exchange silver is excluded; an unverified cell or conflicting
     expect(result.lcsp.monthly_cents).toBe(50_000);
     expect(result.lcsp.silver_plan_count).toBe(2);
     expect(
-      result.lcsp.provenance.plans.find(
-        (p: Json) => p.plan_key === rate.planKey,
-      ).filed_identity,
+      (result.lcsp.provenance as NyProv).plans.find(
+        (p: NyPlanProvenance) => p.plan_key === rate.planKey,
+      )!.filed_identity,
     ).toMatchObject({
       source: "ny_dfs_exhibit_23",
       metal: "Silver",
@@ -499,7 +539,7 @@ async function refuse(
     );
 }
 const ratingArea1 = { residence: { county: "36001" } };
-const unknownBenchmark = (r: Json) => {
+const unknownBenchmark = (r: NyResult) => {
   assert.equal(r.status, "unknown");
   assert.equal(r.reason, "template_saved_before_submission");
   assert.equal(r.lcsp.monthly_cents, null);
@@ -584,7 +624,7 @@ it("refused plans that cannot rank leave NY benchmarks byte-identical; an unlist
     await refuse(tx, null);
     const result = await run(tx);
     unknownBenchmark(result);
-    expect(result.lcsp.provenance.refused_templates).toMatchObject([
+    expect((result.lcsp.provenance as NyProv).refused_templates).toMatchObject([
       { issuer: "88888", plan_id: null, region: null },
     ]);
     unknownBenchmark(await run(tx, ratingArea1));
@@ -620,7 +660,9 @@ it("planted source mutants: a benchmark computed without the refused issuer fail
       unknownBenchmark(await run(tx));
       const bad = await mutant.ichraAffordability(tx, request);
       expect(bad.status, name).toBe("calculated");
-      expect(() => unknownBenchmark(bad)).toThrow(assert.AssertionError);
+      expect(() => unknownBenchmark(bad as NyResult)).toThrow(
+        assert.AssertionError,
+      );
     });
   }
 });
@@ -644,13 +686,15 @@ it("plan lists in a region with a refused template name the refusal on every sur
     });
     const native = (await (
       await app.request(`/v1/plans?county=${county}&year=2026`)
-    ).json()) as Json;
+    ).json()) as { issues: unknown };
     const tool = (
       await callTool({ db: tx as never }, "search_plans", {
         year: 2026,
         location: { county },
       })
-    ).structuredContent as Json;
+    ).structuredContent as {
+      data?: { location_issues?: unknown } | null;
+    };
     return {
       compat: (compat.headers.get("x-openplans-gaps") ?? "").split(", "),
       native: native.issues,

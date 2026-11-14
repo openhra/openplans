@@ -1,4 +1,4 @@
-FROM node:22.23.4 AS build
+FROM node:22.23.5@sha256:e13726ca604184d7a91fcacab1fc09eefd642dc28e79ac34e85540dd93b78cfb AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
 COPY .github/npm-version .github/npm-version
@@ -15,7 +15,7 @@ RUN npm run build && npm prune --omit=dev --no-audit --no-fund \
       \( -name dist -o -name package.json -o -name migrations \) \
       -exec cp --parents -r {} /runtime/ \;
 
-FROM node:22.23.4-slim AS runtime
+FROM node:22.23.5-slim@sha256:e9f565d32859f0cbfb52125eafe8be39390f24dac302dc3cdf566e8ba3ab21ee AS runtime
 ENV NODE_ENV=production
 WORKDIR /app
 COPY --from=build --chown=node:node /app/package.json /app/package-lock.json ./

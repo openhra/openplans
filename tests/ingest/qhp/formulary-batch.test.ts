@@ -243,9 +243,10 @@ describe("all readable issuers: synthetic isolation and acquisition mutants", ()
     expect(closed).toBe(true);
     const batch = JSON.parse(output[0]!);
     expect(batch.issuers).toHaveLength(3);
-    expect(batch.issuers.find((r: any) => r.issuer === "12345").status).toBe(
-      "ACTIVE",
-    );
+    expect(
+      batch.issuers.find((r: { issuer: string }) => r.issuer === "12345")
+        .status,
+    ).toBe("ACTIVE");
     expect(
       batch.issuers.find((r: { issuer: string }) => r.issuer === "00010"),
     ).toMatchObject({
@@ -276,7 +277,9 @@ describe("all readable issuers: synthetic isolation and acquisition mutants", ()
       ),
     ).toBe(1);
     expect(
-      JSON.parse(output[0]!).issuers.find((r: any) => r.issuer === "12345"),
+      JSON.parse(output[0]!).issuers.find(
+        (r: { issuer: string }) => r.issuer === "12345",
+      ),
     ).toMatchObject({ completeness: "unknown", expected_children: 0 });
   });
 

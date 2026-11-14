@@ -7,6 +7,57 @@ import { saveResult } from "../../src/ingest/geocode/repository.js";
 import { haversineMiles } from "../../src/domain/geo/index.js";
 import type { Address } from "../../src/ingest/geocode/address.js";
 
+interface ProviderAddress {
+  source: string;
+  line_1: string;
+  participation: string;
+}
+interface ProviderTaxonomy {
+  code: string;
+  taxonomy_display_name: string | null;
+}
+interface ProviderEvidence {
+  evidence_status: string;
+  source_plan_index: number;
+}
+interface ProviderRow {
+  npi: string | null;
+  record_id: string;
+  snapshot_id: string;
+  source_record: string;
+  distance_miles: number | null;
+  participation: string;
+  participation_scope: string;
+  organization_name: string | null;
+  evidence: ProviderEvidence[];
+  addresses: ProviderAddress[];
+  taxonomy: ProviderTaxonomy[];
+}
+interface ProviderPage {
+  total: number;
+  next_page: number | null;
+  status?: string;
+  providers: ProviderRow[];
+}
+interface ProviderDetail {
+  identity: { addresses: ProviderAddress[]; taxonomy: ProviderTaxonomy[] };
+  issuer_records: { plan_participations: unknown[] }[];
+  plan_participations: unknown[];
+}
+interface Participation {
+  status: string;
+}
+interface CoverageRow {
+  issuer_id: string;
+  provider_coverage: { status: string };
+}
+interface SourcePlan {
+  plan_id: string;
+}
+interface CatalogPlan {
+  base_plan_id: string;
+}
+
 // All identifiers, associations, location offsets and names here are synthetic test mutations of a public cut.
 describe("provider API: record scope, distance and source evidence", () => {
   let h: Awaited<ReturnType<typeof setup>>,
@@ -19,10 +70,13 @@ describe("provider API: record scope, distance and source evidence", () => {
     missingNpi = "1000000002",
     approxNpi = "1000000003",
     nonExactNpi = "1000000004";
-  let providers: any[];
-  const get = async (url: string) => {
+  let providers: (Record<string, unknown> & {
+    npi: string;
+    addresses: { address: string; city: string; state: string; zip: string }[];
+  })[];
+  const get = async <T = ProviderPage>(url: string) => {
     const response = await app.request(url);
-    return { status: response.status, body: (await response.json()) as any };
+    return { status: response.status, body: (await response.json()) as T };
   };
   const post = async (body: unknown) => {
     const response = await app.request("/v1/provider-participation", {
@@ -30,7 +84,10 @@ describe("provider API: record scope, distance and source evidence", () => {
       headers: { "content-type": "application/json" },
       body: JSON.stringify(body),
     });
-    return { status: response.status, body: (await response.json()) as any };
+    return {
+      status: response.status,
+      body: (await response.json()) as { results: Participation[] },
+    };
   };
   beforeAll(async () => {
     h = await setup(
@@ -47,8 +104,8 @@ describe("provider API: record scope, distance and source evidence", () => {
       ).rows.length > 0;
     expect(hasPostgis).toBe(Boolean(process.env.P3D_POSTGIS_URL));
     const source = (await fixture("records"))[0];
-    plan = source.plans.find((p: any) =>
-      h.catalog.plans.some((c: any) => c.base_plan_id === p.plan_id),
+    plan = source.plans.find((p: SourcePlan) =>
+      h.catalog.plans.some((c: CatalogPlan) => c.base_plan_id === p.plan_id),
     ).plan_id;
     providers = [nearNpi, farNpi, missingNpi, approxNpi, nonExactNpi].map(
       (npi, i) => ({
@@ -58,7 +115,9 @@ describe("provider API: record scope, distance and source evidence", () => {
         type: "INDIVIDUAL",
         specialty: ["Synthetic Family Medicine"],
         plans: [
-          structuredClone(source.plans.find((p: any) => p.plan_id === plan)),
+          structuredClone(
+            source.plans.find((p: SourcePlan) => p.plan_id === plan),
+          ),
         ],
         addresses: [
           {
@@ -72,7 +131,7 @@ describe("provider API: record scope, distance and source evidence", () => {
     );
     // Same NPI, separate issuer record B, no association to this plan.
     providers.push({
-      ...structuredClone(providers[0]),
+      ...structuredClone(providers[0]!),
       plans: [],
       addresses: [
         {
@@ -114,11 +173,11 @@ describe("provider API: record scope, distance and source evidence", () => {
         )
       ).rows[0]!;
       const a: Address = {
-        ...p.addresses[0],
+        ...p.addresses[0]!,
         npi: p.npi,
         kind: "issuer",
         ordinal: 0,
-        line_1: p.addresses[0].address,
+        line_1: p.addresses[0]!.address,
         line_2: null,
         zip5: "77030",
         snapshot_id: row.snapshot_id,
@@ -198,39 +257,36 @@ describe("provider API: record scope, distance and source evidence", () => {
       meta: { unlocated: 1, origin: { method: "zcta_centroid" } },
     });
     const rows = result.body.providers;
-    expect(rows.map((p: any) => p.npi).sort()).toEqual(
+    expect(rows.map((p) => p.npi).sort()).toEqual(
       [nearNpi, approxNpi, nonExactNpi].sort(),
     );
-    expect(rows.map((p: any) => p.distance_miles)).toEqual(
-      [...rows.map((p: any) => p.distance_miles)].sort(
-        (a: number, b: number) => a - b,
-      ),
+    expect(rows.map((p) => p.distance_miles)).toEqual(
+      [...rows.map((p) => p.distance_miles)].sort((a, b) => a! - b!),
     );
     expect(
       rows.every(
-        (p: any) =>
+        (p) =>
           p.participation === "listed_participating" &&
           p.participation_scope === "provider_record",
       ),
     ).toBe(true);
-    expect(rows[0].evidence[0]).toMatchObject({
+    expect(rows[0]!.evidence[0]).toMatchObject({
       network_tier: "PREFERRED",
       tier_status: "unresolved",
     });
-    expect(rows.find((p: any) => p.npi === nearNpi).addresses[0]).toMatchObject(
-      {
-        source: "qhp_provider_address",
-        method: "census_geocoder",
-        precision: "exact",
-        participation: "not_evaluated",
-      },
+    expect(rows.find((p) => p.npi === nearNpi)!.addresses[0]).toMatchObject({
+      source: "qhp_provider_address",
+      method: "census_geocoder",
+      precision: "exact",
+      participation: "not_evaluated",
+    });
+    expect(rows.find((p) => p.npi === approxNpi)!.addresses[0]).toMatchObject({
+      method: "zcta_centroid",
+      precision: "approximate",
+    });
+    expect(rows.find((p) => p.npi === nonExactNpi)!.addresses[0]).toMatchObject(
+      { method: "census_geocoder", precision: "non_exact" },
     );
-    expect(
-      rows.find((p: any) => p.npi === approxNpi).addresses[0],
-    ).toMatchObject({ method: "zcta_centroid", precision: "approximate" });
-    expect(
-      rows.find((p: any) => p.npi === nonExactNpi).addresses[0],
-    ).toMatchObject({ method: "census_geocoder", precision: "non_exact" });
     expect(
       (
         await get(
@@ -248,7 +304,7 @@ describe("provider API: record scope, distance and source evidence", () => {
     const result = await get(
       `/v1/providers?plan_id=${plan}&year=2026&lat=${lat}&lon=${lon}&radius_miles=5`,
     );
-    const contract = (rows: { npi: string }[]) =>
+    const contract = (rows: { npi: string | null }[]) =>
       expect(rows.some((p) => p.npi === farNpi)).toBe(false);
     contract(result.body.providers);
     const mutantDistance = Math.abs(lat + 8 / 69.093 - lat);
@@ -262,7 +318,7 @@ describe("provider API: record scope, distance and source evidence", () => {
       `/v1/providers?plan_id=${plan}&year=2026&name=Provider%200`,
     );
     expect(result.body.providers).toHaveLength(1);
-    const contract = (addresses: any[]) =>
+    const contract = (addresses: ProviderAddress[]) =>
       expect(
         addresses.every(
           (a) =>
@@ -271,10 +327,10 @@ describe("provider API: record scope, distance and source evidence", () => {
             a.participation === "not_evaluated",
         ),
       ).toBe(true);
-    contract(result.body.providers[0].addresses);
+    contract(result.body.providers[0]!.addresses);
     expect(() =>
       contract([
-        ...result.body.providers[0].addresses,
+        ...result.body.providers[0]!.addresses,
         {
           source: "npi_address",
           line_1: "Synthetic NPPES B",
@@ -289,7 +345,7 @@ describe("provider API: record scope, distance and source evidence", () => {
       participation: "not_evaluated",
       total: 0,
     });
-    const detail = await get(`/v1/providers/${nearNpi}`);
+    const detail = await get<ProviderDetail>(`/v1/providers/${nearNpi}`);
     expect(detail.status).toBe(200);
     expect(detail.body.issuer_records).toHaveLength(2);
     expect(detail.body.identity.addresses[0]).toMatchObject({
@@ -309,7 +365,7 @@ describe("provider API: record scope, distance and source evidence", () => {
     });
     expect(
       detail.body.issuer_records
-        .map((r: any) => r.plan_participations.length)
+        .map((r) => r.plan_participations.length)
         .sort(),
     ).toEqual([0, 1]);
   });
@@ -321,7 +377,7 @@ describe("provider API: record scope, distance and source evidence", () => {
         centroid_snapshot_id='catalog' WHERE source_table='npi_address' AND source_row=$1`,
         [sourceRow],
       );
-      const centroid = await get(`/v1/providers/${nearNpi}`);
+      const centroid = await get<ProviderDetail>(`/v1/providers/${nearNpi}`);
       expect(centroid.body.identity.addresses[0]).toMatchObject({
         method: "zcta_centroid",
         centroid_snapshot_id: "catalog",
@@ -332,7 +388,7 @@ describe("provider API: record scope, distance and source evidence", () => {
         `UPDATE address_point SET source_snapshot_id=$1 WHERE source_table='npi_address' AND source_row=$2`,
         ["registry", sourceRow],
       );
-      const stale = await get(`/v1/providers/${nearNpi}`);
+      const stale = await get<ProviderDetail>(`/v1/providers/${nearNpi}`);
       expect(stale.body.identity.addresses[0]).toMatchObject({
         latitude: null,
         longitude: null,
@@ -355,15 +411,15 @@ describe("provider API: record scope, distance and source evidence", () => {
     expect(identities.body.total).toBe(5);
     expect(
       identities.body.providers.every(
-        (p: any) => p.participation === "not_evaluated",
+        (p) => p.participation === "not_evaluated",
       ),
     ).toBe(true);
     const family = await get(
       "/v1/providers?specialty=fAmIlY%20mEdIcInE&name=Synthetic",
     );
     expect(family.body.total).toBe(5);
-    const named = family.body.providers.find((p: any) => p.npi === nearNpi);
-    expect(named.taxonomy[0]).toMatchObject({
+    const named = family.body.providers.find((p) => p.npi === nearNpi);
+    expect(named!.taxonomy[0]).toMatchObject({
       display_name: "Family Medicine Physician",
       taxonomy_source: "nucc",
       taxonomy_display_name: "Family Medicine Physician",
@@ -371,11 +427,9 @@ describe("provider API: record scope, distance and source evidence", () => {
       specialization: null,
       taxonomy_status: "known",
     });
-    const unknown = family.body.providers.find(
-      (p: any) => p.npi === missingNpi,
-    );
+    const unknown = family.body.providers.find((p) => p.npi === missingNpi);
     expect(
-      unknown.taxonomy.find((t: any) => t.code === "999999999X"),
+      unknown!.taxonomy.find((t) => t.code === "999999999X"),
     ).toMatchObject({
       taxonomy_display_name: null,
       classification: null,
@@ -384,14 +438,19 @@ describe("provider API: record scope, distance and source evidence", () => {
     });
     // Negative control: an unmapped code cannot acquire a fabricated display name.
     expect(
-      unknown.taxonomy.find((t: any) => t.code === "999999999X")
+      unknown!.taxonomy.find((t) => t.code === "999999999X")!
         .taxonomy_display_name,
     ).not.toBe("Family Medicine Physician");
     const variant = h.catalog.variants.find(
-      (v: any) => v.base_plan_id === plan,
+      (v: { base_plan_id: string; variant_plan_id: string }) =>
+        v.base_plan_id === plan,
     ).variant_plan_id;
     expect(
-      (await get(`/v1/plans/${variant}/providers/${nearNpi}?year=2026`)).body,
+      (
+        await get<Participation>(
+          `/v1/plans/${variant}/providers/${nearNpi}?year=2026`,
+        )
+      ).body,
     ).toMatchObject({
       status: "listed_participating",
       requested_plan_id: variant,
@@ -403,13 +462,16 @@ describe("provider API: record scope, distance and source evidence", () => {
       year: 2026,
     });
     expect(result.status).toBe(200);
-    expect(result.body.results.map((r: any) => r.status)).toEqual([
+    expect(result.body.results.map((r) => r.status)).toEqual([
       "listed_participating",
       "not_listed",
     ]);
     expect(
-      (await get(`/v1/plans/${plan}/providers/${nearNpi}?year=2027`)).body
-        .status,
+      (
+        await get<Participation>(
+          `/v1/plans/${plan}/providers/${nearNpi}?year=2027`,
+        )
+      ).body.status,
     ).toBe("unknown");
   });
   it.each(["empty", "absent"])(
@@ -431,9 +493,9 @@ describe("provider API: record scope, distance and source evidence", () => {
           ]) {
             const response = await codeOnly.request(`/v1/providers?${query}`);
             expect(response.status).toBe(200);
-            const body = (await response.json()) as any;
+            const body = (await response.json()) as ProviderPage;
             expect(body.total).toBe(5);
-            expect(body.providers[0].taxonomy[0]).toMatchObject({
+            expect(body.providers[0]!.taxonomy[0]).toMatchObject({
               code: "207Q00000X",
               display_name: null,
               taxonomy_display_name: null,
@@ -444,7 +506,7 @@ describe("provider API: record scope, distance and source evidence", () => {
           }
           const detail = (await (
             await codeOnly.request(`/v1/providers/${nearNpi}`)
-          ).json()) as any;
+          ).json()) as ProviderDetail;
           expect(detail.identity.taxonomy[0]).toMatchObject({
             code: "207Q00000X",
             display_name: null,
@@ -527,8 +589,8 @@ describe("provider API: record scope, distance and source evidence", () => {
   });
   it("truncated shards and denied discovery cannot manufacture not_listed, and coverage is per issuer/year", async () => {
     const coverage = (
-      await get("/v1/data-availability?state=TX&year=2026")
-    ).body.find((r: { issuer_id: string }) => r.issuer_id === "00010");
+      await get<CoverageRow[]>("/v1/data-availability?state=TX&year=2026")
+    ).body.find((r) => r.issuer_id === "00010");
     expect(coverage).toMatchObject({
       provider_status: "available",
       provider_coverage: {
@@ -541,19 +603,26 @@ describe("provider API: record scope, distance and source evidence", () => {
     const broken = await importProviders(h.db, scope);
     expect(broken.status).toBe("QUARANTINED");
     expect(
-      (await get(`/v1/plans/${plan}/providers/1000000099?year=2026`)).body
-        .status,
+      (
+        await get<Participation>(
+          `/v1/plans/${plan}/providers/1000000099?year=2026`,
+        )
+      ).body.status,
     ).toBe("unknown");
     await h.db
       .exec(`INSERT INTO qhp_index(qhp_index_id,discovery_id,issuer_id,plan_year,state,registry_snapshot_id,registry_row,status,discovered_at)
       VALUES ('synthetic-denied','synthetic-denied','00010',2026,'TX','registry',1,'access_denied',clock_timestamp())`);
     expect(
-      (await get(`/v1/plans/${plan}/providers/${nearNpi}?year=2026`)).body,
+      (
+        await get<Participation>(
+          `/v1/plans/${plan}/providers/${nearNpi}?year=2026`,
+        )
+      ).body,
     ).toMatchObject({ status: "unknown", reason: "source_access_denied" });
     expect(
-      (await get("/v1/data-availability")).body.find(
-        (r: { issuer_id: string }) => r.issuer_id === "00010",
-      ).provider_coverage.status,
+      (await get<CoverageRow[]>("/v1/data-availability")).body.find(
+        (r) => r.issuer_id === "00010",
+      )!.provider_coverage.status,
     ).toBe("access_denied");
   });
 });
@@ -564,8 +633,8 @@ describe("provider search pagination across sparse and grouped evidence", () => 
   beforeAll(async () => {
     h = await setup();
     const source = (await fixture("records"))[0];
-    plan = source.plans.find((p: any) =>
-      h.catalog.plans.some((c: any) => c.base_plan_id === p.plan_id),
+    plan = source.plans.find((p: SourcePlan) =>
+      h.catalog.plans.some((c: CatalogPlan) => c.base_plan_id === p.plan_id),
     ).plan_id;
     await h.replace(
       Array.from({ length: 65 }, (_, i) => ({
@@ -573,7 +642,9 @@ describe("provider search pagination across sparse and grouped evidence", () => 
         npi: null,
         name: { first: "Synthetic", last: `Paging ${i}` },
         plans: [
-          structuredClone(source.plans.find((p: any) => p.plan_id === plan)),
+          structuredClone(
+            source.plans.find((p: SourcePlan) => p.plan_id === plan),
+          ),
         ],
         addresses:
           i === 64
@@ -629,13 +700,13 @@ describe("provider search pagination across sparse and grouped evidence", () => 
         `/v1/providers?plan_id=${plan}&year=2026&page=${page}`,
       );
       expect(response.status).toBe(200);
-      const body = (await response.json()) as any;
+      const body = (await response.json()) as ProviderPage;
       expect(body.total).toBe(expected.length);
       expect(body.next_page).toBe(
         page * 50 < expected.length ? page + 1 : null,
       );
       expect(
-        body.providers.map((p: any) => ({
+        body.providers.map((p) => ({
           record_id: p.record_id,
           snapshot_id: p.snapshot_id,
         })),
@@ -645,26 +716,26 @@ describe("provider search pagination across sparse and grouped evidence", () => 
     const namedResponse = await app.request(
       `/v1/providers?plan_id=${plan}&year=2026&name=Synthetic`,
     );
-    const named = (await namedResponse.json()) as any;
+    const named = (await namedResponse.json()) as ProviderPage;
     expect(namedResponse.status).toBe(200);
     expect(named.total).toBe(expected.length);
-    expect(named.providers.map((p: any) => p.record_id)).toEqual(
+    expect(named.providers.map((p) => p.record_id)).toEqual(
       expected.slice(0, 50).map((p) => p.record_id),
     );
     const mixed = pages.find((p) => Number(p.source_record) === 41);
     expect(mixed).toMatchObject({ participation: "conflicting" });
-    expect(mixed.evidence.map((e: any) => e.evidence_status)).toEqual([
+    expect(mixed!.evidence.map((e) => e.evidence_status)).toEqual([
       "listed_participating",
       "explicitly_not_participating",
     ]);
     expect(
       pages
-        .find((p) => Number(p.source_record) === 43)
-        .evidence.map((e: any) => e.source_plan_index),
+        .find((p) => Number(p.source_record) === 43)!
+        .evidence.map((e) => e.source_plan_index),
     ).toEqual([0, 1]);
-    expect(pages.find((p) => Number(p.source_record) === 64).addresses).toEqual(
-      [],
-    );
+    expect(
+      pages.find((p) => Number(p.source_record) === 64)!.addresses,
+    ).toEqual([]);
     for (const name of [
       "BoundaryOne BoundaryTwo",
       "BoundaryOne%BoundaryTwo",
@@ -678,15 +749,15 @@ describe("provider search pagination across sparse and grouped evidence", () => 
       const response = await app.request(
         `/v1/providers?plan_id=${plan}&year=2026&name=${encodeURIComponent(name)}`,
       );
-      const body = (await response.json()) as any;
+      const body = (await response.json()) as ProviderPage;
       expect(response.status).toBe(200);
       expect(body.total, name).toBe(1);
-      expect(Number(body.providers[0].source_record), name).toBe(64);
-      expect(body.providers[0].organization_name).toBe("BoundaryTwo");
+      expect(Number(body.providers[0]!.source_record), name).toBe(64);
+      expect(body.providers[0]!.organization_name).toBe("BoundaryTwo");
     }
-    const count = (body: any) => {
+    const count = (body: ProviderPage) => {
       expect(body.total).toBe(expected.length);
-      expect(body.providers.map((p: any) => p.record_id)).toEqual(
+      expect(body.providers.map((p) => p.record_id)).toEqual(
         expected.slice(0, 50).map((p) => p.record_id),
       );
     };

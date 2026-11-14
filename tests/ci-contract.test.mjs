@@ -205,15 +205,55 @@ it.each(retiredRunnerLabels)(
   },
 );
 
+const digestPin =
+  /^FROM [a-z0-9./-]+:[A-Za-z0-9._-]+@sha256:[0-9a-f]{64}( AS [a-z]+)?$/;
+
+function unpinnedFromLines(dockerfile) {
+  const lines = dockerfile.match(/^FROM .+$/gm) ?? [];
+  if (lines.length === 0) throw new Error("no FROM line");
+  return lines.filter((line) => !digestPin.test(line));
+}
+
+it.each(["Dockerfile", "Dockerfile.db"])(
+  "pins every base image in %s by tag and digest",
+  async (name) => {
+    expect(unpinnedFromLines(await readFile(join(root, name), "utf8"))).toEqual(
+      [],
+    );
+  },
+);
+
+it.each([
+  ["a tag without a digest", (line) => line.replace(/@sha256:[0-9a-f]+/, "")],
+  [
+    "a short digest",
+    (line) => line.replace(/(@sha256:[0-9a-f]{12})[0-9a-f]+/, "$1"),
+  ],
+  ["a digest without a tag", (line) => line.replace(/:[^:@]+@/, "@")],
+])(
+  "negative control: flags a Dockerfile FROM line with %s",
+  async (_, mutate) => {
+    const docker = await readFile(join(root, "Dockerfile"), "utf8");
+    const [first] = docker.match(/^FROM .+$/m);
+    const mutant = docker.replace(first, mutate(first));
+    expect(mutant).not.toBe(docker);
+    expect(unpinnedFromLines(mutant)).toEqual([mutate(first)]);
+  },
+);
+
 it("pins the same Node and npm versions for project and Docker checks", async () => {
   const node = (await readFile(join(root, ".node-version"), "utf8")).trim();
   const npm = (
     await readFile(join(root, ".github/npm-version"), "utf8")
   ).trim();
-  expect(node).toBe("22.23.4");
+  expect(node).toBe("22.23.5");
   expect(npm).toBe("10.9.10");
   const docker = await readFile(join(root, "Dockerfile"), "utf8");
-  expect(docker.match(/^FROM .+$/gm)).toEqual([
+  expect(
+    docker
+      .match(/^FROM .+$/gm)
+      ?.map((line) => line.replace(/@sha256:[0-9a-f]{64}/, "")),
+  ).toEqual([
     `FROM node:${node} AS build`,
     `FROM node:${node}-slim AS runtime`,
   ]);

@@ -5,6 +5,24 @@ import { setup } from "../ingest/qhp/provider-helpers.js";
 import { saveResult } from "../../src/ingest/geocode/repository.js";
 import type { Address } from "../../src/ingest/geocode/address.js";
 
+interface RadiusPage {
+  total: number;
+  next_page: number | null;
+  meta: { unlocated: number };
+  providers: {
+    npi: string;
+    distance_miles: number;
+    participation: string;
+    participation_scope: string | null;
+    addresses: {
+      source: string;
+      snapshot_id: string;
+      distance_miles: number;
+      participation: string;
+    }[];
+  }[];
+}
+
 // Synthetic identities and coordinates, never publisher evidence or real patients.
 // P3I_POSTGIS_URL must name a separate empty disposable database.
 describe("statewide identity radius: source keys, exact counts and pagination", () => {
@@ -16,7 +34,7 @@ describe("statewide identity radius: source keys, exact counts and pagination", 
   const get = async (url: string, target = app) => {
     const response = await target.request(url);
     expect(response.status).toBe(200);
-    return (await response.json()) as any;
+    return (await response.json()) as RadiusPage;
   };
   beforeAll(async () => {
     h = await setup(
@@ -130,13 +148,13 @@ describe("statewide identity radius: source keys, exact counts and pagination", 
   afterAll(async () => {
     await h?.close();
   });
-  const contract = (body: any) => {
+  const contract = (body: RadiusPage) => {
     expect(body.total).toBe(60);
     expect(body.providers).toHaveLength(50);
-    expect(body.providers[0].npi).toBe(npi(55));
+    expect(body.providers[0]!.npi).toBe(npi(55));
     expect(
       body.providers.every(
-        (p: any) =>
+        (p) =>
           Number(p.npi) >= Number(npi(55)) && Number(p.npi) < Number(npi(115)),
       ),
     ).toBe(true);
@@ -169,7 +187,7 @@ describe("statewide identity radius: source keys, exact counts and pagination", 
           p.participation === "not_evaluated" &&
           p.participation_scope === null &&
           p.addresses.every(
-            (a: any) =>
+            (a) =>
               a.source === "npi_address" &&
               a.snapshot_id === "catalog" &&
               a.distance_miles <= 5 &&
@@ -177,8 +195,8 @@ describe("statewide identity radius: source keys, exact counts and pagination", 
           ),
       ),
     ).toBe(true);
-    expect(rows.find((p) => p.npi === npi(55)).addresses).toHaveLength(1);
-    expect(rows.find((p) => p.npi === npi(56)).addresses).toHaveLength(2);
+    expect(rows.find((p) => p.npi === npi(55))!.addresses).toHaveLength(1);
+    expect(rows.find((p) => p.npi === npi(56))!.addresses).toHaveLength(2);
     expect(
       (await get(path + "&name=RadiusNear&taxonomy=207Q00000X&type=individual"))
         .meta.unlocated,

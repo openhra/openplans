@@ -60,12 +60,63 @@ import {
   drugCostDeps,
   estimateProvenanceProblems,
 } from "../../../src/services/medicare-drug-cost.js";
-import type { DrugCostDeps } from "../../../src/services/medicare-drug-cost.js";
+import type {
+  DrugCostDeps,
+  DrugCostEstimate,
+} from "../../../src/services/medicare-drug-cost.js";
 import { post } from "../../mcp/transport-helpers.js";
 import { loadedDatabase, lookup, spufArchive, spufUrl } from "./helpers.js";
 import type { Loaded } from "./helpers.js";
 
-type Json = ReturnType<typeof JSON.parse>;
+/** The parts of an estimate answer these tests read. */
+interface Figure {
+  status: string;
+  cents: number | null;
+  minimum_cents?: number;
+  maximum_cents?: number;
+  reason?: string | null;
+  evidence_refs: string[];
+}
+interface Fill {
+  /** Price figures are read field by field against the expected ones. */
+  price?: { figures?: Record<string, Record<string, unknown>> };
+  figures: Record<
+    | "patient_pay"
+    | "troop_increment"
+    | "gross_below_threshold"
+    | "gross_above_threshold"
+    | "manufacturer_discount"
+    | "selected_drug_subsidy"
+    | "covered_plan_paid"
+    | "non_covered_plan_paid",
+    Figure
+  >;
+  after: { troop: Figure };
+  plan_phase?: { begin?: string; end?: string };
+}
+interface EvidenceItem {
+  id: string;
+  kind: string;
+  table?: string;
+  document?: string;
+  source_row?: number;
+  source_rows?: number[];
+}
+interface EstimateAnswer {
+  status: string;
+  reason?: string;
+  price_basis?: string;
+  fills?: Fill[];
+  snapshot_ids: string[];
+  plan_figures: { plan_deductible: Figure; standard_deductible: Figure };
+  benefit_type: { origin: string };
+  rules_documents: { id: string }[];
+  evidence: EvidenceItem[];
+}
+interface ToolOutput {
+  error: unknown;
+  data: EstimateAnswer | null;
+}
 const API_TOKEN = "synthetic-oracle-api-grant";
 const MCP_TOKEN = "synthetic-oracle-mcp-grant";
 
@@ -623,7 +674,7 @@ const unitCostCents = (oracle: Oracle) => {
  */
 function planAverageMismatches(
   oracle: Oracle,
-  answer: Json,
+  answer: EstimateAnswer | null,
   label: string,
 ): string[] {
   const fill = answer?.fills?.[0];
@@ -636,7 +687,7 @@ function planAverageMismatches(
   const gross = cents(grossOf(oracle));
   const selected = viaMfp(oracle);
   const hasFee = cents(feeOf(oracle)) !== 0 && !selected;
-  const want: Record<string, Json> = {
+  const want: Record<string, Record<string, unknown>> = {
     unit_cost_total: {
       status: "value",
       cents: selected ? unitCostCents(oracle) : cents(ingredientOf(oracle)),
@@ -677,7 +728,7 @@ function planAverageMismatches(
     ),
   };
   out.push(...mismatches(exactOnly, answer, label));
-  const figures: Record<string, Json> = {
+  const figures: Record<string, Figure> = {
     patientPay: fill.figures.patient_pay,
     troopIncrement: fill.figures.troop_increment,
     grossBelowThreshold: fill.figures.gross_below_threshold,
@@ -734,13 +785,17 @@ function installSeams() {
 }
 
 /** Compares every expected figure of an oracle with an estimate answer. */
-function mismatches(oracle: Oracle, answer: Json, label: string): string[] {
+function mismatches(
+  oracle: Oracle,
+  answer: EstimateAnswer | null,
+  label: string,
+): string[] {
   if (!answer?.fills?.[0])
     return [
       `${oracle.id} (${label}): no fill, ${answer?.status} ${answer?.reason}`,
     ];
   const fill = answer.fills[0];
-  const figures: Record<string, Json> = {
+  const figures: Record<string, Figure> = {
     patientPay: fill.figures.patient_pay,
     troopIncrement: fill.figures.troop_increment,
     grossBelowThreshold: fill.figures.gross_below_threshold,
@@ -762,7 +817,7 @@ function mismatches(oracle: Oracle, answer: Json, label: string): string[] {
       if (!figure) return [`${oracle.id}.${key} (${label}): not reported`];
       got =
         figure.status === "value"
-          ? (figure.cents / 100).toFixed(2)
+          ? (figure.cents! / 100).toFixed(2)
           : `unknown:${figure.reason}`;
     }
     return got === value
@@ -819,8 +874,8 @@ describe("CMS worked examples through the HTTP route and the MCP tool", () => {
   };
   async function viaHttp(
     oracle: Oracle,
-    schedule: Json = scheduleFor(oracle),
-  ): Promise<Json> {
+    schedule: Record<string, unknown> = scheduleFor(oracle),
+  ): Promise<EstimateAnswer> {
     current = oracle;
     const plan = plans[setups[oracle.id]!.plan]!;
     const response = await http.request(
@@ -840,8 +895,8 @@ describe("CMS worked examples through the HTTP route and the MCP tool", () => {
   }
   async function viaMcp(
     oracle: Oracle,
-    schedule: Json = scheduleFor(oracle),
-  ): Promise<Json> {
+    schedule: Record<string, unknown> = scheduleFor(oracle),
+  ): Promise<ToolOutput> {
     current = oracle;
     const plan = plans[setups[oracle.id]!.plan]!;
     const response = await mcp.fetch(
@@ -859,7 +914,8 @@ describe("CMS worked examples through the HTTP route and the MCP tool", () => {
       ),
     );
     expect(response.status, oracle.id).toBe(200);
-    const body = await response.json();
+    const body: { result: { structuredContent: ToolOutput } } =
+      await response.json();
     return body.result.structuredContent;
   }
 
@@ -904,10 +960,10 @@ describe("CMS worked examples through the HTTP route and the MCP tool", () => {
       const deductibleRefs: string[] =
         route.plan_figures.plan_deductible.evidence_refs;
       const named = deductibleRefs.flatMap((id) => {
-        const item = route.evidence.find((entry: Json) => entry.id === id);
-        return item.kind === "source_rows"
-          ? item.source_rows
-          : [item.source_row];
+        const item = route.evidence.find((entry) => entry.id === id);
+        return item!.kind === "source_rows"
+          ? item!.source_rows!
+          : [item!.source_row!];
       });
       expect(named).toEqual(county);
       expect(deductibleRefs.length).toBe(county.length > 1 ? 1 : county.length);
@@ -918,9 +974,7 @@ describe("CMS worked examples through the HTTP route and the MCP tool", () => {
       );
 
       // Every rule the answer cites, drug-list rows included, is in its document list.
-      const documents = new Set(
-        route.rules_documents.map((doc: Json) => doc.id),
-      );
+      const documents = new Set(route.rules_documents.map((doc) => doc.id));
       for (const item of route.evidence)
         if (item.kind === "rule") expect(documents).toContain(item.document);
       const output = await viaMcp(oracle);
@@ -928,7 +982,9 @@ describe("CMS worked examples through the HTTP route and the MCP tool", () => {
       expect(output.error, JSON.stringify(output.error)).toBeNull();
       expect(output.data).toEqual(route);
       expect(mismatches(oracle, output.data, "mcp")).toEqual([]);
-      expect(() => assertEstimateHonest(output, route)).not.toThrow();
+      expect(() =>
+        assertEstimateHonest(output, route as DrugCostEstimate),
+      ).not.toThrow();
     });
   }
 
@@ -939,7 +995,7 @@ describe("CMS worked examples through the HTTP route and the MCP tool", () => {
     );
     for (const oracle of oracleFile.workedExamples) {
       const route = await viaHttp(oracle);
-      const pay = route.fills[0].figures.patient_pay;
+      const pay = route.fills![0]!.figures.patient_pay;
       expect(pay.status, oracle.id).toBe("unknown");
       expect(pay.cents).toBeNull();
       expect(pay.reason).toBeTruthy();
@@ -999,19 +1055,20 @@ describe("CMS worked examples through the HTTP route and the MCP tool", () => {
         // The price cites the synthetic pricing row and the fee ranges it used.
         expect(
           route.evidence.some(
-            (item: Json) =>
-              item.kind === "source_row" && item.table === "pricing",
+            (item) => item.kind === "source_row" && item.table === "pricing",
           ),
         ).toBe(true);
-        expect(
-          route.evidence.some((item: Json) => item.kind === "fee_range"),
-        ).toBe(true);
+        expect(route.evidence.some((item) => item.kind === "fee_range")).toBe(
+          true,
+        );
         const output = await viaMcp(oracle, schedule);
         expect(estimateOutputSchema.safeParse(output).success).toBe(true);
         expect(output.error, JSON.stringify(output.error)).toBeNull();
         expect(output.data).toEqual(route);
         expect(planAverageMismatches(oracle, output.data, "mcp")).toEqual([]);
-        expect(() => assertEstimateHonest(output, route)).not.toThrow();
+        expect(() =>
+          assertEstimateHonest(output, route as DrugCostEstimate),
+        ).not.toThrow();
       });
 
     // Each planted mutant changes how the plan-average price is read. Some example must fail.
@@ -1078,7 +1135,7 @@ describe("CMS worked examples through the HTTP route and the MCP tool", () => {
         );
         const failures: string[] = [];
         for (const oracle of oracleFile.workedExamples) {
-          let answer: Json;
+          let answer: EstimateAnswer;
           try {
             answer = await viaHttp(oracle, planAverageScheduleFor(oracle));
           } catch (error) {
@@ -1150,7 +1207,7 @@ describe("CMS worked examples through the HTTP route and the MCP tool", () => {
       plant();
       const failures: string[] = [];
       for (const oracle of oracleFile.workedExamples) {
-        let answer: Json;
+        let answer: EstimateAnswer;
         try {
           answer = await viaHttp(oracle);
         } catch (error) {

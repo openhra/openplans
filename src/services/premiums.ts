@@ -1,8 +1,4 @@
-import {
-  premiumRateRows,
-  dentalBusinessRows,
-  premiumAttributeRows,
-} from "../api/repository.js";
+import { dentalBusinessRows, premiumAttributeRows } from "../api/repository.js";
 import { communityFamilyPremium } from "../domain/rating/index.js";
 import { medicalTobaccoPolicy } from "../domain/rating/medical-policy.js";
 import {
@@ -112,8 +108,8 @@ export async function ratePremium(
     return statePremium(db, plan, requestedId, request, location);
   const rule = plan.dental_only
     ? dentalRatingRule(plan.state, plan.plan_year, plan.market)
-    : await ratingRule(db, plan.state, plan.plan_year, plan.market);
-  const files = await snapshots(db, plan);
+    : await ratingRule(reads.db, plan.state, plan.plan_year, plan.market);
+  const files = await snapshots(reads.db, plan);
   const tobaccoPolicy = medicalTobaccoPolicy({
     state: plan.state,
     planYear: plan.plan_year,
@@ -169,7 +165,7 @@ export async function ratePremium(
   if (offering.snapshot_id !== plan.snapshot_id)
     return failure("unknown", "CATALOG_CHANGED_RETRY");
   const resolution = await ratingAreaForLocation(
-    db,
+    reads.db,
     plan.state,
     plan.plan_year,
     location.county,
@@ -178,8 +174,7 @@ export async function ratePremium(
   if (resolution.status !== "available")
     return failure(resolution.status, "UNRESOLVED_RATING_AREA");
   const area = resolution.areas[0]!;
-  const { rows } = await premiumRateRows(
-    db,
+  const { rows } = await reads.rateRows(
     files.rate,
     plan.base_plan_id,
     area.rating_area_id,

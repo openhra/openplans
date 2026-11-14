@@ -100,6 +100,13 @@ afterAll(async () => {
   await core.cleanup();
   await rm(directory, { recursive: true, force: true });
 });
+interface QuotesBody {
+  quotes: { total_cents: number }[];
+}
+interface SearchPage {
+  meta: { total: number; premium_tax_credit: number | null };
+  plans: { premium: number | null }[];
+}
 async function search(tx: SqlSession, product: string, extra = {}) {
   const response = await createApp(tx).request(
     `${BASE}/plans/${product}/search`,
@@ -112,7 +119,7 @@ async function search(tx: SqlSession, product: string, extra = {}) {
   expect(response.status).toBe(200);
   return {
     response,
-    body: (await response.json()) as any,
+    body: (await response.json()) as SearchPage,
     gaps: response.headers.get("x-openplans-gaps")!,
   };
 }
@@ -158,10 +165,9 @@ it("maps native SADP totals, sorts and paginates without retaining a priced-plan
       }),
     },
   );
-  expect(
-    ((await native.json()) as ReturnType<typeof JSON.parse>).quotes[0]
-      .total_cents,
-  ).toBe(Math.round(result.body.plans[0].premium * 100));
+  expect(((await native.json()) as QuotesBody).quotes[0]!.total_cents).toBe(
+    Math.round(result.body.plans[0]!.premium! * 100),
+  );
   if (process.env.OPENPLANS_REFERENCE_CAPTURES_DIR) {
     const capture = JSON.parse(
       await readFile(
@@ -178,7 +184,8 @@ it("maps native SADP totals, sorts and paginates without retaining a priced-plan
     headers,
   });
   expect(
-    ((await detail.json()) as ReturnType<typeof JSON.parse>).plan.premium,
+    ((await detail.json()) as { plan: { premium: number | null } }).plan
+      .premium,
   ).toBeNull();
   expect(detail.headers.get("x-openplans-gaps")).toContain(
     "dental_premium_requires_household",
@@ -189,7 +196,7 @@ it("keeps per-plan unsupported and unknown SADP reasons; negative control cannot
   await rollback(async (tx) => {
     await tx.query("DELETE FROM business_rule WHERE base_plan_id=$1", [dental]);
     const result = await search(tx, "dental", { ids: [dental] });
-    expect(result.body.plans[0].premium).toBeNull();
+    expect(result.body.plans[0]!.premium).toBeNull();
     expect(result.gaps).toContain(
       `dental_premiums_unsupported_by_native_rating:${dental}`,
     );
@@ -204,7 +211,7 @@ it("keeps per-plan unsupported and unknown SADP reasons; negative control cannot
     );
     const result = await search(tx, "dental", { ids: [dental] });
     const contract = (gaps: string) => {
-      assert.equal(result.body.plans[0].premium, null);
+      assert.equal(result.body.plans[0]!.premium, null);
       assert.ok(
         gaps.split(/,\s*/).includes("premium_unknown"),
         "native unknown premium requires its gap",
@@ -269,7 +276,7 @@ it("NY 10001 maps four filed tiers and preserves unknown exchange flags, age/tob
         smoker: true,
       })),
     });
-    expect(changed.body.plans[0].premium).toBe(premium);
+    expect(changed.body.plans[0]!.premium).toBe(premium);
   }
   const all = await search(db, "medical", {
     fips_code: "36061",
@@ -478,7 +485,9 @@ it("maps NUCC names only when native taxonomy_status is known, and retains gaps 
   const detail = await createApp(db).request(`${BASE}/providers/1000000000`, {
     headers,
   });
-  expect(((await detail.json()) as any).provider).toMatchObject({
+  expect(
+    ((await detail.json()) as { provider: unknown }).provider,
+  ).toMatchObject({
     specialty: "Family Medicine Physician",
     npi_specialty: { name: "Family Medicine Physician" },
   });
@@ -492,10 +501,14 @@ it("maps NUCC names only when native taxonomy_status is known, and retains gaps 
     const response = await createApp(tx).request(BASE + "/specialties", {
       headers,
     });
-    const specialties = ((await response.json()) as any).specialties;
+    const specialties = (
+      (await response.json()) as {
+        specialties: { id: string; name: string | null }[];
+      }
+    ).specialties;
     expect(specialties).toHaveLength(2);
-    expect(specialties.find((s: any) => s.id === "000000000X").name).toBeNull();
-    expect(specialties.find((s: any) => s.id === "207Q00000X").name).toBe(
+    expect(specialties.find((s) => s.id === "000000000X")!.name).toBeNull();
+    expect(specialties.find((s) => s.id === "207Q00000X")!.name).toBe(
       "Family Medicine Physician",
     );
     expect(response.headers.get("x-openplans-gaps")).toContain(
@@ -529,14 +542,15 @@ it("ZIP geography supplies state identities outside TX without vendor live/excha
       { headers },
     );
     expect(response.status).toBe(200);
-    const result = (await response.json()) as any;
+    const result = (await response.json()) as {
+      states: unknown[];
+      counties: { state_code: string }[];
+    };
     expect(result.states[0]).toMatchObject({
       code: state,
       name,
       live_for_consumers: null,
     });
-    expect(result.counties.every((c: any) => c.state_code === state)).toBe(
-      true,
-    );
+    expect(result.counties.every((c) => c.state_code === state)).toBe(true);
   }
 });

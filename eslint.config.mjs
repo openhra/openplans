@@ -44,6 +44,15 @@ export default defineConfig([
     extends: [tseslint.configs.recommended],
     rules: {
       "@typescript-eslint/consistent-type-imports": "error",
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector:
+            "TSTypeReference[typeName.name='ReturnType'] > TSTypeParameterInstantiation > TSTypeQuery[exprName.left.name='JSON'][exprName.right.name='parse']",
+          message:
+            "ReturnType<typeof JSON.parse> is `any`. Declare the fields you read, or use `unknown`.",
+        },
+      ],
       "@typescript-eslint/no-unused-vars": [
         "error",
         { argsIgnorePattern: "^_", ignoreRestSiblings: true },

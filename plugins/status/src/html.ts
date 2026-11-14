@@ -38,7 +38,36 @@ th, td { text-align: left; padding: 0.35rem 0.5rem; border-bottom: 1px solid var
   vertical-align: top; overflow-wrap: anywhere; }
 th { font-weight: 600; }
 pre { white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; font-size: 0.85rem; }
+a { color: inherit; }
+nav { margin: 0 0 0.75rem; }
+details { border-bottom: 1px solid var(--line); padding: 0.25rem 0; }
+summary { cursor: pointer; overflow-wrap: anywhere; }
+details .table { margin: 0.35rem 0 0.5rem; }
 `;
+
+/** Codes that count as places but not as states. */
+export const NOT_STATES = ["DC", "PR", "GU", "VI", "AS", "MP"] as const;
+
+/**
+ * "48 states and DC": states and the other places are counted from the codes themselves,
+ * so the sentence follows the data.
+ */
+export function placesPhrase(codes: readonly string[]): string {
+  const unique = [...new Set(codes)];
+  const others = NOT_STATES.filter((code) => unique.includes(code));
+  const states = unique.length - others.length;
+  const parts = [
+    ...(states ? [`${states} ${states === 1 ? "state" : "states"}`] : []),
+    ...others,
+  ];
+  if (!parts.length) return "no states";
+  return parts.length === 1
+    ? parts[0]!
+    : `${parts.slice(0, -1).join(", ")} and ${parts.at(-1)}`;
+}
+
+/** The family a source ID belongs to: the part before the first colon. */
+export const sourceFamily = (id: string) => id.split(":")[0] || id;
 
 const FRESHNESS: Record<string, string> = {
   "<1d": "under 1 day",
@@ -46,6 +75,14 @@ const FRESHNESS: Record<string, string> = {
   "<30d": "under 30 days",
   older: "30 days or more",
   unknown: "unknown",
+};
+// The same buckets, worded to follow a count: "6 under 7 days old".
+const COUNTED_AGE: Record<string, string> = {
+  "<1d": "under 1 day old",
+  "<7d": "under 7 days old",
+  "<30d": "under 30 days old",
+  older: "aged 30 days or more",
+  unknown: "of unknown age",
 };
 const age = (bucket: string) => escapeHtml(FRESHNESS[bucket] ?? bucket);
 
@@ -66,6 +103,49 @@ function table(caption: string, head: string[], rows: unknown[][]): string {
     .join("\n")}</tbody></table></div>`;
 }
 
+/**
+ * One <details> element per source family. The summary line gives the snapshot count and
+ * how many fall in each age bucket; the full rows sit inside.
+ */
+function grouped(
+  caption: string,
+  head: string[],
+  rows: { id: string; freshness: string; cells: unknown[] }[],
+): string {
+  if (!rows.length) return `<p class="muted">${escapeHtml(caption)}: none.</p>`;
+  const families = new Map<string, typeof rows>();
+  for (const row of rows) {
+    const family = sourceFamily(row.id);
+    if (!families.has(family)) families.set(family, []);
+    families.get(family)!.push(row);
+  }
+  return `<p class="muted">${escapeHtml(caption)}: ${rows.length} from ${families.size} ${families.size === 1 ? "source" : "sources"}. Open a source to see each snapshot.</p>
+${[...families]
+  .map(([family, members]) => {
+    const buckets = Object.keys(COUNTED_AGE)
+      .map(
+        (bucket) =>
+          [
+            COUNTED_AGE[bucket]!,
+            members.filter((m) => m.freshness === bucket).length,
+          ] as const,
+      )
+      .filter(([, n]) => n);
+    const count = `${members.length} ${members.length === 1 ? "snapshot" : "snapshots"}`;
+    const ages =
+      buckets.length === 1
+        ? `${members.length === 1 ? "" : "all "}${buckets[0]![0]}`
+        : buckets.map(([label, n]) => `${n} ${label}`).join(", ");
+    return `<details><summary>${escapeHtml(family)} <span class="muted">${escapeHtml(`${count}, ${ages}`)}</span></summary>
+${table(
+  `${family} snapshots`,
+  head,
+  members.map((m) => m.cells),
+)}</details>`;
+  })
+  .join("\n")}`;
+}
+
 function onOff(value: boolean | null) {
   if (value === null) return "unknown";
   return value ? "yes" : "no";
@@ -79,11 +159,26 @@ function isOperator(
   return "pool" in view;
 }
 
-/** One page for either view. No scripts, no external files. */
-export function renderStatusHtml(view: PublicStatus | OperatorStatus): string {
+/** Where the page's header link points. */
+export const HOME_URL = "https://plans.openhra.com/";
+
+/**
+ * One page for either view. No scripts, no external files. `places` is the list of state
+ * codes behind `data.states`; the operator view can work it out from its issuer rows.
+ */
+export function renderStatusHtml(
+  view: PublicStatus | OperatorStatus,
+  places?: readonly string[] | null,
+): string {
   const operator = isOperator(view);
+  const codes =
+    places ??
+    (operator && view.data.issuers
+      ? view.data.issuers.map((row) => row.state)
+      : null);
   const parts: string[] = [];
-  parts.push(`<h1>OpenPlans status</h1>
+  parts.push(`<nav><a href="${HOME_URL}">plans.openhra.com</a></nav>
+<h1>OpenPlans status</h1>
 <p class="muted">${operator ? "Operator detail. Do not share this page." : "Public summary. It can be up to 30 seconds old."} The same data is at <a href="${operator ? "/status/operator.json" : "/status.json"}">${operator ? "/status/operator.json" : "/status.json"}</a>.</p>
 <h2>Service</h2>
 <dl>
@@ -99,7 +194,7 @@ ${operator ? `<dt>Waiting for a database connection</dt><dd>${escapeHtml(view.po
   parts.push("<h2>Data coverage</h2>");
   if (view.data.status_counts) {
     parts.push(
-      `<p>${escapeHtml(view.data.states)} states, plan years ${escapeHtml(view.data.years?.join(", ") || "none")}.</p>`,
+      `<p>${escapeHtml(codes ? placesPhrase(codes) : `${view.data.states ?? "unknown"} places`)}, plan years ${escapeHtml(view.data.years?.join(", ") || "none")}.</p>`,
     );
     const counts = view.data.status_counts;
     const statuses = Object.keys(
@@ -124,20 +219,28 @@ ${operator ? `<dt>Waiting for a database connection</dt><dd>${escapeHtml(view.po
   if (view.sources)
     parts.push(
       operator
-        ? table(
+        ? grouped(
             "Active snapshots",
             ["Source", "Age", "Retrieved", "Snapshot"],
-            (view as OperatorStatus).sources!.map((s) => [
-              s.id,
-              FRESHNESS[s.freshness],
-              s.retrieved_at ?? "unknown",
-              s.snapshot_id,
-            ]),
+            (view as OperatorStatus).sources!.map((s) => ({
+              id: s.id,
+              freshness: s.freshness,
+              cells: [
+                s.id,
+                FRESHNESS[s.freshness],
+                s.retrieved_at ?? "unknown",
+                s.snapshot_id,
+              ],
+            })),
           )
-        : table(
+        : grouped(
             "Active snapshots",
             ["Source", "Age"],
-            view.sources.map((s) => [s.id, FRESHNESS[s.freshness]]),
+            view.sources.map((s) => ({
+              id: s.id,
+              freshness: s.freshness,
+              cells: [s.id, FRESHNESS[s.freshness]],
+            })),
           ),
     );
   else parts.push(unknownSection("Sources"));
@@ -264,6 +367,7 @@ ${operator ? `<dt>Waiting for a database connection</dt><dd>${escapeHtml(view.po
     if (view.data.issuers)
       parts.push(
         "<h2>Coverage by issuer</h2>",
+        `<details><summary>${view.data.issuers.length} rows</summary>`,
         table(
           "One row per state, year, market and issuer",
           [
@@ -287,6 +391,7 @@ ${operator ? `<dt>Waiting for a database connection</dt><dd>${escapeHtml(view.po
             r.formulary,
           ]),
         ),
+        "</details>",
       );
   }
 

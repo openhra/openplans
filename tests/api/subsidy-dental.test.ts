@@ -132,15 +132,23 @@ async function rollback(
     if (e !== marker) throw e;
   }
 }
+interface DentalBenchmark {
+  status: string;
+  slcsp_monthly_cents: number | null;
+  benchmark_plan_ids: string[];
+  lowest_silver_plans: unknown[];
+  issues: string[];
+  pediatric_dental: { evidence: { attribute_rows: unknown[] }[] } | null;
+}
 async function benchmark(tx: SqlSession, ages = "40,10") {
   const response = await createApp(tx, { premiumToken: TOKEN }).request(
     `/v1/benchmark?zip=77002&year=2026&ages=${ages}`,
     { headers },
   );
   expect(response.status).toBe(200);
-  return (await response.json()) as any;
+  return (await response.json()) as DentalBenchmark;
 }
-function assertChild(result: any) {
+function assertChild(result: DentalBenchmark) {
   expect(result.status).toBe("calculated");
   expect(result.slcsp_monthly_cents).toBe(64000);
   expect(result.benchmark_plan_ids).toEqual([silver[1]]);
@@ -170,7 +178,7 @@ describe("pediatric dental HTTP adapter on PGlite", () => {
         },
       ]);
       expect(
-        result.pediatric_dental.evidence[0].attribute_rows.length,
+        result.pediatric_dental!.evidence[0]!.attribute_rows.length,
       ).toBeGreaterThan(0);
     }));
   it("negative control: omit dental via a mutant calculation; the same child assertion fails", async () =>
@@ -235,18 +243,21 @@ describe("pediatric dental HTTP adapter on PGlite", () => {
     }));
 });
 
-type Json = ReturnType<typeof JSON.parse>;
+type ServiceBenchmark = Awaited<ReturnType<typeof benchmarkService>>;
 async function countyBenchmark(tx: SqlSession, ages: string) {
   const response = await createApp(tx, { premiumToken: TOKEN }).request(
     `/v1/benchmark?county=48201&year=2026&ages=${ages}`,
     { headers },
   );
   expect(response.status).toBe(200);
-  return (await response.json()) as Json;
+  return (await response.json()) as DentalBenchmark;
 }
 describe("county-only benchmark where a dental plan serves part of the county", () => {
   const answers = (edit?: (tx: SqlSession) => Promise<void>) => {
-    let out: Record<string, Json> = {};
+    let out = {} as Record<
+      "countyChild" | "zipChild" | "countyAdult",
+      DentalBenchmark
+    >;
     return rollback(async (tx) => {
       out = {
         countyChild: await countyBenchmark(tx, "40,10"),
@@ -317,7 +328,7 @@ describe("county-only benchmark where a dental plan serves part of the county", 
       const mutant = (await import(pathToFileURL(path).href)) as {
         benchmark: typeof benchmarkService;
       };
-      let real: Json, planted: Json;
+      let real!: ServiceBenchmark, planted!: ServiceBenchmark;
       await rollback(async (tx) => {
         const request = premiumRequest({
           plan_ids: [silver[1]],
@@ -335,7 +346,7 @@ describe("county-only benchmark where a dental plan serves part of the county", 
       expect(real.status).toBe("location_requires_zip");
       // The mutant prices dental from the $40 plan alone and claims a lower benchmark.
       expect(planted.status).toBe("calculated");
-      expect(planted.pediatric_dental.planIds).toEqual([dental[1]]);
+      expect(planted.pediatric_dental!.planIds).toEqual([dental[1]]);
       expect(planted.slcsp_monthly_cents).toBeLessThan(64_000);
       expect(() =>
         expect(planted.status).toBe("location_requires_zip"),

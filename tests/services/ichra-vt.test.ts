@@ -197,7 +197,10 @@ it("MCP check_ichra_affordability returns the Vermont LCSP by plan key, with no 
         income: [{ measure: "household", annual_cents: 4_118_000 }],
       },
     )
-  ).structuredContent as ReturnType<typeof JSON.parse>;
+  ).structuredContent as {
+    error: unknown;
+    data: { status: string; lcsps: unknown[] };
+  };
   expect(out.error).toBeNull();
   expect(out.data.status).toBe("calculated");
   expect(out.data.lcsps[0]).toMatchObject({

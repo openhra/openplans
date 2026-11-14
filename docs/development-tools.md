@@ -45,10 +45,15 @@ scripts need their own scoped configuration.
 
 ## Finite lint baseline
 
-The committed baseline contains 170 `@typescript-eslint/no-explicit-any` findings in
-23 test files. Production source has no allowances. Parser failures, undefined
-runtime references, nested ternaries and incorrect type imports cannot enter the
-baseline.
+The committed baseline is empty. No `@typescript-eslint/no-explicit-any` findings
+remain in source or tests. The baseline can only shrink, so it stays empty.
+Parser failures, undefined runtime references, nested ternaries and incorrect type
+imports cannot enter the baseline.
+
+`ReturnType<typeof JSON.parse>` is `any` under another name, and
+`no-explicit-any` does not see it. A `no-restricted-syntax` rule bans it in
+TypeScript files. Give a parsed body a small interface with the fields the code
+reads, or use `unknown`.
 
 `eslint-suppressions.json` uses ESLint's native file/rule counts. The companion
 `eslint-baseline.json` records a cleanup task for each file and a SHA-256 hash of

@@ -8,8 +8,17 @@ import { quoteFixture } from "../api/quote-fixture.js";
 import { connect } from "./client.js";
 import { listedToolNames, post } from "./transport-helpers.js";
 
-/** Mutated outputs are asserted structurally. */
-type Json = ReturnType<typeof JSON.parse>;
+/** Mutated outputs are asserted structurally; only the mutated fields are typed. */
+interface MutableQuoteOutput {
+  data: {
+    quotes: {
+      providers: { status: string }[];
+      drugs: { status: string }[];
+      gross_monthly_cents: number;
+      household_income_annual?: number;
+    }[];
+  };
+}
 const PLAN = "87226TX0100013";
 const publicInput = {
   year: 2026,
@@ -88,24 +97,24 @@ describe("MCP quote_plans public tier", () => {
       });
       const context = { estimates: native.quotes };
       expect(() => assertHonest("quote_plans", output, context)).not.toThrow();
-      const network = structuredClone(output) as Json;
-      network.data.quotes[0].providers[0].status = "out_of_network";
+      const network = structuredClone(output) as MutableQuoteOutput;
+      network.data.quotes[0]!.providers[0]!.status = "out_of_network";
       expect(() => assertHonest("quote_plans", network, context)).toThrow();
-      const drug = structuredClone(output) as Json;
-      drug.data.quotes[0].drugs[0].status = "not_covered";
+      const drug = structuredClone(output) as MutableQuoteOutput;
+      drug.data.quotes[0]!.drugs[0]!.status = "not_covered";
       expect(() => assertHonest("quote_plans", drug, context)).toThrow();
-      const listed = structuredClone(output) as Json;
-      listed.data.quotes[0].drugs[0].status = "listed_covered";
+      const listed = structuredClone(output) as MutableQuoteOutput;
+      listed.data.quotes[0]!.drugs[0]!.status = "listed_covered";
       expect(() => assertHonest("quote_plans", listed, context)).toThrow(
         "unsourced factual record",
       );
-      const cents = structuredClone(output) as Json;
-      cents.data.quotes[0].gross_monthly_cents++;
+      const cents = structuredClone(output) as MutableQuoteOutput;
+      cents.data.quotes[0]!.gross_monthly_cents++;
       expect(() => assertHonest("quote_plans", cents, context)).toThrow(
         "fabricated cents",
       );
-      const income = structuredClone(output) as Json;
-      income.data.quotes[0].household_income_annual = 40000;
+      const income = structuredClone(output) as MutableQuoteOutput;
+      income.data.quotes[0]!.household_income_annual = 40000;
       expect(() => assertHonest("quote_plans", income, context)).toThrow();
     } finally {
       await h.close();

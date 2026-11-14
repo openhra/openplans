@@ -2,9 +2,9 @@ import type { SqlSession } from "../db/database.js";
 import type { Plan } from "../api/repository.js";
 import {
   countyState,
-  findPlan,
+  findPlans,
+  requestedPlansExist,
   resolveLocation,
-  variantExists,
 } from "../api/repository.js";
 import * as v from "../api/validation.js";
 import { applyQuoteFallback, readQuoteCoverage } from "./quote-coverage.js";
@@ -33,12 +33,18 @@ async function requestedPlans(
   request: QuoteRequest,
 ): Promise<QuotedPlan[]> {
   const plans: QuotedPlan[] = [];
-  for (const id of request.premium.ids) {
-    const plan = await findPlan(db, id.base, request.premium.year);
-    if (
-      !plan ||
-      (id.variant !== null && !(await variantExists(db, plan, id.full)))
-    )
+  const found = await findPlans(
+    db,
+    request.premium.ids.map((id) => id.base),
+    request.premium.year,
+  );
+  const exists = await requestedPlansExist(
+    db,
+    request.premium.ids.map((id, index) => ({ ...id, plan: found[index] })),
+  );
+  for (const [index, id] of request.premium.ids.entries()) {
+    const plan = found[index];
+    if (!plan || !exists[index])
       throw new ReadError({
         code: "PLAN_NOT_FOUND",
         plan_id: id.full,
@@ -156,6 +162,7 @@ export async function quotePlans(
   // Every quote below shares this request's county catalog and plan reads.
   const reads = requestReads(db);
   const selection = await selectPlans(db, request, location, reads);
+  reads.plan(selection.plans.map(({ plan }) => plan));
   const quotes = [];
   for (const plan of selection.plans)
     quotes.push(await quotePlan(db, plan, request, location, reads));

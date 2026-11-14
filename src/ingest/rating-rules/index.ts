@@ -125,6 +125,11 @@ export async function ingestRatingRules(db: Database, path = defaultRulesFile) {
   });
 }
 
+export const RATING_RULE_SQL = `
+    SELECT r.method,r.citation,r.snapshot_id FROM rating_rule_set a
+    JOIN state_rating_rule r ON r.snapshot_id=a.snapshot_id AND r.plan_year=a.plan_year
+    JOIN snapshot s ON s.snapshot_id=r.snapshot_id AND s.validation_state='ACTIVE'
+    WHERE r.state=$1 AND a.plan_year=$2 AND r.market=$3`;
 export async function ratingRule(
   db: SqlSession,
   state: string,
@@ -135,13 +140,6 @@ export async function ratingRule(
     method: string;
     citation: string;
     snapshot_id: string;
-  }>(
-    `
-    SELECT r.method,r.citation,r.snapshot_id FROM rating_rule_set a
-    JOIN state_rating_rule r ON r.snapshot_id=a.snapshot_id AND r.plan_year=a.plan_year
-    JOIN snapshot s ON s.snapshot_id=r.snapshot_id AND s.validation_state='ACTIVE'
-    WHERE r.state=$1 AND a.plan_year=$2 AND r.market=$3`,
-    [state, year, market.toLowerCase()],
-  );
+  }>(RATING_RULE_SQL, [state, year, market.toLowerCase()]);
   return rows[0] ?? null;
 }

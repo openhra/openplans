@@ -47,12 +47,49 @@ async function estimate(payload: unknown = body(), session: SqlSession = db) {
   );
   return {
     response,
-    json: (await response.json()) as ReturnType<typeof JSON.parse>,
+    json: (await response.json()) as QuotesResponse,
   };
+}
+interface Quote {
+  status: string;
+  total_cents?: number;
+  members: { premium_cents: number }[];
+  rate_rows_used: unknown[];
+}
+interface QuotesResponse {
+  quotes: Quote[];
+}
+interface PlanRow {
+  base_plan_id: string;
+  metal: string;
+  issuer: { issuer_id: string };
+}
+interface PlanSearch {
+  status: string;
+  plans: PlanRow[];
+}
+interface CountyShare {
+  county_fips: string;
+  zcta_land_share: string | number;
+}
+interface PlanDetail {
+  variant_cost_sharing_resolved: boolean;
+  benefits: unknown[];
+  cost_sharing: unknown;
+  variant_ids: string[];
+  variants: { benefits: unknown[] }[];
+}
+interface AvailabilityRow {
+  issuer_id: string;
+  catalog_status: string;
+  provider_status: string;
+  formulary_status: string;
+  premium_status: string;
+  rate_rows: number;
 }
 async function search(query = "zip=77002&year=2026", session: SqlSession = db) {
   const response = await createApp(session).request(`/v1/plans?${query}`);
-  return { response, json: (await response.json()) as any };
+  return { response, json: (await response.json()) as PlanSearch };
 }
 async function rollback(run: (tx: SqlSession) => Promise<void>) {
   const marker = new Error("synthetic mutation rollback");
@@ -90,14 +127,14 @@ describe("native v1 catalog, geography and provenance", () => {
   it("returns all ZCTA county shares and never guesses a PO-box ZIP", async () => {
     const multi = await app.request("/v1/zip-counties?zip=75034");
     expect(multi.status).toBe(200);
-    const result = (await multi.json()) as any;
-    expect(result.counties.map((c: any) => c.county_fips)).toEqual([
+    const result = (await multi.json()) as { counties: CountyShare[] };
+    expect(result.counties.map((c) => c.county_fips)).toEqual([
       "48085",
       "48121",
     ]);
     expect(
       result.counties.reduce(
-        (sum: number, c: any) => sum + Number(c.zcta_land_share),
+        (sum: number, c) => sum + Number(c.zcta_land_share),
         0,
       ),
     ).toBeCloseTo(1, 12);
@@ -138,7 +175,7 @@ describe("native v1 catalog, geography and provenance", () => {
     const { response, json } = await search();
     expect(response.status).toBe(200);
     expect(json.status).toBe("available");
-    const plan = json.plans.find((p: any) => p.base_plan_id === PLAN);
+    const plan = json.plans.find((p) => p.base_plan_id === PLAN)!;
     expect(plan).toMatchObject({
       variant_ids: [expect.stringMatching(/^87226TX0100013-\d\d$/)],
       issuer: { issuer_id: "87226" },
@@ -146,15 +183,13 @@ describe("native v1 catalog, geography and provenance", () => {
       on_exchange: true,
       provenance: { snapshot_ids: { "plan-attributes": attributes, rate } },
     });
-    expect(json.plans.some((p: any) => p.issuer.issuer_id === "12846")).toBe(
-      false,
-    );
+    expect(json.plans.some((p) => p.issuer.issuer_id === "12846")).toBe(false);
     expect(
       (
         await search(
           `zip=77002&year=2026&metal=${plan.metal.toLowerCase()}&page=1`,
         )
-      ).json.plans.every((p: any) => p.metal === plan.metal),
+      ).json.plans.every((p) => p.metal === plan.metal),
     ).toBe(true);
     expect((await search("zip=77002&year=2026&page=2")).json.plans).toEqual([]);
     expect((await search("county=36061&year=2026")).json.status).toBe(
@@ -172,7 +207,7 @@ describe("native v1 catalog, geography and provenance", () => {
       );
       expect(
         (await search("county=48001&year=2026", tx)).json.plans.some(
-          (p: any) => p.base_plan_id === PLAN,
+          (p) => p.base_plan_id === PLAN,
         ),
       ).toBe(true);
     });
@@ -187,7 +222,7 @@ describe("native v1 catalog, geography and provenance", () => {
       );
       const listed = async (query: string) =>
         (await search(query, tx)).json.plans.some(
-          (p: any) => p.base_plan_id === PLAN,
+          (p) => p.base_plan_id === PLAN,
         );
       expect(await listed("zip=77002&year=2026")).toBe(true);
       expect(await listed("zip=77003&year=2026")).toBe(false);
@@ -204,7 +239,7 @@ describe("native v1 catalog, geography and provenance", () => {
 
   it("returns selected standard evidence as unknown when only an off-exchange variant is loaded", async () => {
     const base = await app.request(`/v1/plans/${PLAN}?year=2026`),
-      detail = (await base.json()) as any;
+      detail = (await base.json()) as PlanDetail;
     expect(base.status).toBe(200);
     expect(detail.variant_cost_sharing_resolved).toBe(false);
     expect(detail.benefits).toEqual([]);
@@ -212,8 +247,8 @@ describe("native v1 catalog, geography and provenance", () => {
       status: "unknown",
       selected_variant_id: `${PLAN}-01`,
     });
-    expect(detail.variants[0].benefits).toHaveLength(5);
-    expect(detail.variants[0].benefits[0]).toMatchObject({
+    expect(detail.variants[0]!.benefits).toHaveLength(5);
+    expect(detail.variants[0]!.benefits[0]).toMatchObject({
       cost_sharing_raw: expect.any(Object),
       cost_sharing_parsed: expect.any(Object),
       raw: expect.any(Object),
@@ -237,15 +272,19 @@ describe("native v1 catalog, geography and provenance", () => {
   it("lists only imported carriers, networks and manifest evidence, with optional year/state filters", async () => {
     const carriers = await app.request("/v1/carriers?state=TX"),
       networks = await app.request("/v1/networks?state=TX&year=2026");
-    expect(((await carriers.json()) as any).carriers).toHaveLength(4);
-    expect(((await networks.json()) as any).networks).toHaveLength(4);
+    expect(
+      ((await carriers.json()) as { carriers: unknown[] }).carriers,
+    ).toHaveLength(4);
+    expect(
+      ((await networks.json()) as { networks: unknown[] }).networks,
+    ).toHaveLength(4);
     expect(await (await app.request("/v1/carriers?state=NY")).json()).toEqual({
       status: "unknown",
       carriers: [],
     });
     const manifest = (await (
       await app.request("/v1/data-availability?state=TX&year=2026")
-    ).json()) as any[];
+    ).json()) as AvailabilityRow[];
     expect(manifest.length).toBeGreaterThan(0);
     expect(
       manifest.every(
@@ -263,7 +302,7 @@ describe("native v1 catalog, geography and provenance", () => {
         ),
     ).toBe(true);
     expect(
-      manifest.find((row) => row.issuer_id === "12846").premium_status,
+      manifest.find((row) => row.issuer_id === "12846")!.premium_status,
     ).toBe("unsupported");
     expect(
       await (await app.request("/v1/data-availability?state=NY")).json(),
@@ -296,7 +335,7 @@ describe("native v1 household gross premiums", () => {
         ],
       }),
     );
-    expect(dob.json.quotes[0].total_cents).toBe(52928);
+    expect(dob.json.quotes[0]!.total_cents).toBe(52928);
     expect(response.headers.get("cache-control")).toBe("no-store");
   });
 
@@ -321,7 +360,7 @@ describe("native v1 household gross premiums", () => {
         dataDir: mutantDirectory,
       });
       expect(imported.status).toBe("ACTIVE");
-      const result = (await estimate(body(), tx)).json.quotes[0];
+      const result = (await estimate(body(), tx)).json.quotes[0]!;
       expect(result.total_cents).toBe(52929);
       expect(() =>
         assert.equal(result.total_cents, 52928, "CMS/oracle exact-cent check"),
@@ -333,7 +372,7 @@ describe("native v1 household gross premiums", () => {
     const variant = (
       (await (
         await app.request(`/v1/plans/${PLAN}?year=2026`)
-      ).json()) as ReturnType<typeof JSON.parse>
+      ).json()) as PlanDetail
     ).variant_ids[0];
     const tobacco = (
       await estimate(
@@ -342,7 +381,7 @@ describe("native v1 household gross premiums", () => {
           members: [{ age: 35, tobacco: true, relationship: "subscriber" }],
         }),
       )
-    ).json.quotes[0];
+    ).json.quotes[0]!;
     expect(tobacco).toMatchObject({
       plan_id: variant,
       base_plan_id: PLAN,
@@ -364,7 +403,7 @@ describe("native v1 household gross premiums", () => {
       ).toMatchObject({ status: "rated", total_cents: 52928 });
       const expired = (
         await estimate(body({ coverage_start: "2026-07-01" }), tx)
-      ).json.quotes[0];
+      ).json.quotes[0]!;
       expect(expired.status).toBe("missing");
       expect(expired).not.toHaveProperty("total_cents");
     });
@@ -377,7 +416,7 @@ describe("native v1 household gross premiums", () => {
         `UPDATE rate SET rating_method='family_tier' WHERE snapshot_id=$1 AND base_plan_id=$2`,
         [rate, PLAN],
       );
-      const result = (await estimate(body(), tx)).json.quotes[0];
+      const result = (await estimate(body(), tx)).json.quotes[0]!;
       expect(result.status).toBe("unsupported_rating_method");
       expect(result).not.toHaveProperty("total_cents");
     });
@@ -390,7 +429,7 @@ describe("native v1 household gross premiums", () => {
     await writeFile(path, JSON.stringify(document));
     try {
       await ingestRatingRules(db, path);
-      const result = (await estimate()).json.quotes[0];
+      const result = (await estimate()).json.quotes[0]!;
       expect(result.status).toBe("unsupported_rating_method");
       expect(result).not.toHaveProperty("total_cents");
     } finally {
@@ -423,7 +462,7 @@ describe("native v1 household gross premiums", () => {
               }),
               tx,
             )
-          ).json.quotes[0];
+          ).json.quotes[0]!;
           expect(result.status).toBe("unsupported_rating_method");
           expect(result).not.toHaveProperty("total_cents");
           expect(result.members).toEqual([]);
@@ -442,7 +481,7 @@ describe("native v1 household gross premiums", () => {
           })),
         }),
       )
-    ).json.quotes[0];
+    ).json.quotes[0]!;
     expect(result.status).toBe("rated");
     expect(result.members[1]).toMatchObject({
       age: 10,
@@ -451,7 +490,10 @@ describe("native v1 household gross premiums", () => {
     });
     expect(result.rate_rows_used).toHaveLength(4);
     expect(result.total_cents).toBe(
-      result.members.reduce((sum: number, m: any) => sum + m.premium_cents, 0),
+      result.members.reduce(
+        (sum: number, m: { premium_cents: number }) => sum + m.premium_cents,
+        0,
+      ),
     );
   });
 
@@ -461,7 +503,7 @@ describe("native v1 household gross premiums", () => {
         `DELETE FROM rate WHERE snapshot_id=$1 AND base_plan_id=$2 AND age_band='35'`,
         [rate, PLAN],
       );
-      const result = (await estimate(body(), tx)).json.quotes[0];
+      const result = (await estimate(body(), tx)).json.quotes[0]!;
       expect(result.status).toBe("missing");
       expect(result).not.toHaveProperty("total_cents");
     });
@@ -470,7 +512,7 @@ describe("native v1 household gross premiums", () => {
         `UPDATE rate SET individual_rate_cents=NULL WHERE snapshot_id=$1 AND base_plan_id=$2 AND age_band='35'`,
         [rate, PLAN],
       );
-      const result = (await estimate(body(), tx)).json.quotes[0];
+      const result = (await estimate(body(), tx)).json.quotes[0]!;
       expect(result.status).toBe("unknown");
       expect(result).not.toHaveProperty("total_cents");
     });
@@ -479,7 +521,7 @@ describe("native v1 household gross premiums", () => {
         `UPDATE rate SET age_band='35',raw=jsonb_set(raw,'{Age}','"35"') WHERE snapshot_id=$1 AND base_plan_id=$2 AND age_band='36'`,
         [rate, PLAN],
       );
-      const result = (await estimate(body(), tx)).json.quotes[0];
+      const result = (await estimate(body(), tx)).json.quotes[0]!;
       expect(result.status).toBe("ambiguous");
       expect(result).not.toHaveProperty("total_cents");
     });

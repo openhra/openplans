@@ -39,12 +39,53 @@ async function estimate(extra = {}) {
   });
   return {
     response,
-    json: (await response.json()) as ReturnType<typeof JSON.parse>,
+    json: (await response.json()) as QuotesResponse,
   };
+}
+interface Accumulator {
+  raw: string;
+  cents: number | null;
+}
+interface Accumulators {
+  deductibles: Record<"TEHBDedInnTier1Individual", Accumulator>;
+  moop: Record<"TEHBInnTier1IndividualMOOP", Accumulator>;
+}
+interface CostSharing extends Accumulators {
+  status: string;
+  selected_variant_id: string;
+}
+interface Variant extends Accumulators {
+  variant_plan_id: string;
+  benefits_status: string;
+  benefits: { raw: Record<string, string> }[];
+}
+interface PlanDetail {
+  variant_ids: string[];
+  csr_eligibility_status: string;
+  cost_sharing: CostSharing;
+  variants: Variant[];
+}
+interface CompatPlan extends Record<string, unknown> {
+  individual_medical_deductible: string | null;
+  individual_medical_moop: string | null;
+  primary_care_physician: string | null;
+}
+interface QuoteCostSharing extends Accumulators {
+  status: string;
+  selected_variant_id: string;
+  benefits: unknown[];
+}
+interface Quote {
+  status: string;
+  total_cents: number;
+  cost_sharing: QuoteCostSharing;
+}
+interface QuotesResponse {
+  quotes: Quote[];
 }
 async function detail(query = "", id = PLAN) {
   const response = await app.request(`/v1/plans/${id}?year=2026${query}`);
-  return { response, json: (await response.json()) as any };
+  return { response, json: (await response.json()) as PlanDetail };
 }
 beforeAll(async () => {
   directory = await mkdtemp(join(tmpdir(), "openplans-csr-"));
@@ -58,7 +99,7 @@ beforeAll(async () => {
   for (const kind of IMPORT_KINDS) {
     const path = new URL(`${kind}.csv`, root),
       data = await readFile(path),
-      f = provenance.files.find((f: any) => f.kind === kind);
+      f = provenance.files.find((f: { kind: string }) => f.kind === kind);
     const sha256 = createHash("sha256").update(data).digest("hex");
     expect(sha256).toBe(f.cut_sha256);
     sourceRows[kind] = [];
@@ -114,7 +155,7 @@ describe("real TX 2026 silver CSR variants over HTTP", () => {
       expect(variant.moop.TEHBInnTier1IndividualMOOP.raw).toBe(
         raw.TEHBInnTier1IndividualMOOP,
       );
-      expect(variant.benefits.map((b: any) => b.raw)).toEqual(
+      expect(variant.benefits.map((b) => b.raw)).toEqual(
         sourceRows["benefits-and-cost-sharing"]!.filter(
           (row) => row.PlanId === variant.variant_plan_id,
         ),
@@ -135,7 +176,7 @@ describe("real TX 2026 silver CSR variants over HTTP", () => {
     ).toBe(`${PLAN}-03`);
   });
   it("search and premium requests select the same evidence; all seven gross premiums are equal", async () => {
-    const baseline = (await estimate()).json.quotes[0];
+    const baseline = (await estimate()).json.quotes[0]!;
     expect(baseline.status).toBe("rated");
     for (const csr of [
       "00",
@@ -150,7 +191,7 @@ describe("real TX 2026 silver CSR variants over HTTP", () => {
       "csr94",
     ]) {
       const result = await estimate({ csr_variant: csr });
-      const quoted = result.json.quotes[0],
+      const quoted = result.json.quotes[0]!,
         selected = (await detail(`&csr_variant=${csr}`)).json.cost_sharing;
       expect(quoted).toMatchObject({
         status: "rated",
@@ -164,8 +205,8 @@ describe("real TX 2026 silver CSR variants over HTTP", () => {
         `/v1/plans?county=48201&year=2026&csr_variant=${csr}`,
       );
       expect(
-        ((await search.json()) as ReturnType<typeof JSON.parse>).plans[0]
-          .cost_sharing,
+        ((await search.json()) as { plans: { cost_sharing: unknown }[] })
+          .plans[0]!.cost_sharing,
       ).toEqual(selected);
     }
     for (const income of [0, 20000, 100000]) {
@@ -175,7 +216,7 @@ describe("real TX 2026 silver CSR variants over HTTP", () => {
           household_size: 1,
           tax_filing: "single",
         })
-      ).json.quotes[0];
+      ).json.quotes[0]!;
       expect(result.cost_sharing.selected_variant_id).toBe(`${PLAN}-01`);
     }
   });
@@ -213,10 +254,8 @@ describe("real TX 2026 silver CSR variants over HTTP", () => {
           headers: { authorization: `Bearer ${TOKEN}` },
           body: JSON.stringify(requestBody({ csr_variant: "csr94" })),
         });
-        const result = (
-          (await response.json()) as ReturnType<typeof JSON.parse>
-        ).quotes[0];
-        const unknown = (value: ReturnType<typeof JSON.parse>) => {
+        const result = ((await response.json()) as QuotesResponse).quotes[0]!;
+        const unknown = (value: QuoteCostSharing) => {
           assert.equal(
             value.status,
             "unknown",
@@ -236,7 +275,7 @@ describe("real TX 2026 silver CSR variants over HTTP", () => {
           "variant_cost_sharing_unknown",
         );
         expect(
-          ((await facade.json()) as ReturnType<typeof JSON.parse>).plan,
+          ((await facade.json()) as { plan: CompatPlan }).plan,
         ).toMatchObject({
           individual_medical_deductible: null,
           individual_medical_moop: null,
@@ -263,7 +302,7 @@ describe("real TX 2026 silver CSR variants over HTTP", () => {
         const response = await scoped.request(
           `/v1/plans/${PLAN}?year=2026&csr_variant=csr94`,
         );
-        const result = (await response.json()) as any;
+        const result = (await response.json()) as PlanDetail;
         expect(result.cost_sharing).toMatchObject({
           status: "available",
           benefits_status: "unknown",
@@ -271,7 +310,7 @@ describe("real TX 2026 silver CSR variants over HTTP", () => {
           deductibles: { TEHBDedInnTier1Individual: { cents: 0 } },
         });
         expect(
-          result.variants.find((v: any) => v.variant_plan_id === `${PLAN}-06`)
+          result.variants.find((v) => v.variant_plan_id === `${PLAN}-06`)!
             .benefits_status,
         ).toBe("unknown");
         const facade = await scoped.request(
@@ -282,7 +321,8 @@ describe("real TX 2026 silver CSR variants over HTTP", () => {
           "variant_cost_sharing_unknown",
         );
         expect(
-          ((await facade.json()) as any).plan.primary_care_physician,
+          ((await facade.json()) as { plan: CompatPlan }).plan
+            .primary_care_physician,
         ).toBeNull();
         throw marker;
       }),
@@ -296,7 +336,7 @@ describe("real TX 2026 silver CSR variants over HTTP", () => {
           await app.request(`/compat/v1/plans/${PLAN}?year=2026${query}`, {
             headers,
           })
-        ).json()) as any
+        ).json()) as { plan: CompatPlan }
       ).plan;
     const standard = await get(),
       csr = await get("&csr_variant=csr94");
@@ -317,14 +357,14 @@ describe("real TX 2026 silver CSR variants over HTTP", () => {
         csr_variant: "csr94",
       }),
     });
-    const result = ((await response.json()) as ReturnType<typeof JSON.parse>)
-      .plans[0];
+    const result = ((await response.json()) as { plans: CompatPlan[] })
+      .plans[0]!;
     expect(result.individual_medical_deductible).toBe(
       csr.individual_medical_deductible,
     );
     expect(result.primary_care_physician).toBe(csr.primary_care_physician);
     expect(result.premium).toBe(
-      (await estimate()).json.quotes[0].total_cents / 100,
+      (await estimate()).json.quotes[0]!.total_cents / 100,
     );
   });
 });

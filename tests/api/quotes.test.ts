@@ -24,8 +24,30 @@ import {
   quoteFixture,
 } from "./quote-fixture.js";
 
-/** Response bodies are asserted structurally, like the other route tests. */
-type Json = ReturnType<typeof JSON.parse>;
+interface CoverageItem {
+  status: string;
+  evidence: unknown[];
+}
+interface QuoteMember {
+  premium_cents: number;
+  rate_rows: { individual_tobacco_rate_cents: number }[];
+}
+interface PlanCoverage {
+  providers: CoverageItem[];
+  drugs: CoverageItem[];
+}
+interface PublicQuote extends PlanCoverage {
+  plan_id: string;
+  members: QuoteMember[];
+}
+interface CoverageEnvelope {
+  quotes: PlanCoverage[];
+  data_availability: unknown;
+}
+interface QuoteResponse extends CoverageEnvelope {
+  quotes: PublicQuote[];
+  members: { tobacco: boolean }[];
+}
 
 let fixture: Awaited<ReturnType<typeof quoteFixture>>;
 beforeAll(async () => {
@@ -41,7 +63,7 @@ const app = (options: Parameters<typeof createApp>[1] = {}) =>
   createApp(fixture.db, { premiumToken: TOKEN, ...options });
 async function quote(payload: unknown, options = {}) {
   const response = await postJson(app(options), "/v1/quotes", payload);
-  return { response, json: (await response.json()) as Json };
+  return { response, json: (await response.json()) as QuoteResponse };
 }
 const premiumBody = {
   plan_ids: [PLAN],
@@ -95,10 +117,10 @@ describe("POST /v1/quotes public tier", () => {
     const { json } = await quote(
       quoteBody({ members: [{ age: 35, tobacco: true }] }),
     );
-    const member = json.quotes[0].members[0];
-    expect(json.members[0].tobacco).toBe(true);
+    const member = json.quotes[0]!.members[0]!;
+    expect(json.members[0]!.tobacco).toBe(true);
     expect(member.premium_cents).toBe(
-      member.rate_rows[0].individual_tobacco_rate_cents,
+      member.rate_rows[0]!.individual_tobacco_rate_cents,
     );
     expect(member.premium_cents).not.toBe(README_CENTS);
   });
@@ -203,8 +225,8 @@ describe("coverage honesty with no provider or formulary feeds (negative control
     npis: ["1234567893", "1003000126"],
     rxcuis: ["860975"],
   });
-  function expectHonest(json: Json) {
-    const items = json.quotes.flatMap((q: Json) => [
+  function expectHonest(json: CoverageEnvelope) {
+    const items = json.quotes.flatMap((q: PlanCoverage) => [
       ...q.providers,
       ...q.drugs,
     ]);
@@ -221,7 +243,7 @@ describe("coverage honesty with no provider or formulary feeds (negative control
   it("reports unknown per plan, with the shared participation and coverage objects", async () => {
     const { json } = await quote(coverageBody);
     expectHonest(json);
-    expect(json.quotes[0].providers[0]).toMatchObject({
+    expect(json.quotes[0]!.providers[0]).toMatchObject({
       identity: "1234567893",
       reason: "source_set_not_available",
       requested_plan_id: PLAN,
@@ -229,11 +251,11 @@ describe("coverage honesty with no provider or formulary feeds (negative control
     const single = await app().request(
       `/v1/plans/${PLAN}/providers/1234567893?year=2026`,
     );
-    expect(json.quotes[0].providers[0]).toEqual(await single.json());
+    expect(json.quotes[0]!.providers[0]).toEqual(await single.json());
     const drug = await app().request(
       `/v1/plans/${PLAN}/drugs/860975?year=2026`,
     );
-    expect(json.quotes[0].drugs[0]).toEqual(await drug.json());
+    expect(json.quotes[0]!.drugs[0]).toEqual(await drug.json());
   });
   it("negative control: a service copy that turns missing evidence into out_of_network fails", async () => {
     const source = new URL(
@@ -282,7 +304,7 @@ describe("personalized premium quotes; the old premium-estimates name is gone (n
     expect(current.status).toBe(200);
     for (const header of ["deprecation", "sunset", "link"])
       expect(current.headers.get(header)).toBeNull();
-    const currentJson = (await current.json()) as Json;
+    const currentJson = (await current.json()) as { quotes: unknown[] };
     expect(currentJson.quotes[0]).toMatchObject({
       status: "rated",
       total_cents: README_CENTS,

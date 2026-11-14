@@ -28,7 +28,10 @@ import {
   planLineage,
   plansForCounty,
 } from "../ingest/puf/import-repository.js";
-import type { CountyPlan } from "../ingest/puf/import-repository.js";
+import type {
+  CountyPlan,
+  PlanLineage,
+} from "../ingest/puf/import-repository.js";
 import type { LocationInput } from "./validation.js";
 import { fail } from "./validation.js";
 import {
@@ -369,6 +372,16 @@ async function stateCountyPlans(
     };
   });
 }
+async function foundPlan(
+  db: SqlSession,
+  base: string,
+  year: number,
+  row: Plan | undefined,
+): Promise<Plan | null> {
+  if (row && !["NY", "VT"].includes(row.state)) return row;
+  const stateRows = await stateCatalog(db, year, undefined, base);
+  return stateRows.length ? statePlan(stateRows) : (row ?? null);
+}
 export async function findPlan(
   db: SqlSession,
   base: string,
@@ -381,9 +394,35 @@ export async function findPlan(
     WHERE p.base_plan_id=$1 AND a.plan_year=$2 AND p.plan_year=a.plan_year AND p.state=a.state`,
     [base, year],
   );
-  if (rows[0] && !["NY", "VT"].includes(rows[0].state)) return rows[0];
-  const stateRows = await stateCatalog(db, year, undefined, base);
-  return stateRows.length ? statePlan(stateRows) : (rows[0] ?? null);
+  return foundPlan(db, base, year, rows[0]);
+}
+/**
+ * findPlan for each of `bases`, in order, with one catalog query. A plan ID is the primary key
+ * of its snapshot and each state has one active catalog per year, so each ID matches one row at
+ * most. Every entry is its own object, as if each were found alone.
+ */
+export async function findPlans(
+  db: SqlSession,
+  bases: readonly string[],
+  year: number,
+): Promise<(Plan | null)[]> {
+  if (!bases.length) return [];
+  const { rows } = await db.query<Plan>(
+    `SELECT p.* FROM puf_active_catalog a
+    JOIN puf_import_file f ON f.import_id=a.import_id AND f.kind='plan-attributes'
+    JOIN plan p ON p.snapshot_id=f.snapshot_id
+    WHERE p.base_plan_id = ANY($1::text[]) AND a.plan_year=$2 AND p.plan_year=a.plan_year AND p.state=a.state`,
+    [[...new Set(bases)], year],
+  );
+  const byBase = new Map<string, Plan>();
+  for (const row of rows)
+    if (!byBase.has(row.base_plan_id)) byBase.set(row.base_plan_id, row);
+  const found = [];
+  for (const base of bases) {
+    const row = byBase.get(base);
+    found.push(await foundPlan(db, base, year, row && structuredClone(row)));
+  }
+  return found;
 }
 const SNAPSHOT_FILES_SQL = `SELECT f.kind,f.snapshot_id
     FROM puf_import_file anchor JOIN puf_import_file f ON f.import_id=anchor.import_id
@@ -421,10 +460,105 @@ export interface CostSharingOptions {
   requestedVariant?: string | null;
   allBenefits?: boolean;
 }
+export interface PlanVariantRow extends Record<string, unknown> {
+  variant_plan_id: string;
+  csr_variation_type: string;
+  variant_name: string;
+  exchange_status: string;
+  source_row: number;
+  raw: Record<string, string>;
+  published_attributes: PublishedPlanAttributes;
+}
+export interface PlanBenefitRow extends Record<string, unknown> {
+  published_plan_id: string;
+  benefit_name: string;
+  cost_sharing_raw: Record<string, string>;
+  cost_sharing_parsed: Record<string, unknown>;
+  raw: Record<string, string>;
+  snapshot_id: string;
+  source_row: number;
+}
+type VariantKey = Pick<
+  Plan,
+  "snapshot_id" | "base_plan_id" | "plan_year" | "state"
+>;
+const PLAN_VARIANT_COLUMNS = `variant_plan_id,csr_variation_type,variant_name,exchange_status,source_row,raw,
+        jsonb_strip_nulls(jsonb_build_object(${PLAN_COLUMN_KEYS.map(
+          (key) => `'${key}',raw->'${key}'`,
+        ).join(",")})) AS published_attributes`;
+const PLAN_BENEFIT_COLUMNS = `published_plan_id,benefit_name,cost_sharing_raw,cost_sharing_parsed,raw,snapshot_id,source_row`;
+/** One plan's published variants, by variant ID. */
+export function planVariantRows(db: SqlSession, plan: VariantKey) {
+  return db.query<PlanVariantRow>(
+    `SELECT ${PLAN_VARIANT_COLUMNS}
+      FROM plan_variant WHERE snapshot_id=$1 AND base_plan_id=$2 AND plan_year=$3 AND state=$4
+      ORDER BY variant_plan_id`,
+    [plan.snapshot_id, plan.base_plan_id, plan.plan_year, plan.state],
+  );
+}
+/** planVariantRows for several plans of one snapshot, year and state, in one query and the same order. */
+export function planVariantRowsForPlans(
+  db: SqlSession,
+  plan: Omit<VariantKey, "base_plan_id">,
+  bases: readonly string[],
+) {
+  return db.query<PlanVariantRow & { base_plan_id: string }>(
+    `SELECT base_plan_id,${PLAN_VARIANT_COLUMNS}
+      FROM plan_variant WHERE snapshot_id=$1 AND base_plan_id = ANY($2::text[]) AND plan_year=$3 AND state=$4
+      ORDER BY variant_plan_id`,
+    [plan.snapshot_id, bases, plan.plan_year, plan.state],
+  );
+}
+/** One plan's benefit rows: every variant's, or only the `published` variant's. */
+export function planBenefitRows(
+  db: SqlSession,
+  snapshotId: string | undefined,
+  base: string,
+  published: string | null,
+) {
+  return db.query<PlanBenefitRow>(
+    `SELECT ${PLAN_BENEFIT_COLUMNS} FROM plan_benefit
+      WHERE snapshot_id=$1 AND base_plan_id=$2 AND ($3::text IS NULL OR published_plan_id=$3)
+      ORDER BY published_plan_id,source_row`,
+    [snapshotId, base, published],
+  );
+}
+/**
+ * planBenefitRows for several plans in one query and the same order: every variant's rows, or
+ * only those of the `published` variant IDs. The caller keeps each plan's own variant.
+ */
+export function planBenefitRowsForPlans(
+  db: SqlSession,
+  snapshotId: string | undefined,
+  bases: readonly string[],
+  published: readonly string[] | null,
+) {
+  return db.query<PlanBenefitRow & { base_plan_id: string }>(
+    `SELECT base_plan_id,${PLAN_BENEFIT_COLUMNS} FROM plan_benefit
+      WHERE snapshot_id=$1 AND base_plan_id = ANY($2::text[])
+        AND ($3::text[] IS NULL OR published_plan_id = ANY($3::text[]))
+      ORDER BY published_plan_id,source_row`,
+    [snapshotId, bases, published],
+  );
+}
+/** Where planCostSharing reads a plan's variant and benefit rows. */
+export interface CostSharingRows {
+  variants: (plan: VariantKey) => Promise<{ rows: PlanVariantRow[] }>;
+  benefits: (
+    snapshotId: string | undefined,
+    base: string,
+    published: string | null,
+  ) => Promise<{ rows: PlanBenefitRow[] }>;
+}
 export async function planCostSharing(
   db: SqlSession,
   plan: Plan,
   options: CostSharingOptions = {},
+  read: CostSharingRows = {
+    variants: (key) => planVariantRows(db, key),
+    benefits: (snapshotId, base, published) =>
+      planBenefitRows(db, snapshotId, base, published),
+  },
 ) {
   const supplement = plan.state_catalog
     ? await stateDetailSource(
@@ -455,45 +589,11 @@ export async function planCostSharing(
   const [attributes, benefits] = detailPlan.state_catalog
     ? [{ rows: [] }, { rows: [] }]
     : await Promise.all([
-        db.query<{
-          variant_plan_id: string;
-          csr_variation_type: string;
-          variant_name: string;
-          exchange_status: string;
-          source_row: number;
-          raw: Record<string, string>;
-          published_attributes: PublishedPlanAttributes;
-        }>(
-          `SELECT variant_plan_id,csr_variation_type,variant_name,exchange_status,source_row,raw,
-        jsonb_strip_nulls(jsonb_build_object(${PLAN_COLUMN_KEYS.map(
-          (key) => `'${key}',raw->'${key}'`,
-        ).join(",")})) AS published_attributes
-      FROM plan_variant WHERE snapshot_id=$1 AND base_plan_id=$2 AND plan_year=$3 AND state=$4
-      ORDER BY variant_plan_id`,
-          [
-            detailPlan.snapshot_id,
-            detailPlan.base_plan_id,
-            detailPlan.plan_year,
-            detailPlan.state,
-          ],
-        ),
-        db.query<{
-          published_plan_id: string;
-          benefit_name: string;
-          cost_sharing_raw: Record<string, string>;
-          cost_sharing_parsed: Record<string, unknown>;
-          raw: Record<string, string>;
-          snapshot_id: string;
-          source_row: number;
-        }>(
-          `SELECT published_plan_id,benefit_name,cost_sharing_raw,cost_sharing_parsed,raw,snapshot_id,source_row FROM plan_benefit
-      WHERE snapshot_id=$1 AND base_plan_id=$2 AND ($3::text IS NULL OR published_plan_id=$3)
-      ORDER BY published_plan_id,source_row`,
-          [
-            files["benefits-and-cost-sharing"],
-            detailPlan.base_plan_id,
-            options.allBenefits ? null : selected,
-          ],
+        read.variants(detailPlan),
+        read.benefits(
+          files["benefits-and-cost-sharing"],
+          detailPlan.base_plan_id,
+          options.allBenefits ? null : selected,
         ),
       ]);
   if (detailPlan.state === "CA")
@@ -626,6 +726,9 @@ export async function planView(
   options: CostSharingOptions = {},
   // planCostSharing(db, plan, options), when the caller already read it.
   read?: ReturnType<typeof planCostSharing>,
+  // A plan's lineage, when the caller shares the read across plans.
+  lineage: (plan: Plan) => Promise<PlanLineage> = (plan) =>
+    planLineage(db, plan.base_plan_id, plan.plan_year, plan.state),
 ) {
   const sharing = await (read ?? planCostSharing(db, plan, options));
   if (plan.state_catalog) {
@@ -668,7 +771,7 @@ export async function planView(
   }
 
   const files = await snapshots(db, plan);
-  const [issuer, networks, lineage] = await Promise.all([
+  const [issuer, networks, ancestry] = await Promise.all([
     db.query(ISSUER_SQL, [plan.snapshot_id, plan.issuer_id]),
     db.query(NETWORK_SQL, [
       files.network,
@@ -677,7 +780,7 @@ export async function planView(
       plan.market,
       plan.dental_only,
     ]),
-    planLineage(db, plan.base_plan_id, plan.plan_year, plan.state),
+    lineage(plan),
   ]);
   return {
     base_plan_id: plan.base_plan_id,
@@ -693,7 +796,7 @@ export async function planView(
       status: networks.rows.length ? "available" : "unknown",
       records: networks.rows,
     },
-    lineage,
+    lineage: ancestry,
     on_exchange: plan.on_exchange,
     off_exchange: plan.off_exchange,
     ...(plan.premium_availability
@@ -728,6 +831,52 @@ export async function variantExists(
   );
 }
 
+export interface RequestedPlan {
+  plan: Plan | null | undefined;
+  variant: string | null;
+  full: string;
+}
+/**
+ * For each requested ID, whether its plan was found and, when the ID names a variant, whether
+ * that variant is published: `plan && (variant === null || variantExists(db, plan, full))`.
+ * One query checks every federal plan's variant. State catalog plans are checked one at a time.
+ */
+export async function requestedPlansExist(
+  db: SqlSession,
+  requested: readonly RequestedPlan[],
+): Promise<boolean[]> {
+  const federal = requested.filter(
+    (each): each is RequestedPlan & { plan: Plan; variant: string } =>
+      !!each.plan && each.variant !== null && !each.plan.state_catalog,
+  );
+  const published = new Set<string>();
+  if (federal.length) {
+    const { rows } = await db.query<{
+      snapshot_id: string;
+      variant_plan_id: string;
+    }>(
+      `SELECT snapshot_id,variant_plan_id FROM plan_variant
+      WHERE (snapshot_id,variant_plan_id) IN (SELECT * FROM unnest($1::text[],$2::text[]))`,
+      [
+        federal.map((each) => each.plan.snapshot_id),
+        federal.map((each) => each.full),
+      ],
+    );
+    for (const row of rows)
+      published.add(JSON.stringify([row.snapshot_id, row.variant_plan_id]));
+  }
+  const found: boolean[] = [];
+  for (const { plan, variant, full } of requested)
+    found.push(
+      !!plan &&
+        (variant === null ||
+          (plan.state_catalog
+            ? await variantExists(db, plan, full)
+            : published.has(JSON.stringify([plan.snapshot_id, full])))),
+    );
+  return found;
+}
+
 // Read-service persistence queries.
 export function premiumRateRows(
   db: SqlSession,
@@ -739,6 +888,20 @@ export function premiumRateRows(
     `SELECT *,effective_date::text AS effective_date,expiration_date::text AS expiration_date
     FROM rate WHERE snapshot_id=$1 AND base_plan_id=$2 AND rating_area_id=$3`,
     [snapshotId, base, area],
+  );
+}
+
+/** premiumRateRows for several plans at once, in one query. */
+export function premiumRateRowsForPlans(
+  db: SqlSession,
+  snapshotId: string | undefined,
+  bases: readonly string[],
+  area: string,
+) {
+  return db.query(
+    `SELECT *,effective_date::text AS effective_date,expiration_date::text AS expiration_date
+    FROM rate WHERE snapshot_id=$1 AND base_plan_id = ANY($2::text[]) AND rating_area_id=$3`,
+    [snapshotId, bases, area],
   );
 }
 
@@ -777,6 +940,23 @@ export function exchangeAttributeRows(
   );
 }
 
+/** exchangeAttributeRows for several plans at once, in one query and the same row order. */
+export function exchangeAttributeRowsForPlans(
+  db: SqlSession,
+  snapshotId: string,
+  bases: readonly string[],
+) {
+  return db.query<{
+    base_plan_id: string;
+    raw: Record<string, string>;
+    source_row: number;
+  }>(
+    `SELECT base_plan_id,raw,source_row FROM plan_attribute
+    WHERE snapshot_id=$1 AND base_plan_id = ANY($2::text[]) AND on_exchange ORDER BY source_row`,
+    [snapshotId, bases],
+  );
+}
+
 export function dentalBenchmarkRates(
   db: SqlSession,
   snapshotId: string | undefined,
@@ -791,6 +971,26 @@ export function dentalBenchmarkRates(
   }>(
     `SELECT raw,snapshot_id,source_row FROM rate WHERE snapshot_id=$1 AND base_plan_id=$2 AND rating_area_id=$3 AND age_band = ANY($4::text[])`,
     [snapshotId, base, area, childAgeBands],
+  );
+}
+
+/** dentalBenchmarkRates for several plans in one query, each plan's rows in source order. */
+export function dentalBenchmarkRatesForPlans(
+  db: SqlSession,
+  snapshotId: string | undefined,
+  bases: readonly string[],
+  area: string,
+  childAgeBands: string[],
+) {
+  return db.query<{
+    base_plan_id: string;
+    raw: CmsRateRow;
+    snapshot_id: string;
+    source_row: number;
+  }>(
+    `SELECT base_plan_id,raw,snapshot_id,source_row FROM rate WHERE snapshot_id=$1 AND base_plan_id = ANY($2::text[]) AND rating_area_id=$3 AND age_band = ANY($4::text[])
+      ORDER BY source_row`,
+    [snapshotId, bases, area, childAgeBands],
   );
 }
 
@@ -819,6 +1019,25 @@ export function childDentalBenefits(
     `SELECT benefit_name,raw,source_row FROM plan_benefit WHERE snapshot_id=$1 AND base_plan_id=$2
           AND benefit_name = ANY($3::text[])`,
     [snapshotId, base, names],
+  );
+}
+
+/** childDentalBenefits for several plans in one query, each plan's rows in source order. */
+export function childDentalBenefitsForPlans(
+  db: SqlSession,
+  snapshotId: string | undefined,
+  bases: readonly string[],
+  names: string[],
+) {
+  return db.query<{
+    base_plan_id: string;
+    benefit_name: string;
+    raw: Record<string, string>;
+    source_row: number;
+  }>(
+    `SELECT base_plan_id,benefit_name,raw,source_row FROM plan_benefit WHERE snapshot_id=$1 AND base_plan_id = ANY($2::text[])
+          AND benefit_name = ANY($3::text[]) ORDER BY source_row`,
+    [snapshotId, bases, names],
   );
 }
 

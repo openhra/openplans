@@ -216,6 +216,12 @@ function data(status: StatusData) {
   };
 }
 
+/** The state codes behind `data.states`, for the page's wording. null when coverage is unknown. */
+export function stateCodes(status: StatusData): string[] | null {
+  const rows = status.availability;
+  return rows ? [...new Set(rows.map((row) => row.state))].sort() : null;
+}
+
 function budget(row: PassthroughRow) {
   if (row.exhausted === null) return "unknown" as const;
   return row.exhausted ? ("exhausted" as const) : ("ok" as const);

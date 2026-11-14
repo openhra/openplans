@@ -88,27 +88,30 @@ async function unscopedCatalog() {
     new URL("../../src/services/catalog.ts", import.meta.url),
   );
   const text = await readFile(source, "utf8");
-  const mutant = text.replace(
-    "const scoped = planPageScope(db);",
-    "const scoped = db;",
-  );
-  expect(mutant).not.toBe(text);
+  // Plan views on the raw session, outside both the page scope and the request's reads.
+  const mutant = text
+    .replace("const scoped = planPageScope(db);", "const scoped = db;")
+    .replace("planView(\n          reads.db,", "planView(\n          db,");
+  expect(mutant).toContain("const scoped = db;");
+  expect(mutant).toContain("planView(\n          db,");
   // Node caches the module by URL, so it stays usable after the file is removed.
   return withMutantFile(source, mutant, (file) =>
     importMutant<typeof CatalogModule>(file, "searchPlans"),
   );
 }
 
-/** The query budget per catalog page: two per plan plus one per distinct shared lookup. */
+/**
+ * The query budget per catalog page: one per distinct shared lookup plus a fixed number. The
+ * page reads every plan's variants and benefits together, and the crosswalk check once.
+ */
 function requireBudget(
   seen: { total: number; shared: number },
-  plans: Record<string, unknown>[],
   lookups: { issuers: number; networks: number },
 ) {
   const sharedBudget = 1 + lookups.issuers + lookups.networks;
   if (seen.shared > sharedBudget)
     throw new Error(`shared lookups ${seen.shared} exceed ${sharedBudget}`);
-  if (seen.total > 2 * plans.length + sharedBudget + 10)
+  if (seen.total > sharedBudget + 10)
     throw new Error(`queries ${seen.total} exceed the page budget`);
 }
 
@@ -117,7 +120,7 @@ it("runs shared plan lookups once per page and keeps the response bytes", async 
   const result = await searchPlans(session, params);
   expect(result.plans.length).toBeGreaterThan(1);
   const lookups = await distinctLookups(result.plans);
-  requireBudget(seen, result.plans, lookups);
+  requireBudget(seen, lookups);
   expect(seen.peak).toBeLessThanOrEqual(5);
 
   // Negative control and before/after check: the unscoped copy returns identical bytes
@@ -127,9 +130,7 @@ it("runs shared plan lookups once per page and keeps the response bytes", async 
   const oldResult = await before.searchPlans(old.session, params);
   expect(JSON.stringify(oldResult)).toBe(JSON.stringify(result));
   expect(old.seen.total).toBeGreaterThan(seen.total);
-  expect(() => requireBudget(old.seen, oldResult.plans, lookups)).toThrow(
-    /exceed/,
-  );
+  expect(() => requireBudget(old.seen, lookups)).toThrow(/exceed/);
 });
 
 it("caps concurrent queries and gives every caller its own rows", async () => {

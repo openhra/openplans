@@ -10,9 +10,22 @@ import { runHealthProbe } from "./probe.js";
 import { readStatus } from "./read.js";
 import type { StatusHost } from "./read.js";
 import { applicationVersion } from "./version.js";
-import { operatorView, publicStatusSchema, publicView } from "./views.js";
+import {
+  operatorView,
+  publicStatusSchema,
+  publicView,
+  stateCodes,
+} from "./views.js";
 
-export { renderStatusHtml, escapeHtml, STYLE } from "./html.js";
+export {
+  renderStatusHtml,
+  escapeHtml,
+  HOME_URL,
+  NOT_STATES,
+  placesPhrase,
+  sourceFamily,
+  STYLE,
+} from "./html.js";
 export {
   COMPONENTS,
   DELIVERY_WINDOW_MS,
@@ -32,11 +45,12 @@ export {
   operatorView,
   publicStatusSchema,
   publicView,
+  stateCodes,
 } from "./views.js";
 export type { OperatorStatus, PublicStatus } from "./views.js";
 
 export const PLUGIN_NAME = "@openplans/plugin-status";
-export const PLUGIN_VERSION = "0.1.1";
+export const PLUGIN_VERSION = "0.1.2";
 export const PUBLIC_TTL_SECONDS = 30;
 export const PROBE_ARGV = ["status-page", "health-probe"] as const;
 
@@ -81,8 +95,12 @@ export function createStatusPlugin(
         exposure: "public",
         cache: { ttlSeconds: PUBLIC_TTL_SECONDS },
         contentType: "text/html",
-        handler: async (c) =>
-          c.html(renderStatusHtml(publicView(await read(c.get("pluginDb"))))),
+        handler: async (c) => {
+          const status = await read(c.get("pluginDb"));
+          return c.html(
+            renderStatusHtml(publicView(status), stateCodes(status)),
+          );
+        },
       });
       ctx.routes.add({
         method: "GET",
@@ -100,8 +118,9 @@ export function createStatusPlugin(
         contentType: "text/html",
         handler: async (c) => {
           c.header("Cache-Control", "no-store");
+          const status = await read(c.get("pluginDb"));
           return c.html(
-            renderStatusHtml(operatorView(await read(c.get("pluginDb")))),
+            renderStatusHtml(operatorView(status), stateCodes(status)),
           );
         },
       });

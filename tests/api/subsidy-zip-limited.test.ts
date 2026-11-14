@@ -17,7 +17,22 @@ import { replaceSyntax, rebaseImports } from "../source-mutation.js";
 // SYNTHETIC household and a SYNTHETIC service-area edit (rolled back) over real CMS Harris
 // source cuts: service area TXS003 (which holds the county's second-lowest silver plan) is
 // narrowed to part of the county, ZIP 77002 only. The requested plan sits in TXS001.
-type Json = ReturnType<typeof JSON.parse>;
+interface NativeQuote {
+  subsidy_status: string;
+  total_cents: number;
+}
+interface BenchmarkAnswer {
+  status: string;
+}
+interface CompatSearchPlan {
+  id: string;
+  premium: number;
+  premium_subsidized: number | null;
+}
+interface CompatSearch {
+  meta: { premium_tax_credit: number | null };
+  plans: CompatSearchPlan[];
+}
 let h: Awaited<ReturnType<typeof setup>>;
 beforeAll(async () => {
   h = await setup();
@@ -63,14 +78,14 @@ async function native(db: SqlSession, location: Record<string, string>) {
     },
   );
   expect(response.status).toBe(200);
-  return ((await response.json()) as Json).quotes[0];
+  return ((await response.json()) as { quotes: NativeQuote[] }).quotes[0]!;
 }
 async function route(db: SqlSession, query: string) {
   const response = await createApp(db, { premiumToken: TOKEN }).request(
     `/v1/benchmark?${query}&year=2026&ages=40`,
     { headers: { authorization: `Bearer ${TOKEN}` } },
   );
-  return (await response.json()) as Json;
+  return (await response.json()) as BenchmarkAnswer;
 }
 async function silverUnderTest(db: SqlSession) {
   // The edit must reach an on-exchange silver plan, or the tests below prove nothing.
@@ -145,12 +160,14 @@ describe("county-only quotes where a silver plan serves part of the county", () 
       return {
         status: response.status,
         gaps: response.headers.get("x-openplans-gaps") ?? "",
-        data: (await response.json()) as Json,
+        data: (await response.json()) as CompatSearch,
       };
     });
     expect(result.status).toBe(200);
     expect(result.data.meta.premium_tax_credit).toBeNull();
-    const plan = result.data.plans.find((p: Json) => p.id === PLAN);
+    const plan = result.data.plans.find(
+      (p: CompatSearchPlan) => p.id === PLAN,
+    )!;
     expect(plan.premium).toBe(before.total_cents / 100);
     expect(plan.premium_subsidized).toBeNull();
     expect(result.gaps.split(", ")).toContain("subsidy_location_requires_zip");

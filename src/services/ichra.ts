@@ -1,10 +1,9 @@
 import {
   countyState,
-  exchangeAttributeRows,
   federalCatalog,
   resolveLocation,
 } from "../api/repository.js";
-import type { Plan } from "../api/repository.js";
+import type { Plan, exchangeAttributeRows } from "../api/repository.js";
 import type { LocationInput, premiumRequest } from "../api/validation.js";
 import type { SqlSession } from "../db/database.js";
 import {
@@ -359,7 +358,7 @@ async function lcspEvidence(
       "unknown",
       question.lookBack ? "lookback_catalog_not_loaded" : "catalog_not_loaded",
     );
-  const rule = await ratingRule(db, state, year, "Individual");
+  const rule = await ratingRule(reads.db, state, year, "Individual");
   if (rule?.method !== "per_member") return refuse("unsupported_rating_method");
   // Preserve January request behavior; annual-row use is approved for months after January.
   if (
@@ -391,10 +390,9 @@ async function lcspEvidence(
   if (!offered.length) return refuse("no_silver_plans");
   const atAge: Rated[] = [],
     atBand: Rated[] = [];
+  reads.plan(offered);
   for (const plan of offered) {
-    const attributes = (
-      await exchangeAttributeRows(db, plan.snapshot_id, plan.base_plan_id)
-    ).rows;
+    const attributes = (await reads.exchangeAttributes(plan)).rows;
     const eligible = familyOffer(
       attributes,
       question.age >= 21,

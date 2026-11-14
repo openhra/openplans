@@ -7,7 +7,35 @@ import { setup } from "../compat/v1/helpers.js";
 import { connect } from "./client.js";
 
 // SYNTHETIC employee over the real, unmodified CMS TX PY2026 Harris cut (20 silver plans).
-type Json = ReturnType<typeof JSON.parse>;
+interface Lcsp {
+  monthly_cents: number;
+  evidence_refs: string[];
+}
+interface Verdict {
+  measure: string;
+  status: string;
+  affordable: boolean | null;
+  reason?: string;
+}
+interface IchraOutput {
+  status: string;
+  data: {
+    applicable_age: number;
+    lcsps: Lcsp[];
+    verdicts: Verdict[];
+    rules: { id: string; status: string }[];
+  };
+  provenance: unknown[];
+  notes: string[];
+  error: { code: string };
+}
+interface ToolResult {
+  structuredContent: IchraOutput;
+}
+interface NativeIchra extends Record<string, unknown> {
+  lcsp: { plan_ids: readonly string[]; monthly_cents: number | null };
+  verdicts: readonly unknown[];
+}
 let h: Awaited<ReturnType<typeof setup>>;
 beforeAll(async () => {
   h = await setup();
@@ -37,7 +65,7 @@ describe("MCP check_ichra_affordability", () => {
       { db: h.db },
       "check_ichra_affordability",
       input,
-    )) as Json;
+    )) as ToolResult;
     expect(result.structuredContent.error.code).toBe("AUTH_REQUIRED");
     expect(result.structuredContent.data).toBeNull();
     const anonymous = await connect({ db: h.db });
@@ -56,12 +84,12 @@ describe("MCP check_ichra_affordability", () => {
       const output = (await client.call(
         "check_ichra_affordability",
         input,
-      )) as Json;
+      )) as IchraOutput;
       expect(output.status).toBe("ok");
       const native = (await ichraAffordability(
         h.db,
         ichraRequest(input),
-      )) as Json;
+      )) as NativeIchra;
       const data = output.data;
       expect(data).toMatchObject({
         status: "calculated",
@@ -81,7 +109,7 @@ describe("MCP check_ichra_affordability", () => {
         },
         rating_area_id: "Rating Area 10",
       });
-      expect(ptc.evidence_refs.length).toBeGreaterThan(0);
+      expect(ptc!.evidence_refs.length).toBeGreaterThan(0);
       expect(employer).toMatchObject({
         use: "employer",
         identified_at_age: 14,
@@ -107,7 +135,7 @@ describe("MCP check_ichra_affordability", () => {
       const output = (await client.call("check_ichra_affordability", {
         ...input,
         plan_start: "2027-01-01",
-      })) as Json;
+      })) as IchraOutput;
       expect(output.status).toBe("unknown");
       expect(output.data).toMatchObject({
         status: "unknown",
@@ -123,7 +151,7 @@ describe("MCP check_ichra_affordability", () => {
     const result = (await callTool(granted(), "check_ichra_affordability", {
       ...input,
       safe_harbors: { location: true },
-    })) as Json;
+    })) as ToolResult;
     expect(result.structuredContent.error.code).toBe(
       "SAFE_HARBOR_INPUT_MISSING",
     );
@@ -157,16 +185,16 @@ describe("MCP check_ichra_affordability", () => {
       granted(),
       "check_ichra_affordability",
       extended,
-    )) as Json;
+    )) as ToolResult;
     const output = result.structuredContent;
     expect(output.status).toBe("ok");
     const native = (await ichraAffordability(
       h.db,
       ichraRequest(extended),
-    )) as Json;
+    )) as NativeIchra;
     expect(output.data.verdicts).toEqual(native.verdicts);
     expect(
-      output.data.verdicts.map((v: Json) => [
+      output.data.verdicts.map((v: Verdict) => [
         v.measure,
         v.status,
         v.affordable,
@@ -176,8 +204,8 @@ describe("MCP check_ichra_affordability", () => {
       ["rate_of_pay_hourly", "calculated", false],
       ["rate_of_pay_salary", "unknown", null],
     ]);
-    expect(output.data.verdicts[2].reason).toBe("rate_of_pay_salary_reduced");
-    const cited = output.data.rules.map((r: Json) => r.id);
+    expect(output.data.verdicts[2]!.reason).toBe("rate_of_pay_salary_reduced");
+    const cited = output.data.rules.map((r: { id: string }) => r.id);
     expect(cited).toContain("w2_safe_harbor");
     expect(cited).toContain("rate_of_pay_safe_harbor");
     expect(
@@ -189,7 +217,7 @@ describe("MCP check_ichra_affordability", () => {
       ...input,
       income: [{ measure: "w2", annual_cents: 3_000_000, ...months }],
     });
-    const cases: [Json, string | null][] = [
+    const cases: [unknown, string | null][] = [
       [
         w2({ w2_months_offered: 7, w2_months_employed: 6 }),
         "W2_MONTHS_OFFERED_EXCEED_EMPLOYED",
@@ -216,7 +244,7 @@ describe("MCP check_ichra_affordability", () => {
         granted(),
         "check_ichra_affordability",
         arguments_,
-      )) as Json;
+      )) as ToolResult;
       expect(result.structuredContent.data).toBeNull();
       expect(result.structuredContent.error.code).toEqual(
         code ?? expect.any(String),
@@ -228,22 +256,23 @@ describe("MCP check_ichra_affordability", () => {
       granted(),
       "check_ichra_affordability",
       input,
-    )) as Json;
+    )) as ToolResult;
     const output = result.structuredContent;
     const native = (await ichraAffordability(
       h.db,
       ichraRequest(input),
-    )) as Json;
+    )) as NativeIchra;
     expect(() =>
       assertHonest("check_ichra_affordability", output, { ichra: native }),
     ).not.toThrow();
     const cent = structuredClone(output);
-    cent.data.lcsps[0].monthly_cents += 1;
+    cent.data.lcsps[0]!.monthly_cents += 1;
     expect(() =>
       assertHonest("check_ichra_affordability", cent, { ichra: native }),
     ).toThrow("changed ICHRA LCSP");
     const flipped = structuredClone(output);
-    flipped.data.verdicts[0].affordable = !flipped.data.verdicts[0].affordable;
+    flipped.data.verdicts[0]!.affordable =
+      !flipped.data.verdicts[0]!.affordable;
     expect(() =>
       assertHonest("check_ichra_affordability", flipped, { ichra: native }),
     ).toThrow("changed ICHRA verdict");
@@ -271,7 +300,7 @@ it("MCP non-calendar look-back preserves entrant age, figures and cited rules", 
     const output = (await client.call(
       "check_ichra_affordability",
       extended,
-    )) as Json;
+    )) as IchraOutput;
     expect(output.status).toBe("ok");
     expect(output.data.applicable_age).toBe(41);
     expect(output.data.lcsps[0]).toMatchObject({
@@ -283,7 +312,7 @@ it("MCP non-calendar look-back preserves entrant age, figures and cited rules", 
     const native = (await ichraAffordability(
       h.db,
       ichraRequest(extended),
-    )) as Json;
+    )) as NativeIchra;
     expect(output.data.verdicts).toEqual(native.verdicts);
     expect(output.data.rules).toContainEqual(
       expect.objectContaining({

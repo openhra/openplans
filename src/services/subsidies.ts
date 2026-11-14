@@ -1,10 +1,4 @@
-import {
-  exchangeAttributeRows,
-  dentalBenchmarkRates,
-  federalCatalog,
-  childDentalBenefits,
-  enrollmentAttributes,
-} from "../api/repository.js";
+import { federalCatalog, enrollmentAttributes } from "../api/repository.js";
 import { stateCatalog } from "../ingest/state/catalog.js";
 import type { SqlSession } from "../db/database.js";
 import { ageOnDate, parseRateRow } from "../domain/rating/index.js";
@@ -42,15 +36,8 @@ const CHILD_DENTAL_BENEFITS = [
   "Major Dental Care - Child",
   "Orthodontia - Child",
 ];
-function attributes(
-  db: SqlSession,
-  plan: Pick<Plan, "snapshot_id" | "base_plan_id">,
-) {
-  return exchangeAttributeRows(db, plan.snapshot_id, plan.base_plan_id);
-}
 const ZIP_LIMITED = "zip_limited_service_area";
 async function dentalOffers(
-  db: SqlSession,
   request: Request,
   location: Location,
   household: SlcspHousehold,
@@ -81,8 +68,9 @@ async function dentalOffers(
   ];
   const candidates: DentalCandidate[] = [];
   const evidence = [];
+  reads.plan(plans);
   for (const plan of plans) {
-    const attr = await attributes(db, plan);
+    const attr = await reads.exchangeAttributes(plan);
     // Child-only SADPs can supply self-only policies for the children under (f)(5)(ii).
     const eligible = familyOffer(attr.rows, false, true);
     if (eligible === false) continue;
@@ -94,9 +82,8 @@ async function dentalOffers(
         issues: [`${plan.base_plan_id}: dental_coverage_eligibility_unknown`],
         evidence,
       };
-    const files = await snapshots(db, plan);
-    const rates = await dentalBenchmarkRates(
-      db,
+    const files = await snapshots(reads.db, plan);
+    const rates = await reads.dentalBenchmarkRates(
       files.rate,
       plan.base_plan_id,
       area,
@@ -187,7 +174,7 @@ export async function benchmark(
     };
   }
   const rule = state
-    ? await ratingRule(db, state, request.year, "Individual")
+    ? await ratingRule(reads.db, state, request.year, "Individual")
     : null;
   if (rule?.method !== "per_member")
     return { ...empty, status: "unsupported_rating_method" };
@@ -226,8 +213,9 @@ export async function benchmark(
   let dental: Awaited<ReturnType<typeof dentalOffers>> | null = null;
   const candidates: SlcspCandidate[] = [],
     ranked: typeof empty.lowest_silver_plans = [];
+  reads.plan(offered);
   for (const plan of offered) {
-    const attr = await attributes(db, plan);
+    const attr = await reads.exchangeAttributes(plan);
     const eligible = familyOffer(
       attr.rows,
       ages.some((age) => age >= 21),
@@ -269,9 +257,8 @@ export async function benchmark(
     let dentalAdjustment = 0;
     let dentalBenefitRows: unknown[] = [];
     if (hasPediatricMember) {
-      const files = await snapshots(db, plan);
-      const benefits = await childDentalBenefits(
-        db,
+      const files = await snapshots(reads.db, plan);
+      const benefits = await reads.childDentalBenefits(
         files["benefits-and-cost-sharing"],
         plan.base_plan_id,
         CHILD_DENTAL_BENEFITS,
@@ -292,7 +279,6 @@ export async function benchmark(
       });
       if (states.every((s) => s === "Not Covered")) {
         dental ??= await dentalOffers(
-          db,
           request,
           location,
           household,

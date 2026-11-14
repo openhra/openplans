@@ -22,6 +22,10 @@ afterAll(async () => {
   await h?.close();
 });
 
+interface WirePlan extends Record<string, unknown> {
+  networks: { name: string; provider_directory_url?: string | null }[];
+}
+
 const search = async (extra = {}) => {
   const response = await h.app.request(`${BASE}/plans/medical/search`, {
     method: "POST",
@@ -29,10 +33,16 @@ const search = async (extra = {}) => {
     body: JSON.stringify(searchBody({ ids: ["87226TX0100013"], ...extra })),
   });
   expect(response.status).toBe(200);
-  return { response, body: (await response.json()) as any };
+  return {
+    response,
+    body: (await response.json()) as {
+      coverages: unknown[];
+      plans: WirePlan[];
+    },
+  };
 };
 
-function planContract(plan: any) {
+function planContract(plan: Record<string, unknown>) {
   assertShape(
     {
       id: "synthetic-shape-only",
@@ -49,9 +59,9 @@ function planContract(plan: any) {
   assert.equal(plan.source, "cms_puf");
   assert.equal(plan.premium_source, "cms_puf");
   assert.ok(
-    [null, "both", "both_markets", "on_market", "off_market"].includes(
-      plan.plan_market,
-    ),
+    (
+      [null, "both", "both_markets", "on_market", "off_market"] as unknown[]
+    ).includes(plan.plan_market),
   );
   assert.deepEqual(plan.providers, []);
   for (const key of [
@@ -131,21 +141,21 @@ it("keeps the native intermediate contract before applying the final wire vocabu
 it("preserves nullable federal fields and omits a plan-level coverage extension", async () => {
   const { response, body } = await search();
   wirePlanContract(body.plans[0]);
-  expect(body.plans[0].premium).toBe(529.28);
+  expect(body.plans[0]!.premium).toBe(529.28);
   expect(response.headers.get("Link")).toContain("/v1/plans");
   const expanded = await search({ providers: [{ npi: "1000000000" }] });
-  expect(Object.hasOwn(expanded.body.plans[0], "providers")).toBe(false);
+  expect(Object.hasOwn(expanded.body.plans[0]!, "providers")).toBe(false);
   expect(expanded.body.coverages).toEqual([]);
   expect(expanded.response.headers.get("x-openplans-gaps")).toContain(
     "provider_and_drug_coverage_unavailable",
   );
   const drugOnly = await search({ drug_packages: [] });
-  expect(Object.hasOwn(drugOnly.body.plans[0], "providers")).toBe(false);
+  expect(Object.hasOwn(drugOnly.body.plans[0]!, "providers")).toBe(false);
 });
 
 it("negative controls: a renamed field, null-to-absent swap, wrong enum and wrong nesting fail the same contract", async () => {
   const { body } = await search();
-  const original = body.plans[0];
+  const original = body.plans[0]!;
   wirePlanContract(original);
   const renamed = structuredClone(original);
   renamed.premium_amount = renamed.premium;
@@ -157,7 +167,7 @@ it("negative controls: a renamed field, null-to-absent swap, wrong enum and wron
   const wrongEnum = structuredClone(original);
   wrongEnum.source = "synthetic-unsupported-feed";
   expect(() => wirePlanContract(wrongEnum)).toThrow();
-  const wrongNesting = structuredClone(original);
+  const wrongNesting: Record<string, unknown> = structuredClone(original);
   wrongNesting.networks = { networks: wrongNesting.networks };
   expect(() => wirePlanContract(wrongNesting)).toThrow("expected array");
   const wrongMarket = structuredClone(original);
@@ -237,13 +247,18 @@ it("keeps public identity labels and complete provenance accessible on the nativ
   const { body } = await search();
   const response = await h.app.request("/v1/plans/87226TX0100013?year=2026");
   expect(response.status).toBe(200);
-  const native = (await response.json()) as any;
-  expect(body.plans[0].carrier_name).toBe(native.issuer.marketing_names[0]);
-  expect(body.plans[0].networks.map((n: any) => n.name)).toEqual(
-    native.network.records.map((n: any) => n.network_name),
+  const native = (await response.json()) as {
+    issuer: { marketing_names: string[] };
+    network: { records: { network_name: string; snapshot_id: string }[] };
+    provenance: { snapshot_ids: unknown };
+    cost_sharing: { selected_variant_id: string };
+  };
+  expect(body.plans[0]!.carrier_name).toBe(native.issuer.marketing_names[0]);
+  expect(body.plans[0]!.networks.map((n) => n.name)).toEqual(
+    native.network.records.map((n) => n.network_name),
   );
   expect(native.provenance.snapshot_ids).toBeTruthy();
-  expect(native.network.records[0].snapshot_id).toBeTruthy();
+  expect(native.network.records[0]!.snapshot_id).toBeTruthy();
   expect(native.cost_sharing.selected_variant_id).toBeTruthy();
 });
 
@@ -300,7 +315,7 @@ function residualShapeContract(plan: Record<string, unknown>) {
 
 it("omits a blank network directory from the wire plan", async () => {
   const { body } = await search();
-  residualShapeContract(body.plans[0]);
+  residualShapeContract(body.plans[0]!);
   const view = (await (
     await h.app.request("/v1/plans/87226TX0100013?year=2026")
   ).json()) as Parameters<typeof mapPlan>[0];
@@ -322,17 +337,17 @@ it("omits a blank network directory from the wire plan", async () => {
 
 it("negative controls: an invented telehealth flag, an empty directory URL or filing keys on a federal plan fail the shape contract", async () => {
   const { body } = await search();
-  const invented = structuredClone(body.plans[0]);
+  const invented = structuredClone(body.plans[0]!);
   invented.telemedicine = true;
   expect(() => residualShapeContract(invented)).toThrow();
-  const emptyUrl = structuredClone(body.plans[0]);
-  emptyUrl.networks[0].provider_directory_url = "";
+  const emptyUrl = structuredClone(body.plans[0]!);
+  emptyUrl.networks[0]!.provider_directory_url = "";
   expect(() => residualShapeContract(emptyUrl)).toThrow();
-  const leaked = structuredClone(body.plans[0]);
+  const leaked = structuredClone(body.plans[0]!);
   leaked.plan_key = "synthetic-native-key";
   expect(() => residualShapeContract(leaked)).toThrow("plan_key");
   // Removing a required wire key still fails the base contract.
-  const missing = structuredClone(body.plans[0]);
+  const missing: Record<string, unknown> = structuredClone(body.plans[0]!);
   delete missing.networks;
   expect(() => wirePlanContract(missing)).toThrow("networks");
 });

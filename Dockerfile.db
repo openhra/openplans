@@ -1,5 +1,5 @@
 # Both the official image and PGDG's PostGIS package support arm64 and amd64.
-FROM postgres:16
+FROM postgres:16@sha256:63e83b5a3dc36a917dccb76fe1bd2ac51f1ec9c1deb47ff20d4f04233bf6eae9
 RUN apt-get update \
     && apt-get install -y --no-install-recommends postgresql-16-postgis-3 \
     && rm -rf /var/lib/apt/lists/*

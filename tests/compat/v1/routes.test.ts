@@ -5,6 +5,50 @@ import { createApp } from "../../../src/api/app.js";
 import { BASE, headers, searchBody, setup } from "./helpers.js";
 import { assertShape } from "./shape.js";
 
+interface SearchPlan {
+  id: string;
+  premium: number | null;
+  premium_subsidized: number | null;
+  premiums_by_applicant: unknown[];
+  primary_care_physician: string | null;
+  benefits: { oral_exam: unknown };
+}
+interface SearchPage {
+  meta: { total: number };
+  plans: SearchPlan[];
+}
+interface ZipCounties {
+  counties: unknown[];
+  states: unknown[];
+  zip_counties: unknown[];
+  zip_codes: { id: number; code: string }[];
+}
+interface PlanDetail {
+  plan: {
+    id: string;
+    carrier: { issuer_id: string };
+    primary_care_physician: string | null;
+    specialist: string | null;
+    generic_drugs: string | null;
+    chiropractic_services: boolean | null;
+    adult_dental: unknown;
+    network_size: unknown;
+    network_ids: string[];
+    networks: unknown[];
+    plan_documents: unknown[];
+    benefits: { oral_exam: unknown };
+  };
+}
+interface DrugSearch {
+  meta: { total: number };
+  drugs: { id: string; drug_package_ids: string[] }[];
+  drug_packages: { id: string }[];
+}
+interface CarrierList {
+  meta: { total: number };
+  carriers: { markets: string[]; lines_of_coverage: string[] }[];
+}
+
 let h: Awaited<ReturnType<typeof setup>>;
 beforeAll(async () => {
   h = await setup();
@@ -12,9 +56,9 @@ beforeAll(async () => {
 afterAll(async () => {
   await h?.close();
 });
-const get = async (path: string) => {
+const get = async <T = unknown>(path: string) => {
   const response = await h.app.request(BASE + path, { headers });
-  return { response, body: (await response.json()) as any };
+  return { response, body: (await response.json()) as T };
 };
 const search = async (body: unknown = searchBody()) => {
   const response = await h.app.request(`${BASE}/plans/medical/search`, {
@@ -22,7 +66,7 @@ const search = async (body: unknown = searchBody()) => {
     headers,
     body: JSON.stringify(body),
   });
-  return { response, body: (await response.json()) as any };
+  return { response, body: (await response.json()) as SearchPage };
 };
 
 describe("public catalog facade, native repository integration", () => {
@@ -33,7 +77,7 @@ describe("public catalog facade, native repository integration", () => {
     expect(result.body.meta.total).toBe(43);
     expect(result.body.plans).toHaveLength(43);
     expect(
-      result.body.plans.find((p: any) => p.id === "87226TX0100013"),
+      result.body.plans.find((p) => p.id === "87226TX0100013"),
     ).toMatchObject({
       premium: 529.28,
       premium_subsidized: null,
@@ -51,7 +95,9 @@ describe("public catalog facade, native repository integration", () => {
   });
 
   it("maps public geography codes and keeps public numeric joins consistent", async () => {
-    const { response, body } = await get("/zip_counties?zip_prefix=77002");
+    const { response, body } = await get<ZipCounties>(
+      "/zip_counties?zip_prefix=77002",
+    );
     expect(response.status).toBe(200);
     expect(body.counties[0]).toMatchObject({
       id: 48201,
@@ -77,12 +123,12 @@ describe("public catalog facade, native repository integration", () => {
 
   it("supports three/four-digit prefixes using only loaded exact ZCTAs", async () => {
     for (const prefix of ["770", "7700"]) {
-      const { body } = await get(`/zip_counties?zip_prefix=${prefix}`);
-      expect(body.zip_codes.length).toBeGreaterThan(0);
-      expect(body.zip_codes.every((z: any) => z.code.startsWith(prefix))).toBe(
-        true,
+      const { body } = await get<ZipCounties>(
+        `/zip_counties?zip_prefix=${prefix}`,
       );
-      expect(body.zip_codes.map((z: any) => z.code)).not.toContain("77001");
+      expect(body.zip_codes.length).toBeGreaterThan(0);
+      expect(body.zip_codes.every((z) => z.code.startsWith(prefix))).toBe(true);
+      expect(body.zip_codes.map((z) => z.code)).not.toContain("77001");
     }
   });
 
@@ -129,7 +175,7 @@ describe("public catalog facade, native repository integration", () => {
       }),
     );
     expect(one.body.meta.total).toBe(1);
-    expect(one.body.plans[0].premium_subsidized).toBeNull();
+    expect(one.body.plans[0]!.premium_subsidized).toBeNull();
     expect(one.response.headers.get("x-openplans-gaps")).toContain(
       "household_subsidies_unavailable",
     );
@@ -139,12 +185,12 @@ describe("public catalog facade, native repository integration", () => {
         applicants: [{ age: 35 }, { age: 35 }],
       }),
     );
-    expect(family.body.plans[0].premium).toBe(1058.56);
-    expect(family.body.plans[0].premiums_by_applicant).toHaveLength(2);
+    expect(family.body.plans[0]!.premium).toBe(1058.56);
+    expect(family.body.plans[0]!.premiums_by_applicant).toHaveLength(2);
     const differentAge = await search(
       searchBody({ ids: ["87226TX0100013"], applicants: [{ age: 36 }] }),
     );
-    expect(differentAge.body.plans[0].premium).toBeGreaterThan(529.28);
+    expect(differentAge.body.plans[0]!.premium).toBeGreaterThan(529.28);
   });
 
   it("retains selected variant IDs, rejects nonexistent variants, and exposes unknown quote evidence", async () => {
@@ -174,8 +220,8 @@ describe("public catalog facade, native repository integration", () => {
           headers,
           body: JSON.stringify(searchBody({ ids: ["87226TX0100013"] })),
         });
-        const result = (await response.json()) as any;
-        expect(result.plans[0].premium).toBeNull();
+        const result = (await response.json()) as SearchPage;
+        expect(result.plans[0]!.premium).toBeNull();
         expect(response.headers.get("x-openplans-gaps")).toContain(
           "premium_unknown",
         );
@@ -190,7 +236,7 @@ describe("public catalog facade, native repository integration", () => {
       "/plans/medical/87226TX0100013",
       "/plans/87226TX0100013-00?year=2026",
     ]) {
-      const result = await get(path);
+      const result = await get<PlanDetail>(path);
       expect(result.response.status).toBe(200);
       expect(result.body.plan.id).toBe(path.split("/").pop()!.split("?")[0]);
       expect(result.body.plan.carrier.issuer_id).toBe("87226");
@@ -200,25 +246,25 @@ describe("public catalog facade, native repository integration", () => {
   });
 
   it("maps explicit variant benefits and leaves an unrecorded standard variant unknown", async () => {
-    const base = await get("/plans/87226TX0100013");
+    const base = await get<PlanDetail>("/plans/87226TX0100013");
     expect(base.body.plan.primary_care_physician).toBeNull();
     expect(base.response.headers.get("x-openplans-gaps")).toContain(
       "variant_cost_sharing_unknown",
     );
-    const variant = await get("/plans/87226TX0100013-00");
+    const variant = await get<PlanDetail>("/plans/87226TX0100013-00");
     expect(variant.body.plan.primary_care_physician).toContain("Copay: $15.00");
     expect(variant.body.plan.specialist).toContain("Copay: $35.00");
     expect(variant.body.plan.generic_drugs).toContain("Copay: $3.00");
     expect(variant.body.plan.chiropractic_services).toBe(true);
     expect(variant.body.plan.adult_dental).toBeNull();
     const selected = await search(searchBody({ ids: ["87226TX0100013-00"] }));
-    expect(selected.body.plans[0].primary_care_physician).toBe(
+    expect(selected.body.plans[0]!.primary_care_physician).toBe(
       variant.body.plan.primary_care_physician,
     );
   });
 
   it("preserves unknowns for unmapped metadata and serves scoped CMS network IDs, never a vendor ID", async () => {
-    const { body, response } = await get("/plans/87226TX0100013");
+    const { body, response } = await get<PlanDetail>("/plans/87226TX0100013");
     expect(body.plan.network_size).toBeNull();
     const cmsId = /^87226-2026-TXN\d{3}-individual$/;
     expect(body.plan.network_ids).toEqual([expect.stringMatching(cmsId)]);
@@ -238,10 +284,10 @@ describe("public catalog facade, native repository integration", () => {
 
   it("maps RxNorm concepts with published NDC packages; counts concepts and keeps unknown metadata null", async () => {
     for (const term of ["lipitor", "lisinopril", "metformin"]) {
-      const result = await get(`/drugs?search_term=${term}`);
+      const result = await get<DrugSearch>(`/drugs?search_term=${term}`);
       expect(result.response.status).toBe(200);
       expect(result.body.meta.total).toBeGreaterThan(0);
-      expect(new Set(result.body.drugs.map((d: any) => d.id)).size).toBe(
+      expect(new Set(result.body.drugs.map((d) => d.id)).size).toBe(
         result.body.drugs.length,
       );
       for (const drug of result.body.drugs) {
@@ -257,35 +303,41 @@ describe("public catalog facade, native repository integration", () => {
       expect(result.response.headers.get("x-openplans-gaps")).toContain(
         "not_ndc_products",
       );
-      const page = await get(`/drugs?search_term=${term}&per_page=1&page=1`);
+      const page = await get<DrugSearch>(
+        `/drugs?search_term=${term}&per_page=1&page=1`,
+      );
       expect(page.body.drugs).toHaveLength(1);
       expect(page.body.meta.total).toBe(result.body.meta.total);
-      const ids = page.body.drugs[0].drug_package_ids;
-      expect(
-        page.body.drug_packages.every((p: any) => ids.includes(p.id)),
-      ).toBe(true);
+      const ids = page.body.drugs[0]!.drug_package_ids;
+      expect(page.body.drug_packages.every((p) => ids.includes(p.id))).toBe(
+        true,
+      );
     }
   });
 
   it("maps carrier/network lists with native filters and pagination", async () => {
-    const carriers = await get("/carriers");
+    const carriers = await get<CarrierList>("/carriers");
     expect(carriers.body.carriers.length).toBeGreaterThan(2);
-    const limited = await get("/carriers?per_page=2&page=1");
+    const limited = await get<CarrierList>("/carriers?per_page=2&page=1");
     expect(limited.body.carriers).toEqual(carriers.body.carriers.slice(0, 2));
     expect(limited.body.meta.total).toBe(carriers.body.meta.total);
-    const filtered = await get(
+    const filtered = await get<CarrierList>(
       "/carriers?state=tx&market=individual&line_of_coverage=medical",
     );
     expect(filtered.body.carriers.length).toBeGreaterThan(0);
     expect(
       filtered.body.carriers.every(
-        (c: any) =>
+        (c) =>
           c.markets.includes("individual") &&
           c.lines_of_coverage.includes("medical"),
       ),
     ).toBe(true);
-    expect((await get("/carriers?state=NY")).body.carriers).toEqual([]);
-    const networks = await get("/networks?per_page=2&page=1");
+    expect(
+      (await get<CarrierList>("/carriers?state=NY")).body.carriers,
+    ).toEqual([]);
+    const networks = await get<{ networks: unknown[] }>(
+      "/networks?per_page=2&page=1",
+    );
     expect(networks.body.networks).toHaveLength(2);
     expect(networks.body.networks[0]).toMatchObject({
       id: expect.stringMatching(/^\d{5}-2026-[A-Z]{2}N\d{3}-[a-z_()]+$/),
@@ -374,11 +426,15 @@ describe("public catalog facade, native repository integration", () => {
     expect(() =>
       assertShape({ ...fixture, synthetic_required_key: 1 }, fixture),
     ).toThrow("synthetic_required_key");
-    const extra = structuredClone(fixture) as any;
-    extra.plans[0].required_new_key = "synthetic";
+    const extra: {
+      plans: Record<string, unknown>[];
+    } = structuredClone(fixture);
+    extra.plans[0]!.required_new_key = "synthetic";
     expect(() => assertShape(extra, fixture)).toThrow("required_new_key");
-    const wrong = structuredClone(fixture) as any;
-    wrong.plans[0].premium = "1";
+    const wrong: {
+      plans: Record<string, unknown>[];
+    } = structuredClone(fixture);
+    wrong.plans[0]!.premium = "1";
     expect(() => assertShape(fixture, wrong)).toThrow("wrong primitive type");
   });
 });
@@ -451,14 +507,14 @@ describe("dental catalog support and rating gaps", () => {
           body: JSON.stringify(searchBody()),
         });
         expect(response.status).toBe(200);
-        const body = (await response.json()) as any;
+        const body = (await response.json()) as SearchPage;
         expect(body.meta.total).toBe(1);
         expect(body.plans[0]).toMatchObject({
           id: "87226TX0100013",
           stand_alone: true,
           premium: null,
         });
-        expect(body.plans[0].benefits.oral_exam).toBeNull();
+        expect(body.plans[0]!.benefits.oral_exam).toBeNull();
         if (process.env.OPENPLANS_REFERENCE_CAPTURES_DIR) {
           const capture = JSON.parse(
             await readFile(
@@ -483,7 +539,7 @@ describe("dental catalog support and rating gaps", () => {
         );
         expect(detail.status).toBe(200);
         expect(
-          ((await detail.json()) as any).plan.benefits.oral_exam,
+          ((await detail.json()) as PlanDetail).plan.benefits.oral_exam,
         ).toBeNull();
         expect(
           (
@@ -504,7 +560,7 @@ describe("dental catalog support and rating gaps", () => {
         body: JSON.stringify(searchBody(extra)),
       });
       expect(response.status).toBe(200);
-      expect(((await response.json()) as any).plans).toEqual([]);
+      expect(((await response.json()) as SearchPage).plans).toEqual([]);
       expect(response.headers.get("x-openplans-gaps")).toBeTruthy();
     }
   });

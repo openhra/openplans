@@ -7,7 +7,9 @@ import type { SqlSession } from "../db/database.js";
 import {
   countyState,
   findPlan,
+  findPlans,
   planView,
+  requestedPlansExist,
   resolveLocation,
   variantExists,
 } from "../api/repository.js";
@@ -47,7 +49,9 @@ export async function searchPlans(
   const metal = v.metal(params.metal),
     page = v.page(params.page);
   const location = await resolveLocation(db, v.location(params));
-  const reads = requestReads(db);
+  const scoped = planPageScope(db);
+  // Every read below, the page's plan views included, goes through the page scope.
+  const reads = requestReads(scoped);
   const issues = await locationIssues(db, location, year, "medical", reads);
   if (location.status !== "available" || !location.county) {
     return {
@@ -68,7 +72,9 @@ export async function searchPlans(
   ).filter((p) => metal === undefined || p.metal.toLowerCase() === metal);
   const active = await activeCatalog(db, year, countyState(location.county));
   const start = (page - 1) * 50;
-  const scoped = planPageScope(db);
+  const shown = plans.slice(start, start + 50);
+  reads.plan(shown);
+  const options = { csrVariant };
   return {
     status: active.rows.length ? "available" : "unknown",
     year,
@@ -76,8 +82,14 @@ export async function searchPlans(
     location,
     issues,
     plans: await Promise.all(
-      plans.slice(start, start + 50).map(async (plan) => ({
-        ...(await planView(scoped, plan, { csrVariant })),
+      shown.map(async (plan) => ({
+        ...(await planView(
+          reads.db,
+          plan,
+          options,
+          reads.costSharing(plan, options),
+          reads.lineage,
+        )),
         availability: {
           zip_restricted: plan.zip_restricted,
           zip_codes: plan.zip_codes,
@@ -125,12 +137,18 @@ export async function getPlan(
 export async function estimatePremiums(db: SqlSession, body: unknown) {
   const request = v.premiumRequest(body),
     plans = [];
-  for (const id of request.ids) {
-    const plan = await findPlan(db, id.base, request.year);
-    if (
-      !plan ||
-      (id.variant !== null && !(await variantExists(db, plan, id.full)))
-    )
+  const found = await findPlans(
+    db,
+    request.ids.map((id) => id.base),
+    request.year,
+  );
+  const exists = await requestedPlansExist(
+    db,
+    request.ids.map((id, index) => ({ ...id, plan: found[index] })),
+  );
+  for (const [index, id] of request.ids.entries()) {
+    const plan = found[index];
+    if (!plan || !exists[index])
       throw new ReadError({
         code: "PLAN_NOT_FOUND",
         plan_id: id.full,
@@ -140,6 +158,7 @@ export async function estimatePremiums(db: SqlSession, body: unknown) {
   }
   const location = await resolveLocation(db, request.location);
   const reads = requestReads(db);
+  reads.plan(plans.map(({ plan }) => plan));
   const subsidy = await householdSubsidy(db, request, location, reads);
   const estimates = [];
   for (const { id, plan } of plans)

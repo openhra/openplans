@@ -44,8 +44,52 @@ function request(extra: Partial<IchraRequest> = {}): IchraRequest {
     ...extra,
   };
 }
-/** Loose view of the JSON response for assertions. */
-type Result = ReturnType<typeof JSON.parse>;
+/** The response fields these assertions read. */
+interface RateRow {
+  rate_basis?: unknown;
+  rate_rows_used: readonly { effective_date: string }[];
+  rate_snapshot_id: string;
+}
+interface Lcsp {
+  coverage_month: string;
+  monthly_cents: number | null;
+  plan_ids: readonly string[];
+  silver_plan_count: number;
+  location: unknown;
+  by_basis: { ehb_portion: { status: string } };
+  provenance: Record<string, unknown> | null;
+}
+/** The service types provenance loosely; the rate evidence it carries. */
+interface RateProvenance extends Record<string, unknown> {
+  rate_rows_by_plan: readonly [RateRow, ...RateRow[]];
+}
+interface Verdict {
+  status: string;
+  affordable: boolean | null;
+  affordable_by_basis: { ehb_portion: boolean | null };
+  rule_ids: readonly string[];
+}
+interface Rule {
+  id: string;
+  status: string;
+  citations: readonly { section: string }[];
+}
+interface Result {
+  status: string;
+  reason?: string | null;
+  applicable_age: number;
+  basis_sensitive: boolean | null;
+  lcsp: Lcsp;
+  employer_lcsp: Lcsp;
+  verdicts: readonly Verdict[];
+  required_contribution_percentage_bp: number;
+  required_contribution_percentage_citations: readonly { url: string }[];
+  quote_method: string;
+  bindable_quote: boolean;
+  poverty_line?: unknown;
+  safe_harbors_applied: readonly string[];
+  rules: readonly Rule[];
+}
 async function run(extra: Partial<IchraRequest> = {}, db: SqlSession = h.db) {
   return (await ichraAffordability(db, request(extra))) as Result;
 }
@@ -106,7 +150,7 @@ function requireAnnualRow(result: Result, month: string) {
   for (const evidence of [result.lcsp, result.employer_lcsp].filter(Boolean)) {
     expect(evidence.coverage_month).toBe(month);
     expect(evidence.monthly_cents).toBe(59_205);
-    const [rate] = evidence.provenance.rate_rows_by_plan;
+    const [rate] = (evidence.provenance as RateProvenance).rate_rows_by_plan;
     expect(rate.rate_basis).toMatchObject({
       basis: "calendar_year_individual_rate",
       coverage_month: month,
@@ -159,9 +203,9 @@ describe("individual-market annual rows for a mid-year plan start", () => {
     );
     expect(result.status).toBe("calculated");
     expect(result.lcsp.monthly_cents).toBe(59_206);
-    const [rate] = result.lcsp.provenance.rate_rows_by_plan;
+    const [rate] = (result.lcsp.provenance as RateProvenance).rate_rows_by_plan;
     expect(rate).not.toHaveProperty("rate_basis");
-    expect(rate.rate_rows_used[0].effective_date).toBe("2026-07-01");
+    expect(rate.rate_rows_used[0]!.effective_date).toBe("2026-07-01");
   });
   it.each(["deleted", "expired", "wrong age"])(
     "a %s rate stays unknown instead of using another plan or date",
@@ -226,7 +270,9 @@ describe("individual-market annual rows for a mid-year plan start", () => {
           h.db,
           request({ planStart: "2026-07-01" }),
         );
-        expect(() => requireAnnualRow(result, "2026-07-01")).toThrow();
+        expect(() =>
+          requireAnnualRow(result as Result, "2026-07-01"),
+        ).toThrow();
       } finally {
         rmSync(directory, { recursive: true, force: true });
       }
@@ -275,12 +321,13 @@ describe("ICHRA affordability over the real Harris PY2026 cut", () => {
       affordable_by_basis: { gross: false, ehb_portion: true },
     });
     expect(result.required_contribution_percentage_bp).toBe(996);
-    expect(result.required_contribution_percentage_citations[0].url).toBe(
+    expect(result.required_contribution_percentage_citations[0]!.url).toBe(
       "https://www.irs.gov/pub/irs-drop/rp-25-25.pdf",
     );
     expect(result.quote_method).toBe("puf_calculation");
     expect(result.bindable_quote).toBe(false);
-    const rate = result.lcsp.provenance.rate_rows_by_plan[0];
+    const rate = (result.lcsp.provenance as RateProvenance)
+      .rate_rows_by_plan[0];
     expect(rate).toMatchObject({
       plan_id: GROSS_PLAN,
       gross_monthly_cents: 59_205,
@@ -316,7 +363,7 @@ describe("ICHRA affordability over the real Harris PY2026 cut", () => {
       plan_ids: [GROSS_PLAN],
       monthly_cents: 59_205,
     });
-    const [rate, fpl, w2] = result.verdicts;
+    const [rate, fpl, w2] = result.verdicts as [Verdict, Verdict, Verdict];
     // 130 x $20.00 x 9.96% = $258.96 < $342.05.
     expect(rate).toMatchObject({
       purpose: "employer_4980H",
@@ -425,7 +472,7 @@ describe("refusals: never affordable or unaffordable without the evidence", () =
       "requires_premium_adjustments",
     );
     expect(result.basis_sensitive).toBeNull();
-    expect(result.verdicts[0].affordable_by_basis.ehb_portion).toBeNull();
+    expect(result.verdicts[0]!.affordable_by_basis.ehb_portion).toBeNull();
   });
   it("a ZIP-limited silver plan needs the residence ZIP", async () => {
     const marker = new Error("synthetic ZIP rollback");
@@ -475,13 +522,13 @@ describe("W-2 safe harbor for a partial-year offer, 26 CFR 54.4980H-5(e)(2)(ii)(
       threshold_cents: { numerator: 29_880, denominator: 1, display: 29_880 },
       affordable: true,
     });
-    expect(at.verdicts[0].rule_ids).toContain("w2_safe_harbor");
+    expect(at.verdicts[0]!.rule_ids).toContain("w2_safe_harbor");
     const rule = at.rules.find(
       (r: { id: string }) => r.id === "w2_safe_harbor",
     );
-    expect(rule.status).toBe("proposed_reliance_permitted");
+    expect(rule!.status).toBe("proposed_reliance_permitted");
     expect(
-      rule.citations.map((c: { section: string }) => c.section).join(" "),
+      rule!.citations.map((c: { section: string }) => c.section).join(" "),
     ).toContain("(e)(2)(ii)");
     // One cent less HRA over the six months: (355,230 - 175,949) / 6 = 29,880 1/6 cents.
     const above = await partial(175_949);
@@ -498,7 +545,7 @@ describe("W-2 safe harbor for a partial-year offer, 26 CFR 54.4980H-5(e)(2)(ii)(
       threshold_cents: null,
       affordable: null,
     });
-    expect(result.verdicts[0].rule_ids).toContain("w2_safe_harbor");
+    expect(result.verdicts[0]!.rule_ids).toContain("w2_safe_harbor");
   });
   it("offered months that differ from the months available stay unknown", async () => {
     const result = await partial(175_950, {
@@ -612,7 +659,7 @@ describe("rate of pay safe harbor inputs, 26 CFR 54.4980H-5(e)(2)(iii)", () => {
       threshold_cents: { numerator: 116_532, denominator: 5, display: 23_306 },
       affordable: true,
     });
-    expect(at.verdicts[0].rule_ids).toContain("rate_of_pay_safe_harbor");
+    expect(at.verdicts[0]!.rule_ids).toContain("rate_of_pay_safe_harbor");
     const above = await hourly(430_776, 1_800);
     expect(above.verdicts[0]).toMatchObject({
       required_hra_contribution_cents: { numerator: 23_307, denominator: 1 },
@@ -646,7 +693,7 @@ describe("rate of pay safe harbor inputs, 26 CFR 54.4980H-5(e)(2)(iii)", () => {
       affordable: null,
       affordable_by_basis: { gross: null, ehb_portion: null },
     });
-    expect(reduced.verdicts[0].rule_ids).toContain("rate_of_pay_safe_harbor");
+    expect(reduced.verdicts[0]!.rule_ids).toContain("rate_of_pay_safe_harbor");
     expect(
       reduced.rules.some(
         (r: { id: string }) => r.id === "rate_of_pay_safe_harbor",
@@ -806,7 +853,7 @@ describe("non-calendar look-back and mid-year entrants", () => {
       const result = await run({ ...entrant, eligibleFrom });
       expect(result.applicable_age).toBe(age);
       expect(result.employer_lcsp.monthly_cents).toBe(cents);
-      expect(result.verdicts[0].affordable).toBe(affordable);
+      expect(result.verdicts[0]!.affordable).toBe(affordable);
     },
   );
   it("uses the supplied current worksite even though the rate month precedes it", async () => {
@@ -879,7 +926,7 @@ describe("non-calendar look-back and mid-year entrants", () => {
           pathToFileURL(path).href
         )) as typeof IchraService;
         const result = await module.ichraAffordability(h.db, request(entrant));
-        expect(() => requireEntrant(result)).toThrow();
+        expect(() => requireEntrant(result as Result)).toThrow();
       } finally {
         rmSync(directory, { recursive: true, force: true });
       }

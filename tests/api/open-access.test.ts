@@ -25,7 +25,9 @@ import { importMutant, withMutantFile } from "../mutant-file.js";
  * ICHRA checks and the compatibility API answer anonymous callers when no token or key is
  * set. They stay rate-limited, uncached and out of the logs.
  */
-type Json = ReturnType<typeof JSON.parse>;
+interface QuotedPremiums {
+  quotes: { subsidy?: unknown }[];
+}
 let h: Awaited<ReturnType<typeof setup>>;
 beforeAll(async () => {
   h = await setup();
@@ -91,9 +93,9 @@ describe("household routes are open by default", () => {
     }
     const quoted = (await (
       await send(app, "/v1/premium-quotes", premiumBody)
-    ).json()) as Json;
+    ).json()) as QuotedPremiums;
     expect(quoted.quotes[0]).toMatchObject({ status: "rated" });
-    expect(quoted.quotes[0].subsidy).toBeDefined();
+    expect(quoted.quotes[0]!.subsidy).toBeDefined();
   });
   it("a set token restricts them; off with no token closes them", async () => {
     const token = createApp(h.db, { premiumToken: "synthetic-open-token" });

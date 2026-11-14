@@ -33,6 +33,9 @@ export function post(
     }),
   });
 }
+interface ToolsListBody {
+  result: { tools: { name: string }[]; nextCursor?: string };
+}
 /** Every tool name over HTTP, following nextCursor when present. */
 export async function listedToolNames(
   app: { fetch: (request: Request) => Response | Promise<Response> },
@@ -44,7 +47,7 @@ export async function listedToolNames(
     const response = await app.fetch(
       post("tools/list", cursor ? { cursor } : {}, extra),
     );
-    const body = (await response.json()) as ReturnType<typeof JSON.parse>;
+    const body = (await response.json()) as ToolsListBody;
     names.push(...body.result.tools.map((t: { name: string }) => t.name));
     cursor = body.result.nextCursor;
     if (!cursor) break;

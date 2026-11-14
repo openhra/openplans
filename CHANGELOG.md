@@ -3,6 +3,60 @@
 Release notes for OpenPlans. Earlier releases are on the
 [GitHub releases page](https://github.com/openhra/openplans/releases).
 
+## v0.4.7
+
+This release makes the status page shorter and cuts the database queries behind pricing and
+plan searches. `/status` groups its snapshots by source, counts DC apart from the states, and
+links to plans.openhra.com. Pricing requests and plan searches read the rows for all their plans
+in one query instead of one plan at a time.
+
+It also updates Node.js to 22.23.5. It has no migrations and no backfill. See
+[Upgrading](#upgrading). Prices and plan details in API answers don't change. One provenance list
+now keeps a fixed order, as Changed below explains. `/status.json` and the `get_status` tool don't
+change. The status plugin moves to 0.1.2, so an approved plugin list needs its new hash.
+
+### Security
+
+- Node.js runtime updated to 22.23.5 (security release). The Dockerfiles now pin their base images
+  by digest.
+
+### What users notice
+
+- **A shorter status page.** `/status` groups active snapshots by source. Each source gets one
+  line with its snapshot count and ages, and its snapshots sit in a `<details>` element you can
+  open. The page used to list every snapshot in one long table. It now says "48 states and DC"
+  where it said "49 states", and it links to plans.openhra.com. `/status.json` and the
+  `get_status` tool don't change, and their `data.states` still counts DC as one place.
+
+### Changed
+
+- Benchmark and estimate responses now list the provenance of pediatric dental benefit rows in
+  source-row order. Before, that order could vary between data loads.
+
+### Fixes
+
+- **Pricing and plan requests run a fixed number of queries.** Quotes, premium estimates, the
+  silver benchmark, ICHRA affordability checks, native plan search and compatibility medical
+  searches used to read rate rows, plan attributes, cost sharing and lookups such as the rating
+  rule once for every plan. A benchmark for a household with children read child dental benefits
+  and dental rates plan by plan too. Each request now reads the lookups once and the rows for all
+  its plans in one query, so the number of queries no longer grows with the number of plans in a
+  county. With 40 extra plans in a test county, an ICHRA check went from 850 queries to 11, the
+  silver benchmark from 307 to 9, native plan search from 166 to 19 and compatibility search from
+  1,221 to 22. The count stays fixed when plans have a crosswalk, the mapping from last year's
+  plans. Each request reads every plan's prior-year IDs in one query, so with a crosswalk native
+  plan search runs 20 queries and compatibility search 23. Requests that name plans by variant ID
+  check all the IDs in one query. Prices and plan details don't change.
+
+### Upgrading
+
+- Pull the new image. There is no migration to run and no backfill.
+- The status plugin moves from 0.1.1 to 0.1.2, so its package hash changes. If you keep an
+  approved plugin list, start the new image on the side, read the plugin's version and `sha256`
+  from `/status/operator.json` as in the release preflight in `docs/plugins-operations.md`, and
+  replace the old entry.
+- The other bundled plugins keep their v0.4.6 versions and package hashes.
+
 ## v0.4.6
 
 This release adds a readiness check and makes provider searches faster. While migrations are

@@ -18,8 +18,10 @@ describe("plan-scoped identity name candidates", () => {
         : undefined,
     );
     const source = (await fixture("records"))[0];
-    const plans = source.plans.filter((p: any) =>
-      h.catalog.plans.some((c: any) => c.base_plan_id === p.plan_id),
+    const plans = source.plans.filter((p: { plan_id: string }) =>
+      h.catalog.plans.some(
+        (c: { base_plan_id: string }) => c.base_plan_id === p.plan_id,
+      ),
     );
     plan = plans[0].plan_id;
     expect(plans.length).toBeGreaterThan(1);

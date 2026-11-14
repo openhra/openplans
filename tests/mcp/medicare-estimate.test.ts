@@ -33,6 +33,7 @@ import {
 } from "../../src/mcp/medicare-estimate.js";
 import type { EstimateToolHooks } from "../../src/mcp/medicare-estimate.js";
 import { drugCostDeps } from "../../src/services/medicare-drug-cost.js";
+import type { DrugCostEstimate } from "../../src/services/medicare-drug-cost.js";
 import type * as EstimateModule from "../../src/mcp/medicare-estimate.js";
 import { configDependencies } from "../../src/mcp/policy.js";
 import { buildServer } from "../../src/mcp/server.js";
@@ -62,7 +63,53 @@ import { post } from "./transport-helpers.js";
 import { importMutant, plantMutantFile } from "../mutant-file.js";
 
 // Synthetic credentials and schedules over the fixture cut of the 2026 Q3 Part D files.
-type Json = ReturnType<typeof JSON.parse>;
+/** The parts of the JSON-RPC messages and estimate answers these tests read. */
+interface ListedTool {
+  name: string;
+  description: string;
+  inputSchema: {
+    additionalProperties?: boolean;
+    properties: Record<string, unknown>;
+  };
+}
+interface ToolsListMessage {
+  result: { tools: ListedTool[]; nextCursor?: string };
+}
+interface Figure {
+  status: string;
+  cents: number | null;
+  reason?: string | null;
+  evidence_refs: string[];
+}
+interface EvidenceItem {
+  kind: string;
+  snapshot_id: string;
+  source_rows?: number[];
+}
+interface EstimateAnswer {
+  benefit_type: unknown;
+  snapshot_ids: string[];
+  evidence: EvidenceItem[];
+  fills: { figures: { patient_pay: Figure } }[];
+  plan_figures: { standard_deductible: Figure };
+}
+interface Provenance {
+  snapshot_id: string;
+}
+interface ToolOutput {
+  status: string;
+  error: unknown;
+  data: EstimateAnswer | null;
+  provenance: Provenance[];
+}
+interface CallMessage {
+  error?: unknown;
+  result: {
+    structuredContent: ToolOutput;
+    content: { text: string }[];
+    isError?: boolean;
+  };
+}
 const MCP_TOKEN = "synthetic-mcp-estimate-grant";
 const API_TOKEN = "synthetic-api-estimate-grant";
 const PLAN = "H0028-042-0";
@@ -95,7 +142,7 @@ function switches(partD: boolean, estimator: boolean) {
 }
 
 /** The JSON-RPC message from a JSON or single-event SSE response. */
-async function rpc(response: Response): Promise<Json> {
+async function rpc<T = unknown>(response: Response): Promise<T> {
   const text = await response.text();
   if (!response.headers.get("content-type")?.includes("text/event-stream"))
     return JSON.parse(text);
@@ -135,7 +182,7 @@ const grantedDeps = (db: SqlSession = unusedDb): McpDependencies => ({
 
 async function listed(deps: McpDependencies) {
   const app = createMcpHttpFromServer(deps);
-  return rpc(await app(post("tools/list")));
+  return rpc<ToolsListMessage>(await app(post("tools/list")));
 }
 /** A bare stateless handler over buildServer, so discovery is tested apart from HTTP policy. */
 function createMcpHttpFromServer(deps: McpDependencies) {
@@ -204,7 +251,7 @@ describe("estimate_medicare_drug_costs discovery", () => {
     expect(Buffer.byteLength(JSON.stringify(body)) + 512).toBeLessThanOrEqual(
       MAX_TOOL_LIST_BYTES,
     );
-    const tool = body.result.tools.at(-1);
+    const tool = body.result.tools.at(-1)!;
     expect(tool.inputSchema.additionalProperties).toBe(false);
     expect(Object.keys(tool.inputSchema.properties)).not.toContain(
       "benefit_type",
@@ -312,22 +359,22 @@ describe("estimate_medicare_drug_costs over the fixture Part D files", () => {
     );
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store");
-    const result = (await rpc(response)).result;
+    const result = (await rpc<CallMessage>(response)).result;
     const output = result.structuredContent;
     expect(estimateOutputSchema.safeParse(output).success).toBe(true);
     expect(output.error, JSON.stringify(output.error)).toBeNull();
     expect(output.data).toEqual(routeBody);
-    expect(JSON.parse(result.content[0].text)).toEqual(output);
+    expect(JSON.parse(result.content[0]!.text)).toEqual(output);
 
     // Benefit evidence cites CMS rows; the envelope names each cited snapshot.
-    expect(output.data.benefit_type).toMatchObject({ origin: "pbp_filing" });
+    expect(output.data!.benefit_type).toMatchObject({ origin: "pbp_filing" });
     const sources = new Map(
-      output.provenance.map((s: Json) => [s.snapshot_id, s]),
+      output.provenance.map((s): [string, Provenance] => [s.snapshot_id, s]),
     );
     expect(sources.size).toBeGreaterThan(0);
-    for (const id of output.data.snapshot_ids)
+    for (const id of output.data!.snapshot_ids)
       expect(sources.get(id)).toMatchObject({ status: "available" });
-    const rows = output.data.evidence.filter((e: Json) =>
+    const rows = output.data!.evidence.filter((e) =>
       ["source_row", "pbp_row"].includes(e.kind),
     );
     expect(rows.length).toBeGreaterThan(0);
@@ -336,7 +383,7 @@ describe("estimate_medicare_drug_costs over the fixture Part D files", () => {
         status: "available",
       });
     // No prices are loaded: the fill amount is unknown with a reason, and so is the envelope.
-    const fill = output.data.fills[0];
+    const fill = output.data!.fills[0]!;
     expect(fill.figures.patient_pay).toMatchObject({
       status: "unknown",
       cents: null,
@@ -382,7 +429,9 @@ describe("estimate_medicare_drug_costs over the fixture Part D files", () => {
     switches(true, true);
     // No MCP token, household tools open to anonymous callers: the estimate stays closed.
     const open = mcpApp({});
-    const listedOpen = await rpc(await open.fetch(post("tools/list")));
+    const listedOpen = await rpc<ToolsListMessage>(
+      await open.fetch(post("tools/list")),
+    );
     expect(
       listedOpen.result.tools.map((t: { name: string }) => t.name),
     ).toContain("quote_premiums");
@@ -406,9 +455,9 @@ describe("estimate_medicare_drug_costs over the fixture Part D files", () => {
     }
     const allowed = await app.fetch(call(bearer));
     expect(allowed.status).toBe(200);
-    expect((await rpc(allowed)).result.structuredContent.status).not.toBe(
-      "error",
-    );
+    expect(
+      (await rpc<CallMessage>(allowed)).result.structuredContent.status,
+    ).not.toBe("error");
     // Direct calls without the grant are refused before any read.
     const direct = await callEstimateTool(
       { ...grantedDeps(unusedDb), medicareEstimateGrant: false },
@@ -504,7 +553,7 @@ describe("estimate_medicare_drug_costs over the fixture Part D files", () => {
     // Over the transport the SDK schema or the tool refuses it; no estimate comes back.
     const app = mcpApp({ OPENPLANS_MCP_TOKEN: MCP_TOKEN });
     const response = await app.fetch(call(bearer, asserted[0]));
-    const body = await rpc(response);
+    const body = await rpc<CallMessage>(response);
     expect(
       body.error !== undefined ||
         body.result.structuredContent?.status === "error" ||
@@ -537,7 +586,7 @@ describe("estimate_medicare_drug_costs over the fixture Part D files", () => {
       0,
       hooks,
     );
-    const output = result.structuredContent as Json;
+    const output = result.structuredContent as ToolOutput;
     if (output.error) return false;
     try {
       assertEstimateHonest(output, JSON.parse(text));
@@ -551,9 +600,9 @@ describe("estimate_medicare_drug_costs over the fixture Part D files", () => {
     switches(true, true);
     expect(await sameAsHttp(estimateToolHooks)).toBe(true);
     const result = await callEstimateTool(grantedDeps(loaded.db), args());
-    const data = (result.structuredContent as Json).data;
+    const data = (result.structuredContent as ToolOutput).data!;
     expect(
-      data.evidence.filter((item: Json) => item.kind === "source_rows").length,
+      data.evidence.filter((item) => item.kind === "source_rows").length,
     ).toBeGreaterThan(0);
     // Planted mutant: the tool lists county rows one by one while HTTP groups them.
     const diverged: EstimateToolHooks = {
@@ -574,45 +623,47 @@ describe("estimate_medicare_drug_costs over the fixture Part D files", () => {
   it("the honesty check refuses changed figures, lost sources and denial words", async () => {
     switches(true, true);
     const result = await callEstimateTool(grantedDeps(loaded.db), args());
-    const output = result.structuredContent as Json;
+    const output = result.structuredContent as ToolOutput;
     const canonical = structuredClone(output.data);
-    expect(() => assertEstimateHonest(output, canonical)).not.toThrow();
-    const tamper = (edit: (copy: Json) => void, against = canonical) => {
+    expect(() =>
+      assertEstimateHonest(output, canonical as DrugCostEstimate),
+    ).not.toThrow();
+    const tamper = (edit: (copy: ToolOutput) => void, against = canonical) => {
       const copy = structuredClone(output);
       edit(copy);
-      return () => assertEstimateHonest(copy, against);
+      return () => assertEstimateHonest(copy, against as DrugCostEstimate);
     };
     // A plausible invented cent.
     expect(
       tamper((c) => {
-        c.data.plan_figures.standard_deductible.cents += 1;
+        c.data!.plan_figures.standard_deductible.cents! += 1;
       }),
     ).toThrow(/INTERNAL_HONESTY_CHECK/);
     // A cited snapshot missing from provenance.
     expect(tamper((c) => c.provenance.pop())).toThrow(/INTERNAL_HONESTY_CHECK/);
     // An unknown relabelled as a coverage denial, even if the service said it.
     const denied = structuredClone(canonical);
-    denied.fills[0].figures.patient_pay.reason = "not_covered";
+    denied!.fills[0]!.figures.patient_pay.reason = "not_covered";
     expect(
       tamper((c) => {
-        c.data.fills[0].figures.patient_pay.reason = "not_covered";
+        c.data!.fills[0]!.figures.patient_pay.reason = "not_covered";
       }, denied),
     ).toThrow(/INTERNAL_HONESTY_CHECK/);
     // A value figure without evidence.
     const bare = structuredClone(canonical);
-    bare.plan_figures.standard_deductible.evidence_refs = [];
+    bare!.plan_figures.standard_deductible.evidence_refs = [];
     expect(
       tamper((c) => {
-        c.data.plan_figures.standard_deductible.evidence_refs = [];
+        c.data!.plan_figures.standard_deductible.evidence_refs = [];
       }, bare),
     ).toThrow(/INTERNAL_HONESTY_CHECK/);
     // A grouped county row lost from its group.
     expect(
       tamper((c) => {
-        const group = c.data.evidence.find(
-          (item: Json) => item.kind === "source_rows",
+        const group = c.data!.evidence.find(
+          (item) => item.kind === "source_rows",
         );
-        group.source_rows.pop();
+        group!.source_rows!.pop();
       }),
     ).toThrow(/INTERNAL_HONESTY_CHECK/);
     // Envelope status must follow the answer: partial or unknown is never ok.
@@ -761,7 +812,9 @@ describe("negative controls", () => {
         const handler = createMcpHandler(() => build(grantedDeps()), {
           legacy: "stateless",
         });
-        const body = await rpc(await handler.fetch(post("tools/list")));
+        const body = await rpc<ToolsListMessage>(
+          await handler.fetch(post("tools/list")),
+        );
         await handler.close();
         expect(
           body.result.tools.map((t: { name: string }) => t.name),

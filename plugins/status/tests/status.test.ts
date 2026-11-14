@@ -150,6 +150,10 @@ const FORBIDDEN_NAME =
 const LOCATION =
   /\/(?:Users|Volumes|home|var|tmp|app|data|etc|srv)\/|:\/\/|localhost|127\.0\.0\.1|postgres|[a-z0-9._-]+@[a-z0-9-]+\.[a-z]/i;
 
+// The header link home is the only URL a status page may carry.
+const withoutHome = (html: string) =>
+  html.replace('<nav><a href="https://plans.openhra.com/">', "<nav><a>");
+
 function leaks(body: unknown): string[] {
   const names = keyPaths(body)
     .map((path) => path.split(".").at(-1)!)
@@ -443,17 +447,21 @@ describe("@openplans/plugin-status", () => {
       /@media \(prefers-color-scheme: dark\) \{\s*:root \{ --bg: #121212; --fg: #ececec;/,
     );
     expect(html).toContain("--bg: #ffffff; --fg: #1a1a1a;");
-    expect(html).not.toMatch(/<script|<link|<img|src=|@import|https?:\/\//i);
+    expect(html).toContain('<nav><a href="https://plans.openhra.com/">');
+    expect(withoutHome(html)).not.toMatch(
+      /<script|<link|<img|src=|@import|https?:\/\//i,
+    );
+    expect(html).toContain("<details><summary>synthetic-fresh <span");
     expect(html).toContain("synthetic-fresh");
     expect(html).not.toContain("synthetic-fresh.1");
-    expect(html).not.toMatch(LOCATION);
+    expect(withoutHome(html)).not.toMatch(LOCATION);
     const operator = await (
       await api.request("/status/operator", bearer(OPERATOR))
     ).text();
     expect(operator).toContain("synthetic-fresh.1");
     expect(operator).toContain("Coverage by issuer");
-    expect(operator).not.toMatch(/<script|<link|https?:\/\//i);
-    expect(operator).not.toMatch(LOCATION);
+    expect(withoutHome(operator)).not.toMatch(/<script|<link|https?:\/\//i);
+    expect(withoutHome(operator)).not.toMatch(LOCATION);
   });
 
   it("escapes every value it prints", () => {
@@ -918,14 +926,14 @@ describe("host data from core", () => {
     expect(body.plugins).toEqual([
       {
         name: PLUGIN_NAME,
-        version: "0.1.1",
+        version: "0.1.2",
         apiVersion: "0.1",
         sha256: sha,
         enabled: true,
       },
     ]);
     expect(identities(body.plugins)).toEqual(
-      identities([{ name: PLUGIN_NAME, version: "0.1.1", sha256: sha! }]),
+      identities([{ name: PLUGIN_NAME, version: "0.1.2", sha256: sha! }]),
     );
     const pass = body.passthrough.find(
       (row: { id: string }) => row.id === "synthetic-pass",
@@ -951,7 +959,7 @@ describe("host data from core", () => {
     expect(text).not.toContain("hit_rate");
     const html = await (await api.request("/status")).text();
     expect(html).not.toContain(sha);
-    expect(html).not.toMatch(LOCATION);
+    expect(withoutHome(html)).not.toMatch(LOCATION);
     resetPassThrough();
   });
 
@@ -1025,7 +1033,7 @@ describe("host data from core", () => {
   it("planted mutant: a wrong plugin hash fails the approved-list comparison", async () => {
     const sha = (await packageSha256(statusRoot))!;
     const approved = identities([
-      { name: PLUGIN_NAME, version: "0.1.1", sha256: sha },
+      { name: PLUGIN_NAME, version: "0.1.2", sha256: sha },
     ]);
     const read = await plantMutant(
       readFile,

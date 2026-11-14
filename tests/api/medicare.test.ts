@@ -5,15 +5,52 @@ import { outputSchemas } from "../../src/mcp/schemas.js";
 import { loadedDatabase } from "../ingest/medicare/helpers.js";
 import type { Loaded } from "../ingest/medicare/helpers.js";
 
-type Json = ReturnType<typeof JSON.parse>;
+interface ListedPlan {
+  plan_key: string;
+  plan_benefit_package: { websites: { formulary: string } };
+  premiums_monthly: { part_d_basic: { cents: number } };
+  snp: { type: string } | null;
+}
+interface PlansBody {
+  plans: ListedPlan[];
+  part_d_drug_data: unknown;
+}
+interface ErrorBody {
+  error: { code: string };
+}
+interface PlanDetailBody {
+  plan_key: string;
+  contract_star_ratings: { measures: { overall: unknown } };
+  service_area_summary: { states: string[] };
+  part_d: { low_income_premium_subsidy: { status: string } };
+}
+interface BenefitsBody {
+  status: string;
+  tables: { fields: { field: string }[] }[];
+  notes: string[];
+}
+interface ServiceAreaBody {
+  plan_benefit_package: {
+    areas: { county_name: string; county_fips: string[] }[];
+    zip_level_area: { reason: string };
+  };
+}
+interface LineageBody {
+  from_prior_year: { rows: unknown[] };
+  to_next_year: unknown;
+}
+interface AvailabilityBody {
+  years: unknown[];
+  county_codes: unknown[];
+}
 
 describe("/v1/medicare (CY2026 fixtures cut from real CMS files)", () => {
   let loaded: Loaded;
-  let get: (path: string) => Promise<{ status: number; body: Json }>;
+  let get: <T = unknown>(path: string) => Promise<{ status: number; body: T }>;
   beforeAll(async () => {
     loaded = await loadedDatabase();
     const app = createApp(loaded.db, { premiumToken: undefined });
-    get = async (path) => {
+    get = async <T>(path: string): Promise<{ status: number; body: T }> => {
       const response = await app.request(path);
       return { status: response.status, body: await response.json() };
     };
@@ -21,7 +58,7 @@ describe("/v1/medicare (CY2026 fixtures cut from real CMS files)", () => {
   afterAll(async () => loaded?.cleanup());
 
   it("lists plans in a county with the published Harris County values (golden)", async () => {
-    const { status, body } = await get(
+    const { status, body } = await get<PlansBody>(
       "/v1/medicare/plans?county_fips=48201&year=2026&type=ma_pd",
     );
     expect(status).toBe(200);
@@ -31,7 +68,7 @@ describe("/v1/medicare (CY2026 fixtures cut from real CMS files)", () => {
       as_of: "202609",
       quote_method: "filed_public",
     });
-    const plan = body.plans.find((p: Json) => p.plan_key === "H0028-042-0");
+    const plan = body.plans.find((p) => p.plan_key === "H0028-042-0");
     expect(plan).toMatchObject({
       name: "Humana Gold Plus H0028-042 (HMO)",
       plan_type: "HMO",
@@ -65,7 +102,7 @@ describe("/v1/medicare (CY2026 fixtures cut from real CMS files)", () => {
       },
       availability: { county: "available", partial_county: false },
     });
-    expect(plan.plan_benefit_package.websites.formulary).toMatch(
+    expect(plan!.plan_benefit_package.websites.formulary).toMatch(
       /^https:\/\/www\.humana\.com\//,
     );
     expect(body.part_d_drug_data).toEqual({
@@ -75,29 +112,25 @@ describe("/v1/medicare (CY2026 fixtures cut from real CMS files)", () => {
   });
 
   it("includes PDPs filed for All Counties of the state and filters by type and SNP type", async () => {
-    const pdp = await get(
+    const pdp = await get<PlansBody>(
       "/v1/medicare/plans?county_fips=48201&year=2026&type=pdp",
     );
-    expect(pdp.body.plans.map((p: Json) => p.plan_key).sort()).toEqual([
+    expect(pdp.body.plans.map((p) => p.plan_key).sort()).toEqual([
       "S4802-013-0",
       "S4802-155-0",
     ]);
-    const negative = pdp.body.plans.find(
-      (p: Json) => p.plan_key === "S4802-155-0",
-    );
-    expect(negative.premiums_monthly.part_d_basic.cents).toBeLessThan(0);
-    const snp = await get(
+    const negative = pdp.body.plans.find((p) => p.plan_key === "S4802-155-0");
+    expect(negative!.premiums_monthly.part_d_basic.cents).toBeLessThan(0);
+    const snp = await get<PlansBody>(
       "/v1/medicare/plans?county_fips=48201&year=2026&snp_type=Dual-Eligible",
     );
-    expect(snp.body.plans.map((p: Json) => p.plan_key)).toEqual([
-      "H0028-032-0",
-    ]);
-    expect(snp.body.plans[0].snp.type).toBe("Dual-Eligible");
-    const la = await get("/v1/medicare/plans?county_fips=06037&year=2026");
-    expect(la.body.plans.map((p: Json) => p.plan_key)).toContain("H0504-015-0");
-    expect(la.body.plans.map((p: Json) => p.plan_key)).not.toContain(
-      "S4802-013-0",
+    expect(snp.body.plans.map((p) => p.plan_key)).toEqual(["H0028-032-0"]);
+    expect(snp.body.plans[0]!.snp!.type).toBe("Dual-Eligible");
+    const la = await get<PlansBody>(
+      "/v1/medicare/plans?county_fips=06037&year=2026",
     );
+    expect(la.body.plans.map((p) => p.plan_key)).toContain("H0504-015-0");
+    expect(la.body.plans.map((p) => p.plan_key)).not.toContain("S4802-013-0");
   });
 
   it("serves unknown, never an empty catalog, for a year that is not loaded", async () => {
@@ -116,18 +149,20 @@ describe("/v1/medicare (CY2026 fixtures cut from real CMS files)", () => {
   });
 
   it("validates input", async () => {
-    expect((await get("/v1/medicare/plans?year=2026")).body.error.code).toBe(
-      "ZIP_OR_COUNTY_REQUIRED",
-    );
+    expect(
+      (await get<ErrorBody>("/v1/medicare/plans?year=2026")).body.error.code,
+    ).toBe("ZIP_OR_COUNTY_REQUIRED");
     expect(
       (await get("/v1/medicare/plans?county_fips=48201&year=2026&type=gold"))
         .status,
     ).toBe(400);
     expect(
-      (await get("/v1/medicare/plans/H28-042-0?year=2026")).body.error.code,
+      (await get<ErrorBody>("/v1/medicare/plans/H28-042-0?year=2026")).body
+        .error.code,
     ).toBe("INVALID_PLAN_KEY");
     expect(
-      (await get("/v1/medicare/plans/H0028-999-0?year=2026")).body.error.code,
+      (await get<ErrorBody>("/v1/medicare/plans/H0028-999-0?year=2026")).body
+        .error.code,
     ).toBe("PLAN_NOT_FOUND");
     expect(
       (
@@ -139,7 +174,9 @@ describe("/v1/medicare (CY2026 fixtures cut from real CMS files)", () => {
   });
 
   it("plan detail adds contract star ratings and a service-area summary", async () => {
-    const { body } = await get("/v1/medicare/plans/H0028_042_0?year=2026");
+    const { body } = await get<PlanDetailBody>(
+      "/v1/medicare/plans/H0028_042_0?year=2026",
+    );
     expect(body.plan_key).toBe("H0028-042-0");
     expect(body.contract_star_ratings.measures.overall).toEqual({
       status: "rated",
@@ -153,16 +190,16 @@ describe("/v1/medicare (CY2026 fixtures cut from real CMS files)", () => {
   });
 
   it("benefits are served as filed with dictionary titles and code labels", async () => {
-    const { body } = await get(
+    const { body } = await get<BenefitsBody>(
       "/v1/medicare/plans/H0028-042-0/benefits?year=2026&table=pbp_section_d",
     );
     expect(body.status).toBe("available");
-    const fields = body.tables[0].fields;
+    const fields = body.tables[0]!.fields;
     expect(
-      fields.find((f: Json) => f.field === "pbp_d_out_pocket_amt"),
+      fields.find((f) => f.field === "pbp_d_out_pocket_amt"),
     ).toMatchObject({ value: "3450.00", title: "In Network MOOP Amount" });
     expect(
-      fields.find((f: Json) => f.field === "pbp_d_out_pocket_amt_yn"),
+      fields.find((f) => f.field === "pbp_d_out_pocket_amt_yn"),
     ).toMatchObject({ value: "1", value_label: "Yes" });
     expect(body.notes.join(" ")).toMatch(
       /not a statement that a service is not covered/,
@@ -170,11 +207,11 @@ describe("/v1/medicare (CY2026 fixtures cut from real CMS files)", () => {
   });
 
   it("service area maps PlanArea SSA codes to FIPS", async () => {
-    const { body } = await get(
+    const { body } = await get<ServiceAreaBody>(
       "/v1/medicare/plans/H0504-015-0/service-area?year=2026",
     );
     const la = body.plan_benefit_package.areas.filter(
-      (a: Json) => a.county_name === "Los Angeles",
+      (a) => a.county_name === "Los Angeles",
     );
     expect(la.length).toBeGreaterThan(0);
     for (const area of la) expect(area.county_fips).toEqual(["06037"]);
@@ -184,7 +221,7 @@ describe("/v1/medicare (CY2026 fixtures cut from real CMS files)", () => {
   });
 
   it("lineage reads the crosswalk and reports the next year as not loaded", async () => {
-    const { body } = await get(
+    const { body } = await get<LineageBody>(
       "/v1/medicare/plans/H0028-042-0/lineage?year=2026",
     );
     expect(body.from_prior_year.rows[0]).toMatchObject({
@@ -199,7 +236,9 @@ describe("/v1/medicare (CY2026 fixtures cut from real CMS files)", () => {
   });
 
   it("data availability lists families and keeps Part D pending by default", async () => {
-    const { body } = await get("/v1/medicare/data-availability");
+    const { body } = await get<AvailabilityBody>(
+      "/v1/medicare/data-availability",
+    );
     expect(body.years).toHaveLength(1);
     expect(body.years[0]).toMatchObject({
       contract_year: 2026,

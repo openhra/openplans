@@ -50,6 +50,11 @@ async function rollback(run: (tx: SqlSession) => Promise<void>) {
     }),
   ).rejects.toBe(marker);
 }
+interface LocationQuote {
+  total_cents?: number;
+  rating_area_id: unknown;
+  rating_area_provenance: unknown;
+}
 async function quote(tx: SqlSession, county: string, id: string, zip?: string) {
   const response = await createApp(tx, { premiumToken: token }).request(
     "/v1/premium-quotes",
@@ -69,14 +74,22 @@ async function quote(tx: SqlSession, county: string, id: string, zip?: string) {
     },
   );
   expect(response.status).toBe(200);
-  return ((await response.json()) as ReturnType<typeof JSON.parse>).quotes[0];
+  return ((await response.json()) as { quotes: LocationQuote[] }).quotes[0]!;
+}
+interface ListedPlan {
+  base_plan_id: string;
+  premium_availability: Record<string, unknown>;
+}
+interface ManifestEntry {
+  issuer_id: string;
+  rate_rows: number;
 }
 async function listed(tx: SqlSession, county: string, zip?: string) {
   const response = await createApp(tx).request(
     `/v1/plans?county=${county}&year=2026${zip ? `&zip=${zip}` : ""}`,
   );
   expect(response.status).toBe(200);
-  return ((await response.json()) as any).plans;
+  return ((await response.json()) as { plans: ListedPlan[] }).plans;
 }
 
 // Explicitly synthetic AK catalog/geography derived from TX test rows. These prices
@@ -97,8 +110,8 @@ async function syntheticAlaska(tx: SqlSession) {
 it("county pricing and listing availability share the same published area and provenance", async () => {
   const premium = await quote(db, "48201", plan, "77002");
   const available = (await listed(db, "48201", "77002")).find(
-    (p: any) => p.base_plan_id === plan,
-  ).premium_availability;
+    (p) => p.base_plan_id === plan,
+  )!.premium_availability;
   expect(available).toEqual({
     status: "available",
     rating_area_id: premium.rating_area_id,
@@ -113,7 +126,7 @@ it("manifest requires rating geography as well as supported policy and rates", a
       "/v1/data-availability?state=TX&year=2026",
     );
     expect(response.status).toBe(200);
-    const entries = (await response.json()) as any[];
+    const entries = (await response.json()) as ManifestEntry[];
     expect(entries.find((e) => e.issuer_id === "87226")).toMatchObject({
       premium_status: "unknown",
       premium_reason: "UNRESOLVED_RATING_AREA",
@@ -158,7 +171,7 @@ it("serves a synthetic national-size manifest without exhausting database connec
   );
   expect(response.status).toBe(200);
   expect(peak).toBeLessThanOrEqual(4);
-  const entries = (await response.json()) as any[];
+  const entries = (await response.json()) as ManifestEntry[];
   expect(entries.length).toBeGreaterThan(40);
   expect(
     entries
@@ -176,8 +189,8 @@ it("uses ZIP3 for Alaska; county-only and missing ZIP3 evidence stay unknown wit
       total_cents: 52928,
     });
     const available = (await listed(tx, "02020", "99501")).find(
-      (p: any) => p.base_plan_id === syntheticAkPlan,
-    ).premium_availability;
+      (p) => p.base_plan_id === syntheticAkPlan,
+    )!.premium_availability;
     expect(available).toMatchObject({
       status: "available",
       rating_area_id: "Rating Area 1",
@@ -197,8 +210,8 @@ it("uses ZIP3 for Alaska; county-only and missing ZIP3 evidence stay unknown wit
       expect(result).not.toHaveProperty("total_cents");
       const p = (
         await listed(tx, "02020", removePrefix ? "99501" : undefined)
-      ).find((p: any) => p.base_plan_id === syntheticAkPlan);
-      expect(p.premium_availability).toEqual({
+      ).find((p) => p.base_plan_id === syntheticAkPlan);
+      expect(p!.premium_availability).toEqual({
         status: "unknown",
         reason: "UNRESOLVED_RATING_AREA",
       });
@@ -221,9 +234,9 @@ it("negative control: a synthetic ZIP3 mapped to two areas is ambiguous, never p
     });
     expect(result).not.toHaveProperty("total_cents");
     const p = (await listed(tx, "02020", "99501")).find(
-      (p: any) => p.base_plan_id === syntheticAkPlan,
+      (p) => p.base_plan_id === syntheticAkPlan,
     );
-    expect(p.premium_availability).toEqual({
+    expect(p!.premium_availability).toEqual({
       status: "ambiguous",
       reason: "UNRESOLVED_RATING_AREA",
     });

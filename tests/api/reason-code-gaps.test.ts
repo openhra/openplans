@@ -11,7 +11,13 @@ import { setup, TOKEN, headers, searchBody } from "../compat/v1/helpers.js";
 
 // SYNTHETIC households and a SYNTHETIC service-area edit (rolled back) over the TX fixture cut.
 // The fixture loads no NY or VT state catalog and no ZCTA rows for ZIP 10001.
-type Json = ReturnType<typeof JSON.parse>;
+interface NativeIssues {
+  issues: string[];
+}
+interface McpLocationOutput {
+  error: unknown;
+  data: { location_issues: string[] };
+}
 let h: Awaited<ReturnType<typeof setup>>;
 beforeAll(async () => {
   h = await setup();
@@ -85,14 +91,15 @@ async function nativeJson(db: SqlSession, path: string, body?: unknown) {
         },
   );
   expect(response.status, path).toBe(200);
-  return (await response.json()) as Json;
+  return (await response.json()) as NativeIssues;
 }
 const mcp = async (
   db: SqlSession,
   tool: "search_plans" | "quote_plans",
   input: unknown,
 ) =>
-  (await callTool({ db: db as never }, tool, input)).structuredContent as Json;
+  (await callTool({ db: db as never }, tool, input))
+    .structuredContent as McpLocationOutput;
 
 describe("county-only requests where a plan serves part of the county", () => {
   it("compatibility search names zip_limited_service_area, with and without income", async () => {

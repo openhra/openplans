@@ -42,12 +42,25 @@ for (const [path, text, rule] of [
     "/* eslint-disable no-alert */\nexport const value = 1;",
     null,
   ],
+  [
+    "tests/hidden-any.ts",
+    "export type Body = ReturnType<typeof JSON.parse>;",
+    "no-restricted-syntax",
+  ],
   ["scripts/server.mjs", "document.title = 'server';", "no-undef"],
   ["scripts/module.mjs", "require('node:fs');", "no-undef"],
 ]) {
   const [result] = await eslint.lintText(text, { filePath: path });
   assert(result.messages.some((message) => message.ruleId === rule));
   assert(result.errorCount > 0);
+}
+// The hidden-any ban stays narrow: other ReturnType<typeof ...> uses still lint clean.
+{
+  const [result] = await eslint.lintText(
+    "export type Text = ReturnType<typeof JSON.stringify>;\nexport type Clock = ReturnType<typeof Date.now>;",
+    { filePath: "tests/typed.ts" },
+  );
+  assert.deepEqual(result.messages, []);
 }
 const options = await prettier.resolveConfig(
   resolve(packageRoot, "package.json"),
@@ -274,5 +287,5 @@ assert.throws(
   /Unapproved inline suppression/,
 );
 console.log(
-  `lint setup: PASS (undefined reference, type import, nested ternary, stale disable, server globals, formatting, payload mutation, baseline expansion/replacement/staleness, moved statements and inline bypass rejected; ${current.fixture_sources.length} fixture sources selected)`,
+  `lint setup: PASS (undefined reference, type import, hidden any, nested ternary, stale disable, server globals, formatting, payload mutation, baseline expansion/replacement/staleness, moved statements and inline bypass rejected; ${current.fixture_sources.length} fixture sources selected)`,
 );

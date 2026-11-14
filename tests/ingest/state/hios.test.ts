@@ -111,6 +111,9 @@ async function rollback(run: (tx: SqlSession) => Promise<void>) {
     }),
   ).rejects.toBe(marker);
 }
+interface Quote extends Record<string, unknown> {
+  status: string;
+}
 async function quote(
   tx: SqlSession,
   lookup: { plan_keys?: string[]; plan_ids?: string[] },
@@ -133,7 +136,7 @@ async function quote(
     },
   );
   expect(response.status).toBe(200);
-  return ((await response.json()) as ReturnType<typeof JSON.parse>).quotes[0];
+  return ((await response.json()) as { quotes: Quote[] }).quotes[0]!;
 }
 beforeAll(async () => {
   directory = await mkdtemp(join(tmpdir(), "openplans-vt-hios-"));
@@ -222,7 +225,7 @@ it("has no HIOS ID without supplemental evidence; joins automatically when a com
     "/v1/plans?county=50007&year=2026",
   );
   expect(listed.status).toBe(200);
-  expect(((await listed.json()) as any).plans).toEqual(
+  expect(((await listed.json()) as { plans: unknown[] }).plans).toEqual(
     expect.arrayContaining([
       expect.objectContaining({
         hios_id: id,

@@ -21,7 +21,19 @@ import {
 } from "../ingest/medicare/helpers.js";
 import type { Loaded } from "../ingest/medicare/helpers.js";
 
-type Json = ReturnType<typeof JSON.parse>;
+interface StatusBody {
+  status: string;
+  reason?: string;
+}
+interface DrugsBody extends StatusBody {
+  packages: unknown[];
+  tier_cost_sharing: { tier: number }[];
+  average_unit_cost: { caveat: string };
+  tier_labels: { status: string };
+}
+interface PharmaciesBody extends StatusBody {
+  pharmacies: { npi: string; nppes: unknown }[];
+}
 const all = [...coreTables, "pharmacy_network", "pricing"] as const;
 
 async function cache(dataDir: string, bytes: Buffer) {
@@ -40,7 +52,7 @@ async function cache(dataDir: string, bytes: Buffer) {
 describe("Part D public use files (Q3 2026 cut from the real file)", () => {
   let loaded: Loaded;
   let report: Awaited<ReturnType<typeof importSpuf>>;
-  let get: (path: string) => Promise<{ status: number; body: Json }>;
+  let get: <T = unknown>(path: string) => Promise<{ status: number; body: T }>;
   beforeAll(async () => {
     loaded = await loadedDatabase();
     report = await importSpuf(
@@ -49,7 +61,7 @@ describe("Part D public use files (Q3 2026 cut from the real file)", () => {
       all,
     );
     const app = createApp(loaded.db, { premiumToken: undefined });
-    get = async (path) => {
+    get = async <T>(path: string): Promise<{ status: number; body: T }> => {
       const response = await app.request(path);
       return { status: response.status, body: await response.json() };
     };
@@ -77,7 +89,7 @@ describe("Part D public use files (Q3 2026 cut from the real file)", () => {
       status: "unknown",
       reason: "pending_terms_review",
     });
-    const pharmacies = await get(
+    const pharmacies = await get<StatusBody>(
       "/v1/medicare/plans/H0028-042-0/pharmacies?year=2026&zip=77002",
     );
     expect(pharmacies.body.reason).toBe("pending_terms_review");
@@ -85,7 +97,7 @@ describe("Part D public use files (Q3 2026 cut from the real file)", () => {
 
   it("serves the formulary listing, tier cost sharing and average unit cost when on", async () => {
     vi.stubEnv("OPENPLANS_MEDICARE_PART_D", "on");
-    const { body } = await get(
+    const { body } = await get<DrugsBody>(
       "/v1/medicare/plans/H0028-042-0/drugs?year=2026&rxcui=860975",
     );
     expect(body).toMatchObject({
@@ -99,14 +111,12 @@ describe("Part D public use files (Q3 2026 cut from the real file)", () => {
       prior_authorization: false,
     });
     expect(body.tier_cost_sharing.length).toBeGreaterThan(0);
-    expect(body.tier_cost_sharing.every((row: Json) => row.tier === 1)).toBe(
-      true,
-    );
+    expect(body.tier_cost_sharing.every((row) => row.tier === 1)).toBe(true);
     expect(body.average_unit_cost.caveat).toMatch(
       /not a price at any pharmacy/,
     );
     expect(body.tier_labels.status).toBe("unknown");
-    const absent = await get(
+    const absent = await get<StatusBody>(
       "/v1/medicare/plans/H0028-042-0/drugs?year=2026&rxcui=310965",
     );
     expect(absent.body.status).toBe("not_listed");
@@ -115,7 +125,7 @@ describe("Part D public use files (Q3 2026 cut from the real file)", () => {
 
   it("lists network pharmacies by NPI and ZIP, leaving names to NPPES", async () => {
     vi.stubEnv("OPENPLANS_MEDICARE_PART_D", "on");
-    const { body } = await get(
+    const { body } = await get<PharmaciesBody>(
       "/v1/medicare/plans/H0028-042-0/pharmacies?year=2026&zip=77030",
     );
     expect(body.status).toBe("available");

@@ -14,6 +14,9 @@ import {
 import { stateCatalog } from "../../../src/ingest/state/catalog.js";
 import { coreMigrations, testDatabase } from "../../pglite.js";
 
+interface StateSource {
+  records: { issuer: string; plan_name: string }[];
+}
 const load = async (name: string) =>
   JSON.parse(
     await readFile(
@@ -94,12 +97,15 @@ it("serves separately named off-exchange Silver designs with cited PDF evidence 
     "/v1/plans?county=50007&year=2026",
   );
   expect(response.status).toBe(200);
-  const list = (await response.json()) as any;
+  const list = (await response.json()) as {
+    total: number;
+    plans: { plan_key: string }[];
+  };
   expect(list.total).toBe(10); // 2 unchanged original gold fixtures + 8 real new designs.
   for (const source of supplement.sources)
     for (const record of source.records) {
       const plan = list.plans.find(
-        (p: any) => p.plan_key === `${record.issuer}:${record.plan_name}`,
+        (p) => p.plan_key === `${record.issuer}:${record.plan_name}`,
       );
       expect(plan).toMatchObject({
         metal: "Silver",
@@ -157,9 +163,8 @@ it("prices all 32 published family tiers verbatim; age and tobacco never change 
             }),
           });
           expect(response.status).toBe(200);
-          const quote = (
-            (await response.json()) as ReturnType<typeof JSON.parse>
-          ).quotes[0];
+          const quote = ((await response.json()) as { quotes: unknown[] })
+            .quotes[0];
           expect(quote).toMatchObject({
             status: "rated",
             hios_id: null,
@@ -225,8 +230,8 @@ it("compatibility searches preserve off-market flags and do not put internal lab
         headers: { "content-type": "application/json", "X-Api-Key": token },
         body: JSON.stringify({
           fips_code: "50007",
-          ids: supplement.sources.flatMap((s: any) =>
-            s.records.map((r: any) => `${r.issuer}:${r.plan_name}`),
+          ids: supplement.sources.flatMap((s: StateSource) =>
+            s.records.map((r) => `${r.issuer}:${r.plan_name}`),
           ),
           applicants: [{ age: 40 }],
           enrollment_date: "2026-01-01",
@@ -234,7 +239,7 @@ it("compatibility searches preserve off-market flags and do not put internal lab
       },
     );
     expect(response.status).toBe(200);
-    const plans = ((await response.json()) as any).plans;
+    const plans = ((await response.json()) as { plans: unknown[] }).plans;
     expect(plans).toHaveLength(8);
     for (const plan of plans)
       expect(plan).toMatchObject({

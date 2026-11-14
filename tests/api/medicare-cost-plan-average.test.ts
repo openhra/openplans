@@ -39,7 +39,10 @@ import {
   estimateProvenanceProblems,
   figureOut,
 } from "../../src/services/medicare-drug-cost.js";
-import type { DrugCostDeps } from "../../src/services/medicare-drug-cost.js";
+import type {
+  DrugCostDeps,
+  DrugCostEstimate,
+} from "../../src/services/medicare-drug-cost.js";
 import {
   loadedDatabase,
   lookup,
@@ -48,7 +51,49 @@ import {
 } from "../ingest/medicare/helpers.js";
 import type { Loaded } from "../ingest/medicare/helpers.js";
 
-type Json = ReturnType<typeof JSON.parse>;
+/** The parts of an estimate answer these tests read. */
+interface Figure {
+  status: string;
+  cents: number | null;
+  minimum_cents?: number;
+  maximum_cents?: number;
+  reason?: string | null;
+  evidence_refs: string[];
+}
+interface Fill {
+  price: {
+    figures: {
+      gross: Figure;
+      unit_cost_total: Figure;
+      total_lowest_fee: Figure;
+      total_highest_fee: Figure;
+    };
+  };
+  after: { gross_covered_drug_cost: Figure };
+}
+interface EvidenceItem {
+  id: string;
+  kind: string;
+  fee_type?: string;
+  source_sha256?: string[];
+  first_source_row?: number;
+}
+interface EstimateAnswer {
+  status: string;
+  reason?: string;
+  fills: Fill[];
+  assumptions: string[];
+  evidence: EvidenceItem[];
+  snapshot_ids: string[];
+}
+interface ToolOutput {
+  error: unknown;
+  data: EstimateAnswer | null;
+  notes: string[];
+}
+interface AvailabilityBody {
+  years: { contract_year: number; part_d_drug_cost_estimates?: unknown }[];
+}
 const TOKEN = "synthetic-plan-average-grant";
 const PLAN = "H0028-042-0";
 const PATH = `/v1/medicare/plans/${PLAN}/drug-cost-estimates?year=2026`;
@@ -165,11 +210,12 @@ afterAll(async () => {
   await loaded?.cleanup();
 });
 
-const fillOf = (answer: Json) => answer.fills[0];
+const fillOf = (answer: { fills?: Fill[] }) => answer.fills![0];
 const ask = async (
   deps: MedicareRouteDeps = medicareRouteDeps,
   body = schedule(),
-) => (await post(routerApp(loaded.db, deps), body)).json();
+): Promise<EstimateAnswer> =>
+  (await post(routerApp(loaded.db, deps), body)).json();
 
 /** The setting on and no prices loaded: the answer names why, and nothing is calculated. */
 async function noCalculationWithoutPrices(
@@ -240,7 +286,7 @@ async function boundsKept(service: Partial<DrugCostDeps>): Promise<boolean> {
   );
   vi.unstubAllEnvs();
   if (response.status !== 200) return false;
-  const output = tool.structuredContent as Json;
+  const output = tool.structuredContent as ToolOutput;
   const gross = fillOf(output.data ?? {})?.price?.figures?.gross;
   return (
     output.error === null &&
@@ -292,11 +338,11 @@ describe("plan-average prices before they are loaded", () => {
 
   it("keeps cms_plan_average out of data-availability until prices are loaded", async () => {
     switches(true);
-    const body = await (
+    const body: AvailabilityBody = await (
       await routerApp(loaded.db).request("/v1/medicare/data-availability")
     ).json();
-    const year = body.years.find((item: Json) => item.contract_year === 2026);
-    expect(year.part_d_drug_cost_estimates).toMatchObject({
+    const year = body.years.find((item) => item.contract_year === 2026);
+    expect(year!.part_d_drug_cost_estimates).toMatchObject({
       price_basis: ["none"],
       pricing: {
         status: "unknown",
@@ -327,7 +373,7 @@ describe("plan-average prices once loaded", () => {
   it("bounds the gross cost by the lowest and highest fee and keeps the unit cost total", async () => {
     switches(true);
     const answer = await ask();
-    const fill = fillOf(answer);
+    const fill = fillOf(answer)!;
     expect(fill.price).toMatchObject({
       basis: "cms_plan_average",
       unit_cost: "0.0860",
@@ -360,8 +406,8 @@ describe("plan-average prices once loaded", () => {
   it("cites the pricing row and each fee range with its snapshot, file, SHA-256 and row", async () => {
     switches(true);
     const answer = await ask();
-    const cited = new Set(fillOf(answer).price.figures.gross.evidence_refs);
-    const items = answer.evidence.filter((item: Json) => cited.has(item.id));
+    const cited = new Set(fillOf(answer)!.price.figures.gross.evidence_refs);
+    const items = answer.evidence.filter((item) => cited.has(item.id));
     const snapshot = answer.snapshot_ids.find((id: string) =>
       id.startsWith("cms-partd-spuf-quarterly-2026"),
     );
@@ -374,8 +420,8 @@ describe("plan-average prices once loaded", () => {
         fields: ["UNIT_COST"],
       }),
     );
-    const fees = items.filter((item: Json) => item.kind === "fee_range");
-    expect(fees.map((item: Json) => item.fee_type).sort()).toEqual([
+    const fees = items.filter((item) => item.kind === "fee_range");
+    expect(fees.map((item) => item.fee_type).sort()).toEqual([
       "brand",
       "generic",
       "selected",
@@ -388,7 +434,7 @@ describe("plan-average prices once loaded", () => {
         channel: "standard_retail",
         days_supply: 30,
       });
-      expect(fee.source_sha256[0]).toMatch(/^[0-9a-f]{64}$/);
+      expect(fee.source_sha256![0]).toMatch(/^[0-9a-f]{64}$/);
       expect(fee.first_source_row).toBeGreaterThan(1);
     }
   });
@@ -399,7 +445,7 @@ describe("plan-average prices once loaded", () => {
       medicareRouteDeps,
       schedule({ channel: "standard_mail" }),
     );
-    expect(fillOf(mail).price.figures.gross).toMatchObject({
+    expect(fillOf(mail)!.price.figures.gross).toMatchObject({
       status: "unknown",
       reason: "unit_cost_retail_only",
     });
@@ -408,7 +454,7 @@ describe("plan-average prices once loaded", () => {
       medicareRouteDeps,
       schedule({ channel: "preferred_retail" }),
     );
-    expect(fillOf(preferred).price.figures.gross).toMatchObject({
+    expect(fillOf(preferred)!.price.figures.gross).toMatchObject({
       status: "unknown",
       reason: "dispensing_fee_unknown",
     });
@@ -418,7 +464,7 @@ describe("plan-average prices once loaded", () => {
         fills: [{ ...schedule().fills[0], unit: "tablet" }],
       }),
     );
-    expect(fillOf(tablets).price.figures.gross).toMatchObject({
+    expect(fillOf(tablets)!.price.figures.gross).toMatchObject({
       status: "unknown",
       reason: "quantity_unit_not_ndc_unit",
     });
@@ -426,10 +472,10 @@ describe("plan-average prices once loaded", () => {
 
   it("lists cms_plan_average in data-availability only with the setting on, and hides the section with the estimator off", async () => {
     const section = async () => {
-      const body = await (
+      const body: AvailabilityBody = await (
         await routerApp(loaded.db).request("/v1/medicare/data-availability")
       ).json();
-      return body.years.find((item: Json) => item.contract_year === 2026)
+      return body.years.find((item) => item.contract_year === 2026)!
         .part_d_drug_cost_estimates;
     };
     switches(true);
@@ -454,13 +500,15 @@ describe("plan-average prices once loaded", () => {
       year: 2026,
       ...schedule(),
     });
-    const output = tool.structuredContent as Json;
+    const output = tool.structuredContent as ToolOutput;
     expect(output.error, JSON.stringify(output.error)).toBeNull();
     expect(estimateOutputSchema.safeParse(output).success).toBe(true);
     expect(output.data).toEqual(route);
     expect(output.notes.join(" ")).toContain("never one cost");
     expect(boundsPresentedAsCost(output.data)).toEqual([]);
-    expect(() => assertEstimateHonest(output, route)).not.toThrow();
+    expect(() =>
+      assertEstimateHonest(output, route as DrugCostEstimate),
+    ).not.toThrow();
   });
 
   it("the MCP honesty check refuses a bound passed off as an exact cost", async () => {
@@ -470,12 +518,12 @@ describe("plan-average prices once loaded", () => {
       year: 2026,
       ...schedule(),
     });
-    const output = tool.structuredContent as Json;
+    const output = tool.structuredContent as ToolOutput;
     // The same edit on both sides, as if the service itself had written it.
-    const tampered = (edit: (gross: Json) => void) => {
+    const tampered = (edit: (gross: Figure) => void) => {
       const copy = structuredClone(output);
-      edit(fillOf(copy.data).price.figures.gross);
-      return () => assertEstimateHonest(copy, copy.data);
+      edit(fillOf(copy.data!)!.price.figures.gross);
+      return () => assertEstimateHonest(copy, copy.data as DrugCostEstimate);
     };
     expect(tampered((gross) => (gross.cents = LOWEST))).toThrow(
       /INTERNAL_HONESTY_CHECK/,

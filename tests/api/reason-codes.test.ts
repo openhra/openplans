@@ -22,7 +22,22 @@ import { rebaseImports, replaceSyntax } from "../source-mutation.js";
 // One row per code in src/api/reason-codes.ts. SYNTHETIC households and a SYNTHETIC
 // service-area edit (rolled back) over the TX fixture cut, which loads no NY or VT state
 // catalog and no ZCTA rows for ZIP 10001.
-type Json = ReturnType<typeof JSON.parse>;
+interface McpQuoteOutput {
+  error: unknown;
+  data: {
+    quotes: {
+      subsidy_status: string;
+      subsidy?: {
+        reason?: string | null;
+        benchmark: { issues: string[] };
+      } | null;
+    }[];
+  };
+}
+interface McpPlansOutput {
+  error: unknown;
+  data: { location_issues: string[] };
+}
 type CompatRoutes = (db: SqlSession) => Hono;
 let h: Awaited<ReturnType<typeof setup>>;
 let directory: string;
@@ -160,12 +175,12 @@ async function surfaces(
       members: body.members,
       household: { income_annual: 31_300, size: 1, tax_filing: "single" },
     })
-  ).structuredContent as Json;
+  ).structuredContent as McpQuoteOutput;
   const plans = (await callTool(deps, "search_plans", { year: 2026, location }))
-    .structuredContent as Json;
+    .structuredContent as McpPlansOutput;
   expect(quote.error).toBeNull();
   expect(plans.error).toBeNull();
-  const estimate = quote.data.quotes[0];
+  const estimate = quote.data.quotes[0]!;
   const mcp = [
     estimate.subsidy_status,
     estimate.subsidy?.reason,

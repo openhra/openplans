@@ -44,7 +44,65 @@ import {
 import type { Loaded } from "../ingest/medicare/helpers.js";
 
 // Synthetic credential and schedules over the fixture cut of the 2026 Q3 Part D files.
-type Json = ReturnType<typeof JSON.parse>;
+/** The parts of an estimate answer these tests read. */
+interface Figure {
+  status: string;
+  cents: number | null;
+  reason?: string | null;
+  evidence_refs: string[];
+}
+interface EvidenceItem {
+  id: string;
+  kind: string;
+  field?: string;
+  section?: string;
+  table?: string;
+  fields?: string[];
+  source_rows?: number[];
+  values?: Record<string, string>;
+}
+interface Fill {
+  listing: {
+    status: string;
+    reason?: string | null;
+    packages: { proxy_ndc: string }[];
+  };
+  filed_cost_sharing: { evidence_refs: string[] }[];
+  figures: {
+    patient_pay: Figure;
+    troop_increment: Figure;
+    gross_above_threshold: Figure;
+  };
+  classification: {
+    insulin: { origin: string };
+    program: { origin: string };
+  };
+  before: { troop: Figure };
+  derivation: unknown;
+}
+interface EstimateAnswer {
+  status: string;
+  reason?: string;
+  opening_origin: string;
+  snapshot_ids: string[];
+  benefit_type: { evidence_refs: string[] };
+  plan_figures: {
+    plan_deductible: Figure;
+    standard_deductible: Figure;
+    out_of_pocket_threshold: Figure;
+  };
+  fills: Fill[];
+  gaps: string[];
+  totals: {
+    premiums: unknown;
+    calculable_subtotal: unknown;
+    patient_pay: unknown;
+  };
+  evidence: EvidenceItem[];
+}
+interface AvailabilityBody {
+  years: { contract_year: number; part_d_drug_cost_estimates?: unknown }[];
+}
 const TOKEN = "synthetic-estimate-grant";
 const PLAN = "H0028-042-0";
 const PATH = `/v1/medicare/plans/${PLAN}/drug-cost-estimates?year=2026`;
@@ -203,7 +261,7 @@ describe("Part D drug-cost estimates over HTTP", () => {
     switches(true, true);
     const response = await post(app, schedule());
     expect(response.status).toBe(200);
-    const body = await response.json();
+    const body: EstimateAnswer = await response.json();
     expect(body).toMatchObject({
       plan_key: PLAN,
       contract_year: 2026,
@@ -228,7 +286,7 @@ describe("Part D drug-cost estimates over HTTP", () => {
       cents: 61500,
     });
     expect(body.plan_figures.out_of_pocket_threshold.cents).toBe(210000);
-    const [fill] = body.fills;
+    const [fill] = body.fills as [Fill];
     expect(fill).toMatchObject({
       fill_id: FILL_ID,
       tier: 1,
@@ -236,7 +294,7 @@ describe("Part D drug-cost estimates over HTTP", () => {
       status: "unknown",
     });
     expect(fill.listing).toMatchObject({ status: "listed", product: "single" });
-    expect(fill.listing.packages[0].proxy_ndc).toBe("70010049105");
+    expect(fill.listing.packages[0]!.proxy_ndc).toBe("70010049105");
     expect(fill.filed_cost_sharing.length).toBeGreaterThan(0);
     for (const row of fill.filed_cost_sharing)
       expect(row.evidence_refs.length).toBeGreaterThan(0);
@@ -259,7 +317,7 @@ describe("Part D drug-cost estimates over HTTP", () => {
     });
     expect(estimateProvenanceProblems(body)).toEqual([]);
     expect(JSON.stringify(body)).not.toMatch(/not[ _-]?covered/i);
-    const ids = body.evidence.map((item: Json) => item.id);
+    const ids = body.evidence.map((item) => item.id);
     expect(new Set(ids).size).toBe(ids.length);
     // Byte-stable for the same request.
     const again = await (await post(app, schedule())).text();
@@ -268,23 +326,22 @@ describe("Part D drug-cost estimates over HTTP", () => {
 
   it("labels a supplied opening state and cites it, leaving unsettled amounts unknown", async () => {
     switches(true, true);
-    const body = await (
+    const body: EstimateAnswer = await (
       await post(app, schedule({ opening_state: catastrophic }))
     ).json();
     expect(body.opening_origin).toBe("caller_assertion");
-    const fill = body.fills[0];
+    const fill = body.fills[0]!;
     const troop = fill.before.troop;
     expect(troop).toMatchObject({ status: "value", cents: 210000 });
-    const cited = body.evidence.filter((item: Json) =>
+    const cited = body.evidence.filter((item) =>
       troop.evidence_refs.includes(item.id),
     );
-    expect(cited.map((item: Json) => item.kind)).toEqual(
+    expect(cited.map((item) => item.kind)).toEqual(
       expect.arrayContaining(["source_row", "rule", "request"]),
     );
     expect(
       cited.some(
-        (item: Json) =>
-          item.kind === "request" && item.field === "opening_state",
+        (item) => item.kind === "request" && item.field === "opening_state",
       ),
     ).toBe(true);
     // Past the threshold the enrollee pays $0 in every valid reading of the open insulin, vaccine
@@ -306,13 +363,11 @@ describe("Part D drug-cost estimates over HTTP", () => {
       "pricing_not_loaded",
     );
     const rules = body.evidence.filter(
-      (item: Json) =>
+      (item) =>
         fill.figures.patient_pay.evidence_refs.includes(item.id) &&
         item.kind === "rule",
     );
-    expect(rules.some((item: Json) => /Catastrophic/.test(item.section))).toBe(
-      true,
-    );
+    expect(rules.some((item) => /Catastrophic/.test(item.section!))).toBe(true);
     expect(body.status).toBe("estimated");
     expect(body.totals.patient_pay).toMatchObject({
       status: "value",
@@ -323,7 +378,7 @@ describe("Part D drug-cost estimates over HTTP", () => {
 
   it("keeps an unlisted drug unknown and never calls it not covered", async () => {
     switches(true, true);
-    const body = await (
+    const body: EstimateAnswer = await (
       await post(
         app,
         schedule({
@@ -331,8 +386,8 @@ describe("Part D drug-cost estimates over HTTP", () => {
         }),
       )
     ).json();
-    expect(body.fills[0].listing.status).toBe("not_listed");
-    expect(body.fills[0].figures.patient_pay).toMatchObject({
+    expect(body.fills[0]!.listing.status).toBe("not_listed");
+    expect(body.fills[0]!.figures.patient_pay).toMatchObject({
       status: "unknown",
       reason: "not_listed",
     });
@@ -464,11 +519,11 @@ describe("Part D drug-cost estimates over HTTP", () => {
     ).json();
     expect(JSON.stringify(off)).not.toContain("part_d_drug_cost_estimates");
     switches(true, true);
-    const on = await (
+    const on: AvailabilityBody = await (
       await app.request("/v1/medicare/data-availability")
     ).json();
-    const year = on.years.find((item: Json) => item.contract_year === 2026);
-    expect(year.part_d_drug_cost_estimates).toMatchObject({
+    const year = on.years.find((item) => item.contract_year === 2026);
+    expect(year!.part_d_drug_cost_estimates).toMatchObject({
       status: "available",
       access: "personalized_estimate_grant",
       price_basis: ["none"],
@@ -479,11 +534,11 @@ describe("Part D drug-cost estimates over HTTP", () => {
       pharmacy_network: { status: "unknown" },
     });
     switches(false, true);
-    const gated = await (
+    const gated: AvailabilityBody = await (
       await app.request("/v1/medicare/data-availability")
     ).json();
     expect(
-      gated.years.find((item: Json) => item.contract_year === 2026)
+      gated.years.find((item) => item.contract_year === 2026)!
         .part_d_drug_cost_estimates,
     ).toMatchObject({ status: "unknown", reason: "pending_terms_review" });
   });
@@ -512,7 +567,7 @@ describe("Part D drug-cost estimates over HTTP", () => {
           },
         },
       };
-      const body = await (
+      const body: EstimateAnswer = await (
         await post(routerApp(loaded.db, counted), schedule())
       ).json();
       vi.unstubAllEnvs();
@@ -639,18 +694,18 @@ describe("Part D drug-cost estimates over HTTP", () => {
 
     it("a figure loses its source", async () => {
       switches(true, true);
-      const body = await (
+      const body: EstimateAnswer = await (
         await post(app, schedule({ opening_state: catastrophic }))
       ).json();
       expect(estimateProvenanceProblems(body)).toEqual([]);
-      body.fills[0].before.troop.evidence_refs = [];
+      body.fills[0]!.before.troop.evidence_refs = [];
       expect(estimateProvenanceProblems(body)).toContain(
         "$.fills[0].before.troop: value without evidence",
       );
-      const relabelled = JSON.parse(
+      const relabelled: EstimateAnswer = JSON.parse(
         JSON.stringify(body).replace("not_listed", "not_covered"),
       );
-      relabelled.fills[0].listing.reason = "not_covered";
+      relabelled.fills[0]!.listing.reason = "not_covered";
       expect(estimateProvenanceProblems(relabelled)).toContain(
         "an answer never says not covered",
       );
@@ -663,9 +718,9 @@ describe("Part D drug-cost estimates over HTTP", () => {
       "DEDUCTIBLE",
       "PLAN_SUPPRESSED_YN",
     ];
-    const groups = (body: Json, fields: string[]) =>
+    const groups = (body: EstimateAnswer, fields: string[]) =>
       body.evidence.filter(
-        (item: Json) =>
+        (item) =>
           item.kind === "source_rows" &&
           JSON.stringify(item.fields) === JSON.stringify(fields),
       );
@@ -681,7 +736,7 @@ describe("Part D drug-cost estimates over HTTP", () => {
 
     it("cites the plan's county rows once, as a group that names every row and the shared values", async () => {
       switches(true, true);
-      const body = await (await post(app, schedule())).json();
+      const body: EstimateAnswer = await (await post(app, schedule())).json();
       const rows = await countyRows();
       expect(rows.length).toBe(9);
       const [group, ...more] = groups(body, DEDUCTIBLE_FIELDS);
@@ -700,12 +755,12 @@ describe("Part D drug-cost estimates over HTTP", () => {
       expect(body.plan_figures.plan_deductible).toMatchObject({
         status: "value",
         cents: 34000,
-        evidence_refs: [group.id],
+        evidence_refs: [group!.id],
       });
       // No county row is listed again on its own.
       expect(
         body.evidence.filter(
-          (item: Json) => item.kind === "source_row" && item.table === "plan",
+          (item) => item.kind === "source_row" && item.table === "plan",
         ),
       ).toEqual([]);
       expect(estimateProvenanceProblems(body)).toEqual([]);
@@ -723,7 +778,8 @@ describe("Part D drug-cost estimates over HTTP", () => {
             : bundle;
         },
       });
-      const refs = (single as Json).plan_figures.plan_deductible.evidence_refs;
+      const refs = (single as EstimateAnswer).plan_figures.plan_deductible
+        .evidence_refs;
       expect(refs.length).toBe(9);
       const strip = (answer: unknown) =>
         JSON.stringify(answer, (key, value) =>
@@ -738,7 +794,7 @@ describe("Part D drug-cost estimates over HTTP", () => {
     describe("planted mutants", () => {
       it("a figure references a missing row", async () => {
         switches(true, true);
-        const body = await (await post(app, schedule())).json();
+        const body: EstimateAnswer = await (await post(app, schedule())).json();
         const mutant = structuredClone(body);
         mutant.plan_figures.plan_deductible.evidence_refs = ["e999"];
         expect(estimateProvenanceProblems(mutant)).toContain(
@@ -747,10 +803,10 @@ describe("Part D drug-cost estimates over HTTP", () => {
         const [group] = groups(body, DEDUCTIBLE_FIELDS);
         const dropped = structuredClone(body);
         dropped.evidence = dropped.evidence.filter(
-          (item: Json) => item.id !== group.id,
+          (item) => item.id !== group!.id,
         );
         expect(estimateProvenanceProblems(dropped)).toContain(
-          `$.plan_figures.plan_deductible: dangling ${group.id}`,
+          `$.plan_figures.plan_deductible: dangling ${group!.id}`,
         );
       });
 
@@ -798,23 +854,23 @@ describe("Part D drug-cost estimates over HTTP", () => {
 
       it("a group lists rows out of order or without the shared values", async () => {
         switches(true, true);
-        const body = await (await post(app, schedule())).json();
+        const body: EstimateAnswer = await (await post(app, schedule())).json();
         const [group] = groups(body, DEDUCTIBLE_FIELDS);
-        const at = body.evidence.indexOf(group);
+        const at = body.evidence.indexOf(group!);
         const reordered = structuredClone(body);
-        reordered.evidence[at].source_rows.reverse();
+        reordered.evidence[at]!.source_rows!.reverse();
         expect(estimateProvenanceProblems(reordered)).toContain(
-          `${group.id}: group rows not listed in order`,
+          `${group!.id}: group rows not listed in order`,
         );
         const empty = structuredClone(body);
-        empty.evidence[at].source_rows = [];
+        empty.evidence[at]!.source_rows = [];
         expect(estimateProvenanceProblems(empty)).toContain(
-          `${group.id}: group rows not listed in order`,
+          `${group!.id}: group rows not listed in order`,
         );
         const valueless = structuredClone(body);
-        delete valueless.evidence[at].values.DEDUCTIBLE;
+        delete valueless.evidence[at]!.values!.DEDUCTIBLE;
         expect(estimateProvenanceProblems(valueless)).toContain(
-          `${group.id}: group without its shared values`,
+          `${group!.id}: group without its shared values`,
         );
       });
     });

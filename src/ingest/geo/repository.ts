@@ -212,6 +212,14 @@ async function fallbackCounties(
   }));
 }
 
+export const RATING_AREA_SQL = `
+    SELECT r.rating_area_id,r.snapshot_id,r.source_row FROM geo_import g
+    JOIN rating_area r ON r.snapshot_id=g.rating_snapshot_id AND r.state=g.state AND r.plan_year=g.plan_year
+    WHERE g.state=$1 AND g.plan_year=$2 AND r.county_fips=$3
+    UNION ALL
+    SELECT z.rating_area_id,z.snapshot_id,z.source_row FROM geo_import g
+    JOIN rating_area_zip z ON z.snapshot_id=g.rating_snapshot_id AND z.state=g.state AND z.plan_year=g.plan_year
+    WHERE g.state=$1 AND g.plan_year=$2 AND z.zip_prefix=substring($4::text,1,3)`;
 /** Resolve published geography without inferring a county area from ZIP3 divisions. */
 export async function ratingAreaForLocation(
   db: SqlSession,
@@ -232,17 +240,7 @@ export async function ratingAreaForLocation(
     rating_area_id: string;
     snapshot_id: string;
     source_row: number;
-  }>(
-    `
-    SELECT r.rating_area_id,r.snapshot_id,r.source_row FROM geo_import g
-    JOIN rating_area r ON r.snapshot_id=g.rating_snapshot_id AND r.state=g.state AND r.plan_year=g.plan_year
-    WHERE g.state=$1 AND g.plan_year=$2 AND r.county_fips=$3
-    UNION ALL
-    SELECT z.rating_area_id,z.snapshot_id,z.source_row FROM geo_import g
-    JOIN rating_area_zip z ON z.snapshot_id=g.rating_snapshot_id AND z.state=g.state AND z.plan_year=g.plan_year
-    WHERE g.state=$1 AND g.plan_year=$2 AND z.zip_prefix=substring($4::text,1,3)`,
-    [state, year, county, zip ?? null],
-  );
+  }>(RATING_AREA_SQL, [state, year, county, zip ?? null]);
   function ratingAreaStatus() {
     if (rows.length === 1) {
       return "available" as const;

@@ -21,6 +21,7 @@ import {
   findPlan,
   locationZipCounties,
   planView,
+  requestedPlansExist,
   resolveLocation,
   variantExists,
 } from "../../api/repository.js";
@@ -435,16 +436,17 @@ export function compatRoutes(db: SqlSession, options: ApiOptions = {}) {
         if (product === "dental") reasons.add("dental_benefits_unmapped");
         const targets: { plan: (typeof offered)[number]; id: string }[] = [];
         if (ids.length > 0) {
-          for (const id of new Map(ids.map((id) => [id.full, id])).values()) {
-            const plan = offered.find((p) =>
-              matchesMedicalSearchId(p, id.base),
-            );
-            if (
-              !plan ||
-              (id.variant !== null && !(await variantExists(db, plan, id.full)))
-            )
-              reasons.add(`public_plan_unavailable:${id.full}`);
-            else targets.push({ plan, id: id.full });
+          const requested = [
+            ...new Map(ids.map((id) => [id.full, id])).values(),
+          ].map((id) => ({
+            ...id,
+            plan: offered.find((p) => matchesMedicalSearchId(p, id.base)),
+          }));
+          const exists = await requestedPlansExist(db, requested);
+          for (const [index, { plan, full }] of requested.entries()) {
+            if (!plan || !exists[index])
+              reasons.add(`public_plan_unavailable:${full}`);
+            else targets.push({ plan, id: full });
           }
         } else
           targets.push(
@@ -452,6 +454,7 @@ export function compatRoutes(db: SqlSession, options: ApiOptions = {}) {
           );
         if (!targets.length)
           reasons.add("no_public_plans_for_location_and_year");
+        reads.plan(targets.map(({ plan }) => plan));
         const subsidy =
           product === "medical"
             ? await householdSubsidy(db, request, location, reads)
@@ -492,10 +495,11 @@ export function compatRoutes(db: SqlSession, options: ApiOptions = {}) {
             requestedVariant: facadeId(id).variant,
           };
           const view = await planView(
-            db,
+            reads.db,
             plan,
             options,
             reads.costSharing(plan, options),
+            reads.lineage,
           );
           if (
             product === "medical" &&

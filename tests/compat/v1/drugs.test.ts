@@ -60,7 +60,12 @@ async function search(term: string, extra = "") {
     { headers },
   );
   expect(response.status).toBe(200);
-  return { response, body: (await response.json()) as any };
+  return { response, body: (await response.json()) as DrugSearch };
+}
+interface DrugSearch {
+  meta: { total: number };
+  drugs: { id: string; drug_package_ids: string[] }[];
+  drug_packages: { id: string; rx_cui_id: string }[];
 }
 const packageId = (ndc: string) =>
   `${ndc.slice(0, 5)}-${ndc.slice(5, 9)}-${ndc.slice(9)}`;
@@ -141,7 +146,7 @@ it.each(["metformin", "lisinopril", "lipitor"])(
       "drugs",
       "meta",
     ]);
-    expect(new Set(body.drugs.map((drug: any) => drug.id)).size).toBe(
+    expect(new Set(body.drugs.map((drug) => drug.id)).size).toBe(
       body.drugs.length,
     );
     const expectedPackages = [];
@@ -193,7 +198,7 @@ it("paginates distinct concepts before attaching only their own exact NDC associ
     expect(result.drugs).toEqual(body.drugs.slice(page - 1, page));
     expect(result.drug_packages).toEqual(
       body.drug_packages.filter(
-        (p: any) => p.rx_cui_id === result.drugs[0].id.slice(7),
+        (p) => p.rx_cui_id === result.drugs[0]!.id.slice(7),
       ),
     );
   }

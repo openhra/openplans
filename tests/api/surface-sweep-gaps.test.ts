@@ -2,13 +2,19 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createApp } from "../../src/api/app.js";
 import type { SqlSession } from "../../src/db/database.js";
 import { callTool } from "../../src/mcp/tools.js";
+import type { ToolName, ToolOutput } from "../../src/mcp/schemas.js";
 import { setup, TOKEN, headers, searchBody } from "../compat/v1/helpers.js";
 
 // Failure classes found by scripts/oracle/surface-sweep.mjs, one test each, over the TX fixture
 // cut. The fixture loads only TX PY2026, no Medicare catalog and no territory ZCTAs. SYNTHETIC
 // ZCTA rows for Puerto Rico and Guam are inserted in a transaction that is rolled back; their
 // county codes and names are public Census identifiers, the areas are invented.
-type Json = ReturnType<typeof JSON.parse>;
+interface NativeAnswer {
+  plans?: unknown[];
+  quotes?: unknown[];
+  issues?: string[];
+  reason?: string;
+}
 let h: Awaited<ReturnType<typeof setup>>;
 beforeAll(async () => {
   h = await setup();
@@ -17,9 +23,13 @@ afterAll(async () => {
   await h?.close();
 });
 
-const mcp = async (db: SqlSession, tool: string, input: unknown) =>
-  (await callTool({ db: db as never }, tool as never, input))
-    .structuredContent as Json;
+const mcp = async <T extends ToolName>(
+  db: SqlSession,
+  tool: T,
+  input: unknown,
+) =>
+  (await callTool({ db: db as never }, tool, input))
+    .structuredContent as ToolOutput<T>;
 async function native(db: SqlSession, path: string, body?: unknown) {
   const response = await createApp(db, { premiumToken: TOKEN }).request(
     path,
@@ -32,7 +42,7 @@ async function native(db: SqlSession, path: string, body?: unknown) {
         },
   );
   expect(response.status, path).toBe(200);
-  return (await response.json()) as Json;
+  return (await response.json()) as NativeAnswer;
 }
 async function compatGaps(extra: Record<string, unknown>) {
   const response = await createApp(h.db, { premiumToken: TOKEN }).request(
@@ -79,14 +89,16 @@ describe("a county whose state or plan year has no active catalog", () => {
         location: { county },
       });
       expect(search.error).toBeNull();
-      expect(search.data.location_issues).toEqual(["state_catalog_not_loaded"]);
+      expect(search.data!.location_issues).toEqual([
+        "state_catalog_not_loaded",
+      ]);
       const quote = await mcp(h.db, "quote_plans", {
         year,
         location: { county },
         members: [{ age: 40 }],
       });
       expect(quote.error).toBeNull();
-      expect(quote.data.location_issues).toEqual(["state_catalog_not_loaded"]);
+      expect(quote.data!.location_issues).toEqual(["state_catalog_not_loaded"]);
     }
   });
 
@@ -142,18 +154,18 @@ describe("territory ZIP codes", () => {
     }));
     expect(out.split.error).toBeNull();
     expect(
-      out.split.data.counties.map((c: Json) => [c.county_fips, c.state]),
+      out.split.data!.counties.map((c) => [c.county_fips, c.state]),
     ).toEqual([
       ["72001", "PR"],
       ["72141", "PR"],
     ]);
     expect(out.guam.error).toBeNull();
-    expect(out.guam.data.counties[0].state).toBe("GU");
+    expect(out.guam.data!.counties[0]!.state).toBe("GU");
     expect(out.search.error).toBeNull();
     expect(out.search.status).toBe("ambiguous");
     expect(out.guamSearch.error).toBeNull();
-    expect(out.guamSearch.data.plans).toEqual([]);
-    expect(out.guamSearch.data.location_issues).toEqual([
+    expect(out.guamSearch.data!.plans).toEqual([]);
+    expect(out.guamSearch.data!.location_issues).toEqual([
       "state_catalog_not_loaded",
     ]);
   });
@@ -171,8 +183,8 @@ describe("Medicare plan search with no Medicare catalog", () => {
       location: { county: "48201" },
     });
     expect(out.error).toBeNull();
-    expect(out.data.plans).toEqual([]);
-    expect(out.data.reason).toBe("catalog_not_loaded");
+    expect(out.data!.plans).toEqual([]);
+    expect(out.data!.reason).toBe("catalog_not_loaded");
   });
 
   it("a ZIP outside the loaded geography names zip_not_in_loaded_geography", async () => {
@@ -187,6 +199,6 @@ describe("Medicare plan search with no Medicare catalog", () => {
       location: { zip: "10001" },
     });
     expect(out.error).toBeNull();
-    expect(out.data.reason).toBe("zip_not_in_loaded_geography");
+    expect(out.data!.reason).toBe("zip_not_in_loaded_geography");
   });
 });

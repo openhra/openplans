@@ -14,6 +14,34 @@ import { mapProviders } from "../../../src/compat/v1/providers.js";
 import { BASE, headers, TOKEN } from "./helpers.js";
 import { assertShape } from "./shape.js";
 
+interface Trace {
+  source_record: number;
+  evidence: unknown[];
+  participation: string;
+  address: { participation: string };
+}
+interface Location {
+  npis: number[];
+  type: string;
+  street_line_1: string | null;
+  npi_specialty: Record<string, unknown>;
+  provenance: Trace[];
+}
+interface SearchPage {
+  meta: { total: number };
+  providers: Location[];
+}
+interface Detail {
+  provider: {
+    npi_specialty: Record<string, unknown>;
+    locations: Location[];
+    plan_participations: { status: string }[];
+  };
+}
+interface SourcePlan {
+  plan_id: string;
+}
+
 // All associations, names, addresses and identifiers in this harness are synthetic.
 let h: Awaited<ReturnType<typeof setup>>,
   app: ReturnType<typeof createApp>,
@@ -31,8 +59,10 @@ beforeAll(async () => {
   h = await setup();
   app = createApp(h.db, { premiumToken: "synthetic-native-token" });
   const source = (await fixture("records"))[0];
-  plan = source.plans.find((p: any) =>
-    h.catalog.plans.some((c: any) => c.base_plan_id === p.plan_id),
+  plan = source.plans.find((p: SourcePlan) =>
+    h.catalog.plans.some(
+      (c: { base_plan_id: string }) => c.base_plan_id === p.plan_id,
+    ),
   ).plan_id;
   const record = {
     ...source,
@@ -40,7 +70,7 @@ beforeAll(async () => {
     name: { first: "Synthetic", last: "Provider" },
     type: "INDIVIDUAL",
     specialty: ["Synthetic Family Medicine"],
-    plans: [source.plans.find((p: any) => p.plan_id === plan)],
+    plans: [source.plans.find((p: SourcePlan) => p.plan_id === plan)],
     addresses: [
       {
         address: "Synthetic clinic A",
@@ -68,8 +98,11 @@ beforeAll(async () => {
     INSERT INTO npi_address(npi,kind,ordinal,line_1,city,state,zip5,snapshot_id)
       VALUES ('1000000000','practice',0,'Synthetic identity address','HOUSTON','TX','77030','catalog')`);
   const rows = (
-    await h.db
-      .query<any>(`SELECT r.record_id,r.snapshot_id,a.address FROM qhp_provider_record r
+    await h.db.query<{
+      record_id: string;
+      snapshot_id: string;
+      address: string;
+    }>(`SELECT r.record_id,r.snapshot_id,a.address FROM qhp_provider_record r
     JOIN qhp_provider_address a USING(record_id,snapshot_id)`)
   ).rows;
   for (const row of rows)
@@ -140,21 +173,18 @@ describe("provider facade native integration", () => {
       per_page: 1,
     });
     expect(response.status).toBe(200);
-    const body = (await response.json()) as any,
-      p = body.providers[0];
+    const body = (await response.json()) as SearchPage,
+      p = body.providers[0]!;
     expect(body.meta.total).toBe(2);
     expect(body.providers).toHaveLength(1);
     expect(p.npis).toEqual([Number(npi)]);
     expect(p.provenance).toHaveLength(51);
     expect(
-      p.provenance
-        .map((r: any) => r.source_record)
-        .sort((a: number, b: number) => a - b),
+      p.provenance.map((r) => r.source_record).sort((a, b) => a - b),
     ).toEqual(Array.from({ length: 51 }, (_, i) => i));
     expect(
       p.provenance.every(
-        (r: any) =>
-          r.evidence.length && r.address.participation === "not_evaluated",
+        (r) => r.evidence.length && r.address.participation === "not_evaluated",
       ),
     ).toBe(true);
     expect(response.headers.get("x-openplans-gaps")).toContain(
@@ -165,19 +195,19 @@ describe("provider facade native integration", () => {
     );
     const second = (await (
       await post({ zip_code: "77030", plan_id: plan, per_page: 1, page: 2 })
-    ).json()) as any;
+    ).json()) as SearchPage;
     expect(second.providers).toHaveLength(1);
-    expect(second.providers[0].street_line_1).not.toBe(p.street_line_1);
-    const contract = (value: any) => {
+    expect(second.providers[0]!.street_line_1).not.toBe(p.street_line_1);
+    const contract = (value: SearchPage) => {
       expect(value.meta.total).toBe(2);
-      expect(value.providers[0].provenance).toHaveLength(51);
+      expect(value.providers[0]!.provenance).toHaveLength(51);
     };
     contract(body);
     const duplicate = structuredClone(body);
     duplicate.meta.total = 52;
     expect(() => contract(duplicate)).toThrow();
     const lostTrace = structuredClone(body);
-    lostTrace.providers[0].provenance.pop();
+    lostTrace.providers[0]!.provenance.pop();
     expect(() => contract(lostTrace)).toThrow();
   });
   it("filters name, taxonomy, type and specialty; never silently ignores vendor coverage filters", async () => {
@@ -194,14 +224,14 @@ describe("provider facade native integration", () => {
         ...extra,
       });
       expect(response.status).toBe(200);
-      expect(((await response.json()) as any).providers).toEqual([]);
+      expect(((await response.json()) as SearchPage).providers).toEqual([]);
     }
     const missing = await post({
       zip_code: "55401",
       search_term: "Mayo Clinic",
     });
     expect(missing.status).toBe(200);
-    expect(((await missing.json()) as any).providers).toEqual([]);
+    expect(((await missing.json()) as SearchPage).providers).toEqual([]);
     expect(missing.headers.get("x-openplans-gaps")).toContain(
       "zip_centroid_unavailable",
     );
@@ -224,15 +254,17 @@ describe("provider facade native integration", () => {
   it("maps detail with all locations and keeps NPPES identity addresses separate from membership", async () => {
     const response = await get(`/providers/${npi}?year=2026`);
     expect(response.status).toBe(200);
-    const { provider } = (await response.json()) as any;
+    const { provider } = (await response.json()) as Detail;
     expect(provider.locations).toHaveLength(3);
-    expect(provider.locations[0].provenance).toHaveLength(51);
+    expect(provider.locations[0]!.provenance).toHaveLength(51);
     const identity = provider.locations.find(
-      (p: any) => p.street_line_1 === "Synthetic identity address",
+      (p) => p.street_line_1 === "Synthetic identity address",
+    )!;
+    expect(identity.provenance[0]!.participation).toBe("not_evaluated");
+    expect(identity.provenance[0]!.evidence).toEqual([]);
+    expect(provider.plan_participations[0]!.status).toBe(
+      "listed_participating",
     );
-    expect(identity.provenance[0].participation).toBe("not_evaluated");
-    expect(identity.provenance[0].evidence).toEqual([]);
-    expect(provider.plan_participations[0].status).toBe("listed_participating");
     expect((await get("/providers/1000000099")).status).toBe(404);
     expect((await get("/providers/bad")).status).toBe(400);
   });
@@ -304,7 +336,7 @@ describe("provider facade native integration", () => {
           ]) {
             const response = await request({ zip_code: "77030", ...filter });
             expect(response.status).toBe(200);
-            const body = (await response.json()) as any;
+            const body = (await response.json()) as SearchPage;
             expect(body.providers).toHaveLength(1);
             expect(body.providers[0]).toMatchObject({
               specialty: display ?? "207Q00000X",
@@ -318,7 +350,7 @@ describe("provider facade native integration", () => {
           }
           const detail = (await (
             await api.request(BASE + `/providers/${npi}`, { headers })
-          ).json()) as any;
+          ).json()) as Detail;
           expect(detail.provider.npi_specialty).toMatchObject({
             taxonomy_code: "207Q00000X",
             display_name: display,
@@ -326,7 +358,7 @@ describe("provider facade native integration", () => {
           });
           const specialties = (await (
             await api.request(BASE + "/specialties", { headers })
-          ).json()) as any;
+          ).json()) as { specialties: Record<string, unknown>[] };
           expect(specialties.specialties[0]).toMatchObject({
             code: "207Q00000X",
             name: display,
@@ -342,7 +374,10 @@ describe("provider facade native integration", () => {
             expect(await byName.json()).toMatchObject({
               error: { code: "unsupported_without_taxonomy" },
             });
-          else expect(((await byName.json()) as any).providers).toHaveLength(1);
+          else
+            expect(
+              ((await byName.json()) as SearchPage).providers,
+            ).toHaveLength(1);
           throw rollback;
         }),
       ).rejects.toBe(rollback);
@@ -390,18 +425,18 @@ describe("provider facade native integration", () => {
           },
         );
         expect(response.status).toBe(200);
-        const result = (await response.json()) as any;
+        const result = (await response.json()) as SearchPage;
         expect(result.meta.total).toBe(1);
         expect(result.providers[0]).toMatchObject({
           id: 1000000001,
           city: "DALLAS",
           distance_miles: 0,
         });
-        expect(result.providers[0].provenance[0].address).toMatchObject({
+        expect(result.providers[0]!.provenance[0]!.address).toMatchObject({
           method: "census_geocoder",
           precision: "exact",
         });
-        expect(result.providers[0].provenance[0].participation).toBe(
+        expect(result.providers[0]!.provenance[0]!.participation).toBe(
           "not_evaluated",
         );
         throw marker;
@@ -414,7 +449,7 @@ describe("provider facade native integration", () => {
       "/plans/vision/search",
     );
     const body = await response.json();
-    const contract = (r: any) => {
+    const contract = (r: unknown) => {
       expect(r).toEqual({ meta: { total: 0 }, plans: [] });
       expect(response.headers.get("x-openplans-gaps")).toBe(
         "vision_unsupported",
@@ -792,7 +827,7 @@ describe("compatibility provider request list (4 cases)", () => {
         ...extra,
       });
       expect(response.status).toBe(200);
-      expect(((await response.json()) as any).providers).toEqual([]);
+      expect(((await response.json()) as SearchPage).providers).toEqual([]);
       expect(response.headers.get("x-openplans-gaps")).toContain(
         "zip_centroid_unavailable",
       );
@@ -802,11 +837,9 @@ describe("compatibility provider request list (4 cases)", () => {
         ...extra,
       });
       expect(tx.status).toBe(200);
-      const body = (await tx.json()) as any;
+      const body = (await tx.json()) as SearchPage;
       expect(body.providers.length).toBeGreaterThan(0);
-      expect(body.providers.every((p: any) => p.type === "individual")).toBe(
-        true,
-      );
+      expect(body.providers.every((p) => p.type === "individual")).toBe(true);
       if ("per_page" in extra) expect(body.providers).toHaveLength(1);
     },
   );

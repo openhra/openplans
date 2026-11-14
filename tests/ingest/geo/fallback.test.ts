@@ -169,7 +169,7 @@ describe("ZIP fallback source order and provenance", () => {
       expect(url.pathname).toBe("/api/v1/counties/by/zip/77001");
       expect(url.searchParams.get("year")).toBe("2026");
       expect(url.searchParams.get("apikey")).toBe(KEY);
-      expect(context.headers["user-agent"]).toMatch(/^openplans\/0\.4\.6 /);
+      expect(context.headers["user-agent"]).toMatch(/^openplans\/0\.4\.7 /);
       return response(200, body);
     });
     const guarded: SqlSession = {
@@ -429,9 +429,11 @@ describe("GeoNames import and native/facade integration", () => {
       "/compat/v1/zip_counties?zip_prefix=7700",
       { headers: { "X-Api-Key": token } },
     );
-    const body = (await facade.json()) as any;
+    const body = (await facade.json()) as {
+      zip_counties: { zip_code_id: number }[];
+    };
     expect(
-      body.zip_counties.find((r: any) => r.zip_code_id === 77001),
+      body.zip_counties.find((r) => r.zip_code_id === 77001),
     ).toMatchObject({
       county_id: 48201,
       source: "geonames",
@@ -468,7 +470,7 @@ describe("GeoNames import and native/facade integration", () => {
     });
     expect(response.status).toBe(200);
     expect(
-      ((await response.json()) as ReturnType<typeof JSON.parse>).quotes[0],
+      ((await response.json()) as { quotes: unknown[] }).quotes[0],
     ).toMatchObject({
       status: "rated",
       total_cents: 52928,

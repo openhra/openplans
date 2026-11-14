@@ -12,6 +12,12 @@ import { orderPlans, pageWindow } from "../../../src/compat/v1/search.js";
 import { ingestGeoNames } from "../../../src/ingest/geo/geonames.js";
 import { BASE, headers, searchBody, setup } from "./helpers.js";
 
+interface ZipCountiesPage {
+  counties: { name: string }[];
+  states: { id: number; fips_number: string }[];
+  zip_codes: unknown[];
+  zip_counties: { id: number | null; county_id: number; zip_code_id: number }[];
+}
 let h: Awaited<ReturnType<typeof setup>>, directory: string;
 interface SearchPage {
   meta: { total: number };
@@ -211,12 +217,17 @@ it("negative controls: removing the cap, skipping page records, reverting the de
       }).outputText,
     );
     const fn = createRequire(import.meta.url)(path)[entry];
-    expect(() => (contract as (fn: any) => void)(fn), name).toThrow();
+    expect(() => (contract as (fn: unknown) => void)(fn), name).toThrow();
   }
 });
 
 it("uses public Census display labels for postal fallback counties and retains sourced public joins", async () => {
-  const contract = (body: any, fips: string, name: string, zip: string) => {
+  const contract = (
+    body: ZipCountiesPage,
+    fips: string,
+    name: string,
+    zip: string,
+  ) => {
     assert.deepEqual(body.counties[0], {
       id: Number(fips),
       fips_code: fips,
@@ -226,12 +237,12 @@ it("uses public Census display labels for postal fallback counties and retains s
       state_live: null,
       state_live_for_business: null,
     });
-    assert.equal(body.states[0].id, 48);
-    assert.equal(body.states[0].fips_number, "48");
+    assert.equal(body.states[0]!.id, 48);
+    assert.equal(body.states[0]!.fips_number, "48");
     assert.deepEqual(body.zip_codes[0], { code: zip, id: Number(zip) });
-    assert.equal(body.zip_counties[0].id, null);
-    assert.equal(body.zip_counties[0].county_id, Number(fips));
-    assert.equal(body.zip_counties[0].zip_code_id, Number(zip));
+    assert.equal(body.zip_counties[0]!.id, null);
+    assert.equal(body.zip_counties[0]!.county_id, Number(fips));
+    assert.equal(body.zip_counties[0]!.zip_code_id, Number(zip));
   };
   for (const [zip, fips, name] of [
     ["77001", "48201", "Harris County"],
@@ -243,14 +254,14 @@ it("uses public Census display labels for postal fallback counties and retains s
       { headers },
     );
     expect(response.status).toBe(200);
-    const body = (await response.json()) as any;
+    const body = (await response.json()) as ZipCountiesPage;
     contract(body, fips!, name!, zip!);
     expect(response.headers.get("x-openplans-gaps")).toContain(
       "vendor_geography_ids_unavailable",
     );
     // Revert the label in a response copy; the positive contract must reject the old rule.
     const label = structuredClone(body);
-    label.counties[0].name = name!.replace(/ County$/, "");
+    label.counties[0]!.name = name!.replace(/ County$/, "");
     expect(() => contract(label, fips!, name!, zip!)).toThrow();
     if (zip === "77001") {
       expect(body.zip_counties[0]).toMatchObject({

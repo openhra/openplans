@@ -33,7 +33,8 @@ per client, 8 at once in total.
 
 - `version`: the core application version, or `unknown`.
 - `api` and `db`: `ok` or `down`. The database check is the same one `/healthz` runs.
-- `data`: the number of states, the plan years, and how many coverage rows have each status
+- `data`: the number of states with coverage, counting DC as one, the plan years, and how
+  many coverage rows have each status
   (catalog, premiums, providers, formulary). These are the statuses `/v1/data-availability`
   serves. The host's availability service supplies them. Without a host they read `null`.
   With the response cache on, the core host keeps the computed statuses in memory for the
@@ -50,6 +51,13 @@ per client, 8 at once in total.
 - `health_transitions.last_change`: how long ago the probe last saw a component change state.
 
 A part the plugin cannot read is `null`, and the page says so. The page never shows it as zero.
+
+The HTML page shows the same fields in less space. It reads the state codes behind
+`data.states` and names DC apart from the states, as in "48 states and DC". It groups sources
+by the part of the ID before the first colon, so `cms-exchange-puf:2026:TX:rate` falls under
+`cms-exchange-puf`. Each group gets one line with its snapshot count and ages, and its
+snapshots sit inside a `<details>` element. The page stays short however many snapshots are
+active, and it has no scripts. A link at the top goes to plans.openhra.com.
 
 ## What the operator view adds
 

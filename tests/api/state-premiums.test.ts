@@ -56,10 +56,14 @@ async function http(tx: SqlSession, input: unknown) {
     body: JSON.stringify(input),
   });
 }
+interface StateQuote {
+  total_cents?: number;
+  rule_trace: { citation: string };
+}
 async function ny(tx: SqlSession, input = body()) {
   const response = await http(tx, input);
   expect(response.status).toBe(200);
-  return ((await response.json()) as ReturnType<typeof JSON.parse>).quotes[0];
+  return ((await response.json()) as { quotes: StateQuote[] }).quotes[0]!;
 }
 async function rollback(run: (tx: SqlSession) => Promise<void>) {
   const marker = new Error("synthetic state rollback");
@@ -153,10 +157,16 @@ it("NY native HTTP: four household tiers select approved source cells with no ag
   }
 });
 
+interface GeographyCounty {
+  county_fips: string;
+  county: string;
+  rating_area_id: string;
+}
+
 it("NY plan listing exposes filed-area availability and unknown exchange eligibility without inventing variants", async () => {
   const response = await createApp(db).request("/v1/plans?zip=10001&year=2026");
   expect(response.status).toBe(200);
-  const result = (await response.json()) as any;
+  const result = (await response.json()) as { plans: unknown[] };
   expect(result.plans).toHaveLength(3);
   expect(result.plans[0]).toMatchObject({
     on_exchange: "unknown",
@@ -276,7 +286,7 @@ it("data availability exposes staged state catalogs separately from federal cata
       `/v1/data-availability?state=${state}&year=2026`,
     );
     expect(response.status).toBe(200);
-    const rows = (await response.json()) as any[];
+    const rows = (await response.json()) as Record<string, unknown>[];
     expect(rows.length).toBeGreaterThan(0);
     expect(
       rows.every(
@@ -469,13 +479,13 @@ it("DFS county transcription agrees with all 62 Census county identifiers", asyn
   );
   expect(
     Object.fromEntries(
-      map.NY.counties.map((c: any) => [c.county_fips, c.county]),
+      map.NY.counties.map((c: GeographyCounty) => [c.county_fips, c.county]),
     ),
   ).toEqual(census.ny_counties);
   expect(map.NY.counties).toHaveLength(62);
-  expect(new Set(map.NY.counties.map((c: any) => c.rating_area_id)).size).toBe(
-    8,
-  );
+  expect(
+    new Set(map.NY.counties.map((c: GeographyCounty) => c.rating_area_id)).size,
+  ).toBe(8);
 });
 
 it("MCP contracts preserve state plan keys, filed totals and source cells", async () => {

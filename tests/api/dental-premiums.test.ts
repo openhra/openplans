@@ -52,6 +52,12 @@ const member = (age: number, relationship = "subscriber", tobacco = false) => ({
   relationship,
   tobacco,
 });
+interface DentalQuote {
+  provenance: { rating_rule: { version: string } };
+  dental_business_rules: { source_row: number }[];
+  pediatric_ehb: { attribute_rows: unknown[] };
+  rate_rows_used: unknown[];
+}
 async function quote(
   tx: SqlSession,
   members = [member(35)],
@@ -75,7 +81,7 @@ async function quote(
     },
   );
   expect(response.status).toBe(200);
-  return ((await response.json()) as ReturnType<typeof JSON.parse>).quotes[0];
+  return ((await response.json()) as { quotes: DentalQuote[] }).quotes[0]!;
 }
 async function rollback(run: (tx: SqlSession) => Promise<void>) {
   const marker = new Error("synthetic dental rollback");
@@ -117,7 +123,7 @@ it("accepts a SADP ID, honors statewide service areas, and keeps gross dental se
     },
   });
   expect(result.provenance.rating_rule.version).toBe("sadp-filed-v1");
-  expect(result.dental_business_rules[0].source_row).toBeGreaterThan(1);
+  expect(result.dental_business_rules[0]!.source_row).toBeGreaterThan(1);
   expect(result.pediatric_ehb.attribute_rows.length).toBeGreaterThan(0);
   expect(await quote(db, [member(35, "subscriber", true)])).toMatchObject({
     status: "rated",

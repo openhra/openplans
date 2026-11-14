@@ -286,20 +286,16 @@ export interface PlanLineage {
 /** Longest chain followed; each served crosswalk adds one prior year. */
 const MAX_LINEAGE_DEPTH = 10;
 
+/** Whether any served crosswalk covers this state and year. */
+export const LINEAGE_COVERAGE_SQL = `SELECT 1 FROM plan_lineage_active a JOIN plan_lineage l ON l.snapshot_id=a.snapshot_id
+    WHERE a.plan_year=$1 AND l.state=$2 LIMIT 1`;
 /** Prior-year plan IDs whose published crosswalk names this plan, through every served year. */
-export async function planLineage(
+export function lineageAncestors(
   db: SqlSession,
   planId: string,
   year: number,
-  state: string,
-): Promise<PlanLineage> {
-  const coverage = await db.query(
-    `SELECT 1 FROM plan_lineage_active a JOIN plan_lineage l ON l.snapshot_id=a.snapshot_id
-    WHERE a.plan_year=$1 AND l.state=$2 LIMIT 1`,
-    [year, state],
-  );
-  if (!coverage.rows.length) return { status: "unknown", ancestors: [] };
-  const { rows } = await db.query<PlanAncestor>(
+): Promise<{ rows: PlanAncestor[] }> {
+  return db.query<PlanAncestor>(
     `WITH RECURSIVE chain(id,year,snapshot_id,depth) AS (
       SELECT $1::text,$2::integer,NULL::text,0
       UNION
@@ -310,6 +306,45 @@ export async function planLineage(
     ) SELECT DISTINCT id,year,snapshot_id FROM chain WHERE depth>0 ORDER BY year DESC,id`,
     [planId, year, MAX_LINEAGE_DEPTH],
   );
+}
+/**
+ * lineageAncestors for several plans of one year, in one query. Each row names the plan it
+ * belongs to. Each chain starts from its own plan, so a plan gets the same rows in the same
+ * order as its own read. One served crosswalk per year makes (year, id) unique.
+ */
+export function lineageAncestorsForPlans(
+  db: SqlSession,
+  planIds: readonly string[],
+  year: number,
+): Promise<{ rows: (PlanAncestor & { base_plan_id: string })[] }> {
+  return db.query<PlanAncestor & { base_plan_id: string }>(
+    `WITH RECURSIVE chain(origin,id,year,snapshot_id,depth) AS (
+      SELECT origin,origin,$2::integer,NULL::text,0 FROM unnest($1::text[]) AS start(origin)
+      UNION
+      SELECT c.origin,l.prior_plan_id,l.prior_year,l.snapshot_id,c.depth+1 FROM chain c
+      JOIN plan_lineage_active a ON a.plan_year=c.year
+      JOIN plan_lineage l ON l.snapshot_id=a.snapshot_id AND l.plan_id=c.id
+      WHERE c.depth<$3
+    ) SELECT DISTINCT origin AS base_plan_id,id,year,snapshot_id FROM chain WHERE depth>0
+      ORDER BY base_plan_id,year DESC,id`,
+    [[...new Set(planIds)], year, MAX_LINEAGE_DEPTH],
+  );
+}
+/**
+ * A plan's lineage. Once a served crosswalk covers the state, `ancestors` reads the chain.
+ * Pass one that shares the read across plans.
+ */
+export async function planLineage(
+  db: SqlSession,
+  planId: string,
+  year: number,
+  state: string,
+  ancestors: () => Promise<{ rows: PlanAncestor[] }> = () =>
+    lineageAncestors(db, planId, year),
+): Promise<PlanLineage> {
+  const coverage = await db.query(LINEAGE_COVERAGE_SQL, [year, state]);
+  if (!coverage.rows.length) return { status: "unknown", ancestors: [] };
+  const { rows } = await ancestors();
   return { status: "available", ancestors: rows };
 }
 

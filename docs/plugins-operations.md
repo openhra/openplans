@@ -340,7 +340,7 @@ the operator status view reports:
 [
   {
     "name": "@openplans/plugin-status",
-    "version": "0.1.0",
+    "version": "0.1.2",
     "sha256": "<hash from /status/operator.json>"
   }
 ]

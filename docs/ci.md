@@ -6,8 +6,10 @@ secrets, data downloads or publication policy file. The workflow uses JSON synta
 which is valid YAML, so the command-contract tests can parse it without adding a
 YAML dependency. Checkout v4.3.1 and setup-node v4.4.0 are pinned to commit IDs.
 
-Node is pinned in `.node-version` to 22.23.4. npm is pinned in
-`.github/npm-version` to 10.9.10. The Docker build uses the same versions. Package
+Node is pinned in `.node-version` to 22.23.5. npm is pinned in
+`.github/npm-version` to 10.9.10. The Docker build uses the same versions. Each
+`FROM` line in `Dockerfile` and `Dockerfile.db` names its base image by tag and by
+multi-platform index digest, so a retagged base image can't change the build. Package
 versions remain in `package-lock.json`, including TypeScript 5.9.3 and Vitest 5.0.5.
 To reproduce a project job with that Node version on Linux or macOS, run:
 

@@ -147,12 +147,16 @@ describe("compatibility credential headers", () => {
         "X-Api-Key": TOKEN,
       });
       expect(primary.status).toBe(200);
-      expect(((await primary.json()) as any).plans).toHaveLength(43);
+      expect(
+        ((await primary.json()) as { plans: unknown[] }).plans,
+      ).toHaveLength(43);
       const extra = await request(BASE + "/plans/medical/search", {
         "X-Client-Key": TOKEN,
       });
       expect(extra.status).toBe(200);
-      expect(((await extra.json()) as any).plans).toHaveLength(43);
+      expect(((await extra.json()) as { plans: unknown[] }).plans).toHaveLength(
+        43,
+      );
       expect(
         (
           await request(BASE + "/plans/medical/search", {

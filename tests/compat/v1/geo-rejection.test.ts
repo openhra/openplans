@@ -35,7 +35,7 @@ it("accepts all seven FL pages at their exact source-verified intersection, pres
   for (let page = 1; page <= 7; page++) {
     const response = await search("34787", "12069", page);
     expect(response.status).toBe(200);
-    const body = (await response.json()) as any;
+    const body = (await response.json()) as { plans: unknown[] };
     expect(body).toHaveProperty("plans");
     expect(body).not.toHaveProperty("error");
     // This geography-only seed has no FL catalog; acceptance must not borrow Orange plans.
@@ -52,12 +52,12 @@ it("ZIP lookup and search agree on every sourced multi-county intersection", asy
     { headers },
   );
   expect(response.status).toBe(200);
-  const body = (await response.json()) as any;
-  expect(body.counties.map((c: any) => c.fips_code)).toEqual([
-    "12069",
-    "12095",
-  ]);
-  expect(body.zip_counties.map((c: any) => c.source)).toEqual(["zcta", "zcta"]);
+  const body = (await response.json()) as {
+    counties: { fips_code: string }[];
+    zip_counties: { source: string }[];
+  };
+  expect(body.counties.map((c) => c.fips_code)).toEqual(["12069", "12095"]);
+  expect(body.zip_counties.map((c) => c.source)).toEqual(["zcta", "zcta"]);
   expect(response.headers.get("Link")).toContain("/v1/zip-counties?zip=34787");
   for (const county of body.counties)
     expect((await search("34787", county.fips_code)).status).toBe(200);
