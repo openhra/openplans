@@ -7,6 +7,12 @@ import {
 } from "../domain/providers/index.js";
 import type { ProviderEvidence } from "../domain/providers/index.js";
 import { providerAvailability } from "../domain/providers/availability.js";
+import { cachedUnlocated } from "./provider-unlocated.js";
+
+/** Identity matches probed one by one; above this, a radius scan filtered by NPI is cheaper. */
+const CANDIDATE_PROBES = 1000;
+/** How long one search waits for a kept unlocated count before it answers a query timeout. */
+const COUNT_WAIT_MS = 4_500;
 
 export interface ProviderSearch {
   plan?: string;
@@ -246,6 +252,27 @@ async function readProviders(
           OR nt.classification ILIKE '%'||$4||'%' OR nt.specialization ILIKE '%'||$4||'%')))
       AND ($5::text IS NULL OR concat_ws(' ',n.organization_name,n.first_name,n.last_name) ILIKE '%'||$5||'%')
       AND ($6::text IS NULL OR CASE WHEN n.entity_type='1' THEN 'INDIVIDUAL' ELSE 'GROUP' END=$6)`;
+  // Identity names use the trigram index on NPPES names as a coarse, lossless filter: the
+  // longest literal word lies inside one name field, so its trigrams are a subset of the
+  // indexed trigrams. The ILIKE in identityPredicate still decides every match. Even one
+  // trigram ("LEE") selects fewer identities than a city radius holds addresses.
+  const identityName =
+    !issuer &&
+    Boolean(q.name) &&
+    !/[%_\\]/.test(q.name!) &&
+    Math.max(...q.name!.split(/\s+/).map((word) => [...word].length)) >= 3;
+  const identityTrigrams = identityName
+    ? `AND provider_search_trigrams(coalesce(n.organization_name,'')||' '||coalesce(n.first_name,'')||' '||coalesce(n.last_name,''))
+      @> provider_search_trigrams(${nameTerm})`
+    : "";
+  // A selective identity filter (an indexed name or an exact taxonomy code) is resolved to
+  // its matching NPIs once, through the name trigram or taxonomy code index. Unlocated counts
+  // then start from those NPIs instead of every practice address.
+  const selectiveIdentity =
+    !issuer && spatialRadius && (identityName || Boolean(q.taxonomy));
+  // A radius search by name also reads only the matching identities' addresses and points,
+  // instead of every point in the radius. Both paths yield the same (point, address) pairs.
+  const candidateFirst = selectiveIdentity && identityName;
   let selected;
   if (issuer) {
     if (recordFilter) {
@@ -285,7 +312,7 @@ async function readProviders(
         AND ${identityPredicate} OFFSET 0) n ON true`
         : "npi_provider n"
     }
-      WHERE ${spatialRadius ? "true" : identityPredicate}`;
+      WHERE ${spatialRadius ? "true" : `${identityPredicate} ${identityTrigrams}`}`;
   }
   const batchLocations = issuer && spatialRadius && !recordFilter;
   const location = issuer
@@ -309,7 +336,59 @@ async function readProviders(
   // Validate identity keys here; fetch address text only for the final page.
   const radiusProjection = `p.normalization,p.source_snapshot_id,p.source_row,p.latitude,p.longitude,p.method,
     p.match_status,p.match_quality,p.snapshot_id,p.centroid_snapshot_id,p.geocoded_at`;
-  const radiusLocations = spatialRadius
+  const pointDistance = `ST_DWithin(p.point,ST_SetSRID(ST_MakePoint($8,$7),4326)::geography,$9*1609.344,false)`;
+  const candidateGuard = `WHERE k.npi=split_part(p.source_row,':',1)
+      AND k.ordinal=CASE WHEN split_part(p.source_row,':',3) ~ '^[0-9]{1,10}$'
+        THEN split_part(p.source_row,':',3)::bigint END`;
+  const candidatePoint = (points: string, keys: string) => `JOIN LATERAL (
+      SELECT ${radiusProjection} FROM ${points} p WHERE p.source_table='npi_address'
+        AND p.source_row=${keys} AND p.source_snapshot_id=k.snapshot_id AND ${pointDistance} OFFSET 0) p ON true`;
+  // Few matching identities: start from them. The stored point is generated from (longitude,
+  // latitude), so the first pass measures the same geography from the covering index
+  // (migration 1006) and reads full point rows only for addresses inside the radius. Operator
+  // points have no stored row to pre-check. Many matching identities (a common surname across
+  // every loaded state): scan the radius once and keep only points whose NPI matches, instead
+  // of probing each identity's addresses. Both branches yield the radius scan's pairs.
+  const fewCandidates = `(SELECT count(*) FROM identity_candidates)<=${CANDIDATE_PROBES}`;
+  const fewCandidateRows = operatorPoints.length
+    ? `SELECT k.npi AS record_id,k.snapshot_id,k.ordinal AS address_index,p.source_row,${pointFields}
+    FROM (SELECT npi FROM identity_candidates ORDER BY npi) c
+    JOIN npi_address k ON k.npi=c.npi AND k.kind='practice'
+    ${candidatePoint(pointsRelation, "k.npi||':practice:'||k.ordinal::text")}
+    ${candidateGuard} AND ${fewCandidates}`
+    : `SELECT k.npi AS record_id,k.snapshot_id,k.ordinal AS address_index,p.source_row,${pointFields}
+    FROM radius_keys k ${candidatePoint("address_point", "k.source_row")}
+    ${candidateGuard} AND ${fewCandidates}`;
+  const candidateLocations = `${
+    operatorPoints.length
+      ? ""
+      : `radius_keys AS MATERIALIZED (
+    SELECT DISTINCT a.npi,a.snapshot_id,a.ordinal,p.source_row
+    FROM (SELECT npi FROM identity_candidates ORDER BY npi) c
+    JOIN npi_address a ON a.npi=c.npi AND a.kind='practice'
+    JOIN address_point p ON p.source_table='npi_address'
+      AND p.source_row=a.npi||':practice:'||a.ordinal::text AND p.source_snapshot_id=a.snapshot_id
+      AND ST_DWithin(ST_SetSRID(ST_MakePoint(p.longitude,p.latitude),4326)::geography,
+        ST_SetSRID(ST_MakePoint($8,$7),4326)::geography,$9*1609.344,false)
+    WHERE ${fewCandidates}
+  ), `
+  }radius_points AS MATERIALIZED (
+    SELECT ${radiusProjection} FROM ${pointsRelation} p WHERE p.source_table='npi_address'
+      AND ${pointDistance} AND NOT ${fewCandidates}
+  ), radius_locations AS MATERIALIZED (
+    ${fewCandidateRows}
+    UNION ALL
+    SELECT a.npi AS record_id,a.snapshot_id,a.ordinal AS address_index,p.source_row,${pointFields}
+    FROM (SELECT * FROM radius_points p WHERE split_part(p.source_row,':',1) IN (SELECT npi FROM identity_candidates)
+      ORDER BY source_row,source_snapshot_id) p
+    JOIN LATERAL (SELECT a.npi,a.snapshot_id,a.ordinal FROM npi_address a WHERE
+      a.kind='practice' AND a.npi=split_part(p.source_row,':',1)
+        AND a.ordinal=CASE WHEN split_part(p.source_row,':',3) ~ '^[0-9]{1,10}$'
+          THEN split_part(p.source_row,':',3)::bigint END
+        AND a.npi||':practice:'||a.ordinal::text=p.source_row AND a.snapshot_id=p.source_snapshot_id OFFSET 0) a ON true
+    WHERE NOT ${fewCandidates}
+  ), `;
+  const radiusScan = spatialRadius
     ? `radius_points AS MATERIALIZED (
     ${
       issuer
@@ -343,6 +422,7 @@ async function readProviders(
       } OFFSET 0) a ON true
   ), `
     : "";
+  const radiusLocations = candidateFirst ? candidateLocations : radiusScan;
   // Each candidate address has one source key. Count matching distinct keys per
   // shard, so repeated geocodes cannot reduce the exact missing-address count.
   const countPoints = issuer && (!q.origin || (spatialRadius && !recordFilter));
@@ -381,8 +461,9 @@ async function readProviders(
   const selectedCte = `selected AS MATERIALIZED (${selected}), `;
   const identityCandidates =
     !issuer && (spatialRadius || locationPage)
-      ? `identity_candidates AS NOT MATERIALIZED (
-    SELECT n.npi FROM npi_provider n WHERE ${identityPredicate}
+      ? `identity_candidates AS ${selectiveIdentity ? "" : "NOT "}MATERIALIZED (
+    SELECT n.npi FROM npi_provider n WHERE ${identityPredicate} ${identityTrigrams}
+      ${selectiveIdentity && q.taxonomy ? "AND n.npi IN (SELECT t.npi FROM npi_taxonomy t WHERE t.code=$3)" : ""}
   ), `
       : "";
   function unfilteredLocationJoin() {
@@ -414,6 +495,12 @@ async function readProviders(
       unlocated = `(SELECT count(*)::int FROM locations a WHERE NOT EXISTS (
     SELECT 1 FROM ${pointsRelation} p WHERE p.source_table='${source}'
       AND p.source_row=a.source_row AND p.source_snapshot_id=a.snapshot_id))`;
+    } else if (selectiveIdentity) {
+      unlocated = `(SELECT count(*)::int FROM identity_candidates n JOIN npi_address a ON a.npi=n.npi AND a.kind='practice'
+      WHERE NOT EXISTS (SELECT 1 FROM ${pointsRelation} p WHERE p.source_table='npi_address'
+        AND p.source_row=split_part(p.source_row,':',1)||':practice:'||split_part(p.source_row,':',3)
+        AND split_part(p.source_row,':',1)=a.npi AND split_part(p.source_row,':',3)=a.ordinal::text
+        AND p.source_snapshot_id=a.snapshot_id))`;
     } else {
       unlocated = `(SELECT count(*)::int FROM (SELECT npi,snapshot_id,ordinal::text AS address_index FROM npi_address WHERE kind='practice'
         ORDER BY npi,snapshot_id,ordinal::text OFFSET 0) a ${recordFilter ? "JOIN identity_candidates n ON n.npi=a.npi" : ""}
@@ -426,6 +513,10 @@ async function readProviders(
   } else {
     unlocated = "(SELECT count(*)::int FROM located WHERE latitude IS NULL)";
   }
+  // An identity radius search counts unlocated addresses over every candidate, independent of
+  // the origin and radius. Keep that exact count per data generation (provider-unlocated.ts).
+  const keptCount = !issuer && spatialRadius && !locationPage;
+  const unlocatedSelect = keptCount ? "NULL::int" : unlocated;
   let distance = "NULL::float8",
     radiusFilter = "";
   if (q.origin) {
@@ -524,7 +615,7 @@ async function readProviders(
       WHERE a.kind='practice' ${recordFilter ? "" : "AND NOT EXISTS (SELECT 1 FROM npi_provider n WHERE NOT n.in_scope AND n.npi=a.npi)"} AND NOT EXISTS (SELECT 1 FROM ${pointsRelation} p WHERE p.source_table='npi_address'
         AND split_part(p.source_row,':',1)=a.npi
           AND p.source_row=a.npi||':practice:'||a.ordinal::text AND p.source_snapshot_id=a.snapshot_id)) THEN 1 ELSE 0 END`
-        : unlocated
+        : unlocatedSelect
     } AS unlocated,
     ${
       locationPage
@@ -566,6 +657,7 @@ async function readProviders(
   // The SQL body contains only application SQL and validated numeric page bounds.
   // Every request value stays bound through the invoker-rights, read-only function.
   while (parameters.length < 9) parameters.push(null);
+  let countCtes = "";
   if (operatorPoints.length) {
     parameters.push(JSON.stringify(operatorPoints));
     const publicColumns =
@@ -588,7 +680,31 @@ async function readProviders(
         WHERE a.match_status IN ('Tie','No_Match')
       ), `;
     query = `WITH ${overlay}${query.slice(5)}`;
+    countCtes = overlay;
   }
+  const bind = `$1::text,$2::integer,$3::text,$4::text,$5::text,$6::text,
+    $7::double precision,$8::double precision,$9::numeric${operatorPoints.length ? ", $10::json" : ""}`;
+  const counted = keptCount
+    ? cachedUnlocated(
+        db,
+        {
+          key: JSON.stringify([
+            taxonomy,
+            q.taxonomy ?? null,
+            q.specialty ?? null,
+            q.name ?? null,
+            q.type ?? null,
+            operatorPoints,
+          ]),
+          sql: `SELECT (provider_search_query($provider_query$${`WITH ${countCtes}${identityCandidates}`.replace(/,\s*$/, "")}
+    SELECT ${unlocated} AS unlocated$provider_query$,${bind})->>'unlocated')::int AS unlocated`,
+          parameters,
+        },
+        COUNT_WAIT_MS,
+      )
+    : undefined;
+  // Read the page while the count runs; neither waits for the other.
+  counted?.catch(() => {});
   const result = await db.query<{
     result: {
       total: number;
@@ -600,11 +716,11 @@ async function readProviders(
     };
   }>(
     `SELECT provider_search_query(
-    $provider_query$${query}$provider_query$,$1::text,$2::integer,$3::text,$4::text,$5::text,$6::text,
-    $7::double precision,$8::double precision,$9::numeric${operatorPoints.length ? ", $10::json" : ""}) AS result`,
+    $provider_query$${query}$provider_query$,${bind}) AS result`,
     parameters,
   );
   const row = result.rows[0]!.result;
+  if (counted) row.unlocated = await counted;
   const providers = row.providers.map((provider) => ({
     ...provider,
     participation: issuer

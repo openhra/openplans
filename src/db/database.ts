@@ -2,11 +2,22 @@ import pg from "pg";
 import { POOL_MAX } from "./scope.js";
 import { databaseUrl } from "../config/access.js";
 
+export interface QueryOptions {
+  /** Client read limit for this query, in place of the pool's 5 seconds. */
+  timeoutMs?: number;
+}
+
 export interface SqlSession {
   query<Row extends Record<string, unknown> = Record<string, unknown>>(
     sql: string,
     parameters?: unknown[],
+    options?: QueryOptions,
   ): Promise<{ rows: Row[] }>;
+  /**
+   * The unscoped database behind a request-scoped session, for a read that may outlive the
+   * request (an exact count kept per data generation). Absent on the database itself.
+   */
+  readonly background?: SqlSession;
   exec(sql: string): Promise<void>;
   /** Request scope with server timeout and cancellation; read-only unless explicitly writable. */
   withRequest?<T>(
@@ -28,20 +39,38 @@ export interface Database extends SqlSession {
 function session(
   client: pg.Pool | pg.PoolClient,
   queryTimeout?: number,
+  onReadTimeout?: () => Promise<unknown>,
 ): SqlSession {
-  return {
-    query: (sql, parameters) =>
-      queryTimeout === undefined
-        ? client.query(sql, parameters)
-        : client.query({
+  const run = async <Row extends Record<string, unknown>>(
+    sql: string,
+    parameters?: unknown[],
+    options?: QueryOptions,
+  ): Promise<{ rows: Row[] }> => {
+    const timeout = options?.timeoutMs ?? queryTimeout;
+    try {
+      return timeout === undefined
+        ? await client.query<Row>(sql, parameters)
+        : await client.query<Row>({
             text: sql,
             values: parameters,
-            query_timeout: queryTimeout,
-          } as pg.QueryConfig),
+            query_timeout: timeout,
+          } as pg.QueryConfig);
+    } catch (error) {
+      if (onReadTimeout && readTimedOut(error)) await onReadTimeout();
+      throw error;
+    }
+  };
+  return {
+    query: run,
     exec: async (sql) => {
-      await client.query(sql);
+      await run(sql);
     },
   };
+}
+
+/** pg's client read timeout only stops waiting; the statement keeps running on the server. */
+function readTimedOut(error: unknown): boolean {
+  return error instanceof Error && error.message === "Query read timeout";
 }
 
 /** The `pg` database provider (design 5.7); `src/plugins/providers.ts` registers it. */
@@ -66,8 +95,56 @@ export function createDatabase(
   // An idle connection can fail after a DB restart. Do not log connection details.
   pool.on("error", () => {});
 
+  const processID = (client: pg.PoolClient) =>
+    (client as pg.PoolClient & { processID: number }).processID;
+  /**
+   * Cancel a statement whose client read timeout fired, then wait for the connection to
+   * answer again. False means the connection may still be busy and must be discarded.
+   */
+  const stopStatement = async (client: pg.PoolClient): Promise<boolean> => {
+    try {
+      await cancelPool.query("SELECT pg_cancel_backend($1)", [
+        processID(client),
+      ]);
+      // Queued behind the cancelled statement, so it returns once the server is idle.
+      await client.query({
+        text: "SELECT 1",
+        query_timeout: 2_000,
+      } as pg.QueryConfig);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  /** A session whose read timeouts cancel the statement; `stopped` reports the outcome. */
+  const cancelling = (client: pg.PoolClient) => {
+    const state: { stopped?: boolean; session: SqlSession } = {
+      session: session(client, undefined, async () => {
+        state.stopped = await stopStatement(client);
+      }),
+    };
+    return state;
+  };
+  /** Autocommit SQL on its own connection, like pool.query, which discards on any error. */
+  const autocommit = async <T>(run: (s: SqlSession) => Promise<T>) => {
+    const client = await pool.connect();
+    const scope = cancelling(client);
+    let discard = false;
+    try {
+      return await run(scope.session);
+    } catch (error) {
+      // A cancelled statement leaves the connection idle and reusable.
+      discard = scope.stopped !== true;
+      throw error;
+    } finally {
+      client.release(discard);
+    }
+  };
+
   return {
-    ...session(pool),
+    query: (sql, parameters, options) =>
+      autocommit((s) => s.query(sql, parameters, options)),
+    exec: (sql) => autocommit((s) => s.exec(sql)),
     poolWaiting: () => pool.waitingCount,
     async withRequest(signal, run, options) {
       signal.throwIfAborted();
@@ -124,7 +201,7 @@ export function createDatabase(
       const client = await pool.connect();
       let discard = false;
       try {
-        return await run(session(client));
+        return await run(cancelling(client).session);
       } catch (error) {
         discard = true;
         throw error;
@@ -137,7 +214,7 @@ export function createDatabase(
       let discard = false;
       try {
         await client.query("BEGIN");
-        const value = await run(session(client));
+        const value = await run(cancelling(client).session);
         await client.query("COMMIT");
         return value;
       } catch (error) {

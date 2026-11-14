@@ -10,8 +10,10 @@ import type { DbProviderFactory } from "@openplans/plugin-sdk";
 import type { Database } from "../db/database.js";
 import { providerTables, selectDatabase } from "../plugins/providers.js";
 import { migrationsDirectory } from "../db/migrate.js";
+import { unappliedMigrations } from "../db/schema-ready.js";
 import { runWorker } from "../worker/commands.js";
 import { createApp } from "./app.js";
+import { schemaGate } from "./schema-gate.js";
 
 let config: ReturnType<typeof loadConfig> | undefined;
 try {
@@ -78,6 +80,12 @@ if (!config || port === undefined || !path || !isAbsolute(path)) {
         },
         directory,
       );
+    } else if ((await unappliedMigrations(db, directory)).length > 0) {
+      // Without this check every data route fails with a 500 on a new database.
+      console.error(
+        "The PGlite database has unapplied migrations; run `npm run api:pglite -- migrate` first",
+      );
+      process.exitCode = 1;
     } else {
       const app = createApp(
         db,
@@ -89,6 +97,7 @@ if (!config || port === undefined || !path || !isAbsolute(path)) {
           trustedProxies: [...config.trustProxy],
         },
         { config },
+        schemaGate(db, { directory }),
       );
       await new Promise<void>((resolve, reject) => {
         const server = serve(

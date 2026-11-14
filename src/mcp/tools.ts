@@ -8,7 +8,11 @@ import { dataGeneration } from "../api/cache/generation.js";
 import { countyState } from "../api/repository.js";
 import { InputError } from "../api/validation.js";
 import * as v from "../api/validation.js";
-import { ReadError } from "../services/errors.js";
+import {
+  isQueryTimeout,
+  QUERY_TIMEOUT,
+  ReadError,
+} from "../services/errors.js";
 import * as catalog from "../services/catalog.js";
 import * as providers from "../services/providers.js";
 import * as drugs from "../services/drugs.js";
@@ -1220,6 +1224,8 @@ export function errorResult(
     code = "INVALID_INPUT";
   } else if (error instanceof HonestyError) {
     code = error.code;
+  } else if (isQueryTimeout(error)) {
+    code = QUERY_TIMEOUT;
   } else {
     code = "DATA_UNAVAILABLE";
   }
@@ -1248,6 +1254,7 @@ export function errorResult(
       field,
       retryable: [
         "DATA_UNAVAILABLE",
+        QUERY_TIMEOUT,
         "CURSOR_EXPIRED",
         "DATA_CHANGED",
       ].includes(code),

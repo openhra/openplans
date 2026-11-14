@@ -24,14 +24,10 @@ import type {
 import { QUOTE_METADATA } from "../domain/subsidy/aptc.js";
 import { ratingRule } from "../ingest/rating-rules/index.js";
 import type { Plan, resolveLocation } from "../api/repository.js";
-import {
-  countyPlans,
-  countyState,
-  snapshots,
-  zipEligible,
-} from "../api/repository.js";
-import { plansForCounty } from "../ingest/puf/import-repository.js";
+import { countyState, snapshots, zipEligible } from "../api/repository.js";
 import { ratePremium } from "./premiums.js";
+import { requestReads } from "./request-reads.js";
+import type { RequestReads } from "./request-reads.js";
 import { agreedField, familyOffer } from "./coverage-family.js";
 import type { estimatePremium } from "./premiums.js";
 import type { premiumRequest } from "../api/validation.js";
@@ -59,9 +55,10 @@ async function dentalOffers(
   location: Location,
   household: SlcspHousehold,
   area: string,
+  reads: RequestReads,
 ) {
   const inCounty = (
-    await plansForCounty(db, location.county!, request.year, "Individual")
+    await reads.countyRows(location.county!, request.year)
   ).filter((p) => p.dental_only && p.on_exchange);
   // Without a ZIP, a dental plan that serves only part of the county may or may not
   // be offered to the household, so the dental adjustment is not known.
@@ -143,6 +140,7 @@ export async function benchmark(
   db: SqlSession,
   request: Request,
   location: Location,
+  reads: RequestReads = requestReads(db),
 ) {
   const empty = {
     ...QUOTE_METADATA,
@@ -202,9 +200,9 @@ export async function benchmark(
   // be offered to the household, so neither benchmark nor credit is known.
   if (
     !location.zip &&
-    (
-      await plansForCounty(db, location.county, request.year, "Individual")
-    ).some((p) => !p.dental_only && silver(p) && p.zip_restricted)
+    (await reads.countyRows(location.county, request.year)).some(
+      (p) => !p.dental_only && silver(p) && p.zip_restricted,
+    )
   )
     return {
       ...empty,
@@ -212,7 +210,7 @@ export async function benchmark(
       issues: [ZIP_LIMITED],
     };
   const offered = (
-    await countyPlans(db, location.county, request.year, location.zip)
+    await reads.countyPlans(location.county, request.year, location.zip)
   ).filter(silver);
   if (!offered.length) return { ...empty, status: "no_silver_plans" };
   const household: SlcspHousehold = {
@@ -248,6 +246,7 @@ export async function benchmark(
       plan.base_plan_id,
       { ...request, members: [...household.members] },
       location,
+      reads,
     );
     const premium = rated.householdPremium;
     if (!premium || premium.status !== "rated")
@@ -298,6 +297,7 @@ export async function benchmark(
           location,
           household,
           premium.ratingAreaId,
+          reads,
         );
         if (dental.issues.includes(ZIP_LIMITED))
           return {
@@ -381,6 +381,7 @@ export async function householdSubsidy(
   db: SqlSession,
   request: Request,
   location: Location,
+  reads: RequestReads = requestReads(db),
 ) {
   if (!request.subsidy) return undefined;
   const input = {
@@ -393,9 +394,9 @@ export async function householdSubsidy(
   const enrollmentEhbFractions: Record<string, string | null> = {};
   // Facade searches use a placeholder requested ID and then quote the entire county catalog.
   const offeredIds = location.county
-    ? (await countyPlans(db, location.county, request.year, location.zip)).map(
-        (p) => p.base_plan_id,
-      )
+    ? (
+        await reads.countyPlans(location.county, request.year, location.zip)
+      ).map((p) => p.base_plan_id)
     : [];
   const ids = [
     ...new Set([...request.ids.map((id) => id.base), ...offeredIds]),
@@ -408,7 +409,7 @@ export async function householdSubsidy(
         "EHBPercentTotalPremium",
       ) ?? null;
   const policy = estimateAptc({ ...input, slcspMonthlyCents: 0 });
-  const b = await benchmark(db, request, location);
+  const b = await benchmark(db, request, location, reads);
   const empty = {
     ...QUOTE_METADATA,
     quote_method: b.quote_method,

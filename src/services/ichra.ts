@@ -1,5 +1,4 @@
 import {
-  countyPlans,
   countyState,
   exchangeAttributeRows,
   federalCatalog,
@@ -47,10 +46,11 @@ import type {
   SlcspCandidate,
   SlcspHousehold,
 } from "../domain/subsidy/index.js";
-import { plansForCounty } from "../ingest/puf/import-repository.js";
 import { ratingRule } from "../ingest/rating-rules/index.js";
 import { agreedField, familyOffer } from "./coverage-family.js";
 import { ratePremium } from "./premiums.js";
+import { requestReads } from "./request-reads.js";
+import type { RequestReads } from "./request-reads.js";
 
 export interface IchraRequest {
   readonly planStart: string;
@@ -197,6 +197,7 @@ async function rateCandidate(
   location: Awaited<ReturnType<typeof resolveLocation>>,
   question: LcspQuestion,
   age: number,
+  reads: RequestReads,
 ): Promise<RateOutcome> {
   const rated = await ratePremium(
     db,
@@ -204,6 +205,7 @@ async function rateCandidate(
     plan.base_plan_id,
     ratingRequest(question.location, question.month, age),
     location,
+    reads,
   );
   const premium = rated.householdPremium;
   if (!premium || premium.status !== "rated") {
@@ -315,6 +317,7 @@ function pick(
 async function lcspEvidence(
   db: SqlSession,
   question: LcspQuestion,
+  reads: RequestReads = requestReads(db),
 ): Promise<LcspEvidence> {
   const base = {
     reason: null as string | null,
@@ -366,14 +369,14 @@ async function lcspEvidence(
     return refuse("unknown", "month_rate_rows_missing");
   const silver = (plan: { on_exchange: boolean; metal: string }) =>
     plan.on_exchange && plan.metal.toLowerCase() === "silver";
-  const offered = (await countyPlans(db, county, year, location.zip)).filter(
+  const offered = (await reads.countyPlans(county, year, location.zip)).filter(
     silver,
   );
   if (!location.zip) {
     // A ZIP-limited silver plan may or may not be offered; sub-county rating areas need a ZIP too.
-    const zipLimited = (
-      await plansForCounty(db, county, year, "Individual")
-    ).some((p) => !p.dental_only && silver(p) && p.zip_restricted);
+    const zipLimited = (await reads.countyRows(county, year)).some(
+      (p) => !p.dental_only && silver(p) && p.zip_restricted,
+    );
     const subCounty = offered.some(
       (p) =>
         (p.premium_availability as { reason?: string } | undefined)?.reason ===
@@ -410,6 +413,7 @@ async function lcspEvidence(
       location,
       question,
       question.age,
+      reads,
     );
     if ("status" in priced) return refuse(priced.status, priced.reason);
     atAge.push(priced);
@@ -421,6 +425,7 @@ async function lcspEvidence(
         location,
         question,
         question.identificationAge,
+        reads,
       );
       if ("status" in band) return refuse(band.status, band.reason);
       atBand.push(band);
@@ -880,9 +885,11 @@ export async function ichraAffordability(
     lookBack: harbors.lookBack,
     basis,
   };
-  const ptc = needsPtc ? await lcspEvidence(db, ptcQuestion) : null;
+  // Both questions share one request's catalog reads.
+  const reads = requestReads(db);
+  const ptc = needsPtc ? await lcspEvidence(db, ptcQuestion, reads) : null;
   const employer = needsEmployer
-    ? await lcspEvidence(db, employerQuestion)
+    ? await lcspEvidence(db, employerQuestion, reads)
     : null;
   const failed = [ptc, employer].find((e) => e && e.status !== "calculated");
   const applicable_age = age;

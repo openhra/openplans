@@ -1066,6 +1066,39 @@
       "x-quote-tier": null
     }
   },
+  "readyz": {
+    "status": 200,
+    "body_sha256": "31bf75f4c0a97cc1f7b60df824fa390b3be9ba014f29b63c87c698ba63d9a9fd",
+    "headers": {
+      "content-type": "application/json",
+      "cache-control": "no-store",
+      "x-cache": "bypass",
+      "x-openplans-gaps": null,
+      "x-quote-tier": null
+    }
+  },
+  "readyz-db-down": {
+    "status": 503,
+    "body_sha256": "5b6e9cafb59352b91bb42a05745e40e3a917696c64845277f9e610875b40c199",
+    "headers": {
+      "content-type": "application/json",
+      "cache-control": "no-store",
+      "x-cache": "bypass",
+      "x-openplans-gaps": null,
+      "x-quote-tier": null
+    }
+  },
+  "readyz-with-api-token": {
+    "status": 200,
+    "body_sha256": "31bf75f4c0a97cc1f7b60df824fa390b3be9ba014f29b63c87c698ba63d9a9fd",
+    "headers": {
+      "content-type": "application/json",
+      "cache-control": "no-store",
+      "x-cache": "bypass",
+      "x-openplans-gaps": null,
+      "x-quote-tier": null
+    }
+  },
   "cache-stats-with-api-token": {
     "status": 200,
     "body_sha256": "e3ee9ffbc2e7eb90183cd0b95b0329db8c9ac13762e67dea7f81d06d74ec819e",

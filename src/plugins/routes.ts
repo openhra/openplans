@@ -30,7 +30,7 @@ export const PLUGIN_REQUEST_MAX_BYTES = 65_536;
 export const PLUGIN_RESPONSE_MAX_BYTES = 1024 * 1024;
 
 // The same reserved paths the loader refuses; checked again so a hand-built registry cannot shadow a core route.
-const CORE_PATHS = ["/healthz", "/mcp"];
+const CORE_PATHS = ["/healthz", "/readyz", "/mcp"];
 const CORE_PREFIXES = ["/v1", "/compat"];
 export function isCoreRoutePath(path: string, plugin?: string): boolean {
   return (

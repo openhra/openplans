@@ -23,10 +23,15 @@
  * participation as not_listed, and check_provider_network through it must produce
  * INTERNAL_HONESTY_CHECK. scripts/oracle/README.md lists the rules.
  *
+ * Each location also asks for ICHRA affordability under the look-back safe harbor, which prices
+ * the employer's LCSP from January of the year before the plan year; that answer needs the prior
+ * year's catalog loaded.
+ *
  * Usage: DATABASE_URL=... node scripts/oracle/surface-sweep.mjs [--year 2026] [--state TX]...
  *   [--counties N] [--concurrency N] [--report FILE] [--optional] [--providers N] [--drugs N]
- *   [--medicare-plans N] [--estimator-checks N]
- * --counties takes the first N counties of each state (default: all). --optional
+ *   [--medicare-plans N] [--estimator-checks N] [--lookback-only]
+ * --counties takes the first N counties of each state (default: all). --lookback-only asks each
+ * location only the look-back questions and skips every other surface. --optional
  * (scripts/realdata.sh) prints SKIP and exits 0 when DATABASE_URL is not set.
  */
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -63,6 +68,7 @@ const drugLimit = count("--drugs", 25);
 const medicareLimit = count("--medicare-plans", 400);
 const estimatorChecks = count("--estimator-checks", 25);
 const years = many("--year").map(Number);
+const lookbackOnly = args.includes("--lookback-only");
 const states = many("--state");
 
 if (!process.env.DATABASE_URL) {
@@ -232,7 +238,13 @@ async function rest(surface, path, body, items, input) {
   );
   return response.body;
 }
-async function mcp(tool, input, items, call = callTool) {
+async function mcp(
+  tool,
+  input,
+  items,
+  call = callTool,
+  surface = `mcp ${tool}`,
+) {
   const started = Date.now();
   let response;
   try {
@@ -249,7 +261,7 @@ async function mcp(tool, input, items, call = callTool) {
     };
   }
   record(
-    `mcp ${tool}`,
+    surface,
     input,
     response,
     selectors(items, response.body, response.status),
@@ -286,6 +298,30 @@ async function sweepLocation(target) {
     ? `zip=${location.zip}`
     : `county=${location.county}`;
   const start = `${year}-01-01`;
+  const ichra = {
+    plan_start: start,
+    employee: { date_of_birth: `${year - AGE - 1}-10-01` },
+    residence: location,
+    hra: { self_only_annual_cents: 300_000 },
+    income: [{ measure: "household", annual_cents: INCOME * 100 }],
+  };
+  // Under the look-back safe harbor the employer's LCSP comes from the prior year's January catalog.
+  const lookBack = { ...ichra, safe_harbors: { look_back: true } };
+  await rest(
+    "POST /v1/ichra/affordability look-back",
+    "/v1/ichra/affordability",
+    lookBack,
+    present(calculated),
+    { ...target, look_back: true },
+  );
+  await mcp(
+    "check_ichra_affordability",
+    lookBack,
+    present((body) => calculated(body?.data)),
+    callTool,
+    "mcp check_ichra_affordability look-back",
+  );
+  if (lookbackOnly) return;
   const plans = await rest(
     "GET /v1/plans",
     `/v1/plans?${query}&year=${year}`,
@@ -318,13 +354,6 @@ async function sweepLocation(target) {
     present(priced),
     target,
   );
-  const ichra = {
-    plan_start: start,
-    employee: { date_of_birth: `${year - AGE - 1}-10-01` },
-    residence: location,
-    hra: { self_only_annual_cents: 300_000 },
-    income: [{ measure: "household", annual_cents: INCOME * 100 }],
-  };
   await rest(
     "POST /v1/ichra/affordability",
     "/v1/ichra/affordability",
@@ -1110,7 +1139,7 @@ try {
   console.log(
     `surface sweep: ${work.scopes.length} state-years, ${work.locations.length} locations, concurrency ${concurrency}`,
   );
-  await pool(work.perState, sweepState);
+  if (!lookbackOnly) await pool(work.perState, sweepState);
   let done = 0;
   await pool(work.locations, async (target) => {
     await sweepLocation(target);
@@ -1125,8 +1154,12 @@ try {
     work.scopes.some((s) => s.state === p.state && s.plan_year === p.year),
   );
   work.samples = new Map();
-  for (const scope of work.loadedStates)
-    work.samples.set(`${scope.state} ${scope.year}`, await sweepLoaded(scope));
+  if (!lookbackOnly)
+    for (const scope of work.loadedStates)
+      work.samples.set(
+        `${scope.state} ${scope.year}`,
+        await sweepLoaded(scope),
+      );
   const keys = [...medicareKeys.values()]
     .sort((a, b) => `${a.year} ${a.key}`.localeCompare(`${b.year} ${b.key}`))
     .slice(0, medicareLimit);
@@ -1136,12 +1169,16 @@ try {
     ),
   ].slice(0, 5);
   let index = 0;
-  await pool(keys, (key) => sweepMedicarePlan(key, index++, partDDrugs));
+  if (!lookbackOnly)
+    await pool(keys, (key) => sweepMedicarePlan(key, index++, partDDrugs));
   console.log(
     `  loaded surfaces: ${JSON.stringify(loadedCounts)}, ${keys.length} Medicare plans; ${requests} requests, ${failures.length} failures`,
   );
-  const mutant = await plantedMutant(work);
-  const providerMutant = await plantedProviderMutant(work);
+  const skipped = { status: "skipped", reason: "lookback_only" };
+  const mutant = lookbackOnly ? skipped : await plantedMutant(work);
+  const providerMutant = lookbackOnly
+    ? skipped
+    : await plantedProviderMutant(work);
   const classes = summarize(failures);
   report = {
     generated_at: new Date().toISOString(),

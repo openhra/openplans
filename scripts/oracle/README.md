@@ -159,6 +159,10 @@ empty provider or drug search is a whole answer when it says its source is loade
 status `available`, MCP status `ok`, `terminology_status: "available"`). A second control,
 `mcpParticipation`, reports an unknown participation answer as `not_listed`, and
 `check_provider_network` through that copy must produce `INTERNAL_HONESTY_CHECK`.
+Each location also asks `/v1/ichra/affordability` and `check_ichra_affordability` under the
+look-back safe harbor (`safe_harbors.look_back`), which prices the employer's LCSP from January of
+the year before the plan year. With that catalog loaded the answer is `calculated`. Without it the
+answer names `lookback_catalog_not_loaded`. `--lookback-only` asks only those two questions.
 `--year`, `--state` and `--counties N` narrow a run; `--providers` and `--drugs` set the samples. `tests/oracle/surface-sweep.test.mjs`
 checks the rule on synthetic responses. `scripts/realdata.sh` runs the sweep with `--optional`
 when `OPENPLANS_SURFACE_SWEEP_DATABASE_URL` names a loaded database, and prints `SKIP` without

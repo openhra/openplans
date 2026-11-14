@@ -1,4 +1,6 @@
 import { createHash } from "node:crypto";
+import type { Context } from "hono";
+import { QUERY_TIMEOUT } from "../services/errors.js";
 
 /** Logs a class and fingerprint only. Messages, stacks and request values stay private. */
 export function logInternalError(error: unknown): void {
@@ -15,3 +17,7 @@ export function logInternalError(error: unknown): void {
     }),
   );
 }
+
+/** A read past the database time limit is a gateway timeout the client may retry, never a 500. */
+export const queryTimeoutResponse = (c: Context) =>
+  c.json({ error: { code: QUERY_TIMEOUT } }, 504);

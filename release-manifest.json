@@ -100,8 +100,8 @@
     {
       "path": "CHANGELOG.md",
       "mode": "100644",
-      "size": 39554,
-      "sha256": "a941bdf00232ed55f8608981d8bb31a5142f4bf713e3458c932d68d3497559c8"
+      "size": 44844,
+      "sha256": "3aa2c1ac6bac0c7506c4286a29e61d1e7e0d0e797ff09c08d73eeb77fcd32312"
     },
     {
       "path": "CLAUDE.md",
@@ -184,8 +184,8 @@
     {
       "path": "compose.yml",
       "mode": "100644",
-      "size": 8797,
-      "sha256": "c2140891f2822169f3701415a3de5586c1be25d1f4cc7d1c1b5b4c78237cf25c"
+      "size": 8881,
+      "sha256": "117bc92acb9d334edc70bd687f0f3f882a226135405f609df859743623fd1b5c"
     },
     {
       "path": "data/access/README.md",
@@ -382,8 +382,8 @@
     {
       "path": "docs/migrations.md",
       "mode": "100644",
-      "size": 27297,
-      "sha256": "95fa4b39dfb384f4444bf3ca2466e3e9098b5238e6bc9ac6080bdbccbd7a1b25"
+      "size": 28587,
+      "sha256": "2afa138bd2f3d772fa549f7d025a2da0ef6d4a32c9a558444bdd21005435fb7e"
     },
     {
       "path": "docs/plugins-operations.md",
@@ -418,26 +418,26 @@
     {
       "path": "docs/self-host.md",
       "mode": "100644",
-      "size": 37636,
-      "sha256": "e23d9bd4ebccf866b6002f14eaf3fd7ea44c63122dc21a41b3ec3169041e3fea"
+      "size": 37976,
+      "sha256": "5c394194715b0936abed9d8e38180f4ac5c6fd8c0e210c2142ad82a8caec755b"
     },
     {
       "path": "docs/usage.md",
       "mode": "100644",
-      "size": 22690,
-      "sha256": "0ab23f765466b87888e0686ba81825d97efbbaecf24b967aed86efe9977d48ac"
+      "size": 22849,
+      "sha256": "144d82ce4b34488c98acf6f9f14cbf7dd8a842eb412a0124c81969b5772794b5"
     },
     {
       "path": "eslint-baseline.json",
       "mode": "100644",
-      "size": 32554,
-      "sha256": "83518db34ab98b551c1644fc14dd36e78fc90b49cfe1799d7f5d2a75d8bd19b5"
+      "size": 32250,
+      "sha256": "13efbffadcc5ee26c63f4bd20db31da8b09e27400aabc6ad0d28e585b7bd477d"
     },
     {
       "path": "eslint-suppressions.json",
       "mode": "100644",
       "size": 2353,
-      "sha256": "84d698752cd1a283eeaab7cf68efd5f4bb0a397ed48676d1f1692815c3f63b49"
+      "sha256": "0233748925aba8894c91d9e6b8116d135db6842eaa51fb75d7702891a35bcd34"
     },
     {
       "path": "eslint.config.mjs",
@@ -498,6 +498,12 @@
       "mode": "100644",
       "size": 5799,
       "sha256": "48bdc0a7df6aa44e3aa58b49ca3f9160040d5885a2245313fbf64d33798d463a"
+    },
+    {
+      "path": "migrations/1006_address_point_npi_coordinates.sql",
+      "mode": "100644",
+      "size": 263,
+      "sha256": "26884981b02c6fee340762e862800c4fec4f3351c9d8586d2daed7f81c906a53"
     },
     {
       "path": "migrations/100_geo.sql",
@@ -851,13 +857,13 @@
       "path": "package-lock.json",
       "mode": "100644",
       "size": 106496,
-      "sha256": "037072ac01ff9b2952332c0b1849c95e88bdb13b32b3b178f53474b94ed6dda7"
+      "sha256": "d0f7c9f10d414772af7c5a5b8738a4d4f7951a22125893a5d76dea04555badca"
     },
     {
       "path": "package.json",
       "mode": "100644",
       "size": 2306,
-      "sha256": "e7c7df3b705ea9266b45d0bdfc97e5c805e2fe453bae725b2e16c8d52094d450"
+      "sha256": "d339928a4b6809ba3746b95f361f332daf9e0723b9ce869be8d098e583b8169d"
     },
     {
       "path": "plugins/blob-s3/README.md",
@@ -1384,8 +1390,8 @@
     {
       "path": "scripts/oracle/README.md",
       "mode": "100644",
-      "size": 15341,
-      "sha256": "d7b29bf2b868a5bb43e65b545a964f6f19855cddafccf06772a4aedbb9d11610"
+      "size": 15724,
+      "sha256": "e785ad76836ebe5bb8620bfe70efdc00f3e0284a2f5cf8ad852fae3f2eeda712"
     },
     {
       "path": "scripts/oracle/all-states-reference.py",
@@ -1630,8 +1636,8 @@
     {
       "path": "scripts/oracle/surface-sweep.mjs",
       "mode": "100644",
-      "size": 40371,
-      "sha256": "cf5b7ba9d3989dfef154fa5e27e6c080a5c5466d56e0b5f8db81fd81b5e3828c"
+      "size": 41556,
+      "sha256": "5fc7f91320c9d653b890ccf779250af135b023d6c8f4ed10c4feff4411b28928"
     },
     {
       "path": "scripts/oracle/year-over-year.py",
@@ -1696,14 +1702,14 @@
     {
       "path": "src/api/README.md",
       "mode": "100644",
-      "size": 30574,
-      "sha256": "6802aab4a61750969e0e54a593b851bebff99220adbb59ca3e704671dbb0028d"
+      "size": 32061,
+      "sha256": "b0d19acdd51ca1402d2dfe5c872767799d62742a7477787054d0b75584c76996"
     },
     {
       "path": "src/api/app.ts",
       "mode": "100644",
-      "size": 3083,
-      "sha256": "c386eaf7a291c8f5f0fcb0861a5b529679e5af3e7e912a9720f78a97bd1403f2"
+      "size": 4896,
+      "sha256": "49546e2976424b54f83f28a3cb2920769ba86724a154bdb3abe75f0e1804b8f6"
     },
     {
       "path": "src/api/availability.ts",
@@ -1756,8 +1762,8 @@
     {
       "path": "src/api/error-log.ts",
       "mode": "100644",
-      "size": 613,
-      "sha256": "070a8bba93a9ac1a511f8c97f98e8141d622cff32509328cbdf0f36b87b04d15"
+      "size": 908,
+      "sha256": "219dde73f8dde40eeaadae702bbddd1e5c38aed9a8ce2325081f40d25622cccd"
     },
     {
       "path": "src/api/ichra.ts",
@@ -1780,8 +1786,8 @@
     {
       "path": "src/api/pglite.ts",
       "mode": "100644",
-      "size": 4128,
-      "sha256": "f2119234bd295e9ce8953848ec424e2634c9edd40e92d32bea6ca229919294e3"
+      "size": 4585,
+      "sha256": "99330ccdf1a6e5389c0b14d50438a919b1fa3cf3b8d582f5e048a4eb19e1badb"
     },
     {
       "path": "src/api/plan-view.ts",
@@ -1804,8 +1810,14 @@
     {
       "path": "src/api/provider-repository.ts",
       "mode": "100644",
-      "size": 47252,
-      "sha256": "9762e28b93aedf328c571021f2c8825ce70c1a28b595ec96860d462ddab47d03"
+      "size": 54279,
+      "sha256": "c0e332ae1797be3d77f4fbea502c77875d61508c29ce3e4865d059742005875f"
+    },
+    {
+      "path": "src/api/provider-unlocated.ts",
+      "mode": "100644",
+      "size": 2250,
+      "sha256": "235909cf1ba3fe8539db8ce0d0ea75a8554bb71d63d82ea801214042e86e03b0"
     },
     {
       "path": "src/api/providers.ts",
@@ -1834,20 +1846,26 @@
     {
       "path": "src/api/repository.ts",
       "mode": "100644",
-      "size": 35805,
-      "sha256": "df0e39d0c065a01bf8dbc122025e10541eb33612036e3def779ee4cb0ef26e02"
+      "size": 36098,
+      "sha256": "1dede1bf7552f813f0f929e2470890489d12afbd6fef12f251beec0949eef89f"
     },
     {
       "path": "src/api/routes.ts",
       "mode": "100644",
-      "size": 2616,
-      "sha256": "ce7f89eafd5cab50c4b5c98ae2aa9a19030d3cb8f22f99d5a775b2c5a95df66a"
+      "size": 2732,
+      "sha256": "52cbcb787cd82632e546a67a2568fbfa287fb3e812372feead430dbccc219084"
+    },
+    {
+      "path": "src/api/schema-gate.ts",
+      "mode": "100644",
+      "size": 4118,
+      "sha256": "34fcf8e186bcd628563417c84f6efc5e07a319202c21c4af02b39cd987792499"
     },
     {
       "path": "src/api/server.ts",
       "mode": "100644",
-      "size": 2546,
-      "sha256": "735da045a0706d7b2de9f54a36ed7eda83c91c057fee5823452cf00b263a62c7"
+      "size": 2746,
+      "sha256": "bd3ec4e625a82e05d5f7a6c9b81f5576f1dd74d4b1840a94122a58c794f4b50d"
     },
     {
       "path": "src/api/subsidies.ts",
@@ -1894,8 +1912,8 @@
     {
       "path": "src/compat/v1/index.ts",
       "mode": "100644",
-      "size": 31905,
-      "sha256": "4e48679113a5ecb40fc1a1d6751a914259e5b35d905d7ddefc380129090c4a3e"
+      "size": 32462,
+      "sha256": "cb1ece7ab108b445548fdabe94483805405fc5174cc4de56c1b263d06eb42f4c"
     },
     {
       "path": "src/compat/v1/mapping.ts",
@@ -1936,14 +1954,14 @@
     {
       "path": "src/db/bounded.ts",
       "mode": "100644",
-      "size": 900,
-      "sha256": "47f94bb5d54dba9b9df6d65c0d8606d3751a8812529449b7769c043351211899"
+      "size": 937,
+      "sha256": "8b80c166d05d4f3b88f75ae7f582fb06ec0ddc0eb3cda3363b6ca6b5d6f52df7"
     },
     {
       "path": "src/db/database.ts",
       "mode": "100644",
-      "size": 4833,
-      "sha256": "1f244888fa272a76b9ba6f7076350bb7f8524d0a9e318171e2207da718e7e0bb"
+      "size": 7622,
+      "sha256": "5cb82ea3d48808ec24b3aedc2370e874bb286219a60b6412ba6bcad5e7da38fd"
     },
     {
       "path": "src/db/migrate-safety.ts",
@@ -1954,8 +1972,8 @@
     {
       "path": "src/db/migrate.ts",
       "mode": "100644",
-      "size": 14436,
-      "sha256": "b14a7f609da14c99bbd6cab161f338492829f5e560244737c9bb1f15ac296d0e"
+      "size": 15496,
+      "sha256": "e058abf8098979cbf352f4dc523056ab4b8ec6c6da0bf74fa049c2119bb6fe5f"
     },
     {
       "path": "src/db/migration-size-evidence.ts",
@@ -1980,6 +1998,12 @@
       "mode": "100644",
       "size": 4589,
       "sha256": "0a64534ef025c46267ecf698ba1a2cf8041137b84edf12e3b12c62e53e9da4a0"
+    },
+    {
+      "path": "src/db/schema-ready.ts",
+      "mode": "100644",
+      "size": 1084,
+      "sha256": "d727b706cbc76baa66e84942943e0eeda32ee741f47427ee5d27c0c1d569a60f"
     },
     {
       "path": "src/db/scope.ts",
@@ -2266,8 +2290,8 @@
     {
       "path": "src/fetch/README.md",
       "mode": "100644",
-      "size": 24766,
-      "sha256": "8256a03fbc1d28221c50f9deb2a860137f60c1a03e910c940d28224d890bc099"
+      "size": 24948,
+      "sha256": "7e6acf4330550f76a14067ec5b40146d07eb9c19be4a2d2270d657ae700433d4"
     },
     {
       "path": "src/fetch/admission.ts",
@@ -2303,7 +2327,7 @@
       "path": "src/fetch/cache.ts",
       "mode": "100644",
       "size": 43124,
-      "sha256": "a24ae1f2d90c1369ce19396f45f44e096a518f46ba9363f21b89dfa9f082e5e0"
+      "sha256": "188e3c35dd4bcd26fcfaf9df84e7fc3fc0cc3f08780524456cb5f13f370632be"
     },
     {
       "path": "src/fetch/egress.ts",
@@ -2320,8 +2344,8 @@
     {
       "path": "src/fetch/index.ts",
       "mode": "100644",
-      "size": 1531,
-      "sha256": "457d9741b93b74c4662cc4d18d06f0589e645ebfa870ca9c1e1dcdd15bf1844f"
+      "size": 1547,
+      "sha256": "8f84e656297096083ba92a635fb56a2fabdf28c87c312d8b8556e764fe0af977"
     },
     {
       "path": "src/fetch/limiter.ts",
@@ -2350,14 +2374,14 @@
     {
       "path": "src/fetch/snapshots.ts",
       "mode": "100644",
-      "size": 7889,
-      "sha256": "20776ec53ade7358d2aabfe55195ca38fbe2bccdbd47302229631b69d2fcc37a"
+      "size": 9232,
+      "sha256": "d0c6923126d7799783fd2b6dfb26bb401a0239eadedd4208171bb6318d613f94"
     },
     {
       "path": "src/fetch/transient.ts",
       "mode": "100644",
       "size": 24072,
-      "sha256": "b47f31ab885d09cc84eada95ef5f8bf85191794088a64673a2a4a6123b3ed2e9"
+      "sha256": "748f5c4d3a475f143d3d1d684934d6acd2eceff8407f0da7a13f5289bb71b77d"
     },
     {
       "path": "src/fetch/transport.ts",
@@ -2500,8 +2524,8 @@
     {
       "path": "src/ingest/geocode/census.ts",
       "mode": "100644",
-      "size": 5096,
-      "sha256": "f6481a7ceab8ae127da9e612d36f027edef83c206b414fd57bcea60b12ad9a8f"
+      "size": 5113,
+      "sha256": "4382e08a692f3b2489dd2f2cae674255412be46be8a37b1e0b19956dbf505afb"
     },
     {
       "path": "src/ingest/geocode/cleanup-cli.ts",
@@ -2572,8 +2596,8 @@
     {
       "path": "src/ingest/geocode/open-store.ts",
       "mode": "100644",
-      "size": 14706,
-      "sha256": "ed0fdf58ddd49d08d501b642801a897d0940278e7d8f64fc0ea4f7c43a9dbd75"
+      "size": 14753,
+      "sha256": "d29b129a7201c2b968f382975d2a5ae56b291623fd5b874866dbabf62e44cfa6"
     },
     {
       "path": "src/ingest/geocode/open.ts",
@@ -2818,8 +2842,8 @@
     {
       "path": "src/ingest/puf/acquire.ts",
       "mode": "100644",
-      "size": 11912,
-      "sha256": "d8846475a3f3992c47124065fd35eb11dce1d70ec9212ac27ff55784ea4f8888"
+      "size": 11929,
+      "sha256": "065cbcf61e85c0962071de2ddf8b1c7046acf70225b49fcfe90a04fc02440c43"
     },
     {
       "path": "src/ingest/puf/import-README.md",
@@ -2878,8 +2902,8 @@
     {
       "path": "src/ingest/puf/import-source.ts",
       "mode": "100644",
-      "size": 8885,
-      "sha256": "870f36877cf7f7b6a200383c2b90d8be4f7106c408dc7bda418072fa1b14cbf0"
+      "size": 9054,
+      "sha256": "82ab749fc06cb759d1138de1379a0f15e6e78b88a6fc7bbaedf4b224f263f2d6"
     },
     {
       "path": "src/ingest/puf/import.ts",
@@ -2909,7 +2933,7 @@
       "path": "src/ingest/qhp/discover-diagnose.ts",
       "mode": "100644",
       "size": 7698,
-      "sha256": "4d5e80eb42966e53d97c2755479cf607532a5a3a3049f3007cca605da0dbe552"
+      "sha256": "6bac8228fb27e131c71dd96508267fb48770904f024366f46798cdfbe0b8904a"
     },
     {
       "path": "src/ingest/qhp/discover-pglite.ts",
@@ -3004,8 +3028,8 @@
     {
       "path": "src/ingest/qhp/provider-acquire.ts",
       "mode": "100644",
-      "size": 1439,
-      "sha256": "f6d7781ce03726b157b388a3174e876ef98ba2be29f7846077e438844033d13b"
+      "size": 2328,
+      "sha256": "9fcd75bb5bb7b0741ea2dd3628894dafcb5466069d83af68ac8fece82011e551"
     },
     {
       "path": "src/ingest/qhp/provider-command.ts",
@@ -3016,8 +3040,8 @@
     {
       "path": "src/ingest/qhp/provider-pglite.ts",
       "mode": "100644",
-      "size": 8896,
-      "sha256": "289b1bbfcd64348640707a03f7875961b631985d2ed32a54a4373cf12a5df1b8"
+      "size": 8547,
+      "sha256": "b85b619b4b0c00bd798b752d7b68d029e7986db97f4993665324e1a6a9d01dcf"
     },
     {
       "path": "src/ingest/qhp/provider-postgres-audit.ts",
@@ -3251,7 +3275,7 @@
       "path": "src/ingest/state/reflective.py",
       "mode": "100644",
       "size": 11147,
-      "sha256": "83d5856caa22d4b9355d265daa50201758502ee39c33c409d13e58a0d79fdbc6"
+      "sha256": "29fabbd68d5024964a95351a1f13cbd3103ea5e2c39d90b4ee7d60149a0c792a"
     },
     {
       "path": "src/ingest/state/reflective.ts",
@@ -3352,8 +3376,8 @@
     {
       "path": "src/mcp/tools.ts",
       "mode": "100644",
-      "size": 47598,
-      "sha256": "eec24280dfa9cae73f33259cd9b95588aabc3448696d7172c2376d6f98568409"
+      "size": 47723,
+      "sha256": "a76b5e4dfd9644d8682a0931cf533822fb62c77ee228502dbce878d043d19d17"
     },
     {
       "path": "src/mcp/version.ts",
@@ -3364,8 +3388,8 @@
     {
       "path": "src/plugins/api.ts",
       "mode": "100644",
-      "size": 6402,
-      "sha256": "1d2ea97d899fa1a61aaa9761a0a55714ff1fd293b1bc78e058afc9b74feb4271"
+      "size": 6638,
+      "sha256": "8582db4fbc0e21f6c7b99f43ddee82412f9617eba483071851a963f5c1d7b588"
     },
     {
       "path": "src/plugins/core-plugin.ts",
@@ -3430,8 +3454,8 @@
     {
       "path": "src/plugins/registries.ts",
       "mode": "100644",
-      "size": 14372,
-      "sha256": "a50ad22d44156ef96457336ded20583ac2ddb790af42e741e290699a75492c56"
+      "size": 14383,
+      "sha256": "96983a3e5b6aa09cdc57761b8a8119f17862e29f876cddbb06f8f113f5f9a665"
     },
     {
       "path": "src/plugins/request-scope.ts",
@@ -3442,8 +3466,8 @@
     {
       "path": "src/plugins/routes.ts",
       "mode": "100644",
-      "size": 8349,
-      "sha256": "2539bd247ab7ee077229378a96140f5c7a03940a94e656213caae0ba1af886be"
+      "size": 8360,
+      "sha256": "835ff1359357db7a2c3604b1796458810bd99ce27df2f933e76c1296ab0a3923"
     },
     {
       "path": "src/plugins/sources/feed.ts",
@@ -3538,8 +3562,8 @@
     {
       "path": "src/services/catalog.ts",
       "mode": "100644",
-      "size": 5197,
-      "sha256": "d5167b23e6dcc2bf091f35fce2a65dc20f39816446f0ebbf42ba3dd8985025da"
+      "size": 5335,
+      "sha256": "9db9cd4ab2942170b468b11eb67d77fe7fc50925a5e0b5ccfa4e433801f0258d"
     },
     {
       "path": "src/services/coverage-family.ts",
@@ -3562,20 +3586,20 @@
     {
       "path": "src/services/errors.ts",
       "mode": "100644",
-      "size": 229,
-      "sha256": "162099d97a45d5b949719e295e6cfb9209fe83fc4a2e48353a58cd0665fa10a3"
+      "size": 1011,
+      "sha256": "1d977a1135e3f0843ead8868798df4a9b9b45e5e20891597b3aeb5095da28a7d"
     },
     {
       "path": "src/services/ichra.ts",
       "mode": "100644",
-      "size": 32159,
-      "sha256": "4caf557368869756703ff2f5ed071e4341123cd2472c4c38ebbb8dafb72e2ea1"
+      "size": 32376,
+      "sha256": "2e63497a572d57a47cf48fa332434c38256669447fa7fa1edff95b3cb8bb5538"
     },
     {
       "path": "src/services/location-issues.ts",
       "mode": "100644",
-      "size": 2074,
-      "sha256": "98845f0ef20c5f8acff94c6dc0b85a9752f8ede6fba3ede2fc53d3b8cc29aba2"
+      "size": 2138,
+      "sha256": "6486653cfc465962b85d32606a04788c8b144bf40e37bf193be13e07c1ea1446"
     },
     {
       "path": "src/services/medicare-drug-cost.ts",
@@ -3598,8 +3622,8 @@
     {
       "path": "src/services/premiums.ts",
       "mode": "100644",
-      "size": 15003,
-      "sha256": "12bdeb602181fdee9665ec3a4598be029860a1053fbd4ae4ffdba2b438f4ffd7"
+      "size": 15352,
+      "sha256": "d23ae25013150bdc891e6e822af3af875044b47b4a2f2348fb9724c3b0ae426b"
     },
     {
       "path": "src/services/provenance.ts",
@@ -3622,14 +3646,20 @@
     {
       "path": "src/services/quotes.ts",
       "mode": "100644",
-      "size": 5893,
-      "sha256": "028bc0006535036aed1163f8cf5d6c5de66c313fee5ee2a82dbdcd7c0c576e82"
+      "size": 6222,
+      "sha256": "cdc01c9763ad0e0e00d4ed26b29e0d468fd4cc9f2976bbe877d608e8f6ae418c"
+    },
+    {
+      "path": "src/services/request-reads.ts",
+      "mode": "100644",
+      "size": 2356,
+      "sha256": "fa08a5ff299d2de3696eafe25d33916020c8bb21922419fc618ab974e8fa51f0"
     },
     {
       "path": "src/services/subsidies.ts",
       "mode": "100644",
-      "size": 18128,
-      "sha256": "782a365d6dcee07ab9afd2c395fc754553f04c1edec1addd225ff4bda485ba23"
+      "size": 18260,
+      "sha256": "bfb94bf7f79a74f7e735f6c99a14e1b31c935ca7c5815489fdd47e247aed5761"
     },
     {
       "path": "src/worker/backup-args.ts",
@@ -3646,8 +3676,8 @@
     {
       "path": "src/worker/bootstrap.ts",
       "mode": "100644",
-      "size": 46917,
-      "sha256": "d0f5c4e5fa6627e60e9335897545ae148a2c653d7804483debd0b607601ef631"
+      "size": 46934,
+      "sha256": "fe8bdbf36bf122468034f9d7dcbb3da5a855c7d6353dc52ad55dd67b56cc9704"
     },
     {
       "path": "src/worker/cli.ts",
@@ -3748,8 +3778,8 @@
     {
       "path": "tests/api/cache/postgres-memory.test.ts",
       "mode": "100644",
-      "size": 2731,
-      "sha256": "377d893c0152ce48108e9745b9ad12087dc973eaa094ac33f506f24d34d35de7"
+      "size": 2972,
+      "sha256": "f25fb514a14ff44ba212bd9fcb94e3455ca045f428c05c7fd6fff172e31ad06a"
     },
     {
       "path": "tests/api/cache/request-scope.test.ts",
@@ -3920,6 +3950,12 @@
       "sha256": "0057179b502652f7d217905022058440a94ee7353d1a55af7c793e3691622a17"
     },
     {
+      "path": "tests/api/pglite-schema.test.ts",
+      "mode": "100644",
+      "size": 3220,
+      "sha256": "aa48ff85be5e34227f0a909bef124a0b8e35d4d18f0912bc6b393f5b7b2b2be9"
+    },
+    {
       "path": "tests/api/plan-view-columns.test.ts",
       "mode": "100644",
       "size": 9854,
@@ -3930,6 +3966,18 @@
       "mode": "100644",
       "size": 9221,
       "sha256": "bebd616a0e60e50ff7841710c3778fd6ef4e8cf517d6ddcdf96d3165cb101c5d"
+    },
+    {
+      "path": "tests/api/provider-unlocated.test.ts",
+      "mode": "100644",
+      "size": 4022,
+      "sha256": "346bf13a68d4185eb1297e682f38a6a84dcf34edf7c73eb7f4de6dba89d9a3dc"
+    },
+    {
+      "path": "tests/api/providers-name-index.test.ts",
+      "mode": "100644",
+      "size": 4015,
+      "sha256": "3ce470795c03e78af5d02e2e824d9ca717e048bb759ce1ee02d82a96a20d6c79"
     },
     {
       "path": "tests/api/providers-name.test.ts",
@@ -3954,6 +4002,12 @@
       "mode": "100644",
       "size": 27521,
       "sha256": "f2b570bfbaafcd21070efc3b4cede3add7c7c215652ac45319a8b21b0b9d96c7"
+    },
+    {
+      "path": "tests/api/query-timeout.test.ts",
+      "mode": "100644",
+      "size": 6230,
+      "sha256": "24b5d87cd90f36a49b496efd3ce623e3c9939821610cda3447f0f86828ad99f2"
     },
     {
       "path": "tests/api/quote-fixture.ts",
@@ -4014,6 +4068,12 @@
       "mode": "100644",
       "size": 21092,
       "sha256": "f248b0111e48d7d4ad03fabd154f3b2d1902d3a7b42967bb8bf0e30acf374665"
+    },
+    {
+      "path": "tests/api/schema-gate.test.ts",
+      "mode": "100644",
+      "size": 13069,
+      "sha256": "c776f6fca2bad25a510f4c882d594afa67a0edbefd89fb888cd8cb544bece87d"
     },
     {
       "path": "tests/api/state-geography.json",
@@ -4174,8 +4234,8 @@
     {
       "path": "tests/compat/v1/fidelity.test.ts",
       "mode": "100644",
-      "size": 9097,
-      "sha256": "4738968c4893f6aa7452028992203a3bc4221fd58d3547886bd5d9ed44c28579"
+      "size": 9668,
+      "sha256": "a91454c3f7b0bb123cf2a834c920ee51684415857ada9d470fed15add92905a1"
     },
     {
       "path": "tests/compat/v1/fixtures/benefits-and-cost-sharing.csv",
@@ -4410,6 +4470,18 @@
       "mode": "100644",
       "size": 1948,
       "sha256": "681fd3de265a4f4ab228c23f1d0ae276fd7f19081798a5f1577f3de759e7f826"
+    },
+    {
+      "path": "tests/db/read-timeout-cancel-postgres.test.ts",
+      "mode": "100644",
+      "size": 4150,
+      "sha256": "f18df7c4515bc200b2fbc1d4b1fe2f8530f61b75fae5a5e5dfda36c8395f1964"
+    },
+    {
+      "path": "tests/db/read-timeout-cancel.test.ts",
+      "mode": "100644",
+      "size": 4001,
+      "sha256": "f792694ec1f71de8121c95ad9e4544a27ba73b63226c79966bfe3b03a72a07ea"
     },
     {
       "path": "tests/docs/plugins-example.test.ts",
@@ -4682,10 +4754,16 @@
       "sha256": "06b4eebfc44a5714a223e2767bc85262ee2954b3ee42b6b3ccdf786904d08347"
     },
     {
+      "path": "tests/fetch/raw-dir-guard.test.ts",
+      "mode": "100644",
+      "size": 8665,
+      "sha256": "ee2ecd02417d0a18c0eb7467d2db878db5bdfd7788840184b4addf70c29daca2"
+    },
+    {
       "path": "tests/fetch/raw-readers-remote.test.ts",
       "mode": "100644",
-      "size": 19124,
-      "sha256": "65b25ec0a704c5ac081cd6a0452f2ab3fea48c59c9b8655c65df04eca271c3aa"
+      "size": 23826,
+      "sha256": "9ce893b46ce35732a1ef2b2d1392c7dd8e4d0f846ac38c9b9effa5e8e7edde61"
     },
     {
       "path": "tests/fetch/shipped-manifest.test.ts",
@@ -5308,32 +5386,32 @@
     {
       "path": "tests/fixtures/plugins/corpus.json",
       "mode": "100644",
-      "size": 58325,
-      "sha256": "db06730014732336cfdd794cdf98f6fcf165f9d7ed187ca310209fe4afad38e0"
+      "size": 58877,
+      "sha256": "2b54437262f3815ef9b10a4c03503a3c7ac90a4dd77387e1637a0d618a6f6ee2"
     },
     {
       "path": "tests/fixtures/plugins/mcp-digests-cms-on.json",
       "mode": "100644",
       "size": 10698,
-      "sha256": "e4252ef2c6d9ef3ce11340a4848d6a2e617b813bc6daeadb6dc530a0a1185a1a"
+      "sha256": "338c2f70aa4fd10ea0571d75ac23d6419ea137b73f5b58df027ed3f37081b249"
     },
     {
       "path": "tests/fixtures/plugins/mcp-digests.json",
       "mode": "100644",
       "size": 10698,
-      "sha256": "e4252ef2c6d9ef3ce11340a4848d6a2e617b813bc6daeadb6dc530a0a1185a1a"
+      "sha256": "338c2f70aa4fd10ea0571d75ac23d6419ea137b73f5b58df027ed3f37081b249"
     },
     {
       "path": "tests/fixtures/plugins/response-digests-cms-on.json",
       "mode": "100644",
-      "size": 60160,
-      "sha256": "504288affe3b414d6a580f3b16a27377cd4cc41f40e54151baf1cb42b5f9be15"
+      "size": 61116,
+      "sha256": "d257b16904a9a7b29bf30f07890cda7034d2ef6ff122f54c1593e9d7dc5b3140"
     },
     {
       "path": "tests/fixtures/plugins/response-digests.json",
       "mode": "100644",
-      "size": 60160,
-      "sha256": "6980ac757d126700d151c1e430be540579b2da886193710b249803f7a408a203"
+      "size": 61116,
+      "sha256": "bff133296460f2feb0867eb47c24a2bf8a799b9ee66fc0b108442c6105ff9e18"
     },
     {
       "path": "tests/fixtures/plugins/synthetic-alpha/index.mjs",
@@ -6329,7 +6407,7 @@
       "path": "tests/ingest/geo/fallback.test.ts",
       "mode": "100644",
       "size": 17758,
-      "sha256": "7fddd7508612179b9c3b5917787c39cf860935d91f0c78e1682e4050d4e8e4fd"
+      "sha256": "252c0cf6cf32a44c6bf7ac96167ebd39b2a4d5eb97050f128fe2fc013dc84467"
     },
     {
       "path": "tests/ingest/geo/geo.test.ts",
@@ -6593,7 +6671,7 @@
       "path": "tests/ingest/qhp/discover.test.ts",
       "mode": "100644",
       "size": 23712,
-      "sha256": "59e85b2f8ee95e75e8b734e60e6c2d83998afd6666c3ef164c3e7f03b18a4211"
+      "sha256": "ec609e5bc0be9a2942d6fa95fb4de835cf092544c9107b38284969d0a937a60d"
     },
     {
       "path": "tests/ingest/qhp/enrichment.test.ts",
@@ -6850,8 +6928,8 @@
     {
       "path": "tests/migrate-concurrent.test.ts",
       "mode": "100644",
-      "size": 5879,
-      "sha256": "3534f3e719141b0375bf3e6c3ea1fa13ce9434a1a0d7331a375218266c9705c1"
+      "size": 7291,
+      "sha256": "c1f73d2d264127f4e19221ba92e708c90312c4cf591882a270c243e457450c16"
     },
     {
       "path": "tests/migrate-history.json",
@@ -7042,8 +7120,8 @@
     {
       "path": "tests/plugins/migration-hosts.test.ts",
       "mode": "100644",
-      "size": 11775,
-      "sha256": "dd238e0be583df6e010f3566ee141bc20d0e6c0f71b3ccc7acde364be48ab87d"
+      "size": 11888,
+      "sha256": "c33497cfd33df4435dfb700cb772556cd7e9dde5a149727fa40b91017bfb0628"
     },
     {
       "path": "tests/plugins/migrations.test.ts",
@@ -7194,6 +7272,12 @@
       "mode": "100644",
       "size": 4183,
       "sha256": "cc3334a9893d4a7dcd3ba78f22566c19f40b809ac9ab0f11881d5352fa2ee186"
+    },
+    {
+      "path": "tests/services/catalog-reads.test.ts",
+      "mode": "100644",
+      "size": 6309,
+      "sha256": "4ee04fcbe9326a61883cc0251cef1c75b6b584eb6785525e2e06d99bc37ca674"
     },
     {
       "path": "tests/services/consistency.test.ts",

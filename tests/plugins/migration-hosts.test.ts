@@ -123,11 +123,12 @@ describe("the test kit runs the plugin's own migrations", () => {
   });
 
   it("negative control: a plugin table without the generation trigger fails the kit", async () => {
-    // A core that forgot to give plugin tables the trigger.
+    // A core that forgot to give plugin tables the trigger. The core ships a concurrent index,
+    // so every run takes the pinned-session path.
     const mutant = await plantMutant(
       new URL("../../src/db/migrate.ts", import.meta.url),
-      "      await installMetadata(tx);\n      await installPluginGeneration(tx, plugins);",
-      "      await installMetadata(tx);",
+      "          await installMetadata(session);\n          await installPluginGeneration(session, plugins);",
+      "          await installMetadata(session);",
     );
     const db = testDatabase(new PGlite());
     try {

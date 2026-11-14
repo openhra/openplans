@@ -45,7 +45,9 @@ services:
           -c "maintenance_work_mem=$${maintenance}MB" \
           -c "autovacuum_work_mem=$${maintenance}MB" \
           -c "max_connections=$$connections" \
-          -c "max_parallel_workers_per_gather=2"
+          -c "max_parallel_workers_per_gather=2" \
+          -c "random_page_cost=1.1" \
+          -c "effective_io_concurrency=200"
         # END MEMORY PROFILE
     ports:
       - "127.0.0.1:${DB_PORT:-5432}:5432"

@@ -109,7 +109,9 @@ separate local API/worker image tag (default `openplans:local`).
 `worker status` prints the stored coverage manifest. `/v1/data-availability`
 adds current source completeness, rating and ICHRA readiness. Run
 `docker compose run --rm --no-deps worker migrate` before starting the API.
-The API never migrates at startup. See [migration authoring and preflight](migrations.md).
+The API never migrates at startup. Until migrations finish, `/readyz` and the data
+routes answer 503 `schema_not_ready`, while `/healthz` stays 200 and reports
+`"schema":"not_ready"`. See [migration authoring and preflight](migrations.md).
 
 Household quotes at `POST /v1/premium-quotes`, the benchmark and ICHRA checks
 are open by default, with the same per-source limits as public quotes. Set
@@ -136,7 +138,7 @@ below), or explicitly set `OPENPLANS_RAW_READ_ONLY=false` for the acquisition
 command, then restore the read-only default for imports.
 
 ```sh
-docker compose run --rm worker migrate
+docker compose run --rm --no-deps worker migrate
 docker compose run --rm worker ingest rating-rules
 docker compose run --rm worker ingest geo --state TX
 docker compose run --rm worker ingest puf import --year 2026 --state TX

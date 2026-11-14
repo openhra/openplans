@@ -2,6 +2,7 @@ import { dirname } from "node:path";
 import { loadConfig } from "../config/index.js";
 import type { CoreConfig, Environment } from "../config/index.js";
 import type { Database } from "../db/database.js";
+import type { PluginMigrationSource } from "../db/migrate.js";
 import type { CacheStore, EventInput } from "@openplans/plugin-sdk";
 import type {
   EventSubscription,
@@ -27,6 +28,8 @@ export interface ApiPlugins {
   readonly teardown: () => Promise<void>;
   /** The configured cache store, shared by the response cache and pass-through `memory`. */
   readonly cacheStore?: CacheStore;
+  /** Each loaded plugin's migrations folder, for the API's readiness check. */
+  readonly migrations?: readonly PluginMigrationSource[];
 }
 export interface LoadApiPluginsOptions {
   /** The API host by default; the MCP stdio server loads as `stdio`. */
@@ -116,6 +119,7 @@ export async function loadApiPlugins(
       }
     },
     cacheStore,
+    migrations: loaded.migrations,
   });
 }
 

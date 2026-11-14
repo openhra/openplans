@@ -333,6 +333,29 @@ export async function migrate(
   });
 }
 
+const journal = (
+  session: SqlSession,
+  migration: { name: string; sha256: string },
+) =>
+  session.query(
+    "INSERT INTO schema_migrations (name, sha256) VALUES ($1, $2)",
+    [migration.name, migration.sha256],
+  );
+
+/**
+ * One connection for the whole run. A pooled database provides it; PGlite runs a single backend
+ * in this process, so any adapter over it is already pinned.
+ */
+async function pinnedSession(
+  db: Database,
+): Promise<Database["withSession"] | undefined> {
+  if (db.withSession) return (run) => db.withSession!(run);
+  const { rows } = await db.query<{ pglite: boolean }>(
+    "SELECT version() LIKE '%(PGlite %' AS pglite",
+  );
+  return rows[0]?.pglite ? (run) => run(db) : undefined;
+}
+
 /** Concurrent indexes require autocommit. Keep the same advisory key on one pinned session. */
 async function migrateWithConcurrentIndexes(
   db: Database,
@@ -340,7 +363,8 @@ async function migrateWithConcurrentIndexes(
   plugins: readonly PluginMigration[],
 ): Promise<string[]> {
   const migrations = [...core, ...plugins];
-  if (!db.withSession)
+  const pinned = await pinnedSession(db);
+  if (!pinned)
     throw new Error("Concurrent indexes require a pinned PostgreSQL session");
   // Reject mixed files before executing anything. Retrying a failed index needs operator review.
   for (const migration of migrations) {
@@ -357,7 +381,7 @@ async function migrateWithConcurrentIndexes(
         );
     }
   }
-  return db.withSession(async (session) => {
+  return pinned(async (session) => {
     let locked = false;
     try {
       await session.exec("SET lock_timeout = '2s'");
@@ -369,27 +393,37 @@ async function migrateWithConcurrentIndexes(
         "SELECT name, sha256 FROM schema_migrations ORDER BY name",
       );
       const pending = pendingMigrations(core, rows, plugins);
-      for (const migration of pending) {
-        const statements = migrationStatements(migration.sql);
-        const concurrent = statements.some(concurrentIndex);
-        if (!concurrent) await session.exec("BEGIN");
+      // Consecutive ordinary files share one transaction, as in the ordinary runner, and
+      // commit before the next concurrent index. Each index then builds in autocommit.
+      let start = 0;
+      while (start < pending.length) {
+        const first = migrationStatements(pending[start]!.sql);
+        if (first.some(concurrentIndex)) {
+          await session.exec(first[0]!.sql);
+          await journal(session, pending[start]!);
+          start += 1;
+          continue;
+        }
+        let end = start;
+        while (
+          end < pending.length &&
+          !migrationStatements(pending[end]!.sql).some(concurrentIndex)
+        )
+          end += 1;
+        await session.exec("BEGIN");
         try {
-          if (concurrent) {
-            await session.exec(statements[0]!.sql);
-          } else {
+          for (const migration of pending.slice(start, end)) {
             await session.exec(migration.sql);
-            await installMetadata(session);
-            await installPluginGeneration(session, plugins);
+            await journal(session, migration);
           }
-          await session.query(
-            "INSERT INTO schema_migrations (name, sha256) VALUES ($1, $2)",
-            [migration.name, migration.sha256],
-          );
-          if (!concurrent) await session.exec("COMMIT");
+          await installMetadata(session);
+          await installPluginGeneration(session, plugins);
+          await session.exec("COMMIT");
         } catch (error) {
-          if (!concurrent) await session.exec("ROLLBACK");
+          await session.exec("ROLLBACK");
           throw error;
         }
+        start = end;
       }
       return pending.map((m) => m.name);
     } finally {

@@ -36,7 +36,7 @@
     "@typescript-eslint/no-explicit-any": { "count": 3 }
   },
   "tests/compat/v1/fidelity.test.ts": {
-    "@typescript-eslint/no-explicit-any": { "count": 5 }
+    "@typescript-eslint/no-explicit-any": { "count": 3 }
   },
   "tests/compat/v1/geo-rejection.test.ts": {
     "@typescript-eslint/no-explicit-any": { "count": 4 }

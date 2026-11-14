@@ -232,13 +232,16 @@ export async function countyPlans(
   year: number,
   zip?: string,
   coverage: "medical" | "dental" = "medical",
+  // The caller's plansForCounty(db, county, year, "Individual") read, when it already has one.
+  rows: () => ReturnType<typeof plansForCounty> = () =>
+    plansForCounty(db, county, year, "Individual"),
 ) {
   const stateScope = countyState(county);
   if (stateScope === "NY" || stateScope === "VT")
     return coverage === "dental"
       ? []
       : stateCountyPlans(db, stateScope, county, year);
-  const plans = (await plansForCounty(db, county, year, "Individual")).filter(
+  const plans = (await rows()).filter(
     (p) => p.dental_only === (coverage === "dental") && zipEligible(p, zip),
   );
   const state = countyState(county);
@@ -621,8 +624,10 @@ export async function planView(
   db: SqlSession,
   plan: Plan,
   options: CostSharingOptions = {},
+  // planCostSharing(db, plan, options), when the caller already read it.
+  read?: ReturnType<typeof planCostSharing>,
 ) {
-  const sharing = await planCostSharing(db, plan, options);
+  const sharing = await (read ?? planCostSharing(db, plan, options));
   if (plan.state_catalog) {
     // Additive evidence: the filed tier keeps its own metal and exchange values.
     const supplemental = await supplementalPlanFacts(

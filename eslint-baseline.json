@@ -277,18 +277,14 @@
       "rule": "@typescript-eslint/no-explicit-any",
       "cleanup": "Type HTTP response payloads and fixture envelopes, then remove the unchecked casts in this suite.",
       "fingerprints": [
-        "04cd70a60debd36edfafc38cf85c40d7af89b7aff8e7d3e98338b62f933c72a8",
         "3257046b583b43b0f5ef4c539695dcf06f05a1e7dbf10830cab9a0e8d7438223",
         "7294529e44bd3eeee0ef2c4745c221558185bdaed52fe7af777de9e04fab47c9",
-        "ae8715429a0d28c1052c0f4b6a09ed86e75a1a8476bc7c2718d306c81d516873",
         "e95442a86d5d6ce651a07f51cd724df7faaeb2cdb408b6501064d9e78521e868"
       ],
       "context_fingerprints": [
         "0d3edc0f0b48ece6d918a12b8a4411646cd8a152afbcf05eee2309f97ba6dd32",
         "24df5197625c8b7aa1f0b461b9e60d1d6abfe18a58e292e22503ed67371e6efa",
-        "b5e9488b5998dcb5f2790574d3ec8c9c62b4464b5b40c8f19fbf96d426fc0d5c",
-        "b92342ccb421ce10eab18e7cd575f7480efbb5c739a996e481b269690983453d",
-        "f35fa1aa3a167ad762dcb91253beea171a81a14decb5382f7e8994b697116adf"
+        "b92342ccb421ce10eab18e7cd575f7480efbb5c739a996e481b269690983453d"
       ]
     },
     "tests/compat/v1/geo-rejection.test.ts": {

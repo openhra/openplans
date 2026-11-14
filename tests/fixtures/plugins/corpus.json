@@ -1069,6 +1069,30 @@
       "auth": "granted"
     },
     {
+      "id": "readyz",
+      "method": "GET",
+      "path": "/readyz",
+      "status": 200,
+      "source": "tests/api/schema-gate.test.ts"
+    },
+    {
+      "id": "readyz-db-down",
+      "method": "GET",
+      "path": "/readyz",
+      "status": 503,
+      "source": "tests/api/schema-gate.test.ts",
+      "unavailable": true
+    },
+    {
+      "id": "readyz-with-api-token",
+      "method": "GET",
+      "path": "/readyz",
+      "status": 200,
+      "source": "tests/api/schema-gate.test.ts",
+      "token": true,
+      "auth": "granted"
+    },
+    {
       "id": "cache-stats-with-api-token",
       "method": "GET",
       "path": "/v1/cache-stats",

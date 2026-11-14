@@ -3,7 +3,21 @@
 Run migrations as a separate worker job before switching API images. Neither the
 API server nor the developer PGlite server applies migrations at startup. For a
 new local database, run `worker migrate` before starting the API. With the portable
-developer runner, use `npm run api:pglite -- migrate` first.
+developer runner, use `npm run api:pglite -- migrate` first. The PGlite server won't start
+while its database has an unapplied migration, and says which command to run.
+
+The Postgres API (`dist/api/server.js`) starts either way, so a deploy works as before.
+`/healthz` is a liveness check. It answers 200 while the process and its database
+connection are up. Until every migration is applied, its body adds `"schema":"not_ready"`
+and the number of pending files, so Compose still marks the API healthy and the worker can
+start and migrate. `/readyz` is the readiness check. It answers 503
+`{"status":"not_ready","reason":"schema_not_ready","pending":N}` until the last migration is
+applied, then 200 `{"status":"ready"}`. Until then the native, compatibility and MCP routes
+answer 503 with the code `schema_not_ready` and a `Retry-After` header. They used to fail
+with a 500. The `/status` pages keep answering. The check counts core migrations and the
+migrations of enabled plugins (`plugin:<name>/<file>` in the same journal). The API reads
+only the journal, at most once every 5 seconds, so it starts serving within a few seconds
+of the migration finishing. No restart is needed.
 
 ## Expand, deploy, contract
 
@@ -104,7 +118,8 @@ Read `reasons` and review application compatibility yourself. Additive DDL still
 acquires locks, and a new trigger can change write behavior. Migration sessions
 use a two-second lock timeout. Ordinary batches keep their transactional rollback
 behavior. A release containing concurrent index files uses a pinned session and
-the same advisory lock, committing each migration separately. Use exactly one
+the same advisory lock, committing each migration separately. A database adapter without its own pinned session can still run them over
+PGlite, which has one backend per process; over any other server the run stops with an error. Use exactly one
 concurrent index statement per file. PostgreSQL cannot build concurrent indexes
 inside a transaction. A failed concurrent build can leave an invalid index;
 inspect and remove or repair it before retrying. Earlier files in that release may

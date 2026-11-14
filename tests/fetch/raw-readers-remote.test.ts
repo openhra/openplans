@@ -1,5 +1,12 @@
 import { createHash } from "node:crypto";
-import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { Readable } from "node:stream";
@@ -9,6 +16,7 @@ import { expectedHash } from "@openplans/source-nucc-taxonomy";
 import { configureHostBlobStore } from "../../src/fetch/blob/index.js";
 import {
   ensureCachedPayload,
+  snapshotPath,
   snapshotStore,
   storeCachedText,
   remoteSnapshotStore,
@@ -34,6 +42,10 @@ import { priorHash } from "../../src/ingest/qhp/formulary-acquire.js";
 import type * as ImportSource from "../../src/ingest/puf/import-source.js";
 import { newestPufManifest } from "../../src/ingest/puf/import-source.js";
 import { acquirePufs } from "../../src/ingest/puf/acquire.js";
+import type * as ProviderAcquire from "../../src/ingest/qhp/provider-acquire.js";
+import { soleCachedHash } from "../../src/ingest/qhp/provider-acquire.js";
+import type * as Bootstrap from "../../src/worker/bootstrap.js";
+import { runBootstrap } from "../../src/worker/bootstrap.js";
 import { plantMutant } from "../../src/plugins/testing/index.js";
 
 /**
@@ -535,5 +547,119 @@ describe("NUCC taxonomy plugin", () => {
     } finally {
       await planted.cleanup();
     }
+  });
+});
+
+describe("snapshot paths", () => {
+  it("with the local store a raw/ path is the file it always was", () => {
+    configureHostBlobStore(undefined);
+    expect(snapshotPath(root, "cms-exchange-puf")).toBe(
+      join(root, "raw", "cms-exchange-puf"),
+    );
+    expect(snapshotPath(root, "cms-exchange-puf", "manifest-x.json")).toBe(
+      join(root, "raw", "cms-exchange-puf", "manifest-x.json"),
+    );
+  });
+
+  it("with a remote store a raw/ path is the store's local copy, never <dataDir>/raw", () => {
+    expect(snapshotPath(root, "cms-exchange-puf", "manifest-x.json")).toBe(
+      snapshotStore(root).localPath("raw/cms-exchange-puf/manifest-x.json"),
+    );
+    expect(snapshotPath(root, "cms-exchange-puf", "manifest-x.json")).not.toBe(
+      join(root, "raw", "cms-exchange-puf", "manifest-x.json"),
+    );
+  });
+});
+
+describe("QHP provider runner", () => {
+  const source = "qhp-76589-2026-provider_urls";
+  const url = "https://example.test/providers.json";
+
+  it("pins the one provider download the store holds", async () => {
+    const meta = seed(source, url, '{"synthetic":true}');
+    expect(await soleCachedHash(root, source)).toBe(meta.sha256);
+    expect(await rawFiles()).toEqual([]);
+  });
+
+  it("pins nothing when the source holds none or several downloads", async () => {
+    expect(await soleCachedHash(root, source)).toBeUndefined();
+    seed(source, url, "first synthetic body");
+    seed(source, url, "second synthetic body");
+    expect(await soleCachedHash(root, source)).toBeUndefined();
+  });
+
+  it("with the local store reads the sidecar under raw/", async () => {
+    configureHostBlobStore(undefined);
+    const directory = join(root, "raw", source);
+    await mkdir(directory, { recursive: true });
+    await writeFile(
+      join(directory, `${"a".repeat(64)}.meta.json`),
+      JSON.stringify({ sha256: "a".repeat(64) }),
+    );
+    expect(await soleCachedHash(root, source)).toBe("a".repeat(64));
+  });
+
+  it("negative control: a lookup that reads raw/ directly pins nothing", async () => {
+    seed(source, url, '{"synthetic":true}');
+    await mutant<typeof ProviderAcquire>(
+      "ingest/qhp/provider-acquire.ts",
+      "const names = await sidecarNames(dataDir, source, options);",
+      `const names = (await ${fsRead}.readdir(dataDir + "/raw/" + source)).filter((name) => name.endsWith(".meta.json"));`,
+      async (module) => {
+        expect(await module.soleCachedHash(root, source)).toBeUndefined();
+      },
+    );
+  });
+});
+
+describe("bootstrap", () => {
+  /** A manifest held only in the store, for a dry run to size from. */
+  function seedManifest(): number {
+    const files = ["rate", "plan-attributes"].map((kind, index) => ({
+      kind,
+      year: 2026,
+      status: "ok",
+      snapshot_id: sha(kind),
+      sha256: sha(kind),
+      bytes: 1000 + index,
+      url: `https://download.cms.gov/marketplace-puf/2026/${kind}-puf.zip`,
+    }));
+    store.objects.set(
+      "raw/cms-exchange-puf/manifest-2026-11-01T00-00-00.000Z.json",
+      Buffer.from(JSON.stringify({ schema_version: 1, dry_run: false, files })),
+    );
+    return files.reduce((sum, file) => sum + file.bytes, 0);
+  }
+  const args = ["bootstrap", "--states", "TX", "--years", "2026", "--dry-run"];
+  const plannedBytes = async (run: typeof runBootstrap) => {
+    const lines: string[] = [];
+    const open = () => {
+      throw new Error("a dry run must not connect");
+    };
+    await run(args.slice(1), open, {
+      out: (line) => lines.push(line),
+      error: () => undefined,
+    });
+    return lines
+      .map((line) => JSON.parse(line) as Record<string, unknown>)
+      .find((row) => row.id === "puf-acquire-2026")?.estimated_download_bytes;
+  };
+
+  it("a dry run sizes the PUF step from a manifest held only in the store", async () => {
+    const total = seedManifest();
+    expect(await plannedBytes(runBootstrap)).toBe(total);
+    expect(await rawFiles()).toEqual([]);
+  });
+
+  it("negative control: a manifest lookup that lists raw/ directly sizes nothing", async () => {
+    seedManifest();
+    await mutant<typeof Bootstrap>(
+      "worker/bootstrap.ts",
+      `const name = (await cachedNames(dataDir, "cms-exchange-puf"))`,
+      `const name = (await ${fsRead}.readdir(dataDir + "/raw/cms-exchange-puf"))`,
+      async (module) => {
+        expect(await plannedBytes(module.runBootstrap)).toBe("unknown");
+      },
+    );
   });
 });

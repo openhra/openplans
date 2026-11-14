@@ -10,6 +10,7 @@ export function boundedDatabase(
   options?: { readOnly?: boolean },
 ): SqlSession {
   return {
+    background: db.background ?? db,
     async query<Row extends Record<string, unknown>>(
       sql: string,
       parameters?: unknown[],

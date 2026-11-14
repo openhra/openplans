@@ -1,7 +1,8 @@
 import type { SqlSession } from "../db/database.js";
 import type { resolveLocation } from "../api/repository.js";
 import { activeCatalog, countyState } from "../api/repository.js";
-import { plansForCounty } from "../ingest/puf/import-repository.js";
+import { requestReads } from "./request-reads.js";
+import type { RequestReads } from "./request-reads.js";
 import {
   refusedTemplatePlans,
   stateCatalog,
@@ -20,6 +21,7 @@ export async function locationIssues(
   location: Location,
   year: number,
   coverage: "medical" | "dental" = "medical",
+  reads: RequestReads = requestReads(db),
 ): Promise<string[]> {
   if (location.status === "unknown") return ["zip_not_in_loaded_geography"];
   if (location.status !== "available" || !location.county) return [];
@@ -45,7 +47,7 @@ export async function locationIssues(
   // Without a ZIP, a plan that serves only part of the county is left out of the list.
   if (
     !location.zip &&
-    (await plansForCounty(db, county, year, "Individual")).some(
+    (await reads.countyRows(county, year)).some(
       (plan) =>
         plan.zip_restricted && plan.dental_only === (coverage === "dental"),
     )

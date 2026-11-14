@@ -1,7 +1,6 @@
 import type { SqlSession } from "../db/database.js";
 import type { Plan } from "../api/repository.js";
 import {
-  countyPlans,
   countyState,
   findPlan,
   resolveLocation,
@@ -12,6 +11,8 @@ import { applyQuoteFallback, readQuoteCoverage } from "./quote-coverage.js";
 import type { CmsFallbackContext } from "../ingest/cms-api/fallback.js";
 import { dataAvailability } from "./availability.js";
 import { estimatePremium } from "./premiums.js";
+import { requestReads } from "./request-reads.js";
+import type { RequestReads } from "./request-reads.js";
 import { ReadError } from "./errors.js";
 import { locationIssues } from "./location-issues.js";
 
@@ -49,13 +50,13 @@ async function requestedPlans(
 }
 
 async function catalogPage(
-  db: SqlSession,
+  reads: RequestReads,
   request: QuoteRequest,
   county: string,
   zip: string | undefined,
 ) {
   const offered = (
-    await countyPlans(db, county, request.premium.year, zip, request.coverage)
+    await reads.countyPlans(county, request.premium.year, zip, request.coverage)
   )
     .filter(
       (plan) =>
@@ -78,6 +79,7 @@ async function quotePlan(
   { requestedId, plan }: QuotedPlan,
   request: QuoteRequest,
   location: Location,
+  reads: RequestReads,
 ) {
   const { providers, drugs } = await readQuoteCoverage(
     db,
@@ -93,6 +95,7 @@ async function quotePlan(
       requestedId,
       request.premium,
       location,
+      reads,
     )),
     providers,
     drugs,
@@ -127,12 +130,13 @@ async function selectPlans(
   db: SqlSession,
   request: QuoteRequest,
   location: Location,
+  reads: RequestReads,
 ) {
   if (location.status !== "available" || !location.county)
     return { plans: [] as QuotedPlan[], total: 0, located: null };
   if (!request.explicitPlans)
     return {
-      ...(await catalogPage(db, request, location.county, location.zip)),
+      ...(await catalogPage(reads, request, location.county, location.zip)),
       located: location.county,
     };
   const plans = await requestedPlans(db, request);
@@ -149,10 +153,12 @@ export async function quotePlans(
   const request = v.publicQuoteRequest(body);
   const { premium } = request;
   const location = await resolveLocation(db, premium.location);
-  const selection = await selectPlans(db, request, location);
+  // Every quote below shares this request's county catalog and plan reads.
+  const reads = requestReads(db);
+  const selection = await selectPlans(db, request, location, reads);
   const quotes = [];
   for (const plan of selection.plans)
-    quotes.push(await quotePlan(db, plan, request, location));
+    quotes.push(await quotePlan(db, plan, request, location, reads));
   const pageSize = request.explicitPlans
     ? selection.plans.length
     : QUOTE_PAGE_SIZE;
@@ -166,7 +172,13 @@ export async function quotePlans(
     coverage_start: premium.coverage,
     coverage: request.coverage,
     location,
-    issues: await locationIssues(db, location, premium.year, request.coverage),
+    issues: await locationIssues(
+      db,
+      location,
+      premium.year,
+      request.coverage,
+      reads,
+    ),
     members: premium.members.map((member) => ({
       member_id: member.id,
       age: member.age,

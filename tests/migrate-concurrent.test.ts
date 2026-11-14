@@ -78,6 +78,48 @@ describe("concurrent migration execution boundaries", () => {
       await rm(directory, { recursive: true, force: true });
     }
   });
+  it("treats a bare PGlite adapter as pinned and refuses any other adapter without a session", async () => {
+    const directory = await mkdtemp(
+      join(tmpdir(), "openplans-concurrent-bare-"),
+    );
+    const pg = new PGlite();
+    try {
+      await writeFile(
+        join(directory, "001_table.sql"),
+        "CREATE TABLE synthetic(id integer);",
+      );
+      await writeFile(
+        join(directory, "002_index.sql"),
+        "CREATE INDEX CONCURRENTLY synthetic_idx ON synthetic(id);",
+      );
+      const { withSession: _unused, ...bare } = testDatabase(pg);
+      expect(await migrate(bare as Database, directory)).toEqual([
+        "001_table.sql",
+        "002_index.sql",
+      ]);
+      // A server that is not PGlite, reached without a pinned session, must not build it.
+      const { db } = fakeSession();
+      const { withSession: _pooled, ...pooled } = db;
+      await expect(
+        migrate(
+          {
+            ...pooled,
+            query: async (sql: string, args?: unknown[]) =>
+              sql.includes("version()")
+                ? { rows: [{ pglite: false }] }
+                : db.query(sql, args),
+          } as Database,
+          directory,
+        ),
+      ).rejects.toThrow(
+        "Concurrent indexes require a pinned PostgreSQL session",
+      );
+    } finally {
+      await pg.close();
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
   it("holds a session lock, commits ordinary files, and builds indexes in autocommit", async () => {
     const directory = await mkdtemp(join(tmpdir(), "openplans-concurrent-"));
     const { db, calls, journal } = fakeSession();

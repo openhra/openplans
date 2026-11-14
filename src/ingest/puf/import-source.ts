@@ -71,6 +71,8 @@ export async function newestPufManifest(
 ): Promise<{ manifest: PufManifest; manifestPath: string; directory: string }> {
   if (!isAbsolute(dataDir))
     throw new Error("An absolute data directory is required");
+  // Nothing opens this path. It names the source, and manifestArchive takes the data directory
+  // and source back out of it, then reads everything through the store.
   const directory = join(dataDir, "raw", "cms-exchange-puf");
   // Manifests live beside the snapshots they name, in the fetch cache's store (local or
   // remote). A remote manifest is copied down so `manifestPath` names a readable file.

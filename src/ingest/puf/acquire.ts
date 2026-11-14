@@ -7,6 +7,7 @@ import {
   readCachedText,
   remoteSnapshotStore,
   sidecarNames,
+  snapshotPath,
   storeCachedText,
 } from "../../fetch/index.js";
 import type {
@@ -324,7 +325,7 @@ export async function acquirePufs(
       manifest,
       manifestPath: await storeCachedText(remote, source, name, text),
     };
-  const directory = join(dataDir, "raw", source);
+  const directory = snapshotPath(dataDir, source);
   await mkdir(directory, { recursive: true });
   const manifestPath = join(directory, name);
   const temporary = join(directory, `.manifest-${randomUUID()}.part`);

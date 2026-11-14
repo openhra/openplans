@@ -1,6 +1,7 @@
 import { EnvironmentOnlyKeyError, loadConfig } from "../config/index.js";
 import { serve } from "@hono/node-server";
 import { createApp } from "./app.js";
+import { schemaGate } from "./schema-gate.js";
 import { emitApiPluginLoaded, loadApiPlugins } from "../plugins/api.js";
 import { openHostDatabase, startHostStorage } from "../plugins/host-storage.js";
 import type { StatusHostParts } from "../plugins/status-host.js";
@@ -27,6 +28,8 @@ try {
     plugins.registries
       ? { config, plugins: plugins.registries, store: plugins.cacheStore }
       : { config },
+    // The API never migrates. Until `worker migrate` finishes, /readyz and data routes answer 503.
+    schemaGate(db, { plugins: plugins.migrations }),
   );
   const server = serve({ fetch: app.fetch, port, hostname: host }, () => {
     console.log(`OpenPlans API listening on port ${port}`);

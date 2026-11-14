@@ -362,7 +362,7 @@ docker compose stop api
 docker compose exec -T db sh -c 'exec pg_restore --exit-on-error --clean --if-exists --no-owner -U "$POSTGRES_USER" -d "$POSTGRES_DB"' < "$OPENPLANS_BACKUP_DIR/catalog.dump"
 docker compose run --rm -T worker backup-restored --manifest - < "$OPENPLANS_BACKUP_DIR/manifest.json"
 docker compose up --build --wait api
-curl http://127.0.0.1:3000/healthz
+curl http://127.0.0.1:3000/readyz
 docker compose run --rm worker status
 ~~~
 
@@ -416,11 +416,14 @@ The conservative `1g` default uses 256/716/2/102 MiB and 32 connections.
 The db service command calculates buffers at 25%, planner cache estimate at 70%,
 connections as budget MiB / 32 (20–100), maintenance memory as 10% (max 1024 MiB),
 and work memory as budget MiB / (connections × 16), clamped to 1–32 MiB.
-Parallel workers per gather are capped at two. The work-memory divisor leaves
+Parallel workers per gather are capped at two. The command also sets
+`random_page_cost=1.1` and `effective_io_concurrency=200` for solid-state storage. On
+spinning disks, override them in a Compose override file. The work-memory divisor leaves
 room for multiple sort/hash nodes and workers; it is not a hard RSS bound. The
 API query pool uses five connections per process, plus one separate cancellation
-connection. Include workers and every API replica
-when sizing the connection limit. Autovacuum workers also consume memory.
+connection. When a read passes its 5-second client timeout, the API uses that cancellation
+connection to stop the statement on the server, so a timed-out request leaves no query running. Include workers
+and every API replica when sizing the connection limit. Autovacuum workers also consume memory.
 `effective_cache_size` is a planner estimate, not an allocation. These are starting
 values; measure your query mix and concurrency before increasing them. See the
 [PostgreSQL memory documentation](https://www.postgresql.org/docs/16/runtime-config-resource.html).

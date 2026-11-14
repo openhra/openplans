@@ -1,4 +1,4 @@
-import { logInternalError } from "./error-log.js";
+import { logInternalError, queryTimeoutResponse } from "./error-log.js";
 import {
   lookupZip,
   searchPlans,
@@ -6,7 +6,7 @@ import {
   benchmarkSilver,
   listCarriersNetworks,
 } from "../services/catalog.js";
-import { ReadError } from "../services/errors.js";
+import { isQueryTimeout, ReadError } from "../services/errors.js";
 import { providerRoutes } from "./providers.js";
 import { drugRoutes } from "./drugs.js";
 import { medicareRoutes } from "./medicare.js";
@@ -30,6 +30,8 @@ export function nativeRoutes(db: SqlSession, options: ApiOptions) {
         { error: error.error },
         error.error.code === "unsupported_without_taxonomy" ? 422 : 404,
       );
+    } else if (isQueryTimeout(error)) {
+      return queryTimeoutResponse(c);
     } else {
       logInternalError(error);
       return c.json({ error: { code: "INTERNAL_ERROR" } }, 500);

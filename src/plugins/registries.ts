@@ -182,7 +182,7 @@ export function activateRegistries(registries: PluginRegistries): void {
 }
 
 // Core paths and provider names a plugin may not take (design 5.2). The core plugin registers them later.
-const CORE_ROUTE_PATHS = ["/healthz", "/mcp"];
+const CORE_ROUTE_PATHS = ["/healthz", "/readyz", "/mcp"];
 const CORE_ROUTE_PREFIXES = ["/v1", "/compat"];
 /** `/status*` belongs to the status plugin; no other plugin may register under it. */
 export const STATUS_PLUGIN = "@openplans/plugin-status";

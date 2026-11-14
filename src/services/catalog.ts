@@ -5,7 +5,6 @@ import {
 } from "../api/repository.js";
 import type { SqlSession } from "../db/database.js";
 import {
-  countyPlans,
   countyState,
   findPlan,
   planView,
@@ -13,6 +12,7 @@ import {
   variantExists,
 } from "../api/repository.js";
 import { estimatePremium } from "./premiums.js";
+import { requestReads } from "./request-reads.js";
 import { benchmark, householdSubsidy, withSubsidy } from "./subsidies.js";
 import { zipToCounties } from "../ingest/geo/repository.js";
 import * as v from "../api/validation.js";
@@ -47,7 +47,8 @@ export async function searchPlans(
   const metal = v.metal(params.metal),
     page = v.page(params.page);
   const location = await resolveLocation(db, v.location(params));
-  const issues = await locationIssues(db, location, year);
+  const reads = requestReads(db);
+  const issues = await locationIssues(db, location, year, "medical", reads);
   if (location.status !== "available" || !location.county) {
     return {
       status: location.status,
@@ -63,7 +64,7 @@ export async function searchPlans(
     };
   }
   const plans = (
-    await countyPlans(db, location.county, year, location.zip)
+    await reads.countyPlans(location.county, year, location.zip)
   ).filter((p) => metal === undefined || p.metal.toLowerCase() === metal);
   const active = await activeCatalog(db, year, countyState(location.county));
   const start = (page - 1) * 50;
@@ -138,12 +139,13 @@ export async function estimatePremiums(db: SqlSession, body: unknown) {
     plans.push({ id, plan });
   }
   const location = await resolveLocation(db, request.location);
-  const subsidy = await householdSubsidy(db, request, location);
+  const reads = requestReads(db);
+  const subsidy = await householdSubsidy(db, request, location, reads);
   const estimates = [];
   for (const { id, plan } of plans)
     estimates.push(
       withSubsidy(
-        await estimatePremium(db, plan, id.full, request, location),
+        await estimatePremium(db, plan, id.full, request, location, reads),
         subsidy,
         plan,
       ),

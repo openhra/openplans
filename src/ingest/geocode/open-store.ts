@@ -21,6 +21,7 @@ import {
   fetchToCache,
   readCachedText,
   remoteSnapshotStore,
+  snapshotPath,
   storeCachedText,
 } from "../../fetch/index.js";
 import type { FetchOptions, SnapshotReadOptions } from "../../fetch/index.js";
@@ -71,7 +72,7 @@ export function openRawDirectory(
 ): string {
   return remoteSnapshotStore(root, options)
     ? join(root, "work", source, "from-store")
-    : join(root, "raw", source);
+    : snapshotPath(root, source, undefined, options);
 }
 
 /**
@@ -88,7 +89,7 @@ export async function openSnapshotDirectory(
 ): Promise<string> {
   const name = snapshotName(state, snapshot);
   if (!remoteSnapshotStore(root, options))
-    return join(root, "raw", source, name);
+    return snapshotPath(root, source, name, options);
   const text = await readCachedText(
     root,
     source,

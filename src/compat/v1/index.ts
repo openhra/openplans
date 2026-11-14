@@ -1,4 +1,5 @@
-import { logInternalError } from "../../api/error-log.js";
+import { logInternalError, queryTimeoutResponse } from "../../api/error-log.js";
+import { isQueryTimeout } from "../../services/errors.js";
 import { catastrophicEligibility } from "../../domain/eligibility/catastrophic.js";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
@@ -16,7 +17,6 @@ import type { ApiOptions } from "../../api/routes.js";
 import { nativeRoutes } from "../../api/routes.js";
 import { anonymousAdmission, publicCompatEnabled } from "../../api/quotes.js";
 import {
-  countyPlans,
   countyState,
   findPlan,
   locationZipCounties,
@@ -29,6 +29,7 @@ import { householdSubsidy, withSubsidy } from "../../api/subsidies.js";
 import * as v from "../../api/validation.js";
 import { compatReasonGap } from "../../api/reason-codes.js";
 import { locationIssues } from "../../services/location-issues.js";
+import { requestReads } from "../../services/request-reads.js";
 import { createRxnormRepository } from "../../ingest/rxnorm/repository.js";
 import {
   cmsNetworkId,
@@ -147,6 +148,7 @@ export function compatRoutes(db: SqlSession, options: ApiOptions = {}) {
   app.onError((error, c) => {
     if (error instanceof v.InputError)
       return c.json({ error: { code: error.code, field: error.field } }, 400);
+    if (isQueryTimeout(error)) return queryTimeoutResponse(c);
     logInternalError(error);
     return c.json({ error: "internal_error" }, 500);
   });
@@ -403,27 +405,29 @@ export function compatRoutes(db: SqlSession, options: ApiOptions = {}) {
           return true;
         };
         const location = await resolveLocation(db, request.location);
+        // Every catalog and cost-sharing read in this search goes through these reads.
+        const reads = requestReads(db);
         // Why the list may be short or empty, in this API's gap vocabulary.
         for (const code of await locationIssues(
           db,
           location,
           request.year,
           product,
+          reads,
         ))
           addReasonGap(reasons, code);
         if (location.status !== "available" || !location.county) {
           gaps(c, [...reasons, "zip_not_in_loaded_zcta_data"]);
           return c.json(emptySearch());
         }
-        const offered = (
-          await countyPlans(
-            db,
-            location.county,
-            request.year,
-            location.zip,
-            product,
-          )
-        ).filter(
+        // Read once per search; every quote below rates against this same catalog.
+        const catalog = await reads.countyPlans(
+          location.county,
+          request.year,
+          location.zip,
+          product,
+        );
+        const offered = catalog.filter(
           (p) =>
             (product === "dental" || p.on_exchange || p.state_catalog) &&
             !excludedCatastrophic(p),
@@ -450,7 +454,7 @@ export function compatRoutes(db: SqlSession, options: ApiOptions = {}) {
           reasons.add("no_public_plans_for_location_and_year");
         const subsidy =
           product === "medical"
-            ? await householdSubsidy(db, request, location)
+            ? await householdSubsidy(db, request, location, reads)
             : undefined;
         if (request.subsidy) {
           reasons.add("csr_eligibility_not_evaluated");
@@ -483,10 +487,16 @@ export function compatRoutes(db: SqlSession, options: ApiOptions = {}) {
             }
           }
           stateGaps(plan, reasons);
-          const view = await planView(db, plan, {
+          const options = {
             csrVariant: request.csrVariant,
             requestedVariant: facadeId(id).variant,
-          });
+          };
+          const view = await planView(
+            db,
+            plan,
+            options,
+            reads.costSharing(plan, options),
+          );
           if (
             product === "medical" &&
             (view.cost_sharing.status === "unknown" ||
@@ -500,7 +510,7 @@ export function compatRoutes(db: SqlSession, options: ApiOptions = {}) {
           )
             reasons.add("standard_on_exchange_variant_defaulted");
           const quote = withSubsidy(
-            await estimatePremium(db, plan, id, request, location),
+            await estimatePremium(db, plan, id, request, location, reads),
             subsidy,
             plan,
           );

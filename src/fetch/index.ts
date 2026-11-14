@@ -22,6 +22,7 @@ export {
   recordedPayloadPath,
   remoteSnapshotStore,
   sidecarNames,
+  snapshotPath,
   snapshotStore,
   storeCachedText,
 } from "./snapshots.js";

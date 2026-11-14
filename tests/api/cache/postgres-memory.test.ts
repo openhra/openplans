@@ -44,6 +44,10 @@ describe("one-knob Postgres budget", () => {
   it("defaults conservatively, scales buffers and bounds connections and per-query work memory", () => {
     expect(profile()).toContain("shared_buffers=256MB");
     expect(profile()).toContain("max_connections=32");
+    // Solid-state storage: index probes cost little more than sequential reads, and bitmap
+    // scans may prefetch.
+    expect(profile()).toContain("random_page_cost=1.1");
+    expect(profile()).toContain("effective_io_concurrency=200");
     for (const [budget, shared, effective, work, maintenance, connections] of [
       ["2g", 512, 1433, 2, 204, 64],
       ["4g", 1024, 2867, 2, 409, 100],

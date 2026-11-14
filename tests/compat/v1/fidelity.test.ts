@@ -13,6 +13,10 @@ import { ingestGeoNames } from "../../../src/ingest/geo/geonames.js";
 import { BASE, headers, searchBody, setup } from "./helpers.js";
 
 let h: Awaited<ReturnType<typeof setup>>, directory: string;
+interface SearchPage {
+  meta: { total: number };
+  plans: { id: string }[];
+}
 beforeAll(async () => {
   h = await setup();
   directory = await mkdtemp(join(tmpdir(), "openplans-fidelity-controls-"));
@@ -57,16 +61,30 @@ it("caps medical pages at 50, advances by the effective size and counts the filt
       '87226TX' || n::text,market,metal,dental_only,network_id,service_area_id,
       'Synthetic pagination-only plan',exchange_status,on_exchange,off_exchange
       FROM plan CROSS JOIN generate_series(9000000,9000059) n WHERE base_plan_id='87226TX0100013'`);
-      const app = createApp(tx);
+      // A search rates every plan against one county catalog read, never one read per plan.
+      let catalogReads = 0;
+      const app = createApp({
+        ...tx,
+        query: (sql, parameters) => {
+          if (/FROM puf_active_catalog a\b[\s\S]*service_area_county/.test(sql))
+            catalogReads++;
+          return tx.query(sql, parameters);
+        },
+      });
       const search = async (extra: Record<string, unknown>) => {
+        catalogReads = 0;
         const response = await app.request(BASE + "/plans/medical/search", {
           method: "POST",
           headers,
           body: JSON.stringify(searchBody(extra)),
         });
         expect(response.status).toBe(200);
+        expect(
+          catalogReads,
+          "county catalog reads per search",
+        ).toBeLessThanOrEqual(4);
         return {
-          body: (await response.json()) as any,
+          body: (await response.json()) as SearchPage,
           gaps: response.headers.get("x-openplans-gaps")!,
         };
       };
@@ -98,7 +116,7 @@ it("caps medical pages at 50, advances by the effective size and counts the filt
         page: 2,
       });
       expect(filtered.body.meta.total).toBe(3);
-      expect(filtered.body.plans.map((p: any) => p.id)).toEqual([ids[2]]);
+      expect(filtered.body.plans.map((p) => p.id)).toEqual([ids[2]]);
       const sorted = await search({ sort: "premium" });
       expect(sorted.gaps).not.toContain("default_plan_order_unverified");
       throw marker;

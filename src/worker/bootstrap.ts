@@ -24,6 +24,7 @@ import {
   readCachedText,
   remoteSnapshotStore,
   sidecarNames,
+  snapshotPath,
   storeCachedText,
 } from "../fetch/index.js";
 import type { SnapshotMetadata } from "../fetch/index.js";
@@ -553,7 +554,7 @@ export async function bootstrapPlan(
         if (remote)
           await storeCachedText(remote, "cms-exchange-puf", name, text);
         else {
-          const path = join(dataDir, "raw", "cms-exchange-puf", name);
+          const path = snapshotPath(dataDir, "cms-exchange-puf", name);
           await writeFile(`${path}.part`, text, { flag: "wx" });
           await rename(`${path}.part`, path);
         }

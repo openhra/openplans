@@ -8,7 +8,7 @@ import type { Database, SqlSession } from "../../db/database.js";
 import { migrate, migrationsDirectory } from "../../db/migrate.js";
 import { runWorker } from "../../worker/commands.js";
 import { providerCachedRecords } from "./provider.js";
-import { acquireProviders } from "./provider-acquire.js";
+import { acquireProviders, soleCachedHash } from "./provider-acquire.js";
 import { sourceSet } from "./provider-repository.js";
 import { createProviderRepository } from "../../domain/providers/index.js";
 import { dataDirectory } from "../../config/access.js";
@@ -97,18 +97,10 @@ async function bootstrap(db: Database) {
   }
   // Reuse the exact fetchToCache download if already present; expected hash verifies reuse.
   const set = await sourceSet(db, { issuer: "76589", year: 2026, state: "TX" });
-  const dir = join(cache, "raw/qhp-76589-2026-provider_urls");
-  let expectedSha256: string | undefined;
-  try {
-    const { readFile } = await import("node:fs/promises");
-    const names = (await readdir(dir)).filter((n) => n.endsWith(".meta.json"));
-    if (names.length === 1)
-      expectedSha256 = JSON.parse(
-        await readFile(join(dir, names[0]!), "utf8"),
-      ).sha256;
-  } catch {
-    /* acquire reports a missing cache as a normal download */
-  }
+  const expectedSha256 = await soleCachedHash(
+    cache,
+    "qhp-76589-2026-provider_urls",
+  );
   await acquireProviders(
     db,
     { issuer: "76589", year: 2026, state: "TX" },

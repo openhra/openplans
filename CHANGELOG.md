@@ -3,6 +3,84 @@
 Release notes for OpenPlans. Earlier releases are on the
 [GitHub releases page](https://github.com/openhra/openplans/releases).
 
+## v0.4.6
+
+This release adds a readiness check and makes provider searches faster. While migrations are
+pending, `/readyz` and the data routes answer 503 `schema_not_ready` instead of failing with a
+500, and `/healthz` stays a liveness check. When a read runs past its timeout, the API now
+cancels it on the database server and answers 504 `query_timeout` instead of 500. The PGlite
+developer server won't start on a database with unapplied migrations.
+
+It has one migration, 1006, which builds an index concurrently, so the old version keeps serving
+while it runs. There is no backfill. See [Upgrading](#upgrading). Search results, totals and
+counts don't change. Status codes change in two places: a read that times out answers 504, and
+pending migrations answer 503. Both used to answer 500.
+
+### What users notice
+
+- **A readiness check.** `GET /readyz` answers 200 `{"status":"ready"}` once the database answers
+  and every migration is applied, core and enabled plugins alike. Until then it answers 503 with
+  `reason: "schema_not_ready"` and the number of `pending` files. A down database gives
+  `db_down`, and a journal that can't be read gives `schema_unknown`.
+- **Pending migrations answer 503, not 500.** While a migration is pending, the native and
+  compatibility routes answer 503 with the code `schema_not_ready` and a `Retry-After` header.
+  MCP answers 503 with a JSON-RPC error whose `data.reason` is `schema_not_ready`. The `/status`
+  pages keep answering. The API reads the migration journal at most once
+  every 5 seconds, so it starts serving a few seconds after the migration finishes, with no
+  restart.
+- **`/healthz` is a liveness check.** It still answers 200 while the process and its database
+  connection are up. While migrations are pending, its body adds `"schema":"not_ready"` and the
+  `pending` count. A Compose health check on `/healthz` behaves as before, so the worker can still
+  start and migrate.
+
+### Fixes
+
+- **Timed-out reads stop on the server.** The database client's read timeout only stopped
+  waiting, so a slow query kept running after its request had failed. When a read passes its
+  5-second timeout, the API now cancels the statement through its separate cancellation
+  connection and waits for the connection to answer before reusing it. If the cancellation fails,
+  the API discards the connection. The caller gets a 504 `query_timeout`, described below.
+- **The PGlite server refuses an unmigrated database.** `npm run api:pglite` used to start on a
+  new database, and then every data route failed with a 500. It now exits and names
+  `npm run api:pglite -- migrate`.
+- **Faster provider searches.** A name search that matches up to 1,000 providers now starts from
+  those providers and checks their distance with a new covering index (migration 1006). It used
+  to scan every point in the radius. A common name keeps the radius scan but drops points of
+  other providers early. An exact taxonomy code finds its providers through the code index. The
+  API keeps the exact count of unlocated addresses per data generation and filter set, so a
+  repeat search doesn't count them again. Results, totals and counts are the same as before.
+- **A read that times out answers 504.** A read that runs past its 5-second limit now answers
+  HTTP 504 `{"error":{"code":"query_timeout"}}` on the native and compatibility APIs. It used to
+  answer 500 `INTERNAL_ERROR`. MCP tools answer the code `query_timeout` with `retryable: true`.
+  When the unlocated count can't finish in time, the search answers 504 and the count keeps
+  running, up to two minutes. The next search with the same filters then reads it.
+- **Pricing requests read the county catalog once.** Quotes, premium estimates, the silver
+  benchmark, ICHRA affordability checks and compatibility medical searches used to read the
+  county's whole plan catalog again for every plan they priced, so counties with many plans were
+  slow. Each request now reads the catalog once. Answers don't change.
+
+### Development
+
+- A geography test helper moves from `src/` to `tests/`, next to its only test. The build no
+  longer compiles it into `dist/`, so the image no longer carries it.
+- Ingest code opens downloaded files only through the snapshot store. A test fails when code
+  under `src/ingest` or `src/worker` builds a `raw/` path itself.
+
+### Upgrading
+
+- Pull the new image and run the migrations. Migration 1006 builds one index on `address_point`
+  with `CREATE INDEX CONCURRENTLY`, so the old version keeps serving while it builds. On a large
+  provider load the build can take several minutes, and `/readyz` answers 503
+  `schema_not_ready` until it finishes. If the build fails, it leaves an invalid index. Drop it
+  with `DROP INDEX CONCURRENTLY address_point_npi_coordinates;` and run the migrations again.
+  There is no backfill.
+- The Compose database profile now sets `random_page_cost=1.1` and
+  `effective_io_concurrency=200`. They take effect when the db container is recreated.
+- Point readiness probes, load balancers and deploy checks at `/readyz`, and keep `/healthz` for
+  liveness. A 200 from `/healthz` no longer means the schema is current.
+- The bundled plugins keep their v0.4.5 versions and package hashes, so an approved plugin list
+  needs no change.
+
 ## v0.4.5
 
 This release gives a reason where provider and drug searches, and MCP coverage, network and quote

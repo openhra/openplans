@@ -1,4 +1,5 @@
-import { logInternalError } from "./error-log.js";
+import { logInternalError, queryTimeoutResponse } from "./error-log.js";
+import { isQueryTimeout } from "../services/errors.js";
 import { createMcpHttp } from "../mcp/http.js";
 import { Hono } from "hono";
 import { checkDatabase } from "../db/availability.js";
@@ -14,11 +15,15 @@ import { publicQuoteAdmission } from "./quotes.js";
 import { loadConfig } from "../config/index.js";
 import { apiToken } from "../config/access.js";
 import { pluginRoutes } from "../plugins/routes.js";
+import { SCHEMA_NOT_READY } from "./schema-gate.js";
+import type { SchemaGate } from "./schema-gate.js";
 
 export function createApp(
   db: SqlSession,
   options: ApiOptions = { premiumToken: apiToken() },
   cacheOptions?: ResponseCacheOptions,
+  // The servers pass one; without it no route checks the migration journal.
+  schema?: SchemaGate,
 ) {
   const app = new Hono();
   const cache = createResponseCache(db, options.premiumToken, cacheOptions);
@@ -32,18 +37,62 @@ export function createApp(
         now: options.now,
       })
     : undefined;
+  // Pending migrations answer 503 before admission counts the request or the cache sees it.
+  if (schema) app.use("*", schema.middleware);
   // Admission precedes the cache so cached quotes count against the same limits.
   app.use("/v1/quotes", ...publicQuoteAdmission(options));
   // Plugin exposure and rate limits too; their handlers mount after the core routes.
   plugins?.guard(app);
   app.use("*", cache.middleware);
 
+  // Liveness: the process and its database connection. A pending schema is reported, not failed,
+  // so Compose can start the worker that migrates.
   app.get("/healthz", async (c) => {
     const healthy = await checkDatabase(db);
+    const schemaStatus = healthy ? await schema?.status() : undefined;
+    if (schemaStatus?.state === "pending")
+      return c.json(
+        {
+          status: "ok",
+          db: "ok",
+          schema: "not_ready",
+          pending: schemaStatus.pending,
+        },
+        200,
+        { "Cache-Control": "no-store" },
+      );
     return c.json(
       { status: "ok", db: healthy ? "ok" : "down" },
       healthy ? 200 : 503,
     );
+  });
+
+  // Readiness: 200 only once the database answers and every migration is applied.
+  app.get("/readyz", async (c) => {
+    const noStore = { "Cache-Control": "no-store" };
+    if (!(await checkDatabase(db)))
+      return c.json({ status: "not_ready", reason: "db_down" }, 503, noStore);
+    const schemaStatus = (await schema?.status()) ?? {
+      state: "ready",
+      pending: 0,
+    };
+    if (schemaStatus.state === "pending")
+      return c.json(
+        {
+          status: "not_ready",
+          reason: SCHEMA_NOT_READY,
+          pending: schemaStatus.pending,
+        },
+        503,
+        noStore,
+      );
+    if (schemaStatus.state === "unknown")
+      return c.json(
+        { status: "not_ready", reason: "schema_unknown" },
+        503,
+        noStore,
+      );
+    return c.json({ status: "ready" }, 200, noStore);
   });
 
   app.get("/v1/cache-stats", (c) => c.json(cache.stats()));
@@ -78,6 +127,7 @@ export function createApp(
   plugins?.mount(app);
 
   app.onError((error, c) => {
+    if (isQueryTimeout(error)) return queryTimeoutResponse(c);
     logInternalError(error);
     return c.json({ error: "internal_error" }, 500);
   });

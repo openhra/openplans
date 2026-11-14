@@ -27,12 +27,9 @@ import type { CmsRateRow, RateRow } from "../domain/rating/types.js";
 import { ratingRule } from "../ingest/rating-rules/index.js";
 import { ratingAreaForLocation } from "../ingest/geo/repository.js";
 import type { Plan } from "../api/repository.js";
-import {
-  countyPlans,
-  countyState,
-  snapshots,
-  planCostSharing,
-} from "../api/repository.js";
+import { countyState, snapshots } from "../api/repository.js";
+import { requestReads } from "./request-reads.js";
+import type { RequestReads } from "./request-reads.js";
 import type { resolveLocation } from "../api/repository.js";
 import type { premiumRequest } from "../api/validation.js";
 
@@ -106,6 +103,9 @@ export async function ratePremium(
   requestedId: string,
   request: ReturnType<typeof premiumRequest>,
   location: Awaited<ReturnType<typeof resolveLocation>>,
+  // This request's reads. Pass the caller's, so a request that rates every plan in a county reads
+  // the catalog once, not once per plan.
+  reads: RequestReads = requestReads(db),
 ) {
   // State dispatch precedes all federal policy/PUF reads, including mislabelled catalogs.
   if (plan.state === "NY" || plan.state === "VT")
@@ -158,14 +158,13 @@ export async function ratePremium(
       location.status === "ambiguous" ? "ambiguous" : "unknown",
       "UNRESOLVED_LOCATION_SCOPE",
     );
-  const offered = await countyPlans(
-    db,
+  const catalog = await reads.countyPlans(
     location.county,
     request.year,
     location.zip,
     plan.dental_only ? "dental" : "medical",
   );
-  const offering = offered.find((p) => p.base_plan_id === plan.base_plan_id);
+  const offering = catalog.find((p) => p.base_plan_id === plan.base_plan_id);
   if (!offering) return failure("missing", "PLAN_NOT_OFFERED_IN_LOCATION");
   if (offering.snapshot_id !== plan.snapshot_id)
     return failure("unknown", "CATALOG_CHANGED_RETRY");
@@ -457,13 +456,15 @@ async function statePremium(
 
 /** Wire view shared by native estimates and the removable facade. */
 export async function estimatePremium(...args: Parameters<typeof ratePremium>) {
-  const [db, plan, requestedId, request] = args;
+  const [db, plan, requestedId, request, location] = args;
+  const reads = args[5] ?? requestReads(db);
   const requestedVariant = /^\d{5}[A-Z]{2}\d{7}-\d{2}$/.test(requestedId)
     ? requestedId.slice(-2)
     : null;
   return {
-    ...(await ratePremium(...args)).estimate,
-    ...(await planCostSharing(db, plan, {
+    ...(await ratePremium(db, plan, requestedId, request, location, reads))
+      .estimate,
+    ...(await reads.costSharing(plan, {
       csrVariant: request.csrVariant,
       requestedVariant,
     })),

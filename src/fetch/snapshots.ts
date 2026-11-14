@@ -36,6 +36,23 @@ export function snapshotStore(
 const sourceKey = (source: string) => `raw/${source}`;
 
 /**
+ * The store's local path for `raw/<source>`, or `raw/<source>/<name>` when `name` is given.
+ * Nothing is read or copied. With the `local` store this is the file or directory under
+ * `<dataDir>/raw` the key has always named. Ingest code resolves `raw/` paths here rather than
+ * joining them itself, so a reader cannot skip the store by accident.
+ */
+export function snapshotPath(
+  dataDir: string,
+  source: string,
+  name?: string,
+  options: SnapshotReadOptions = {},
+): string {
+  const key =
+    name === undefined ? sourceKey(source) : `${sourceKey(source)}/${name}`;
+  return snapshotStore(dataDir, options).localPath(key);
+}
+
+/**
  * Names of the files directly under `raw/<source>`, in listing order, as `readdir` gives them.
  * A source with nothing stored lists nothing, unless `missing` is `"throw"`: then a source with
  * no entries at all fails with `ENOENT`, as `readdir` does for a missing directory.
@@ -186,7 +203,17 @@ export function remoteSnapshotStore(
 /**
  * Writes the small text file `raw/<source>/<name>` (a manifest or request index) to a remote
  * store, so every host that shares the store reads it, and returns the local copy's path. Only
- * for a remote store: with the `local` store the caller writes its file as it always has.
+ * for a remote store: with the `local` store the caller writes its file at {@link snapshotPath}
+ * as it always has.
+ *
+ * PUF `manifest-*.json` files live beside the snapshots they name, under the same
+ * `raw/cms-exchange-puf/` prefix in the same store. With the `local` store that is the file it
+ * always was, written by rename, so local bytes and paths do not change. With a remote store the
+ * manifest is an object in that store, written here, and readers list and read it through
+ * {@link cachedNames} and {@link cachedFilePath}. A host-local manifest would let one host
+ * import a set that another host sharing the store cannot see, so manifests never stay local
+ * when snapshots are remote. The Census request index under `raw/census-geocoder-requests`
+ * follows the same rule.
  */
 export async function storeCachedText(
   store: FetchBlobStore,

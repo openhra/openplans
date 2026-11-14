@@ -5,6 +5,7 @@ import {
   fetchToCache,
   readCachedText,
   remoteSnapshotStore,
+  snapshotPath,
   storeCachedText,
 } from "../../fetch/index.js";
 import type {
@@ -68,7 +69,7 @@ export async function acquireBatch(
           : "Public_AR_Current\n") + csv,
       )
       .digest("hex");
-  const requestDir = join(dataDir, "raw", requestSource);
+  const requestDir = snapshotPath(dataDir, requestSource);
   const index = join(requestDir, `${requestHash}.json`);
   let sha256: string | undefined;
   try {

@@ -325,19 +325,37 @@ of `address_point.point`, restricted to NPPES points by migration 640's partial 
 index. Current practice addresses must match both the complete source key and source
 snapshot through the indexed address expression. Identity filters then select record
 keys, followed by exact grouping/counting and pagination; full identities are fetched
-for the page. Issuer radius search intersects spatial hits with current participating
+for the page. A name with a literal word of three or more characters works the other way
+round. The trigram index on NPPES names (migration 740) finds the matching identities first.
+With up to 1,000 matches, the search reads only their practice addresses and checks each
+point's distance from the covering index added by migration 1006, so it reads full point rows
+only inside the radius. With more matches, such as a common surname across every loaded
+state, it scans the radius once and keeps only points of matching NPIs.
+An exact taxonomy code resolves its identities through the code index the same way before
+counting unlocated addresses. These paths return the same records, totals and counts as the
+radius scan; the case-insensitive substring match still decides every name. Issuer radius search intersects spatial hits with current participating
 record keys before indexed address validation. Record IDs may contain colons; the
 last source-key component is the address ordinal, and the API rechecks the full key.
 
 `total` and `meta.unlocated` remain exact, including empty and out-of-range pages.
 The unlocated count is an independent anti join over **all** identity/plan-filtered
 candidate practice/issuer addresses, before the radius cut; it is not restricted to
-spatial hits, and address-less identities do not add an unlocated address. There is
-no cached count or estimate. A point from an older address snapshot does not locate a
+spatial hits, and address-less identities do not add an unlocated address. It is never
+an estimate. For an NPPES identity search with PostGIS and a radius, the count does not
+depend on the origin or radius, only on the filters. The API counts it once per data
+generation and filter set and keeps the result in the process until an import changes the
+generation. The count has its own two-minute limit. A search that cannot wait for it
+answers 504 `query_timeout`; the count keeps running, and the next search with the same
+filters reads it. A point from an older address snapshot does not locate a
 current address. Without PostGIS the existing spherical-distance filter still runs
 before pagination. Ten-mile statewide TX checks for Dallas, Austin and El Paso, and
 the Harris County provider check, were measured on the retained external PostgreSQL volume;
 these are quiet-database measurements, not a concurrent-load guarantee.
+
+Every database read has a 5-second limit. A read that runs past it answers HTTP 504 with
+`{"error":{"code":"query_timeout"}}` on the native and compatibility APIs. MCP tools answer an
+error with code `query_timeout` and `retryable: true`. A timeout is never reported as an
+internal error.
 
 Filters: exact NPPES `taxonomy`, or issuer `specialty` text (either source spelling); `name` text;
 and `type=INDIVIDUAL|FACILITY|GROUP`. With no plan, this route searches NPPES identity/taxonomy
