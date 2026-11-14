@@ -88,7 +88,7 @@ async function probe(input: string, root: boolean): Promise<Probe> {
         headers: {
           "accept-encoding": "identity",
           accept: root ? "text/html" : "application/json, */*;q=0.1",
-          "user-agent": `openplans/0.4.7 (public health-plan source discovery; +${project.href})`,
+          "user-agent": `openplans/0.4.8 (public health-plan source discovery; +${project.href})`,
         },
       });
       const socket = (response.body as IncomingMessage).socket as TLSSocket;
@@ -138,7 +138,7 @@ async function probe(input: string, root: boolean): Promise<Probe> {
       }
       const chunks: Buffer[] = [];
       let bytes = 0;
-      for await (const chunk of response.body) {
+      for await (const chunk of response.body as AsyncIterable<Buffer>) {
         bytes += chunk.length;
         if (bytes > 4 * 1024 ** 2) {
           response.body.destroy();

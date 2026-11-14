@@ -11,6 +11,7 @@ import {
   payloadLocation,
   readCachedText,
 } from "../../fetch/index.js";
+import type { SnapshotMetadata } from "../../fetch/index.js";
 import { geocodeState, geocodeStates, checkCountyPoint } from "./counties.js";
 import type { County } from "./counties.js";
 import { createRun, stageStatewide, publishStatewide } from "./statewide.js";
@@ -60,7 +61,7 @@ export async function verifyTransferSnapshot(snapshot: Row, root: string) {
   const source = String(snapshot.source_id);
   const metadata = JSON.parse(
     await readCachedText(root, source, snapshot.sha256 + ".meta.json"),
-  );
+  ) as SnapshotMetadata;
   assert.equal(metadata.source, snapshot.source_id);
   assert.equal(metadata.snapshot_id, snapshot.sha256);
   assert.equal(metadata.sha256, snapshot.sha256);
@@ -74,7 +75,7 @@ export async function verifyTransferSnapshot(snapshot: Row, root: string) {
       bytes: metadata.bytes,
       sha256: metadata.sha256,
     }),
-  )) {
+  ) as AsyncIterable<Buffer>) {
     hash.update(chunk);
     bytes += chunk.length;
   }
@@ -182,7 +183,7 @@ export async function exportGeocodes(
 }
 
 function checkResult(row: Row, header: Header) {
-  const address = JSON.parse(String(row.normalized_address));
+  const address = JSON.parse(String(row.normalized_address)) as unknown[];
   assert.equal(address[3], header.state, "transfer address state mismatch");
   assert.equal(
     digest(String(row.normalized_address)),
@@ -236,11 +237,11 @@ export async function inspectGeocodes(
     cursor = "";
   for await (const line of lines(path)) {
     assert.ok(!ended, "trailing transfer data");
-    const row = JSON.parse(line);
+    const row = JSON.parse(line) as Row;
     if (!header) {
       assert.equal(row.version, 1);
-      geocodeState(row.state);
-      header = row as Header;
+      geocodeState(row.state as string);
+      header = row as unknown as Header;
       assert.equal(
         header.counties.length,
         geocodeStates[geocodeState(header.state)].counties,
@@ -260,10 +261,10 @@ export async function inspectGeocodes(
     } else {
       checkResult(row, header);
       assert.ok(
-        row.address_hash > cursor,
+        (row.address_hash as string) > cursor,
         "transfer rows must be unique and sorted",
       );
-      cursor = row.address_hash;
+      cursor = row.address_hash as string;
       count++;
     }
     hash.update(line + "\n");
@@ -364,7 +365,7 @@ export async function importGeocodes(
       first = false;
       continue;
     }
-    const row = JSON.parse(line);
+    const row = JSON.parse(line) as Row;
     if (row.end === true) break;
     page.push(row);
     if (page.length === 2000) await flush();

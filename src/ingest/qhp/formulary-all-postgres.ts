@@ -12,6 +12,9 @@ import { discoverQhp } from "./discover.js";
 import type { QhpBatchOptions } from "./formulary-batch.js";
 import { dataDirectory } from "../../config/access.js";
 
+/** The report this script rewrites. A resume keeps the earlier issuer rows. */
+type SavedReport = { database?: unknown; issuers: Record<string, unknown>[] };
+
 const cache = dataDirectory();
 const url = process.env.OPENPLANS_QHP_DATABASE_URL;
 const state = process.env.OPENPLANS_QHP_STATE ?? "TX";
@@ -168,7 +171,7 @@ try {
   await mkdir(join(cache, "reports"), { recursive: true });
   let reports: Record<string, unknown>[] = [];
   try {
-    const prior = JSON.parse(await readFile(reportPath, "utf8"));
+    const prior = JSON.parse(await readFile(reportPath, "utf8")) as SavedReport;
     if (prior.database === database) reports = prior.issuers;
   } catch {
     /* first run */
@@ -198,7 +201,9 @@ try {
           `qhp-report:${reportPath}`,
         ]);
         try {
-          const current = JSON.parse(await readFile(reportPath, "utf8"));
+          const current = JSON.parse(
+            await readFile(reportPath, "utf8"),
+          ) as SavedReport;
           if (current.database === database) reports = current.issuers;
         } catch {
           /* first report */
@@ -242,7 +247,9 @@ try {
       `qhp-report:${reportPath}`,
     ]);
     try {
-      const current = JSON.parse(await readFile(reportPath, "utf8"));
+      const current = JSON.parse(
+        await readFile(reportPath, "utf8"),
+      ) as SavedReport;
       if (current.database === database) reports = current.issuers;
     } catch {
       /* first run */

@@ -24,6 +24,9 @@ function fakeSession(failIndex = false) {
   const query = async (sql: string, args?: unknown[]) => {
     calls.push(sql);
     if (sql.startsWith("SELECT name, sha256")) return { rows: [...journal] };
+    // No provider-search backfill holds its key in this synthetic database.
+    if (sql.startsWith("SELECT pg_try_advisory_lock"))
+      return { rows: [{ free: true }] };
     if (sql.startsWith("INSERT INTO schema_migrations"))
       journal.push({ name: args![0] as string, sha256: args![1] as string });
     return { rows: [] };

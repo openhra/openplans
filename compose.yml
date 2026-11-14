@@ -3,7 +3,7 @@ name: openplans-local
 services:
   db:
     shm_size: 256m
-    image: openplans-db:local
+    image: ${OPENPLANS_DB_IMAGE:-openplans-db:local}
     build:
       context: .
       dockerfile: Dockerfile.db

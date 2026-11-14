@@ -18,6 +18,9 @@ import type { QhpBatchOptions } from "./formulary-batch.js";
 import { ingestQhpBatch } from "./formulary-batch.js";
 import { dataDirectory } from "../../config/access.js";
 
+/** The report this script rewrites. A resume keeps the earlier issuer rows. */
+type SavedReport = { database?: unknown; issuers: Record<string, unknown>[] };
+
 const cache = dataDirectory();
 const path = process.env.OPENPLANS_QHP_DB ?? join(cache, "qhp-pglite-p6a");
 const directory = await mkdtemp(join(tmpdir(), "openplans-p6a-"));
@@ -85,7 +88,9 @@ try {
   let reports: Record<string, unknown>[] = [];
   const reportPath = join(cache, "reports", `p6a-${kind}-realdata.json`);
   try {
-    const previous = JSON.parse(await readFile(reportPath, "utf8"));
+    const previous = JSON.parse(
+      await readFile(reportPath, "utf8"),
+    ) as SavedReport;
     if (previous.database === path) reports = previous.issuers;
   } catch {
     /* first run */

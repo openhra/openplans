@@ -80,7 +80,7 @@ yet moved to the typed loader.
 ### Database and blob providers
 
 The API server, the worker and the MCP stdio server pick their database and blob
-store by name from the config file, after plugins load. There are no environment
+store by name from the config file (`db.provider` and `blobs.provider`), after plugins load. There are no environment
 variables for these names. With no config file, `pg` opens the Postgres pool at
 `DATABASE_URL` and `local` keeps the fetch cache under `OPENPLANS_DATA_DIR`.
 
@@ -110,15 +110,18 @@ read-back copies in `blob-read`, both under `OPENPLANS_DATA_DIR`.
 | `PORT`, `HOST`                                      | Native API defaults `3000`, `127.0.0.1`. Compose sets `3000`, `0.0.0.0` inside its API container. |
 | `API_PORT`, `DB_PORT`                               | Host ports `3000`, `5432`, published only on loopback.                                            |
 | `OPENPLANS_IMAGE`                                   | Compose API/worker image, `openplans:local`.                                                      |
+| `OPENPLANS_DB_IMAGE`                                | Compose database image, `openplans-db:local`.                                                     |
 | `OPENPLANS_DB_MEMORY`                               | Compose database budget `1g`, whole m/g units, `512m` to `256g`.                                  |
 | `OPENPLANS_API_CACHE`                               | On unless exactly `off`. Applies to both cache backends.                                          |
 | `OPENPLANS_API_CACHE_MB`                            | Local response-cache cap, `64` MiB.                                                               |
 | `OPENPLANS_CACHE_URL`                               | Unset. Selects shared Redis-compatible storage instead of local LRU.                              |
 | `OPENPLANS_CACHE_MEMORY`                            | Compose Valkey cap `256mb`; start the `cache` profile too.                                        |
 
-The config file can also set the database URL as `db.connectionString` and the response cache
-switch as `cache.enabled` (`true` or `false`). `DATABASE_URL` and `OPENPLANS_API_CACHE` win over
-the file. OpenPlans never logs a connection string or token from the file or puts it in an error
+The config file can also set the database URL as `db.connectionString`, the listener as
+`listen.port` and `listen.host`, and the response cache as `cache.enabled` (`true` or `false`),
+`cache.maxMb`, `cache.url` and `cache.provider` (`memory` by default; the
+[cache contract](../src/api/cache/README.md) explains how it is picked). The variables in this
+table win over the file. OpenPlans never logs a connection string or token from the file or puts it in an error
 message. Treat a file that holds one like `.env`, and let only the services that use it read
 it. `scripts/smoke.sh`, `scripts/realdata.sh` and the checks under `scripts/oracle/` read
 only `DATABASE_URL`.
@@ -155,8 +158,10 @@ described at the top of this page.
 
 The access settings in this table have file keys too: `public.quoting`, `public.household` and
 `public.compat` (`true` or `false`), and `tokens.api`, `tokens.compatKey` and
-`tokens.compatKeyHeader`. The variable wins over the file. The compatibility routes read the key
-and the header name when the API starts. `scripts/smoke.sh` sets only `OPENPLANS_API_TOKEN`.
+`tokens.compatKeyHeader`. The MCP and status tokens are `tokens.mcp`, `tokens.mcpCursorSecret`
+and `tokens.operator`. The variable wins over the file. The compatibility routes read the key
+and the header name when the API starts. Of these, `scripts/smoke.sh` sets only `OPENPLANS_API_TOKEN`
+and `OPENPLANS_PUBLIC_HOUSEHOLD`.
 
 Public access switches accept `on`, `off` or empty. Empty means on; other values
 fail. A configured REST/MCP token or compatibility key still grants access with
@@ -185,7 +190,7 @@ family-tier rates from the CMS state-based exchange rate file for New York inste
 }
 ```
 
-Keys are five-digit HIOS issuer IDs and `cms-sbe` is the only source. `prepare.py --state NY`
+Keys under `ny.rateSourceOverrides` are five-digit HIOS issuer IDs and `cms-sbe` is the only source. `prepare.py --state NY`
 reads the same file through `--config`, which defaults to `$OPENPLANS_CONFIG`. `worker ingest
 state` checks the artifact against it. Preparation and import both refuse the override when the issuer's
 template was not refused, or when the CMS file differs by even one cent from the DFS approved
@@ -215,6 +220,9 @@ With default access, the server lists these 15 tools:
 | `list_carriers_networks`    | List loaded carriers and networks.               |
 | `search_medicare_plans`     | Search loaded Medicare catalogs.                 |
 
+Plugins can add tools. The first-party status plugin adds `get_status`, so a server that loads
+it lists 16. See the [plugin guide](plugins.md#status-page).
+
 `estimate_medicare_drug_costs` is listed after these only when `OPENPLANS_MEDICARE_PART_D=on` and
 `OPENPLANS_MEDICARE_DRUG_COST=on` and the caller holds the estimate grant. Over HTTP that grant is
 `Authorization: Bearer` with `OPENPLANS_MCP_TOKEN`; household access never grants it. Over stdio it
@@ -232,13 +240,15 @@ whenever both switches are on. See [Medicare](medicare.md).
 | `OPENPLANS_TRUST_PROXY`            | Empty. Only listed exact socket peers may supply forwarded client addresses.                                                                        |
 
 In the config file `trustProxy` takes the same peers as a JSON array, such as `["10.0.0.2"]`.
-`OPENPLANS_TRUST_PROXY` wins over it.
+The MCP settings are `mcp.enabled` (`true` or `false`), `mcp.allowedHosts` and
+`mcp.allowedOrigins` (JSON arrays) and `mcp.allowPersonalized` (`"1"` or `"0"`). Each variable
+wins over its file key.
 
 ## Downloads and geocoding
 
 The config file can set the data directory as `access.dataDir`, the egress country
-as `access.egressCountry`, the operator manifest as `access.operatorManifest` and the project URL
-as `access.projectUrl`. The API, the worker, the import runners and the state check
+as `access.egressCountry`, the operator manifest as `access.operatorManifest`, the project URL
+as `access.projectUrl` and the shipped manifests switch as `access.shipped` (`true` or `false`). The API, the worker, the import runners and the state check
 scripts all take the variable first, then the file, then the default in the table below.
 `access.dataDir` in the file also sets the root of the `local` blob store unless the file
 sets `blobs.root`. Two shell scripts read only `OPENPLANS_DATA_DIR`: `scripts/smoke.sh`
@@ -313,8 +323,10 @@ the optional Part D price check's; [the oracle README](../scripts/oracle/README.
 
 Docker smoke checks use `OPENPLANS_COMPOSE_PROJECT`, default `openplans-h2`,
 and `OPENPLANS_SMOKE_TMPDIR`, default `$HOME/.cache`. Use a project beginning with
-`openplans-` and a Docker-visible scratch path. Set `OPENPLANS_PUBLIC_HOUSEHOLD=off`
-for the smoke authentication control, as shown in the [package README](../README.md).
+`openplans-` and a Docker-visible scratch path. Smoke builds under its own per-run image tags
+and removes them afterwards; set `OPENPLANS_IMAGE` or `OPENPLANS_DB_IMAGE` to build and keep a
+named tag instead. It sets `OPENPLANS_PUBLIC_HOUSEHOLD` itself for each household check, as the
+[package README](../README.md) describes.
 
 ## Worker commands
 
@@ -329,6 +341,7 @@ required cache inputs and source-access limits.
 | `migrate [--check\|--size-evidence]`, `status`                                                                                                                                                                                                                             | [Migrations](migrations.md), [availability](self-host.md#reading-availability).                                                                                                                                                                               |
 | `backfill row-provenance [--table NAME] [--blocks N]`                                                                                                                                                                                                                      | [Row provenance](row-provenance.md).                                                                                                                                                                                                                          |
 | `backfill rate-plan-count`                                                                                                                                                                                                                                                 | [Reading availability](self-host.md#reading-availability).                                                                                                                                                                                                    |
+| `backfill provider-search`                                                                                                                                                                                                                                                 | [Refresh and yearly updates](self-host.md#refresh-and-yearly-updates).                                                                                                                                                                                        |
 | `record-policy list`, `record-policy set NAME --ttl INTERVAL [--stale INTERVAL]`, `record-policy expire NAME [--before TIMESTAMP]`                                                                                                                                         | [Record policies](record-policy.md).                                                                                                                                                                                                                          |
 | `schedule run [--loop]`                                                                                                                                                                                                                                                    | [Scheduler](plugins-operations.md#the-scheduler). One tick, or a tick every minute. Compose runs the loop in the `scheduler` profile.                                                                                                                         |
 | `deliver-events`, `emit TYPE --payload JSON [--idempotency-key KEY]`                                                                                                                                                                                                       | [Events and delivery](plugins.md#events-and-delivery). `deliver-events` runs from the scheduler every minute.                                                                                                                                                 |

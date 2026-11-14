@@ -35,7 +35,11 @@ export async function sbeRulesFile(
     new URL(`../../../data/rating-rules/${year}.json`, import.meta.url),
   );
   if (year !== 2026 && year !== 2027) return original;
-  const document = JSON.parse(await readFile(original, "utf8"));
+  const document = JSON.parse(await readFile(original, "utf8")) as {
+    rules: ({ state: string } & Record<string, unknown>)[];
+    notes?: string[];
+    reviewed_on?: string;
+  };
   if (year === 2027)
     return writeRules(dataDir, year, withGeorgia2027(document));
   for (const state of supportedSbeStates)

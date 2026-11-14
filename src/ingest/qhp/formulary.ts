@@ -41,7 +41,7 @@ async function* cachedRecords(child: CachedChild): AsyncGenerator<unknown> {
   const path = await childPayloadPath(child);
   const hash = createHash("sha256");
   async function* bytes() {
-    for await (const chunk of createReadStream(path)) {
+    for await (const chunk of createReadStream(path) as AsyncIterable<Buffer>) {
       hash.update(chunk);
       yield chunk as Buffer;
     }

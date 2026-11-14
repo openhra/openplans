@@ -926,6 +926,11 @@ const payloadSchemas = {
   search_providers: z.strictObject({
     providers: z.array(providerSchema).max(25),
     unlocated: nonnegative.nullable(),
+    unlocated_status: z
+      .enum(["counted", "unknown", "not_applicable"])
+      .describe(
+        "counted when unlocated holds the exact count; unknown when the count did not finish in time, so some candidate addresses may lack a location; not_applicable when no count applies, as for an NPI lookup.",
+      ),
     reason: label
       .nullable()
       .describe(

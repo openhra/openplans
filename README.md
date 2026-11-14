@@ -46,7 +46,12 @@ Project page: <https://plans.openhra.com/> · Part of [OpenHRA](https://www.open
 - The fetcher reads each host's `robots.txt` and downloads only after a person has reviewed the
   publisher's terms.
 - Host it yourself with Docker Compose, PostgreSQL and PostGIS. Services bind to `127.0.0.1`.
-- We compare releases value by value against the raw public files.
+- The image and the native tools run on Node.js 22.23.5, the version in `.node-version`.
+- Before a release, independent checks compare the stored rates with the 2026 and 2027 public
+  rate files for every state those files cover. Cost-sharing, household premium and dental checks
+  have run for Texas only so far. The
+  [Verification section](https://plans.openhra.com/#verification) of the project site lists each
+  check and its result.
 
 ## Contributing
 

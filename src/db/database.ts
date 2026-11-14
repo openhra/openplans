@@ -14,8 +14,9 @@ export interface SqlSession {
     options?: QueryOptions,
   ): Promise<{ rows: Row[] }>;
   /**
-   * The unscoped database behind a request-scoped session, for a read that may outlive the
-   * request (an exact count kept per data generation). Absent on the database itself.
+   * A session for a read that may outlive the request (an exact count kept per data revision).
+   * On a pooled database it runs on its own connection outside the request pool, so such a
+   * read never holds a connection that requests wait for. Absent where there is no pool.
    */
   readonly background?: SqlSession;
   exec(sql: string): Promise<void>;
@@ -92,6 +93,14 @@ export function createDatabase(
     max: 1,
   });
   cancelPool.on("error", () => {});
+  // Background reads get one connection of their own, apart from the request pool.
+  const backgroundPool = new pg.Pool({
+    connectionString,
+    connectionTimeoutMillis: 2_000,
+    query_timeout: 5_000,
+    max: 1,
+  });
+  backgroundPool.on("error", () => {});
   // An idle connection can fail after a DB restart. Do not log connection details.
   pool.on("error", () => {});
 
@@ -126,8 +135,11 @@ export function createDatabase(
     return state;
   };
   /** Autocommit SQL on its own connection, like pool.query, which discards on any error. */
-  const autocommit = async <T>(run: (s: SqlSession) => Promise<T>) => {
-    const client = await pool.connect();
+  const autocommit = async <T>(
+    run: (s: SqlSession) => Promise<T>,
+    from: pg.Pool = pool,
+  ) => {
+    const client = await from.connect();
     const scope = cancelling(client);
     let discard = false;
     try {
@@ -141,10 +153,17 @@ export function createDatabase(
     }
   };
 
+  const background: SqlSession = {
+    query: (sql, parameters, options) =>
+      autocommit((s) => s.query(sql, parameters, options), backgroundPool),
+    exec: (sql) => autocommit((s) => s.exec(sql), backgroundPool),
+  };
+
   return {
     query: (sql, parameters, options) =>
       autocommit((s) => s.query(sql, parameters, options)),
     exec: (sql) => autocommit((s) => s.exec(sql)),
+    background,
     poolWaiting: () => pool.waitingCount,
     async withRequest(signal, run, options) {
       signal.throwIfAborted();
@@ -229,7 +248,7 @@ export function createDatabase(
       }
     },
     close: async () => {
-      await Promise.all([pool.end(), cancelPool.end()]);
+      await Promise.all([pool.end(), cancelPool.end(), backgroundPool.end()]);
     },
   };
 }

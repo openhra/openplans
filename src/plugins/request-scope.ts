@@ -35,7 +35,7 @@ export function runWithScope<T>(
   const own: Scope = {
     level: parent?.level ?? null,
     memoryTtlSeconds: parent?.memoryTtlSeconds ?? null,
-    requestAnswers: parent?.requestAnswers ?? new Map(),
+    requestAnswers: parent?.requestAnswers ?? new Map<string, unknown>(),
     parent,
   };
   return scope.run(own, () => fn({ level: () => own.level }));

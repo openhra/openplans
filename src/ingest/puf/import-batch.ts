@@ -87,7 +87,9 @@ export async function partitionPufs(
         await appendFile(path, buffers.get(state)!);
         const hash = createHash("sha256");
         let bytes = 0;
-        for await (const chunk of createReadStream(path)) {
+        for await (const chunk of createReadStream(
+          path,
+        ) as AsyncIterable<Buffer>) {
           hash.update(chunk);
           bytes += chunk.length;
         }

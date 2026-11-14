@@ -72,8 +72,8 @@ if (args[0] !== "ingest" || args[1] !== "geo") {
         dbPath,
         import:
           output.length === 1
-            ? JSON.parse(output[0]!)
-            : output.map((message) => JSON.parse(message)),
+            ? (JSON.parse(output[0]!) as unknown)
+            : output.map((message) => JSON.parse(message) as unknown),
         multiCounty,
       };
       await mkdir(join(dataDir, "reports"), { recursive: true });

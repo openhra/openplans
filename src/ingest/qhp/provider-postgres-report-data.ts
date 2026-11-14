@@ -23,7 +23,7 @@ export async function synchronizeProviderReport(
   const path = join(cache, "reports", `${prefix}-providers-realdata.json`);
   let prior: { database?: string; issuers?: Record<string, unknown>[] } = {};
   try {
-    prior = JSON.parse(await readFile(path, "utf8"));
+    prior = JSON.parse(await readFile(path, "utf8")) as typeof prior;
   } catch {
     /* database remains authoritative */
   }
@@ -37,7 +37,7 @@ export async function synchronizeProviderReport(
     }
     for (const line of content.split("\n"))
       try {
-        const row = JSON.parse(line);
+        const row = JSON.parse(line) as Record<string, unknown>;
         if (row.kind === "providers" && typeof row.elapsed_ms === "number")
           logs.push(row);
       } catch {
@@ -77,7 +77,10 @@ export async function synchronizeProviderReport(
       totals = issueCounts.get(issuer) ?? {};
     let count = 1;
     try {
-      count = Number(JSON.parse(String(issue.explanation)).count ?? 1);
+      count = Number(
+        (JSON.parse(String(issue.explanation)) as { count?: unknown }).count ??
+          1,
+      );
     } catch {
       /* one issue row */
     }
@@ -195,7 +198,7 @@ export async function comparePriorProviderIdentity(
         join(cache, "reports", "p6a-providers-realdata.json"),
         "utf8",
       ),
-    );
+    ) as PriorProviderReport;
   } catch {
     return [];
   }

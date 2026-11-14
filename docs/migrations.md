@@ -12,9 +12,11 @@ connection are up. Until every migration is applied, its body adds `"schema":"no
 and the number of pending files, so Compose still marks the API healthy and the worker can
 start and migrate. `/readyz` is the readiness check. It answers 503
 `{"status":"not_ready","reason":"schema_not_ready","pending":N}` until the last migration is
-applied, then 200 `{"status":"ready"}`. Until then the native, compatibility and MCP routes
-answer 503 with the code `schema_not_ready` and a `Retry-After` header. They used to fail
-with a 500. The `/status` pages keep answering. The check counts core migrations and the
+applied, then 200 `{"status":"ready"}`. It also answers 503 with the reason `db_down` when the
+database doesn't answer, and `schema_unknown` when the migration journal can't be read. Until
+the last migration is applied, the native, compatibility and MCP routes answer 503 with the
+code `schema_not_ready` and a `Retry-After` header. They used to fail with a 500. The
+`/status` pages and `/v1/cache-stats` keep answering. The check counts core migrations and the
 migrations of enabled plugins (`plugin:<name>/<file>` in the same journal). The API reads
 only the journal, at most once every 5 seconds, so it starts serving within a few seconds
 of the migration finishing. No restart is needed.
@@ -378,3 +380,27 @@ Compatibility: `stageLargeTable` writes unit costs and fee ranges in short trans
 Forward fix: Add a new migration that replaces the two new functions or the triggers on the three tables. Keep applied SQL files unchanged.
 
 Lock budget: Two-second lock acquisition limit. Dropping and creating triggers takes an ACCESS EXCLUSIVE lock (DROP) and SHARE ROW EXCLUSIVE locks (CREATE) on the three price tables only. Only Part D imports write them. Readers of those tables wait until the migration commits, and the tables are empty until the first price load. The three `DROP TRIGGER` statements make the file `risky`: the classifier has no rule that clears a dropped trigger, and size evidence covers only indexes, constraints, inserts, updates and NOT NULL. A release needs `--allow-risky-migration 1005_partd_staged_generation.sql`. Rehearse on a restored database before release.
+
+### 1007_provider_search_keys.sql
+
+Stage: expand
+
+Expand release: Search keys for NPPES identity radius searches: two slot tables (`provider_search_key_a` and `_b`) and `provider_search_build`, which names the current slot and the source-table revisions its rows match. `worker backfill provider-search` fills them.
+
+Compatibility: The tables are new and empty, so every image answers as before until the first build. Older images never read them. A newer image reads a slot only while its recorded revisions of `address_point`, `npi_address`, `npi_provider` and `npi_taxonomy` equal the current ones, checked again inside the search's own snapshot; otherwise it takes the original path. The migration runner installs provenance and record-policy metadata on the three tables. None of them gets a catalog-generation trigger: their rows never change an answer, only how fast it comes. A search whose unlocated count is unknown is not stored by the response cache, so the next search after a build reads the keys.
+
+Forward fix: Add a new migration that repairs the tables. Keep applied SQL files unchanged. Emptying `provider_search_build` turns the keys off until the next build.
+
+Lock budget: Two-second lock acquisition limit. The three tables are new and empty. `row_provenance_rule` receives three literal rows and must qualify as small during preflight. With that size evidence the file is additive-safe and needs no allow marker. Rehearse on a restored database before release.
+
+### 1008_provider_search_key_a_cell.sql and 1009_provider_search_key_b_cell.sql
+
+Stage: expand
+
+Expand release: One grid-cell index per slot table, built `CONCURRENTLY` in standalone files.
+
+Compatibility: Both tables are empty when these run, so each build takes well under a second and no reader waits. Searches use the index only through current keys.
+
+Forward fix: If a build fails, it can leave an invalid index and the migration unrecorded. Check with `SELECT indexrelid::regclass FROM pg_index WHERE NOT indisvalid`. Drop it with `DROP INDEX CONCURRENTLY provider_search_key_a_cell` (or `_b_cell`), then run `worker migrate` again. Never add `IF NOT EXISTS`.
+
+Lock budget: Two-second lock acquisition limit for the SHARE UPDATE EXCLUSIVE lock on the new table. The worker's slot fill truncates the idle table, so run the first `worker backfill provider-search` after these migrations finish.

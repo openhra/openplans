@@ -224,6 +224,7 @@ describe("core worker commands", () => {
       "record-policy": 3_600_000,
       "backfill row-provenance": 3_600_000,
       "backfill rate-plan-count": 3_600_000,
+      "backfill provider-search": 3_600_000,
       bootstrap: null,
       "ingest sbe": 300_000,
       "ingest state": null,
@@ -263,7 +264,7 @@ describe("core worker commands", () => {
       const result = await run(args, []);
       expect(result.code).toBe(1);
       expect(result.err).toEqual([
-        "Usage: worker migrate [--check|--size-evidence] | status | record-policy list|set|expire | backup-args [--tar|--manifest] | backup-restored --manifest FILE | backfill row-provenance [--table NAME] [--blocks N] | backfill rate-plan-count | ingest puf|qhp|nppes|rxnorm|taxonomy|geo|medicare",
+        "Usage: worker migrate [--check|--size-evidence] | status | record-policy list|set|expire | backup-args [--tar|--manifest] | backup-restored --manifest FILE | backfill row-provenance [--table NAME] [--blocks N] | backfill rate-plan-count | backfill provider-search (--disk PATH | --free-gb N) | ingest puf|qhp|nppes|rxnorm|taxonomy|geo|medicare",
       ]);
       expect(result.opened).toEqual([]);
     }

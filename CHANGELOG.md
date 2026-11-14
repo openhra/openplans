@@ -3,6 +3,102 @@
 Release notes for OpenPlans. Earlier releases are on the
 [GitHub releases page](https://github.com/openhra/openplans/releases).
 
+## v0.4.8
+
+This release makes nearby-provider searches answer within the request limit on a database with
+providers from every state. A new worker command, `worker backfill provider-search`, builds search
+keys from the NPPES identities and their geocoded points. A radius search then reads only the
+area around its origin instead of providers spread across every loaded state.
+
+It has three migrations, 1007 to 1009, which add new empty tables and their indexes, and one
+backfill to run after migrating. See Upgrading below. Search results, totals and counts don't
+change. One answer does: when the count of addresses without a located point can't finish in
+time, the search answers 200 and marks that count unknown. It used to answer 504. The bundled
+plugins keep their v0.4.7 versions and package hashes.
+
+### What users notice
+
+- **Provider searches in busy areas answer in time.** A nearby-provider search for a common name
+  such as SMITH, for a taxonomy code, or with no filter used to read identities and points in
+  every loaded state. With a nationwide NPPES load it ran past the 5-second limit and answered 504
+  `query_timeout`. After the backfill, the search reads the keys for the 0.1-degree grid cells
+  around its origin, applies the same filters and distance test, and reads full records only for
+  the providers on its page. The unlocated count comes from the same keys. Results, totals and
+  counts match the original path.
+- The keys are used only while they match the provider tables. After an NPPES or geocode load,
+  searches take the original path until the backfill runs again.
+
+### Changed
+
+- **An unlocated count that can't finish answers 200, not 504.** Without current search keys, a
+  radius search counts the practice addresses that have no located point, and that count has a
+  two-minute limit of its own. When the search can't wait for it, the search now answers with its
+  results, `meta.unlocated: null` and `meta.unlocated_status: "unknown"`. In v0.4.6 and v0.4.7 it
+  answered 504 `query_timeout`. The response cache doesn't keep such an answer. A count that runs
+  past its limit isn't started again for ten minutes, and searches in that time answer it as
+  unknown. The compatibility API adds `provider_unlocated_count_unknown` to its gaps header, and
+  the MCP `search_providers` tool returns `unlocated: null` with `unlocated_status: "unknown"`.
+- **MCP `search_providers` says what its unlocated count means.** It now returns
+  `unlocated_status` next to `unlocated`: `counted` when `unlocated` is the exact count, `unknown`
+  when the count didn't finish in time and some candidate addresses may have no location, and
+  `not_applicable` for an NPI lookup. Before, a `null` count could mean either of the last two.
+- `worker migrate` and `worker migrate --check` refuse while a provider-search backfill runs, and
+  the backfill refuses while a migration runs.
+
+### Fixes
+
+- **Background unlocated counts no longer crowd out requests.** When the provider search keys
+  are stale, at most one exact unlocated count runs at a time, on its own database connection
+  outside the request pool. Counts and the ten-minute pause after a timed-out count follow the
+  provider tables' revisions, so plan catalog writes no longer restart them.
+- **`scripts/smoke.sh` passes on a default setup again.** Household quotes are open without a token
+  by default, but the smoke script still expected a 503 and failed unless you set
+  `OPENPLANS_PUBLIC_HOUSEHOLD=off` yourself. It now checks the open default, then restarts the API
+  with `OPENPLANS_PUBLIC_HOUSEHOLD=off` and checks the refusal. It builds its images under tags
+  unique to the run and removes them afterwards, so two runs on one Docker host no longer replace
+  each other's images. The new `OPENPLANS_DB_IMAGE` setting picks the Compose database image. Its
+  default, `openplans-db:local`, is unchanged.
+- **The backup commands in the docs no longer start the API.** They now run the worker with
+  `--no-deps`, so a restore doesn't start the API early.
+- **The docs match the code.** The API guide lists every route, including `/v1/cache-stats`,
+  `/healthz` and `/readyz`, and has an error table. The configuration guide lists every config
+  file key.
+
+### Development
+
+- Code under `src/` and `plugins/*/src/` no longer uses `any`. ESLint checks the `no-unsafe-*`
+  rules there with type information.
+- A test checks the docs against the routes, MCP tools, environment variables, config file keys,
+  the Node.js version and every relative link.
+- A test runs the smoke script's household checks against the app on an empty database, so CI
+  notices when they drift from the server's defaults.
+- Release validation runs its Linux checks in a container image pinned by digest.
+- `scripts/postgis-tests.sh` runs every suite that needs PostGIS, including the comparison of
+  keyed and original provider searches, in a disposable database container. It fails when one of
+  those tests is skipped. A new CI job runs it.
+
+### Upgrading
+
+- Pull the new image and run the migrations. Migration 1007 adds three empty tables:
+  `provider_search_key_a`, `provider_search_key_b` and `provider_search_build`. Migrations 1008
+  and 1009 each build one index with `CREATE INDEX CONCURRENTLY`. The tables are still empty, so
+  the builds take well under a second, and the old version keeps serving. Older versions never
+  read the new tables. If a build fails, it leaves an invalid index. Drop it with
+  `DROP INDEX CONCURRENTLY provider_search_key_a_cell;` or `provider_search_key_b_cell`, then
+  run the migrations again.
+- Once the migrations have finished, run the backfill once:
+  `docker compose run --rm worker backfill provider-search --free-gb N`, where N is the free space
+  in GB on the database's disk, or `--disk PATH` with a directory on that disk. It refuses below
+  8 GB, and it refuses while `worker migrate` runs. It reads every practice address and point once
+  and fills a second copy of the keys while searches keep reading the first, then switches. With a
+  nationwide provider load it takes minutes. Until it finishes, searches take the original path,
+  as in v0.4.7, and answer the same.
+- Run the backfill again after every NPPES or geocode load.
+- If you stop a backfill, check that its `INSERT` has stopped on the database server, and cancel
+  it with `pg_cancel_backend` if not, before you start the backfill again.
+- The bundled plugins keep their v0.4.7 versions and package hashes, so an approved plugin list
+  needs no change.
+
 ## v0.4.7
 
 This release makes the status page shorter and cuts the database queries behind pricing and
@@ -11,7 +107,7 @@ links to plans.openhra.com. Pricing requests and plan searches read the rows for
 in one query instead of one plan at a time.
 
 It also updates Node.js to 22.23.5. It has no migrations and no backfill. See
-[Upgrading](#upgrading). Prices and plan details in API answers don't change. One provenance list
+Upgrading below. Prices and plan details in API answers don't change. One provenance list
 now keeps a fixed order, as Changed below explains. `/status.json` and the `get_status` tool don't
 change. The status plugin moves to 0.1.2, so an approved plugin list needs its new hash.
 
@@ -66,7 +162,7 @@ cancels it on the database server and answers 504 `query_timeout` instead of 500
 developer server won't start on a database with unapplied migrations.
 
 It has one migration, 1006, which builds an index concurrently, so the old version keeps serving
-while it runs. There is no backfill. See [Upgrading](#upgrading). Search results, totals and
+while it runs. There is no backfill. See Upgrading below. Search results, totals and
 counts don't change. Status codes change in two places: a read that times out answers 504, and
 pending migrations answer 503. Both used to answer 500.
 
@@ -141,7 +237,7 @@ This release gives a reason where provider and drug searches, and MCP coverage, 
 records, answered `unknown` or an empty list without one. MCP errors that the HTTP transport sends
 after reading a request now carry the request's `id`.
 
-It has no migrations and no backfill. See [Upgrading](#upgrading). Answers change only where they
+It has no migrations and no backfill. See Upgrading below. Answers change only where they
 used to be `unknown` or empty without a reason. The MCP output schema changes for
 `search_providers`.
 
@@ -192,7 +288,7 @@ answered territory ZIPs and Vermont ICHRA checks with an internal error, and giv
 a county or Medicare search used to come back empty without one. The last config-file keys that
 OpenPlans accepted but never read now take effect.
 
-It has no migrations and no backfill. See [Upgrading](#upgrading). Answers change only where
+It has no migrations and no backfill. See Upgrading below. Answers change only where
 they used to be an internal error or an empty list without a reason. The MCP output schemas
 change for `search_medicare_plans` and `check_ichra_affordability`.
 
@@ -272,7 +368,7 @@ stay behind the Part D pricing setting, which is off by default. Plan lists and 
 why plans were left out, and config-file switches now take effect.
 
 It has one migration (1005), which changes triggers on the three Part D price tables, and no
-backfill. See [Upgrading](#upgrading). Plan search and quote responses gain reason fields, and
+backfill. See Upgrading below. Plan search and quote responses gain reason fields, and
 two subsidy reasons get more specific codes. Statuses, prices and benchmarks stay the same on a
 service that keeps `OPENPLANS_MEDICARE_DRUG_COST_PRICES` off. A config file that sets a key read
 only from the environment now stops startup.
@@ -417,10 +513,10 @@ adds an optional New York rate source for issuers whose template was refused, an
 Part D drug pricing pieces: dispensing-fee ranges, a unit-cost reader and bounded fill pricing.
 The pricing pieces are off by default. It also adds the `release.rolled_back` plugin event.
 
-It has two additive migrations (1003 and 1004) and no backfill. See [Upgrading](#upgrading).
+It has two additive migrations (1003 and 1004) and no backfill. See Upgrading below.
 One kind of answer changes: requests for a ZIP outside the loaded geography, such as New York
 and Vermont ZIPs on a service with a CMS key, used to fail with a server error and now answer
-`unknown` or `unsupported_rating_method` with a reason (see [Fixes](#fixes)). The new dental
+`unknown` or `unsupported_rating_method` with a reason (see Fixes below). The new dental
 answer applies only where a part-county dental plan would have set the benchmark, and the New
 York and Part D pricing changes stay off until an operator turns them on.
 
@@ -533,7 +629,7 @@ much smaller. It also fixes how Compose passes plugin settings, adds a restore s
 and adds a plugin template and guides for plugin authors and operators.
 
 It has two additive migrations (993 and 994) and one backfill to run after migrating. See
-[Upgrading](#upgrading). Answers change where the fixes below say so: county-only quotes in
+Upgrading below. Answers change where the fixes below say so: county-only quotes in
 part-county areas, New York 2026 benchmarks, and EHB-portion figures with long EHB fractions.
 
 ### What users notice

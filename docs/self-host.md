@@ -294,6 +294,25 @@ OPENPLANS_RAW_READ_ONLY=false docker compose run --rm worker ingest qhp discover
 OPENPLANS_RAW_READ_ONLY=false docker compose run --rm worker bootstrap --states TX --years 2026 --with-drugs --with-providers
 ~~~
 
+After NPPES identities or geocode points change, rebuild the provider search keys:
+
+~~~sh
+docker compose exec db df -BG /var/lib/postgresql/data
+docker compose run --rm worker backfill provider-search --free-gb 20
+~~~
+
+Pass the `Avail` figure from `df` as `--free-gb`, or pass `--disk PATH` when the worker can see a
+directory on the database's filesystem. The command refuses below 8 GB free. It also refuses
+while `worker migrate` runs, and `worker migrate` refuses while it runs.
+
+Nearby-provider searches over many states read them, so a common name or a busy area
+answers within the request limit. Until the rebuild, those searches take the slower original
+path and may answer `query_timeout` or an unknown unlocated count. Answers are the same
+either way. The command fills a second copy while searches keep reading the first, then
+switches. On a nationwide database it reads every practice address and point once, which takes
+minutes. While it builds it needs disk for the new copy, temporary sort files (about 1.3 times
+the copy) and WAL (about 1.4 times the copy).
+
 New discovery observations invalidate sets tied to an older discovery. Failed
 refreshes preserve previous positives and leave absence unknown. Fix an import
 failure's source/cache/connectivity cause, then repeat bootstrap. Do not alter
@@ -319,7 +338,7 @@ docker compose exec -T db sh -c 'exec pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_
   --exclude-table-data=cms_api_drug_coverage --exclude-table-data=cms_api_provider_coverage \
   --exclude-table-data=cms_zip_attempt --exclude-table-data=cms_zip_lookup' > "$OPENPLANS_BACKUP_DIR/catalog.dump"
 tar -C "$OPENPLANS_DATA_DIR" --exclude='raw/cms-marketplace-*' -czf "$OPENPLANS_BACKUP_DIR/cache.tar.gz" raw reports
-docker compose run --rm -T worker backup-args --manifest > "$OPENPLANS_BACKUP_DIR/manifest.json"
+docker compose run --rm --no-deps -T worker backup-args --manifest > "$OPENPLANS_BACKUP_DIR/manifest.json"
 [ -f "$OPENPLANS_DATA_DIR/reports/inputs.json" ] && cp "$OPENPLANS_DATA_DIR/reports/inputs.json" "$OPENPLANS_BACKUP_DIR/inputs.json"
 docker compose up -d api
 ~~~
@@ -360,7 +379,7 @@ tar -C "$OPENPLANS_DATA_DIR" -xzf "$OPENPLANS_BACKUP_DIR/cache.tar.gz"
 docker compose up -d db
 docker compose stop api
 docker compose exec -T db sh -c 'exec pg_restore --exit-on-error --clean --if-exists --no-owner -U "$POSTGRES_USER" -d "$POSTGRES_DB"' < "$OPENPLANS_BACKUP_DIR/catalog.dump"
-docker compose run --rm -T worker backup-restored --manifest - < "$OPENPLANS_BACKUP_DIR/manifest.json"
+docker compose run --rm --no-deps -T worker backup-restored --manifest - < "$OPENPLANS_BACKUP_DIR/manifest.json"
 docker compose up --build --wait api
 curl http://127.0.0.1:3000/readyz
 docker compose run --rm worker status
@@ -501,6 +520,7 @@ the first-party plugins, config file entries, event delivery and writing a plugi
 
 Send Streamable HTTP requests to `POST /mcp`. GET and DELETE return 405.
 The server registers 15 tools, listed in the [configuration reference](configuration.md#mcp-tools).
+Plugins can add more. The status plugin adds `get_status`, which makes 16.
 Every tool needs no credential by default, `quote_premiums` and
 `check_ichra_affordability` included. To restrict those two, set a private
 `OPENPLANS_MCP_TOKEN` and send it as a bearer token. REST and compatibility credentials do not grant MCP access. Set
@@ -532,7 +552,8 @@ forwarding headers. This bearer-token setup does not provide an OAuth server.
 Each API process allows 60 anonymous or 120 authenticated requests per source per minute,
 and four concurrent database-heavy requests. Input is limited to 64 KiB and output to
 128 KiB for tool results and resources. Tool discovery (`tools/list`) has a separate
-512 KiB budget and returns all 15 tools in one response when access permits. Signed
+512 KiB budget and returns all 15 tools, plus any plugin tools, in one response when access
+permits. Signed
 cursors still resume a listing. Follow `nextCursor` whenever it is present.
 SQL statements have a five-second server timeout; requests have a fifteen-second
 deadline. Rate and concurrency failures return 429 with Retry-After. Disconnects cancel

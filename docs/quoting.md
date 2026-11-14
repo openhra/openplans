@@ -140,7 +140,9 @@ refused key; values are never echoed.
 | 404  | `PLAN_NOT_FOUND`                                                                                                                                             | A requested plan or variant is not in the active catalog                          |
 | 429  | `RATE_LIMITED`                                                                                                                                               | Limit reached; `Retry-After` gives seconds                                        |
 | 503  | `QUOTING_DISABLED`                                                                                                                                           | `OPENPLANS_PUBLIC_QUOTING=off`                                                    |
+| 503  | `schema_not_ready`                                                                                                                                           | A database migration is still pending; `Retry-After` gives seconds                |
 | 504  | `REQUEST_DEADLINE`                                                                                                                                           | The quote took longer than 15 seconds                                             |
+| 504  | `query_timeout`                                                                                                                                              | One database read ran past its 5-second limit; retry                              |
 
 ### Limits and privacy
 

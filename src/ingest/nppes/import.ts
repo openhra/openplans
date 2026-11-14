@@ -141,7 +141,9 @@ export async function importNppes(
     );
   const hash = createHash("sha256");
   let bytes = 0;
-  for await (const chunk of createReadStream(options.path)) {
+  for await (const chunk of createReadStream(
+    options.path,
+  ) as AsyncIterable<Buffer>) {
     hash.update(chunk);
     bytes += chunk.length;
   }

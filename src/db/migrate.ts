@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { readdir, readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { join } from "node:path";
+import { MIGRATION_LOCK, refuseDuringBackfill } from "./maintenance-locks.js";
 import {
   classifyMigrationBatchWithRules,
   concurrentIndex,
@@ -309,7 +310,8 @@ export async function migrate(
     await tx.exec("SET LOCAL lock_timeout = '2s'");
     // Index builds on populated tables must fit Docker's default 64 MiB /dev/shm.
     await tx.exec("SET LOCAL max_parallel_maintenance_workers = 0");
-    await tx.query("SELECT pg_advisory_xact_lock(1869636974)");
+    await tx.query(`SELECT pg_advisory_xact_lock(${MIGRATION_LOCK})`);
+    await refuseDuringBackfill(tx);
     await tx.exec(journalSql);
     const { rows } = await tx.query<{ name: string; sha256: string }>(
       "SELECT name, sha256 FROM schema_migrations ORDER BY name",
@@ -386,8 +388,9 @@ async function migrateWithConcurrentIndexes(
     try {
       await session.exec("SET lock_timeout = '2s'");
       await session.exec("SET max_parallel_maintenance_workers = 0");
-      await session.query("SELECT pg_advisory_lock(1869636974)");
+      await session.query(`SELECT pg_advisory_lock(${MIGRATION_LOCK})`);
       locked = true;
+      await refuseDuringBackfill(session);
       await session.exec(journalSql);
       const { rows } = await session.query<{ name: string; sha256: string }>(
         "SELECT name, sha256 FROM schema_migrations ORDER BY name",
@@ -427,7 +430,8 @@ async function migrateWithConcurrentIndexes(
       }
       return pending.map((m) => m.name);
     } finally {
-      if (locked) await session.query("SELECT pg_advisory_unlock(1869636974)");
+      if (locked)
+        await session.query(`SELECT pg_advisory_unlock(${MIGRATION_LOCK})`);
       await session.exec("RESET lock_timeout");
       await session.exec("RESET max_parallel_maintenance_workers");
     }

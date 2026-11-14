@@ -53,7 +53,7 @@ export async function* xmlTokens(
         ended = !!next.done;
         pending += ended
           ? decoder.decode()
-          : decoder.decode(next.value, { stream: true });
+          : decoder.decode(next.value as Uint8Array, { stream: true });
         if (Buffer.byteLength(pending) > maxTokenBytes + 64 * 1024)
           throw new Error("xlsx_token_too_large");
       }
@@ -103,7 +103,7 @@ export async function* xmlTokens(
         ended = !!next.done;
         pending += ended
           ? decoder.decode()
-          : decoder.decode(next.value, { stream: true });
+          : decoder.decode(next.value as Uint8Array, { stream: true });
         if (Buffer.byteLength(pending) > maxTokenBytes + 64 * 1024)
           throw new Error("xlsx_token_too_large");
         continue;

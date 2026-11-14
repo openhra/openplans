@@ -31,7 +31,12 @@ export function asFetchBlobStore(
   store: BlobStore,
   dataDir: string,
 ): FetchBlobStore {
-  if (fetchMethods.some((name) => typeof Object(store)[name] !== "function"))
+  if (
+    fetchMethods.some(
+      (name) =>
+        typeof (Object(store) as Record<string, unknown>)[name] !== "function",
+    )
+  )
     return new RemoteFetchStore(store, dataDir);
   return store as FetchBlobStore;
 }

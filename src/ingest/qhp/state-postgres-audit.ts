@@ -193,7 +193,7 @@ try {
     )
   ).rows;
   const identities = (
-    await pool.query(`SELECT
+    await pool.query<Record<string, number>>(`SELECT
     (SELECT count(*)::int FROM npi_provider) providers,(SELECT count(*)::int FROM npi_address) addresses,
     (SELECT count(*)::int FROM npi_taxonomy) taxonomies,(SELECT count(*)::int FROM rx_concept) rxnorm_atoms,
     pg_database_size(current_database())::text database_bytes,version() postgres,postgis_version() postgis`)
@@ -203,7 +203,7 @@ try {
     count(*) FILTER(WHERE in_scope)::int in_scope FROM npi_state_scope GROUP BY state_filter ORDER BY state_filter`)
   ).rows;
   const attribution = (
-    await pool.query(
+    await pool.query<Record<string, number>>(
       `WITH current_sets AS MATERIALIZED (
     SELECT s.* FROM provider_source_set s JOIN qhp_coverage_manifest m ON m.snapshot_id=s.snapshot_id AND m.kind='provider'
     WHERE s.state=$1 AND s.plan_year=$2), shards AS MATERIALIZED (

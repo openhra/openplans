@@ -402,7 +402,7 @@ async function verifiedCached(dataDir: string, source: string, url?: string) {
   }
   const hash = createHash("sha256");
   let bytes = 0;
-  for await (const chunk of createReadStream(path)) {
+  for await (const chunk of createReadStream(path) as AsyncIterable<Buffer>) {
     hash.update(chunk);
     bytes += chunk.length;
   }

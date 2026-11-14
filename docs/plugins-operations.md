@@ -300,9 +300,9 @@ backup leaves them out. The tool prints the names so you do not type them. They 
 of any registered pass-through source that stores answers:
 
 ```sh
-docker compose run --rm -T worker backup-args           # pg_dump --exclude-table-data arguments
-docker compose run --rm -T worker backup-args --tar     # tar --exclude arguments
-docker compose run --rm -T worker backup-args --manifest > manifest.json
+docker compose run --rm --no-deps -T worker backup-args           # pg_dump --exclude-table-data arguments
+docker compose run --rm --no-deps -T worker backup-args --tar     # tar --exclude arguments
+docker compose run --rm --no-deps -T worker backup-args --manifest > manifest.json
 ```
 
 Run it with the same plugin list as production, or the list misses a plugin's tables. Keep
@@ -312,7 +312,7 @@ Run it with the same plugin list as production, or the list misses a plugin's ta
 After `pg_restore` and before the API starts, run:
 
 ```sh
-docker compose run --rm -T worker backup-restored --manifest - < manifest.json
+docker compose run --rm --no-deps -T worker backup-restored --manifest - < manifest.json
 ```
 
 It marks those receipts `QUARANTINED` with the quality issue `answers_excluded_from_backup`, so no

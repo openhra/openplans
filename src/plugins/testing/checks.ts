@@ -17,6 +17,12 @@ export const NON_CATALOG_TABLES: Readonly<Record<string, string>> = {
   passthrough_conflict: "stored answers checked against loaded files",
   ingest_run_snapshot: "ingest run snapshot log",
   rate_plan_count: "rate-row counts kept from rate files that never change",
+  provider_search_key_a:
+    "search keys derived from provider tables, read only while they match them",
+  provider_search_key_b:
+    "search keys derived from provider tables, read only while they match them",
+  provider_search_build:
+    "which search key slot is current; the keys never change an answer",
 };
 
 /**

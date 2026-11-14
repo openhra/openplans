@@ -151,7 +151,7 @@ async function importPlugin(
   let module: { default?: unknown; createPlugin?: unknown };
   const resolved = moduleSpecifier(specifier, base);
   try {
-    module = await import(resolved);
+    module = (await import(resolved)) as typeof module;
   } catch {
     return refuse(specifier, "plugin_import_failed");
   }

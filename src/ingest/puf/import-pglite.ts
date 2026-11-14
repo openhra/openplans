@@ -64,7 +64,11 @@ try {
     directory,
   );
   if (db && process.exitCode === 0) {
-    const report = JSON.parse(messages.at(-1)!);
+    const report = JSON.parse(messages.at(-1)!) as {
+      state?: string;
+      year: number;
+      results?: { state: string; status: string }[];
+    };
     const hasTexas =
       report.state === "TX" ||
       report.results?.some(

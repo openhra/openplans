@@ -20,7 +20,12 @@ GET  /v1/drugs?ndc=00071-0155-23
 GET  /v1/drugs/860975
 GET  /v1/plans/76589TX0010015/drugs/860975?year=2026
 POST /v1/drug-coverage
+GET  /v1/providers?zip=77030&radius_miles=5[&plan_id=76589TX0010015&year=2026&taxonomy=207Q00000X]
+GET  /v1/providers/1000000000[?year=2026]
+GET  /v1/plans/76589TX0010015/providers/1000000000?year=2026
+POST /v1/provider-participation
 GET  /v1/data-availability[?state=TX&year=2026]
+GET  /v1/cache-stats
 GET  /v1/medicare/plans?county_fips=48201&year=2026[&type=ma|ma_pd|pdp|snp|cost&snp_type=&page=]
 GET  /v1/medicare/plans/H0028-042-0?year=2026
 GET  /v1/medicare/plans/H0028-042-0/benefits?year=2026[&table=pbp_section_d]
@@ -29,9 +34,17 @@ GET  /v1/medicare/plans/H0028-042-0/lineage?year=2026
 GET  /v1/medicare/plans/H0028-042-0/drugs?year=2026&rxcui=860975     (off by default)
 GET  /v1/medicare/plans/H0028-042-0/pharmacies?year=2026&zip=77002   (off by default)
 GET  /v1/medicare/data-availability
+POST /v1/medicare/plans/H0028-042-0/drug-cost-estimates?year=2026   (off by default, bearer token)
+GET  /healthz
+GET  /readyz
 ```
 
-Medicare routes are described in the [Medicare guide](../../docs/medicare.md).
+Medicare routes are described in the [Medicare guide](../../docs/medicare.md). NPI
+`1000000000` in these examples is synthetic. `/healthz` is the liveness check and `/readyz`
+the readiness check; [migrations](../../docs/migrations.md) says what each answers while a
+migration is pending. `/v1/cache-stats` reports response cache counters, as the
+[cache contract](cache/README.md) describes. The MCP endpoint is `/mcp`; see the
+[self-hosting guide](../../docs/self-host.md#mcp-endpoint).
 
 Plan search and detail require an explicit year. Premium coverage_start supplies
 the year. Carriers/networks can list all imported years, with plan_year on each row.
@@ -333,20 +346,43 @@ only inside the radius. With more matches, such as a common surname across every
 state, it scans the radius once and keeps only points of matching NPIs.
 An exact taxonomy code resolves its identities through the code index the same way before
 counting unlocated addresses. These paths return the same records, totals and counts as the
-radius scan; the case-insensitive substring match still decides every name. Issuer radius search intersects spatial hits with current participating
+radius scan; the case-insensitive substring match still decides every name.
+
+On a database with many states, both directions read rows spread over every loaded state.
+Search keys avoid that (migration 1007, `provider-search-keys.ts`). `worker backfill
+provider-search` writes one row per located practice point of each identity, with its scope,
+type, `concat_ws` name and taxonomy codes, ordered by a 0.1-degree grid cell. Practice addresses
+without a current point become rows without a cell. A radius search then reads the cells around
+its origin as one compact run of rows and applies the same filters and `ST_DWithin` test. That
+gives every matching identity with its nearest distance, the total and the page. Only the 50
+page identities are then probed for their full point and address rows. The unlocated count is
+the number of cell-less rows that pass the filters, read in the same search. A search uses the keys
+only while the revisions of `address_point`, `npi_address`, `npi_provider` and `npi_taxonomy`
+equal the ones they were built from, checked again inside the search's own snapshot. After any
+import or geocode run they are stale until the next build, and searches take the paths above.
+Operator geocoder points and compatibility location pages always take those paths too.
+The worker fills the idle one of two slot tables and then switches, so no search waits for a build. Issuer radius search intersects spatial hits with current participating
 record keys before indexed address validation. Record IDs may contain colons; the
 last source-key component is the address ordinal, and the API rechecks the full key.
 
-`total` and `meta.unlocated` remain exact, including empty and out-of-range pages.
-The unlocated count is an independent anti join over **all** identity/plan-filtered
+`total` is exact, including on empty and out-of-range pages. `meta.unlocated` is exact or
+`null`. The unlocated count is an independent anti join over **all** identity/plan-filtered
 candidate practice/issuer addresses, before the radius cut; it is not restricted to
 spatial hits, and address-less identities do not add an unlocated address. It is never
 an estimate. For an NPPES identity search with PostGIS and a radius, the count does not
-depend on the origin or radius, only on the filters. The API counts it once per data
-generation and filter set and keeps the result in the process until an import changes the
-generation. The count has its own two-minute limit. A search that cannot wait for it
-answers 504 `query_timeout`; the count keeps running, and the next search with the same
-filters reads it. A point from an older address snapshot does not locate a
+depend on the origin or radius, only on the filters. Current search keys give it within the
+search. Without them, the API counts it once per filter set and revision of the provider tables
+`address_point`, `npi_address`, `npi_provider` and `npi_taxonomy`, plus `geocode_attempt` and
+`provider_taxonomy`, which operator points and specialty filters read. It keeps the result in
+the process until one of those tables changes; plan catalog writes leave it alone. That count
+has its own two-minute limit and runs on a database connection of its own, outside the request
+pool, one count at a time. A search that cannot wait for it, or that finds another filter set's
+count running, answers with `meta.unlocated: null` and `meta.unlocated_status: "unknown"`, never
+a guess. The MCP `search_providers` tool returns the same state as `unlocated_status`. The
+response cache does not keep such an answer. The count keeps running, and the next search with
+the same filters reads it. A count that runs past its limit is not tried again for ten minutes,
+and searches in that time answer it as unknown. The compatibility API adds
+`provider_unlocated_count_unknown` to its gaps header in that case. A point from an older address snapshot does not locate a
 current address. Without PostGIS the existing spherical-distance filter still runs
 before pagination. Ten-mile statewide TX checks for Dallas, Austin and El Paso, and
 the Harris County provider check, were measured on the retained external PostgreSQL volume;
@@ -394,6 +430,9 @@ against an **empty disposable PostGIS database**, set `P3D_POSTGIS_URL` and run
 `npx vitest run tests/api/providers.test.ts`. The suite asserts that geography is present.
 For `tests/api/providers-radius.test.ts`, use `P3I_POSTGIS_URL` pointing to a second
 empty disposable database; it also asserts that the indexed PostGIS path is active.
+To run every suite that needs PostGIS at once, build `Dockerfile.db` and run
+`scripts/postgis-tests.sh --image IMAGE`. It starts a disposable container, gives each suite its
+own database, fails if any test is skipped and removes the container. CI runs it on every push.
 The external-cache real runner is `node dist/api/provider-realdata.js prepare`, then `geocode`,
 then `check`; prepare requires completed P3b/P3c caches and creates its own `provider-pglite-p3d`
 copy. Check starts a temporary localhost HTTP listener, records a family-medicine provider query
@@ -478,3 +517,23 @@ request. `DataNotProvided` stays unknown. `NotCovered` stays unknown with
 `cms_api_reports_not_covered` unless local NPPES or active RxNorm identifies the
 provider or drug. The original CMS statement remains in `cms_api.coverage`. CMS coverage flags do not supply tiers,
 restrictions or patient prices.
+
+## Error answers
+
+Native errors are `{"error":{"code":"...","field":"..."}}`. `field` names the refused input and
+never echoes its value. The [quoting guide](../../docs/quoting.md#errors) lists the quote codes
+in full. The compatibility API keeps its own error shapes.
+
+| HTTP | Codes                                                                                                                                                                                                                                                                                | When                                                                                   |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------- |
+| 400  | `INVALID_INPUT`, `INVALID_JSON`, `REQUEST_TOO_LARGE`, `UNKNOWN_FIELD`, `YEAR_REQUIRED`, `INVALID_YEAR`, `LOCATION_REQUIRED`, `ZIP_OR_COUNTY_REQUIRED`, `AGE_OR_DOB_REQUIRED`, `UNSUPPORTED_MARKET`, `QUERY_OR_NDC_REQUIRED`, `INVALID_NDC`, `TAXONOMY_OR_SPECIALTY_REQUIRED`, `INVALID_PLAN_KEY`, `INVALID_SCHEDULE` | An input is missing, malformed or not allowed; the quote caps and duplicates add their own codes |
+| 401  | `UNAUTHORIZED`                                                                                                                                                                                                                                                                       | A token is configured and the bearer token is missing or wrong                         |
+| 404  | `PLAN_NOT_FOUND`, `DRUG_NOT_FOUND`, `PROVIDER_NOT_FOUND`, `CATALOG_NOT_LOADED`                                                                                                                                                                                                       | The plan, drug or provider isn't in the active data, or no Medicare catalog is loaded for the year |
+| 422  | `unsupported_without_taxonomy`                                                                                                                                                                                                                                                       | A specialty name search before NUCC taxonomy is imported                               |
+| 429  | `RATE_LIMITED`                                                                                                                                                                                                                                                                       | A per-source limit; `Retry-After` gives seconds                                        |
+| 500  | `INTERNAL_ERROR`                                                                                                                                                                                                                                                                     | An unexpected failure; the log keeps only an error class and a stack hash              |
+| 503  | `schema_not_ready`, `AUTH_NOT_CONFIGURED`, `QUOTING_DISABLED`                                                                                                                                                                                                                        | A migration is pending, a closed household route has no token, or public quoting is off |
+| 504  | `query_timeout`, `REQUEST_DEADLINE`                                                                                                                                                                                                                                                  | One database read passed 5 seconds, or a quote, benchmark or ICHRA check passed 15     |
+
+`GET /v1/data-availability` answers 503 `{"error":"data_availability_unavailable"}` when the
+database read fails, so a failure never looks like an empty list.

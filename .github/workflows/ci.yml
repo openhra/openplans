@@ -157,6 +157,60 @@
         }
       ]
     },
+    "postgis": {
+      "name": "OpenPlans / PostGIS",
+      "runs-on": "ubuntu-24.04",
+      "timeout-minutes": 20,
+      "steps": [
+        {
+          "uses": "actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5",
+          "with": {
+            "persist-credentials": false
+          }
+        },
+        {
+          "uses": "actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020",
+          "with": {
+            "node-version-file": ".node-version"
+          }
+        },
+        {
+          "name": "Pin npm",
+          "run": "npm install --global \"npm@$(cat .github/npm-version)\" --no-audit --no-fund"
+        },
+        {
+          "name": "Verify toolchain",
+          "run": "test \"$(node --version)\" = \"v$(cat .node-version)\"\ntest \"$(npm --version)\" = \"$(cat .github/npm-version)\""
+        },
+        {
+          "name": "Clean locked install",
+          "run": "npm ci --no-audit --no-fund"
+        },
+        {
+          "name": "Build plugins",
+          "run": "npm run build:plugins",
+          "env": {
+            "npm_config_offline": "true"
+          }
+        },
+        {
+          "name": "Build database image",
+          "run": "docker build --pull --tag openplans-postgis-ci:${{ github.sha }} --file Dockerfile.db ."
+        },
+        {
+          "name": "PostGIS suites",
+          "run": "scripts/postgis-tests.sh --image openplans-postgis-ci:${{ github.sha }}",
+          "env": {
+            "npm_config_offline": "true"
+          }
+        },
+        {
+          "name": "Remove database image",
+          "if": "${{ always() }}",
+          "run": "if docker image inspect openplans-postgis-ci:${{ github.sha }} >/dev/null 2>&1; then\n  docker image rm openplans-postgis-ci:${{ github.sha }}\nfi"
+        }
+      ]
+    },
     "required": {
       "name": "OpenPlans / required",
       "runs-on": "ubuntu-24.04",
@@ -165,7 +219,8 @@
       "needs": [
         "linux",
         "macos",
-        "docker"
+        "docker",
+        "postgis"
       ],
       "steps": [
         {

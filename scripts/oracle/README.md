@@ -117,6 +117,9 @@ application's own importers then load it, with pricing and dispensing-fee ranges
 Maximum fair prices come from the pinned file, not the database. Pass `--database-url` to load
 an existing database. Pass `--docker-context NAME` to start, or reuse, a disposable Postgres
 container in that Docker context (`openplans-price-check-2026-db`, published on 127.0.0.1 only).
+`OPENPLANS_PRICE_CHECK_DATABASE_URL` and `OPENPLANS_PRICE_CHECK_DOCKER_CONTEXT` can stand in for
+the two flags, and `OPENPLANS_PRICE_CHECK_IMAGE` picks the database image (default
+`openplans-db:local`).
 `remove --docker-context NAME` deletes the container and its volume. A second build reuses the
 subset and imports nothing new. The work directory (default `<data dir>/price-check/2026`)
 holds `subset.json`, which gives the SHA-256 of every archive member read and the rows kept, and
@@ -125,6 +128,15 @@ renumbers a member's rows, so a row number in the subset is not the one in the C
 `scripts/realdata.sh --with-price-check` builds the database this way, then runs the check
 without `--optional`, so a missing archive fails instead of skipping. The builder's tests are in
 `tests/oracle/price-check-db.test.mjs`.
+
+`medicare-part-d-large.mjs` checks the pharmacy network and pricing tables of the newest cached
+quarterly Part D archive. Run `npm run build` first. It needs
+`OPENPLANS_PARTD_CHECK_DATABASE_URL`, a separate variable so it never touches the serving
+database. The URL must point at a loopback host and a database named `med4`, `openplans_med4` or
+one of those with a `_` suffix. Each run works in a fresh schema. `--mode sample` reads the plans
+picked by `--sample-modulus` (default 1000), `--mode full` imports every plan, and
+`--mode inventory` only counts the rows in each archive member, with no database. Reports go
+under `OPENPLANS_DATA_DIR`.
 
 `surface-sweep.mjs` calls every public read route and MCP tool on a database that holds the loaded
 catalogs (`DATABASE_URL`). For each loaded state and plan year it asks about every county twice,

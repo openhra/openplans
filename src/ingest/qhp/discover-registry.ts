@@ -29,7 +29,9 @@ export interface RegistryIssuer {
 export async function verifyRegistry(input: RegistryInput): Promise<void> {
   const hash = createHash("sha256");
   let bytes = 0;
-  for await (const chunk of createReadStream(input.path)) {
+  for await (const chunk of createReadStream(
+    input.path,
+  ) as AsyncIterable<Buffer>) {
     bytes += chunk.length;
     hash.update(chunk);
   }
@@ -125,7 +127,8 @@ export async function registryWorkbook(
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
       const existing = createHash("sha256");
-      for await (const chunk of createReadStream(path)) existing.update(chunk);
+      for await (const chunk of createReadStream(path) as AsyncIterable<Buffer>)
+        existing.update(chunk);
       if (existing.digest("hex") !== sha)
         throw new FetchError(
           "cache_error",

@@ -363,7 +363,7 @@ export async function searchMedicarePlans(
   ).rows;
   const partial = pbp
     ? await partialCounties(db, pbp.snapshot_id, location.county_fips, rows)
-    : new Map();
+    : new Map<string, boolean>();
   return {
     ...base,
     status: "available",

@@ -92,6 +92,7 @@ function commandContract(value) {
     "linux",
     "macos",
     "macos-shard",
+    "postgis",
     "required",
   ]);
   for (const id of ["linux", "docker"]) {
@@ -177,6 +178,33 @@ function commandContract(value) {
   );
   for (const step of docker.slice(0, 3)) expect(step.if).toBeUndefined();
   expect(docker[3].if).toBe("${{ always() }}");
+  // The PostGIS job builds Dockerfile.db and runs the suites that need PostGIS in a disposable
+  // container from it; scripts/postgis-tests.sh fails when any of their tests is skipped.
+  const postgis = value.jobs.postgis;
+  expect(postgis.name).toBe(requiredJobs.postgis);
+  expect(postgis["runs-on"]).toBe("ubuntu-24.04");
+  expect(postgis["timeout-minutes"]).toBeLessThanOrEqual(30);
+  expect(postgis.if).toBeUndefined();
+  expect(postgis.needs).toBeUndefined();
+  expect(postgis.strategy).toBeUndefined();
+  expect(postgis.steps).toHaveLength(9);
+  expect(postgis.steps[1].with).toEqual({
+    "node-version-file": ".node-version",
+  });
+  expect(
+    postgis.steps.filter((step) => step.run).map((step) => step.run),
+  ).toEqual([
+    installNpm,
+    verifyVersions,
+    "npm ci --no-audit --no-fund",
+    "npm run build:plugins",
+    "docker build --pull --tag openplans-postgis-ci:${{ github.sha }} --file Dockerfile.db .",
+    "scripts/postgis-tests.sh --image openplans-postgis-ci:${{ github.sha }}",
+    "if docker image inspect openplans-postgis-ci:${{ github.sha }} >/dev/null 2>&1; then\n  docker image rm openplans-postgis-ci:${{ github.sha }}\nfi",
+  ]);
+  expect(postgis.steps[7].env).toEqual({ npm_config_offline: "true" });
+  for (const step of postgis.steps.slice(0, 8)) expect(step.if).toBeUndefined();
+  expect(postgis.steps[8].if).toBe("${{ always() }}");
   const required = value.jobs.required;
   expect(required.name).toBe("OpenPlans / required");
   expect(required.if).toBe("${{ always() }}");
@@ -192,7 +220,7 @@ function commandContract(value) {
   for (const step of required.steps) expect(step.if).toBeUndefined();
 }
 
-it("runs clean extracted-root checks on both platforms and builds the Linux artifact", () => {
+it("runs clean extracted-root checks on both platforms, the PostGIS suites and builds the Linux artifact", () => {
   commandContract(workflow);
 });
 

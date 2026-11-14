@@ -4,6 +4,7 @@ export const requiredJobs = {
   linux: "OpenPlans / Linux",
   macos: "OpenPlans / macOS",
   docker: "OpenPlans / Docker Linux",
+  postgis: "OpenPlans / PostGIS",
 };
 
 // The macOS checks run as a matrix of test shards. GitHub reports a matrix job's result in

@@ -57,13 +57,15 @@ export async function readOperatorPoints(
       await readFile(await storePath(root), "utf8"),
     );
     return Array.isArray(value)
-      ? value.filter(
-          (p): p is StoredOperatorPoint =>
-            p &&
-            p.source === "operator_geocoder" &&
-            /^[a-f0-9]{64}$/.test(p.address_hash) &&
-            typeof p.bounds_snapshot_id === "string",
-        )
+      ? value.filter((p: unknown): p is StoredOperatorPoint => {
+          const point = p as Record<string, unknown> | null;
+          return (
+            !!point &&
+            point.source === "operator_geocoder" &&
+            /^[a-f0-9]{64}$/.test(point.address_hash as string) &&
+            typeof point.bounds_snapshot_id === "string"
+          );
+        })
       : [];
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];

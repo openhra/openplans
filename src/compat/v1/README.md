@@ -54,7 +54,7 @@ extra header (without duplicating a default header). Preflight returns
 `Cache-Control: no-store`. Keys, request bodies and headers are never logged.
 Native `/v1` authentication still uses `OPENPLANS_API_TOKEN` with Bearer auth.
 
-## Run mk03 against OpenPlans
+## Point an existing client at OpenPlans
 
 Use the client's existing private key as `OPENPLANS_COMPAT_API_KEY` in the
 OpenPlans service environment. Send it as `X-Api-Key`, or set
@@ -71,8 +71,8 @@ PORT=3001 npm start
 PORT=3001 OPENPLANS_PGLITE_DIR=/absolute/prepared/pglite npm run api:pglite
 ```
 
-In mk03 set its API base URL to `http://localhost:3001/compat/v1` and restart
-its development server. Configure the credential header as described above.
+In the client, set the API base URL to `http://localhost:3001/compat/v1` and restart
+it. Configure the credential header as described above.
 The retired compatibility path has no alias and returns 404.
 
 The PGlite runner binds to 127.0.0.1. `OPENPLANS_API_TOKEN` remains a separate native API

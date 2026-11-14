@@ -8,6 +8,7 @@ import { AdmissionSession } from "./admission.js";
 import type { AdmissionReceipt } from "./admission.js";
 import type { EgressReceipt } from "./egress.js";
 import { fetchToCache } from "./cache.js";
+import type { SnapshotMetadata } from "./cache.js";
 import type { FetchOptions } from "./cache.js";
 import type { FetchEvidence } from "./errors.js";
 import { FetchError } from "./errors.js";
@@ -152,7 +153,7 @@ export async function verifyBulkPayload(
 }> {
   const hash = createHash("sha256");
   let length = 0;
-  for await (const chunk of createReadStream(path)) {
+  for await (const chunk of createReadStream(path) as AsyncIterable<Buffer>) {
     hash.update(chunk);
     length += chunk.length;
   }
@@ -364,7 +365,9 @@ export async function verifyBulkReport(
       !item.admission.hosts.length
     )
       throw new Error("Collection provenance differs");
-    const metadata = JSON.parse(await readFile(item.metadataPath, "utf8"));
+    const metadata = JSON.parse(
+      await readFile(item.metadataPath, "utf8"),
+    ) as SnapshotMetadata;
     if (
       metadata.sha256 !== item.sha256 ||
       metadata.bytes !== item.bytes ||

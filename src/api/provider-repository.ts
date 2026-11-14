@@ -8,6 +8,15 @@ import {
 import type { ProviderEvidence } from "../domain/providers/index.js";
 import { providerAvailability } from "../domain/providers/availability.js";
 import { cachedUnlocated } from "./provider-unlocated.js";
+import { restrictCacheLevel } from "../plugins/request-scope.js";
+import {
+  cellCondition,
+  cellRanges,
+  currentSearchKeys,
+  searchKeyTable,
+  searchKeysCurrentSql,
+} from "./provider-search-keys.js";
+import type { SearchKeySlot } from "./provider-search-keys.js";
 
 /** Identity matches probed one by one; above this, a radius scan filtered by NPI is cheaper. */
 const CANDIDATE_PROBES = 1000;
@@ -91,7 +100,8 @@ export async function searchProviderLocations(
   return {
     providers: result.providers,
     total: result.location_total!,
-    unlocated: result.meta.unlocated > 0,
+    // An unknown count (never produced by location pages) would mean addresses may be missing.
+    unlocated: result.meta.unlocated !== 0,
     approximate: Boolean(result.location_approximate),
     taxonomy_unknown: Boolean(result.location_taxonomy_unknown),
   };
@@ -104,8 +114,42 @@ async function readProviders(
 ) {
   if (locationPage && (q.plan || !q.origin || q.radius === undefined))
     throw new Error("Location paging requires an identity radius search");
-  const taxonomy = await taxonomyRelation(db);
   const operatorPoints = await searchOperatorPoints(db);
+  // Current search keys answer an identity radius search from the area around its origin
+  // (provider-search-keys.ts). They are derived from public points only, so operator points
+  // keep the original path.
+  const keys =
+    !q.plan &&
+    q.origin &&
+    q.radius !== undefined &&
+    !locationPage &&
+    !operatorPoints.length
+      ? await currentSearchKeys(db)
+      : undefined;
+  if (keys) {
+    const keyed = await readProvidersFrom(db, q, operatorPoints, keys);
+    if (keyed) return keyed;
+  }
+  // Without keys the original path always answers.
+  return (await readProvidersFrom(
+    db,
+    q,
+    operatorPoints,
+    undefined,
+    locationPage,
+  ))!;
+}
+
+type OperatorPoints = Awaited<ReturnType<typeof searchOperatorPoints>>;
+
+async function readProvidersFrom(
+  db: SqlSession,
+  q: ProviderSearch,
+  operatorPoints: OperatorPoints,
+  keySlot: SearchKeySlot | undefined,
+  locationPage?: ProviderLocationPage,
+) {
+  const taxonomy = await taxonomyRelation(db);
   const pointsRelation = operatorPoints.length
     ? "effective_points"
     : "address_point";
@@ -118,6 +162,9 @@ async function readProviders(
       AND table_name='address_point' AND column_name='point'`)
     ).rows.length > 0;
   const spatialRadius = Boolean(postgis && q.radius !== undefined);
+  // Keys serve only the PostGIS radius path; their filters repeat identityPredicate's exactly.
+  if (keySlot && (!spatialRadius || issuer)) return undefined;
+  const keyTable = keySlot && searchKeyTable(keySlot);
   const parameters: unknown[] = [
     q.plan ?? null,
     q.year ?? null,
@@ -252,6 +299,17 @@ async function readProviders(
           OR nt.classification ILIKE '%'||$4||'%' OR nt.specialization ILIKE '%'||$4||'%')))
       AND ($5::text IS NULL OR concat_ws(' ',n.organization_name,n.first_name,n.last_name) ILIKE '%'||$5||'%')
       AND ($6::text IS NULL OR CASE WHEN n.entity_type='1' THEN 'INDIVIDUAL' ELSE 'GROUP' END=$6)`;
+  // identityPredicate over a key row: search_name is the same concat_ws, taxonomy_codes the
+  // identity's distinct npi_taxonomy codes. A filterless search keeps in-scope identities, as
+  // the radius scan's out-of-scope exclusion does (in_scope is NOT NULL).
+  const keyPredicate = `k.in_scope
+      AND $1::text IS NULL AND $2::integer IS NULL
+      AND ($3::text IS NULL OR $3=ANY(k.taxonomy_codes))
+      AND ($4::text IS NULL OR EXISTS (SELECT 1 FROM unnest(k.taxonomy_codes) t(code) LEFT JOIN ${taxonomy} nt ON nt.code=t.code
+        WHERE t.code ILIKE '%'||$4||'%' OR nt.display_name ILIKE '%'||$4||'%'
+          OR nt.classification ILIKE '%'||$4||'%' OR nt.specialization ILIKE '%'||$4||'%'))
+      AND ($5::text IS NULL OR k.search_name ILIKE '%'||$5||'%')
+      AND ($6::text IS NULL OR CASE WHEN k.entity_type='1' THEN 'INDIVIDUAL' ELSE 'GROUP' END=$6)`;
   // Identity names use the trigram index on NPPES names as a coarse, lossless filter: the
   // longest literal word lies inside one name field, so its trigrams are a subset of the
   // indexed trigrams. The ILIKE in identityPredicate still decides every match. Even one
@@ -274,7 +332,9 @@ async function readProviders(
   // instead of every point in the radius. Both paths yield the same (point, address) pairs.
   const candidateFirst = selectiveIdentity && identityName;
   let selected;
-  if (issuer) {
+  if (keyTable) {
+    selected = "SELECT record_id,snapshot_id FROM page_keys";
+  } else if (issuer) {
     if (recordFilter) {
       selected = `SELECT r.snapshot_id,r.record_id
     ${
@@ -422,7 +482,39 @@ async function readProviders(
       } OFFSET 0) a ON true
   ), `
     : "";
-  const radiusLocations = candidateFirst ? candidateLocations : radiusScan;
+  // Search keys: every matching identity in the radius with its nearest distance, from the cells
+  // around the origin. Only the page's identities are then probed for their full point rows,
+  // the same way as a few name matches. Totals, order and pages equal the radius scan's.
+  const keyedLocations = keyTable
+    ? `search_hits AS MATERIALIZED (
+    SELECT k.npi AS record_id,NULL::text AS snapshot_id,min(ST_Distance(ST_SetSRID(ST_MakePoint(k.longitude,k.latitude),4326)::geography,
+        ST_SetSRID(ST_MakePoint($8,$7),4326)::geography,false)/1609.344) AS distance_miles
+    FROM ${keyTable} k WHERE ${cellCondition("k", cellRanges(q.origin!.latitude, q.origin!.longitude, q.radius!))}
+      AND ST_DWithin(ST_SetSRID(ST_MakePoint(k.longitude,k.latitude),4326)::geography,
+        ST_SetSRID(ST_MakePoint($8,$7),4326)::geography,$9*1609.344,false)
+      AND ${keyPredicate}
+    GROUP BY k.npi
+  ), page_keys AS MATERIALIZED (
+    SELECT record_id,snapshot_id FROM search_hits ORDER BY distance_miles NULLS LAST,record_id,snapshot_id
+      LIMIT 50 OFFSET ${(q.page - 1) * 50}
+  ), radius_keys AS MATERIALIZED (
+    SELECT DISTINCT a.npi,a.snapshot_id,a.ordinal,p.source_row
+    FROM (SELECT record_id AS npi FROM page_keys ORDER BY record_id) c
+    JOIN npi_address a ON a.npi=c.npi AND a.kind='practice'
+    JOIN address_point p ON p.source_table='npi_address'
+      AND p.source_row=a.npi||':practice:'||a.ordinal::text AND p.source_snapshot_id=a.snapshot_id
+      AND ST_DWithin(ST_SetSRID(ST_MakePoint(p.longitude,p.latitude),4326)::geography,
+        ST_SetSRID(ST_MakePoint($8,$7),4326)::geography,$9*1609.344,false)
+  ), radius_locations AS MATERIALIZED (
+    SELECT k.npi AS record_id,k.snapshot_id,k.ordinal AS address_index,p.source_row,${pointFields}
+    FROM radius_keys k ${candidatePoint("address_point", "k.source_row")}
+    ${candidateGuard}
+  ), `
+    : "";
+  let radiusLocations;
+  if (keyTable) radiusLocations = keyedLocations;
+  else if (candidateFirst) radiusLocations = candidateLocations;
+  else radiusLocations = radiusScan;
   // Each candidate address has one source key. Count matching distinct keys per
   // shard, so repeated geocodes cannot reduce the exact missing-address count.
   const countPoints = issuer && (!q.origin || (spatialRadius && !recordFilter));
@@ -460,7 +552,7 @@ async function readProviders(
     : "";
   const selectedCte = `selected AS MATERIALIZED (${selected}), `;
   const identityCandidates =
-    !issuer && (spatialRadius || locationPage)
+    !issuer && !keyTable && (spatialRadius || locationPage)
       ? `identity_candidates AS ${selectiveIdentity ? "" : "NOT "}MATERIALIZED (
     SELECT n.npi FROM npi_provider n WHERE ${identityPredicate} ${identityTrigrams}
       ${selectiveIdentity && q.taxonomy ? "AND n.npi IN (SELECT t.npi FROM npi_taxonomy t WHERE t.code=$3)" : ""}
@@ -516,7 +608,15 @@ async function readProviders(
   // An identity radius search counts unlocated addresses over every candidate, independent of
   // the origin and radius. Keep that exact count per data generation (provider-unlocated.ts).
   const keptCount = !issuer && spatialRadius && !locationPage;
-  const unlocatedSelect = keptCount ? "NULL::int" : unlocated;
+  let unlocatedSelect;
+  if (keyTable) {
+    // Point-less practice addresses are key rows without a cell, one per address.
+    unlocatedSelect = `(SELECT count(*)::int FROM ${keyTable} k WHERE k.cell IS NULL AND ${keyPredicate})`;
+  } else if (keptCount) {
+    unlocatedSelect = "NULL::int";
+  } else {
+    unlocatedSelect = unlocated;
+  }
   let distance = "NULL::float8",
     radiusFilter = "";
   if (q.origin) {
@@ -559,6 +659,8 @@ async function readProviders(
   function distanceSelection() {
     if (!q.origin) {
       return "SELECT record_id,snapshot_id,NULL::float8 AS distance_miles FROM selected";
+    } else if (keyTable) {
+      return "SELECT record_id,snapshot_id,distance_miles FROM search_hits";
     } else if (q.radius !== undefined) {
       if (issuer) {
         return "SELECT record_id,snapshot_id,min(distance_miles) AS distance_miles FROM distances GROUP BY record_id,snapshot_id";
@@ -653,7 +755,8 @@ async function readProviders(
       ORDER BY t.ordinal) FROM npi_taxonomy t LEFT JOIN ${taxonomy} nt ON nt.code=t.code WHERE t.npi=r.npi),'[]'::jsonb))
     ORDER BY p.distance_miles NULLS LAST,p.record_id,p.snapshot_id)
     FROM paged p JOIN ${issuer ? "qhp_provider_record" : "npi_provider"} r ON r.${issuer ? "record_id" : "npi"}=p.record_id ${issuer ? "AND r.snapshot_id=p.snapshot_id" : ""}
-      ${issuer ? "LEFT JOIN npi_provider n ON n.npi=r.npi JOIN active_shards s ON s.snapshot_id=p.snapshot_id" : ""}),'[]'::jsonb) AS providers`;
+      ${issuer ? "LEFT JOIN npi_provider n ON n.npi=r.npi JOIN active_shards s ON s.snapshot_id=p.snapshot_id" : ""}),'[]'::jsonb) AS providers
+    ${keySlot ? `,${searchKeysCurrentSql(keySlot)} AS search_keys_current` : ""}`;
   // The SQL body contains only application SQL and validated numeric page bounds.
   // Every request value stays bound through the invoker-rights, read-only function.
   while (parameters.length < 9) parameters.push(null);
@@ -684,35 +787,37 @@ async function readProviders(
   }
   const bind = `$1::text,$2::integer,$3::text,$4::text,$5::text,$6::text,
     $7::double precision,$8::double precision,$9::numeric${operatorPoints.length ? ", $10::json" : ""}`;
-  const counted = keptCount
-    ? cachedUnlocated(
-        db,
-        {
-          key: JSON.stringify([
-            taxonomy,
-            q.taxonomy ?? null,
-            q.specialty ?? null,
-            q.name ?? null,
-            q.type ?? null,
-            operatorPoints,
-          ]),
-          sql: `SELECT (provider_search_query($provider_query$${`WITH ${countCtes}${identityCandidates}`.replace(/,\s*$/, "")}
+  const counted =
+    keptCount && !keyTable
+      ? cachedUnlocated(
+          db,
+          {
+            key: JSON.stringify([
+              taxonomy,
+              q.taxonomy ?? null,
+              q.specialty ?? null,
+              q.name ?? null,
+              q.type ?? null,
+              operatorPoints,
+            ]),
+            sql: `SELECT (provider_search_query($provider_query$${`WITH ${countCtes}${identityCandidates}`.replace(/,\s*$/, "")}
     SELECT ${unlocated} AS unlocated$provider_query$,${bind})->>'unlocated')::int AS unlocated`,
-          parameters,
-        },
-        COUNT_WAIT_MS,
-      )
-    : undefined;
+            parameters,
+          },
+          COUNT_WAIT_MS,
+        )
+      : undefined;
   // Read the page while the count runs; neither waits for the other.
   counted?.catch(() => {});
   const result = await db.query<{
     result: {
       total: number;
-      unlocated: number;
+      unlocated: number | null;
       providers: SearchRow[];
       location_total?: number;
       location_approximate?: boolean;
       location_taxonomy_unknown?: boolean;
+      search_keys_current?: boolean;
     };
   }>(
     `SELECT provider_search_query(
@@ -720,7 +825,11 @@ async function readProviders(
     parameters,
   );
   const row = result.rows[0]!.result;
+  // An import committed after the slot was chosen: this snapshot's keys are stale.
+  if (keySlot && !row.search_keys_current) return undefined;
   if (counted) row.unlocated = await counted;
+  // An unknown count is not shared: the next search may have it, or current keys.
+  if (row.unlocated === null) restrictCacheLevel("request");
   const providers = row.providers.map((provider) => ({
     ...provider,
     participation: issuer
@@ -793,7 +902,11 @@ async function readProviders(
     page_size: 50,
     next_page: q.page * 50 < row.total ? q.page + 1 : null,
     meta: {
-      unlocated: Number(row.unlocated),
+      // A count that could not finish in time is unknown, never zero.
+      unlocated: row.unlocated === null ? null : Number(row.unlocated),
+      ...(row.unlocated === null
+        ? { unlocated_status: "unknown" as const }
+        : {}),
       unlocated_scope: "candidate_addresses",
       origin: q.origin ?? null,
       radius_miles: q.radius ?? null,

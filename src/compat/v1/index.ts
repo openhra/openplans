@@ -2,6 +2,8 @@ import { logInternalError, queryTimeoutResponse } from "../../api/error-log.js";
 import { isQueryTimeout } from "../../services/errors.js";
 import { catastrophicEligibility } from "../../domain/eligibility/catastrophic.js";
 import { Hono } from "hono";
+import type { Context } from "hono";
+import type { BlankEnv } from "hono/types";
 import { bodyLimit } from "hono/body-limit";
 import { compatKeyHeader, credentialMatches } from "./auth.js";
 import { providerCompatRoutes } from "./providers.js";
@@ -154,7 +156,7 @@ export function compatRoutes(db: SqlSession, options: ApiOptions = {}) {
     return c.json({ error: "internal_error" }, 500);
   });
 
-  app.use("*", async (c, next) => {
+  app.use("*", async (c: Context<BlankEnv, string>, next) => {
     c.header("Access-Control-Allow-Origin", "*");
     c.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
     c.header("Access-Control-Allow-Headers", allowedHeaders.join(", "));

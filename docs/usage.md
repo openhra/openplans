@@ -103,8 +103,9 @@ credentials must be URL-safe (percent-encode reserved characters).
 
 Both ports bind to `127.0.0.1`. `API_PORT` and `DB_PORT` avoid local conflicts.
 The default project is `openplans-local`; use `docker compose -p openplans-name`
-consistently to isolate an instance. `OPENPLANS_IMAGE` optionally selects a
-separate local API/worker image tag (default `openplans:local`).
+consistently to isolate an instance. `OPENPLANS_IMAGE` and `OPENPLANS_DB_IMAGE`
+optionally select separate local API/worker and database image tags (defaults
+`openplans:local` and `openplans-db:local`).
 `docker compose down` preserves the DB volume; `docker compose down -v` deletes it.
 `worker status` prints the stored coverage manifest. `/v1/data-availability`
 adds current source completeness, rating and ICHRA readiness. Run
@@ -248,7 +249,8 @@ Read the [facade guide](../src/compat/v1/README.md) for routes, defaults and gap
 
 ## Local development
 
-Requires Node.js 22 or newer. Dependencies are pinned in the package and lockfile.
+Requires Node.js 22 or newer. CI and the Docker image use the version in `.node-version`,
+22.23.5. Dependencies are pinned in the package and lockfile.
 
 ```sh
 npm ci --no-audit --no-fund
@@ -269,8 +271,8 @@ Database errors and connection URLs are not exposed in responses or CLI errors.
 
 ```sh
 ./scripts/ci.sh
-OPENPLANS_PUBLIC_HOUSEHOLD=off ./scripts/smoke.sh
-OPENPLANS_PUBLIC_HOUSEHOLD=off ./scripts/smoke.sh --full
+./scripts/smoke.sh
+./scripts/smoke.sh --full
 ./scripts/realdata.sh
 ```
 
@@ -286,11 +288,13 @@ database test uses a nonexistent Unix socket, without TCP or external requests.
 
 Plain smoke builds the images, starts PostGIS, runs a one-off migration job,
 starts the API, checks health, repeats migration twice, and checks API/worker
-empty manifests, PostGIS and refusal of household
-requests with public household access explicitly disabled and no token configured.
+empty manifests and PostGIS. With no token configured, it checks that household
+quotes are open by default, then restarts the API with
+`OPENPLANS_PUBLIC_HOUSEHOLD=off` and checks that they are refused with 503.
 It needs no real-data cache.
-The explicit household switch is needed because smoke checks a closed route
-before configuring its synthetic token; the application default is open.
+Each run builds under its own image tags, prints the image IDs and removes those
+tags at the end, so parallel runs on one Docker daemon never swap each other's
+images. Set `OPENPLANS_IMAGE` or `OPENPLANS_DB_IMAGE` to build and keep a named tag.
 `--full` also imports cached rating rules, TX geography and TX PY2026 PUFs,
 checks exact row counts and all three plan-search pages, and verifies the 52928-cent
 premium. It then imports all federal states, NY geography, RxNorm, NPPES, one

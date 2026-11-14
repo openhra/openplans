@@ -75,7 +75,9 @@ async function verifyFiles(files: GeoFiles): Promise<void> {
   for (const file of Object.values(files)) {
     const hash = createHash("sha256");
     let bytes = 0;
-    for await (const chunk of createReadStream(file.path)) {
+    for await (const chunk of createReadStream(
+      file.path,
+    ) as AsyncIterable<Buffer>) {
       hash.update(chunk);
       bytes += chunk.length;
     }

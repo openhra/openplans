@@ -6,7 +6,10 @@ const checker = fileURLToPath(new URL("./check.mjs", import.meta.url));
 // Synthetic Compose output: no daemon or external service is used by these controls.
 const config = () => ({
   services: {
-    db: { ports: [{ host_ip: "127.0.0.1", target: 5432 }] },
+    db: {
+      image: "openplans-db:local",
+      ports: [{ host_ip: "127.0.0.1", target: 5432 }],
+    },
     api: {
       image: "openplans:local",
       environment: { OPENPLANS_API_TOKEN: "" },
@@ -22,12 +25,28 @@ const config = () => ({
     },
   },
 });
-function check(value) {
+function check(value, images = {}) {
+  const env = { ...process.env, ...images };
+  if (!images.OPENPLANS_IMAGE) delete env.OPENPLANS_IMAGE;
+  if (!images.OPENPLANS_DB_IMAGE) delete env.OPENPLANS_DB_IMAGE;
   return spawnSync(process.execPath, [checker, "config"], {
     input: JSON.stringify(value),
+    env,
     encoding: "utf8",
     timeout: 5_000,
   });
+}
+// Synthetic per-run tags, shaped like the ones scripts/smoke.sh makes.
+const runImages = {
+  OPENPLANS_IMAGE: "openplans:smoke-h2-20261113000000-1",
+  OPENPLANS_DB_IMAGE: "openplans-db:smoke-h2-20261113000000-1",
+};
+function tagged() {
+  const value = config();
+  value.services.api.image = runImages.OPENPLANS_IMAGE;
+  value.services.worker.image = runImages.OPENPLANS_IMAGE;
+  value.services.db.image = runImages.OPENPLANS_DB_IMAGE;
+  return value;
 }
 
 describe("Docker smoke configuration controls (synthetic)", () => {
@@ -36,6 +55,21 @@ describe("Docker smoke configuration controls (synthetic)", () => {
     expect(result.status).toBe(0);
     expect(result.stdout).toContain("compose config: native platform");
   });
+  it("accepts the per-run image tags smoke exports", () => {
+    expect(check(tagged(), runImages).status).toBe(0);
+  });
+  it.each([
+    ["api", "openplans:local"],
+    ["worker", "openplans:local"],
+    ["db", "openplans-db:local"],
+  ])(
+    "rejects a %s service left on the shared tag %s during a tagged run",
+    (service, image) => {
+      const value = tagged();
+      value.services[service].image = image;
+      expect(check(value, runImages).status).toBe(1);
+    },
+  );
   it.each([
     [
       "public API",

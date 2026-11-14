@@ -515,7 +515,7 @@ async function requestChain(
     evidence.address = address.address;
     const headers: Record<string, string> = {
       "accept-encoding": "identity",
-      "user-agent": `openplans/0.4.7 (public health-plan source discovery; +${projectUrl(options)})`,
+      "user-agent": `openplans/0.4.8 (public health-plan source discovery; +${projectUrl(options)})`,
     };
     if (options.expectedContent === "json")
       headers.accept = "application/json, */*;q=0.1";
@@ -815,7 +815,7 @@ async function validateCacheHit(
         `${snapshotKey(cached.metadata.source, cached.snapshotId)}/payload`,
       );
   if (!body) throw new Error("Cached snapshot payload is missing");
-  for await (const item of body) {
+  for await (const item of body as AsyncIterable<Uint8Array>) {
     const chunk = asBuffer(item);
     probeChallenge(chunk);
     probe(chunk);

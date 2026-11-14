@@ -203,7 +203,7 @@ try {
     directory,
   );
   if (messages.length) {
-    const report = JSON.parse(messages[0]!);
+    const report = JSON.parse(messages[0]!) as Record<string, unknown>;
     const flags = (
       await db.query(
         `SELECT

@@ -230,7 +230,11 @@ export function requestReads(db: SqlSession) {
     /** planCostSharing(db, plan, options), read once per plan object and options. */
     costSharing: (plan: Plan, options: CostSharingOptions = {}) => {
       let byOptions = sharing.get(plan);
-      if (!byOptions) sharing.set(plan, (byOptions = new Map()));
+      if (!byOptions)
+        sharing.set(
+          plan,
+          (byOptions = new Map<string, ReturnType<typeof planCostSharing>>()),
+        );
       const key = [
         options.csrVariant,
         options.requestedVariant,

@@ -79,7 +79,11 @@ const text = (value: unknown): value is string =>
   typeof value === "string" && value.length > 0 && value.length < 1000;
 
 export function parseCommunityRules(bytes: string): CommunityFamilyRule[] {
-  const document = JSON.parse(bytes);
+  const document = JSON.parse(bytes) as {
+    schema_version?: unknown;
+    plan_year: number;
+    rules: CommunityFamilyRule[];
+  } | null;
   if (
     document?.schema_version !== "community-family-rules-v1" ||
     document.plan_year !== 2026 ||
@@ -571,7 +575,9 @@ async function verifyPublication(publication: {
     throw new Error("Original publication path required");
   const digest = createHash("sha256");
   let size = 0;
-  for await (const chunk of createReadStream(publication.raw_path)) {
+  for await (const chunk of createReadStream(
+    publication.raw_path,
+  ) as AsyncIterable<Buffer>) {
     size += chunk.length;
     if (size > publication.bytes)
       throw new Error("Original publication size mismatch");

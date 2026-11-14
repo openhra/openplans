@@ -26,6 +26,13 @@ import {
 import type { PluginMigration, PluginMigrationSource } from "../db/migrate.js";
 import { backfillRowProvenance } from "../db/row-provenance.js";
 import { backfillRatePlanCounts } from "../ingest/puf/import-repository.js";
+import { buildProviderSearchKeys } from "../api/provider-search-keys.js";
+import {
+  BACKFILL_RUNNING,
+  backfillRunning,
+  MaintenanceConflict,
+} from "../db/maintenance-locks.js";
+import { statfs } from "node:fs/promises";
 import { runPufAcquire } from "../ingest/puf/acquire.js";
 import { runRatingRules } from "../ingest/rating-rules/command.js";
 
@@ -57,7 +64,14 @@ import { runBackupRestored } from "./backup-restored.js";
 import { databaseUrl } from "../config/access.js";
 
 const usage =
-  "Usage: worker migrate [--check|--size-evidence] | status | record-policy list|set|expire | backup-args [--tar|--manifest] | backup-restored --manifest FILE | backfill row-provenance [--table NAME] [--blocks N] | backfill rate-plan-count | ingest puf|qhp|nppes|rxnorm|taxonomy|geo|medicare";
+  "Usage: worker migrate [--check|--size-evidence] | status | record-policy list|set|expire | backup-args [--tar|--manifest] | backup-restored --manifest FILE | backfill row-provenance [--table NAME] [--blocks N] | backfill rate-plan-count | backfill provider-search (--disk PATH | --free-gb N) | ingest puf|qhp|nppes|rxnorm|taxonomy|geo|medicare";
+
+/** Free disk the provider-search backfill needs on the database's filesystem. */
+export const BACKFILL_MIN_FREE_BYTES = 8 * 1024 ** 3;
+const BACKFILL_USAGE =
+  "Usage: worker backfill provider-search (--disk PATH | --free-gb N)";
+const DISK_HELP =
+  "The backfill needs 8 GB free on the database's disk for the new copy, about 1.9 GB on a nationwide database, plus temporary sort files of about 1.3 times the copy and WAL of about 1.4 times the copy. Pass --disk with a directory on the database's filesystem. Or run `docker compose exec db df -BG /var/lib/postgresql/data` and pass the Avail figure as --free-gb.";
 
 export interface WorkerOutput {
   out(message: string): void;
@@ -145,6 +159,14 @@ export const coreWorkerCommands: readonly CoreWorkerCommand[] = Object.freeze(
         queryTimeoutMs: 3_600_000,
         run: (args, { open, output }) =>
           runRatePlanCountBackfill(args, () => open(), output),
+      },
+      {
+        argv: ["backfill", "provider-search"],
+        usage: BACKFILL_USAGE,
+        // Reads every practice address and point once; minutes on a nationwide database.
+        queryTimeoutMs: 3_600_000,
+        run: (args, { open, output }) =>
+          runProviderSearchBackfill(args, () => open(), output),
       },
       {
         argv: ["bootstrap"],
@@ -494,6 +516,9 @@ async function runMaintenance(
     if (evidence) {
       output.out(JSON.stringify(await migrationSizeEvidence(db)));
     } else if (check) {
+      // The preflight takes no locks; it reads pg_locks so a release stops before it migrates.
+      if (await backfillRunning(db))
+        throw new MaintenanceConflict(BACKFILL_RUNNING);
       output.out(JSON.stringify(await checkMigrations(db, directory, plugins)));
     } else if (command === "migrate") {
       const applied = await migrate(db, directory, plugins);
@@ -504,7 +529,9 @@ async function runMaintenance(
   } catch (error) {
     // Driver errors can contain credentials, URLs or source-record contents.
     output.error(
-      `worker ${command} failed${databaseErrorDiagnostic(error)}; check database connectivity and migration files`,
+      error instanceof MaintenanceConflict
+        ? `worker ${command} refused: ${error.message}`
+        : `worker ${command} failed${databaseErrorDiagnostic(error)}; check database connectivity and migration files`,
     );
     exitCode = 1;
   } finally {
@@ -538,6 +565,65 @@ async function runRatePlanCountBackfill(
   } catch (error) {
     output.error(
       `worker backfill rate-plan-count failed${databaseErrorDiagnostic(error)}; run worker migrate first and check the database`,
+    );
+    code = 1;
+  } finally {
+    try {
+      await db?.close();
+    } catch {
+      output.error("worker database shutdown failed");
+      code = 1;
+    }
+  }
+  return code;
+}
+
+/** Free bytes from --disk PATH or --free-gb N; a string is a usage or measurement error. */
+async function backfillFreeBytes(args: string[]): Promise<number | string> {
+  if (args.length !== 2) return `${BACKFILL_USAGE}. ${DISK_HELP}`;
+  const [flag, value] = args as [string, string];
+  if (flag === "--free-gb") {
+    if (!/^[0-9]{1,6}(\.[0-9]{1,3})?$/.test(value))
+      return `--free-gb needs a number of gigabytes. ${DISK_HELP}`;
+    return Number(value) * 1024 ** 3;
+  }
+  if (flag === "--disk") {
+    try {
+      const disk = await statfs(value);
+      return Number(disk.bavail) * Number(disk.bsize);
+    } catch {
+      return `cannot read free space at --disk ${value}. ${DISK_HELP}`;
+    }
+  }
+  return `${BACKFILL_USAGE}. ${DISK_HELP}`;
+}
+
+async function runProviderSearchBackfill(
+  args: string[],
+  open: () => Database,
+  output: WorkerOutput,
+): Promise<number> {
+  const free = await backfillFreeBytes(args);
+  if (typeof free === "string") {
+    output.error(free);
+    return 1;
+  }
+  if (free < BACKFILL_MIN_FREE_BYTES) {
+    output.error(
+      `worker backfill provider-search refused: ${(free / 1024 ** 3).toFixed(1)} GB free, below 8 GB. ${DISK_HELP}`,
+    );
+    return 1;
+  }
+  let db: Database | undefined,
+    code = 0;
+  try {
+    db = open();
+    output.out(JSON.stringify(await buildProviderSearchKeys(db)));
+  } catch (error) {
+    output.error(
+      error instanceof MaintenanceConflict
+        ? `worker backfill provider-search refused: ${error.message}`
+        : `worker backfill provider-search failed${databaseErrorDiagnostic(error)}; run worker migrate first and check the database`,
     );
     code = 1;
   } finally {

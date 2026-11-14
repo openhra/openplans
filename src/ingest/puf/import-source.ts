@@ -161,7 +161,9 @@ export async function verifyImportFile(
 ): Promise<void> {
   const hash = createHash("sha256");
   let bytes = 0;
-  for await (const chunk of createReadStream(file.path)) {
+  for await (const chunk of createReadStream(
+    file.path,
+  ) as AsyncIterable<Buffer>) {
     hash.update(chunk);
     bytes += chunk.length;
   }
@@ -170,7 +172,9 @@ export async function verifyImportFile(
   if (file.rowCache) {
     const hash = createHash("sha256");
     let bytes = 0;
-    for await (const chunk of createReadStream(file.rowCache.path)) {
+    for await (const chunk of createReadStream(
+      file.rowCache.path,
+    ) as AsyncIterable<Buffer>) {
       hash.update(chunk);
       bytes += chunk.length;
     }

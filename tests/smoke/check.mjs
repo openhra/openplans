@@ -86,8 +86,13 @@ switch (mode) {
       for (const port of service.ports ?? [])
         assert.equal(port.host_ip, "127.0.0.1");
     }
-    assert.equal(config.services.api.image, "openplans:local");
-    assert.equal(config.services.worker.image, "openplans:local");
+    const image = process.env.OPENPLANS_IMAGE || "openplans:local";
+    assert.equal(config.services.api.image, image);
+    assert.equal(config.services.worker.image, image);
+    assert.equal(
+      config.services.db.image,
+      process.env.OPENPLANS_DB_IMAGE || "openplans-db:local",
+    );
     assert.equal(config.services.api.environment.OPENPLANS_API_TOKEN, "");
     const volumes = config.services.worker.volumes;
     assert.equal(
@@ -125,12 +130,30 @@ switch (mode) {
     console.log("worker status: []; repeat migration: no-op; availability: []");
     break;
   }
+  case "anonymous-household": {
+    // No token and the default switch: the request passes admission and reaches the empty
+    // database, where the plan lookup finds nothing.
+    const response = await premium({});
+    const body = await response.json();
+    assert.equal(response.status, 404, JSON.stringify(body));
+    assert.ok(
+      !["AUTH_NOT_CONFIGURED", "UNAUTHORIZED"].includes(body.error?.code),
+      "anonymous household request was refused",
+    );
+    assert.equal(response.headers.get("cache-control"), "no-store");
+    console.log(
+      "household quotes: open by default with no token (404 on empty data)",
+    );
+    break;
+  }
   case "unconfigured-token": {
     const response = await premium({});
     assert.equal(response.status, 503);
     assert.equal((await response.json()).error.code, "AUTH_NOT_CONFIGURED");
     assert.equal(response.headers.get("cache-control"), "no-store");
-    console.log("negative control: unconfigured server token refused (503)");
+    console.log(
+      "negative control: household quotes off and no token refused (503)",
+    );
     break;
   }
   case "import": {

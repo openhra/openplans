@@ -175,7 +175,9 @@ export function mapPlan(
   ) as typeof FEDERAL_PLAN_ATTRIBUTES;
   const names = view.issuer.marketing_names;
   const name = Array.isArray(names)
-    ? (names.find((n) => typeof n === "string" && n.length > 0) ?? null)
+    ? (names.find(
+        (n: unknown): n is string => typeof n === "string" && n.length > 0,
+      ) ?? null)
     : null;
   const stateFiled = "plan_key" in view;
   // A state filing without metal or exchange cells uses the matched CMS state PUF row.

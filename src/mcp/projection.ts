@@ -29,7 +29,9 @@ const url = (value: unknown) =>
 function snapshotIds(value: unknown, ids = new Set<string>()): Set<string> {
   if (Array.isArray(value)) value.forEach((child) => snapshotIds(child, ids));
   else if (value && typeof value === "object")
-    for (const [key, child] of Object.entries(value)) {
+    for (const [key, child] of Object.entries(
+      value as Record<string, unknown>,
+    )) {
       if (
         (key === "snapshot_id" || key.endsWith("_snapshot_id")) &&
         typeof child === "string"

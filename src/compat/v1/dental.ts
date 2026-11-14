@@ -45,7 +45,9 @@ export function mapDentalPlan(
 ) {
   const names = view.issuer.marketing_names;
   const name = Array.isArray(names)
-    ? (names.find((n) => typeof n === "string" && n) ?? null)
+    ? (names.find(
+        (n: unknown): n is string => typeof n === "string" && n !== "",
+      ) ?? null)
     : null;
   return {
     id,

@@ -4,6 +4,11 @@ import { createApp } from "../../src/api/app.js";
 import { setup } from "../ingest/qhp/provider-helpers.js";
 import { saveResult } from "../../src/ingest/geocode/repository.js";
 import type { Address } from "../../src/ingest/geocode/address.js";
+import {
+  buildProviderSearchKeys,
+  currentSearchKeys,
+} from "../../src/api/provider-search-keys.js";
+import type { SqlSession } from "../../src/db/database.js";
 
 interface RadiusPage {
   total: number;
@@ -258,5 +263,104 @@ describe("statewide identity radius: source keys, exact counts and pagination", 
     const broken = await get(path, mutant);
     expect(broken.providers).toEqual([]);
     expect(() => contract(broken)).toThrow();
+  });
+
+  // Identity radius searches whose answers the search keys must reproduce byte for byte.
+  const keyed = [
+    path,
+    path + "&page=2",
+    path + "&page=3",
+    path + "&name=RadiusNear",
+    path + "&name=RadiusMissing",
+    path + "&name=radiusnear&taxonomy=207Q00000X&type=individual",
+    path + "&specialty=207Q&type=group",
+    path + "&specialty=family",
+    path + "&taxonomy=207Q00000X&page=2",
+    path + "&name=absent",
+    path + "&type=individual&page=2",
+    `/v1/providers?lat=${lat}&lon=${lon}&radius_miles=8.2`,
+    `/v1/providers?lat=${lat}&lon=${lon}&radius_miles=0`,
+    `/v1/providers?lat=${lat + 8 / 69.093}&lon=${lon}&radius_miles=0.01&name=RadiusFar`,
+  ];
+  const answers = async (target = app) => {
+    const bodies: string[] = [];
+    for (const url of keyed) {
+      const response = await target.request(url);
+      expect(response.status).toBe(200);
+      bodies.push(await response.text());
+    }
+    return bodies;
+  };
+  /** An app over the same database that records whether a search read the keys. */
+  const recording = () => {
+    const seen = { keyed: 0, original: 0 };
+    const db: SqlSession = {
+      ...h.db,
+      query: (sql, args, options) => {
+        if (sql.includes("AS total")) {
+          if (sql.includes("search_hits AS MATERIALIZED")) seen.keyed += 1;
+          else seen.original += 1;
+        }
+        return h.db.query(sql, args, options);
+      },
+    };
+    return { seen, app: createApp(db, {}) };
+  };
+  it("search keys give byte-identical answers, and only while their sources are unchanged", async () => {
+    const postgis =
+      (
+        await h.db.query(`SELECT 1 FROM information_schema.columns
+      WHERE table_schema=current_schema() AND table_name='address_point' AND column_name='point'`)
+      ).rows.length > 0;
+    // A run that requires PostGIS must reach the keyed path; on PGlite the keyed count below
+    // is zero by design and proves nothing about the keys.
+    if (process.env.OPENPLANS_POSTGIS_REQUIRED === "1")
+      expect(postgis).toBe(true);
+    const before = await answers();
+    expect(JSON.parse(before[0]!)).toMatchObject({
+      total: 60,
+      meta: { unlocated: 5 },
+    });
+    const built = await buildProviderSearchKeys(h.db);
+    // 114 identities with a located practice address (one more has only a mailing address now),
+    // two of them at a second point; two addresses without any point and three whose points
+    // belong to an obsolete snapshot.
+    expect(built).toMatchObject({
+      slot: "a",
+      located_rows: 116,
+      unlocated_rows: 5,
+    });
+    expect(await currentSearchKeys(h.db)).toBe("a");
+    const withKeys = recording();
+    expect(await answers(withKeys.app)).toEqual(before);
+    expect(withKeys.seen.keyed).toBe(postgis ? keyed.length : 0);
+    if (postgis) expect(withKeys.seen.original).toBe(0);
+    if (postgis) {
+      // Negative control: a key missing for one near identity changes the answer.
+      await h.db.query("DELETE FROM provider_search_key_a WHERE npi=$1", [
+        npi(60),
+      ]);
+      // A fresh app: the key tables are derived, so the response cache's generation stays.
+      expect(await answers(recording().app)).not.toEqual(before);
+    }
+    // The second build fills the other slot and empties the first.
+    expect(await buildProviderSearchKeys(h.db)).toMatchObject({
+      slot: "b",
+      previous_cleared: true,
+    });
+    expect(
+      (await h.db.query("SELECT count(*)::int AS n FROM provider_search_key_a"))
+        .rows[0],
+    ).toEqual({ n: 0 });
+    expect(await answers(recording().app)).toEqual(before);
+    // Any write to a source table retires the keys until the next build.
+    await h.db.query(
+      "UPDATE npi_provider SET credential=credential WHERE npi=$1",
+      [npi(60)],
+    );
+    expect(await currentSearchKeys(h.db)).toBeUndefined();
+    const stale = recording();
+    expect(await answers(stale.app)).toEqual(before);
+    expect(stale.seen).toEqual({ keyed: 0, original: keyed.length });
   });
 });

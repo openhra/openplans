@@ -43,7 +43,11 @@ interface ProviderSearchResponse {
   reason?: string;
   warnings?: string[];
   next_page?: number | null;
-  meta?: { origin?: { method?: string } | null; unlocated?: number | null };
+  meta?: {
+    origin?: { method?: string } | null;
+    unlocated?: number | null;
+    unlocated_status?: "unknown";
+  };
 }
 interface ProviderDetailResponse {
   identity: ProviderRecord | null;
@@ -418,6 +422,10 @@ export function providerCompatRoutes(db: SqlSession, native: Hono) {
         if (result.meta?.unlocated) {
           unlocated = true;
           reasons.add("provider_unlocated_addresses_excluded");
+        } else if (result.meta?.unlocated_status === "unknown") {
+          // The count did not finish: point-less addresses may be missing from the radius.
+          unlocated = true;
+          reasons.add("provider_unlocated_count_unknown");
         }
         if (result.reason === "zip_centroid_unavailable") originMissing = true;
         if (

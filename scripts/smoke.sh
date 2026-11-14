@@ -19,10 +19,23 @@ fi
 
 # Use only committed, public smoke placeholders; never read or print a real .env.
 export POSTGRES_USER=openplans POSTGRES_PASSWORD=replace_this_placeholder POSTGRES_DB=openplans
-export OPENPLANS_API_TOKEN=''
+export OPENPLANS_API_TOKEN='' OPENPLANS_PUBLIC_HOUSEHOLD=on
 export API_PORT="${API_PORT:-43081}" DB_PORT="${DB_PORT:-45432}"
 export COMPOSE_PROFILES=''
 export OPENPLANS_RAW_READ_ONLY=true
+# Lanes and other checkouts share Docker daemons. A fixed tag such as openplans:local lets
+# one build silently replace another's image, so each run builds under its own tags unless
+# OPENPLANS_IMAGE or OPENPLANS_DB_IMAGE names one, and removes only the tags it made.
+run_tag="smoke-${project#openplans-}-$(date -u +%Y%m%d%H%M%S)-$$"
+owned_images=()
+if [ -z "${OPENPLANS_IMAGE:-}" ]; then
+  export OPENPLANS_IMAGE="openplans:$run_tag"
+  owned_images+=("$OPENPLANS_IMAGE")
+fi
+if [ -z "${OPENPLANS_DB_IMAGE:-}" ]; then
+  export OPENPLANS_DB_IMAGE="openplans-db:$run_tag"
+  owned_images+=("$OPENPLANS_DB_IMAGE")
+fi
 compose=(docker compose --env-file .env.example -p "$project")
 # Home is shared by Docker Desktop/Colima by default; macOS TMPDIR often is not.
 scratch_root="${OPENPLANS_SMOKE_TMPDIR:-$HOME/.cache}"
@@ -33,6 +46,14 @@ cleanup() {
   trap - EXIT
   if [ "$code" -ne 0 ]; then "${compose[@]}" logs --no-color api || true; fi
   if ! "${compose[@]}" down -v --remove-orphans; then code=1; fi
+  if [ "${#owned_images[@]}" -gt 0 ]; then
+    for image in "${owned_images[@]}"; do
+      if docker image inspect "$image" >/dev/null 2>&1 && ! docker image rm "$image" >/dev/null; then
+        echo "WARN: could not remove smoke image tag $image" >&2
+      fi
+    done
+    owned_images=()
+  fi
   rm -rf "$scratch"
   return "$code"
 }
@@ -65,14 +86,21 @@ if [ "$full" -eq 1 ] && ! docker run --rm --mount "type=bind,source=$OPENPLANS_D
 fi
 SECONDS=0
 "${compose[@]}" build db api worker
+# Print the IDs so a report names the exact images, whatever happens to the tags later.
+for image in "$OPENPLANS_IMAGE" "$OPENPLANS_DB_IMAGE"; do
+  echo "image: $image $(docker image inspect --format '{{.Id}}' "$image")"
+done
 "${compose[@]}" up -d --wait db
 "${compose[@]}" run --rm --no-deps -T worker migrate
+wait_api() {
+  for ((attempt = 0; attempt < 60; attempt++)); do
+    if node tests/smoke/check.mjs health >/dev/null 2>&1; then break; fi
+    sleep 1
+  done
+  node tests/smoke/check.mjs health
+}
 "${compose[@]}" up -d api
-for ((attempt = 0; attempt < 60; attempt++)); do
-  if node tests/smoke/check.mjs health >/dev/null 2>&1; then break; fi
-  sleep 1
-done
-node tests/smoke/check.mjs health
+wait_api
 echo "startup: ${SECONDS}s (including build)"
 : > "$report_dir/times.tsv"
 printf 'startup\t%s\n' "$SECONDS" >> "$report_dir/times.tsv"
@@ -103,7 +131,11 @@ run_worker migrate-repeat migrate
 run_worker status status
 node tests/smoke/check.mjs empty
 "${compose[@]}" exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1 -c "SELECT postgis_version(); SELECT name FROM schema_migrations ORDER BY name;"'
-# A server with no configured credential must refuse personalized requests too.
+# With no token, household quotes are open by default and rate-limited per source.
+node tests/smoke/check.mjs anonymous-household
+# An operator who turns them off without setting a token gets a refusal, never an open route.
+OPENPLANS_PUBLIC_HOUSEHOLD=off "${compose[@]}" up -d --no-deps api
+wait_api
 node tests/smoke/check.mjs unconfigured-token
 
 if [ "$full" -eq 1 ]; then
@@ -131,10 +163,7 @@ if [ "$full" -eq 1 ]; then
   # This is an intentionally public test credential, never a real API secret.
   export OPENPLANS_API_TOKEN=replace_this_api_token_placeholder
   "${compose[@]}" up -d --no-deps api
-  for ((attempt = 0; attempt < 60; attempt++)); do
-    if node tests/smoke/check.mjs health >/dev/null 2>&1; then break; fi
-    sleep 1
-  done
+  wait_api
   node tests/smoke/check.mjs full
   multi_before=$SECONDS
   python3 - <<'PY_RAW'

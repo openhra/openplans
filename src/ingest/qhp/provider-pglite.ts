@@ -173,7 +173,7 @@ try {
     () => db,
     {
       out: (message) => {
-        report = JSON.parse(message);
+        report = JSON.parse(message) as Record<string, unknown>;
         console.log(message);
       },
       error: (message) => console.error(message),

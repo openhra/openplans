@@ -451,7 +451,7 @@ export function createPassThrough(deps: PassThroughDeps): PassThroughApi {
 
   function remaining(scope: HostPassThroughScope, source: Source): number {
     let left = callsLeft.get(scope);
-    if (!left) callsLeft.set(scope, (left = new Map()));
+    if (!left) callsLeft.set(scope, (left = new Map<string, number>()));
     if (!left.has(source.id))
       left.set(
         source.id,

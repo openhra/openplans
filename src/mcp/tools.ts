@@ -964,6 +964,7 @@ async function dispatch(
           data: {
             providers: page.items.map((r) => p.provider(r, true)),
             unlocated: null,
+            unlocated_status: "not_applicable",
             reason: null,
           },
           p,
@@ -973,6 +974,8 @@ async function dispatch(
         };
       }
       let unlocated: unknown = null,
+        unlocatedStatus: "counted" | "unknown" | "not_applicable" =
+          "not_applicable",
         nativeStatus: unknown,
         reason: string | null = null;
       const page = await nativeWindow(offset, input.limit, async (page) => {
@@ -981,6 +984,14 @@ async function dispatch(
           params({ ...input, page }),
         );
         unlocated = found.meta.unlocated;
+        if (typeof found.meta.unlocated === "number")
+          unlocatedStatus = "counted";
+        else if (
+          "unlocated_status" in found.meta &&
+          found.meta.unlocated_status === "unknown"
+        )
+          unlocatedStatus = "unknown";
+        else unlocatedStatus = "not_applicable";
         nativeStatus = found.status;
         reason = "reason" in found ? (found.reason ?? null) : null;
         return { items: found.providers, total: found.total };
@@ -990,6 +1001,7 @@ async function dispatch(
         data: {
           providers: page.items.map((r) => p.provider(r, !input.plan_id)),
           unlocated,
+          unlocated_status: unlocatedStatus,
           reason,
         },
         p,

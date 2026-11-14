@@ -218,7 +218,8 @@ async function fileHash(
   algorithm: "sha256" | "md5" = "sha256",
 ): Promise<string> {
   const hash = createHash(algorithm);
-  for await (const chunk of createReadStream(path)) hash.update(chunk);
+  for await (const chunk of createReadStream(path) as AsyncIterable<Buffer>)
+    hash.update(chunk);
   return hash.digest("hex");
 }
 

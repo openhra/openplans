@@ -2,6 +2,8 @@ import { loadConfig } from "../config/index.js";
 import { sharedResponseCache } from "../api/cache/index.js";
 import type { CacheOutcome } from "../api/cache/index.js";
 import { Hono } from "hono";
+import type { Context } from "hono";
+import type { BlankEnv } from "hono/types";
 import { hostHeaderValidation } from "@modelcontextprotocol/hono";
 import {
   createMcpHandler,
@@ -111,7 +113,7 @@ export function createMcpHttp(db: SqlSession, options: HttpOptions = {}) {
     await next();
   });
   // The official adapter additionally checks a supplied Host's hostname.
-  app.use("/mcp", async (c, next) =>
+  app.use("/mcp", async (c: Context<BlankEnv, string>, next) =>
     c.req.header("host")
       ? hostHeaderValidation(hosts.map((h) => new URL(`http://${h}`).hostname))(
           c,
@@ -215,7 +217,7 @@ export function createMcpHttp(db: SqlSession, options: HttpOptions = {}) {
       }
       let parsed: Record<string, unknown>;
       try {
-        parsed = JSON.parse(body.text);
+        parsed = JSON.parse(body.text) as Record<string, unknown>;
       } catch {
         status = 400;
         return failure(status, -32700, "Parse error");

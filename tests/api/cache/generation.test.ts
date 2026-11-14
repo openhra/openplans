@@ -42,6 +42,12 @@ const NON_CATALOG_TABLES: Record<string, string> = {
     "which ingest run wrote each snapshot; never feeds catalog responses",
   rate_plan_count:
     "rate-row counts kept from immutable rate files; responses read the same values from rate",
+  provider_search_key_a:
+    "search keys derived from provider tables; used only while they match them, with the same answers",
+  provider_search_key_b:
+    "search keys derived from provider tables; used only while they match them, with the same answers",
+  provider_search_build:
+    "which search key slot is current; the keys never change an answer",
 };
 
 async function missingGenerationTriggers() {

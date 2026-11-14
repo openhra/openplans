@@ -27,10 +27,21 @@ for (const [filePath, sourceType] of [
 }
 for (const [path, text, rule] of [
   ["scripts/undefined.mjs", "console.log(missingRuntimeValue);", "no-undef"],
+  // Type-aware lint covers src, so these samples need paths that exist in the project.
   [
-    "src/type-import.ts",
+    "src/mcp/version.ts",
     'import { Stats } from "node:fs"; export type Entry = Stats;',
     "@typescript-eslint/consistent-type-imports",
+  ],
+  [
+    "src/mcp/version.ts",
+    "export const field = (text: string): unknown => JSON.parse(text).field;",
+    "@typescript-eslint/no-unsafe-member-access",
+  ],
+  [
+    "plugins/status/src/index.ts",
+    "export const field = (text: string): unknown => JSON.parse(text).field;",
+    "@typescript-eslint/no-unsafe-member-access",
   ],
   [
     "scripts/nested.mjs",
@@ -59,6 +70,14 @@ for (const [path, text, rule] of [
   const [result] = await eslint.lintText(
     "export type Text = ReturnType<typeof JSON.stringify>;\nexport type Clock = ReturnType<typeof Date.now>;",
     { filePath: "tests/typed.ts" },
+  );
+  assert.deepEqual(result.messages, []);
+}
+// Type-aware rules skip tests, so this sample lints clean.
+{
+  const [result] = await eslint.lintText(
+    "export const field = (text: string): unknown => JSON.parse(text).field;",
+    { filePath: "tests/untyped.ts" },
   );
   assert.deepEqual(result.messages, []);
 }
@@ -287,5 +306,5 @@ assert.throws(
   /Unapproved inline suppression/,
 );
 console.log(
-  `lint setup: PASS (undefined reference, type import, hidden any, nested ternary, stale disable, server globals, formatting, payload mutation, baseline expansion/replacement/staleness, moved statements and inline bypass rejected; ${current.fixture_sources.length} fixture sources selected)`,
+  `lint setup: PASS (undefined reference, type import, hidden any, unsafe any in src and plugins, nested ternary, stale disable, server globals, formatting, payload mutation, baseline expansion/replacement/staleness, moved statements and inline bypass rejected; ${current.fixture_sources.length} fixture sources selected)`,
 );

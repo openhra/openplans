@@ -162,7 +162,7 @@ export function emptyRegistries(): StagingRegistries {
 export function freezeRegistries(
   registries: StagingRegistries,
 ): PluginRegistries {
-  for (const table of Object.values(registries)) {
+  for (const table of Object.values(registries) as object[]) {
     for (const entry of Object.values(table)) Object.freeze(entry);
     Object.freeze(table);
   }
@@ -200,6 +200,7 @@ export const CORE_WORKER_ARGV: readonly (readonly string[])[] = Object.freeze(
     ["record-policy"],
     ["backfill", "row-provenance"],
     ["backfill", "rate-plan-count"],
+    ["backfill", "provider-search"],
     ["bootstrap"],
     ["ingest", "sbe"],
     ["ingest", "state"],

@@ -151,7 +151,7 @@ export async function* centroidStream(file: GeoFile): AsyncGenerator<Buffer> {
   compressed.on("error", forwardError);
   let bytes = 0;
   try {
-    for await (const chunk of stream) {
+    for await (const chunk of stream as AsyncIterable<Buffer>) {
       bytes += chunk.length;
       if (bytes > member.uncompressedBytes)
         throw new Error("Gazetteer inflated size exceeds declaration");
