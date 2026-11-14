@@ -46,7 +46,7 @@ describe("RxNorm CPC import and exact concept helpers", () => {
     expect(await importRxnorm(db, options)).toMatchObject({
       ...report,
       outcome: "noop",
-      elapsed_ms: expect.any(Number),
+      elapsed_ms: expect.any(Number) as number,
     });
     expect(
       (

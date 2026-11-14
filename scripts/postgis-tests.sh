@@ -51,6 +51,7 @@ files=(
   tests/api/providers.test.ts
   tests/api/providers-radius.test.ts
   tests/api/provider-search-keys-postgis.test.ts
+  tests/api/provider-search-keys-paths-postgis.test.ts
   tests/api/providers-name.test.ts
   tests/api/providers-plan-radius.test.ts
   tests/compat/v1/provider-radius.test.ts
@@ -102,7 +103,9 @@ echo "postgis-tests: $name ready in $(($(date +%s) - started)) s on 127.0.0.1:$p
 
 report="$(mktemp -d)"
 trap 'cleanup; rm -rf "$report"' EXIT INT TERM
-npx vitest run --reporter=default --reporter=json --outputFile.json="$report/results.json" "${files[@]}"
+# These suites share one database server and count server-wide advisory locks, so their files
+# run one at a time.
+OPENPLANS_TEST_WORKERS=1 npx vitest run --reporter=default --reporter=json --outputFile.json="$report/results.json" "${files[@]}"
 # Print each file's counts. Every test must run: a skipped test here means a suite fell back to
 # PGlite or skipped its PostGIS checks.
 node -e '

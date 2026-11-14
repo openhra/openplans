@@ -278,7 +278,9 @@ describe("MCP tool listing and grants (negative control 7)", () => {
     expect(removed.status).toBe(never.status);
     expect(removed.status).not.toBe(401);
     expect(removed.text).toContain(REMOVED_TOOL);
-    expect(JSON.parse(removed.text).error.code).toBe(-32602);
+    expect(
+      (JSON.parse(removed.text) as { error: { code: number } }).error.code,
+    ).toBe(-32602);
     expect(removed.text.replaceAll(REMOVED_TOOL, "NAME")).toBe(
       never.text.replaceAll("synthetic_never_a_tool", "NAME"),
     );

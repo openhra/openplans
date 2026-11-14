@@ -60,13 +60,23 @@ export default defineConfig([
     },
   },
   {
-    // Lint checks production code with type information, so an `any` cannot spread through it
-    // unnoticed. The build tsconfigs cover src only. Lint does not type-check tests, which keeps it
-    // fast. These rules read the plugin packages' dist, so build them first, as scripts/ci.sh does.
-    files: ["src/**/*.ts", "plugins/*/src/**/*.ts"],
+    // Lint checks production code and tests with type information, so an `any` cannot spread
+    // through them unnoticed. src and each plugin's src get their own build program; tests use the
+    // root tsconfig. These rules read the plugin packages' dist, so build them first, as
+    // scripts/ci.sh does.
+    files: [
+      "src/**/*.ts",
+      "plugins/*/src/**/*.ts",
+      "tests/**/*.ts",
+      "plugins/*/tests/**/*.ts",
+    ],
     languageOptions: {
       parserOptions: {
-        project: ["./tsconfig.build.json", "./plugins/*/tsconfig.json"],
+        project: [
+          "./tsconfig.build.json",
+          "./plugins/*/tsconfig.json",
+          "./tsconfig.json",
+        ],
         tsconfigRootDir: import.meta.dirname,
       },
     },

@@ -185,8 +185,10 @@ it("reuses a prepared address index without Docker and rejects derivative corrup
       ),
     ).toContain("address-index.json");
     expect(
-      JSON.parse(
-        await readFile(join(work, "tx-261107-address-index.json"), "utf8"),
+      (
+        JSON.parse(
+          await readFile(join(work, "tx-261107-address-index.json"), "utf8"),
+        ) as { object_timestamp: unknown }
       ).object_timestamp,
     ).toBe(manifest.object_timestamp);
     expect(

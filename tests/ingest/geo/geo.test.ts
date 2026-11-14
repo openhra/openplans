@@ -116,7 +116,7 @@ describe("real Census/CMS source cuts imported into PGlite", () => {
         county_fips: "48201",
         rating_area_id: "Rating Area 10",
         plan_year: 2026,
-        source_row: expect.any(Number),
+        source_row: expect.any(Number) as number,
       }),
     ]);
     expect(

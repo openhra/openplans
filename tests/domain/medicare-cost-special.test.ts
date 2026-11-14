@@ -180,7 +180,8 @@ function pinProblems(pins: ClassificationFile): string[] {
   }
   return problems;
 }
-const clone = (): ClassificationFile => JSON.parse(JSON.stringify(file));
+const clone = (): ClassificationFile =>
+  JSON.parse(JSON.stringify(file)) as ClassificationFile;
 
 describe("classification pins (data/medicare-part-d/drug-classes.json)", () => {
   it("pass every check", () => {
@@ -921,7 +922,7 @@ describe("CMS worked examples with facts from evidence", () => {
     const result = selectedRun(false);
     expect(fillOf(result).patient_pay).toMatchObject({
       status: "unknown",
-      reason: expect.stringContaining("drug_program_unknown"),
+      reason: expect.stringContaining("drug_program_unknown") as unknown,
     });
     if (!("gaps" in result)) throw new Error("no gaps");
     expect(result.gaps).toContain("applicable_drug_list_not_cached");
@@ -952,7 +953,7 @@ describe("CMS worked examples with facts from evidence", () => {
     const result = selectedRun("unknown", undefined, "unknown", "unreadable");
     expect(fillOf(result).patient_pay).toMatchObject({
       status: "unknown",
-      reason: expect.stringContaining("drug_program_unknown"),
+      reason: expect.stringContaining("drug_program_unknown") as unknown,
     });
     if (!("gaps" in result)) throw new Error("no gaps");
     expect(result.gaps).toContain("selected_drug_flag_unknown");
@@ -979,7 +980,9 @@ describe("CMS worked examples with facts from evidence", () => {
     const f = fillOf(result);
     expect(f.patient_pay).toMatchObject({
       status: "unknown",
-      reason: expect.stringContaining("insulin_classification_unknown"),
+      reason: expect.stringContaining(
+        "insulin_classification_unknown",
+      ) as unknown,
     });
     if (!("gaps" in result)) throw new Error("no gaps");
     expect(result.gaps).toContain("insulin_product_list_not_cached");
@@ -993,7 +996,9 @@ describe("CMS worked examples with facts from evidence", () => {
     const result = vaccineRun("unknown");
     expect(fillOf(result).patient_pay).toMatchObject({
       status: "unknown",
-      reason: expect.stringContaining("vaccine_classification_unknown"),
+      reason: expect.stringContaining(
+        "vaccine_classification_unknown",
+      ) as unknown,
     });
     if (!("gaps" in result)) throw new Error("no gaps");
     expect(result.gaps).toContain("acip_vaccine_list_not_cached");

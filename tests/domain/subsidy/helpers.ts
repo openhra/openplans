@@ -6,18 +6,18 @@ import type {
   SubsidyParameters,
 } from "../../../src/domain/subsidy/index.js";
 
-export const parameters2026: SubsidyParameters = JSON.parse(
+export const parameters2026 = JSON.parse(
   readFileSync(
     new URL("../../../data/subsidy/2026.json", import.meta.url),
     "utf8",
   ),
-);
-export const parameters2027: SubsidyParameters = JSON.parse(
+) as SubsidyParameters;
+export const parameters2027 = JSON.parse(
   readFileSync(
     new URL("../../../data/subsidy/2027.json", import.meta.url),
     "utf8",
   ),
-);
+) as SubsidyParameters;
 /** SYNTHETIC household and benchmark; these are worked arithmetic examples, not a real quote. */
 export const alaskaExample: AptcInput = {
   householdIncome: 39_100,

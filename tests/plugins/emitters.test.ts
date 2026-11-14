@@ -1072,7 +1072,10 @@ describe("bootstrap readiness", () => {
         { events },
       );
       expect(code).toBe(1);
-      const summary = JSON.parse(out.lines.at(-1)!);
+      const summary = JSON.parse(out.lines.at(-1)!) as {
+        failed: string[];
+        steps: { id: string; reason?: string }[];
+      };
       expect(summary.failed).toEqual(["puf-acquire-2026"]);
       const failedStep = summary.steps.find(
         (step: { id: string }) => step.id === "puf-acquire-2026",
@@ -1081,7 +1084,7 @@ describe("bootstrap readiness", () => {
         (row) => row.event_type === "readiness.failed",
       );
       expect(rows.map((row) => row.payload)).toEqual([
-        { check: "bootstrap.puf-acquire-2026", reasonCode: failedStep.reason },
+        { check: "bootstrap.puf-acquire-2026", reasonCode: failedStep!.reason },
       ]);
       expect(rows[0]!.emitted_by).toBe("worker");
       checkPayloads(rows);

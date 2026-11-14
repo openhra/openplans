@@ -94,12 +94,12 @@ beforeAll(async () => {
   const root = new URL("../fixtures/puf/csr/", import.meta.url);
   const provenance = JSON.parse(
     await readFile(new URL("provenance.json", root), "utf8"),
-  );
+  ) as { files: { kind: string; cut_sha256: string; url: string }[] };
   const files = [];
   for (const kind of IMPORT_KINDS) {
     const path = new URL(`${kind}.csv`, root),
       data = await readFile(path),
-      f = provenance.files.find((f: { kind: string }) => f.kind === kind);
+      f = provenance.files.find((f: { kind: string }) => f.kind === kind)!;
     const sha256 = createHash("sha256").update(data).digest("hex");
     expect(sha256).toBe(f.cut_sha256);
     sourceRows[kind] = [];

@@ -262,7 +262,7 @@ describe("worker ingest taxonomy on the feed lifecycle", () => {
       expect(requests).toEqual([]);
       expect(files).toEqual([]);
       expect(out).toEqual([]);
-      expect(err.map((line) => JSON.parse(line))).toEqual([
+      expect(err.map((line) => JSON.parse(line) as unknown)).toEqual([
         {
           source: "nucc-provider-taxonomy",
           code: "feed_run_failed",
@@ -361,7 +361,7 @@ describe("worker ingest taxonomy on the feed lifecycle", () => {
         },
       ),
     ).toBe(1);
-    expect(err.map((line) => JSON.parse(line))).toEqual([
+    expect(err.map((line) => JSON.parse(line) as unknown)).toEqual([
       {
         source: "nucc-provider-taxonomy",
         code: "feed_run_failed",
@@ -457,7 +457,7 @@ describe("worker ingest taxonomy on the feed lifecycle", () => {
         {
           snapshot_id: expect.stringMatching(
             /^nucc-provider-taxonomy\.\d{8}T\d{6}Z\.[0-9a-f]{8}\.1$/,
-          ),
+          ) as unknown,
           validation_state: "ACTIVE",
         },
       ]);
@@ -551,7 +551,7 @@ describe("worker ingest taxonomy on the feed lifecycle", () => {
       err = [];
       expect(await ingest()).toBe(1);
       expect(out).toEqual([]);
-      expect(err.map((line) => JSON.parse(line))).toEqual([
+      expect(err.map((line) => JSON.parse(line) as unknown)).toEqual([
         {
           source: "nucc-provider-taxonomy",
           code: "feed_run_failed",

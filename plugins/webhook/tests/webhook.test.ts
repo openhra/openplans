@@ -6,7 +6,6 @@ import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { PGlite } from "@electric-sql/pglite";
 import { eventPayloadSchemas } from "@openplans/plugin-sdk";
 import type { Event, EventInput } from "@openplans/plugin-sdk";
 import {
@@ -21,7 +20,6 @@ import {
 } from "vitest";
 import { loadConfig } from "../../../src/config/index.js";
 import type { Database } from "../../../src/db/database.js";
-import { migrate } from "../../../src/db/migrate.js";
 import type {
   AdmissionManifest,
   PublisherPolicy,
@@ -38,7 +36,7 @@ import {
 } from "../../../src/plugins/testing/index.js";
 import { deliverEvents } from "../../../src/worker/deliver-events.js";
 import type { DurableSubscriber } from "../../../src/worker/deliver-events.js";
-import { coreMigrations, testDatabase } from "../../../tests/pglite.js";
+import { migratedTemplate } from "../../../tests/pglite.js";
 
 // The default export reads the receiver host when it is first imported.
 vi.hoisted(() => {
@@ -168,7 +166,10 @@ async function saveManifest(name: string, publishers: PublisherPolicy[]) {
   return path;
 }
 
+// Every test gets its own copy of one migrated database.
+let template: Awaited<ReturnType<typeof migratedTemplate>>;
 beforeAll(async () => {
+  template = await migratedTemplate();
   server = createServer((incoming, outgoing) => {
     const chunks: Buffer[] = [];
     incoming.on("data", (chunk: Buffer) => chunks.push(chunk));
@@ -197,10 +198,10 @@ beforeAll(async () => {
 afterAll(async () => {
   server.closeAllConnections();
   await new Promise((done) => server.close(done));
+  await template.close();
 });
 
 let db: Database;
-let cleanupMigrations: () => Promise<void>;
 beforeEach(async () => {
   vi.stubEnv("OPENPLANS_EGRESS_FILE", "");
   vi.stubEnv("OPENPLANS_EGRESS_SHA256", "");
@@ -214,16 +215,12 @@ beforeEach(async () => {
   admitted = await saveManifest("admitted.json", [publisher("allowed")]);
   unknownHost = await saveManifest("unknown.json", []);
   heldHost = await saveManifest("held.json", [publisher("terms-restricted")]);
-  db = testDatabase(new PGlite());
-  const core = await coreMigrations();
-  cleanupMigrations = core.cleanup;
-  await migrate(db, core.directory);
+  db = await template.fresh();
 });
 afterEach(async () => {
   vi.unstubAllEnvs();
   server.closeAllConnections();
   await db.close();
-  await cleanupMigrations();
   await rm(directory, { recursive: true, force: true });
 });
 

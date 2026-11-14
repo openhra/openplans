@@ -23,7 +23,7 @@ const fixtures = fileURLToPath(
 async function fixtureFiles(): Promise<ImportFile[]> {
   const provenance = JSON.parse(
     await readFile(join(fixtures, "provenance.json"), "utf8"),
-  );
+  ) as { files: { kind: string; url: string }[] };
   return Promise.all(
     IMPORT_KINDS.map(async (kind) => {
       const path = join(fixtures, `${kind}.csv`),
@@ -35,7 +35,7 @@ async function fixtureFiles(): Promise<ImportFile[]> {
         sha256: createHash("sha256").update(data).digest("hex"),
         bytes: data.length,
         retrievedAt: "2026-11-07T07:33:40.115Z",
-        url: provenance.files.find((f: { kind: string }) => f.kind === kind)
+        url: provenance.files.find((f: { kind: string }) => f.kind === kind)!
           .url,
       };
     }),
@@ -134,10 +134,10 @@ describe("PUF catalog import — real CMS TX 2026 cuts and labelled synthetic mu
       )
     ).rows[0]!;
     expect(rate).toMatchObject({
-      effective_date: expect.any(String),
-      expiration_date: expect.any(String),
+      effective_date: expect.any(String) as string,
+      expiration_date: expect.any(String) as string,
       age_band: "0-14",
-      source_row: expect.any(Number),
+      source_row: expect.any(Number) as number,
     });
     expect(Number(rate.individual_rate_cents)).toBe(
       Math.round(
@@ -152,7 +152,11 @@ describe("PUF catalog import — real CMS TX 2026 cuts and labelled synthetic mu
       ).rows[0],
     ).toBeTruthy();
     expect(
-      JSON.parse(await readFile(baseline.report_json, "utf8")).passed,
+      (
+        JSON.parse(await readFile(baseline.report_json, "utf8")) as {
+          passed: boolean;
+        }
+      ).passed,
     ).toBe(true);
     expect(await readFile(baseline.report_md, "utf8")).toContain(
       "| rate | 153 | 153 | 0 |",

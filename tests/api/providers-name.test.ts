@@ -17,13 +17,13 @@ describe("plan-scoped identity name candidates", () => {
         ? createDatabase(process.env.P3J_POSTGIS_URL)
         : undefined,
     );
-    const source = (await fixture("records"))[0];
+    const source = (await fixture("records"))[0]!;
     const plans = source.plans.filter((p: { plan_id: string }) =>
       h.catalog.plans.some(
         (c: { base_plan_id: string }) => c.base_plan_id === p.plan_id,
       ),
     );
-    plan = plans[0].plan_id;
+    plan = plans[0]!.plan_id;
     expect(plans.length).toBeGreaterThan(1);
     await h.replace(
       Array.from({ length: 71 }, (_, i) => ({

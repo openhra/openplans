@@ -11,8 +11,9 @@ only through query strings, so the worker names those archives by report month. 
 job goes through one `AdmissionSession`. It reads robots first, checks the terms hash and waits at
 least 10 s between requests to www.cms.gov.
 
-The shipped manifest's www.cms.gov entry covers the Exchange public use files and names their
-disclaimer as its terms. Medicare collection therefore needs an operator manifest entry for
+The shipped manifest's www.cms.gov entry names the Exchange public use file disclaimer as its
+terms. It lists the loaded CY2026 and CY2027 Medicare archives and their listing pages, so freshness
+checks reach them, but a collection job still needs an operator manifest entry for
 www.cms.gov. Its `permittedPaths` list the Medicare archives and listing pages, and its terms review
 names the CMS.gov "Link to Us" page, which says "It is a public domain web site." An operator entry
 replaces the shipped entry for the same host, so keep it to Medicare jobs.

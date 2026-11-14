@@ -230,7 +230,9 @@ describe("Part D drug-cost estimates over HTTP", () => {
     // The estimator switch alone does not serve Part D data.
     switches(false, true);
     response = await post(app, schedule());
-    expect((await response.json()).reason).toBe("pending_terms_review");
+    expect(
+      (await (response.json() as Promise<{ reason: string }>)).reason,
+    ).toBe("pending_terms_review");
   });
 
   it("needs the personalized-estimate grant and never opens to anonymous callers", async () => {
@@ -261,7 +263,7 @@ describe("Part D drug-cost estimates over HTTP", () => {
     switches(true, true);
     const response = await post(app, schedule());
     expect(response.status).toBe(200);
-    const body: EstimateAnswer = await response.json();
+    const body = await (response.json() as Promise<EstimateAnswer>);
     expect(body).toMatchObject({
       plan_key: PLAN,
       contract_year: 2026,
@@ -326,9 +328,9 @@ describe("Part D drug-cost estimates over HTTP", () => {
 
   it("labels a supplied opening state and cites it, leaving unsettled amounts unknown", async () => {
     switches(true, true);
-    const body: EstimateAnswer = await (
+    const body = await ((
       await post(app, schedule({ opening_state: catastrophic }))
-    ).json();
+    ).json() as Promise<EstimateAnswer>);
     expect(body.opening_origin).toBe("caller_assertion");
     const fill = body.fills[0]!;
     const troop = fill.before.troop;
@@ -378,14 +380,14 @@ describe("Part D drug-cost estimates over HTTP", () => {
 
   it("keeps an unlisted drug unknown and never calls it not covered", async () => {
     switches(true, true);
-    const body: EstimateAnswer = await (
+    const body = await ((
       await post(
         app,
         schedule({
           fills: [{ ...schedule().fills[0], rxcui: "310965" }],
         }),
       )
-    ).json();
+    ).json() as Promise<EstimateAnswer>);
     expect(body.fills[0]!.listing.status).toBe("not_listed");
     expect(body.fills[0]!.figures.patient_pay).toMatchObject({
       status: "unknown",
@@ -424,16 +426,16 @@ describe("Part D drug-cost estimates over HTTP", () => {
   it("answers validation, unsupported scenarios and missing plans with the existing shapes", async () => {
     switches(true, true);
     expect((await post(app, "{")).status).toBe(400);
-    const unsupported = await (
+    const unsupported = await ((
       await post(app, schedule({ scenario: "lis_full_subsidy" }))
-    ).json();
+    ).json() as Promise<unknown>);
     expect(unsupported).toMatchObject({
       status: "unsupported",
       reason: "scenario_not_supported",
     });
-    const average = await (
+    const average = await ((
       await post(app, schedule({ price_basis: "cms_plan_average" }))
-    ).json();
+    ).json() as Promise<unknown>);
     expect(average).toMatchObject({
       status: "unsupported",
       reason: "price_basis_not_supported",
@@ -470,7 +472,10 @@ describe("Part D drug-cost estimates over HTTP", () => {
       },
     );
     expect(missing.status).toBe(404);
-    expect((await missing.json()).error.code).toBe("PLAN_NOT_FOUND");
+    expect(
+      (await (missing.json() as Promise<{ error: { code: string } }>)).error
+        .code,
+    ).toBe("PLAN_NOT_FOUND");
     const year = await app.request(
       `/v1/medicare/plans/${PLAN}/drug-cost-estimates`,
       {
@@ -499,7 +504,9 @@ describe("Part D drug-cost estimates over HTTP", () => {
         expect(response.headers.get("cache-control")).toBe("no-store");
       }
       expect(store.sets).toBe(before);
-      const stats = await (await app.request("/v1/cache-stats")).json();
+      const stats = await ((
+        await app.request("/v1/cache-stats")
+      ).json() as Promise<{ hits: number }>);
       expect(stats.hits).toBe(0);
       const logged = spies
         .flatMap((spy) => spy.mock.calls)
@@ -514,14 +521,14 @@ describe("Part D drug-cost estimates over HTTP", () => {
 
   it("reports the estimator capability only when its switch is on", async () => {
     switches(true, false);
-    const off = await (
+    const off = await ((
       await app.request("/v1/medicare/data-availability")
-    ).json();
+    ).json() as Promise<unknown>);
     expect(JSON.stringify(off)).not.toContain("part_d_drug_cost_estimates");
     switches(true, true);
-    const on: AvailabilityBody = await (
+    const on = await ((
       await app.request("/v1/medicare/data-availability")
-    ).json();
+    ).json() as Promise<AvailabilityBody>);
     const year = on.years.find((item) => item.contract_year === 2026);
     expect(year!.part_d_drug_cost_estimates).toMatchObject({
       status: "available",
@@ -534,9 +541,9 @@ describe("Part D drug-cost estimates over HTTP", () => {
       pharmacy_network: { status: "unknown" },
     });
     switches(false, true);
-    const gated: AvailabilityBody = await (
+    const gated = await ((
       await app.request("/v1/medicare/data-availability")
-    ).json();
+    ).json() as Promise<AvailabilityBody>);
     expect(
       gated.years.find((item) => item.contract_year === 2026)!
         .part_d_drug_cost_estimates,
@@ -567,9 +574,9 @@ describe("Part D drug-cost estimates over HTTP", () => {
           },
         },
       };
-      const body: EstimateAnswer = await (
+      const body = await ((
         await post(routerApp(loaded.db, counted), schedule())
-      ).json();
+      ).json() as Promise<EstimateAnswer>);
       vi.unstubAllEnvs();
       return reads === 0 && body.reason === "estimator_disabled";
     }
@@ -694,17 +701,17 @@ describe("Part D drug-cost estimates over HTTP", () => {
 
     it("a figure loses its source", async () => {
       switches(true, true);
-      const body: EstimateAnswer = await (
+      const body = await ((
         await post(app, schedule({ opening_state: catastrophic }))
-      ).json();
+      ).json() as Promise<EstimateAnswer>);
       expect(estimateProvenanceProblems(body)).toEqual([]);
       body.fills[0]!.before.troop.evidence_refs = [];
       expect(estimateProvenanceProblems(body)).toContain(
         "$.fills[0].before.troop: value without evidence",
       );
-      const relabelled: EstimateAnswer = JSON.parse(
+      const relabelled = JSON.parse(
         JSON.stringify(body).replace("not_listed", "not_covered"),
-      );
+      ) as EstimateAnswer;
       relabelled.fills[0]!.listing.reason = "not_covered";
       expect(estimateProvenanceProblems(relabelled)).toContain(
         "an answer never says not covered",
@@ -736,7 +743,9 @@ describe("Part D drug-cost estimates over HTTP", () => {
 
     it("cites the plan's county rows once, as a group that names every row and the shared values", async () => {
       switches(true, true);
-      const body: EstimateAnswer = await (await post(app, schedule())).json();
+      const body = await ((
+        await post(app, schedule())
+      ).json() as Promise<EstimateAnswer>);
       const rows = await countyRows();
       expect(rows.length).toBe(9);
       const [group, ...more] = groups(body, DEDUCTIBLE_FIELDS);
@@ -782,7 +791,7 @@ describe("Part D drug-cost estimates over HTTP", () => {
         .evidence_refs;
       expect(refs.length).toBe(9);
       const strip = (answer: unknown) =>
-        JSON.stringify(answer, (key, value) =>
+        JSON.stringify(answer, (key, value: unknown) =>
           key === "evidence_refs" || key === "evidence" ? undefined : value,
         );
       expect(strip(single)).toBe(strip(grouped));
@@ -794,7 +803,9 @@ describe("Part D drug-cost estimates over HTTP", () => {
     describe("planted mutants", () => {
       it("a figure references a missing row", async () => {
         switches(true, true);
-        const body: EstimateAnswer = await (await post(app, schedule())).json();
+        const body = await ((
+          await post(app, schedule())
+        ).json() as Promise<EstimateAnswer>);
         const mutant = structuredClone(body);
         mutant.plan_figures.plan_deductible.evidence_refs = ["e999"];
         expect(estimateProvenanceProblems(mutant)).toContain(
@@ -854,7 +865,9 @@ describe("Part D drug-cost estimates over HTTP", () => {
 
       it("a group lists rows out of order or without the shared values", async () => {
         switches(true, true);
-        const body: EstimateAnswer = await (await post(app, schedule())).json();
+        const body = await ((
+          await post(app, schedule())
+        ).json() as Promise<EstimateAnswer>);
         const [group] = groups(body, DEDUCTIBLE_FIELDS);
         const at = body.evidence.indexOf(group!);
         const reordered = structuredClone(body);

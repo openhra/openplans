@@ -94,7 +94,7 @@ describe("POST /v1/ichra/affordability", () => {
         /puf-2026-TX-[0-9a-f-]{36}/g,
         "puf-2026-TX-<import>",
       ),
-    );
+    ) as unknown;
     expect(stable).toMatchSnapshot();
   });
   it("selects the EHB-portion basis on request", async () => {

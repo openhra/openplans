@@ -122,7 +122,12 @@ describe("explicit CSR variant selection", () => {
       "../domain/rating/household.js": household,
       "../domain/rating/rate-row.js": rateRow,
     };
-    new Function("require", "exports", output)((path: string) => {
+    (
+      new Function("require", "exports", output) as (
+        require: (path: string) => unknown,
+        exports: Record<string, unknown>,
+      ) => void
+    )((path: string) => {
       if (!(path in imports)) throw new Error(path);
       return imports[path];
     }, exports);

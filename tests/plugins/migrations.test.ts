@@ -176,7 +176,7 @@ describe("plugin migration scope (design 5.13)", () => {
       const run = await worker(db, ["migrate"], [source]);
       expect(run.code).toBe(1);
       expect(run.out).toEqual([]);
-      expect(run.err.map((line) => JSON.parse(line))).toEqual([
+      expect(run.err.map((line) => JSON.parse(line) as unknown)).toEqual([
         {
           plugin: "@synthetic/core-writer",
           code: "plugin_migration_scope",

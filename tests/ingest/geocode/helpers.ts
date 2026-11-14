@@ -35,7 +35,14 @@ export async function setup(database?: Database) {
       new URL("../../fixtures/geocode/centroids.json", import.meta.url),
       "utf8",
     ),
-  );
+  ) as {
+    points: {
+      zcta: string;
+      latitude: number;
+      longitude: number;
+      rowNumber: number;
+    }[];
+  };
   for (const p of points)
     await db.query(`INSERT INTO zcta_centroid VALUES($1,$2,$3,'centroid',$4)`, [
       p.zcta,

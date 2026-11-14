@@ -58,12 +58,12 @@ beforeAll(async () => {
   process.env.OPENPLANS_COMPAT_API_KEY = TOKEN;
   h = await setup();
   app = createApp(h.db, { premiumToken: "synthetic-native-token" });
-  const source = (await fixture("records"))[0];
+  const source = (await fixture("records"))[0]!;
   plan = source.plans.find((p: SourcePlan) =>
     h.catalog.plans.some(
       (c: { base_plan_id: string }) => c.base_plan_id === p.plan_id,
     ),
-  ).plan_id;
+  )!.plan_id;
   const record = {
     ...source,
     npi,
@@ -448,7 +448,7 @@ describe("provider facade native integration", () => {
       { fips_code: "48201", applicants: [{ age: 35 }], market: "small_group" },
       "/plans/vision/search",
     );
-    const body = await response.json();
+    const body = await (response.json() as Promise<unknown>);
     const contract = (r: unknown) => {
       expect(r).toEqual({ meta: { total: 0 }, plans: [] });
       expect(response.headers.get("x-openplans-gaps")).toBe(
@@ -544,7 +544,13 @@ describe("provider facade native integration", () => {
         }).outputText,
       );
       expect(() =>
-        contract(createRequire(import.meta.url)(file).credentialMatches),
+        contract(
+          (
+            createRequire(import.meta.url)(file) as {
+              credentialMatches: typeof credentialMatches;
+            }
+          ).credentialMatches,
+        ),
       ).toThrow();
     } finally {
       await rm(directory, { recursive: true, force: true });
@@ -559,7 +565,7 @@ describe("provider facade native integration", () => {
           join(root, "providers/search/55401/mayo-clinic.json"),
           "utf8",
         ),
-      );
+      ) as unknown;
       assertShape(
         capture,
         await (await post({ zip_code: "77030", plan_id: plan })).json(),
@@ -568,7 +574,7 @@ describe("provider facade native integration", () => {
       );
       const specialties = JSON.parse(
         await readFile(join(root, "specialties/all.json"), "utf8"),
-      );
+      ) as unknown;
       assertShape(
         specialties,
         await (await get("/specialties")).json(),

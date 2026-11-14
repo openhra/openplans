@@ -12,11 +12,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { getFileInfo } from "prettier";
-import {
-  checkRequired,
-  macosShardJobs,
-  requiredJobs,
-} from "../.github/check-required.mjs";
+import { pathToFileURL } from "node:url";
+import * as checkRequiredModule from "../.github/check-required.mjs";
+
+const { checkRequired, macosShardJobs, requiredJobs, sameCommitJob } =
+  checkRequiredModule;
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const workflow = JSON.parse(
@@ -27,6 +27,8 @@ const installNpm =
 const verifyVersions =
   'test "$(node --version)" = "v$(cat .node-version)"\ntest "$(npm --version)" = "$(cat .github/npm-version)"';
 const retiredRunnerLabels = ["macos-13", "macos-14"];
+// The checks run unless the same-commit job found a passing develop run of the commit.
+const fullOnly = "${{ needs.dedupe.outputs.full == 'true' }}";
 
 it("keeps JSON-form workflows byte-identical during formatting and detects a missing ignore", async () => {
   const directory = await mkdtemp(join(tmpdir(), "openplans-workflow-format-"));
@@ -80,14 +82,16 @@ it("keeps JSON-form workflows byte-identical during formatting and detects a mis
 });
 
 function commandContract(value) {
+  // Branch pushes only: a release tag points at a main commit that already has a run.
   expect(value.on).toEqual({
-    push: null,
+    push: { branches: ["**"] },
     pull_request: null,
     workflow_dispatch: null,
   });
   expect(value.permissions).toEqual({ contents: "read" });
   expect(value.defaults).toEqual({ run: { shell: "bash" } });
   expect(Object.keys(value.jobs).sort()).toEqual([
+    "dedupe",
     "docker",
     "linux",
     "macos",
@@ -99,10 +103,32 @@ function commandContract(value) {
     const job = value.jobs[id];
     expect(job.name).toBe(requiredJobs[id]);
     expect(job["runs-on"]).toBe("ubuntu-24.04");
-    expect(job.if).toBeUndefined();
-    expect(job.needs).toBeUndefined();
+    expect(job.if).toBe(fullOnly);
+    expect(job.needs).toEqual(["dedupe"]);
     expect(job.strategy).toBeUndefined();
   }
+  // The same-commit job reads workflow runs and decides; it never skips itself.
+  const dedupe = value.jobs.dedupe;
+  expect(dedupe.name).toBe(sameCommitJob.dedupe);
+  expect(dedupe["runs-on"]).toBe("ubuntu-24.04");
+  expect(dedupe["timeout-minutes"]).toBe(60);
+  expect(dedupe.if).toBeUndefined();
+  expect(dedupe.needs).toBeUndefined();
+  expect(dedupe.permissions).toEqual({ actions: "read", contents: "read" });
+  expect(dedupe.outputs).toEqual({
+    full: "${{ steps.decide.outputs.full }}",
+    source_run: "${{ steps.decide.outputs.source_run }}",
+  });
+  expect(dedupe.steps).toHaveLength(3);
+  expect(dedupe.steps[1].with).toEqual({
+    "node-version-file": ".node-version",
+  });
+  expect(dedupe.steps[2]).toEqual({
+    id: "decide",
+    name: "Find a passing run of this commit",
+    env: { GH_TOKEN: "${{ github.token }}" },
+    run: "node .github/check-required.mjs same-commit",
+  });
   // macOS runs the project checks as a matrix of test shards on separate runners. Each shard
   // tells ci.sh its slice; the count comes from the matrix itself, so the slices always cover
   // every test file exactly once.
@@ -111,8 +137,8 @@ function commandContract(value) {
   expect(shard["runs-on"]).toBe("macos-15-intel");
   expect(retiredRunnerLabels).not.toContain(shard["runs-on"]);
   expect(shard["timeout-minutes"]).toBeLessThanOrEqual(45);
-  expect(shard.if).toBeUndefined();
-  expect(shard.needs).toBeUndefined();
+  expect(shard.if).toBe(fullOnly);
+  expect(shard.needs).toEqual(["dedupe"]);
   expect(Object.keys(shard.strategy).sort()).toEqual(["fail-fast", "matrix"]);
   expect(shard.strategy["fail-fast"]).toBe(false);
   expect(Object.keys(shard.strategy.matrix)).toEqual(["shard"]);
@@ -124,8 +150,10 @@ function commandContract(value) {
   const macos = value.jobs.macos;
   expect(macos.name).toBe(requiredJobs.macos);
   expect(macos["runs-on"]).toBe("ubuntu-24.04");
-  expect(macos.if).toBe("${{ always() }}");
-  expect(macos.needs).toEqual(Object.keys(macosShardJobs));
+  expect(macos.if).toBe(
+    "${{ always() && needs.dedupe.outputs.full == 'true' }}",
+  );
+  expect(macos.needs).toEqual(["dedupe", ...Object.keys(macosShardJobs)]);
   expect(macos.strategy).toBeUndefined();
   expect(macos.steps).toHaveLength(3);
   expect(macos.steps[1].with).toEqual({ "node-version-file": ".node-version" });
@@ -184,8 +212,8 @@ function commandContract(value) {
   expect(postgis.name).toBe(requiredJobs.postgis);
   expect(postgis["runs-on"]).toBe("ubuntu-24.04");
   expect(postgis["timeout-minutes"]).toBeLessThanOrEqual(30);
-  expect(postgis.if).toBeUndefined();
-  expect(postgis.needs).toBeUndefined();
+  expect(postgis.if).toBe(fullOnly);
+  expect(postgis.needs).toEqual(["dedupe"]);
   expect(postgis.strategy).toBeUndefined();
   expect(postgis.steps).toHaveLength(9);
   expect(postgis.steps[1].with).toEqual({
@@ -208,7 +236,10 @@ function commandContract(value) {
   const required = value.jobs.required;
   expect(required.name).toBe("OpenPlans / required");
   expect(required.if).toBe("${{ always() }}");
-  expect(required.needs).toEqual(Object.keys(requiredJobs));
+  expect(required.needs).toEqual([
+    ...Object.keys(sameCommitJob),
+    ...Object.keys(requiredJobs),
+  ]);
   expect(required.steps).toHaveLength(3);
   expect(required.steps[1].with).toEqual({
     "node-version-file": ".node-version",
@@ -318,6 +349,34 @@ it("builds workspace packages before core and discovers their tests", async () =
   const config = (await import("../vitest.config.ts")).default;
   expect(config.test.dir).toBeUndefined();
   expect(config.test.include).toContain("plugins/*/tests/**/*.test.ts");
+});
+
+it("sizes the test workers for a shared machine", async () => {
+  const { default: config, testWorkers } = await import("../vitest.config.ts");
+  expect(config.test.pool).toBe("forks");
+  expect(config.test.maxWorkers).toBe(testWorkers());
+  // A third of the CPUs, at least 1 and at most 3.
+  for (const [cpus, workers] of [
+    [1, 1],
+    [4, 1],
+    [6, 2],
+    [10, 3],
+    [64, 3],
+  ])
+    expect(testWorkers({}, cpus)).toBe(workers);
+  expect(testWorkers({ OPENPLANS_TEST_WORKERS: "1" }, 64)).toBe(1);
+  expect(testWorkers({ OPENPLANS_TEST_WORKERS: "6" }, 4)).toBe(6);
+  expect(testWorkers({ OPENPLANS_TEST_WORKERS: "" }, 10)).toBe(3);
+  // The PostGIS suites share one server and count its advisory locks: one file at a time.
+  const postgis = await readFile(
+    join(root, "scripts/postgis-tests.sh"),
+    "utf8",
+  );
+  expect(postgis).toContain("OPENPLANS_TEST_WORKERS=1 npx vitest run ");
+  for (const value of ["0", "-1", "2.5", "two", " 2"])
+    expect(() => testWorkers({ OPENPLANS_TEST_WORKERS: value }, 10)).toThrow(
+      "OPENPLANS_TEST_WORKERS must be a positive whole number",
+    );
 });
 
 const installScripts = ["preinstall", "install", "postinstall", "prepare"];
@@ -540,19 +599,61 @@ it.each([
       copy.on.push = { paths: ["src/**"] };
     },
   ],
+  [
+    "tag pushes that test the release commit a third time",
+    (copy) => {
+      copy.on.push = null;
+    },
+  ],
+  [
+    "checks skipped on main without a same-commit proof",
+    (copy) => {
+      copy.jobs.linux.if = "${{ github.ref != 'refs/heads/main' }}";
+    },
+  ],
+  [
+    "an aggregate that ignores the same-commit decision",
+    (copy) => {
+      copy.jobs.required.needs.shift();
+    },
+  ],
+  [
+    "a same-commit job that cannot read workflow runs",
+    (copy) => {
+      copy.jobs.dedupe.permissions = { contents: "read" };
+    },
+  ],
+  [
+    "a non-release ref that skips the checks",
+    (copy) => {
+      copy.jobs.docker.if =
+        "${{ github.ref != 'refs/heads/develop' && needs.dedupe.outputs.full == 'true' }}";
+    },
+  ],
+  [
+    "feature branch pushes without checks",
+    (copy) => {
+      copy.on.push = { branches: ["develop", "main"] };
+    },
+  ],
 ])("negative control: rejects %s", (_name, mutate) => {
   const copy = structuredClone(workflow);
   mutate(copy);
   expect(() => commandContract(copy)).toThrow();
 });
 
-const successful = () =>
-  Object.fromEntries(
+const fullRun = () => ({
+  dedupe: { result: "success", outputs: { full: "true", source_run: "" } },
+});
+const successful = () => ({
+  ...fullRun(),
+  ...Object.fromEntries(
     Object.keys(requiredJobs).map((id) => [
       id,
       { result: "success", outputs: {} },
     ]),
-  );
+  ),
+});
 it("accepts only a complete successful set of required job results", () => {
   expect(() => checkRequired(successful())).not.toThrow();
   for (const id of Object.keys(requiredJobs)) {
@@ -581,10 +682,25 @@ it("accepts only a complete successful set of required job results", () => {
   ]) {
     expect(() => checkRequired(value)).toThrow("missing or unexpected");
   }
+  for (const status of ["skipped", "failure", "cancelled", undefined]) {
+    const result = successful();
+    result.dedupe.result = status;
+    expect(() => checkRequired(result)).toThrow(
+      `${sameCommitJob.dedupe} did not succeed`,
+    );
+  }
+  for (const full of [undefined, "", "yes"]) {
+    const result = successful();
+    result.dedupe.outputs.full = full;
+    expect(() => checkRequired(result)).toThrow("gave no decision");
+  }
 });
 
 it("accepts only successful macOS shards", () => {
-  const shards = { "macos-shard": { result: "success", outputs: {} } };
+  const shards = {
+    ...fullRun(),
+    "macos-shard": { result: "success", outputs: {} },
+  };
   expect(() => checkRequired(shards, macosShardJobs)).not.toThrow();
   for (const status of [
     "skipped",
@@ -595,12 +711,18 @@ it("accepts only successful macOS shards", () => {
   ]) {
     expect(() =>
       checkRequired(
-        { "macos-shard": { result: status, outputs: {} } },
+        { ...fullRun(), "macos-shard": { result: status, outputs: {} } },
         macosShardJobs,
       ),
     ).toThrow("OpenPlans / macOS shards did not succeed");
   }
-  for (const value of [null, {}, successful(), { ...shards, extra: {} }]) {
+  for (const value of [
+    null,
+    {},
+    successful(),
+    { ...shards, extra: {} },
+    { "macos-shard": { result: "success" } },
+  ]) {
     expect(() => checkRequired(value, macosShardJobs)).toThrow(
       "missing or unexpected",
     );
@@ -608,10 +730,22 @@ it("accepts only successful macOS shards", () => {
 });
 
 it.each([
-  [["macos"], JSON.stringify({ "macos-shard": { result: "success" } }), 0],
-  [["macos"], JSON.stringify({ "macos-shard": { result: "failure" } }), 1],
+  [
+    ["macos"],
+    JSON.stringify({ ...fullRun(), "macos-shard": { result: "success" } }),
+    0,
+  ],
+  [
+    ["macos"],
+    JSON.stringify({ ...fullRun(), "macos-shard": { result: "failure" } }),
+    1,
+  ],
   [["macos"], JSON.stringify(successful()), 1],
-  [[], JSON.stringify({ "macos-shard": { result: "success" } }), 1],
+  [
+    [],
+    JSON.stringify({ ...fullRun(), "macos-shard": { result: "success" } }),
+    1,
+  ],
   [["unknown"], JSON.stringify(successful()), 1],
 ])(
   "the shard-results command %j exits according to its group and input",
@@ -657,8 +791,14 @@ it("passes the shard to vitest and keeps the static checks in shard 1", async ()
     expect(ci.indexOf(check)).toBeGreaterThan(
       ci.indexOf('if [ "$static" = true ]; then'),
     );
-  // Every shard builds: the build sits after the static block, not inside it.
-  expect(ci).toContain("  npm run check:extraction\nfi\nnpm run build\n");
+  // Every shard builds, once, before the static block that reads the build: the build sits
+  // outside that block, and no later step rebuilds the plugins.
+  expect(ci.match(/^\s*npm run build\b.*$/gm)).toEqual(["npm run build"]);
+  expect(ci.indexOf("\nnpm run build\n")).toBeGreaterThan(-1);
+  expect(ci.indexOf("\nnpm run build\n")).toBeLessThan(
+    ci.indexOf('if [ "$static" = true ]; then'),
+  );
+  expect(ci).toContain("  npm run typecheck --ignore-scripts\n");
 });
 
 it.each([
@@ -724,3 +864,261 @@ it("negative control: a fresh offline npm ci rejects a mismatched lock even with
     await rm(directory, { recursive: true, force: true });
   }
 }, 15_000);
+
+// Same-commit runs. A release pushes develop and main at the same commit; main relies on the
+// develop run instead of repeating it. These checks run against the real module and against
+// planted mutants of its source, each of which must make at least one check fail.
+const sha = "a".repeat(40);
+const sourceUrl = "https://github.com/openhra/openplans/actions/runs/7";
+const mainPush = {
+  GITHUB_EVENT_NAME: "push",
+  GITHUB_REF: "refs/heads/main",
+  GITHUB_SHA: sha,
+  GITHUB_REPOSITORY: "openhra/openplans",
+};
+const sourceRun = (overrides = {}) => ({
+  id: 7,
+  run_attempt: 1,
+  head_sha: sha,
+  head_branch: "develop",
+  event: "push",
+  path: ".github/workflows/ci.yml",
+  status: "completed",
+  conclusion: "success",
+  html_url: sourceUrl,
+  ...overrides,
+});
+const sourceJobs = (module) =>
+  [
+    module.sameCommitJob.dedupe,
+    ...Object.values(module.requiredJobs),
+    module.aggregateJob,
+  ].map((name, id) => ({
+    id,
+    name,
+    head_sha: sha,
+    status: "completed",
+    conclusion: "success",
+  }));
+
+// A synthetic GitHub: each poll of the run list returns the next entry of `runs`.
+function fakeGitHub(runs, jobs) {
+  let clock = 0;
+  const calls = [];
+  return {
+    calls,
+    now: () => clock,
+    sleep: async (seconds) => {
+      clock += seconds * 1000;
+    },
+    get: async (endpoint) => {
+      calls.push(endpoint);
+      if (endpoint.includes("/jobs?"))
+        return { total_count: jobs.length, jobs };
+      return { workflow_runs: runs.length > 1 ? runs.shift() : runs[0] };
+    },
+  };
+}
+
+const sameCommitResults = (module, overrides = {}) => ({
+  dedupe: {
+    result: "success",
+    outputs: { full: "false", source_run: sourceUrl },
+  },
+  ...Object.fromEntries(
+    Object.keys(module.requiredJobs).map((id) => [id, { result: "skipped" }]),
+  ),
+  ...overrides,
+});
+
+// A run may skip its checks only with proof that the same commit passed a full develop run.
+async function proofIsRequired(module) {
+  expect(module.checkRequired(sameCommitResults(module))).toBe("same-commit");
+  for (const source_run of [undefined, "", "https://example.invalid/runs/7"]) {
+    const results = sameCommitResults(module);
+    results.dedupe.outputs.source_run = source_run;
+    expect(() => module.checkRequired(results)).toThrow();
+  }
+  expect(() =>
+    module.checkRequired(
+      sameCommitResults(module, {
+        // Outputs set before a later step failed still prove nothing.
+        dedupe: {
+          result: "failure",
+          outputs: { full: "false", source_run: sourceUrl },
+        },
+      }),
+    ),
+  ).toThrow();
+  expect(() =>
+    module.checkRequired(
+      sameCommitResults(module, { linux: { result: "failure" } }),
+    ),
+  ).toThrow();
+  const jobs = sourceJobs(module);
+  expect(module.checkSourceRun(sourceRun(), jobs, sha)).toBe(sourceUrl);
+  for (const run of [
+    sourceRun({ conclusion: "failure" }),
+    sourceRun({ status: "in_progress", conclusion: null }),
+    sourceRun({ head_sha: "b".repeat(40) }),
+    sourceRun({ head_branch: "main" }),
+    sourceRun({ event: "workflow_dispatch" }),
+    sourceRun({ path: ".github/workflows/other.yml" }),
+  ])
+    expect(() => module.checkSourceRun(run, jobs, sha)).toThrow();
+  for (const [index, change] of [
+    [1, { conclusion: "skipped" }],
+    [2, { conclusion: "failure" }],
+    [0, { head_sha: "b".repeat(40) }],
+  ]) {
+    const changed = structuredClone(jobs);
+    Object.assign(changed[index], change);
+    expect(() => module.checkSourceRun(sourceRun(), changed, sha)).toThrow();
+  }
+  expect(() =>
+    module.checkSourceRun(sourceRun(), jobs.slice(1), sha),
+  ).toThrow();
+  // A failed develop run fails the main run instead of letting it skip.
+  const failed = fakeGitHub(
+    [[sourceRun({ conclusion: "failure" })]],
+    sourceJobs(module),
+  );
+  await expect(
+    module.findSameCommitRun({ env: mainPush, ...failed }),
+  ).rejects.toThrow();
+  // A develop run still in progress is awaited, then used.
+  const pending = fakeGitHub(
+    [[sourceRun({ status: "in_progress", conclusion: null })], [sourceRun()]],
+    sourceJobs(module),
+  );
+  expect(await module.findSameCommitRun({ env: mainPush, ...pending })).toEqual(
+    { full: "false", source_run: sourceUrl },
+  );
+  expect(pending.now()).toBeGreaterThan(0);
+  // A develop run that never finishes fails the main run.
+  const stuck = fakeGitHub(
+    [[sourceRun({ status: "queued", conclusion: null })]],
+    sourceJobs(module),
+  );
+  await expect(
+    module.findSameCommitRun({ env: mainPush, ...stuck }),
+  ).rejects.toThrow("did not finish in time");
+}
+
+// Every event and ref except a push to main runs the full checks without asking GitHub.
+async function otherRefsRunFull(module) {
+  for (const env of [
+    { GITHUB_EVENT_NAME: "push", GITHUB_REF: "refs/heads/develop" },
+    { GITHUB_EVENT_NAME: "push", GITHUB_REF: "refs/heads/lane/x/feature" },
+    { GITHUB_EVENT_NAME: "push", GITHUB_REF: "refs/heads/release/1.0" },
+    { GITHUB_EVENT_NAME: "push", GITHUB_REF: "refs/heads/mainline" },
+    { GITHUB_EVENT_NAME: "push", GITHUB_REF: "refs/tags/v1.0.0" },
+    { GITHUB_EVENT_NAME: "pull_request", GITHUB_REF: "refs/pull/1/merge" },
+    { GITHUB_EVENT_NAME: "pull_request", GITHUB_REF: "refs/heads/main" },
+    { GITHUB_EVENT_NAME: "workflow_dispatch", GITHUB_REF: "refs/heads/main" },
+  ]) {
+    expect(module.runDecision(env)).toBe("full");
+    const github = fakeGitHub([[sourceRun()]], sourceJobs(module));
+    expect(
+      await module.findSameCommitRun({
+        env: { ...mainPush, ...env },
+        ...github,
+      }),
+    ).toEqual({ full: "true", source_run: "" });
+    expect(github.calls).toEqual([]);
+  }
+  expect(module.runDecision(mainPush)).toBe("look");
+  // A main commit that develop never ran gets the full checks after a short wait.
+  const absent = fakeGitHub([[]], sourceJobs(module));
+  expect(await module.findSameCommitRun({ env: mainPush, ...absent })).toEqual({
+    full: "true",
+    source_run: "",
+  });
+  expect(absent.now()).toBeGreaterThanOrEqual(
+    module.sameCommitTiming.appearSeconds * 1000,
+  );
+  // With full checks, a skipped check job still fails the aggregate.
+  const full = Object.fromEntries(
+    Object.keys(module.requiredJobs).map((id) => [id, { result: "success" }]),
+  );
+  full.dedupe = {
+    result: "success",
+    outputs: { full: "true", source_run: "" },
+  };
+  expect(module.checkRequired(full)).toBe("full");
+  full.linux = { result: "skipped" };
+  expect(() => module.checkRequired(full)).toThrow();
+}
+
+it("skips repeated checks only with proof of a passing run of the same commit", async () => {
+  await proofIsRequired(checkRequiredModule);
+});
+
+it("runs the full checks on every ref and event except a push to main", async () => {
+  await otherRefsRunFull(checkRequiredModule);
+});
+
+const sameCommitMutants = [
+  [
+    "skipped checks accepted without a source run",
+    'if (!runUrl.test(proof.outputs?.source_run ?? ""))',
+    "if (false)",
+    proofIsRequired,
+  ],
+  [
+    "skipped checks accepted after a failed same-commit job",
+    'if (proof?.result !== "success")',
+    "if (false)",
+    proofIsRequired,
+  ],
+  [
+    "a failed develop run accepted as proof",
+    'run.status !== "completed" || run.conclusion !== "success"',
+    'run.status !== "completed"',
+    proofIsRequired,
+  ],
+  [
+    "a develop run with skipped checks accepted as proof",
+    'matching[0].conclusion !== "success"',
+    "false",
+    proofIsRequired,
+  ],
+  [
+    "develop pushes that skip the checks",
+    'env.GITHUB_REF === "refs/heads/main"',
+    'env.GITHUB_REF.startsWith("refs/heads/")',
+    otherRefsRunFull,
+  ],
+  [
+    "manual and pull request runs on main that skip the checks",
+    'env.GITHUB_EVENT_NAME === "push" &&',
+    "",
+    otherRefsRunFull,
+  ],
+  [
+    "a main commit without a develop run that skips the checks",
+    'return { full: "true", source_run: "" };\n    } else {',
+    'return { full: "false", source_run: "" };\n    } else {',
+    otherRefsRunFull,
+  ],
+];
+
+it.each(sameCommitMutants)(
+  "negative control: a planted mutant is caught: %s",
+  async (_name, before, after, check) => {
+    const source = await readFile(
+      join(root, ".github/check-required.mjs"),
+      "utf8",
+    );
+    expect(source.split(before)).toHaveLength(2);
+    const directory = await mkdtemp(join(tmpdir(), "openplans-same-commit-"));
+    try {
+      const path = join(directory, "check-required.mjs");
+      await writeFile(path, source.replace(before, after));
+      const mutant = await import(pathToFileURL(path).href);
+      await expect(check(mutant)).rejects.toThrow();
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  },
+);

@@ -20,15 +20,18 @@ import {
 } from "./ca-helpers.js";
 
 const policy = CA_INDIVIDUAL_TOBACCO_POLICY;
-const publication = (
-  name: string,
-): { sourceSha256: string; cells: Record<string, string>; rowHtml: string } =>
+interface Publication {
+  sourceSha256: string;
+  cells: Record<string, string>;
+  rowHtml: string;
+}
+const publication = (name: string): Publication =>
   JSON.parse(
     readFileSync(
       new URL(`../../fixtures/rating/ca-2026/${name}.json`, import.meta.url),
       "utf8",
     ),
-  );
+  ) as Publication;
 const full = publication("full"),
   geography = publication("geography");
 

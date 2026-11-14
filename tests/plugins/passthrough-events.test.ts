@@ -250,8 +250,10 @@ beforeEach(async () => {
   const shipped = shippedManifestPaths().find((p) =>
     p.endsWith("cms-marketplace-api.json"),
   )!;
-  const manifest = JSON.parse(await readFile(shipped, "utf8"));
-  manifest.publishers[0].terms.sha256 = createHash("sha256")
+  const manifest = JSON.parse(await readFile(shipped, "utf8")) as {
+    publishers: { terms: { sha256: string } }[];
+  };
+  manifest.publishers[0]!.terms.sha256 = createHash("sha256")
     .update(docs)
     .digest("hex");
   manifestPath = join(directory, "access.json");

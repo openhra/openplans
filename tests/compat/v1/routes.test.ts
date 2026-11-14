@@ -270,7 +270,7 @@ describe("public catalog facade, native repository integration", () => {
     expect(body.plan.network_ids).toEqual([expect.stringMatching(cmsId)]);
     expect(body.plan.networks[0]).toMatchObject({
       id: body.plan.network_ids[0],
-      name: expect.any(String),
+      name: expect.any(String) as unknown,
     });
     expect(response.headers.get("x-openplans-gaps")).toContain(
       "network_ids_are_cms_network_ids",
@@ -340,8 +340,10 @@ describe("public catalog facade, native repository integration", () => {
     );
     expect(networks.body.networks).toHaveLength(2);
     expect(networks.body.networks[0]).toMatchObject({
-      id: expect.stringMatching(/^\d{5}-2026-[A-Z]{2}N\d{3}-[a-z_()]+$/),
-      name: expect.any(String),
+      id: expect.stringMatching(
+        /^\d{5}-2026-[A-Z]{2}N\d{3}-[a-z_()]+$/,
+      ) as unknown,
+      name: expect.any(String) as unknown,
       source: "cms_puf",
       last_imported_at: null,
     });
@@ -524,7 +526,7 @@ describe("dental catalog support and rating gaps", () => {
               ),
               "utf8",
             ),
-          );
+          ) as unknown;
           assertShape(capture, body, "$", true);
         }
         expect(response.headers.get("x-openplans-gaps")).toContain(

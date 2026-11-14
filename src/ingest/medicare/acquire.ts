@@ -43,7 +43,8 @@ export interface CachedArchive {
 
 /**
  * One reviewed session for a whole collection job. Medicare files need an operator manifest entry
- * for www.cms.gov that permits the `/files/zip/` archives and listing pages (data/access has none).
+ * for www.cms.gov that permits the `/files/zip/` archives and listing pages. The shipped entries
+ * list only the releases already loaded, for freshness checks.
  */
 export function medicareSession(
   manifest = operatorManifest(),

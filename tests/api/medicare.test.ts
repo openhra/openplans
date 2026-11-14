@@ -52,7 +52,10 @@ describe("/v1/medicare (CY2026 fixtures cut from real CMS files)", () => {
     const app = createApp(loaded.db, { premiumToken: undefined });
     get = async <T>(path: string): Promise<{ status: number; body: T }> => {
       const response = await app.request(path);
-      return { status: response.status, body: await response.json() };
+      return {
+        status: response.status,
+        body: await (response.json() as Promise<T>),
+      };
     };
   }, 120_000);
   afterAll(async () => loaded?.cleanup());

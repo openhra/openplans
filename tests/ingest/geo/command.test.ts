@@ -19,9 +19,11 @@ let migrations: Awaited<ReturnType<typeof coreMigrations>>;
 let directory: string;
 
 async function files(state: string): Promise<GeoFiles> {
-  const scope = JSON.parse(
-    await readFile(join(root, "provenance.json"), "utf8"),
-  ).states[state];
+  const scope = (
+    JSON.parse(await readFile(join(root, "provenance.json"), "utf8")) as {
+      states: Record<string, Record<string, unknown>>;
+    }
+  ).states[state]!;
   return Object.fromEntries(
     Object.entries(scope).map(([kind, value]) => {
       const cut = value as {
@@ -78,7 +80,12 @@ it.each([
     const result = await command(state!);
     expect(result.errors).toEqual([]);
     expect(result.code).toBe(0);
-    const report = JSON.parse(result.lines[0]!);
+    const report = JSON.parse(result.lines[0]!) as {
+      zctaCountyRows: number;
+      zctaCentroidRows: number;
+      countyNameCorrections: unknown[];
+      constraints: unknown;
+    };
     expect(report).toMatchObject({ state, planYear: 2026 });
     expect(report.zctaCountyRows).toBeGreaterThan(0);
     expect(report.zctaCentroidRows).toBeGreaterThan(0);

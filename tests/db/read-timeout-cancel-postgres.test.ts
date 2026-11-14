@@ -24,12 +24,12 @@ describe.skipIf(!url)("read timeouts stop the statement at the server", () => {
   const running = async (marker: string) =>
     Number(
       (
-        await observer.query(
+        await observer.query<{ n: string }>(
           `SELECT count(*) AS n FROM pg_stat_activity
             WHERE state = 'active' AND pid <> pg_backend_pid() AND query LIKE $1`,
           [`%${marker}%`],
         )
-      ).rows[0].n,
+      ).rows[0]!.n,
     );
   beforeAll(async () => {
     observer = new pg.Client({ connectionString: url });

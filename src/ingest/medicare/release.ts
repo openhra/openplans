@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { createReadStream } from "node:fs";
 import type { Database, SqlSession } from "../../db/database.js";
 import type { CachedArchive } from "./acquire.js";
-import { labelDate, sourceIds } from "./sources.js";
+import { publisherReleaseDate, sourceIds } from "./sources.js";
 
 export const termsReference =
   "https://www.cms.gov/about-cms/web-policies-important-links/about-website/link-to-us";
@@ -54,10 +54,10 @@ export async function importRelease(
     throw new Error("Invalid Medicare provenance");
   await verify(cached.path, metadata.sha256, metadata.bytes);
   const snapshotId = snapshotIdFor(cached);
-  const fallbackDate = metadata.last_modified
-    ? new Date(metadata.last_modified).toISOString().slice(0, 10)
-    : metadata.fetched_at.slice(0, 10);
-  const asOf = labelDate(archive.label, fallbackDate);
+  // The snapshot keeps only the publisher's own date, or null. The release row needs some
+  // date to order releases, so it falls back to the fetch day.
+  const published = publisherReleaseDate(archive.label, metadata.last_modified);
+  const asOf = published ?? metadata.fetched_at.slice(0, 10);
   await db.query(
     `INSERT INTO source(source_id,publisher,source_kind,registry_evidence,terms_review_reference)
      VALUES ($1,'Centers for Medicare & Medicaid Services','cms-medicare',$2::jsonb,$3) ON CONFLICT DO NOTHING`,
@@ -84,7 +84,7 @@ export async function importRelease(
       metadata.final_url,
       JSON.stringify(metadata.redirect_chain),
       metadata.fetched_at,
-      asOf,
+      published,
       metadata.status,
       metadata.etag,
       metadata.last_modified,

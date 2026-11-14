@@ -38,7 +38,9 @@ describe("MCP response CORS", () => {
         "application/json",
       );
       expectCorsHeaders(response, origin);
-      expect((await response.json()).result).toBeDefined();
+      expect(
+        ((await response.json()) as { result?: unknown }).result,
+      ).toBeDefined();
     },
   );
 
@@ -59,7 +61,7 @@ describe("MCP response CORS", () => {
       {},
       { origin: allowedOrigin },
     );
-    const message = JSON.parse(await request.text());
+    const message = JSON.parse(await request.text()) as { id?: unknown };
     delete message.id;
     const response = await setup().fetch(
       new Request(request.url, {
@@ -151,7 +153,9 @@ describe("MCP response CORS", () => {
     expectCorsHeaders(response);
     if (status === 401)
       expect(response.headers.get("www-authenticate")).toContain("Bearer");
-    expect((await response.json()).error).toBeDefined();
+    expect(
+      ((await response.json()) as { error?: unknown }).error,
+    ).toBeDefined();
   });
 
   it("covers rate errors and retains Retry-After", async () => {
@@ -176,7 +180,9 @@ describe("MCP response CORS", () => {
     const response = await app.fetch(await corsRequest("JSON"));
     expect(response.status).toBe(500);
     expectCorsHeaders(response);
-    expect((await response.json()).error.message).toBe("Request failed");
+    expect(
+      ((await response.json()) as { error: { message: string } }).error.message,
+    ).toBe("Request failed");
   });
 
   it("covers preflight and disabled-route responses", async () => {

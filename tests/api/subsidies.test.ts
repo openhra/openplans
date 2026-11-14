@@ -546,7 +546,9 @@ it("MCP contract preserves the real full-catalog benchmark, credit and net trace
     estimated_credit_cents: 42005,
     estimated_net_cents: 13349,
     benchmark_cents: 59205,
-    subsidy: { benchmark: { silver_plan_count: expect.any(Number) } },
+    subsidy: {
+      benchmark: { silver_plan_count: expect.any(Number) as unknown },
+    },
   });
   const changed = structuredClone(output);
   changed.data!.quotes[0]!.subsidy!.benchmark.lowest_silver_plans[0]!

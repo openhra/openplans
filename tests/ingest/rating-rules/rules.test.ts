@@ -12,6 +12,9 @@ import {
 } from "../../../src/ingest/rating-rules/index.js";
 import { runWorker } from "../../../src/worker/commands.js";
 
+interface RulesDocument {
+  rules: Record<string, unknown>[];
+}
 const db = testDatabase(new PGlite());
 let directory: string, core: Awaited<ReturnType<typeof coreMigrations>>;
 beforeAll(async () => {
@@ -31,7 +34,7 @@ it("loads a cited TX rule as its own immutable source/snapshot, idempotently", a
   expect(second).toEqual(first);
   expect(await ratingRule(db, "TX", 2026, "Individual")).toMatchObject({
     method: "per_member",
-    citation: expect.stringContaining("45 CFR 147.102"),
+    citation: expect.stringContaining("45 CFR 147.102") as string,
     snapshot_id: first.snapshot_id,
   });
   expect(await ratingRule(db, "NY", 2026, "individual")).toBeNull();
@@ -43,7 +46,7 @@ it("loads a cited TX rule as its own immutable source/snapshot, idempotently", a
   ).toEqual([
     {
       validation_state: "ACTIVE",
-      sha256: expect.stringMatching(/^[a-f0-9]{64}$/),
+      sha256: expect.stringMatching(/^[a-f0-9]{64}$/) as string,
     },
   ]);
   expect(
@@ -57,7 +60,9 @@ it("loads a cited TX rule as its own immutable source/snapshot, idempotently", a
 });
 
 it("negative control: removing TX publishes an empty set and revokes prior TX support", async () => {
-  const document = JSON.parse(await readFile(defaultRulesFile, "utf8"));
+  const document = JSON.parse(
+    await readFile(defaultRulesFile, "utf8"),
+  ) as RulesDocument;
   document.rules = [];
   const path = join(directory, "synthetic-no-tx.json");
   await writeFile(path, JSON.stringify(document));
@@ -88,14 +93,18 @@ it("negative controls: rejects NY/VT per-member, uncited, duplicate and incompat
       r.child_rule = "all_children";
     },
   ]) {
-    const document = JSON.parse(await readFile(defaultRulesFile, "utf8"));
-    mutate(document.rules[0]);
+    const document = JSON.parse(
+      await readFile(defaultRulesFile, "utf8"),
+    ) as RulesDocument;
+    mutate(document.rules[0]!);
     const path = join(directory, "synthetic-invalid.json");
     await writeFile(path, JSON.stringify(document));
     await expect(ingestRatingRules(db, path)).rejects.toThrow();
   }
-  const document = JSON.parse(await readFile(defaultRulesFile, "utf8"));
-  document.rules.push(document.rules[0]);
+  const document = JSON.parse(
+    await readFile(defaultRulesFile, "utf8"),
+  ) as RulesDocument;
+  document.rules.push(document.rules[0]!);
   const path = join(directory, "synthetic-duplicate.json");
   await writeFile(path, JSON.stringify(document));
   await expect(ingestRatingRules(db, path)).rejects.toThrow("Duplicate");

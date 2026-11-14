@@ -41,7 +41,7 @@ beforeAll(async () => {
   await migrate(db, core.directory);
   const provenance = JSON.parse(
     await readFile(join(fixtures, "provenance.json"), "utf8"),
-  );
+  ) as { files: { kind: string; url: string }[] };
   files = await Promise.all(
     IMPORT_KINDS.map(async (kind) => {
       const path = join(fixtures, `${kind}.csv`),
@@ -53,7 +53,7 @@ beforeAll(async () => {
         bytes: data.length,
         sha256: createHash("sha256").update(data).digest("hex"),
         retrievedAt: "2026-11-07T07:33:40.115Z",
-        url: provenance.files.find((f: { kind: string }) => f.kind === kind)
+        url: provenance.files.find((f: { kind: string }) => f.kind === kind)!
           .url,
       };
     }),
@@ -77,7 +77,12 @@ it("records all eight header diffs and explicitly retains both new PY2027 attrib
       new URL("../../fixtures/puf/headers-2026-2027.json", import.meta.url),
       "utf8",
     ),
-  );
+  ) as {
+    files: Record<
+      (typeof IMPORT_KINDS)[number],
+      { added: string[]; removed: string[] }
+    >;
+  };
   expect(Object.keys(audit.files)).toHaveLength(8);
   expect(audit.files["plan-attributes"].added).toEqual(
     PY2027_ATTRIBUTE_COLUMNS,
@@ -211,7 +216,7 @@ it("negative control: a 2027 premium is unsupported until its own cited rules ex
   await ingestGeo(db, { files: await geoFiles(), planYear: 2027 });
   expect(await ratingRule(db, "TX", 2027, "Individual")).toMatchObject({
     method: "per_member",
-    citation: expect.stringContaining("retrieved 2026-11-07"),
+    citation: expect.stringContaining("retrieved 2026-11-07") as string,
   });
   // The small rate cut retains one area per plan, which need not be Harris; use its published area.
   const area = (

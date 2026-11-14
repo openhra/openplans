@@ -12,8 +12,48 @@ export const scope = { issuer: "00010", state: "TX", year: 2026 };
 const fixtures = fileURLToPath(
   new URL("../../fixtures/qhp/formulary/", import.meta.url),
 );
-export const fixture = async (name: string) =>
-  JSON.parse(await readFile(join(fixtures, `${name}.json`), "utf8"));
+export interface CatalogPlan extends Record<string, unknown> {
+  base_plan_id: string;
+}
+export interface CatalogVariant extends Record<string, unknown> {
+  base_plan_id: string;
+  variant_plan_id: string;
+}
+export type NonEmpty<T> = [T, ...T[]];
+export interface QhpCatalog {
+  plans: NonEmpty<CatalogPlan>;
+  variants: NonEmpty<CatalogVariant>;
+}
+export interface DrugPlanEdge {
+  plan_id: string;
+  plan_id_type?: string;
+  drug_tier?: string;
+  prior_authorization?: unknown;
+  step_therapy?: unknown;
+  quantity_limit?: unknown;
+  years: number[];
+}
+export interface DrugRecord {
+  rxnorm_id: string;
+  drug_name?: string;
+  plans: DrugPlanEdge[];
+}
+export interface FormularyPlanDefinition {
+  plan_id: string;
+  plan_id_type: string;
+  years: number[];
+  formulary: { drug_tier: string }[];
+}
+export interface FormularyFixtures {
+  catalog: QhpCatalog;
+  drugs: NonEmpty<DrugRecord>;
+  plans: NonEmpty<FormularyPlanDefinition>;
+  rxnorm: Record<string, unknown>[];
+}
+export const fixture = async <K extends keyof FormularyFixtures>(name: K) =>
+  JSON.parse(
+    await readFile(join(fixtures, `${name}.json`), "utf8"),
+  ) as FormularyFixtures[K];
 export async function insert(
   db: SqlSession,
   table: string,

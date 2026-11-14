@@ -18,6 +18,7 @@ import { fixtureFiles as geoFiles } from "../../../tests/ingest/geo/helpers.js";
 import { fixtureFiles } from "../../../tests/api/helpers.js";
 import { coreMigrations, testDatabase } from "../../../tests/pglite.js";
 import { AVAILABILITY_KINDS, AVAILABILITY_STATUSES } from "../src/views.js";
+import type { PublicStatus } from "../src/views.js";
 
 // One fixture database answers both routes: the PUF import fixture with rates, rating
 // geography and rating rules, plus synthetic manifest rows the core derives further.
@@ -143,15 +144,16 @@ async function answers(file: string | App = indexFile) {
       ) as Statuses,
     ]),
   );
-  const publicBody = await (await app.request("/status.json")).json();
-  const operatorBody = await (
+  const publicBody: unknown = await (await app.request("/status.json")).json();
+  const operatorBody: unknown = await (
     await app.request("/status/operator.json", {
       headers: { Authorization: `Bearer ${OPERATOR}` },
     })
   ).json();
   const fromPlugin = new Map<string, Statuses>(
     (
-      operatorBody.data.issuers as (Statuses & {
+      (operatorBody as { data: { issuers: unknown } }).data
+        .issuers as (Statuses & {
         state: string;
         year: number;
         market: string | null;
@@ -205,7 +207,7 @@ function disagreements(result: Awaited<ReturnType<typeof answers>>) {
         out.push(`${key} ${kind}: ${p[kind]} != ${a[kind]}`);
   }
   if (
-    JSON.stringify(result.publicBody.data) !==
+    JSON.stringify((result.publicBody as PublicStatus).data) !==
     JSON.stringify(expectedPublic(result.apiRows))
   )
     out.push("public data summary");
@@ -247,7 +249,9 @@ describe("status availability matches /v1/data-availability", () => {
     expect(result.fromApi.size).toBeGreaterThan(2);
     expect(result.fromPlugin.size).toBe(result.apiRows.length);
     expect(disagreements(result)).toEqual([]);
-    expect(result.publicBody.data).toEqual(expectedPublic(result.apiRows));
+    expect((result.publicBody as PublicStatus).data).toEqual(
+      expectedPublic(result.apiRows),
+    );
   });
 
   it("planted mutant: the plugin reading the stored table again fails the agreement", async () => {

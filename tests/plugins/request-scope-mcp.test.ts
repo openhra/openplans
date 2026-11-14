@@ -38,7 +38,7 @@ describe("MCP streaming path sees the cache level before the first byte", () => 
     // A fresh wrapper per case: sharedResponseCache is keyed by the session object.
     const db = new Proxy(base, {
       get(target, property, receiver) {
-        const value = Reflect.get(target, property, receiver);
+        const value: unknown = Reflect.get(target, property, receiver);
         if (property !== "query") return value;
         return (sql: string, ...rest: unknown[]) => {
           if (restriction && !/api_data_generation/.test(String(sql)))

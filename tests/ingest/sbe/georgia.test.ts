@@ -170,7 +170,7 @@ describe("Georgia Access PY2027 catalog from real cuts", () => {
         ),
         "utf8",
       ),
-    );
+    ) as Record<string, unknown>;
     await writeFile(
       join(directory, "other.meta.json"),
       JSON.stringify({
@@ -275,7 +275,9 @@ describe("Georgia Access PY2027 catalog from real cuts", () => {
   it("PY2027 rules add a separately reviewed Georgia row and keep every federal row", async () => {
     const dataDir = join(root, "rules");
     const path = await sbeRulesFile(dataDir, 2027);
-    const document = JSON.parse(await readFile(path, "utf8"));
+    const document = JSON.parse(await readFile(path, "utf8")) as {
+      rules: { state: string; citation: string }[];
+    };
     const original = JSON.parse(
       await readFile(
         fileURLToPath(
@@ -283,9 +285,9 @@ describe("Georgia Access PY2027 catalog from real cuts", () => {
         ),
         "utf8",
       ),
-    );
+    ) as { rules: unknown[] };
     expect(document.rules.length).toBe(original.rules.length + 1);
-    const ga = document.rules.find((r: { state: string }) => r.state === "GA");
+    const ga = document.rules.find((r: { state: string }) => r.state === "GA")!;
     expect(ga.citation).toMatch(/reviewed for PY2027 on 2026-11-09/);
   });
 });

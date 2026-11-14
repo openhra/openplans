@@ -1,18 +1,10 @@
 // The CMS Marketplace API source package on the pass-through core, with planted mutants of the
 // package. Synthetic responses, synthetic key, no network.
 import { createHash } from "node:crypto";
-import {
-  cp,
-  mkdtemp,
-  readFile,
-  readdir,
-  rm,
-  writeFile,
-} from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Readable } from "node:stream";
-import { fileURLToPath } from "node:url";
 import {
   afterAll,
   afterEach,
@@ -41,7 +33,7 @@ import type { CmsFallbackContext } from "../../../src/ingest/cms-api/fallback.js
 import { implicitPassThroughSources } from "../../../src/plugins/core-plugin.js";
 import { createPassThrough } from "../../../src/plugins/sources/passthrough.js";
 import { fixture, setup } from "../qhp/formulary-helpers.js";
-import { importMutant } from "../../mutant-file.js";
+import { importMutant, plantMutantPackage } from "../../mutant-file.js";
 
 vi.mock("../../../src/fetch/limiter.js", () => ({
   leaseHost: async () => async () => {},
@@ -51,8 +43,9 @@ type Source = PassThroughSource<Question, unknown>;
 type Factory = (typeof Package)["createCmsMarketplaceSource"];
 const plantedKey = "PLANTED-cms-mutant-key-9z8y7x";
 const docs = "Synthetic CMS API documentation for offline tests.";
-const packageSource = fileURLToPath(
-  new URL("../../../plugins/source-cms-marketplace-api/src/", import.meta.url),
+const packageRoot = new URL(
+  "../../../plugins/source-cms-marketplace-api/",
+  import.meta.url,
 );
 let h: Awaited<ReturnType<typeof setup>>;
 let directory: string;
@@ -143,12 +136,12 @@ async function plantedFactory(
   anchor: string,
   replacement: string,
 ): Promise<{ factory: Factory; cleanup: () => Promise<void> }> {
-  const copy = await mkdtemp(join(packageSource, ".mutant-"));
-  const cleanup = () => rm(copy, { recursive: true, force: true });
+  // The copy goes under the OS temp dir, never into the source tree, where a test running
+  // alongside could scan it.
+  const planted = await plantMutantPackage(packageRoot, "src");
+  const copy = planted.path;
+  const cleanup = planted.cleanup;
   try {
-    for (const name of await readdir(packageSource))
-      if (name.endsWith(".ts"))
-        await cp(join(packageSource, name), join(copy, name));
     const text = await readFile(join(copy, file), "utf8");
     expect(text).toContain(anchor);
     await writeFile(join(copy, file), text.replace(anchor, replacement));
@@ -264,7 +257,12 @@ beforeEach(async () => {
   const shipped = shippedManifestPaths().find((p) =>
     p.endsWith("cms-marketplace-api.json"),
   )!;
-  const manifest = JSON.parse(await readFile(shipped, "utf8"));
+  const manifest = JSON.parse(await readFile(shipped, "utf8")) as {
+    publishers: [
+      { terms: { sha256: string } },
+      ...{ terms: { sha256: string } }[],
+    ];
+  };
   manifest.publishers[0].terms.sha256 = createHash("sha256")
     .update(docs)
     .digest("hex");

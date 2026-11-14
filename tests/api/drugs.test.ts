@@ -2,10 +2,11 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createApp } from "../../src/api/app.js";
 import { importFormulary } from "../../src/ingest/qhp/formulary.js";
 import { fixture, scope, setup } from "../ingest/qhp/formulary-helpers.js";
+import type { DrugRecord } from "../ingest/qhp/formulary-helpers.js";
 
 type Row = Record<string, unknown>;
 type Availability = { issuer_id: string; drug_status?: string };
-type Drug = { rxnorm_id: string; plans: Row[] };
+type Drug = DrugRecord;
 type Search = { exact_concept_required: boolean; candidates: Row[] };
 type Bulk = { results: { requested_plan_id: string; rxcui: string }[] };
 type Variant = { base_plan_id: string; variant_plan_id: string };
@@ -17,7 +18,7 @@ describe("drug HTTP workflow (synthetic fixtures and mutants)", () => {
     h = await setup();
     app = createApp(h.db, {});
     drugs = await fixture("drugs");
-    plan = h.catalog.plans[0].base_plan_id;
+    plan = h.catalog.plans[0]!.base_plan_id;
     code = drugs[0]?.rxnorm_id ?? "";
     await h.replace(drugs);
     await importFormulary(h.db, scope);
@@ -49,7 +50,7 @@ describe("drug HTTP workflow (synthetic fixtures and mutants)", () => {
     expect(search.body.candidates).toContainEqual(
       expect.objectContaining({
         rxcui: "990000401",
-        name: expect.stringContaining("metformin"),
+        name: expect.stringContaining("metformin") as unknown,
         tty: "SCD",
       }),
     );
@@ -65,7 +66,7 @@ describe("drug HTTP workflow (synthetic fixtures and mutants)", () => {
       ingredients: [expect.objectContaining({ rxcui: "990000101" })],
       brand_generic_links: expect.arrayContaining([
         expect.objectContaining({ rxcui: "990000301", rela: "has_tradename" }),
-      ]),
+      ]) as unknown,
       patient_price: null,
     });
     expect(
@@ -133,10 +134,10 @@ describe("drug HTTP workflow (synthetic fixtures and mutants)", () => {
       evidence: expect.arrayContaining([
         expect.objectContaining({
           source_id: "synthetic-harness",
-          snapshot_id: expect.any(String),
+          snapshot_id: expect.any(String) as unknown,
           source_record: 0,
         }),
-      ]),
+      ]) as unknown,
     });
     expect(bulk.body.results[1]).toMatchObject({
       status: "not_listed",

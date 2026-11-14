@@ -54,7 +54,10 @@ it.each([[], ["--state", "TX"]])(
     expect(await runWorker(["ingest", "geo", ...flags], () => db, log)).toBe(0);
     expect(migrate).toHaveBeenCalledWith(db, "synthetic-migrations");
     expect(ingestGeo).toHaveBeenCalledWith(db, { state: "TX", planYear: 2026 });
-    expect(JSON.parse(log.out.mock.calls[0]![0]).state).toBe("TX");
+    expect(
+      (JSON.parse(log.out.mock.calls[0]![0] as string) as { state: string })
+        .state,
+    ).toBe("TX");
     expect(log.error).not.toHaveBeenCalled();
     expect(db.close).toHaveBeenCalledOnce();
   },
@@ -122,7 +125,10 @@ it("discovers geo batch states from the publication, continues past failures and
   expect(log.error).toHaveBeenCalledWith(
     "Geography AK PY2027 failed; previous import preserved",
   );
-  expect(JSON.parse(log.out.mock.calls[0]![0]).state).toBe("FL");
+  expect(
+    (JSON.parse(log.out.mock.calls[0]![0] as string) as { state: string })
+      .state,
+  ).toBe("FL");
   expect(db.close).toHaveBeenCalledOnce();
 });
 
@@ -179,9 +185,12 @@ it("dispatches all-state PUF import, returning failure when any state failed", a
   ).toBe(1);
   expect(importAllStates).toHaveBeenCalledWith(db, {
     year: 2026,
-    onState: expect.any(Function),
+    onState: expect.any(Function) as unknown,
   });
-  expect(JSON.parse(log.out.mock.calls[0]![0]).passed).toBe(false);
+  expect(
+    (JSON.parse(log.out.mock.calls[0]![0] as string) as { passed: boolean })
+      .passed,
+  ).toBe(false);
   expect(db.close).toHaveBeenCalledOnce();
 });
 

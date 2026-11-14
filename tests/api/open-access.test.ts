@@ -381,12 +381,12 @@ describe("no household request values in any log line", () => {
     expect(call.status).toBe(200);
     await call.text();
     const lines = logged(spies).map((line) => {
-      const entry = JSON.parse(line);
+      const entry = JSON.parse(line) as Record<string, unknown>;
       if (entry.event !== "api_internal_error") return line;
       expect(entry).toEqual({
         event: "api_internal_error",
         error_class: "Error",
-        stack_hash: expect.stringMatching(/^[a-f0-9]{64}$/),
+        stack_hash: expect.stringMatching(/^[a-f0-9]{64}$/) as unknown,
       });
       return JSON.stringify({ ...entry, stack_hash: undefined });
     });

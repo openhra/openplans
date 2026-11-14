@@ -240,7 +240,9 @@ describe("shipped federal publisher manifests", () => {
     const original = admissionManifestSchema.parse(
       JSON.parse(await readFile(shipped, "utf8")),
     );
-    const derived = JSON.parse(await readFile(state.shippedPath, "utf8"));
+    const derived = JSON.parse(
+      await readFile(state.shippedPath, "utf8"),
+    ) as AdmissionManifest;
     for (const publisher of derived.publishers)
       if (publisher.terms)
         publisher.terms.sha256 = original.publishers.find(
@@ -332,7 +334,9 @@ describe("shipped federal publisher manifests", () => {
         out,
         core.directory,
       );
-      const summary = JSON.parse(out.lines.at(-1)!);
+      const summary = JSON.parse(out.lines.at(-1)!) as {
+        steps: { id: string }[];
+      };
       expect(summary).toMatchObject({ passed: true, failed: [], blocked: [] });
       expect(code).toBe(0);
       const ids = summary.steps.map((step: { id: string }) => step.id);
@@ -406,7 +410,7 @@ describe("shipped federal publisher manifests", () => {
       code: "admission_denied",
       message: expect.stringContaining(
         "outside the publisher's reviewed permitted paths",
-      ),
+      ) as unknown,
     });
     expect(state.requests).toEqual([]);
   });
@@ -579,7 +583,9 @@ describe("bootstrap failure detail", () => {
         core.directory,
       );
       expect(code).toBe(1);
-      const summary = JSON.parse(out.lines.at(-1)!);
+      const summary = JSON.parse(out.lines.at(-1)!) as {
+        steps: { id: string }[];
+      };
       const geo = summary.steps.find(
         (step: { id: string }) => step.id === "geo-TX-2026",
       );
@@ -590,7 +596,9 @@ describe("bootstrap failure detail", () => {
           code: "admission_required",
           message: "Native collection requires a reviewed publisher manifest",
         },
-        action: expect.stringContaining("docs/self-host.md#publisher-access"),
+        action: expect.stringContaining(
+          "docs/self-host.md#publisher-access",
+        ) as unknown,
       });
       expect(state.requests).toEqual([]);
     } finally {
@@ -665,11 +673,11 @@ describe("shipped manifest release check", () => {
   };
   const at = (iso: string) => new Date(iso);
   it("passes the shipped manifests now and fails them once stale", async () => {
-    const manifest = JSON.parse(await readFile(shipped, "utf8"));
-    const real = JSON.parse(
+    const manifest: unknown = JSON.parse(await readFile(shipped, "utf8"));
+    const real: unknown = JSON.parse(
       await readFile(join(shipped, "..", "review-policy.json"), "utf8"),
     );
-    expect(reviewProblems(manifest, real, at("2026-11-10T12:00:00Z"))).toEqual(
+    expect(reviewProblems(manifest, real, at("2026-11-15T12:00:00Z"))).toEqual(
       [],
     );
     expect(
@@ -690,13 +698,15 @@ describe("shipped manifest release check", () => {
     ).toContain("older than the previous release (v9)");
   });
   it("fails a cleared host without reviewer or quoted basis", async () => {
-    const manifest = JSON.parse(await readFile(shipped, "utf8"));
-    delete manifest.publishers[0].terms.reviewer;
-    manifest.publishers[1].terms.basis = "unquoted";
+    const manifest = JSON.parse(await readFile(shipped, "utf8")) as {
+      publishers: { terms: { reviewer?: unknown; basis?: unknown } }[];
+    };
+    delete manifest.publishers[0]!.terms.reviewer;
+    manifest.publishers[1]!.terms.basis = "unquoted";
     const problems = reviewProblems(
       manifest,
       policy,
-      at("2026-11-10T12:00:00Z"),
+      at("2026-11-15T12:00:00Z"),
     );
     expect(problems).toEqual([
       "www.cms.gov: terms reviewer must be OpenPlans maintainers",

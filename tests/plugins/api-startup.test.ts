@@ -99,6 +99,16 @@ const get = (
   headers: Record<string, string> = {},
 ) => fetch(`http://127.0.0.1:${port}${path}`, { headers });
 
+interface McpBody {
+  error?: unknown;
+  result?: {
+    isError?: boolean;
+    tools: { name: string }[];
+    structuredContent?: unknown;
+    content?: { text: string }[];
+  };
+}
+
 async function mcpCall(port: number, method: string, params: object) {
   const response = await fetch(`http://127.0.0.1:${port}/mcp`, {
     method: "POST",
@@ -124,11 +134,11 @@ async function mcpCall(port: number, method: string, params: object) {
     : (text.split("\n").find((line) => line.startsWith("data: ")) ?? "").slice(
         6,
       );
-  return { status: response.status, body: JSON.parse(json) };
+  return { status: response.status, body: JSON.parse(json) as McpBody };
 }
 
 const toolNames = async (port: number): Promise<string[]> =>
-  (await mcpCall(port, "tools/list", {})).body.result.tools.map(
+  (await mcpCall(port, "tools/list", {})).body.result!.tools.map(
     (tool: { name: string }) => tool.name,
   );
 
@@ -166,7 +176,7 @@ function stdioCall(
           .trim()
           .split("\n")
           .filter(Boolean)
-          .map((line) => JSON.parse(line)),
+          .map((line) => JSON.parse(line) as Record<string, unknown>),
         stderr: err,
         code,
       });
@@ -193,7 +203,7 @@ const getStatusResult = (body: {
   result?: { structuredContent?: unknown; content?: { text: string }[] };
 }) =>
   body.result?.structuredContent ??
-  JSON.parse(body.result?.content?.[0]?.text ?? "null");
+  (JSON.parse(body.result?.content?.[0]?.text ?? "null") as unknown);
 
 describe("the API server loads configured plugins at startup", () => {
   it("serves the status plugin's routes and get_status when OPENPLANS_PLUGINS names it", async () => {
@@ -283,7 +293,7 @@ describe("the API server loads configured plugins at startup", () => {
     expect(api.stdout()).toBe(`OpenPlans API listening on port ${api.port}\n`);
     // Only the MCP request log lines: no plugin or event line.
     for (const line of api.stderr().trim().split("\n"))
-      expect(Object.keys(JSON.parse(line))).toEqual([
+      expect(Object.keys(JSON.parse(line) as object)).toEqual([
         "tool",
         "status",
         "timing_ms",
@@ -459,7 +469,7 @@ describe("MCP stdio loads configured plugins at startup", () => {
       result.stderr
         .trim()
         .split("\n")
-        .map((line) => JSON.parse(line)),
+        .map((line) => JSON.parse(line) as unknown),
     ).toEqual([
       {
         plugin: "@openplans/plugin-does-not-exist-synthetic",

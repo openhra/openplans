@@ -65,7 +65,17 @@ const publicData = z.strictObject({
   years: z.array(z.number().int()).nullable(),
   status_counts: statusCounts.nullable(),
 });
-const publicSource = z.strictObject({ id: z.string(), freshness: bucket });
+/**
+ * `freshness` is how long ago OpenPlans retrieved the source, not whether the publisher has
+ * released something newer. `published_at` is the publisher's own date for the copy, null when
+ * the import recorded none; `published_from` says which record it came from.
+ */
+const publicSource = z.strictObject({
+  id: z.string(),
+  freshness: bucket,
+  published_at: z.iso.date().nullable(),
+  published_from: z.enum(["release_date", "last_modified"]).nullable(),
+});
 const publicIngest = z.strictObject({
   source: z.string(),
   last_success: bucket,
@@ -238,6 +248,8 @@ export function publicView(status: StatusData): PublicStatus {
       status.sources?.map((source) => ({
         id: source.id,
         freshness: ageBucket(source.retrieved, status.now),
+        published_at: source.published,
+        published_from: source.publishedFrom,
       })) ?? null,
     worker: {
       last_ingest:
@@ -288,6 +300,8 @@ export function operatorView(status: StatusData): OperatorStatus {
       status.sources?.map((source) => ({
         id: source.id,
         freshness: ageBucket(source.retrieved, status.now),
+        published_at: source.published,
+        published_from: source.publishedFrom,
         retrieved_at: iso(source.retrieved),
         snapshot_id: source.snapshotId,
       })) ?? null,

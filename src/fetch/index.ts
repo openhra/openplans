@@ -2,6 +2,7 @@ export { fetchTransient } from "./transient.js";
 export type {
   TransientFetchOptions,
   TransientFetchResult,
+  TransientValidators,
 } from "./transient.js";
 export { assertSnapshotAdmissible, fetchToCache } from "./cache.js";
 export { cmsFallbackEnabled, shippedManifestPaths } from "./shipped.js";

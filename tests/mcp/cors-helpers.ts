@@ -42,7 +42,9 @@ export async function corsRequest(kind: "JSON" | "SSE" | "error") {
     { name: "get_data_status", arguments: {} },
     { origin: allowedOrigin },
   );
-  const body = JSON.parse(await request.text());
+  const body = JSON.parse(await request.text()) as {
+    params: { _meta: unknown };
+  };
   body.params._meta = { ...metadata, progressToken: "synthetic-cors-progress" };
   return new Request(request.url, {
     method: "POST",

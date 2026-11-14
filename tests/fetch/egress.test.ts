@@ -338,9 +338,13 @@ describe("egress record from OPENPLANS_EGRESS_FILE", () => {
     });
     if (result.outcome === "not_modified") throw new Error("Expected snapshot");
     const metadata = await readFile(result.metadataPath, "utf8");
-    expect(JSON.parse(metadata).access_policy.hosts[0].egress).toEqual(
-      host.egress,
-    );
+    expect(
+      (
+        JSON.parse(metadata) as {
+          access_policy: { hosts: { egress: unknown }[] };
+        }
+      ).access_policy.hosts[0]!.egress,
+    ).toEqual(host.egress);
     expect(metadata).not.toContain(syntheticExitIp);
   });
 

@@ -18,7 +18,7 @@ export async function geoSetup() {
   );
   const provenance = JSON.parse(
     await readFile(new URL("./geo-provenance.json", import.meta.url), "utf8"),
-  );
+  ) as { cut_sha256: string; source: string; url: string };
   const sha256 = createHash("sha256").update(bytes).digest("hex");
   if (sha256 !== provenance.cut_sha256)
     throw new Error("Census cut hash mismatch");

@@ -87,7 +87,7 @@ describe("PUF acquired-manifest adapter and worker", () => {
           core.directory,
         ),
       ).toBe(0);
-      expect(JSON.parse(out[0]!).status).toBe("ACTIVE");
+      expect((JSON.parse(out[0]!) as { status: string }).status).toBe("ACTIVE");
       expect(errors).toEqual([]);
       const batchOut: string[] = [];
       expect(
@@ -101,14 +101,18 @@ describe("PUF acquired-manifest adapter and worker", () => {
           core.directory,
         ),
       ).toBe(0);
-      expect(batchOut.map((message) => JSON.parse(message))).toEqual([
-        expect.objectContaining({ state: "TX", status: "ACTIVE" }),
-        expect.objectContaining({
-          year: 2026,
-          passed: true,
-          results: [expect.objectContaining({ state: "TX", status: "ACTIVE" })],
-        }),
-      ]);
+      expect(batchOut.map((message) => JSON.parse(message) as unknown)).toEqual(
+        [
+          expect.objectContaining({ state: "TX", status: "ACTIVE" }),
+          expect.objectContaining({
+            year: 2026,
+            passed: true,
+            results: [
+              expect.objectContaining({ state: "TX", status: "ACTIVE" }),
+            ],
+          }),
+        ],
+      );
 
       // Negative control: never silently fall back to an older complete publication.
       await writeFile(

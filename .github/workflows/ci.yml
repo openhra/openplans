@@ -1,7 +1,11 @@
 {
   "name": "OpenPlans CI",
   "on": {
-    "push": null,
+    "push": {
+      "branches": [
+        "**"
+      ]
+    },
     "pull_request": null,
     "workflow_dispatch": null
   },
@@ -14,10 +18,49 @@
     }
   },
   "jobs": {
+    "dedupe": {
+      "name": "OpenPlans / same-commit check",
+      "runs-on": "ubuntu-24.04",
+      "timeout-minutes": 60,
+      "permissions": {
+        "actions": "read",
+        "contents": "read"
+      },
+      "outputs": {
+        "full": "${{ steps.decide.outputs.full }}",
+        "source_run": "${{ steps.decide.outputs.source_run }}"
+      },
+      "steps": [
+        {
+          "uses": "actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5",
+          "with": {
+            "persist-credentials": false
+          }
+        },
+        {
+          "uses": "actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020",
+          "with": {
+            "node-version-file": ".node-version"
+          }
+        },
+        {
+          "id": "decide",
+          "name": "Find a passing run of this commit",
+          "env": {
+            "GH_TOKEN": "${{ github.token }}"
+          },
+          "run": "node .github/check-required.mjs same-commit"
+        }
+      ]
+    },
     "linux": {
       "name": "OpenPlans / Linux",
       "runs-on": "ubuntu-24.04",
       "timeout-minutes": 45,
+      "needs": [
+        "dedupe"
+      ],
+      "if": "${{ needs.dedupe.outputs.full == 'true' }}",
       "steps": [
         {
           "uses": "actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5",
@@ -56,6 +99,10 @@
       "name": "OpenPlans / macOS shard ${{ matrix.shard }}",
       "runs-on": "macos-15-intel",
       "timeout-minutes": 45,
+      "needs": [
+        "dedupe"
+      ],
+      "if": "${{ needs.dedupe.outputs.full == 'true' }}",
       "strategy": {
         "fail-fast": false,
         "matrix": {
@@ -105,8 +152,9 @@
       "name": "OpenPlans / macOS",
       "runs-on": "ubuntu-24.04",
       "timeout-minutes": 5,
-      "if": "${{ always() }}",
+      "if": "${{ always() && needs.dedupe.outputs.full == 'true' }}",
       "needs": [
+        "dedupe",
         "macos-shard"
       ],
       "steps": [
@@ -135,6 +183,10 @@
       "name": "OpenPlans / Docker Linux",
       "runs-on": "ubuntu-24.04",
       "timeout-minutes": 20,
+      "needs": [
+        "dedupe"
+      ],
+      "if": "${{ needs.dedupe.outputs.full == 'true' }}",
       "steps": [
         {
           "uses": "actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5",
@@ -161,6 +213,10 @@
       "name": "OpenPlans / PostGIS",
       "runs-on": "ubuntu-24.04",
       "timeout-minutes": 20,
+      "needs": [
+        "dedupe"
+      ],
+      "if": "${{ needs.dedupe.outputs.full == 'true' }}",
       "steps": [
         {
           "uses": "actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5",
@@ -217,6 +273,7 @@
       "timeout-minutes": 5,
       "if": "${{ always() }}",
       "needs": [
+        "dedupe",
         "linux",
         "macos",
         "docker",

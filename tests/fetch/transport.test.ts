@@ -96,7 +96,8 @@ describe("native HTTPS transport (local servers only)", () => {
         context,
       );
       const chunks: Buffer[] = [];
-      for await (const chunk of response.body) chunks.push(Buffer.from(chunk));
+      for await (const chunk of response.body)
+        chunks.push(Buffer.from(chunk as Uint8Array));
       expect(response.status).toBe(200);
       expect(Buffer.concat(chunks).toString()).toBe("synthetic TLS body");
     } finally {

@@ -206,8 +206,10 @@ describe("SBE: real GA cuts, source normalization and protected state catalogs",
         )
       ).rows,
     );
-    const plan = JSON.parse(
-      await readFile(join(fixture, "provenance.json"), "utf8"),
+    const plan = (
+      JSON.parse(await readFile(join(fixture, "provenance.json"), "utf8")) as {
+        plans: [string, ...string[]];
+      }
     ).plans[0];
     const broken = await mutation(
       inputs,
@@ -302,7 +304,10 @@ describe("SBE: real GA cuts, source normalization and protected state catalogs",
         });
         expect(response.status).toBe(200);
         const bytes = await response.text();
-        expect(JSON.parse(bytes).quotes[0].status).toBe("rated");
+        expect(
+          (JSON.parse(bytes) as { quotes: [{ status: string }] }).quotes[0]
+            .status,
+        ).toBe("rated");
         out.push(bytes);
       }
       out.push(
@@ -472,7 +477,9 @@ it("worker bootstrap defaults an SBE-only request without --years to the publish
     },
   );
   expect(code).toBe(0);
-  const summary = JSON.parse(output.at(-1)!);
+  const summary = JSON.parse(output.at(-1)!) as {
+    steps: { id: string }[];
+  };
   expect(
     summary.steps.find(
       (step: { id: string }) => step.id === "sbe-acquire-GA-2026",

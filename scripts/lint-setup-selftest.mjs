@@ -39,7 +39,7 @@ for (const [filePath, sourceType] of [
 }
 for (const [path, text, rule] of [
   ["scripts/undefined.mjs", "console.log(missingRuntimeValue);", "no-undef"],
-  // Type-aware lint covers src, so these samples need paths that exist in the project.
+  // Type-aware lint covers src and tests, so these samples need paths that exist in the project.
   [
     "src/mcp/version.ts",
     'import { Stats } from "node:fs"; export type Entry = Stats;',
@@ -56,6 +56,16 @@ for (const [path, text, rule] of [
     "@typescript-eslint/no-unsafe-member-access",
   ],
   [
+    "tests/pglite.ts",
+    "export const field = (text: string): unknown => JSON.parse(text).field;",
+    "@typescript-eslint/no-unsafe-member-access",
+  ],
+  [
+    "plugins/status/tests/status.test.ts",
+    "export const field = (text: string): unknown => JSON.parse(text).field;",
+    "@typescript-eslint/no-unsafe-member-access",
+  ],
+  [
     "scripts/nested.mjs",
     "export const result = a ? b ? 1 : 2 : 3;",
     "no-nested-ternary",
@@ -66,7 +76,7 @@ for (const [path, text, rule] of [
     null,
   ],
   [
-    "tests/hidden-any.ts",
+    "tests/pglite.ts",
     "export type Body = ReturnType<typeof JSON.parse>;",
     "no-restricted-syntax",
   ],
@@ -81,15 +91,15 @@ for (const [path, text, rule] of [
 {
   const [result] = await eslint.lintText(
     "export type Text = ReturnType<typeof JSON.stringify>;\nexport type Clock = ReturnType<typeof Date.now>;",
-    { filePath: "tests/typed.ts" },
+    { filePath: "tests/pglite.ts" },
   );
   assert.deepEqual(result.messages, []);
 }
-// Type-aware rules skip tests, so this sample lints clean.
+// A parsed value read through a declared shape lints clean in tests.
 {
   const [result] = await eslint.lintText(
-    "export const field = (text: string): unknown => JSON.parse(text).field;",
-    { filePath: "tests/untyped.ts" },
+    "export const field = (text: string): unknown => (JSON.parse(text) as { field: unknown }).field;",
+    { filePath: "tests/pglite.ts" },
   );
   assert.deepEqual(result.messages, []);
 }
@@ -168,7 +178,8 @@ try {
   await rm(scratch, { recursive: true, force: true });
 }
 const legacyRule = "@typescript-eslint/no-explicit-any";
-const legacyPath = "tests/legacy.ts";
+// An existing test path: type-aware lint only parses files in the project.
+const legacyPath = "tests/pglite.ts";
 const legacyText = "export const legacy: any = 1;";
 const lintLegacy = async (source) =>
   findingsFromResults(await eslint.lintText(source, { filePath: legacyPath }));
@@ -227,10 +238,10 @@ expandedPolicy.entries[legacyPath].context_fingerprints = extraFindings
   .map((finding) => finding.contextFingerprint)
   .sort();
 const firstTest = await lintLegacy(
-  'import { it } from "vitest"; it("first", () => { const legacy: any = 1; return legacy; });',
+  'import { it } from "vitest"; it("first", () => { const legacy: any = 1; void legacy; });',
 );
 const movedTest = await lintLegacy(
-  'import { it } from "vitest"; it("second", () => { const legacy: any = 1; return legacy; });',
+  'import { it } from "vitest"; it("second", () => { const legacy: any = 1; void legacy; });',
 );
 assert.equal(firstTest[0].fingerprint, movedTest[0].fingerprint);
 assert.notEqual(
@@ -318,5 +329,5 @@ assert.throws(
   /Unapproved inline suppression/,
 );
 console.log(
-  `lint setup: PASS (undefined reference, type import, hidden any, unsafe any in src and plugins, nested ternary, stale disable, server globals, formatting, payload mutation, baseline expansion/replacement/staleness, moved statements and inline bypass rejected; ${current.fixture_sources.length} fixture sources selected)`,
+  `lint setup: PASS (undefined reference, type import, hidden any, unsafe any in src, plugins and tests, nested ternary, stale disable, server globals, formatting, payload mutation, baseline expansion/replacement/staleness, moved statements and inline bypass rejected; ${current.fixture_sources.length} fixture sources selected)`,
 );

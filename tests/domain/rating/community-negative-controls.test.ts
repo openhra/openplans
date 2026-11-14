@@ -85,7 +85,10 @@ process.stdout.write(JSON.stringify(householdPremium(input.rows,input.plan,input
       });
       expect(child.error).toBeUndefined();
       expect(child.status, child.stderr).toBe(0);
-      const mutant = JSON.parse(child.stdout);
+      const mutant = JSON.parse(child.stdout) as {
+        status: string;
+        totalCents: number | null;
+      };
       expect(mutant.status).toBe("rated");
       expect(() => assertNyUnsupported(mutant)).toThrow(
         /unsupported_rating_method/,

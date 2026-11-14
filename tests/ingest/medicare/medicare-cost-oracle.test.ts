@@ -891,7 +891,7 @@ describe("CMS worked examples through the HTTP route and the MCP tool", () => {
     );
     expect(response.status, oracle.id).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store");
-    return response.json();
+    return response.json() as Promise<EstimateAnswer>;
   }
   async function viaMcp(
     oracle: Oracle,
@@ -915,7 +915,9 @@ describe("CMS worked examples through the HTTP route and the MCP tool", () => {
     );
     expect(response.status, oracle.id).toBe(200);
     const body: { result: { structuredContent: ToolOutput } } =
-      await response.json();
+      await (response.json() as Promise<{
+        result: { structuredContent: ToolOutput };
+      }>);
     return body.result.structuredContent;
   }
 

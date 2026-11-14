@@ -235,7 +235,7 @@ it("MCP contract retains dental business rules, pediatric allocation and nonchar
   expect(output.data!.quotes[0]).toMatchObject({
     coverage: "dental",
     quote_method: "filed_dental_per_member",
-    dental_business_rules: [{ fields: expect.any(Array) }],
+    dental_business_rules: [{ fields: expect.any(Array) as unknown }],
     pediatric_ehb: { field: "EHBPediatricDentalApportionmentQuantity" },
   });
 });

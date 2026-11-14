@@ -41,6 +41,61 @@ export interface PassthroughRow {
   hitRate: number | null;
 }
 
+/** Where a source's publisher date came from. */
+export type PublishedFrom = "release_date" | "last_modified";
+
+export interface SourceRow {
+  id: string;
+  /** When OpenPlans downloaded this copy. */
+  retrieved: Date | null;
+  snapshotId: string;
+  /** The publisher's date for this copy, `YYYY-MM-DD`; null when none was recorded. */
+  published: string | null;
+  publishedFrom: PublishedFrom | null;
+}
+
+/** The snapshot columns a publisher date can come from, as the source query reads them. */
+export interface SnapshotDates {
+  /** `publisher_updated_at` as a calendar date: a release date, version date or data date. */
+  publisher_date: string | null;
+  /** The HTTP Last-Modified header the publisher's server sent with the file. */
+  last_modified: string | null;
+  /** The UTC calendar date of `retrieved_at`. */
+  retrieved_date: string | null;
+  schema_version: string | null;
+}
+
+const CALENDAR_DATE = /^\d{4}-\d{2}-\d{2}$/;
+// Medicare release snapshots imported before the fix stored the retrieval date as the release
+// date when the file name carried no date and the server sent no Last-Modified. That date is
+// ours, not the publisher's. New imports store null in that case; this guard covers older rows,
+// which are never rewritten.
+const RETRIEVAL_STANDS_IN = /^cms-medicare-/;
+
+/**
+ * The publisher's date for one snapshot, from what the import recorded. A release or data date
+ * comes first, then the Last-Modified header. Nothing is inferred: with neither, it is null.
+ */
+export function publisherDate(row: SnapshotDates): {
+  published: string | null;
+  publishedFrom: PublishedFrom | null;
+} {
+  const release = row.publisher_date;
+  const standIn =
+    RETRIEVAL_STANDS_IN.test(row.schema_version ?? "") &&
+    !row.last_modified &&
+    release === row.retrieved_date;
+  if (release && CALENDAR_DATE.test(release) && !standIn)
+    return { published: release, publishedFrom: "release_date" };
+  const modified = row.last_modified ? Date.parse(row.last_modified) : NaN;
+  if (!Number.isNaN(modified))
+    return {
+      published: new Date(modified).toISOString().slice(0, 10),
+      publishedFrom: "last_modified",
+    };
+  return { published: null, publishedFrom: null };
+}
+
 /** One read of everything the status page shows. Both serialisers work from this. */
 export interface StatusData {
   now: Date;
@@ -48,7 +103,7 @@ export interface StatusData {
   db: "ok" | "down";
   poolWaiting: number | null;
   availability: AvailabilityRow[] | null;
-  sources: { id: string; retrieved: Date | null; snapshotId: string }[] | null;
+  sources: SourceRow[] | null;
   ingests:
     | {
         source: string;
@@ -221,13 +276,22 @@ export async function readStatus(
 
   const sources = await read(async () => {
     const { rows } = await db.query(`
-      SELECT DISTINCT ON (source_id) source_id, retrieved_at, snapshot_id
+      SELECT DISTINCT ON (source_id) source_id, retrieved_at, snapshot_id,
+        publisher_updated_at::date::text AS publisher_date, last_modified, schema_version,
+        to_char(retrieved_at AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS retrieved_date
       FROM snapshot WHERE validation_state = 'ACTIVE'
       ORDER BY source_id, retrieved_at DESC NULLS LAST, snapshot_id`);
-    return rows.map((row) => ({
+    const text = (value: unknown) => (typeof value === "string" ? value : null);
+    return rows.map((row): SourceRow => ({
       id: String(row.source_id),
       retrieved: date(row.retrieved_at),
       snapshotId: String(row.snapshot_id),
+      ...publisherDate({
+        publisher_date: text(row.publisher_date),
+        last_modified: text(row.last_modified),
+        retrieved_date: text(row.retrieved_date),
+        schema_version: text(row.schema_version),
+      }),
     }));
   });
 

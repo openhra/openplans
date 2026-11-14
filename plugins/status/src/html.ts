@@ -29,14 +29,21 @@ p { margin: 0.5rem 0; }
 .muted { color: var(--muted); }
 .ok { color: var(--ok); font-weight: 600; }
 .down { color: var(--down); font-weight: 600; }
-dl { display: grid; grid-template-columns: max-content 1fr; gap: 0.25rem 1rem; margin: 0; }
+dl { display: grid; grid-template-columns: fit-content(50%) minmax(0, 1fr); gap: 0.25rem 1rem;
+  margin: 0; }
 dt { color: var(--muted); }
 dd { margin: 0; overflow-wrap: anywhere; }
 .table { overflow-x: auto; }
+.table:focus-visible { outline: 3px solid var(--fg); outline-offset: 2px; }
 table { border-collapse: collapse; width: 100%; }
 th, td { text-align: left; padding: 0.35rem 0.5rem; border-bottom: 1px solid var(--line);
-  vertical-align: top; overflow-wrap: anywhere; }
+  vertical-align: top; }
 th { font-weight: 600; }
+td.token { overflow-wrap: anywhere; }
+td.date { white-space: nowrap; }
+@media (max-width: 30rem) {
+  th, td { padding: 0.3rem 0.35rem; font-size: 0.875rem; }
+}
 pre { white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; font-size: 0.85rem; }
 a { color: inherit; }
 nav { margin: 0 0 0.75rem; }
@@ -76,30 +83,64 @@ const FRESHNESS: Record<string, string> = {
   older: "30 days or more",
   unknown: "unknown",
 };
-// The same buckets, worded to follow a count: "6 under 7 days old".
+// The same buckets for retrieval, worded to follow a count: "6 retrieved under 7 days ago".
 const COUNTED_AGE: Record<string, string> = {
-  "<1d": "under 1 day old",
-  "<7d": "under 7 days old",
-  "<30d": "under 30 days old",
-  older: "aged 30 days or more",
-  unknown: "of unknown age",
+  "<1d": "retrieved under 1 day ago",
+  "<7d": "retrieved under 7 days ago",
+  "<30d": "retrieved under 30 days ago",
+  older: "retrieved 30 days ago or more",
+  unknown: "retrieved at an unknown time",
 };
+
+/** What the two dates mean. A recent retrieval says nothing about the publisher's latest release. */
+export const DATES_EXPLAINED =
+  "Retrieved is when OpenPlans last downloaded a source and Published is the publisher's own " +
+  "date for that copy, so a source retrieved today can still hold data published months ago.";
+
+/** The family's publisher dates for its summary line: one date, a range, and how many are unknown. */
+function publishedSummary(dates: readonly (string | null)[]): string {
+  const known = dates.filter((d): d is string => d !== null).sort();
+  const missing = dates.length - known.length;
+  if (!known.length) return "publisher date unknown";
+  const first = known[0]!;
+  const last = known.at(-1)!;
+  const range =
+    first === last ? `published ${first}` : `published ${first} to ${last}`;
+  return missing ? `${range}, ${missing} unknown` : range;
+}
 const age = (bucket: string) => escapeHtml(FRESHNESS[bucket] ?? bucket);
+// A retrieval age under the "Retrieved" heading: "under 7 days ago".
+const retrievedAgo = (bucket: string) =>
+  bucket === "unknown" ? "unknown" : `${FRESHNESS[bucket] ?? bucket} ago`;
 
 function state(value: string) {
   const css = value === "ok" || value === "down" ? value : "muted";
   return `<span class="${css}">${escapeHtml(value)}</span>`;
 }
 
-function table(caption: string, head: string[], rows: unknown[][]): string {
+/**
+ * A table in a region that scrolls sideways on its own when it is wider than the screen, so
+ * the page never does. Words wrap only at spaces. `tokens` lists the columns that hold IDs,
+ * hashes, times or JSON. Only those cells may break inside a token. `dates` lists token columns
+ * that hold a calendar date: short enough to keep on one line, so "2026-10-30" never splits at
+ * a hyphen.
+ */
+function table(
+  caption: string,
+  head: string[],
+  rows: unknown[][],
+  tokens: readonly number[] = [],
+  dates: readonly number[] = [],
+): string {
   if (!rows.length) return `<p class="muted">${escapeHtml(caption)}: none.</p>`;
-  return `<div class="table"><table><caption class="muted">${escapeHtml(caption)}</caption>
+  const cell = (value: unknown, column: number) =>
+    tokens.includes(column)
+      ? `<td class="${dates.includes(column) ? "token date" : "token"}">${escapeHtml(value)}</td>`
+      : `<td>${escapeHtml(value)}</td>`;
+  return `<div class="table" role="region" tabindex="0" aria-label="${escapeHtml(caption)}"><table><caption class="muted">${escapeHtml(caption)}</caption>
 <thead><tr>${head.map((h) => `<th scope="col">${escapeHtml(h)}</th>`).join("")}</tr></thead>
 <tbody>${rows
-    .map(
-      (row) =>
-        `<tr>${row.map((cell) => `<td>${escapeHtml(cell)}</td>`).join("")}</tr>`,
-    )
+    .map((row) => `<tr>${row.map(cell).join("")}</tr>`)
     .join("\n")}</tbody></table></div>`;
 }
 
@@ -110,7 +151,14 @@ function table(caption: string, head: string[], rows: unknown[][]): string {
 function grouped(
   caption: string,
   head: string[],
-  rows: { id: string; freshness: string; cells: unknown[] }[],
+  rows: {
+    id: string;
+    freshness: string;
+    published: string | null;
+    cells: unknown[];
+  }[],
+  tokens: readonly number[],
+  dates: readonly number[],
 ): string {
   if (!rows.length) return `<p class="muted">${escapeHtml(caption)}: none.</p>`;
   const families = new Map<string, typeof rows>();
@@ -120,6 +168,7 @@ function grouped(
     families.get(family)!.push(row);
   }
   return `<p class="muted">${escapeHtml(caption)}: ${rows.length} from ${families.size} ${families.size === 1 ? "source" : "sources"}. Open a source to see each snapshot.</p>
+<p>${escapeHtml(DATES_EXPLAINED)}</p>
 ${[...families]
   .map(([family, members]) => {
     const buckets = Object.keys(COUNTED_AGE)
@@ -136,11 +185,14 @@ ${[...families]
       buckets.length === 1
         ? `${members.length === 1 ? "" : "all "}${buckets[0]![0]}`
         : buckets.map(([label, n]) => `${n} ${label}`).join(", ");
-    return `<details><summary>${escapeHtml(family)} <span class="muted">${escapeHtml(`${count}, ${ages}`)}</span></summary>
+    const published = publishedSummary(members.map((m) => m.published));
+    return `<details><summary>${escapeHtml(family)} <span class="muted">${escapeHtml(`${count}, ${ages}; ${published}`)}</span></summary>
 ${table(
   `${family} snapshots`,
   head,
   members.map((m) => m.cells),
+  tokens,
+  dates,
 )}</details>`;
   })
   .join("\n")}`;
@@ -221,26 +273,37 @@ ${operator ? `<dt>Waiting for a database connection</dt><dd>${escapeHtml(view.po
       operator
         ? grouped(
             "Active snapshots",
-            ["Source", "Age", "Retrieved", "Snapshot"],
+            ["Source", "Age", "Retrieved", "Published", "Snapshot"],
             (view as OperatorStatus).sources!.map((s) => ({
               id: s.id,
               freshness: s.freshness,
+              published: s.published_at,
               cells: [
                 s.id,
                 FRESHNESS[s.freshness],
                 s.retrieved_at ?? "unknown",
+                s.published_at ?? "unknown",
                 s.snapshot_id,
               ],
             })),
+            [0, 2, 3, 4],
+            [3],
           )
         : grouped(
             "Active snapshots",
-            ["Source", "Age"],
+            ["Source", "Retrieved", "Published"],
             view.sources.map((s) => ({
               id: s.id,
               freshness: s.freshness,
-              cells: [s.id, FRESHNESS[s.freshness]],
+              published: s.published_at,
+              cells: [
+                s.id,
+                retrievedAgo(s.freshness),
+                s.published_at ?? "unknown",
+              ],
             })),
+            [0, 2],
+            [2],
           ),
     );
   else parts.push(unknownSection("Sources"));
@@ -265,6 +328,7 @@ ${operator ? `<dt>Waiting for a database connection</dt><dd>${escapeHtml(view.po
               i.reason_codes.join(", ") || "none",
               i.durations_ms.join(", ") || "none",
             ]),
+            [0, 2, 3],
           )
         : table(
             "Last import per source",
@@ -273,6 +337,7 @@ ${operator ? `<dt>Waiting for a database connection</dt><dd>${escapeHtml(view.po
               i.source,
               FRESHNESS[i.last_success],
             ]),
+            [0],
           ),
     );
   else parts.push(unknownSection("Imports"));
@@ -305,6 +370,7 @@ ${operator ? `<dt>Waiting for a database connection</dt><dd>${escapeHtml(view.po
                 ? "unknown"
                 : `${Math.round(p.hit_rate * 100)}%`,
             ]),
+            [0, 6],
           )
         : table(
             "Daily budget",
@@ -315,6 +381,7 @@ ${operator ? `<dt>Waiting for a database connection</dt><dd>${escapeHtml(view.po
               p.budget,
               p.level,
             ]),
+            [0],
           ),
     );
   else parts.push(unknownSection("Pass-through sources"));
@@ -337,6 +404,7 @@ ${operator ? `<dt>Waiting for a database connection</dt><dd>${escapeHtml(view.po
           p.apiVersion ?? "unknown",
           p.sha256 ?? "unknown",
         ]),
+        [0, 3],
       ),
       "<h2>Health changes</h2>",
       view.health_transitions.history
@@ -349,6 +417,7 @@ ${operator ? `<dt>Waiting for a database connection</dt><dd>${escapeHtml(view.po
               h.to,
               h.at,
             ]),
+            [3],
           )
         : unknownSection("Health history"),
       "<h2>Recent events</h2>",
@@ -361,6 +430,7 @@ ${operator ? `<dt>Waiting for a database connection</dt><dd>${escapeHtml(view.po
               e.time,
               JSON.stringify(e.payload),
             ]),
+            [0, 1, 2],
           )
         : unknownSection("Events"),
     );

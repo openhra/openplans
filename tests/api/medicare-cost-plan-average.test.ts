@@ -215,7 +215,9 @@ const ask = async (
   deps: MedicareRouteDeps = medicareRouteDeps,
   body = schedule(),
 ): Promise<EstimateAnswer> =>
-  (await post(routerApp(loaded.db, deps), body)).json();
+  (
+    await post(routerApp(loaded.db, deps), body)
+  ).json() as Promise<EstimateAnswer>;
 
 /** The setting on and no prices loaded: the answer names why, and nothing is calculated. */
 async function noCalculationWithoutPrices(
@@ -338,9 +340,9 @@ describe("plan-average prices before they are loaded", () => {
 
   it("keeps cms_plan_average out of data-availability until prices are loaded", async () => {
     switches(true);
-    const body: AvailabilityBody = await (
+    const body = await ((
       await routerApp(loaded.db).request("/v1/medicare/data-availability")
-    ).json();
+    ).json() as Promise<AvailabilityBody>);
     const year = body.years.find((item) => item.contract_year === 2026);
     expect(year!.part_d_drug_cost_estimates).toMatchObject({
       price_basis: ["none"],
@@ -472,9 +474,9 @@ describe("plan-average prices once loaded", () => {
 
   it("lists cms_plan_average in data-availability only with the setting on, and hides the section with the estimator off", async () => {
     const section = async () => {
-      const body: AvailabilityBody = await (
+      const body = await ((
         await routerApp(loaded.db).request("/v1/medicare/data-availability")
-      ).json();
+      ).json() as Promise<AvailabilityBody>);
       return body.years.find((item) => item.contract_year === 2026)!
         .part_d_drug_cost_estimates;
     };

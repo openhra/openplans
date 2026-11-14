@@ -40,13 +40,21 @@ import plugin, {
   HISTORY_LIMIT,
   nextHealth,
   operatorStatusSchema,
+  operatorView,
   PLUGIN_NAME,
   publicStatusSchema,
   publicView,
+  publisherDate,
   renderStatusHtml,
   runHealthProbe,
 } from "../src/index.js";
-import type { HealthState, StatusData } from "../src/index.js";
+import type {
+  HealthState,
+  OperatorStatus,
+  PublicStatus,
+  StatusData,
+} from "../src/index.js";
+import type * as readModule from "../src/read.js";
 import type * as viewsModule from "../src/views.js";
 
 // Seeds are relative to the real clock, because the default plugin reads the time itself.
@@ -58,6 +66,8 @@ const readFile = fileURLToPath(new URL("../src/read.ts", import.meta.url));
 const shipped = fileURLToPath(
   new URL("../../../data/access/federal-publishers.json", import.meta.url),
 );
+// A synthetic Last-Modified header for the fresh source; the old source records none.
+const SYNTHETIC_LAST_MODIFIED = "Fri, 30 Oct 2026 13:15:27 GMT";
 const hoursAgo = (hours: number) =>
   new Date(NOW.getTime() - hours * 3_600_000).toISOString();
 
@@ -104,6 +114,8 @@ const PUBLIC_FIELDS = [
   "sources",
   "sources.*.id",
   "sources.*.freshness",
+  "sources.*.published_at",
+  "sources.*.published_from",
   "worker",
   "worker.last_ingest",
   "worker.last_ingest.*.source",
@@ -177,11 +189,13 @@ async function seed(target: Database) {
       ('synthetic-fresh', 'Synthetic publisher', 'synthetic'),
       ('synthetic-old', 'Synthetic publisher', 'synthetic');
     INSERT INTO snapshot (snapshot_id, source_id, sha256, retrieved_at, expected_children,
-        fetched_children, validation_state, activated_at, raw_path, requested_url) VALUES
+        fetched_children, validation_state, activated_at, raw_path, requested_url, last_modified) VALUES
       ('synthetic-fresh.1', 'synthetic-fresh', '${"a".repeat(64)}', '${hoursAgo(2)}', 0, 0,
-        'ACTIVE', '${hoursAgo(2)}', '/srv/synthetic/raw/fresh', 'https://synthetic.invalid/a'),
+        'ACTIVE', '${hoursAgo(2)}', '/srv/synthetic/raw/fresh', 'https://synthetic.invalid/a',
+        '${SYNTHETIC_LAST_MODIFIED}'),
       ('synthetic-old.1', 'synthetic-old', '${"b".repeat(64)}', '${hoursAgo(24 * 10)}', 0, 0,
-        'ACTIVE', '${hoursAgo(24 * 10)}', '/srv/synthetic/raw/old', 'https://synthetic.invalid/b');
+        'ACTIVE', '${hoursAgo(24 * 10)}', '/srv/synthetic/raw/old', 'https://synthetic.invalid/b',
+        NULL);
     INSERT INTO data_availability (state, plan_year, market, issuer_id, catalog_status,
         premium_status, provider_status, formulary_status, snapshot_id) VALUES
       ('TX', 2026, 'individual', '11111', 'available', 'available', 'partial', 'unknown', 'synthetic-fresh.1'),
@@ -243,7 +257,19 @@ async function registries(
 }
 
 /** The real host: route wrapper, response cache, core routes. Every JSON reply is column-checked. */
-async function app(options: { operator?: string; file?: string } = {}) {
+interface JsonResponse extends Response {
+  json<T = unknown>(): Promise<T>;
+}
+interface JsonApp {
+  request(
+    input: string,
+    init?: RequestInit,
+  ): JsonResponse | Promise<JsonResponse>;
+}
+
+async function app(
+  options: { operator?: string; file?: string } = {},
+): Promise<JsonApp> {
   return checkRouteResponses(
     createApp(
       db,
@@ -302,7 +328,7 @@ describe("@openplans/plugin-status", () => {
     const first = await api.request("/status.json");
     expect(first.status).toBe(200);
     expect(first.headers.get("x-cache")).toBe("miss");
-    const body = await first.json();
+    const body = await first.json<PublicStatus>();
     expect(hasExactlyPublicFields(body)).toBe(true);
     expect(publicStatusSchema.parse(body)).toEqual(body);
     expect(body).toMatchObject({
@@ -310,8 +336,18 @@ describe("@openplans/plugin-status", () => {
       db: "ok",
       data: { states: 2, years: [2025, 2026] },
       sources: [
-        { id: "synthetic-fresh", freshness: "<1d" },
-        { id: "synthetic-old", freshness: "<30d" },
+        {
+          id: "synthetic-fresh",
+          freshness: "<1d",
+          published_at: "2026-10-30",
+          published_from: "last_modified",
+        },
+        {
+          id: "synthetic-old",
+          freshness: "<30d",
+          published_at: null,
+          published_from: null,
+        },
       ],
       worker: {
         last_ingest: [
@@ -338,7 +374,7 @@ describe("@openplans/plugin-status", () => {
       plugins: 1,
       health_transitions: { last_change: "<7d" },
     });
-    expect(body.data.status_counts.catalog).toMatchObject({
+    expect(body.data.status_counts!.catalog).toMatchObject({
       available: 2,
       stale: 1,
     });
@@ -367,19 +403,21 @@ describe("@openplans/plugin-status", () => {
     expect(ok.status).toBe(200);
     expect(ok.headers.get("cache-control")).toBe("no-store");
     expect(ok.headers.get("x-cache")).toBe("bypass");
-    const body = await ok.json();
+    const body = await ok.json<OperatorStatus>();
     expect(operatorStatusSchema.parse(body)).toEqual(body);
     const paths = keyPaths(body);
     for (const field of OPERATOR_ONLY) expect(paths).toContain(field);
     for (const field of PUBLIC_FIELDS.filter((f) => !f.startsWith("plugins")))
       expect(paths).toContain(field);
-    expect(body.sources[0]).toEqual({
+    expect(body.sources![0]).toEqual({
       id: "synthetic-fresh",
       freshness: "<1d",
+      published_at: "2026-10-30",
+      published_from: "last_modified",
       retrieved_at: hoursAgo(2),
       snapshot_id: "synthetic-fresh.1",
     });
-    expect(body.worker.last_ingest[1].reason_codes).toEqual([
+    expect(body.worker.last_ingest![1]!.reason_codes).toEqual([
       "fetch_admission_denied",
     ]);
     expect(body.data.issuers).toHaveLength(3);
@@ -391,17 +429,19 @@ describe("@openplans/plugin-status", () => {
 
   it("never shows paths, hosts, mailboxes, row columns or credentials at either level", async () => {
     const api = await app({ operator: OPERATOR });
-    const publicBody = await (await api.request("/status.json")).json();
+    const publicBody = await (
+      await api.request("/status.json")
+    ).json<PublicStatus>();
     const operatorBody = await (
       await api.request("/status/operator.json", bearer(OPERATOR))
-    ).json();
+    ).json<OperatorStatus>();
     expect(leaks(publicBody)).toEqual([]);
     expect(leaks(operatorBody)).toEqual([]);
     // The seeded command carried a path; the operator view keeps the event but not the path.
-    const completed = operatorBody.events.recent.find(
+    const completed = operatorBody.events.recent!.find(
       (event: { type: string }) => event.type === "ingest.completed",
     );
-    expect(completed.payload.command).toEqual([
+    expect((completed!.payload as { command: string[] }).command).toEqual([
       "ingest",
       "puf",
       "import",
@@ -467,7 +507,15 @@ describe("@openplans/plugin-status", () => {
   it("escapes every value it prints", () => {
     const view = publicView(
       sample({
-        sources: [{ id: "<b>x</b>", retrieved: null, snapshotId: "s" }],
+        sources: [
+          {
+            id: "<b>x</b>",
+            retrieved: null,
+            snapshotId: "s",
+            published: null,
+            publishedFrom: null,
+          },
+        ],
       }),
     );
     const html = renderStatusHtml(view);
@@ -499,7 +547,9 @@ describe("@openplans/plugin-status", () => {
       // The kit app has no route wrapper, so compare with the real host's answer. The kit's
       // config turns the cache off and lists no plugins, and the kit has no core host;
       // everything else is the same read.
-      const route = await (await (await app()).request("/status.json")).json();
+      const route = await (
+        await (await app()).request("/status.json")
+      ).json<PublicStatus>();
       expect(output).toMatchObject({ cache: { enabled: false }, plugins: 0 });
       expect({
         ...(output as object),
@@ -510,8 +560,8 @@ describe("@openplans/plugin-status", () => {
         passthrough: (
           output as { passthrough: { enabled: boolean | null }[] }
         ).passthrough.map((row, i) => {
-          expect([null, route.passthrough[i].enabled]).toContain(row.enabled);
-          return { ...row, enabled: route.passthrough[i].enabled };
+          expect([null, route.passthrough![i]!.enabled]).toContain(row.enabled);
+          return { ...row, enabled: route.passthrough![i]!.enabled };
         }),
       }).toEqual(route);
     } finally {
@@ -566,7 +616,7 @@ describe("@openplans/plugin-status", () => {
             { db: down, signal: AbortSignal.timeout(5000) },
           ),
         ),
-      );
+      ) as PublicStatus;
       expect(body.db).toBe("down");
       expect(body.sources).toBeNull();
       expect(body.data).toEqual({
@@ -608,7 +658,15 @@ function sample(overrides: Partial<StatusData> = {}): StatusData {
     db: "ok",
     poolWaiting: null,
     availability: [],
-    sources: [{ id: "synthetic", retrieved: NOW, snapshotId: "synthetic.1" }],
+    sources: [
+      {
+        id: "synthetic",
+        retrieved: NOW,
+        snapshotId: "synthetic.1",
+        published: null,
+        publishedFrom: null,
+      },
+    ],
     ingests: [
       {
         source: "synthetic",
@@ -844,7 +902,10 @@ describe("host data from core", () => {
   /** The API database with a pool that reports waits; createApp's cache is keyed by it. */
   const pooled = (): Database => ({ ...db, poolWaiting: () => 2 });
 
-  async function hostedApp(target: Database, file = indexFile) {
+  async function hostedApp(
+    target: Database,
+    file = indexFile,
+  ): Promise<JsonApp> {
     return checkRouteResponses(
       createApp(
         target,
@@ -909,7 +970,7 @@ describe("host data from core", () => {
       bearer(OPERATOR),
     );
     expect(response.status).toBe(200);
-    const body = await response.json();
+    const body = await response.json<OperatorStatus>();
     expect(operatorStatusSchema.parse(body)).toEqual(body);
     expect(body.version).toBe(coreVersion);
     expect(body.pool).toEqual({ waiting: 2 });
@@ -926,21 +987,21 @@ describe("host data from core", () => {
     expect(body.plugins).toEqual([
       {
         name: PLUGIN_NAME,
-        version: "0.1.2",
+        version: "0.1.3",
         apiVersion: "0.1",
         sha256: sha,
         enabled: true,
       },
     ]);
     expect(identities(body.plugins)).toEqual(
-      identities([{ name: PLUGIN_NAME, version: "0.1.2", sha256: sha! }]),
+      identities([{ name: PLUGIN_NAME, version: "0.1.3", sha256: sha! }]),
     );
-    const pass = body.passthrough.find(
+    const pass = body.passthrough!.find(
       (row: { id: string }) => row.id === "synthetic-pass",
     );
-    expect(pass.hit_rate).toBe(0.5);
+    expect(pass!.hit_rate).toBe(0.5);
     // No loaded plugin serves synthetic-pass in this process.
-    expect(pass.enabled).toBe(false);
+    expect(pass!.enabled).toBe(false);
     expect(leaks(body)).toEqual([]);
     resetPassThrough();
   });
@@ -948,7 +1009,7 @@ describe("host data from core", () => {
   it("keeps the public view to the public fields when the host supplies everything", async () => {
     await countLookups();
     const api = await hostedApp(pooled());
-    const body = await (await api.request("/status.json")).json();
+    const body = await (await api.request("/status.json")).json<PublicStatus>();
     expect(hasExactlyPublicFields(body)).toBe(true);
     expect(body).toMatchObject({ version: coreVersion, plugins: 1 });
     expect(leaks(body)).toEqual([]);
@@ -994,8 +1055,8 @@ describe("host data from core", () => {
         await next();
       });
       app.get(route.path, route.handler as never);
-      const body = await (await app.request(route.path)).json();
-      expect(body.plugins).toEqual([
+      const body: unknown = await (await app.request(route.path)).json();
+      expect((body as OperatorStatus).plugins).toEqual([
         {
           name: "local plugin",
           version: null,
@@ -1004,8 +1065,8 @@ describe("host data from core", () => {
           enabled: true,
         },
       ]);
-      expect(body.pool.waiting).toBeNull();
-      expect(body.cache.hits).toBeNull();
+      expect((body as OperatorStatus).pool.waiting).toBeNull();
+      expect((body as OperatorStatus).cache.hits).toBeNull();
       expect(leaks(body)).toEqual([]);
     } finally {
       await loaded.close();
@@ -1020,7 +1081,7 @@ describe("host data from core", () => {
     );
     try {
       const views = (await import(mutant.path)) as typeof viewsModule;
-      const body = JSON.parse(
+      const body: unknown = JSON.parse(
         JSON.stringify(views.publicView(sample({ poolWaiting: 2 }))),
       );
       expect(hasExactlyPublicFields(body)).toBe(false);
@@ -1033,7 +1094,7 @@ describe("host data from core", () => {
   it("planted mutant: a wrong plugin hash fails the approved-list comparison", async () => {
     const sha = (await packageSha256(statusRoot))!;
     const approved = identities([
-      { name: PLUGIN_NAME, version: "0.1.2", sha256: sha },
+      { name: PLUGIN_NAME, version: "0.1.3", sha256: sha },
     ]);
     const read = await plantMutant(
       readFile,
@@ -1049,8 +1110,8 @@ describe("host data from core", () => {
       const api = await hostedApp(pooled(), index.path);
       const body = await (
         await api.request("/status/operator.json", bearer(OPERATOR))
-      ).json();
-      expect(body.plugins[0].sha256).toMatch(/^[a-f0-9]{64}$/);
+      ).json<OperatorStatus>();
+      expect(body.plugins[0]!.sha256).toMatch(/^[a-f0-9]{64}$/);
       expect(identities(body.plugins)).not.toEqual(approved);
     } finally {
       await index.cleanup();
@@ -1061,7 +1122,7 @@ describe("host data from core", () => {
       await (
         await hostedApp(pooled())
       ).request("/status/operator.json", bearer(OPERATOR))
-    ).json();
+    ).json<OperatorStatus>();
     expect(identities(body.plugins)).toEqual(approved);
   });
 });
@@ -1083,7 +1144,7 @@ describe("planted mutants", () => {
           plugins: await registries(mutant.path),
         },
       );
-      const body = await (await api.request("/status.json")).json();
+      const body: unknown = await (await api.request("/status.json")).json();
       expect(hasExactlyPublicFields(body)).toBe(false);
       expect(keyPaths(body)).toContain("sources.*.snapshot_id");
     } finally {
@@ -1102,7 +1163,9 @@ describe("planted mutants", () => {
     );
     try {
       const views = (await import(mutant.path)) as typeof viewsModule;
-      const body = JSON.parse(JSON.stringify(views.publicView(sample())));
+      const body: unknown = JSON.parse(
+        JSON.stringify(views.publicView(sample())),
+      );
       expect(hasExactlyPublicFields(body)).toBe(false);
       expect(views.publicStatusSchema.safeParse(body).success).toBe(false);
     } finally {
@@ -1132,6 +1195,223 @@ describe("planted mutants", () => {
       const response = await api.request("/status/operator.json");
       expect(response.status).toBe(200);
       expect(keyPaths(await response.json())).toContain("data.issuers");
+    } finally {
+      await mutant.cleanup();
+    }
+  });
+});
+
+// The public fields /status.json served before publisher dates, frozen. New fields may be added;
+// none of these may go or change meaning.
+const PUBLIC_FIELDS_0_1_3_BEFORE_DATES = PUBLIC_FIELDS.filter(
+  (field) => !field.startsWith("sources.*.published_"),
+);
+const PUBLISHED_FIELDS = ["sources.*.published_at", "sources.*.published_from"];
+
+/** No publisher date may come from anything but the publisher's own records. */
+function guessesNothing(date: typeof publisherDate): boolean {
+  const none = {
+    publisher_date: null,
+    last_modified: null,
+    retrieved_date: "2026-11-14",
+    schema_version: null,
+  };
+  return [
+    none,
+    { ...none, last_modified: "not a date" },
+    // A Medicare release snapshot imported before the fix, with no dated file name and no
+    // Last-Modified header, holds the retrieval date as its release date. Those rows stay.
+    {
+      ...none,
+      publisher_date: "2026-11-14",
+      schema_version: "cms-medicare-pbp",
+    },
+  ].every((row) => {
+    const result = date(row);
+    return result.published === null && result.publishedFrom === null;
+  });
+}
+
+describe("publisher dates", () => {
+  const SNAPSHOTS = ["synthetic-release.1", "synthetic-standin.1"];
+  async function withDatedSnapshots<T>(run: () => Promise<T>): Promise<T> {
+    // A dated release with a Last-Modified too, and a Medicare release whose stored date is
+    // only the retrieval date.
+    await db.exec(`
+      INSERT INTO source (source_id, publisher, source_kind) VALUES
+        ('synthetic-release', 'Synthetic publisher', 'synthetic'),
+        ('synthetic-standin', 'Synthetic publisher', 'synthetic');
+      INSERT INTO snapshot (snapshot_id, source_id, sha256, retrieved_at, expected_children,
+          fetched_children, validation_state, activated_at, publisher_updated_at, last_modified,
+          schema_version) VALUES
+        ('${SNAPSHOTS[0]}', 'synthetic-release', '${"c".repeat(64)}', '${hoursAgo(5)}', 0, 0,
+          'ACTIVE', '${hoursAgo(5)}', '2026-09-01', 'Tue, 12 Aug 2025 13:22:12 GMT',
+          'cms-medicare-landscape'),
+        ('${SNAPSHOTS[1]}', 'synthetic-standin', '${"d".repeat(64)}', '2026-11-14T15:00:00Z', 0, 0,
+          'ACTIVE', '2026-11-14T15:00:00Z', '2026-11-14', NULL, 'cms-medicare-pbp');`);
+    try {
+      return await run();
+    } finally {
+      await db.exec(`
+        DELETE FROM snapshot WHERE snapshot_id IN ('${SNAPSHOTS.join("','")}');
+        DELETE FROM source WHERE source_id IN ('synthetic-release', 'synthetic-standin');`);
+    }
+  }
+
+  it("reads unknown when the import recorded no publisher date, never a guess", async () => {
+    expect(guessesNothing(publisherDate)).toBe(true);
+    const body = await (
+      await (await app()).request("/status.json")
+    ).json<PublicStatus>();
+    expect(body.sources!.find((s) => s.id === "synthetic-old")).toEqual({
+      id: "synthetic-old",
+      freshness: "<30d",
+      published_at: null,
+      published_from: null,
+    });
+    const html = renderStatusHtml(body);
+    expect(html).toContain(
+      '<tr><td class="token">synthetic-old</td><td>under 30 days ago</td><td class="token date">unknown</td></tr>',
+    );
+    expect(html).toContain(
+      "1 snapshot, retrieved under 30 days ago; publisher date unknown",
+    );
+    const standIn = await withDatedSnapshots(async () =>
+      (
+        await (await (await app()).request("/status.json")).json<PublicStatus>()
+      ).sources!.find((s) => s.id === "synthetic-standin"),
+    );
+    expect(standIn).toMatchObject({ published_at: null, published_from: null });
+  });
+
+  it("shows the recorded release date first, then the Last-Modified date", async () => {
+    expect(
+      publisherDate({
+        publisher_date: "2026-09-01",
+        last_modified: "Tue, 12 Aug 2025 13:22:12 GMT",
+        retrieved_date: "2026-11-14",
+        schema_version: "rxnorm-rrf",
+      }),
+    ).toEqual({ published: "2026-09-01", publishedFrom: "release_date" });
+    // Last-Modified is read in UTC.
+    expect(
+      publisherDate({
+        publisher_date: null,
+        last_modified: "Sat, 31 Oct 2026 23:30:00 -0500",
+        retrieved_date: "2026-11-14",
+        schema_version: null,
+      }),
+    ).toEqual({ published: "2026-11-01", publishedFrom: "last_modified" });
+    const api = await app({ operator: OPERATOR });
+    const [body, operator] = await withDatedSnapshots(async () => [
+      await (await api.request("/status.json")).json<PublicStatus>(),
+      await (
+        await api.request("/status/operator.json", bearer(OPERATOR))
+      ).json<OperatorStatus>(),
+    ]);
+    expect(publicStatusSchema.parse(body)).toEqual(body);
+    expect(body.sources!.find((s) => s.id === "synthetic-release")).toEqual({
+      id: "synthetic-release",
+      freshness: "<1d",
+      published_at: "2026-09-01",
+      published_from: "release_date",
+    });
+    expect(
+      operator.sources!.find((s) => s.id === "synthetic-release"),
+    ).toMatchObject({ published_at: "2026-09-01", retrieved_at: hoursAgo(5) });
+    const html = renderStatusHtml(operator);
+    expect(html).toContain(
+      `<td class="token">${hoursAgo(5)}</td><td class="token date">2026-09-01</td>`,
+    );
+    expect(html).toContain(
+      "Published is the publisher&#39;s own date for that copy",
+    );
+  });
+
+  it("only adds fields: every earlier field keeps its name and meaning", async () => {
+    const api = await app({ operator: OPERATOR });
+    const body = await (await api.request("/status.json")).json<PublicStatus>();
+    const paths = keyPaths(body);
+    expect(
+      paths.filter((p) => !PUBLIC_FIELDS_0_1_3_BEFORE_DATES.includes(p)).sort(),
+    ).toEqual(PUBLISHED_FIELDS);
+    for (const field of PUBLIC_FIELDS_0_1_3_BEFORE_DATES)
+      expect(paths).toContain(field);
+    const operator = await (
+      await api.request("/status/operator.json", bearer(OPERATOR))
+    ).json<OperatorStatus>();
+    for (const field of ["id", "freshness", "retrieved_at", "snapshot_id"])
+      expect(Object.keys(operator.sources![0]!)).toContain(field);
+    // freshness is still the retrieval age: an old publisher date does not age a fresh copy.
+    const view = publicView(
+      sample({
+        sources: [
+          {
+            id: "synthetic",
+            retrieved: NOW,
+            snapshotId: "synthetic.1",
+            published: "2019-01-01",
+            publishedFrom: "release_date",
+          },
+        ],
+      }),
+    );
+    expect(view.sources![0]!.freshness).toBe("<1d");
+    expect(operatorView(sample()).sources![0]!.freshness).toBe("<1d");
+  });
+
+  it("planted mutant: falling back to the retrieval date is caught", async () => {
+    const mutant = await plantMutant(
+      readFile,
+      "return { published: null, publishedFrom: null };",
+      'return { published: row.retrieved_date, publishedFrom: "release_date" };',
+    );
+    try {
+      const read = (await import(mutant.path)) as typeof readModule;
+      expect(guessesNothing(read.publisherDate)).toBe(false);
+    } finally {
+      await mutant.cleanup();
+    }
+  });
+
+  it("planted mutant: ignoring the Medicare stand-in date is caught", async () => {
+    const mutant = await plantMutant(readFile, "&& !standIn)", ")");
+    try {
+      const read = (await import(mutant.path)) as typeof readModule;
+      expect(guessesNothing(read.publisherDate)).toBe(false);
+    } finally {
+      await mutant.cleanup();
+    }
+  });
+
+  it("planted mutant: freshness taken from the publisher date is caught", async () => {
+    const mutant = await plantMutant(
+      viewsFile,
+      `freshness: ageBucket(source.retrieved, status.now),
+        published_at: source.published,
+        published_from: source.publishedFrom,
+      })) ?? null,`,
+      `freshness: ageBucket(source.published ? new Date(source.published) : null, status.now),
+        published_at: source.published,
+        published_from: source.publishedFrom,
+      })) ?? null,`,
+    );
+    try {
+      const views = (await import(mutant.path)) as typeof viewsModule;
+      const view = views.publicView(
+        sample({
+          sources: [
+            {
+              id: "synthetic",
+              retrieved: NOW,
+              snapshotId: "synthetic.1",
+              published: "2019-01-01",
+              publishedFrom: "release_date",
+            },
+          ],
+        }),
+      );
+      expect(view.sources![0]!.freshness).not.toBe("<1d");
     } finally {
       await mutant.cleanup();
     }

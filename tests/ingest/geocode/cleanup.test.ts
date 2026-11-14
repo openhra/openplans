@@ -29,6 +29,12 @@ import { reused } from "../../../src/ingest/geocode/repository.js";
 import { createDatabase } from "../../../src/db/database.js";
 import type { Database } from "../../../src/db/database.js";
 
+type NonEmpty<T> = [T, ...T[]];
+interface ProvidersBody {
+  total: number;
+  providers: NonEmpty<{ addresses: NonEmpty<{ method: string }> }>;
+}
+
 const synthetic: Address = {
   npi: null,
   kind: "practice",
@@ -199,9 +205,9 @@ describe("cleanup retries and publication", () => {
           )
         ).rows[0]!.original_result,
       ).toMatchObject({ match_status: "No_Match", method: "zcta_centroid" });
-      const body = await (
+      const body = await ((
         await createApp(h.db).request("/v1/providers?zip=77002&radius_miles=10")
-      ).json();
+      ).json() as Promise<ProvidersBody>);
       expect(body.providers[0].addresses[0]).toMatchObject({
         geocode_label: "census_match_after_normalisation",
         method: "census_geocoder",
@@ -322,16 +328,16 @@ describe("optional operator geocoder", () => {
         const app = createApp(h.db),
           near = await app.request("/v1/providers?zip=77002&radius_miles=10");
         expect(near.status).toBe(200);
-        const body = await near.json();
+        const body = await (near.json() as Promise<ProvidersBody>);
         expect(body.providers[0].addresses[0]).toMatchObject({
           method: "operator_geocoder",
           latitude: point.latitude,
           precision: "operator_reported",
         });
         expect(near.headers.get("X-Cache")).toBe("bypass");
-        const far = await (
+        const far = await ((
           await app.request("/v1/providers?zip=77356&radius_miles=1")
-        ).json();
+        ).json() as Promise<ProvidersBody>);
         expect(far.total).toBe(0);
         expect(
           (await h.db.query("SELECT method FROM address_point")).rows,
@@ -488,9 +494,9 @@ describe("optional operator geocoder", () => {
         publicBefore,
       );
       process.env.OPENPLANS_API_CACHE = "on";
-      const cached = await (
+      const cached = await ((
         await createApp(h.db).request("/v1/providers?zip=77002&radius_miles=10")
-      ).json();
+      ).json() as Promise<ProvidersBody>);
       expect(cached.providers[0].addresses[0].method).toBe("zcta_centroid");
       process.env.OPENPLANS_API_CACHE = "off";
       expect(
@@ -503,9 +509,9 @@ describe("optional operator geocoder", () => {
       process.env.OPENPLANS_DATA_DIR = root;
       process.env.OPENPLANS_GEOCODER_STORE = "1";
       process.env.OPENPLANS_API_CACHE = "off";
-      const body = await (
+      const body = await ((
         await createApp(h.db).request("/v1/providers?zip=77002&radius_miles=10")
-      ).json();
+      ).json() as Promise<ProvidersBody>);
       expect(body.providers[0].addresses[0]).toMatchObject({
         latitude: point.latitude,
         method: "operator_geocoder",
@@ -553,9 +559,9 @@ describe("optional operator geocoder", () => {
         stored: 0,
       });
       process.env.OPENPLANS_GEOCODER_STORE = "0";
-      const fallback = await (
+      const fallback = await ((
         await createApp(h.db).request("/v1/providers?zip=77002&radius_miles=10")
-      ).json();
+      ).json() as Promise<ProvidersBody>);
       expect(fallback.providers[0].addresses[0]).toMatchObject({
         method: "zcta_centroid",
         geocode_label: "zcta_fallback",

@@ -1,14 +1,21 @@
-import { PGlite } from "@electric-sql/pglite";
 import { createHash } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { readFile, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { migrate } from "../../../src/db/migrate.js";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import type { Database } from "../../../src/db/database.js";
-import { coreMigrations, testDatabase } from "../../pglite.js";
+import { migratedTemplate } from "../../pglite.js";
 import { importNppes } from "../../../src/ingest/nppes/import.js";
 import type { ImportOptions } from "../../../src/ingest/nppes/import.js";
 import {
@@ -67,7 +74,15 @@ async function mutateMain(
       .join("\r\n") + "\r\n"
   );
 }
-let db: Database, directory: string, cleanup: () => Promise<void>;
+let db: Database, directory: string;
+// Every test gets its own copy of one migrated database.
+let template: Awaited<ReturnType<typeof migratedTemplate>>;
+beforeAll(async () => {
+  template = await migratedTemplate();
+});
+afterAll(async () => {
+  await template.close();
+});
 async function options(
   content = main,
   extra: Partial<ImportOptions> = {},
@@ -107,17 +122,13 @@ async function options(
   };
 }
 beforeEach(async () => {
-  db = testDatabase(new PGlite());
-  const core = await coreMigrations();
-  cleanup = core.cleanup;
-  await migrate(db, core.directory);
+  db = await template.fresh();
   directory = await mkdtemp(join(tmpdir(), "openplans-nppes-test-"));
   vi.stubEnv("OPENPLANS_DATA_DIR", directory);
 });
 afterEach(async () => {
   vi.unstubAllEnvs();
   await db?.close();
-  await cleanup?.();
   if (directory) await rm(directory, { recursive: true, force: true });
 });
 
@@ -136,7 +147,15 @@ describe("NPPES V2 public identity import", () => {
     const report = await importNppes(db, config);
     const native = await app.request(`/v1/providers/${npi}?year=2026`);
     expect(native.status).toBe(200);
-    const body = await native.json();
+    const body = await (native.json() as Promise<{
+      identity: {
+        npi: string;
+        snapshot_id: string;
+        addresses: { kind: string; state: string }[];
+      };
+      plan_participations: unknown;
+      provider_coverage: unknown;
+    }>);
     expect(body.identity.npi).toBe(npi);
     expect(body.identity.snapshot_id).toBe(report.snapshot_id);
     expect(
@@ -158,7 +177,9 @@ describe("NPPES V2 public identity import", () => {
     });
     const compat = await detail();
     expect(compat.status).toBe(200);
-    const mapped = await compat.json();
+    const mapped = await (compat.json() as Promise<{
+      provider: { npis: unknown[]; plan_participations: unknown };
+    }>);
     expect(mapped.provider.npis.map(String)).toContain(npi);
     expect(mapped.provider.plan_participations).toEqual([]);
   });

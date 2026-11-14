@@ -44,7 +44,9 @@ beforeAll(async () => {
   directory = await mkdtemp(join(tmpdir(), "openplans-ca-tobacco-"));
   migration = await coreMigrations();
   await migrate(db, migration.directory);
-  manifest = JSON.parse(await readFile(join(root, "provenance.json"), "utf8"));
+  manifest = JSON.parse(
+    await readFile(join(root, "provenance.json"), "utf8"),
+  ) as typeof manifest;
   const files: ImportFile[] = await Promise.all(
     IMPORT_KINDS.map(async (kind, at) => {
       const member = names[at]!,
@@ -237,7 +239,7 @@ it.each(caExamples)(
           method: "per_member",
           citation:
             medicalPolicy.CA_INDIVIDUAL_TOBACCO_POLICY.provenance.citation,
-          snapshot_id: expect.any(String),
+          snapshot_id: expect.any(String) as unknown,
         });
         expect(native.provenance.tobacco_policy).toEqual(
           medicalPolicy.CA_INDIVIDUAL_TOBACCO_POLICY,

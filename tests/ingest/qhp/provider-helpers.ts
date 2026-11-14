@@ -7,13 +7,47 @@ import { fileURLToPath } from "node:url";
 import { coreMigrations, testDatabase } from "../../pglite.js";
 import { migrate, migrationsDirectory } from "../../../src/db/migrate.js";
 import type { SqlSession, Database } from "../../../src/db/database.js";
+import type { NonEmpty, QhpCatalog } from "./formulary-helpers.js";
 
 export const scope = { issuer: "00010", state: "TX", year: 2026 };
 const fixtures = fileURLToPath(
   new URL("../../fixtures/qhp/provider/", import.meta.url),
 );
-export const fixture = async (name: string) =>
-  JSON.parse(await readFile(join(fixtures, `${name}.json`), "utf8"));
+export interface ProviderPlanEdge {
+  plan_id: string;
+  plan_id_type?: string;
+  network_tier: string;
+  years: number[];
+}
+export interface ProviderRecord {
+  get npi(): string;
+  set npi(value: string | null);
+  type?: string;
+  plans: ProviderPlanEdge[];
+  addresses: NonEmpty<Record<string, unknown>>;
+  name?: unknown;
+  facility_name?: unknown;
+  group_name?: unknown;
+  facility_type?: unknown;
+  speciality?: unknown;
+  specialty?: unknown;
+  accepting?: unknown;
+  last_updated_on?: string;
+}
+export interface ProviderPlanDefinition {
+  plan_id: string;
+  plan_id_type: string;
+  years: number[];
+  network: { network_tier: string }[];
+}
+export interface ProviderFixtures {
+  records: NonEmpty<ProviderRecord>;
+  plans: NonEmpty<ProviderPlanDefinition>;
+}
+export const fixture = async <K extends keyof ProviderFixtures>(name: K) =>
+  JSON.parse(
+    await readFile(join(fixtures, `${name}.json`), "utf8"),
+  ) as ProviderFixtures[K];
 export async function insert(
   db: SqlSession,
   table: string,
@@ -60,7 +94,7 @@ export async function setup(database?: Database) {
       new URL("../../fixtures/qhp/formulary/catalog.json", import.meta.url),
       "utf8",
     ),
-  );
+  ) as QhpCatalog;
   for (const plan of catalog.plans)
     await insert(db, "plan", { ...plan, snapshot_id: "catalog" });
   for (const variant of catalog.variants)

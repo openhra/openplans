@@ -439,13 +439,23 @@ it("partial/quarantined supplemental imports cannot displace a valid match", asy
   });
 });
 
+interface HiosRecord {
+  plan_name: string;
+  source_record: string;
+}
+interface HiosSource {
+  records: [HiosRecord, ...HiosRecord[]];
+}
+
 it("SBE-first import and reverse collisions preserve plan keys and make duplicate filed identities ambiguous", async () => {
   const artifact = JSON.parse(
     await readFile(
       new URL("../../fixtures/state/vt-2026.json", import.meta.url),
       "utf8",
     ),
-  );
+  ) as {
+    sources: [HiosSource, ...HiosSource[]];
+  };
   // SYNTHETIC extra filed design differing only by the documented normalization.
   const duplicate = structuredClone(artifact.sources[0].records[0]);
   duplicate.plan_name = "gold plan";

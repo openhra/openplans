@@ -25,18 +25,19 @@ export npm_config_offline=true
 export npm_config_audit=false
 export npm_config_fund=false
 # Workspace dist/ folders are gitignored, and install builds only the SDK (its `prepare`). Build the
-# SDK and then every plugin so a stale or missing dist never breaks lint, typecheck or tests.
-npm run build:plugins
+# SDK, every plugin and the app once, before anything else, so a stale or missing dist never breaks
+# lint, typecheck or tests. Every shard builds.
+npm run build
 if [ "$static" = true ]; then
   npm run format:check
   npm run lint
   npm run check:lint-setup
-  npm run typecheck
+  # --ignore-scripts skips the pretypecheck rebuild of the plugins; the build above made them.
+  npm run typecheck --ignore-scripts
   node scripts/check-neutral.mjs
   node scripts/check-publisher-review.mjs
   npm run check:extraction
 fi
-npm run build
 if [ -n "$shard" ]; then
   npm test -- --shard="$shard"
 else

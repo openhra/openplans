@@ -91,7 +91,7 @@ describe("transactional catalog generations", () => {
     expect(await (await app.request("/v1/cache-stats")).json()).toMatchObject({
       hits: 1,
       misses: 2,
-      bytes: expect.any(Number),
+      bytes: expect.any(Number) as unknown,
     });
   });
   it("rollbacks preserve generation; multiple statements increment once per table/transaction", async () => {

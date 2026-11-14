@@ -125,13 +125,24 @@ it("validates all observed PY2025 headers and rejects a renamed critical column"
       new URL("../../fixtures/puf/headers-2025.json", import.meta.url),
       "utf8",
     ),
-  );
+  ) as {
+    plan_year: number;
+    files: Record<
+      (typeof IMPORT_KINDS)[number],
+      { columns: string[]; sha256: string }
+    >;
+  };
   const previous = JSON.parse(
     await readFile(
       new URL("../../fixtures/puf/headers-2026-2027.json", import.meta.url),
       "utf8",
     ),
-  );
+  ) as {
+    files: Record<
+      (typeof IMPORT_KINDS)[number],
+      { "2026": { columns: string[] } }
+    >;
+  };
   expect(audit.plan_year).toBe(2025);
   expect(Object.keys(audit.files).sort()).toEqual([...IMPORT_KINDS].sort());
   for (const kind of IMPORT_KINDS) {

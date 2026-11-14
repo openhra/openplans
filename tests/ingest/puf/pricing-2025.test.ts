@@ -170,7 +170,10 @@ it("negative control: PY2026 rules and geography never price a PY2025 plan", asy
 });
 
 it("lists every PY2025 Exchange PUF state with cited PY2025 rules and keeps NY/VT unsupported", async () => {
-  const document = JSON.parse(await readFile(rules(2025), "utf8"));
+  const document = JSON.parse(await readFile(rules(2025), "utf8")) as {
+    plan_year: number;
+    rules: { state: string; method: string; citation: string }[];
+  };
   expect(document.plan_year).toBe(2025);
   const perMember = document.rules.filter(
     (r: { method: string }) => r.method === "per_member",
@@ -195,7 +198,7 @@ it("lists every PY2025 Exchange PUF state with cited PY2025 rules and keeps NY/V
   // Loading PY2025 leaves the PY2026 rule set in place.
   expect(await ratingRule(db, "TX", 2026, "individual")).toMatchObject({
     method: "per_member",
-    citation: expect.stringContaining("PY2026"),
+    citation: expect.stringContaining("PY2026") as string,
   });
 });
 

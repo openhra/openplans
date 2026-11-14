@@ -350,7 +350,7 @@ describe("pass-through `none` level (design 5.10.5)", () => {
           level: "none",
           served_from: "live",
           snapshot_id: null,
-        }),
+        }) as unknown,
       }),
       expect.objectContaining({ status: "listed_covered" }),
     ]);
@@ -435,7 +435,9 @@ describe("pass-through `none` level (design 5.10.5)", () => {
             ),
           ),
         );
-        planted = await import(/* @vite-ignore */ mutant.path);
+        planted = await (import(/* @vite-ignore */ mutant.path) as Promise<
+          Record<string, unknown>
+        >);
         const failed = broken(await run(await modules()));
         // Exactly the named points: a mutant that broke everything would prove nothing.
         expect(failed).toEqual(points);

@@ -39,6 +39,10 @@ import { fixtureFiles as geoFiles } from "../ingest/geo/helpers.js";
 import { coreMigrations, testDatabase } from "../pglite.js";
 import { post } from "./transport-helpers.js";
 
+interface CallBody {
+  result: { structuredContent: { data: unknown } };
+}
+
 const db = testDatabase(new PGlite());
 const now = () => Date.parse("2026-11-08T12:00:00Z");
 const granted = {
@@ -292,10 +296,10 @@ describe("MCP uses the existing public DTO cache", () => {
         { name: "lookup_geography", arguments: { zip: "77002" } },
         auth ? { Authorization: "Bearer synthetic-mcp-cache-bearer" } : {},
       );
-    const first = await (await app.fetch(request(true))).json();
-    const hit = await (await app.fetch(request())).json();
-    expect(hit.result.structuredContent.data).toEqual(
-      first.result.structuredContent.data,
+    const first: unknown = await (await app.fetch(request(true))).json();
+    const hit: unknown = await (await app.fetch(request())).json();
+    expect((hit as CallBody).result.structuredContent.data).toEqual(
+      (first as CallBody).result.structuredContent.data,
     );
     expect(logs.map((log) => log.cache)).toEqual(["miss", "hit"]);
     expect(JSON.stringify(writes)).not.toContain(env.OPENPLANS_MCP_TOKEN);
@@ -313,9 +317,9 @@ describe("MCP uses the existing public DTO cache", () => {
     });
     const downLogs: McpLog[] = [],
       down = createMcpHttp(db, { log: (log) => downLogs.push(log) });
-    const bypass = await (await down.fetch(request())).json();
-    expect(bypass.result.structuredContent.data).toEqual(
-      first.result.structuredContent.data,
+    const bypass: unknown = await (await down.fetch(request())).json();
+    expect((bypass as CallBody).result.structuredContent.data).toEqual(
+      (first as CallBody).result.structuredContent.data,
     );
     expect(downLogs[0]!.cache).toBe("bypass");
     expect(sharedResponseCache(db).stats()).toMatchObject({

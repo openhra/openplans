@@ -341,8 +341,10 @@ describe("PUF acquisition manifests", () => {
         file.members[0]?.issues.includes("missing_plan_identifier"),
       ),
     ).toBe(true);
-    const saved = JSON.parse(await readFile(result.manifestPath!, "utf8"));
-    expect(saved.files[0].members[0].issues).toEqual([
+    const saved = JSON.parse(await readFile(result.manifestPath!, "utf8")) as {
+      files: { members: { issues: string[] }[] }[];
+    };
+    expect(saved.files[0]!.members[0]!.issues).toEqual([
       "missing_plan_identifier",
     ]);
   });
@@ -512,7 +514,9 @@ describe("puf acquire worker branch", () => {
     expect(openDatabase).not.toHaveBeenCalled();
     expect(fetcher).toHaveBeenCalledTimes(1);
     expect(output.error).not.toHaveBeenCalled();
-    const result = JSON.parse(output.out.mock.calls[0]![0]);
+    const result = JSON.parse(output.out.mock.calls[0]![0] as string) as {
+      manifest: { files: { year: number }[] };
+    };
     expect(result.manifest.files).toHaveLength(8);
     expect(
       result.manifest.files.every(
@@ -530,14 +534,21 @@ describe("puf acquire worker branch", () => {
     vi.spyOn(fetchModule, "fetchToCache").mockImplementation(fetcher);
     const output = { out: vi.fn(), error: vi.fn() };
     expect(await runPufAcquire(["--year", "2026"], output)).toBe(1);
-    const result = JSON.parse(output.out.mock.calls[0]![0]);
+    const result = JSON.parse(output.out.mock.calls[0]![0] as string) as {
+      manifest: { files: { status: string }[] };
+      manifestPath: string;
+    };
     expect(
       result.manifest.files.filter(
         (file: { status: string }) => file.status === "ok",
       ),
     ).toHaveLength(7);
     expect(
-      JSON.parse(await readFile(result.manifestPath, "utf8")).files,
+      (
+        JSON.parse(await readFile(result.manifestPath, "utf8")) as {
+          files: unknown[];
+        }
+      ).files,
     ).toHaveLength(8);
   });
 

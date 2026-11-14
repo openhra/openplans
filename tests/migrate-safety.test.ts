@@ -20,7 +20,7 @@ import type { Database, SqlSession } from "../src/db/database.js";
 import { sizeEvidenceSql } from "../src/db/migration-size-evidence.js";
 const history: Record<string, string> = JSON.parse(
   await readFile(new URL("./migrate-history.json", import.meta.url), "utf8"),
-);
+) as Record<string, string>;
 
 const safe = [
   "CREATE TABLE synthetic (name text CHECK (name LIKE 'x%'));",
@@ -533,7 +533,7 @@ FROM partd_unit_cost u JOIN partd_pricing_release k ON k.snapshot_id = u.snapsho
           "SET LOCAL lock_timeout = '2s'",
         ]).toContain(sql);
       }),
-      query: vi.fn(async (sql) => {
+      query: vi.fn(async (sql: string) => {
         queries.push(sql);
         // Synthetic collector output for an empty database.
         return {

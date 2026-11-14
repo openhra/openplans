@@ -142,13 +142,18 @@ describe("fifteen closed MCP tool contracts (no transport)", () => {
     expect(toolNames).toEqual([...toolNames].sort());
     expect(toolNames).not.toContain("benchmark_silver");
     for (const tool of toolNames) {
-      const input = JSON.parse(JSON.stringify(validInputs[tool]));
+      const input = JSON.parse(JSON.stringify(validInputs[tool])) as Record<
+        string,
+        unknown
+      >;
       const inputCheck = validator.getValidator(inputJsonSchemas[tool])(input);
       expect(inputCheck.valid, `${tool}: ${JSON.stringify(inputCheck)}`).toBe(
         true,
       );
       parseToolInput(tool, input);
-      const output = JSON.parse(JSON.stringify(envelope(payloads[tool])));
+      const output = JSON.parse(
+        JSON.stringify(envelope(payloads[tool])),
+      ) as Record<string, unknown>;
       const outputCheck = validator.getValidator(outputJsonSchemas[tool])(
         output,
       );

@@ -27,7 +27,7 @@ function withId(request: Request, id: unknown, drop: string[] = []) {
   const headers = new Headers(request.headers);
   for (const name of drop) headers.delete(name);
   return (async () => {
-    const body = JSON.parse(await request.text());
+    const body = JSON.parse(await request.text()) as { id?: unknown };
     if (id === undefined) delete body.id;
     else body.id = id;
     return new Request(request.url, {
@@ -38,8 +38,11 @@ function withId(request: Request, id: unknown, drop: string[] = []) {
     });
   })();
 }
-async function errorBody(response: Response) {
-  const body = await response.json();
+interface JsonResponse extends Response {
+  json<T = unknown>(): Promise<T>;
+}
+async function errorBody(response: JsonResponse) {
+  const body = await response.json<Record<string, unknown>>();
   expect(body.jsonrpc).toBe("2.0");
   expect(body.error).toBeDefined();
   return body as { id: unknown; error: { code: number; message: string } };

@@ -16,6 +16,15 @@ import { fixture, zip, metadata } from "../../ingest/rxnorm/helpers.js";
 import { writeFile } from "node:fs/promises";
 import { coreMigrations, testDatabase } from "../../pglite.js";
 
+interface FixtureManifest {
+  files: {
+    kind: string;
+    cut_sha256: string;
+    url: string;
+    parts?: { file: string; sha256: string }[];
+  }[];
+}
+
 export const TOKEN = "synthetic-facade-test-token";
 export const BASE = "/compat/v1";
 export const searchBody = (extra = {}) => ({
@@ -41,11 +50,11 @@ export async function setup() {
   const root = fileURLToPath(new URL("./fixtures/", import.meta.url));
   const manifest = JSON.parse(
     await readFile(join(root, "provenance.json"), "utf8"),
-  );
+  ) as FixtureManifest;
   const files = [];
   for (const kind of IMPORT_KINDS) {
     let path = join(root, `${kind}.csv`);
-    const file = manifest.files.find((f: { kind: string }) => f.kind === kind);
+    const file = manifest.files.find((f: { kind: string }) => f.kind === kind)!;
     let bytes: Buffer;
     if (file.parts?.length) {
       const parts: Buffer[] = [];

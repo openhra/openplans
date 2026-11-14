@@ -67,6 +67,19 @@ export interface TransientFetchOptions extends Pick<
    * `maxRedirects: 0`, `maxAttempts: 1` and `deadlineMs` of at most 5000. Default `collection`.
    */
   purpose?: "collection" | "delivery";
+  /**
+   * Send the data request as HEAD and read no body: for checking a publisher's Last-Modified,
+   * ETag and Content-Length without transferring the file. Robots and terms reads stay GET.
+   * Not allowed with `requestBody`.
+   */
+  headOnly?: boolean;
+}
+/** Validators from a `headOnly` response, as the publisher sent them. */
+export interface TransientValidators {
+  lastModified?: string;
+  etag?: string;
+  contentLength?: string;
+  contentType?: string;
 }
 export interface TransientFetchResult {
   body: Buffer;
@@ -77,6 +90,8 @@ export interface TransientFetchResult {
   /** Redacted like the evidence: query values are removed. */
   finalUrl: string;
   redirectChain: string[];
+  /** Present only for a `headOnly` request. */
+  validators?: TransientValidators;
 }
 
 const defaultMaxBytes = 2 * 1024 ** 2;
@@ -225,6 +240,9 @@ function validateOptions(options: TransientFetchOptions): void {
             /^[\x20-\x7e]{1,512}$/.test(value),
         ))) ||
     ![undefined, "collection", "delivery"].includes(options.purpose) ||
+    ![undefined, true, false].includes(options.headOnly) ||
+    (options.headOnly === true &&
+      (options.requestBody !== undefined || options.purpose === "delivery")) ||
     (options.purpose === "delivery" &&
       (options.requestBody === undefined ||
         options.maxRedirects !== 0 ||
@@ -553,7 +571,7 @@ export async function fetchTransient(
           admission!.reserveRequest(url);
           const headers: Record<string, string> = {
             "accept-encoding": "identity",
-            "user-agent": `openplans/0.4.8 (public health-plan source discovery; +${projectUrl(options)})`,
+            "user-agent": `openplans/0.4.9 (public health-plan source discovery; +${projectUrl(options)})`,
           };
           if (!policy && options.expectedContent === "json")
             headers.accept = "application/json, */*;q=0.1";
@@ -579,6 +597,7 @@ export async function fetchTransient(
                   options.readTimeoutMs ?? 30_000,
                 ),
                 ...(upload && { method: "POST" as const, body: upload.body }),
+                ...(!policy && options.headOnly && { method: "HEAD" as const }),
               }),
               remaining(),
               (late) => {
@@ -644,14 +663,18 @@ export async function fetchTransient(
             response.status,
           );
         }
-        const body = await readBody(
-          response,
-          url,
-          cap,
-          policy ? cap : decodedLimit,
-          false,
-          policy,
-        );
+        const headOnly = !policy && options.headOnly === true;
+        // A HEAD answer has no body to read; its Content-Length names the file, not this reply.
+        const body = headOnly
+          ? Buffer.alloc(0)
+          : await readBody(
+              response,
+              url,
+              cap,
+              policy ? cap : decodedLimit,
+              false,
+              policy,
+            );
         if (!policy && !delivery)
           for (const destination of destinations)
             await wait(
@@ -666,6 +689,21 @@ export async function fetchTransient(
           headers: evidence.response_headers,
           finalUrl: evidence.final_url,
           redirectChain: [...evidence.redirect_chain],
+          ...(headOnly && {
+            validators: Object.fromEntries(
+              (
+                [
+                  ["lastModified", "last-modified"],
+                  ["etag", "etag"],
+                  ["contentLength", "content-length"],
+                  ["contentType", "content-type"],
+                ] as const
+              ).flatMap(([key, name]) => {
+                const value = header(response!.headers, name);
+                return value === undefined ? [] : [[key, value.slice(0, 256)]];
+              }),
+            ) as TransientValidators,
+          }),
         };
       } catch (error) {
         response?.body.destroy();

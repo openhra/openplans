@@ -145,13 +145,13 @@ function switches(partD: boolean, estimator: boolean) {
 async function rpc<T = unknown>(response: Response): Promise<T> {
   const text = await response.text();
   if (!response.headers.get("content-type")?.includes("text/event-stream"))
-    return JSON.parse(text);
+    return JSON.parse(text) as T;
   const line = text
     .split("\n")
     .filter((l) => l.startsWith("data:"))
     .map((l) => l.slice(5).trim())
     .find((l) => l.includes('"jsonrpc"'));
-  return JSON.parse(line!);
+  return JSON.parse(line!) as T;
 }
 
 class SpyStore extends MemoryCache {
@@ -352,7 +352,7 @@ describe("estimate_medicare_drug_costs over the fixture Part D files", () => {
       },
     );
     expect(route.status).toBe(200);
-    const routeBody = await route.json();
+    const routeBody: unknown = await route.json();
 
     const response = await mcpApp({ OPENPLANS_MCP_TOKEN: MCP_TOKEN }).fetch(
       call(bearer),
@@ -391,7 +391,9 @@ describe("estimate_medicare_drug_costs over the fixture Part D files", () => {
     expect(fill.figures.patient_pay.reason).toBeTruthy();
     expect(output.status).toBe("unknown");
     expect(JSON.stringify(output)).not.toMatch(/not[ _-]?covered/i);
-    expect(() => assertEstimateHonest(output, routeBody)).not.toThrow();
+    expect(() =>
+      assertEstimateHonest(output, routeBody as DrugCostEstimate),
+    ).not.toThrow();
   });
 
   it("matches the service called directly, unsupported scenarios included", async () => {
@@ -440,9 +442,10 @@ describe("estimate_medicare_drug_costs over the fixture Part D files", () => {
     ).not.toContain(MEDICARE_ESTIMATE_TOOL);
     const notConfigured = await open.fetch(call());
     expect(notConfigured.status).toBe(503);
-    expect((await notConfigured.json()).error.message).toBe(
-      "AUTH_NOT_CONFIGURED",
-    );
+    expect(
+      ((await notConfigured.json()) as { error: { message: string } }).error
+        .message,
+    ).toBe("AUTH_NOT_CONFIGURED");
 
     const app = mcpApp({ OPENPLANS_MCP_TOKEN: MCP_TOKEN });
     for (const extra of [
@@ -589,7 +592,7 @@ describe("estimate_medicare_drug_costs over the fixture Part D files", () => {
     const output = result.structuredContent as ToolOutput;
     if (output.error) return false;
     try {
-      assertEstimateHonest(output, JSON.parse(text));
+      assertEstimateHonest(output, JSON.parse(text) as DrugCostEstimate);
     } catch {
       return false;
     }

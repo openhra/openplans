@@ -23,6 +23,18 @@ import {
   expectCorsHeaders,
 } from "./cors-helpers.js";
 const quiet = () => {};
+interface RpcMessage {
+  jsonrpc: string;
+  id?: number;
+  method?: string;
+  params?: unknown;
+  result: {
+    isError?: boolean;
+    structuredContent: { data: { loaded: boolean } };
+    tools: { name: string }[];
+    nextCursor?: string;
+  };
+}
 
 describe("HTTP transport official clients", () => {
   const db = testDatabase(new PGlite());
@@ -73,7 +85,7 @@ describe("HTTP transport official clients", () => {
   it("acknowledges notifications without session headers", async () => {
     const app = createMcpHttp(db, { env: {}, log: quiet });
     const request = post("notifications/initialized");
-    const message = JSON.parse(await request.text());
+    const message = JSON.parse(await request.text()) as { id?: unknown };
     delete message.id;
     const response = await app.fetch(
       new Request(request.url, {
@@ -105,7 +117,9 @@ describe("HTTP transport official clients", () => {
         name: "get_data_status",
         arguments: {},
       });
-      const body = JSON.parse(await request.text());
+      const body = JSON.parse(await request.text()) as {
+        params: { _meta?: Record<string, unknown> };
+      };
       body.params._meta = {
         ...(legacy ? {} : body.params._meta),
         progressToken: "synthetic-blocked-progress",
@@ -138,12 +152,12 @@ describe("HTTP transport official clients", () => {
           const messages = text
             .split("\n")
             .filter((line) => line.startsWith("data: "))
-            .map((line) => JSON.parse(line.slice(6)));
+            .map((line) => JSON.parse(line.slice(6)) as RpcMessage);
           expect(messages.some((message) => "id" in message)).toBe(false);
           expect(
             messages.find(
               (message) => message.method === "notifications/progress",
-            ).params,
+            )!.params,
           ).toMatchObject({
             progressToken: "synthetic-blocked-progress",
             progress: 0,
@@ -169,10 +183,10 @@ describe("HTTP transport official clients", () => {
         const result = final
           .split("\n")
           .filter((line) => line.startsWith("data: "))
-          .map((line) => JSON.parse(line.slice(6)))
+          .map((line) => JSON.parse(line.slice(6)) as RpcMessage)
           .find((message) => message.id === 1)?.result;
         expect(result).toBeDefined();
-        expect(result.isError).not.toBe(true);
+        expect(result!.isError).not.toBe(true);
       } finally {
         clearTimeout(timer);
         release();
@@ -192,14 +206,14 @@ describe("HTTP transport official clients", () => {
     const messages = (await response.text())
       .split("\n")
       .filter((line) => line.startsWith("data: "))
-      .map((line) => JSON.parse(line.slice(6)));
+      .map((line) => JSON.parse(line.slice(6)) as RpcMessage);
     expect(
       messages.some((message) => message.method === "notifications/progress"),
     ).toBe(true);
     const result = messages.find((message) => message.id === 1)?.result;
     expect(result).toBeDefined();
-    expect(result.isError).not.toBe(true);
-    expect(result.structuredContent.data.loaded).toBe(false);
+    expect(result!.isError).not.toBe(true);
+    expect(result!.structuredContent.data.loaded).toBe(false);
   });
 });
 
@@ -210,11 +224,11 @@ it.each([undefined, "SIGTERM", "SIGINT"] as const)(
     const messages = output
       .trim()
       .split("\n")
-      .map((line) => JSON.parse(line));
+      .map((line) => JSON.parse(line) as RpcMessage);
     expect(messages.every((m) => m.jsonrpc === "2.0")).toBe(true);
     expect(
       messages
-        .find((m) => m.id === 2)
+        .find((m) => m.id === 2)!
         .result.tools.some((t: { name: string }) =>
           ["quote_premiums", "check_ichra_affordability"].includes(t.name),
         ),
@@ -227,8 +241,8 @@ it("stdio personalized grant is explicit", async () => {
   const messages = output
     .trim()
     .split("\n")
-    .map((line) => JSON.parse(line));
-  const result = messages.find((m) => m.id === 2).result;
+    .map((line) => JSON.parse(line) as RpcMessage);
+  const result = messages.find((m) => m.id === 2)!.result;
   expect(result.tools.map((t: { name: string }) => t.name)).toEqual(toolNames);
   expect(result.nextCursor).toBeUndefined();
 });
@@ -244,7 +258,7 @@ it("mounts MCP without applying its Host/Origin checks to REST health", async ()
     }),
   );
   expect(response.status).toBe(200);
-  expect((await response.json()).status).toBe("ok");
+  expect(((await response.json()) as { status: string }).status).toBe("ok");
   expect((await app.fetch(post())).status).toBe(200);
   expect(
     (

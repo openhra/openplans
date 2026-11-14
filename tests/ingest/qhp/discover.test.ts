@@ -13,10 +13,16 @@ import { Readable } from "node:stream";
 import { createServer, request } from "node:http";
 import { createServer as createTcpServer } from "node:net";
 import type { AddressInfo, Socket } from "node:net";
-import { PGlite } from "@electric-sql/pglite";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { coreMigrations, testDatabase } from "../../pglite.js";
-import { migrate } from "../../../src/db/migrate.js";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+} from "vitest";
+import { migratedTemplate } from "../../pglite.js";
 import type { Database } from "../../../src/db/database.js";
 import { discoverQhp } from "../../../src/ingest/qhp/discover.js";
 import {
@@ -32,18 +38,21 @@ import { runWorker } from "../../../src/worker/commands.js";
 import { workbook } from "../../fixtures/qhp/generate.mjs";
 import { syntheticZip } from "../../fixtures/fetch/generate.mjs";
 
-let directory: string,
-  db: Database,
-  migration: Awaited<ReturnType<typeof coreMigrations>>;
+let directory: string, db: Database;
+// Every test gets its own copy of one migrated database.
+let template: Awaited<ReturnType<typeof migratedTemplate>>;
+beforeAll(async () => {
+  template = await migratedTemplate();
+});
+afterAll(async () => {
+  await template.close();
+});
 beforeEach(async () => {
   directory = await mkdtemp(join(tmpdir(), "openplans-qhp-"));
-  db = testDatabase(new PGlite());
-  migration = await coreMigrations();
-  await migrate(db, migration.directory);
+  db = await template.fresh();
 });
 afterEach(async () => {
   await db.close();
-  await migration.cleanup();
   await rm(directory, { recursive: true, force: true });
 });
 async function registry(rows: string[][]): Promise<RegistryInput> {
@@ -373,7 +382,7 @@ describe("registry-first QHP discovery", () => {
         identities.every(
           (value) =>
             value ===
-            "openplans/0.4.8 (public health-plan source discovery; +https://project.example/openplans)",
+            "openplans/0.4.9 (public health-plan source discovery; +https://project.example/openplans)",
         ),
       ).toBe(true);
       expect(
@@ -482,7 +491,7 @@ describe("registry-first QHP discovery", () => {
         },
         body: Readable.from([]),
       }),
-    }).catch((error) => error);
+    }).catch((error: unknown) => error);
     expect(error).toMatchObject({
       code: "embedded_credentials",
       evidence: { attempts: 1 },
@@ -633,7 +642,7 @@ describe("registry-first QHP discovery", () => {
         ),
         "utf8",
       ),
-    );
+    ) as { fixture_sha256: string };
     expect(createHash("sha256").update(bytes).digest("hex")).toBe(
       provenance.fixture_sha256,
     );

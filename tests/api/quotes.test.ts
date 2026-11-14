@@ -538,11 +538,14 @@ describe("no request values in any log line (negative control 4)", () => {
     expect(failed.status).toBe(500);
     expect(await failed.text()).not.toMatch(/77002|synthetic-invalid-value/);
     expect(spies[1]).toHaveBeenCalledTimes(1);
-    const entry = JSON.parse(spies[1]!.mock.calls[0]![0]);
+    const entry = JSON.parse(spies[1]!.mock.calls[0]![0] as string) as Record<
+      string,
+      unknown
+    >;
     expect(entry).toEqual({
       event: "api_internal_error",
       error_class: "Error",
-      stack_hash: expect.stringMatching(/^[a-f0-9]{64}$/),
+      stack_hash: expect.stringMatching(/^[a-f0-9]{64}$/) as unknown,
     });
     expect(logged(spies.filter((_spy, index) => index !== 1))).toEqual([]);
     // Short numeric sentinels can occur by chance inside a SHA-256 digest.

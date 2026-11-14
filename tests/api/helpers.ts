@@ -7,6 +7,10 @@ import { readCsv } from "../../src/ingest/csv/index.js";
 import type { ImportFile } from "../../src/ingest/puf/import.js";
 import { IMPORT_KINDS } from "../../src/ingest/puf/import-source.js";
 
+interface CutManifest {
+  files: { kind: string; cut_sha256: string; url: string }[];
+}
+
 /** Join two unmodified real source cuts from the same acquired CMS archives. */
 export async function fixtureFiles(
   directory: string,
@@ -18,7 +22,7 @@ export async function fixtureFiles(
   const extra = fileURLToPath(new URL("./fixtures/", import.meta.url));
   const provenance = JSON.parse(
     await readFile(join(extra, "provenance.json"), "utf8"),
-  );
+  ) as CutManifest;
   const result: ImportFile[] = [];
   for (const kind of IMPORT_KINDS) {
     const records: Record<string, string>[] = [];
@@ -26,10 +30,10 @@ export async function fixtureFiles(
       const data = await readFile(join(folder, `${kind}.csv`));
       const manifest = JSON.parse(
         await readFile(join(folder, "provenance.json"), "utf8"),
-      );
+      ) as CutManifest;
       expectHash(
         data,
-        manifest.files.find((f: { kind: string }) => f.kind === kind)
+        manifest.files.find((f: { kind: string }) => f.kind === kind)!
           .cut_sha256,
       );
       for await (const row of readCsv(Readable.from([data])))
@@ -54,7 +58,7 @@ export async function fixtureFiles(
       sha256: createHash("sha256").update(data).digest("hex"),
       bytes: data.length,
       retrievedAt: "2026-11-07T07:33:40.115Z",
-      url: provenance.files.find((f: { kind: string }) => f.kind === kind).url,
+      url: provenance.files.find((f: { kind: string }) => f.kind === kind)!.url,
     });
   }
   return result;

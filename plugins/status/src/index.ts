@@ -36,8 +36,20 @@ export {
   runHealthProbe,
 } from "./probe.js";
 export type { Component, Health, HealthEntry, HealthState } from "./probe.js";
-export { CMS_FALLBACK_ID, readStatus, redactLocations } from "./read.js";
-export type { PluginEntry, StatusData, StatusHost } from "./read.js";
+export {
+  CMS_FALLBACK_ID,
+  publisherDate,
+  readStatus,
+  redactLocations,
+} from "./read.js";
+export type {
+  PluginEntry,
+  PublishedFrom,
+  SnapshotDates,
+  SourceRow,
+  StatusData,
+  StatusHost,
+} from "./read.js";
 export { applicationVersion } from "./version.js";
 export {
   ageBucket,
@@ -50,7 +62,7 @@ export {
 export type { OperatorStatus, PublicStatus } from "./views.js";
 
 export const PLUGIN_NAME = "@openplans/plugin-status";
-export const PLUGIN_VERSION = "0.1.2";
+export const PLUGIN_VERSION = "0.1.3";
 export const PUBLIC_TTL_SECONDS = 30;
 export const PROBE_ARGV = ["status-page", "health-probe"] as const;
 
@@ -139,7 +151,8 @@ export function createStatusPlugin(
         title: "Service status",
         description:
           "Returns the public status summary that /status.json serves: version, database state, " +
-          "coverage counts by status, source age buckets, last import age per source, cache on " +
+          "coverage counts by status, source retrieval age buckets with each source's publisher date " +
+          "when one was recorded, last import age per source, cache on " +
           "or off, pass-through budget state, plugin count and the age of the last health change.",
         inputSchema: z.strictObject({}),
         outputSchema: publicStatusSchema,

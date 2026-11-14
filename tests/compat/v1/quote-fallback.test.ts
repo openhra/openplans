@@ -131,7 +131,7 @@ beforeEach(async () => {
       )!,
       "utf8",
     ),
-  );
+  ) as { publishers: { terms: { sha256: string } }[] };
   manifest.publishers[0]!.terms.sha256 = createHash("sha256")
     .update(docs)
     .digest("hex");
@@ -721,7 +721,12 @@ it.each(
           `/v1/plans/${plan}/${kind}s/${code}?year=2026`,
         );
         expect(single.status).toBe(200);
-        assertCell(await single.json(), kind);
+        assertCell(
+          await (single.json() as Promise<
+            ProviderParticipation | DrugCoverage
+          >),
+          kind,
+        );
         const batch = await api.request(`/v1/${route}`, {
           method: "POST",
           headers,

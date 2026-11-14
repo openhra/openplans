@@ -212,7 +212,9 @@ beforeAll(async () => {
   );
   expect(result.error).toBeUndefined();
   expect(result.status, result.stderr).toBe(0);
-  prepared = JSON.parse(result.stdout.trim().split("\n").at(-1)!);
+  prepared = JSON.parse(
+    result.stdout.trim().split("\n").at(-1)!,
+  ) as typeof prepared;
 }, 90_000);
 afterAll(async () => {
   await db.close();
@@ -221,7 +223,9 @@ afterAll(async () => {
 });
 
 async function variant(name: string, change: (value: Artifact) => void) {
-  const value = JSON.parse(await readFile(prepared.artifact, "utf8"));
+  const value = JSON.parse(
+    await readFile(prepared.artifact, "utf8"),
+  ) as Artifact;
   change(value);
   const path = join(directory, `${name}.json`);
   await writeFile(path, JSON.stringify(value));
@@ -358,7 +362,9 @@ it("import (synthetic): a refused issuer is priced from SBE with provenance; mis
     cross_check: { compared_keys: 2, matched_cells: 16 },
     unknown_plans: [{ plan_id: "22222NY0000002" }],
   });
-  expect(JSON.parse(notes[0]!.explanation).note).toContain("operator decision");
+  expect(
+    (JSON.parse(notes[0]!.explanation) as { note: string }).note,
+  ).toContain("operator decision");
 });
 
 it("import (synthetic): refuses when the switch is off, unverified, for an admitted issuer, or when the cross-check fails", async () => {
@@ -406,7 +412,9 @@ it("import (synthetic): refuses when the switch is off, unverified, for an admit
         (v.rate_source_overrides!.cross_check.matched_cells = 15),
     ],
   ] as const) {
-    const value = JSON.parse(await readFile(prepared.artifact, "utf8"));
+    const value = JSON.parse(
+      await readFile(prepared.artifact, "utf8"),
+    ) as Artifact;
     change(value);
     expect(() => parseStateArtifact(JSON.stringify(value)), label).toThrow();
   }
@@ -415,9 +423,9 @@ it("import (synthetic): refuses when the switch is off, unverified, for an admit
       new URL("../../fixtures/state/vt-2026.json", import.meta.url),
       "utf8",
     ),
-  );
-  vt.rate_source_overrides = JSON.parse(
-    await readFile(prepared.artifact, "utf8"),
+  ) as Artifact;
+  vt.rate_source_overrides = (
+    JSON.parse(await readFile(prepared.artifact, "utf8")) as Artifact
   ).rate_source_overrides;
   expect(() => parseStateArtifact(JSON.stringify(vt))).toThrow(
     "NY publications only",

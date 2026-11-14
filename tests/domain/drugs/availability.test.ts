@@ -27,7 +27,7 @@ it("normalizes only disambiguated NDC layouts, retaining every leading zero", ()
 });
 it("requires validation after a new discovery before permitting not_listed", async () => {
   const drugs = await fixture("drugs"),
-    plan = h.catalog.plans[0].base_plan_id;
+    plan = h.catalog.plans[0]!.base_plan_id;
   await h.replace(drugs);
   await importFormulary(h.db, scope);
   expect((await drugAvailability(h.db, scope))[0]?.status).toBe("complete");
@@ -40,7 +40,7 @@ it("requires validation after a new discovery before permitting not_listed", asy
     "unknown",
   );
   expect(
-    (await drugCoverage(h.db, plan, drugs[0].rxnorm_id, 2026)).status,
+    (await drugCoverage(h.db, plan, drugs[0]!.rxnorm_id, 2026)).status,
   ).toBe("listed_covered");
 });
 it("exposes partial and failed manifests, preserving actual validated shard counts", async () => {

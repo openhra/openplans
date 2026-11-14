@@ -220,7 +220,7 @@ it("round-trips the real gross premium trace and rejects a one-cent fabrication 
     error: null,
     data: { quotes: [projected], bindable_quote: false },
   };
-  const wire = JSON.parse(JSON.stringify(output));
+  const wire = JSON.parse(JSON.stringify(output)) as unknown;
   expect(outputSchemas.quote_premiums.parse(wire)).toEqual(wire);
   assertHonest("quote_premiums", wire, canonical);
   // A structurally valid and plausible cent still fails against canonical service evidence.

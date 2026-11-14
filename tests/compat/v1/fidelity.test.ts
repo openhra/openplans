@@ -10,6 +10,7 @@ import { afterAll, beforeAll, expect, it } from "vitest";
 import { createApp } from "../../../src/api/app.js";
 import { orderPlans, pageWindow } from "../../../src/compat/v1/search.js";
 import { ingestGeoNames } from "../../../src/ingest/geo/geonames.js";
+import type { SnapshotMetadata } from "../../../src/fetch/index.js";
 import { BASE, headers, searchBody, setup } from "./helpers.js";
 
 interface ZipCountiesPage {
@@ -31,7 +32,7 @@ beforeAll(async () => {
       new URL("../../fixtures/geo/geonames-manifest.json", import.meta.url),
       "utf8",
     ),
-  );
+  ) as { fixture_sha256: string; original_snapshot: SnapshotMetadata };
   const path = new URL(
     "../../fixtures/geo/geonames-us-cut.tsv",
     import.meta.url,
@@ -216,7 +217,9 @@ it("negative controls: removing the cap, skipping page records, reverting the de
         },
       }).outputText,
     );
-    const fn = createRequire(import.meta.url)(path)[entry];
+    const fn = (
+      createRequire(import.meta.url)(path) as Record<string, unknown>
+    )[entry];
     expect(() => (contract as (fn: unknown) => void)(fn), name).toThrow();
   }
 });
@@ -266,7 +269,7 @@ it("uses public Census display labels for postal fallback counties and retains s
     if (zip === "77001") {
       expect(body.zip_counties[0]).toMatchObject({
         source: "geonames",
-        attribution: expect.any(Object),
+        attribution: expect.any(Object) as unknown,
       });
       expect(response.headers.get("Link")).toContain(
         "https://www.geonames.org/",
@@ -274,7 +277,7 @@ it("uses public Census display labels for postal fallback counties and retains s
       const native = await h.app.request(`/v1/zip-counties?zip=${zip}`);
       expect(await native.json()).toMatchObject({
         source: "geonames",
-        attribution: expect.any(Object),
+        attribution: expect.any(Object) as unknown,
       });
     }
   }

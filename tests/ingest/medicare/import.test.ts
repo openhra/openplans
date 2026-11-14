@@ -60,6 +60,25 @@ describe("Medicare import from real CMS cuts (CY2026)", () => {
     expect(pbp.plan_area_employer_group_skipped).toBe(3);
   });
 
+  it("stores a publisher date only from a dated file name; the rest stay unknown", async () => {
+    // The fixture transport sends no Last-Modified header.
+    const { rows } = await loaded.db.query<{
+      as_of_label: string;
+      publisher_date: string | null;
+    }>(
+      `SELECT r.as_of_label,s.publisher_updated_at::date::text AS publisher_date
+       FROM medicare_release r JOIN snapshot s USING(snapshot_id) ORDER BY r.family,r.as_of_label`,
+    );
+    expect(rows.map((row) => [row.as_of_label, row.publisher_date])).toEqual([
+      ["2026", null],
+      ["202609", "2026-09-01"],
+      ["2026", null],
+      ["ma-2026-10", "2026-10-01"],
+      ["pdp-2026-10", "2026-10-01"],
+      ["2026", null],
+    ]);
+  });
+
   it("keeps published money and star cells exactly, including a negative basic premium", async () => {
     const { rows } = await loaded.db.query<{ cells: Record<string, string> }>(
       "SELECT cells FROM medicare_plan WHERE contract_id='S4802' AND plan_id='155'",

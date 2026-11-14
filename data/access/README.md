@@ -9,8 +9,9 @@ manifest clears the host.
 
 | Host | State | Used for | Pacing | Per-session caps |
 | --- | --- | --- | --- | --- |
-| www.cms.gov | allowed | PUF and state-based PUF landing pages, state rating-area pages, PY2026 state-based PUF archives | 10 s | 20 requests, 256 MiB |
+| www.cms.gov | allowed | PUF and state-based PUF landing pages, state rating-area pages, PY2026 state-based PUF archives, the loaded CY2026 and CY2027 Medicare plan archives and their listing pages | 10 s | 20 requests, 256 MiB |
 | download.cms.gov | allowed | Exchange PUFs PY2025, PY2026 and PY2027, NPPES files | 5 s | 20 requests, 2 GiB |
+| data.cms.gov | allowed | Part D formulary, pharmacy network and pricing files: the loaded CY2026 quarterly and CY2027 monthly archives and their dataset listings | 10 s | 10 requests, 256 MiB |
 | www2.census.gov | allowed | ZCTA to county relationship file, ZCTA Gazetteer, county outlines (2024 cartographic boundary file) | 30 s | 10 requests, 64 MiB |
 | geocoding.geo.census.gov | allowed | Census batch geocoder (POST uploads) | 5 s | 10 requests, 32 MiB |
 | download.nlm.nih.gov | robots-disallowed | RxNorm Current Prescribable Content | none | none |
@@ -21,7 +22,11 @@ manifest clears the host.
 | www.nucc.org | terms-restricted | NUCC taxonomy, which needs the operator's own terms review | none | none |
 
 Every cleared entry lists exact permitted paths. The NPPES file names change with each release,
-so `/nppes/` is the one directory entry. Each terms entry names its reviewer and quotes the
+so `/nppes/` is the one directory entry. A host has one entry, so the Medicare paths on www.cms.gov
+share the Exchange PUF disclaimer as the pinned terms document; their basis adds the CMS.gov
+public-domain statement. The data.cms.gov entry rests on the 2023 Agreement for Use. Its 256 MiB
+cap is enough to check freshness but not to download the 2 GB Part D archives, so collecting those
+still takes an operator manifest. Each terms entry names its reviewer and quotes the
 publisher text it relies on. download.cms.gov and geocoding.geo.census.gov answer robots.txt with
 a direct 404, which means no robots rules; the manifest records the country that was observed
 from. Receipts record the collecting installation's `OPENPLANS_EGRESS_COUNTRY`, which does not

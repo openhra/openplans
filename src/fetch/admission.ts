@@ -275,7 +275,7 @@ function assertNotHtml(document: PolicyDocument): void {
 }
 
 /** `permittedPaths` match a path or its descendants, so `/feed` does not admit `/feed-other`. */
-function permitsPath(publisher: PublisherPolicy, url: URL): boolean {
+export function permitsPath(publisher: PublisherPolicy, url: URL): boolean {
   return publisher.permittedPaths.some(
     (path) =>
       url.pathname === path ||

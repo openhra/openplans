@@ -65,7 +65,7 @@ describe("response middleware policy and canonical keys", () => {
     let collect: () => void;
     setFlagsFromString("--expose_gc");
     try {
-      collect = runInNewContext("gc");
+      collect = runInNewContext("gc") as () => void;
     } finally {
       setFlagsFromString("--no-expose_gc");
     }

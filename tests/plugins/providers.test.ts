@@ -214,7 +214,7 @@ describe("refusal at load", () => {
       const before = currentRegistries();
       const result = await load(settings, []);
       expect(result.exit).toBe(1);
-      expect(result.lines.map((line) => JSON.parse(line))).toEqual([
+      expect(result.lines.map((line) => JSON.parse(line) as unknown)).toEqual([
         { plugin: CORE_PLUGIN_NAME, code: "plugin_provider_unknown", reason },
       ]);
       expect(currentRegistries()).toBe(before);

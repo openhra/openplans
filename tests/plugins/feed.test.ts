@@ -164,7 +164,7 @@ const stagedRows = async () =>
       "SELECT item_code, snapshot_id, sourced_by, sourced_slug, sourced_at::text FROM synthetic_feed_item ORDER BY item_code",
     )
   ).rows;
-const failure = () => err.map((line) => JSON.parse(line)).at(-1);
+const failure = () => err.map((line) => JSON.parse(line) as unknown).at(-1);
 
 beforeAll(async () => {
   scratch = await mkdtemp(join(tmpdir(), "openplans-synthetic-feed-"));
@@ -208,7 +208,7 @@ describe("feed source lifecycle", () => {
     expect(await ingest("happy")).toBe(0);
     const [snapshot] = await snapshots();
     expect(snapshot).toMatchObject({ validation_state: "ACTIVE" });
-    expect(out.map((line) => JSON.parse(line))).toEqual([
+    expect(out.map((line) => JSON.parse(line) as unknown)).toEqual([
       {
         source: "synthetic-feed",
         snapshot_ids: [snapshot!.snapshot_id],

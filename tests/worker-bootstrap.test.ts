@@ -285,22 +285,31 @@ describe("one-command bootstrap", () => {
       ).toBe(0);
       expect(open).not.toHaveBeenCalled();
       expect(await readdir(directory)).toEqual([]);
-      const records = out.lines.map((line) => JSON.parse(line));
+      const records = out.lines.map(
+        (line) =>
+          JSON.parse(line) as {
+            id?: string;
+            estimated_download_bytes?: unknown;
+            depends_on?: string[];
+            passed?: boolean;
+            steps: { id: string; status: string }[];
+          },
+      );
       expect(
-        records.find((row) => row.id === "puf-acquire-2026")
+        records.find((row) => row.id === "puf-acquire-2026")!
           .estimated_download_bytes,
       ).toBe("unknown");
       expect(
-        records.find((row) => row.id === "geo-DE-2026")
+        records.find((row) => row.id === "geo-DE-2026")!
           .estimated_download_bytes,
       ).toBe("unknown");
       expect(
-        records.find((row) => row.id === "qhp-formulary-TX-2027").depends_on,
+        records.find((row) => row.id === "qhp-formulary-TX-2027")!.depends_on,
       ).toContain("rxnorm");
       expect(
-        records.find((row) => row.id === "nppes-DE-weekly").depends_on,
+        records.find((row) => row.id === "nppes-DE-weekly")!.depends_on,
       ).toContain("nppes-DE-full");
-      expect(records.at(-1).passed).toBe(true);
+      expect(records.at(-1)!.passed).toBe(true);
       expect(records.find((row) => row.id === "taxonomy")).toMatchObject({
         status: "skipped",
         reason: "opt_in_required",
@@ -308,7 +317,7 @@ describe("one-command bootstrap", () => {
       });
       expect(
         records
-          .at(-1)
+          .at(-1)!
           .steps.filter((step: { id: string }) => step.id !== "taxonomy")
           .every((step: { status: string }) => step.status === "planned"),
       ).toBe(true);
@@ -551,11 +560,15 @@ describe("one-command bootstrap", () => {
         core.directory,
       );
       expect(code).toBe(1);
-      const summary = JSON.parse(out.lines.at(-1)!);
+      const summary = JSON.parse(out.lines.at(-1)!) as {
+        failed: string[];
+        blocked: string[];
+        steps: { id: string; status: string }[];
+      };
       expect(summary.failed).toEqual(["puf-acquire-2026"]);
       expect(summary.blocked).toEqual(["puf-TX-2026"]);
       expect(
-        summary.steps.find((step: { id: string }) => step.id === "geo-TX-2026")
+        summary.steps.find((step: { id: string }) => step.id === "geo-TX-2026")!
           .status,
       ).toBe("completed");
       expect((await db.query("SELECT state FROM geo_import")).rows).toEqual([
@@ -708,7 +721,7 @@ describe("one-command bootstrap", () => {
         evidence: { imported: 1, skipped_issuers: ["99999"] },
       });
       expect(batch.mock.calls[0]![2]).toMatchObject({
-        fetcher: expect.any(Function),
+        fetcher: expect.any(Function) as unknown,
         skipIssuers: ["99999"],
       });
       const generic = await bootstrapPlan(
@@ -720,9 +733,12 @@ describe("one-command bootstrap", () => {
       await expect(
         generic.find((step) => step.id === "qhp-providers-TX-2026")!.run(),
       ).rejects.toThrow("qhp_incomplete_check_coverage_manifest");
-      const georgia = JSON.parse(await readFile(path, "utf8"));
+      const georgia = JSON.parse(await readFile(path, "utf8")) as {
+        scopes: unknown;
+        provider_feeds: { state: string }[];
+      };
       georgia.scopes = [{ state: "GA", year: 2026 }];
-      georgia.provider_feeds[0].state = "GA";
+      georgia.provider_feeds[0]!.state = "GA";
       await writeFile(path, JSON.stringify(georgia));
       const graph = await bootstrapPlan(
         parseBootstrapOptions([
@@ -931,7 +947,11 @@ describe("one-command bootstrap", () => {
     );
     const provenance = JSON.parse(
       await readFile(join(fixtures, "provenance.json"), "utf8"),
-    );
+    ) as {
+      source: string;
+      deactivation_source: string;
+      labels: { out_of_state: string; secondary_tx_only: string };
+    };
     try {
       // Labelled synthetic FL primary locations on public fixture rows. One also has
       // a real TX secondary practice: both states must observe that shared identity.
@@ -949,7 +969,7 @@ describe("one-command bootstrap", () => {
           [
             provenance.labels.out_of_state,
             provenance.labels.secondary_tx_only,
-          ].includes(row[0])
+          ].includes(row[0]!)
         )
           row[stateColumn] = "FL";
       const main =

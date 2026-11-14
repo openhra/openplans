@@ -153,7 +153,7 @@ describe("native v1 catalog, geography and provenance", () => {
     expect((await search("zip=75034&year=2026")).json).toMatchObject({
       status: "ambiguous",
       plans: [],
-      location: { counties: expect.any(Array) },
+      location: { counties: expect.any(Array) as unknown },
     });
     expect(
       (await search("zip=75034&county=48085&year=2026")).response.status,
@@ -179,7 +179,10 @@ describe("native v1 catalog, geography and provenance", () => {
     expect(plan).toMatchObject({
       variant_ids: [expect.stringMatching(/^87226TX0100013-\d\d$/)],
       issuer: { issuer_id: "87226" },
-      network: { network_id: expect.any(String), status: "available" },
+      network: {
+        network_id: expect.any(String) as unknown,
+        status: "available",
+      },
       on_exchange: true,
       provenance: { snapshot_ids: { "plan-attributes": attributes, rate } },
     });
@@ -249,10 +252,10 @@ describe("native v1 catalog, geography and provenance", () => {
     });
     expect(detail.variants[0]!.benefits).toHaveLength(5);
     expect(detail.variants[0]!.benefits[0]).toMatchObject({
-      cost_sharing_raw: expect.any(Object),
-      cost_sharing_parsed: expect.any(Object),
-      raw: expect.any(Object),
-      snapshot_id: expect.any(String),
+      cost_sharing_raw: expect.any(Object) as unknown,
+      cost_sharing_parsed: expect.any(Object) as unknown,
+      raw: expect.any(Object) as unknown,
+      snapshot_id: expect.any(String) as unknown,
     });
     const variant = await app.request(
       `/v1/plans/${detail.variant_ids[0]}?year=2026`,
@@ -323,7 +326,10 @@ describe("native v1 household gross premiums", () => {
       rate_rows_used: [
         {
           age_band: 35,
-          provenance: { snapshot_id: rate, source_row: expect.any(Number) },
+          provenance: {
+            snapshot_id: rate,
+            source_row: expect.any(Number) as unknown,
+          },
         },
       ],
     });
@@ -423,7 +429,9 @@ describe("native v1 household gross premiums", () => {
   });
 
   it("negative control: removing TX from the file makes its premium unsupported with no total", async () => {
-    const document = JSON.parse(await readFile(defaultRulesFile, "utf8"));
+    const document = JSON.parse(await readFile(defaultRulesFile, "utf8")) as {
+      rules: unknown[];
+    };
     document.rules = [];
     const path = join(directory, "synthetic-rules-without-tx.json");
     await writeFile(path, JSON.stringify(document));
@@ -567,7 +575,10 @@ describe("native v1 household gross premiums", () => {
       const response = await app.request(url);
       expect(response.status, url).toBe(400);
       expect(await response.json()).toMatchObject({
-        error: { code: expect.any(String), field: expect.any(String) },
+        error: {
+          code: expect.any(String) as unknown,
+          field: expect.any(String) as unknown,
+        },
       });
     }
     for (const invalid of [
@@ -599,7 +610,10 @@ describe("native v1 household gross premiums", () => {
       const { response, json } = await estimate(invalid);
       expect(response.status).toBe(400);
       expect(json).toMatchObject({
-        error: { code: expect.any(String), field: expect.any(String) },
+        error: {
+          code: expect.any(String) as unknown,
+          field: expect.any(String) as unknown,
+        },
       });
     }
     expect(

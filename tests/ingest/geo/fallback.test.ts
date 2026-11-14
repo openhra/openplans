@@ -45,7 +45,11 @@ let directory: string,
 async function cutFile(): Promise<GeoFile> {
   const manifest = JSON.parse(
     await readFile(join(fixtureDirectory, "geonames-manifest.json"), "utf8"),
-  );
+  ) as {
+    filename: string;
+    fixture_sha256: string;
+    original_snapshot: GeoFile["metadata"];
+  };
   const path = join(fixtureDirectory, manifest.filename),
     body = await readFile(path);
   expect(createHash("sha256").update(body).digest("hex")).toBe(
@@ -147,8 +151,8 @@ describe("ZIP fallback source order and provenance", () => {
             source: "geonames",
             zcta_land_share: null,
             arealand_part: null,
-            snapshot_id: expect.any(String),
-            source_row: expect.any(Number),
+            snapshot_id: expect.any(String) as string,
+            source_row: expect.any(Number) as number,
           },
         ],
       });
@@ -169,7 +173,7 @@ describe("ZIP fallback source order and provenance", () => {
       expect(url.pathname).toBe("/api/v1/counties/by/zip/77001");
       expect(url.searchParams.get("year")).toBe("2026");
       expect(url.searchParams.get("apikey")).toBe(KEY);
-      expect(context.headers["user-agent"]).toMatch(/^openplans\/0\.4\.8 /);
+      expect(context.headers["user-agent"]).toMatch(/^openplans\/0\.4\.9 /);
       return response(200, body);
     });
     const guarded: SqlSession = {
@@ -198,7 +202,7 @@ describe("ZIP fallback source order and provenance", () => {
       {
         requested_url:
           "https://marketplace.api.healthcare.gov/api/v1/counties/by/zip/77001?year=2026",
-        retrieved_at: expect.any(Date),
+        retrieved_at: expect.any(Date) as Date,
         sha256: createHash("sha256").update(body).digest("hex"),
       },
     ]);

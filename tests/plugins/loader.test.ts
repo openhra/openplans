@@ -104,13 +104,19 @@ async function run(
   }
 }
 const refusals = (lines: string[]) =>
-  lines.map((line) => JSON.parse(line)).filter((entry) => "code" in entry);
+  lines
+    .map((line) => JSON.parse(line) as Record<string, unknown>)
+    .filter((entry) => "code" in entry);
 
 async function manifestWith(
   edit: (publishers: { host: string; state: string }[]) => unknown[],
 ) {
-  const manifest = JSON.parse(await readFile(shipped, "utf8"));
-  manifest.publishers = edit(manifest.publishers);
+  const manifest = JSON.parse(await readFile(shipped, "utf8")) as {
+    publishers: unknown;
+  };
+  manifest.publishers = edit(
+    manifest.publishers as { host: string; state: string }[],
+  );
   const path = join(scratch, `manifest-${Math.random()}.json`);
   await writeFile(path, JSON.stringify(manifest));
   return path;
@@ -332,7 +338,7 @@ describe("refusals", () => {
         },
       ]);
       const tools = await run(["tool-overflow"], host);
-      expect(refusals(tools.lines)[0].code).toBe("mcp_tool_page_overflow");
+      expect(refusals(tools.lines)[0]!.code).toBe("mcp_tool_page_overflow");
     }
   });
 
@@ -437,7 +443,7 @@ describe("registries", () => {
 
   it("log plugin lines with the plugin name", async () => {
     const result = await run(["alpha"]);
-    expect(result.lines.map((line) => JSON.parse(line))).toEqual([
+    expect(result.lines.map((line) => JSON.parse(line) as unknown)).toEqual([
       { event: "ready", plugin: "@synthetic/alpha" },
     ]);
   });
@@ -478,8 +484,12 @@ describe("partial failure", () => {
       "const staging = emptyRegistries(); activateRegistries(staging);",
     );
     try {
-      const module = await import(mutant.path);
-      expect(await partialFailureLeaks(module)).toBe(true);
+      const module: unknown = await import(mutant.path);
+      expect(
+        await partialFailureLeaks(
+          module as Parameters<typeof partialFailureLeaks>[0],
+        ),
+      ).toBe(true);
     } finally {
       await mutant.cleanup();
     }

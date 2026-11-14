@@ -225,7 +225,9 @@ describe("remote store", () => {
     const metadataText = store.objects
       .get("raw/open-geocoder/tx/261107/metadata.json")!
       .toString();
-    const metadata = JSON.parse(metadataText);
+    const metadata = JSON.parse(metadataText) as {
+      cache: { snapshot_id: string };
+    };
     expect(metadata).toMatchObject({
       state: "TX",
       snapshot: "261107",

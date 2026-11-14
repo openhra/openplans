@@ -949,7 +949,7 @@ describe("quarantined pre-admission snapshots", () => {
         ),
         "utf8",
       ),
-    );
+    ) as unknown;
     expect(readmission).toMatchObject({
       sha256: first.metadata.sha256,
       bytes: first.metadata.bytes,
@@ -967,7 +967,10 @@ describe("quarantined pre-admission snapshots", () => {
       "synthetic",
       `${first.snapshotId}.readmitted.json`,
     );
-    const valid = JSON.parse(await readFile(path, "utf8"));
+    const valid = JSON.parse(await readFile(path, "utf8")) as {
+      bytes: number;
+      admissionReceipt: string;
+    };
     for (const mutant of [
       { ...valid, admissionReceiptSha256: "0".repeat(64) },
       { ...valid, bytes: valid.bytes + 1 },
@@ -978,7 +981,9 @@ describe("quarantined pre-admission snapshots", () => {
         code: "admission_denied",
       });
     }
-    const receipt = JSON.parse(await readFile(valid.admissionReceipt, "utf8"));
+    const receipt = JSON.parse(
+      await readFile(valid.admissionReceipt, "utf8"),
+    ) as { hosts: { host: string }[] };
     receipt.hosts = receipt.hosts.map((entry: { host: string }) => ({
       ...entry,
       host: "other.test",

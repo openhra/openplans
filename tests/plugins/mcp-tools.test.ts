@@ -25,6 +25,14 @@ import type * as McpTools from "../../src/plugins/mcp-tools.js";
 import { plantMutant } from "../../src/plugins/testing/index.js";
 import { post } from "../mcp/transport-helpers.js";
 
+interface RpcBody {
+  result: {
+    tools: { name: string }[];
+    nextCursor?: string;
+    structuredContent?: unknown;
+  };
+}
+
 // Every plugin tool here comes from a synthetic fixture. No source data.
 const fixtures = fileURLToPath(
   new URL("../fixtures/plugins/", import.meta.url),
@@ -217,7 +225,7 @@ describe("tool page bounds at load", () => {
   it("refuses tools whose definitions exceed the tools/list byte cap", async () => {
     const refused = await load({ count: 5, descriptionBytes: 100_000 });
     expect(refused.exit).toBe(1);
-    expect(refused.lines.map((line) => JSON.parse(line))).toEqual([
+    expect(refused.lines.map((line) => JSON.parse(line) as unknown)).toEqual([
       { plugin: "@synthetic/mcp-tools", code: "mcp_tool_page_overflow" },
     ]);
     // The same tools with short descriptions fit.
@@ -281,7 +289,9 @@ describe("tool page bounds at load", () => {
     for (const host of ["api", "worker", "stdio"] as const) {
       const refused = await load({ count: 18 }, host);
       expect(refused.exit).toBe(1);
-      expect(JSON.parse(refused.lines[0]!).code).toBe("mcp_tool_page_overflow");
+      expect((JSON.parse(refused.lines[0]!) as { code: string }).code).toBe(
+        "mcp_tool_page_overflow",
+      );
     }
   });
 });
@@ -292,8 +302,8 @@ describe("hosts", () => {
       fetch: (request: Request) => Response | Promise<Response>;
     }) =>
       (
-        (await (await handler.fetch(post("tools/list"))).json()).result
-          .tools as { name: string }[]
+        ((await (await handler.fetch(post("tools/list"))).json()) as RpcBody)
+          .result.tools as { name: string }[]
       ).map((tool) => tool.name);
     const expected = [...toolNames, "synthetic_tool_0", "synthetic_tool_1"];
 
@@ -325,7 +335,9 @@ describe("hosts", () => {
       post("tools/call", { name: "synthetic_tool_1", arguments: {} }),
     );
     expect(response.status).toBe(200);
-    expect((await response.json()).result.structuredContent).toEqual({
+    expect(
+      ((await response.json()) as RpcBody).result.structuredContent,
+    ).toEqual({
       echo: "synthetic",
     });
     expect(logs.at(-1)).toMatchObject({ tool: "synthetic_tool_1" });
@@ -346,7 +358,8 @@ describe("hosts", () => {
     const empty = handlerWith([]);
     try {
       const listed = async (handler: ReturnType<typeof createMcpHandler>) =>
-        (await (await handler.fetch(post("tools/list"))).json()).result;
+        ((await (await handler.fetch(post("tools/list"))).json()) as RpcBody)
+          .result;
       const result = await listed(plain);
       expect(result).toEqual(await listed(empty));
       expect(result.nextCursor).toBeUndefined();

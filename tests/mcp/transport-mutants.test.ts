@@ -133,7 +133,7 @@ it("negative control: a stdout banner fails the protocol-only assertion", async 
         output
           .trim()
           .split("\n")
-          .map((line) => JSON.parse(line)),
+          .map((line) => JSON.parse(line) as unknown),
       ).toThrow();
     },
   );

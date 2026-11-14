@@ -27,12 +27,12 @@ interface PlanView extends JsonRecord {
   issues: { code: string }[];
 }
 
-const FIXTURE: Fixture = JSON.parse(
+const FIXTURE = JSON.parse(
   readFileSync(
     new URL("../../fixtures/hios/synthetic_fixture.json", import.meta.url),
     "utf8",
   ),
-);
+) as Fixture;
 const BASE = "12345VA0010001";
 describe("ReferenceTests", () => {
   let f: Fixture;

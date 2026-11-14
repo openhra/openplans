@@ -7,15 +7,16 @@ import {
 import { drugCoverage } from "../../../src/domain/drugs/index.js";
 import { runWorker } from "../../../src/worker/commands.js";
 import { fixture, scope, setup } from "./formulary-helpers.js";
+import type {
+  DrugPlanEdge as PlanEdge,
+  FormularyFixtures,
+} from "./formulary-helpers.js";
 
-/** Fixture JSON is untyped; the helper returns whatever the file holds. */
-type Fixture = Awaited<ReturnType<typeof fixture>>;
-type PlanEdge = { plan_id: string; years: number[]; network_tier: string };
 type BasePlan = { base_plan_id: string };
 
 describe("Synthetic issuer formulary and labelled mutants", () => {
   let h: Awaited<ReturnType<typeof setup>>,
-    drugs: Fixture[],
+    drugs: FormularyFixtures["drugs"],
     plan: string,
     rxcui: string;
   beforeAll(async () => {
@@ -56,19 +57,18 @@ describe("Synthetic issuer formulary and labelled mutants", () => {
     expect(result).toMatchObject({
       status: "listed_covered",
       patient_price: null,
-      drug_tier: drugs[0].plans.find((p: PlanEdge) => p.plan_id === plan)
-        .drug_tier,
+      drug_tier: drugs[0].plans.find((p) => p.plan_id === plan)!.drug_tier,
     });
     expect(result.evidence[0]).toMatchObject({
       source_record: 0,
-      source_plan_index: expect.any(Number),
-      raw_snapshot_id: expect.stringMatching(/^child-/),
+      source_plan_index: expect.any(Number) as unknown,
+      raw_snapshot_id: expect.stringMatching(/^child-/) as unknown,
       source_id: "synthetic-harness",
-      source_url: expect.stringContaining("issuer.example"),
+      source_url: expect.stringContaining("issuer.example") as unknown,
     });
     const variant = h.catalog.variants.find(
       (v: BasePlan) => v.base_plan_id === plan,
-    ).variant_plan_id;
+    )!.variant_plan_id;
     expect((await drugCoverage(h.db, variant, rxcui, 2026)).status).toBe(
       "listed_covered",
     );
@@ -183,7 +183,7 @@ describe("Synthetic issuer formulary and labelled mutants", () => {
   it("negative control: unknown target plan produces counted issues and no edge", async () => {
     const mutant = structuredClone(drugs);
     mutant[0].plans.push({
-      ...mutant[0].plans.find((p: PlanEdge) => p.plan_id === plan),
+      ...mutant[0].plans.find((p) => p.plan_id === plan)!,
       plan_id: "00010TX9999999",
     });
     await h.replace(mutant);
@@ -203,9 +203,9 @@ describe("Synthetic issuer formulary and labelled mutants", () => {
         [report.snapshot_id],
       )
     ).rows;
-    expect(JSON.parse(String(issues[0]!.explanation)).count).toBe(
-      report.issues.plan_not_in_catalog,
-    );
+    expect(
+      (JSON.parse(String(issues[0]!.explanation)) as { count: number }).count,
+    ).toBe(report.issues.plan_not_in_catalog);
   });
   it("serves unresolved tier labels verbatim with one warning per label × plan and activates", async () => {
     const mutant = structuredClone(drugs);
@@ -239,8 +239,8 @@ describe("Synthetic issuer formulary and labelled mutants", () => {
       warnings.every(
         (w) =>
           w.severity === "warning" &&
-          JSON.parse(String(w.explanation)).drug_tier ===
-            "SYNTHETIC-UNDEFINED-TIER",
+          (JSON.parse(String(w.explanation)) as { drug_tier: string })
+            .drug_tier === "SYNTHETIC-UNDEFINED-TIER",
       ),
     ).toBe(true);
     expect(
@@ -323,7 +323,7 @@ describe("Synthetic issuer formulary and labelled mutants", () => {
       ).rows[0],
     ).toMatchObject({
       status: "unknown",
-      reason: expect.stringContaining("no_formulary_children"),
+      reason: expect.stringContaining("no_formulary_children") as unknown,
     });
     expect((await drugCoverage(h.db, "bad", rxcui, 2026)).reason).toBe(
       "invalid_plan_id",
@@ -341,7 +341,7 @@ describe("Synthetic issuer formulary and labelled mutants", () => {
     await h.replace(mutant);
     expect(await importFormulary(h.db, scope)).toMatchObject({
       status: "QUARANTINED",
-      issues: { missing_or_invalid_years: expect.any(Number) },
+      issues: { missing_or_invalid_years: expect.any(Number) as unknown },
     });
   });
   it("negative control: an unparseable plan definition is structural, even though missing tier mappings are warnings", async () => {
@@ -386,7 +386,9 @@ describe("Synthetic issuer formulary and labelled mutants", () => {
         h.core.directory,
       ),
     ).toBe(0);
-    expect(JSON.parse(stdout[0]!).status).toBe("ACTIVE");
+    expect((JSON.parse(stdout[0]!) as { status: string }).status).toBe(
+      "ACTIVE",
+    );
     expect(closed).toBe(true);
     expect(stderr).toEqual([]);
     expect(

@@ -20,6 +20,12 @@ import type { SearchKeySlot } from "./provider-search-keys.js";
 
 /** Identity matches probed one by one; above this, a radius scan filtered by NPI is cheaper. */
 const CANDIDATE_PROBES = 1000;
+/**
+ * A keyed location page probes every matching identity in the radius. Above this many, the
+ * radius scan reads fewer rows, and the page takes the original path. A bounded count of
+ * matching key rows decides first: every identity has at least one row.
+ */
+const KEYED_LOCATION_IDENTITIES = 2000;
 /** How long one search waits for a kept unlocated count before it answers a query timeout. */
 const COUNT_WAIT_MS = 4_500;
 
@@ -116,18 +122,24 @@ async function readProviders(
     throw new Error("Location paging requires an identity radius search");
   const operatorPoints = await searchOperatorPoints(db);
   // Current search keys answer an identity radius search from the area around its origin
-  // (provider-search-keys.ts). They are derived from public points only, so operator points
-  // keep the original path.
+  // (provider-search-keys.ts). They hold public points only: identities that operator points
+  // touch are read the original way inside the same search. A location page reads every
+  // matching identity's addresses, so it uses the keys only with an identity filter.
   const keys =
     !q.plan &&
     q.origin &&
     q.radius !== undefined &&
-    !locationPage &&
-    !operatorPoints.length
+    (!locationPage || Boolean(q.taxonomy || q.specialty || q.name || q.type))
       ? await currentSearchKeys(db)
       : undefined;
   if (keys) {
-    const keyed = await readProvidersFrom(db, q, operatorPoints, keys);
+    const keyed = await readProvidersFrom(
+      db,
+      q,
+      operatorPoints,
+      keys,
+      locationPage,
+    );
     if (keyed) return keyed;
   }
   // Without keys the original path always answers.
@@ -310,6 +322,14 @@ async function readProvidersFrom(
           OR nt.classification ILIKE '%'||$4||'%' OR nt.specialization ILIKE '%'||$4||'%'))
       AND ($5::text IS NULL OR k.search_name ILIKE '%'||$5||'%')
       AND ($6::text IS NULL OR CASE WHEN k.entity_type='1' THEN 'INDIVIDUAL' ELSE 'GROUP' END=$6)`;
+  // A location page that would probe too many identities reads no more than this bounded count
+  // of key rows before it takes the original path, so it costs far less than a keyed attempt.
+  if (
+    keyTable &&
+    locationPage &&
+    (await keyRowsOverLimit(db, q, keyTable, keyPredicate))
+  )
+    return undefined;
   // Identity names use the trigram index on NPPES names as a coarse, lossless filter: the
   // longest literal word lies inside one name field, so its trigrams are a subset of the
   // indexed trigrams. The ILIKE in identityPredicate still decides every match. Even one
@@ -333,7 +353,8 @@ async function readProvidersFrom(
   const candidateFirst = selectiveIdentity && identityName;
   let selected;
   if (keyTable) {
-    selected = "SELECT record_id,snapshot_id FROM page_keys";
+    // A location page counts every location of every identity in the radius.
+    selected = `SELECT record_id,snapshot_id FROM ${locationPage ? "search_hits" : "page_keys"}`;
   } else if (issuer) {
     if (recordFilter) {
       selected = `SELECT r.snapshot_id,r.record_id
@@ -482,24 +503,75 @@ async function readProvidersFrom(
       } OFFSET 0) a ON true
   ), `
     : "";
+  // Search keys hold public points. Operator points replace the ZIP-centroid points of their
+  // addresses and add points to addresses the Census geocoder could not place, so they change
+  // only the identities of those addresses. Those identities are read from the effective points
+  // instead of the keys; every other identity's points are exactly its keys.
+  const operatorKeys = Boolean(keyTable && operatorPoints.length);
+  const notOperatorIdentity = operatorKeys
+    ? "AND k.npi NOT IN (SELECT npi FROM operator_identities)"
+    : "";
+  const operatorAddresses = `FROM operator_identities c JOIN npi_provider n ON n.npi=c.npi
+      JOIN npi_address a ON a.npi=n.npi AND a.kind='practice'`;
+  const effectivePoint = `p.source_table='npi_address' AND p.source_row=a.npi||':practice:'||a.ordinal::text
+        AND p.source_snapshot_id=a.snapshot_id`;
+  // Point-less practice addresses are key rows without a cell, one per address.
+  const keyUnlocated = `FROM ${keyTable ?? ""} k WHERE k.cell IS NULL AND ${keyPredicate} ${notOperatorIdentity}`;
+  const operatorUnlocated = `${operatorAddresses}
+    WHERE ${identityPredicate} AND NOT EXISTS (SELECT 1 FROM touched_points p WHERE ${effectivePoint})`;
+  // The identities an operator point touches, read the way effective_points builds them. A point
+  // replaces a ZIP-centroid point, or locates an address the Census geocoder tied or missed.
+  // Their effective points are read once (touched_points) for hits, counts and page rows.
+  const operatorTouched = [
+    `SELECT split_part(p.source_row,':',1) AS npi FROM operator_points o JOIN address_point p
+      ON p.address_hash=o.address_hash WHERE p.method='zcta_centroid' AND p.source_table='npi_address'`,
+    `SELECT split_part(a.source_row,':',1) AS npi FROM operator_points o JOIN geocode_attempt a
+      ON a.address_hash=o.address_hash WHERE a.match_status IN ('Tie','No_Match') AND a.source_table='npi_address'`,
+  ];
+  const operatorIdentities = operatorTouched.join(" UNION ");
+  // The identities whose page rows come from the keys: the page's, or for a location page all.
+  const fewHits = `(SELECT count(*) FROM search_hits)<=${KEYED_LOCATION_IDENTITIES}`;
+  const probed = locationPage ? `search_hits WHERE ${fewHits}` : "page_keys";
   // Search keys: every matching identity in the radius with its nearest distance, from the cells
   // around the origin. Only the page's identities are then probed for their full point rows,
   // the same way as a few name matches. Totals, order and pages equal the radius scan's.
   const keyedLocations = keyTable
-    ? `search_hits AS MATERIALIZED (
+    ? `${
+        operatorKeys
+          ? `operator_identities AS MATERIALIZED (${operatorIdentities}), touched_points AS MATERIALIZED (
+    SELECT p.* FROM operator_identities c JOIN npi_address a ON a.npi=c.npi AND a.kind='practice'
+      JOIN effective_points p ON ${effectivePoint}
+  ), `
+          : ""
+      }search_hits AS MATERIALIZED (
     SELECT k.npi AS record_id,NULL::text AS snapshot_id,min(ST_Distance(ST_SetSRID(ST_MakePoint(k.longitude,k.latitude),4326)::geography,
         ST_SetSRID(ST_MakePoint($8,$7),4326)::geography,false)/1609.344) AS distance_miles
     FROM ${keyTable} k WHERE ${cellCondition("k", cellRanges(q.origin!.latitude, q.origin!.longitude, q.radius!))}
       AND ST_DWithin(ST_SetSRID(ST_MakePoint(k.longitude,k.latitude),4326)::geography,
         ST_SetSRID(ST_MakePoint($8,$7),4326)::geography,$9*1609.344,false)
-      AND ${keyPredicate}
-    GROUP BY k.npi
-  ), page_keys AS MATERIALIZED (
+      AND ${keyPredicate} ${notOperatorIdentity}
+    GROUP BY k.npi${
+      operatorKeys
+        ? `
+    UNION ALL
+    SELECT a.npi,NULL::text,min(ST_Distance(ST_SetSRID(ST_MakePoint(p.longitude,p.latitude),4326)::geography,
+        ST_SetSRID(ST_MakePoint($8,$7),4326)::geography,false)/1609.344)
+    ${operatorAddresses}
+      JOIN touched_points p ON ${effectivePoint} AND ${pointDistance}
+    WHERE ${identityPredicate}
+    GROUP BY a.npi`
+        : ""
+    }
+  ), ${
+    locationPage
+      ? ""
+      : `page_keys AS MATERIALIZED (
     SELECT record_id,snapshot_id FROM search_hits ORDER BY distance_miles NULLS LAST,record_id,snapshot_id
       LIMIT 50 OFFSET ${(q.page - 1) * 50}
-  ), radius_keys AS MATERIALIZED (
+  ), `
+  }radius_keys AS MATERIALIZED (
     SELECT DISTINCT a.npi,a.snapshot_id,a.ordinal,p.source_row
-    FROM (SELECT record_id AS npi FROM page_keys ORDER BY record_id) c
+    FROM (SELECT npi FROM (SELECT record_id AS npi FROM ${probed}) h ${operatorKeys ? "WHERE npi NOT IN (SELECT npi FROM operator_identities)" : ""} ORDER BY npi) c
     JOIN npi_address a ON a.npi=c.npi AND a.kind='practice'
     JOIN address_point p ON p.source_table='npi_address'
       AND p.source_row=a.npi||':practice:'||a.ordinal::text AND p.source_snapshot_id=a.snapshot_id
@@ -508,7 +580,18 @@ async function readProvidersFrom(
   ), radius_locations AS MATERIALIZED (
     SELECT k.npi AS record_id,k.snapshot_id,k.ordinal AS address_index,p.source_row,${pointFields}
     FROM radius_keys k ${candidatePoint("address_point", "k.source_row")}
-    ${candidateGuard}
+    ${candidateGuard}${
+      operatorKeys
+        ? `
+    UNION ALL
+    SELECT k.npi AS record_id,k.snapshot_id,k.ordinal AS address_index,p.source_row,${pointFields}
+    FROM (SELECT npi FROM (SELECT record_id AS npi FROM ${probed}) h
+      WHERE npi IN (SELECT npi FROM operator_identities) ORDER BY npi) c
+    JOIN npi_address k ON k.npi=c.npi AND k.kind='practice'
+    ${candidatePoint("touched_points", "k.npi||':practice:'||k.ordinal::text")}
+    ${candidateGuard}`
+        : ""
+    }
   ), `
     : "";
   let radiusLocations;
@@ -609,9 +692,11 @@ async function readProvidersFrom(
   // the origin and radius. Keep that exact count per data generation (provider-unlocated.ts).
   const keptCount = !issuer && spatialRadius && !locationPage;
   let unlocatedSelect;
-  if (keyTable) {
-    // Point-less practice addresses are key rows without a cell, one per address.
-    unlocatedSelect = `(SELECT count(*)::int FROM ${keyTable} k WHERE k.cell IS NULL AND ${keyPredicate})`;
+  if (keyTable && locationPage) {
+    // A location page needs only whether any address is missing.
+    unlocatedSelect = `CASE WHEN EXISTS (SELECT 1 ${keyUnlocated})${operatorKeys ? ` OR EXISTS (SELECT 1 ${operatorUnlocated})` : ""} THEN 1 ELSE 0 END`;
+  } else if (keyTable) {
+    unlocatedSelect = `(SELECT count(*)::int ${keyUnlocated})${operatorKeys ? `+(SELECT count(*)::int ${operatorUnlocated})` : ""}`;
   } else if (keptCount) {
     unlocatedSelect = "NULL::int";
   } else {
@@ -660,7 +745,7 @@ async function readProvidersFrom(
     if (!q.origin) {
       return "SELECT record_id,snapshot_id,NULL::float8 AS distance_miles FROM selected";
     } else if (keyTable) {
-      return "SELECT record_id,snapshot_id,distance_miles FROM search_hits";
+      return `SELECT record_id,snapshot_id,distance_miles FROM search_hits ${locationPage ? `WHERE ${fewHits}` : ""}`;
     } else if (q.radius !== undefined) {
       if (issuer) {
         return "SELECT record_id,snapshot_id,min(distance_miles) AS distance_miles FROM distances GROUP BY record_id,snapshot_id";
@@ -712,7 +797,7 @@ async function readProvidersFrom(
   )
   SELECT (SELECT count(*)::int FROM grouped) AS total,
     ${
-      locationPage
+      locationPage && !keyTable
         ? `CASE WHEN EXISTS (SELECT 1 FROM npi_address a ${recordFilter ? "JOIN identity_candidates n ON n.npi=a.npi" : ""}
       WHERE a.kind='practice' ${recordFilter ? "" : "AND NOT EXISTS (SELECT 1 FROM npi_provider n WHERE NOT n.in_scope AND n.npi=a.npi)"} AND NOT EXISTS (SELECT 1 FROM ${pointsRelation} p WHERE p.source_table='npi_address'
         AND split_part(p.source_row,':',1)=a.npi
@@ -756,7 +841,8 @@ async function readProvidersFrom(
     ORDER BY p.distance_miles NULLS LAST,p.record_id,p.snapshot_id)
     FROM paged p JOIN ${issuer ? "qhp_provider_record" : "npi_provider"} r ON r.${issuer ? "record_id" : "npi"}=p.record_id ${issuer ? "AND r.snapshot_id=p.snapshot_id" : ""}
       ${issuer ? "LEFT JOIN npi_provider n ON n.npi=r.npi JOIN active_shards s ON s.snapshot_id=p.snapshot_id" : ""}),'[]'::jsonb) AS providers
-    ${keySlot ? `,${searchKeysCurrentSql(keySlot)} AS search_keys_current` : ""}`;
+    ${keySlot ? `,${searchKeysCurrentSql(keySlot)} AS search_keys_current` : ""}
+    ${keySlot && locationPage ? `,${fewHits} AS search_keys_probed` : ""}`;
   // The SQL body contains only application SQL and validated numeric page bounds.
   // Every request value stays bound through the invoker-rights, read-only function.
   while (parameters.length < 9) parameters.push(null);
@@ -818,6 +904,7 @@ async function readProvidersFrom(
       location_approximate?: boolean;
       location_taxonomy_unknown?: boolean;
       search_keys_current?: boolean;
+      search_keys_probed?: boolean;
     };
   }>(
     `SELECT provider_search_query(
@@ -827,6 +914,8 @@ async function readProvidersFrom(
   const row = result.rows[0]!.result;
   // An import committed after the slot was chosen: this snapshot's keys are stale.
   if (keySlot && !row.search_keys_current) return undefined;
+  // Too many identities in the radius for a keyed location page: nothing was probed.
+  if (keySlot && locationPage && !row.search_keys_probed) return undefined;
   if (counted) row.unlocated = await counted;
   // An unknown count is not shared: the next search may have it, or current keys.
   if (row.unlocated === null) restrictCacheLevel("request");
@@ -913,6 +1002,38 @@ async function readProvidersFrom(
       participation_scope: issuer ? "provider_record" : null,
     },
   };
+}
+
+/** Whether more key rows than KEYED_LOCATION_IDENTITIES match a radius search. */
+async function keyRowsOverLimit(
+  db: SqlSession,
+  q: ProviderSearch,
+  keyTable: string,
+  keyPredicate: string,
+) {
+  const probe = `SELECT count(*)::int AS key_rows FROM (SELECT 1 FROM ${keyTable} k
+    WHERE ${cellCondition("k", cellRanges(q.origin!.latitude, q.origin!.longitude, q.radius!))}
+      AND ST_DWithin(ST_SetSRID(ST_MakePoint(k.longitude,k.latitude),4326)::geography,
+        ST_SetSRID(ST_MakePoint($8,$7),4326)::geography,$9*1609.344,false)
+      AND ${keyPredicate}
+    LIMIT ${KEYED_LOCATION_IDENTITIES + 1}) k`;
+  const { rows } = await db.query<{ result: { key_rows: number } }>(
+    `SELECT provider_search_query($provider_query$${probe}$provider_query$,
+    $1::text,$2::integer,$3::text,$4::text,$5::text,$6::text,
+    $7::double precision,$8::double precision,$9::numeric) AS result`,
+    [
+      q.plan ?? null,
+      q.year ?? null,
+      q.taxonomy ?? null,
+      q.specialty ?? null,
+      q.name ?? null,
+      q.type ?? null,
+      q.origin!.latitude,
+      q.origin!.longitude,
+      q.radius,
+    ],
+  );
+  return rows[0]!.result.key_rows > KEYED_LOCATION_IDENTITIES;
 }
 
 export async function providerDetail(

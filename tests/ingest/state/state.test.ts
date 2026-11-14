@@ -38,8 +38,40 @@ afterAll(async () => {
   await core.cleanup();
   await rm(directory, { recursive: true, force: true });
 });
+type NonEmpty<T> = [T, ...T[]];
+interface RecordFixture {
+  source_record: string;
+  prices: Record<string, unknown>;
+}
+interface SourceFixture {
+  url: string;
+  sha256: string;
+  raw_path?: string;
+  records: NonEmpty<RecordFixture>;
+}
+interface TemplateCheckFixture {
+  url?: string;
+  sha256?: string;
+  status?: string;
+  evidence?: {
+    workbooks: { member?: string; saved_at: string | null }[];
+    submission_date: string;
+    submission_source: unknown;
+  };
+  listed_plans?: { plan_id: string; region: string }[];
+}
+interface StateFixture {
+  sources: NonEmpty<SourceFixture>;
+  template_checks?: NonEmpty<TemplateCheckFixture>;
+  synthetic_refusal?: boolean;
+}
+interface RulesFixture {
+  rules: NonEmpty<{ state: string; method: string }>;
+}
 async function artifact(state: string) {
-  const value = JSON.parse(await readFile(fixture(state), "utf8"));
+  const value = JSON.parse(
+    await readFile(fixture(state), "utf8"),
+  ) as StateFixture;
   const path = join(directory, `${state}.json`);
   await writeFile(path, JSON.stringify(value));
   return { path, value };
@@ -145,8 +177,10 @@ it("negative controls: invalid rule authorization, corrupt original bytes and wr
     await db.query("SELECT * FROM state_rate_active ORDER BY state")
   ).rows;
   const vt = await artifact("VT");
-  const rules = JSON.parse(await readFile(communityRulesFile, "utf8"));
-  rules.rules.find((r: { state: string }) => r.state === "VT").method =
+  const rules = JSON.parse(
+    await readFile(communityRulesFile, "utf8"),
+  ) as RulesFixture;
+  rules.rules.find((r: { state: string }) => r.state === "VT")!.method =
     "per_member";
   const rulePath = join(directory, "synthetic-wrong-ratio.json");
   await writeFile(rulePath, JSON.stringify(rules));
@@ -189,7 +223,9 @@ it("rejects malformed records, missing tiers and per-member rules before staging
   const hidden = structuredClone(value);
   hidden.sources[0].url = "https://login.serff.com/private";
   expect(() => parseStateArtifact(JSON.stringify(hidden))).toThrow();
-  const rules = JSON.parse(await readFile(communityRulesFile, "utf8"));
+  const rules = JSON.parse(
+    await readFile(communityRulesFile, "utf8"),
+  ) as RulesFixture;
   rules.rules[0].method = "per_member";
   expect(() => parseCommunityRules(JSON.stringify(rules))).toThrow();
 });
@@ -291,7 +327,7 @@ it("NY template guard: every served source needs an admitted check; skipped or f
         check.sha256 = v.sources[0].sha256;
         check.filing = "MPHP-134514244";
         check.issuer_ids = ["11177"];
-        check.evidence.submission_source = v.template_checks[0].evidence
+        check.evidence.submission_source = v.template_checks![0].evidence!
           .submission_source as typeof check.evidence.submission_source;
         v.template_checks = [check];
       },
@@ -299,28 +335,28 @@ it("NY template guard: every served source needs an admitted check; skipped or f
     [
       "guard skipped: stale template marked admitted",
       (v) => {
-        v.template_checks[0].evidence.workbooks[0].saved_at =
+        v.template_checks![0].evidence!.workbooks[0]!.saved_at =
           "2025-05-12T23:32:58Z";
       },
     ],
     [
       "undated template marked admitted",
-      (v) => (v.template_checks[0].evidence.workbooks[0].saved_at = null),
+      (v) => (v.template_checks![0].evidence!.workbooks[0]!.saved_at = null),
     ],
     [
       "submission date not named by the exhibits",
-      (v) => (v.template_checks[0].evidence.submission_date = "2025-01-01"),
+      (v) => (v.template_checks![0].evidence!.submission_date = "2025-01-01"),
     ],
     [
       "check for other bytes",
-      (v) => (v.template_checks[0].sha256 = "0".repeat(64)),
+      (v) => (v.template_checks![0].sha256 = "0".repeat(64)),
     ],
     [
       "refusal without its listed plans",
       (v) => {
         const check: Partial<ReturnType<typeof refusedCheck>> = refusedCheck();
         delete check.listed_plans;
-        v.template_checks.push(check);
+        v.template_checks!.push(check);
       },
     ],
     [
@@ -331,7 +367,7 @@ it("NY template guard: every served source needs an admitted check; skipped or f
           plan_id: "11177NY0010001",
           region: "Rating Area 4",
         });
-        v.template_checks.push(check);
+        v.template_checks!.push(check);
       },
     ],
     [
@@ -339,13 +375,13 @@ it("NY template guard: every served source needs an admitted check; skipped or f
       (v) => {
         const check = refusedCheck();
         check.listed_plans[0]!.region = "Rating Area 9";
-        v.template_checks.push(check);
+        v.template_checks!.push(check);
       },
     ],
     [
       "admitted check carrying listed plans",
       (v) =>
-        Object.assign(v.template_checks[0], {
+        Object.assign(v.template_checks![0], {
           listed_plans: refusedCheck().listed_plans.map((p) => ({
             ...p,
             plan_id: "11177NY0010001",
@@ -356,7 +392,7 @@ it("NY template guard: every served source needs an admitted check; skipped or f
       "refusal relabelled not covered",
       (v) => {
         const check = { ...refusedCheck(), status: "not_covered" };
-        v.template_checks.push(check);
+        v.template_checks!.push(check);
       },
     ],
   ];
@@ -375,7 +411,7 @@ it("NY template guard: every served source needs an admitted check; skipped or f
 it("NY template guard: a refused issuer stays unknown with its reason and evidence in provenance", async () => {
   const ny = await artifact("NY");
   ny.value.synthetic_refusal = true;
-  ny.value.template_checks.push(refusedCheck());
+  ny.value.template_checks!.push(refusedCheck());
   await writeFile(ny.path, JSON.stringify(ny.value));
   const staged = await ingestStateRates(db, ny.path, "NY", {
     verifyRaw: false,

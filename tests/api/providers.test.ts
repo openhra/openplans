@@ -103,10 +103,10 @@ describe("provider API: record scope, distance and source evidence", () => {
         )
       ).rows.length > 0;
     expect(hasPostgis).toBe(Boolean(process.env.P3D_POSTGIS_URL));
-    const source = (await fixture("records"))[0];
+    const source = (await fixture("records"))[0]!;
     plan = source.plans.find((p: SourcePlan) =>
       h.catalog.plans.some((c: CatalogPlan) => c.base_plan_id === p.plan_id),
-    ).plan_id;
+    )!.plan_id;
     providers = [nearNpi, farNpi, missingNpi, approxNpi, nonExactNpi].map(
       (npi, i) => ({
         ...structuredClone(source),
@@ -444,7 +444,7 @@ describe("provider API: record scope, distance and source evidence", () => {
     const variant = h.catalog.variants.find(
       (v: { base_plan_id: string; variant_plan_id: string }) =>
         v.base_plan_id === plan,
-    ).variant_plan_id;
+    )!.variant_plan_id;
     expect(
       (
         await get<Participation>(
@@ -632,10 +632,10 @@ describe("provider search pagination across sparse and grouped evidence", () => 
   let h: Awaited<ReturnType<typeof setup>>, plan: string;
   beforeAll(async () => {
     h = await setup();
-    const source = (await fixture("records"))[0];
+    const source = (await fixture("records"))[0]!;
     plan = source.plans.find((p: SourcePlan) =>
       h.catalog.plans.some((c: CatalogPlan) => c.base_plan_id === p.plan_id),
-    ).plan_id;
+    )!.plan_id;
     await h.replace(
       Array.from({ length: 65 }, (_, i) => ({
         ...structuredClone(source),
@@ -790,7 +790,7 @@ describe("provider search pagination across sparse and grouped evidence", () => 
       `/v1/providers?plan_id=${plan}&year=2026&name=Synthetic`,
     );
     expect(response.status).toBe(200);
-    const body = await response.json();
+    const body = await (response.json() as Promise<ProviderPage>);
     expect(() => count(body)).toThrow();
   });
 });

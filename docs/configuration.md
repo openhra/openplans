@@ -223,6 +223,11 @@ With default access, the server lists these 15 tools:
 Plugins can add tools. The first-party status plugin adds `get_status`, so a server that loads
 it lists 16. See the [plugin guide](plugins.md#status-page).
 
+[`docs/mcp-tools.json`](mcp-tools.json) lists every tool on this page with its title, its
+description, whether it is core or comes from a plugin, and when it is listed. The website reads
+its tool list from a copy of that file. `npm run mcp:manifest` rebuilds the file from the code,
+and a test fails when the committed file no longer matches.
+
 `estimate_medicare_drug_costs` is listed after these only when `OPENPLANS_MEDICARE_PART_D=on` and
 `OPENPLANS_MEDICARE_DRUG_COST=on` and the caller holds the estimate grant. Over HTTP that grant is
 `Authorization: Bearer` with `OPENPLANS_MCP_TOKEN`; household access never grants it. Over stdio it

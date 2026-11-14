@@ -154,7 +154,9 @@ function requireAnnualRow(result: Result, month: string) {
     expect(rate.rate_basis).toMatchObject({
       basis: "calendar_year_individual_rate",
       coverage_month: month,
-      note: expect.stringContaining("January 1 individual-market rate row"),
+      note: expect.stringContaining(
+        "January 1 individual-market rate row",
+      ) as unknown,
       citation: {
         source: "CMS Rate PUF",
         fields: ["RateEffectiveDate", "RateExpirationDate"],
@@ -166,7 +168,10 @@ function requireAnnualRow(result: Result, month: string) {
     expect(rate.rate_rows_used[0]).toMatchObject({
       effective_date: "2026-01-01",
       expiration_date: "2026-12-31",
-      provenance: { source_file: "rate", source_row: expect.any(Number) },
+      provenance: {
+        source_file: "rate",
+        source_row: expect.any(Number) as unknown,
+      },
     });
     expect(rate.rate_snapshot_id).toMatch(/^puf-2026-TX-.*:rate$/);
   }
@@ -738,7 +743,7 @@ describe("non-calendar look-back and mid-year entrants", () => {
           expect.objectContaining({
             section: "Prop. 54.4980H-5(f)(4)(ii), (f)(7)(i)-(ii)",
           }),
-        ]),
+        ]) as unknown,
       }),
     );
   }

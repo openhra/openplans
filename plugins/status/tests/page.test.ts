@@ -10,6 +10,9 @@ import {
 } from "../src/index.js";
 import type { StatusData } from "../src/index.js";
 import type * as htmlModule from "../src/html.js";
+import { STYLE } from "../src/html.js";
+
+const htmlModuleStyle = () => STYLE;
 
 const htmlFile = fileURLToPath(new URL("../src/html.ts", import.meta.url));
 const NOW = new Date("2026-11-13T12:00:00Z");
@@ -118,6 +121,9 @@ describe("states and DC wording", () => {
   });
 });
 
+// Synthetic publisher dates by file: plan file, rate file, network file (none recorded).
+const SYNTHETIC_PUBLISHED = ["2025-08-12", "2026-10-30", null] as const;
+
 describe("sources grouped behind <details>", () => {
   const sources: StatusData["sources"] = [
     ...["AK", "AL", "AZ"].flatMap((state) =>
@@ -125,9 +131,18 @@ describe("sources grouped behind <details>", () => {
         id: `synthetic-puf:2026:${state}${part}`,
         retrieved: new Date(NOW.getTime() - (i === 2 ? 40 : 2) * DAY),
         snapshotId: `s-${state}-${i}`,
+        // Synthetic publisher dates: two per state, the network file has none.
+        published: SYNTHETIC_PUBLISHED[i] ?? null,
+        publishedFrom: i === 2 ? null : ("last_modified" as const),
       })),
     ),
-    { id: "synthetic-outlines", retrieved: NOW, snapshotId: "s-o" },
+    {
+      id: "synthetic-outlines",
+      retrieved: NOW,
+      snapshotId: "s-o",
+      published: null,
+      publishedFrom: null,
+    },
   ];
 
   it("gives one summary per source family with counts, and no script", () => {
@@ -139,10 +154,10 @@ describe("sources grouped behind <details>", () => {
     expect(html.match(/<details>/g)).toHaveLength(2);
     expect(html.match(/<\/details>/g)).toHaveLength(2);
     expect(html).toContain(
-      '<details><summary>synthetic-puf <span class="muted">9 snapshots, 6 under 7 days old, 3 aged 30 days or more</span></summary>',
+      '<details><summary>synthetic-puf <span class="muted">9 snapshots, 6 retrieved under 7 days ago, 3 retrieved 30 days ago or more; published 2025-08-12 to 2026-10-30, 3 unknown</span></summary>',
     );
     expect(html).toContain(
-      '<details><summary>synthetic-outlines <span class="muted">1 snapshot, under 1 day old</span></summary>',
+      '<details><summary>synthetic-outlines <span class="muted">1 snapshot, retrieved under 1 day ago; publisher date unknown</span></summary>',
     );
     // Every snapshot is still on the page, inside its family's element.
     const puf = html.slice(
@@ -150,7 +165,7 @@ describe("sources grouped behind <details>", () => {
       html.indexOf("</details>"),
     );
     for (const source of sources.slice(0, 9))
-      expect(puf).toContain(`<td>${source.id}</td>`);
+      expect(puf).toContain(`<td class="token">${source.id}</td>`);
   });
 
   it("the operator page groups its snapshots and issuer rows the same way", () => {
@@ -159,7 +174,7 @@ describe("sources grouped behind <details>", () => {
     expect(html).toContain(
       '<details><summary>synthetic-puf <span class="muted">9 snapshots,',
     );
-    expect(html).toContain("<td>s-AK-1</td>");
+    expect(html).toContain('<td class="token">s-AK-1</td>');
     expect(html).toContain("<details><summary>2 rows</summary>");
   });
 
@@ -167,5 +182,142 @@ describe("sources grouped behind <details>", () => {
     expect(page(status(["VT"], []))).toContain(
       '<p class="muted">Active snapshots: none.</p>',
     );
+  });
+});
+
+/**
+ * Rules in the inline CSS that let a table cell break inside a word. Only `td.token` cells
+ * (IDs, hashes, times, JSON) may do that; headers and word columns wrap at spaces.
+ */
+function wordBreakingRules(style: string): string[] {
+  const found: string[] = [];
+  for (const [, selectors, body] of style.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    if (
+      !/overflow-wrap:\s*(anywhere|break-word)|word-break:\s*break-(all|word)/.test(
+        body!,
+      )
+    )
+      continue;
+    for (const selector of selectors!.split(","))
+      if (
+        /(^|[\s>+~])(th|td|tr|table|thead|tbody|caption)\b|\.table\b/.test(
+          selector.trim(),
+        ) &&
+        !selector.includes(".token")
+      )
+        found.push(selector.trim());
+  }
+  return found;
+}
+
+describe("table cells break words only in token columns", () => {
+  const data: StatusData = {
+    ...status(
+      ["VT", "DC"],
+      [
+        {
+          id: "synthetic-puf:2026:VT:rate",
+          retrieved: NOW,
+          snapshotId: "s-VT-0",
+          published: "2026-10-30",
+          publishedFrom: "release_date",
+        },
+      ],
+    ),
+    ingests: [
+      {
+        source: "synthetic-puf",
+        lastSuccess: NOW,
+        reasonCodes: [],
+        durationsMs: [],
+      },
+    ],
+    passthrough: [
+      {
+        id: "synthetic-passthrough",
+        enabled: true,
+        level: "stored",
+        exhausted: false,
+        dailyRequests: 1,
+        maxDailyRequests: 10,
+        blockedUntil: null,
+        hitRate: null,
+      },
+    ],
+  };
+
+  it("the inline CSS breaks anywhere only in td.token", () => {
+    expect(wordBreakingRules(htmlModuleStyle())).toEqual([]);
+    expect(htmlModuleStyle()).toMatch(
+      /td\.token \{ overflow-wrap: anywhere; \}/,
+    );
+    expect(htmlModuleStyle()).not.toMatch(/hyphens:\s*auto/);
+    // A publisher date stays on one line instead of splitting at its hyphens.
+    expect(htmlModuleStyle()).toMatch(/td\.date \{ white-space: nowrap; \}/);
+  });
+
+  it("word columns are plain cells and long IDs are token cells", () => {
+    const html = page(data);
+    expect(html).not.toMatch(/<script/i);
+    expect(html).not.toMatch(/<th[^>]*class=/);
+    // Rows by status: every cell is a word or a count.
+    expect(html).toContain(
+      "<tr><td>available</td><td>2</td><td>2</td><td>0</td><td>0</td></tr>",
+    );
+    expect(html).toContain("<td>unavailable</td>");
+    // Sources and imports: the ID may break, the age may not.
+    expect(html).toContain(
+      '<tr><td class="token">synthetic-puf:2026:VT:rate</td><td>under 1 day ago</td><td class="token date">2026-10-30</td></tr>',
+    );
+    expect(html).toContain(
+      '<tr><td class="token">synthetic-puf</td><td>under 1 day</td></tr>',
+    );
+    expect(html).toContain(
+      '<tr><td class="token">synthetic-passthrough</td><td>yes</td><td>ok</td><td>stored</td></tr>',
+    );
+  });
+
+  it("each table sits in a labelled region that scrolls on its own", () => {
+    const html = page(data);
+    expect(html).toContain(
+      '<div class="table" role="region" tabindex="0" aria-label="Rows by status"><table>',
+    );
+    expect(html.match(/<div class="table"/g)!.length).toBe(
+      html.match(
+        /<div class="table" role="region" tabindex="0" aria-label="[^"]+">/g,
+      )!.length,
+    );
+    expect(htmlModuleStyle()).toContain(".table { overflow-x: auto; }");
+  });
+
+  it("planted mutant: anywhere on every cell is caught", async () => {
+    const mutant = await plantMutant(
+      htmlFile,
+      // The CSS is one template literal, so the mutant prepends a rule to it.
+      "export const STYLE =",
+      'export const STYLE = "th, td { overflow-wrap: anywhere; }" +',
+    );
+    try {
+      const html = (await import(mutant.path)) as typeof htmlModule;
+      expect(wordBreakingRules(html.STYLE)).toEqual(["th", "td"]);
+    } finally {
+      await mutant.cleanup();
+    }
+  });
+
+  it("planted mutant: marking every column as a token column is caught", async () => {
+    const mutant = await plantMutant(
+      htmlFile,
+      "tokens.includes(column)",
+      "tokens.length >= 0",
+    );
+    try {
+      const html = (await import(mutant.path)) as typeof htmlModule;
+      const text = html.renderStatusHtml(publicView(data), stateCodes(data));
+      expect(text).not.toContain("<td>unavailable</td>");
+      expect(text).toContain('<td class="token">under 1 day</td>');
+    } finally {
+      await mutant.cleanup();
+    }
   });
 });

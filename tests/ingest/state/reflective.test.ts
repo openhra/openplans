@@ -14,8 +14,22 @@ import {
 import { stateCatalog } from "../../../src/ingest/state/catalog.js";
 import { coreMigrations, testDatabase } from "../../pglite.js";
 
+interface StateRecord {
+  issuer: string;
+  plan_name: string;
+  source_record: string;
+  plan_id?: string;
+  prices: Record<string, string>;
+  raw: Record<string, string>;
+}
 interface StateSource {
-  records: { issuer: string; plan_name: string }[];
+  url: string;
+  sha256: string;
+  raw_path?: string;
+  records: StateRecord[];
+}
+interface StateFixture {
+  sources: StateSource[];
 }
 const load = async (name: string) =>
   JSON.parse(
@@ -23,7 +37,7 @@ const load = async (name: string) =>
       new URL(`../../fixtures/state/${name}`, import.meta.url),
       "utf8",
     ),
-  );
+  ) as StateFixture;
 const supplement = await load("vt-reflective-2026.json");
 const original = await load("vt-2026.json");
 const fixture = {
@@ -179,7 +193,7 @@ it("prices all 32 published family tiers verbatim; age and tobacco never change 
 it("negative control: changing both a normalized premium and its duplicated raw value still fails against source cells", () => {
   for (const sourceIndex of [0, 1]) {
     const mutant = structuredClone(supplement);
-    const record = mutant.sources[sourceIndex].records[0];
+    const record = mutant.sources[sourceIndex]!.records[0]!;
     record.prices.single = record.raw.single = (
       Number(record.prices.single) + 0.01
     ).toFixed(2);
@@ -188,19 +202,19 @@ it("negative control: changing both a normalized premium and its duplicated raw 
     );
   }
   const changedPublication = structuredClone(supplement);
-  changedPublication.sources[0].sha256 = "a".repeat(64);
+  changedPublication.sources[0]!.sha256 = "a".repeat(64);
   expect(() => parseStateArtifact(JSON.stringify(changedPublication))).toThrow(
     "Invalid reflective identity",
   );
   const inventedIdentity = structuredClone(supplement);
-  inventedIdentity.sources[1].records[0].plan_id = "77566VT0040030";
+  inventedIdentity.sources[1]!.records[0]!.plan_id = "77566VT0040030";
   expect(() => parseStateArtifact(JSON.stringify(inventedIdentity))).toThrow();
 });
 
 it("negative controls: missing premiums and corrupt source bytes preserve the active catalog", async () => {
   const before = (await db.query("SELECT * FROM state_rate_active")).rows;
   const missing = structuredClone(fixture);
-  delete missing.sources[1].records[0].prices.single;
+  delete missing.sources[1]!.records[0]!.prices.single;
   const mutantPath = join(directory, "synthetic-missing-price.json");
   await writeFile(mutantPath, JSON.stringify(missing));
   await expect(

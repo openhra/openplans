@@ -186,7 +186,7 @@ response stays refused. `onRequest` is called before each data request, not befo
 Defaults: three attempts, five redirect hops, 10-second DNS/connect timeout, 30-second response/read inactivity timeout, 1 GiB transfer limit and 60-second maximum retry delay. Transient connection failures, truncation, 408/429 and 500/502/503/504 may retry with jitter. Retry-After accepts seconds and HTTP dates; a value beyond the delay budget stops retries rather than retrying too soon. 401/403 and policy/content/cache rejections never retry. Requests still ask for identity encoding. If the publisher sends HTTP `Content-Encoding: gzip`, `deflate` (zlib-wrapped) or `br`, a streaming decoder enforces `maxDecompressedBytes` on actual emitted bytes before writing them. This cap defaults to `maxBytes`, so existing callers also bound decoded output. `maxBytes` independently bounds transfer bytes, and Content-Length is checked against that transfer count. Unsupported or stacked encodings fail with `unsupported_encoding`; invalid/incomplete compressed streams fail with `truncated`. Crossing either byte cap fails with `too_large`, destroys the streams and removes the staging directory and `payload.part` without publishing a snapshot. Stream backpressure bounds decoder buffering. The fetcher never writes the first chunk that crosses the cap.
 
 JSON requests send `Accept: application/json, */*;q=0.1` (some publishers answer 406 to a strict JSON-only Accept, e.g. issuer 66252 serves its index as text/plain). The client identifies itself as
-`openplans/0.4.8 (public health-plan source discovery; +<project URL>)`. Configure the public
+`openplans/0.4.9 (public health-plan source discovery; +<project URL>)`. Configure the public
 contact page with `OPENPLANS_PROJECT_URL` (or `FetchOptions.projectUrl`); the default is
 `https://plans.openhra.com/`, which contains the captcha-protected contact form. A self-hoster may point it at their own contact page. Credentials, contact-email literals, query
 values and fragments are rejected in this identity URL. It does not identify itself as a browser.
@@ -271,7 +271,36 @@ in the manifest with current terms. The call must send `requestBody` with `maxRe
 `invalid_options`. Every other call is `collection` and keeps the rules above. Plugins reach
 this only through `ctx.fetch.post` in the worker (`src/plugins/fetch.ts`).
 
+`headOnly: true` sends the data request as HEAD and reads no body. The result's `body` is
+empty and `validators` holds the publisher's `Last-Modified`, `ETag`, `Content-Length` and
+`Content-Type`. Robots and terms reads stay GET and keep the usual admission rules.
+`headOnly` cannot be combined with `requestBody` or a delivery.
+
 A transport may honour `context.signal`; `httpsTransport` closes the connection when it aborts
 and fails with `aborted`. Plugin worker commands wrap their transport with
 `abortableTransport` (`src/plugins/fetch.ts`), so `ctx.signal` stops a request even when the
 transport ignores the signal.
+
+## Publisher freshness
+
+`node dist/fetch/freshness-cli.js` asks whether the publishers have released newer files than
+the ones an installation loaded. It never downloads an archive. Each archive gets one HEAD
+request, and each listing page one read of at most 2 MiB. Every request goes through
+`fetchTransient` in a single admission session, so robots, terms, pacing and host leases apply.
+`--plan` prints the decisions and sends nothing.
+
+Before any request the planner (`planFreshness` in `freshness.ts`) skips a target and reports it
+`unknown` when its host is held or named in no manifest, its terms review is missing or expired,
+its path is outside `permittedPaths`, or it would push its host past `jobCaps.maxRequests` less
+four requests kept for robots and terms. It also skips an index read of an archive. Run a larger
+family as a separate job with `--family`.
+
+`--targets FILE` reads a JSON array of `{ family, url, mode, match?, loaded?, served? }`. `mode`
+is `head` or `index`. `match` is a pattern for the file names an index page links. `loaded` holds
+the `lastModified` or `names` the installation loaded. Listing pages keep older years and files an
+installation leaves out on purpose, so `served: { years?, exclude? }` narrows the comparison. A
+name with a four-digit year counts only when one of its years is in `years`; a name that matches
+the `exclude` pattern does not count. Names without a year still count. The result lists every
+name and gives the number left out as `outOfScope`. Each result reports `behind` as `yes` or `no`
+only when both sides are known and the page lists at least one name in scope, and as `unknown`
+otherwise.

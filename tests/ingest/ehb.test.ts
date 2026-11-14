@@ -41,7 +41,10 @@ it("stores fractions for federal and state plan attributes without mutating the 
   ]) {
     const stored = JSON.parse(
       String(parseImportRow("plan-attributes", row, "synthetic").at(-1)),
-    );
+    ) as {
+      EHBPercentTotalPremium: string;
+      EHBPediatricDentalApportionmentQuantity: string;
+    };
     expect(stored.EHBPercentTotalPremium).toBe("0.99");
     expect(stored.EHBPediatricDentalApportionmentQuantity).toBe("0.995");
     expect(allocatePremium(100_000, stored.EHBPercentTotalPremium)).toBe(
@@ -107,18 +110,23 @@ it("planted old-behavior mutants fail the same stored-fraction and cached-state 
           original,
         ),
       );
-      const mutant = await import(pathToFileURL(path).href);
+      const mutant = await (import(pathToFileURL(path).href) as Promise<{
+        parseImportRow: typeof parseImportRow;
+        stateDetailColumns: typeof stateDetailColumns;
+      }>);
       if (name === "ingest") {
         const check = (parse: typeof parseImportRow) =>
           assert.equal(
-            JSON.parse(
-              String(
-                parse(
-                  "plan-attributes",
-                  { rowNumber: 2, recordNumber: 2, fields: [], values },
-                  "synthetic",
-                ).at(-1),
-              ),
+            (
+              JSON.parse(
+                String(
+                  parse(
+                    "plan-attributes",
+                    { rowNumber: 2, recordNumber: 2, fields: [], values },
+                    "synthetic",
+                  ).at(-1),
+                ),
+              ) as { EHBPercentTotalPremium: string }
             ).EHBPercentTotalPremium,
             "0.99",
           );

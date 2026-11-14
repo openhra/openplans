@@ -50,7 +50,7 @@ async function rewrite(
   const rows = (await readFile(path, "utf8"))
     .trim()
     .split("\n")
-    .map((line) => JSON.parse(line));
+    .map((line) => JSON.parse(line) as Record<string, unknown>);
   rows.pop();
   mutate(rows);
   const body = rows.map((row) => JSON.stringify(row) + "\n").join("");

@@ -13,6 +13,10 @@ import { importProviders } from "../../../src/ingest/qhp/provider.js";
 import { runWorker } from "../../../src/worker/commands.js";
 import { fixture, scope, setup, insert } from "./provider-helpers.js";
 
+interface BatchOutput {
+  issuers: { issuer: string; status?: unknown }[];
+}
+
 describe("all readable issuers: synthetic isolation and acquisition mutants", () => {
   let h: Awaited<ReturnType<typeof setup>>;
   beforeAll(async () => {
@@ -122,7 +126,7 @@ describe("all readable issuers: synthetic isolation and acquisition mutants", ()
       JOIN qhp_child_url c ON c.snapshot_id=r.snapshot_id WHERE c.kind='provider_urls' AND c.status='downloaded'`)
     ).rows;
     expect(provenance).toEqual([
-      { issuer_scope: expect.arrayContaining(["12345", "00010"]) },
+      { issuer_scope: expect.arrayContaining(["12345", "00010"]) as unknown },
     ]);
     expect(batch.issuers.find((r) => r.issuer === "00001")).toMatchObject({
       status: "QUARANTINED",
@@ -241,17 +245,17 @@ describe("all readable issuers: synthetic isolation and acquisition mutants", ()
       ),
     ).toBe(1);
     expect(closed).toBe(true);
-    const batch = JSON.parse(output[0]!);
+    const batch = JSON.parse(output[0]!) as BatchOutput;
     expect(batch.issuers).toHaveLength(3);
     expect(
-      batch.issuers.find((r: { issuer: string }) => r.issuer === "12345")
+      batch.issuers.find((r: { issuer: string }) => r.issuer === "12345")!
         .status,
     ).toBe("ACTIVE");
     expect(
       batch.issuers.find((r: { issuer: string }) => r.issuer === "00010"),
     ).toMatchObject({
       completeness: "access_denied",
-      reason: expect.stringContaining("index_access_denied"),
+      reason: expect.stringContaining("index_access_denied") as unknown,
     });
     output.length = 0;
     expect(
@@ -277,7 +281,7 @@ describe("all readable issuers: synthetic isolation and acquisition mutants", ()
       ),
     ).toBe(1);
     expect(
-      JSON.parse(output[0]!).issuers.find(
+      (JSON.parse(output[0]!) as BatchOutput).issuers.find(
         (r: { issuer: string }) => r.issuer === "12345",
       ),
     ).toMatchObject({ completeness: "unknown", expected_children: 0 });
@@ -368,7 +372,7 @@ describe("all readable issuers: synthetic isolation and acquisition mutants", ()
     expect(interrupted).toMatchObject({
       status: "QUARANTINED",
       edges: 0,
-      reason: expect.stringContaining("run_budget_exceeded"),
+      reason: expect.stringContaining("run_budget_exceeded") as unknown,
     });
     expect(interrupted.reason).not.toContain(
       "catalog_plan_year_not_in_definitions",

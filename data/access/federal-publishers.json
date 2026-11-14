@@ -7,28 +7,38 @@
       "evidence": [
         {
           "url": "https://www.cms.gov/robots.txt",
-          "observedAt": "2026-11-09T17:18:00.000Z",
-          "status": 200,
-          "country": "CO"
+          "observedAt": "2026-11-14T14:16:17.000Z",
+          "status": 200
         },
         {
           "url": "https://www.cms.gov/files/document/exchange-pufs-disclaimagree-py27.pdf",
-          "observedAt": "2026-11-09T17:20:00.000Z",
-          "status": 200,
-          "country": "CO"
+          "observedAt": "2026-11-14T14:16:40.000Z",
+          "status": 200
+        },
+        {
+          "url": "https://www.cms.gov/about-cms/web-policies-important-links/about-website/link-to-us",
+          "observedAt": "2026-11-14T14:16:53.000Z",
+          "status": 200
         }
       ],
       "scope": {
         "products": [
           "Exchange PUF landing page",
           "State-based exchange PUF landing page and PY2026 archives",
-          "CMS state geographic rating area pages"
+          "CMS state geographic rating area pages",
+          "Medicare Advantage and Part D plan files for CY2026 and CY2027: Landscape, Plan Benefit Package benefits, Star Ratings data tables, plan crosswalk and October 2026 contract service areas. Listed for freshness checks; a collection job still needs an operator manifest."
         ],
         "states": ["US"],
         "years": [2025, 2026, 2027]
       },
       "discoveryUrls": [
-        "https://www.cms.gov/marketplace/resources/data/public-use-files"
+        "https://www.cms.gov/marketplace/resources/data/public-use-files",
+        "https://www.cms.gov/medicare/coverage/prescription-drug-coverage",
+        "https://www.cms.gov/medicare/health-drug-plans/part-c-d-performance-data",
+        "https://www.cms.gov/data-research/statistics-trends-and-reports/medicare-advantagepart-d-contract-and-enrollment-data/benefits-data/pbp-benefits-2026",
+        "https://www.cms.gov/data-research/statistics-trends-and-reports/medicare-advantagepart-d-contract-and-enrollment-data/benefits-data/pbp-benefits-2027",
+        "https://www.cms.gov/data-research/statistics-trends-and-reports/medicare-advantagepart-d-contract-and-enrollment-data/plan-crosswalks/2026-part-cd-plan-crosswalk",
+        "https://www.cms.gov/data-research/statistics-trends-and-reports/medicare-advantagepart-d-contract-and-enrollment-data/plan-crosswalks/2027-part-cd-plan-crosswalk"
       ],
       "permittedPaths": [
         "/marketplace/resources/data/public-use-files",
@@ -106,11 +116,27 @@
         "/files/zip/sbe-puf-files-2026.zip",
         "/files/zip/vermontsbepuf2026.zip",
         "/files/zip/virginiasbepuf2026.zip",
-        "/files/zip/washingtonsbepuf2026.zip"
+        "/files/zip/washingtonsbepuf2026.zip",
+        "/medicare/coverage/prescription-drug-coverage",
+        "/medicare/health-drug-plans/part-c-d-performance-data",
+        "/data-research/statistics-trends-and-reports/medicare-advantagepart-d-contract-and-enrollment-data/benefits-data/pbp-benefits-2026",
+        "/data-research/statistics-trends-and-reports/medicare-advantagepart-d-contract-and-enrollment-data/benefits-data/pbp-benefits-2027",
+        "/data-research/statistics-trends-and-reports/medicare-advantagepart-d-contract-and-enrollment-data/plan-crosswalks/2026-part-cd-plan-crosswalk",
+        "/data-research/statistics-trends-and-reports/medicare-advantagepart-d-contract-and-enrollment-data/plan-crosswalks/2027-part-cd-plan-crosswalk",
+        "/files/zip/cy2026-landscape-202609.zip",
+        "/files/zip/cy2027-landscape-202611.zip",
+        "/files/zip/pbp-benefits-2026.zip",
+        "/files/zip/pbp-benefits-2027.zip",
+        "/files/zip/2026-star-ratings-data-tables.zip",
+        "/files/zip/2027-star-ratings-data-tables-oct-8-2026.zip",
+        "/files/zip/plan-crosswalk-2026.zip",
+        "/files/zip/plan-crosswalk-2027.zip",
+        "/files/zip/ma-contract-service-area-state-county-october-2026.zip",
+        "/files/zip/pdp-contract-service-area-state-county-october-2026.zip"
       ],
       "delegates": [],
-      "attribution": "Centers for Medicare & Medicaid Services: Exchange and state-based exchange Public Use Files and CCIIO geographic rating area pages. Original bytes retained; derived data is not presented as CMS data.",
-      "updatePolicy": "Shipped with OpenPlans. Reviewed by the OpenPlans maintainers at each release; robots is read and the terms hash checked live before every collection, and a changed terms document stops collection. Robots (User-agent *) disallows /core/, /node/, /media/, /*? and similar; every permitted path here is allowed. No Crawl-delay; paced at 10 s.",
+      "attribution": "Centers for Medicare & Medicaid Services: Exchange and state-based exchange Public Use Files, CCIIO geographic rating area pages, and Medicare Landscape, Plan Benefit Package, Star Ratings, plan crosswalk and contract service-area files. Original bytes retained; derived data is not presented as CMS data.",
+      "updatePolicy": "Shipped with OpenPlans. Reviewed by the OpenPlans maintainers at each release; robots is read and the terms hash checked live before every collection, and a changed terms document stops collection. Robots (User-agent *) disallows /core/, /node/, /media/, /*? and similar; every permitted path here is allowed. No Crawl-delay; paced at 10 s. The Medicare paths are exact archives and the listing pages that link them; www.cms.gov has one entry, so the Exchange PUF disclaimer stays the pinned terms document and the basis adds the site's public-domain statement.",
       "delayMs": 10000,
       "jobCaps": {
         "maxRequests": 20,
@@ -120,16 +146,16 @@
         "url": "https://www.cms.gov/robots.txt",
         "status": 200,
         "sha256": "bc87c73da738796d324c1b0b76a799ea1b427cedf2af5fbbd4853bbf30e9d9d1",
-        "checkedAt": "2026-11-09T17:18:00.000Z"
+        "checkedAt": "2026-11-14T14:16:17.000Z"
       },
       "terms": {
         "url": "https://www.cms.gov/files/document/exchange-pufs-disclaimagree-py27.pdf",
         "disposition": "allowed",
         "sha256": "3130f49b6d6a2d74bd8830c698c82e6a72086a8681fd7a33764fef2f5dee799f",
-        "reviewedAt": "2026-11-09T17:25:00.000Z",
-        "expiresAt": "2027-05-08T17:25:00.000Z",
+        "reviewedAt": "2026-11-14T14:19:00.000Z",
+        "expiresAt": "2027-05-13T14:19:00.000Z",
         "reviewer": "OpenPlans maintainers",
-        "basis": "\"The Centers for Medicare & Medicaid Services (CMS) is pleased to make available as free public downloads the Health Insurance Exchange Public Use Files (Exchange PUFs)\" ... \"The user may not present or otherwise reference data that have been altered in any way as CMS data.\" Works of the U.S. Government are not subject to copyright (17 U.S.C. 105)."
+        "basis": "\"The Centers for Medicare & Medicaid Services (CMS) is pleased to make available as free public downloads the Health Insurance Exchange Public Use Files (Exchange PUFs)\" ... \"The user may not present or otherwise reference data that have been altered in any way as CMS data.\" Works of the U.S. Government are not subject to copyright (17 U.S.C. 105). Medicare plan files: the CMS.gov \"Link to Us\" page says the site is \"a public domain web site\"; the Medicare plan file pages carry no other terms and need no registration."
       }
     },
     {
@@ -211,20 +237,75 @@
       }
     },
     {
+      "host": "data.cms.gov",
+      "state": "allowed",
+      "evidence": [
+        {
+          "url": "https://data.cms.gov/robots.txt",
+          "observedAt": "2026-11-14T14:16:17.000Z",
+          "status": 200
+        },
+        {
+          "url": "https://data.cms.gov/sites/default/files/2023-10/4eeb19e1-525b-4a4e-9766-b33ff084fc5c/AGREEMENT-FOR-USE.pdf",
+          "observedAt": "2026-11-14T14:16:40.000Z",
+          "status": 200
+        }
+      ],
+      "scope": {
+        "products": [
+          "Quarterly Prescription Drug Plan Formulary, Pharmacy Network, and Pricing Information (CY2026, Q3 release)",
+          "Monthly Prescription Drug Plan Formulary and Pharmacy Network Information (CY2027, October 2026 release)"
+        ],
+        "states": ["US"],
+        "years": [2026, 2027]
+      },
+      "discoveryUrls": [
+        "https://data.cms.gov/data-api/v1/dataset-resources/58f846ab-857d-49c9-862e-0d5ee68fca57",
+        "https://data.cms.gov/data-api/v1/dataset-resources/ed1496ea-23e7-41f1-9292-172fa842ccfb"
+      ],
+      "permittedPaths": [
+        "/data-api/v1/dataset-resources/58f846ab-857d-49c9-862e-0d5ee68fca57",
+        "/data-api/v1/dataset-resources/ed1496ea-23e7-41f1-9292-172fa842ccfb",
+        "/sites/default/files/2026-10/062e9434-ed9d-4e83-abbd-4d64eb375949/SPUF_2026_20261007.zip",
+        "/sites/default/files/2026-10/73ce0d29-e440-4d9a-9608-93678a50e8c8/2027_20261008.zip"
+      ],
+      "delegates": [],
+      "attribution": "Centers for Medicare & Medicaid Services: Prescription Drug Plan Formulary, Pharmacy Network, and Pricing Information Public Use Files. Original bytes retained; data are as of the release date.",
+      "updatePolicy": "Shipped with OpenPlans. Reviewed by the OpenPlans maintainers at each release; robots is read and the terms hash checked live before every collection, and a changed terms document stops collection. Robots sets Crawl-delay 10 before any user-agent group and disallows /data-api/v1/download-request and the dataset-view tracker, not the dataset-resources listings or /sites/default/files/. Paced at 10 s. The 2023 Agreement for Use governs these free files, per maintainer decision D-MED-1. The 256 MiB session cap fits freshness checks and listings but not the 2 GB archives. Collecting those takes an operator manifest entry with its own caps, and serving stays off until the operator sets OPENPLANS_MEDICARE_PART_D=on.",
+      "delayMs": 10000,
+      "jobCaps": {
+        "maxRequests": 10,
+        "maxTransferBytes": 268435456
+      },
+      "robots": {
+        "url": "https://data.cms.gov/robots.txt",
+        "status": 200,
+        "sha256": "09eac4e20cf4fde8982be110374b389ff971976a7046100c3c1fe18df671f505",
+        "checkedAt": "2026-11-14T14:16:17.000Z"
+      },
+      "terms": {
+        "url": "https://data.cms.gov/sites/default/files/2023-10/4eeb19e1-525b-4a4e-9766-b33ff084fc5c/AGREEMENT-FOR-USE.pdf",
+        "disposition": "allowed",
+        "sha256": "e3098f964bf987ebaaa18e58313decf5f3d161063c98209aad0b3a8bedac6a3f",
+        "reviewedAt": "2026-11-14T14:19:00.000Z",
+        "expiresAt": "2027-05-13T14:19:00.000Z",
+        "reviewer": "OpenPlans maintainers",
+        "basis": "Agreement for Use (2023): \"The Prescription Drug Plan Formulary, Pharmacy Network, and Pricing Information Public Use Files are public use files being provided by the Centers for Medicare & Medicaid Services (CMS). By downloading and using the Formulary, Pharmacy Network, and Pricing Information Public Use Files, the User agrees to comply with this agreement.\" ... \"The information provided is as of the date listed\" ... \"The user shall not use the information in a manner that is inaccurate or misleading.\" Free download, no registration. Works of the U.S. Government are not subject to copyright (17 U.S.C. 105)."
+      }
+    },
+    {
       "host": "www2.census.gov",
       "state": "allowed",
       "evidence": [
         {
           "url": "https://www2.census.gov/robots.txt",
-          "observedAt": "2026-11-10T00:12:39.000Z",
-          "status": 200,
-          "country": "CO"
+          "observedAt": "2026-11-14T14:13:18.000Z",
+          "status": 200
         },
         {
           "url": "https://www.usa.gov/government-copyright",
-          "observedAt": "2026-11-10T00:12:40.000Z",
-          "status": 200,
-          "country": "CO"
+          "observedAt": "2026-11-14T14:14:16.000Z",
+          "status": 200
         }
       ],
       "scope": {
@@ -256,14 +337,14 @@
         "url": "https://www2.census.gov/robots.txt",
         "status": 200,
         "sha256": "556079bfdc70dd9a582e93f15d6ce906c00338960ece05ef6126e29ada018627",
-        "checkedAt": "2026-11-10T00:12:39.000Z"
+        "checkedAt": "2026-11-14T14:13:18.000Z"
       },
       "terms": {
         "url": "https://www.usa.gov/government-copyright",
         "disposition": "allowed",
-        "sha256": "6ad1c49001d97cc58fb56ddd01bdebca3a944bc6014cf6f8d57ce3d84a8babb0",
-        "reviewedAt": "2026-11-10T00:15:00.000Z",
-        "expiresAt": "2027-05-09T00:15:00.000Z",
+        "sha256": "02c0d6d3a68d1a2a45fb8235ee1f1e4f35ba650f1735d09191a69d3031cdfeba",
+        "reviewedAt": "2026-11-14T14:18:00.000Z",
+        "expiresAt": "2027-05-13T14:18:00.000Z",
         "reviewer": "OpenPlans maintainers",
         "basis": "USAGov, \"Learn about copyright and federal government materials\", which cites \"Copyright Law of the United States of America, Sections 101 and 105\"; 17 U.S.C. 105(a): \"Copyright protection under this title is not available for any work of the United States Government\". Census citation guidance: \"Data users who create their own estimates using data from disseminated tables and other data should cite the Census Bureau as the source of the original data only.\""
       }

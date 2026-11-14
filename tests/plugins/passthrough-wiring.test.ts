@@ -435,7 +435,9 @@ describe("pass-through host wiring", () => {
             ),
           ),
         );
-        planted = await import(/* @vite-ignore */ mutant.path);
+        planted = await (import(/* @vite-ignore */ mutant.path) as Promise<
+          Record<string, unknown>
+        >);
         // Exactly the named points: a mutant that broke everything would prove nothing.
         expect(await broken(await modules())).toEqual(points);
       } finally {

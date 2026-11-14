@@ -57,7 +57,7 @@ process.stdout.write(JSON.stringify(householdPremium(input.rows, input.plan, inp
     });
     expect(child.error).toBeUndefined();
     expect(child.status, child.stderr).toBe(0);
-    const mutant: HouseholdPremium = JSON.parse(child.stdout);
+    const mutant = JSON.parse(child.stdout) as HouseholdPremium;
     expect(mutant.status).toBe("rated");
     expect(mutant.totalCents).toBe(355_088);
     expect(mutant.members.filter((member) => member.charged)).toHaveLength(6);

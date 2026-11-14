@@ -242,7 +242,7 @@ console.log(JSON.stringify(lowestCostSilver(plans, household)));`,
         ],
         { input, encoding: "utf8" },
       );
-      const mutant = JSON.parse(output);
+      const mutant = JSON.parse(output) as { lcspMonthlyCents: number | null };
       expect(mutant.lcspMonthlyCents).toBe(45_000);
       expect(mutant.lcspMonthlyCents).not.toBe(40_000);
     } finally {

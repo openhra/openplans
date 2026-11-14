@@ -15,7 +15,9 @@ export async function canonicalEstimateOutput(
       return;
     }
     if (!value || typeof value !== "object") return;
-    for (const [key, child] of Object.entries(value)) {
+    for (const [key, child] of Object.entries(
+      value as Record<string, unknown>,
+    )) {
       if (
         ["snapshot_id", "publication_snapshot_id"].includes(key) &&
         typeof child === "string"

@@ -14,7 +14,7 @@ const fixture = JSON.parse(
     new URL("./fixtures/vt-hios-2026.json", import.meta.url),
     "utf8",
   ),
-);
+) as { rows: { source_row: number; values: Record<string, string> }[] };
 const fields = {
   StandardComponentId: "STANDARD COMPONENT ID",
   MarketCoverage: "MARKET COVERAGE",

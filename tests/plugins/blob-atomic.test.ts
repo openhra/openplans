@@ -136,7 +136,9 @@ async function publishedSnapshotsAreWhole(): Promise<string[]> {
       problems.push(`${name}: ${entries.join() || "empty"}`);
       continue;
     }
-    const meta = JSON.parse(await fs.readFile(join(path, "meta.json"), "utf8"));
+    const meta = JSON.parse(
+      await fs.readFile(join(path, "meta.json"), "utf8"),
+    ) as { sha256: string; bytes: number };
     const payload = await fs.readFile(join(path, "payload"));
     if (meta.sha256 !== sha(payload) || meta.bytes !== payload.length)
       problems.push(`${name}: payload differs from meta.json`);

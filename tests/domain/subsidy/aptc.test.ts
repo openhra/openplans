@@ -150,7 +150,7 @@ describe("77002 P5b real benchmark with a synthetic single age-40 household", ()
         ],
         { encoding: "utf8" },
       );
-      const result = JSON.parse(output);
+      const result = JSON.parse(output) as ReturnType<typeof estimateAptc>;
       expect(result.estimatedMonthlyCreditCents).toBe(41961);
       expect(() => assertTrace(result)).toThrow();
     } finally {

@@ -38,6 +38,13 @@ const binding = {
   generation: "mcp-definitions-v1",
   scope: "personalized",
 };
+interface ToolsListBody {
+  result: {
+    tools: { name: string; description?: string }[];
+    nextCursor?: string;
+  };
+  error: { code: number };
+}
 function expectCompleteList(
   result: {
     tools: { name: string }[];
@@ -105,7 +112,9 @@ it.each(["2026-07-28", "2025-11-25", "2025-06-18"])(
   "%s returns all fifteen tools in one raw HTTP response",
   async (version) => {
     const request = post("tools/list", {}, { "MCP-Protocol-Version": version });
-    const body = JSON.parse(await request.text());
+    const body = JSON.parse(await request.text()) as {
+      params: { _meta?: unknown };
+    };
     if (version !== "2026-07-28") delete body.params._meta;
     const response = await app().fetch(
       new Request(request.url, {
@@ -123,7 +132,7 @@ it.each(["2026-07-28", "2025-11-25", "2025-06-18"])(
           .split("\n")
           .find((line) => line.startsWith("data: "))!
           .slice(6);
-    expectCompleteList(JSON.parse(payload).result);
+    expectCompleteList((JSON.parse(payload) as ToolsListBody).result);
   },
 );
 
@@ -133,7 +142,7 @@ it("resumes signed cursors from earlier pages and handles the end of the list", 
     const cursor = cursorCodec(cursorSecret).issue(binding, offset);
     const response = await server.fetch(post("tools/list", { cursor }));
     expect(response.status).toBe(200);
-    const result = (await response.json()).result;
+    const result = ((await response.json()) as ToolsListBody).result;
     expect(result.tools.map((tool: { name: string }) => tool.name)).toEqual(
       toolNames.slice(offset),
     );
@@ -152,14 +161,14 @@ it("rejects tampered, expired, out-of-range and differently scoped list cursors"
   ];
   for (const cursor of cursors) {
     const response = await app().fetch(post("tools/list", { cursor }));
-    expect((await response.json()).error.code).toBe(-32602);
+    expect(((await response.json()) as ToolsListBody).error.code).toBe(-32602);
   }
 });
 
 it("refuses eighteen plugin tools at load because they need a second page", async () => {
   const refused = await loadTools({ count: 18 });
   expect(refused.exit).toBe(1);
-  expect(refused.lines.map((line) => JSON.parse(line))).toEqual([
+  expect(refused.lines.map((line) => JSON.parse(line) as unknown)).toEqual([
     { plugin: "@synthetic/mcp-tools", code: "mcp_tool_page_overflow" },
   ]);
   // The bound is the page size: seventeen plugin tools still fit with the fifteen core tools.
@@ -182,13 +191,12 @@ it("lists three plugin tools after the core tools, in registration order", async
   const response = await app().fetch(post("tools/list"));
   const text = await response.text();
   expect(Buffer.byteLength(text)).toBeLessThanOrEqual(MAX_TOOL_LIST_BYTES);
-  const result = JSON.parse(text).result;
+  const result = (JSON.parse(text) as ToolsListBody).result;
   expectCompleteList(result, names);
   expect(result.tools.slice(0, toolNames.length)).toEqual(
-    (await (await app().fetch(post("tools/list"))).json()).result.tools.slice(
-      0,
-      toolNames.length,
-    ),
+    (
+      (await (await app().fetch(post("tools/list"))).json()) as ToolsListBody
+    ).result.tools.slice(0, toolNames.length),
   );
   expect(result.tools[toolNames.length]).toMatchObject({
     name: "synthetic_tool_0",
@@ -196,15 +204,16 @@ it("lists three plugin tools after the core tools, in registration order", async
     inputSchema: { type: "object" },
     outputSchema: { type: "object" },
   });
-  expect(result.tools[toolNames.length].description).toMatch(
+  expect(result.tools[toolNames.length]!.description).toMatch(
     /^Synthetic tool for the registry tests\. Uses imported public evidence\./,
   );
   // The same tools when the registry is passed in explicitly.
   const { buildServer: real } = await import("../../src/mcp/server.js");
   const handler = handlerWith(tools!, real);
   try {
-    const direct = (await (await handler.fetch(post("tools/list"))).json())
-      .result;
+    const direct = (
+      (await (await handler.fetch(post("tools/list"))).json()) as ToolsListBody
+    ).result;
     expect(direct).toEqual(result);
   } finally {
     await handler.close();
@@ -215,12 +224,12 @@ it("rejects a list cursor issued before a plugin was enabled", async () => {
   const before = cursorCodec(cursorSecret).issue(binding, 9);
   // Accepted while no plugin is loaded.
   const accepted = await app().fetch(post("tools/list", { cursor: before }));
-  expect((await accepted.json()).result.tools).toHaveLength(
+  expect(((await accepted.json()) as ToolsListBody).result.tools).toHaveLength(
     toolNames.length - 9,
   );
   await loadTools({ count: 3 });
   const response = await app().fetch(post("tools/list", { cursor: before }));
-  expect((await response.json()).error.code).toBe(-32602);
+  expect(((await response.json()) as ToolsListBody).error.code).toBe(-32602);
   // A cursor bound to the new list still resumes it.
   const after = cursorCodec(cursorSecret).issue(
     {
@@ -236,7 +245,7 @@ it("rejects a list cursor issued before a plugin was enabled", async () => {
   );
   const resumed = await app().fetch(post("tools/list", { cursor: after }));
   expect(
-    (await resumed.json()).result.tools.map(
+    ((await resumed.json()) as ToolsListBody).result.tools.map(
       (tool: { name: string }) => tool.name,
     ),
   ).toEqual(["synthetic_tool_0", "synthetic_tool_1", "synthetic_tool_2"]);
@@ -289,7 +298,11 @@ it.each([
     const control = handlerWith(pluginTools, real);
     try {
       expectCompleteList(
-        (await (await control.fetch(post("tools/list"))).json()).result,
+        (
+          (await (
+            await control.fetch(post("tools/list"))
+          ).json()) as ToolsListBody
+        ).result,
         plugin ? names : toolNames,
       );
     } finally {
@@ -297,7 +310,7 @@ it.each([
     }
     handler = handlerWith(pluginTools, module.buildServer);
     const response = await handler.fetch(post("tools/list"));
-    const result = (await response.json()).result;
+    const result = ((await response.json()) as ToolsListBody).result;
     expect(result.tools.length).toBeGreaterThan(0);
     expect(() => expectCompleteList(result)).toThrow();
     // A sixteenth tool fits the larger page, so the list changes without a cursor.
@@ -313,7 +326,7 @@ it.each([
     const resumed = await handler.fetch(
       post("tools/list", { cursor: result.nextCursor }),
     );
-    const tail = (await resumed.json()).result;
+    const tail = ((await resumed.json()) as ToolsListBody).result;
     expect(
       [...result.tools, ...tail.tools].map(
         (tool: { name: string }) => tool.name,

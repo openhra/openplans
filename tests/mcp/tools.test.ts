@@ -386,7 +386,10 @@ describe("in-process MCP public catalog and estimates", () => {
       const content = resource.contents[0]!;
       expect("text" in content).toBe(true);
       if (!("text" in content)) throw new Error("Missing resource text");
-      const value = JSON.parse(content.text);
+      const value = JSON.parse(content.text) as {
+        status?: string;
+        data: { text: string };
+      };
       expect(value.status).not.toBe("error");
       expect(Buffer.byteLength(JSON.stringify(resource))).toBeLessThan(
         MAX_OUTPUT_BYTES,
@@ -516,7 +519,7 @@ describe("in-process MCP public catalog and estimates", () => {
     expect(result.isError).toBe(true);
     expect(result.content[0]).toMatchObject({
       type: "text",
-      text: expect.stringContaining("512 elements"),
+      text: expect.stringContaining("512 elements") as unknown,
     });
   });
   it("fits schema discovery under its budget even with a large caller-issued RPC ID", async () => {
@@ -555,7 +558,11 @@ describe("in-process MCP public catalog and estimates", () => {
               .split("\n")
               .find((line) => line.startsWith("data:"))!
               .slice(5);
-        const result = JSON.parse(payload).result;
+        const result = (
+          JSON.parse(payload) as {
+            result: { tools: { name: string }[]; nextCursor?: string };
+          }
+        ).result;
         expect(result.tools.map((t: { name: string }) => t.name)).toEqual(
           toolNames,
         );
@@ -703,7 +710,7 @@ describe("in-process MCP issuer provider evidence", () => {
       fixture.catalog.plans.some(
         (c: { base_plan_id: string }) => c.base_plan_id === p.plan_id,
       ),
-    ).plan_id;
+    )!.plan_id;
     npi = records[0].npi;
     await fixture.replace(records);
     expect(

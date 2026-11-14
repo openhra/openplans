@@ -34,7 +34,7 @@ describe("Part D drug names (synthetic RxNorm and formulary mappings)", () => {
       `/v1/medicare/plans/H0028-042-0/drugs?year=2026&rxcui=${rxcui}`,
     );
     expect(response.status).toBe(200);
-    return response.json();
+    return response.json() as Promise<unknown>;
   };
 
   beforeAll(async () => {

@@ -91,7 +91,10 @@ process.stdout.write(JSON.stringify(checkDentalRow(expected,rows,rules,dentalPre
       timeout: 10_000,
     });
     expect(result.status, result.stderr).toBe(0);
-    const mutant = JSON.parse(result.stdout);
+    const mutant = JSON.parse(result.stdout) as {
+      comparisons: number;
+      mismatches: { column: string }[];
+    };
     expect(mutant.comparisons).toBe(20);
     expect(mutant.mismatches).toHaveLength(4);
     expect(mutant.mismatches.map((m: { column: string }) => m.column)).toEqual([

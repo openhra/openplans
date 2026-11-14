@@ -5,6 +5,12 @@ import { join } from "node:path";
 import { GEO_SOURCES } from "../../../src/ingest/geo/sources.js";
 import type { GeoFiles, GeoKind } from "../../../src/ingest/geo/sources.js";
 
+interface FixtureSource {
+  filename: string;
+  fixture_sha256: string;
+  original_snapshot: GeoFiles[GeoKind]["metadata"];
+}
+
 export const fixtureDirectory = fileURLToPath(
   new URL("../../fixtures/geo/", import.meta.url),
 );
@@ -13,7 +19,7 @@ export async function fixtureFiles(
 ): Promise<GeoFiles> {
   const manifest = JSON.parse(
     await readFile(join(fixtureDirectory, "manifest.json"), "utf8"),
-  );
+  ) as { sources: Record<GeoKind, FixtureSource> };
   const files = {} as GeoFiles;
   for (const kind of Object.keys(GEO_SOURCES) as GeoKind[]) {
     const original = manifest.sources[kind];

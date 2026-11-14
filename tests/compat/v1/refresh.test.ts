@@ -69,7 +69,7 @@ beforeAll(async () => {
       new URL("../../api/state-geography.json", import.meta.url),
       "utf8",
     ),
-  );
+  ) as CensusCut;
   await db.exec(`INSERT INTO source(source_id,publisher,source_kind) VALUES('facade-census-cut','US Census Bureau','geography');
     INSERT INTO snapshot(snapshot_id,source_id,validation_state,expected_children,sha256,retrieved_at,activated_at)
       VALUES('facade-census-cut','facade-census-cut','ACTIVE',0,'${geo.source_sha256}',now(),now());
@@ -100,6 +100,10 @@ afterAll(async () => {
   await core.cleanup();
   await rm(directory, { recursive: true, force: true });
 });
+interface CensusCut {
+  source_sha256: string;
+  rows: { values: Record<string, string>; source_row: number }[];
+}
 interface QuotesBody {
   quotes: { total_cents: number }[];
 }
@@ -177,7 +181,7 @@ it("maps native SADP totals, sorts and paginates without retaining a priced-plan
         ),
         "utf8",
       ),
-    );
+    ) as unknown;
     assertShape(capture, result.body, "$", true);
   }
   const detail = await createApp(db).request(`${BASE}/plans/dental/${dental}`, {
@@ -301,7 +305,7 @@ it("NY 10001 maps four filed tiers and preserves unknown exchange flags, age/tob
         ),
         "utf8",
       ),
-    );
+    ) as unknown;
     assertShape(capture, all.body, "$", true);
   }
 });
@@ -387,8 +391,8 @@ it("negative control: dropping HIOS matching rejects an available Vermont HIOS i
   const mutant = matchesMedicalSearchId
     .toString()
     .replace(" || plan.hios_id === id", "");
-  const broken = new Function(
-    `return (${mutant})`,
+  const broken = (
+    new Function(`return (${mutant})`) as () => unknown
   )() as typeof matchesMedicalSearchId;
   expect(
     broken({ base_plan_id: vt, hios_id: "13627VT0340003" }, "13627VT0340003"),
@@ -428,9 +432,12 @@ it("negative control: compiled VT mapper mutant filling a HIOS-shaped id fails t
       },
     }).outputText,
   );
-  expect(() => contract(createRequire(import.meta.url)(path).mapPlan)).toThrow(
-    "VT identity must retain the native plan_key",
-  );
+  expect(() =>
+    contract(
+      (createRequire(import.meta.url)(path) as { mapPlan: typeof mapPlan })
+        .mapPlan,
+    ),
+  ).toThrow("VT identity must retain the native plan_key");
 });
 
 it("maps NUCC names only when native taxonomy_status is known, and retains gaps for an unknown code", async () => {

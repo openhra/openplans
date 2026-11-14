@@ -36,7 +36,7 @@ const read = (path: string): unknown => JSON.parse(readFileSync(path, "utf8"));
 const lists = loadDrugListFile();
 const others = [read(documentsFile), read(pbpDocumentsFile)];
 const clone = (): DrugListFile & Record<string, unknown> =>
-  JSON.parse(JSON.stringify(lists));
+  JSON.parse(JSON.stringify(lists)) as DrugListFile & Record<string, unknown>;
 
 // NDC-11s read from the pinned CMS list (C16).
 const ELIQUIS = "00003089321"; // selected 2026 and 2027

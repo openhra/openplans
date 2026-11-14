@@ -24,8 +24,11 @@ let directory: string,
   migrations: Awaited<ReturnType<typeof coreMigrations>>,
   california: GeoFiles;
 async function files(state: string): Promise<GeoFiles> {
-  const meta = JSON.parse(await readFile(join(root, "provenance.json"), "utf8"))
-    .states[state];
+  const meta = (
+    JSON.parse(await readFile(join(root, "provenance.json"), "utf8")) as {
+      states: Record<string, Record<string, unknown>>;
+    }
+  ).states[state]!;
   return Object.fromEntries(
     Object.entries(meta).map(([kind, value]) => {
       const f = value as {
@@ -136,7 +139,7 @@ it("MA preserves Census border ZIPs but leaves unpublished rating prefixes unkno
   await activateSbeRules(db, directory, 2026);
   expect(await ratingRule(db, "MA", 2026, "Individual")).toMatchObject({
     method: "per_member",
-    citation: expect.stringContaining("MA: CMS"),
+    citation: expect.stringContaining("MA: CMS") as string,
   });
   expect(await ratingRule(db, "NY", 2026, "Individual")).toMatchObject({
     method: "unsupported",

@@ -55,7 +55,7 @@ beforeAll(async () => {
       new URL("../fixtures/state/vt-2026.json", import.meta.url),
       "utf8",
     ),
-  );
+  ) as { sources: [{ records: unknown[] }] };
   fixture.sources[0].records = cut.plans.map((plan) => {
     const [issuer, name] = plan.plan_key.split(":");
     const prices = Object.fromEntries(
@@ -157,9 +157,9 @@ it("uses literal CMS metals for all 26 filed plans and selects the lowest single
           metal: "Silver",
           member: cut.member,
           source_sha256: cut.bundle_sha256,
-        }),
+        }) as unknown,
       }),
-    ]),
+    ]) as unknown,
   });
   expect(
     (

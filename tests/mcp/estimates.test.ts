@@ -95,9 +95,10 @@ it("preserves filed state plan keys, HIOS absence, raw cells and resource percen
     });
     const content = resource.contents[0]!;
     if (!("text" in content)) throw new Error("Missing state resource");
-    expect(JSON.parse(content.text).data.plan.plan_key).toBe(
-      "BCBSVT:Gold Plan",
-    );
+    expect(
+      (JSON.parse(content.text) as { data: { plan: { plan_key: string } } })
+        .data.plan.plan_key,
+    ).toBe("BCBSVT:Gold Plan");
     // $1,345.45 is the unmodified VT publication's single cell.
     for (const [plan, county, expected] of [
       ["11177NY0220001", "36061", 127_098],

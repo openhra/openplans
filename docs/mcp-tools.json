@@ -1,0 +1,125 @@
+{
+  "schema_version": 1,
+  "tools": [
+    {
+      "name": "check_drug_coverage",
+      "title": "Check formulary evidence",
+      "description": "Evaluate up to 100 exact plan/drug pairs, preserving five-state evidence, unresolved tiers and nullable restrictions.",
+      "kind": "core",
+      "listed": "always"
+    },
+    {
+      "name": "check_ichra_affordability",
+      "title": "Check ICHRA affordability",
+      "description": "Check whether an individual coverage HRA is affordable for one employee. Returns the lowest cost silver plan on gross and EHB-portion premiums, the required HRA contribution and one verdict per income measure, with cited rules. Not a bindable quote. Employer safe harbors come from a proposed rule and say so.",
+      "kind": "core",
+      "listed": "always"
+    },
+    {
+      "name": "check_provider_network",
+      "title": "Check network evidence",
+      "description": "Evaluate up to 100 exact plan/NPI pairs using issuer record scope; addresses never establish participation.",
+      "kind": "core",
+      "listed": "always"
+    },
+    {
+      "name": "fetch",
+      "title": "Fetch an evidence record",
+      "description": "Read a typed ID returned by this server, with bounded detail sections; never accepts a URL or path.",
+      "kind": "core",
+      "listed": "always"
+    },
+    {
+      "name": "get_data_status",
+      "title": "Inspect loaded data",
+      "description": "Read the local capability manifest, issuer/year/state gaps, source completeness and personalized access policy.",
+      "kind": "core",
+      "listed": "always"
+    },
+    {
+      "name": "get_plan",
+      "title": "Read a plan",
+      "description": "Read an exact HIOS or state plan key and year, with optional CSR variant and paged benefits, documents or provenance.",
+      "kind": "core",
+      "listed": "always"
+    },
+    {
+      "name": "list_carriers_networks",
+      "title": "List carriers or networks",
+      "description": "List scoped issuer or network records for an explicit state and optional year. IDs retain publication scope.",
+      "kind": "core",
+      "listed": "always"
+    },
+    {
+      "name": "lookup_geography",
+      "title": "Resolve ZIP counties",
+      "description": "Resolve imported ZIP/county evidence, preserving multi-county ambiguity and labelled approximate fallbacks.",
+      "kind": "core",
+      "listed": "always"
+    },
+    {
+      "name": "quote_plans",
+      "title": "Quote plans by age and ZIP",
+      "description": "Quote plans by age and ZIP. Public tier: no income, subsidy or names; tobacco is optional. Provider and drug coverage per plan with evidence status. Not a bindable quote.",
+      "kind": "core",
+      "listed": "always"
+    },
+    {
+      "name": "quote_premiums",
+      "title": "Quote household premiums",
+      "description": "Household quote with gross, estimated credit/net and full rate evidence. Income and ages are never logged. Not a bindable quote; CSR eligibility is not evaluated.",
+      "kind": "core",
+      "listed": "always"
+    },
+    {
+      "name": "search",
+      "title": "Search public evidence",
+      "description": "Discover literal plan, provider, drug, geography, carrier, network and dataset matches; scope gaps are explicit.",
+      "kind": "core",
+      "listed": "always"
+    },
+    {
+      "name": "search_drugs",
+      "title": "Find exact drug concepts",
+      "description": "Search unique RxCUIs by literal name or published NDC; select an exact concept before checking coverage.",
+      "kind": "core",
+      "listed": "always"
+    },
+    {
+      "name": "search_medicare_plans",
+      "title": "Search Medicare plans",
+      "description": "List the Medicare Advantage, Part D and SNP plans CMS lists for one county and contract year, with their filed premiums, MOOP and stars. Provider networks stay unknown because CMS publishes no central file.",
+      "kind": "core",
+      "listed": "always"
+    },
+    {
+      "name": "search_plans",
+      "title": "Find health plans",
+      "description": "List plans for an explicit year and ZIP/county. Ambiguous counties need a selection; eligibility is unknown.",
+      "kind": "core",
+      "listed": "always"
+    },
+    {
+      "name": "search_providers",
+      "title": "Find provider identities",
+      "description": "Search literal names, exact NPIs, taxonomy or plan records with optional radius filtering before pagination. Identity alone proves no network membership.",
+      "kind": "core",
+      "listed": "always"
+    },
+    {
+      "name": "estimate_medicare_drug_costs",
+      "title": "Estimate Medicare drug costs",
+      "description": "Estimate one Medicare Part D plan's covered-drug costs for an ordered fill schedule in the non-LIS scenario, from CMS benefit files and annual rules. Every figure cites its evidence; amounts without prices stay unknown. A bounded figure is a range from minimum_cents to maximum_cents, not one cost. Benefit type and drug classes come from CMS files, never the caller. The server keeps no copy of the schedule. Not a bindable quote, and premiums are not evaluated.",
+      "kind": "core",
+      "listed": "switched"
+    },
+    {
+      "name": "get_status",
+      "title": "Service status",
+      "description": "Returns the public status summary that /status.json serves: version, database state, coverage counts by status, source retrieval age buckets with each source's publisher date when one was recorded, last import age per source, cache on or off, pass-through budget state, plugin count and the age of the last health change.",
+      "kind": "plugin",
+      "listed": "plugin",
+      "plugin": "@openplans/plugin-status"
+    }
+  ]
+}

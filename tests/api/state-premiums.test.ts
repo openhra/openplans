@@ -94,7 +94,7 @@ beforeAll(async () => {
   // Unmodified real Census cuts; fixture registration metadata is test-only.
   const geo = JSON.parse(
     await readFile(new URL("./state-geography.json", import.meta.url), "utf8"),
-  );
+  ) as CensusCut;
   await db.exec(`INSERT INTO source(source_id,publisher,source_kind) VALUES('state-api-census-cut','US Census Bureau','geography');
     INSERT INTO snapshot(snapshot_id,source_id,validation_state,expected_children,sha256,retrieved_at,activated_at)
       VALUES('state-api-census-cut','state-api-census-cut','ACTIVE',0,'${geo.source_sha256}',now(),now());
@@ -157,6 +157,11 @@ it("NY native HTTP: four household tiers select approved source cells with no ag
   }
 });
 
+interface CensusCut {
+  source_sha256: string;
+  ny_counties: Record<string, string>;
+  rows: { values: Record<string, string>; source_row: number }[];
+}
 interface GeographyCounty {
   county_fips: string;
   county: string;
@@ -467,7 +472,7 @@ it("conflicting state rows, changed active imports and wrong-state locations nev
 it("DFS county transcription agrees with all 62 Census county identifiers", async () => {
   const census = JSON.parse(
     await readFile(new URL("./state-geography.json", import.meta.url), "utf8"),
-  );
+  ) as CensusCut;
   const map = JSON.parse(
     await readFile(
       new URL(
@@ -476,7 +481,7 @@ it("DFS county transcription agrees with all 62 Census county identifiers", asyn
       ),
       "utf8",
     ),
-  );
+  ) as { NY: { counties: GeographyCounty[] } };
   expect(
     Object.fromEntries(
       map.NY.counties.map((c: GeographyCounty) => [c.county_fips, c.county]),
@@ -504,7 +509,12 @@ it("MCP contracts preserve state plan keys, filed totals and source cells", asyn
       quote_method: "state_filed_tier",
       members: [],
       state_rule_trace: { tier: "single" },
-      rate_trace: [{ column: expect.any(String), value: expect.any(String) }],
+      rate_trace: [
+        {
+          column: expect.any(String) as string,
+          value: expect.any(String) as string,
+        },
+      ],
     });
   }
 });

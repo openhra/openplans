@@ -14,12 +14,12 @@ interface Fixture {
   planIds: string[];
   rows: { sourceRowNumber: number; raw: CmsRateRow }[];
 }
-export const fixture: Fixture = JSON.parse(
+export const fixture = JSON.parse(
   readFileSync(
     new URL("../../fixtures/rating/tx-2026-area-10.json", import.meta.url),
     "utf8",
   ),
-);
+) as Fixture;
 export const rows = fixture.rows.map(({ raw, sourceRowNumber }) =>
   parseRateRow(raw, {
     snapshotId: `sha256:${fixture.sourceSha256}`,

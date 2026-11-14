@@ -9,8 +9,11 @@ export interface TransportContext {
   headers: Record<string, string>;
   connectTimeoutMs: number;
   readTimeoutMs: number;
-  /** GET unless the caller supplied an upload body (FetchOptions.requestBody). */
-  method?: "GET" | "POST";
+  /**
+   * GET unless the caller supplied an upload body (FetchOptions.requestBody) or asked for headers
+   * only (`TransientFetchOptions.headOnly`).
+   */
+  method?: "GET" | "POST" | "HEAD";
   body?: Buffer;
   /** Closes the connection when it aborts. Implementations may ignore it; callers race it too. */
   signal?: AbortSignal;

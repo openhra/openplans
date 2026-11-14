@@ -56,9 +56,12 @@ describe("tests/fixtures/qhp lineage", () => {
   it("mutant: a listed file without the synthetic label fails", async () => {
     const dir = await copy(),
       path = join(dir, "provider", "provenance.json");
-    const manifest = JSON.parse(await readFile(path, "utf8"));
+    const manifest = JSON.parse(await readFile(path, "utf8")) as {
+      synthetic: boolean;
+      files: Record<string, { synthetic: boolean }>;
+    };
     manifest.synthetic = false;
-    manifest.files["records.json"].synthetic = false;
+    manifest.files["records.json"]!.synthetic = false;
     await writeFile(path, JSON.stringify(manifest));
     expect(await checkFixtureLineage(dir)).toEqual([
       "provider/records.json: lacks the synthetic label and is not from an admitted public host",
@@ -68,8 +71,10 @@ describe("tests/fixtures/qhp lineage", () => {
   it("mutant: a real file from a host that is not admitted fails", async () => {
     const dir = await copy(),
       path = join(dir, "provenance.json");
-    const manifest = JSON.parse(await readFile(path, "utf8"));
-    manifest.files["tx-2026-registry.xlsx.hex"].source_url =
+    const manifest = JSON.parse(await readFile(path, "utf8")) as {
+      files: Record<string, { source_url: string }>;
+    };
+    manifest.files["tx-2026-registry.xlsx.hex"]!.source_url =
       "https://issuer.example/plans.json";
     await writeFile(path, JSON.stringify(manifest));
     expect(await checkFixtureLineage(dir)).toEqual([
@@ -92,7 +97,10 @@ describe("tests/fixtures/qhp lineage", () => {
       deny = new Set([...BUILTIN_DENY, sha(denied)]);
     await writeFile(join(dir, "formulary", "copied.json"), denied);
     const path = join(dir, "formulary", "provenance.json");
-    const manifest = JSON.parse(await readFile(path, "utf8"));
+    const manifest = JSON.parse(await readFile(path, "utf8")) as {
+      files: Record<string, unknown>;
+      lineage: unknown;
+    };
     manifest.files["copied.json"] = { synthetic: true, sha256: sha(denied) };
     manifest.lineage = { sha256: BUILTIN_DENY[0] };
     await writeFile(path, JSON.stringify(manifest));

@@ -93,13 +93,17 @@ describe("MCP boundary security", () => {
             );
           const response = await setup().fetch(request);
           expect(response.status).toBe(400);
-          expect((await response.json()).error.code).toBe(-32020);
+          expect(
+            ((await response.json()) as { error: { code: number } }).error.code,
+          ).toBe(-32020);
         }
     },
   );
   it("unsupported revision returns supported protocol versions", async () => {
     const request = post();
-    const body = JSON.parse(await request.text());
+    const body = JSON.parse(await request.text()) as {
+      params: { _meta: Record<string, unknown> };
+    };
     body.params._meta["io.modelcontextprotocol/protocolVersion"] = "2099-01-01";
     const headers = new Headers(request.headers);
     headers.set("mcp-protocol-version", "2099-01-01");
@@ -343,7 +347,9 @@ it("closing a request-scoped SSE stream cancels its SQL", async () => {
     { name: "get_data_status", arguments: {} },
     { origin: "http://localhost:3000" },
   );
-  const body = JSON.parse(await request.text());
+  const body = JSON.parse(await request.text()) as {
+    params: { _meta: unknown };
+  };
   body.params._meta = { ...metadata, progressToken: "synthetic-progress" };
   const response = await app.fetch(
     new Request(request.url, {
@@ -393,7 +399,7 @@ it("refuses subscription streams even though the SDK has a listen router", async
     post("subscriptions/listen", { notifications: {} }),
   );
   expect(response.headers.get("content-type")).toContain("application/json");
-  expect((await response.json()).error.message).toBe(
-    "Subscription limit reached",
-  );
+  expect(
+    ((await response.json()) as { error: { message: string } }).error.message,
+  ).toBe("Subscription limit reached");
 });

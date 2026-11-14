@@ -408,7 +408,10 @@ describe("read-only size evidence collector", () => {
         );
         expect(errors).toEqual([]);
         expect(code).toBe(0);
-        return JSON.parse(out[0]!);
+        return JSON.parse(out[0]!) as {
+          pending: unknown;
+          sizeEvidence: unknown;
+        };
       };
       const evidence = parseSizeEvidence(
         await run(["migrate", "--size-evidence"]),

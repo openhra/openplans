@@ -40,8 +40,18 @@ per client, 8 at once in total.
   With the response cache on, the core host keeps the computed statuses in memory for the
   current data generation, the same key the response cache uses. The first read after an
   import commits computes them again. With the cache off, every read computes them.
-- `sources`: each source with an active snapshot and how old its latest copy is: `<1d`, `<7d`,
-  `<30d` or `older`.
+- `sources`: each source with an active snapshot.
+  - `freshness`: how long ago OpenPlans retrieved its latest copy: `<1d`, `<7d`, `<30d` or
+    `older`. It says when we downloaded the file. It does not say whether the publisher has
+    released anything newer since.
+  - `published_at`: the publisher's own date for that copy, as `YYYY-MM-DD`, or `null` when the
+    import recorded none.
+  - `published_from`: where that date came from. `release_date` is the release, version or data
+    date the import stored with the snapshot. Examples are the RxNorm release, the NPPES file
+    date and a Medicare file's release month. `last_modified` is the `Last-Modified` header the
+    publisher's server sent with the file, read as a UTC date. A stored release date wins over
+    the header. A Medicare release whose stored date is only the day we retrieved it reads
+    `null`. `null` when `published_at` is `null`.
 - `worker.last_ingest`: for each source, how long ago its last successful import finished, in
   the same buckets, or `unknown` when none is recorded.
 - `cache.enabled`: whether the response cache is on.
@@ -56,14 +66,16 @@ The HTML page shows the same fields in less space. It reads the state codes behi
 `data.states` and names DC apart from the states, as in "48 states and DC". It groups sources
 by the part of the ID before the first colon, so `cms-exchange-puf:2026:TX:rate` falls under
 `cms-exchange-puf`. Each group gets one line with its snapshot count and ages, and its
-snapshots sit inside a `<details>` element. The page stays short however many snapshots are
+snapshots sit inside a `<details>` element. Each snapshot row shows Retrieved and Published side by
+side, the summary line gives the family's range of publisher dates, and one sentence above the
+groups explains the difference. The page stays short however many snapshots are
 active, and it has no scripts. A link at the top goes to plans.openhra.com.
 
 ## What the operator view adds
 
 - the number of clients waiting for a database connection;
 - one coverage row per state, plan year, market and issuer;
-- the exact retrieval time and snapshot ID of each source;
+- the exact retrieval time, publisher date and snapshot ID of each source;
 - recent import failure codes and durations;
 - cache backend, hits, misses, bypasses and bytes;
 - pass-through request counts, daily limits, pause times and cache hit rate;

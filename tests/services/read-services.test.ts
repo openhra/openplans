@@ -24,11 +24,11 @@ describe("provider read use cases preserve native preconditions without HTTP", (
   beforeAll(async () => {
     h = await providers.setup();
     const records = await providers.fixture("records");
-    plan = records[0].plans.find((p: { plan_id: string }) =>
+    plan = records[0]!.plans.find((p: { plan_id: string }) =>
       h.catalog.plans.some(
         (c: { base_plan_id: string }) => c.base_plan_id === p.plan_id,
       ),
-    ).plan_id;
+    )!.plan_id;
     await h.replace(records);
     expect((await importProviders(h.db, providers.scope)).status).toBe(
       "ACTIVE",
@@ -96,8 +96,8 @@ describe("drug, freshness and provenance services", () => {
   beforeAll(async () => {
     h = await drugs.setup();
     const records = await drugs.fixture("drugs");
-    plan = h.catalog.plans[0].base_plan_id;
-    rxcui = records[0].rxnorm_id;
+    plan = h.catalog.plans[0]!.base_plan_id;
+    rxcui = records[0]!.rxnorm_id;
     await h.replace(records);
     expect((await importFormulary(h.db, drugs.scope)).status).toBe("ACTIVE");
   });

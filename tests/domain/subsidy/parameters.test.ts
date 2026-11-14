@@ -51,8 +51,8 @@ describe("offline parameter validation", () => {
     const directory = mkdtempSync(join(tmpdir(), "openplans-subsidy-uncited-"));
     try {
       const mutant = JSON.parse(JSON.stringify(parameters2026), (key, value) =>
-        key === "citations" ? [] : value,
-      );
+        key === "citations" ? [] : (value as unknown),
+      ) as unknown;
       writeFileSync(join(directory, "2026.json"), JSON.stringify(mutant));
       const child = check(directory);
       expect(child.error).toBeUndefined();
@@ -103,7 +103,9 @@ describe("offline parameter validation", () => {
     },
   ])("rejects invalid evidence/table mutant %#", (mutate) => {
     // JSON clone is deliberately mutable test input; production parameters are readonly.
-    const mutant = JSON.parse(JSON.stringify(parameters2026));
+    const mutant = JSON.parse(JSON.stringify(parameters2026)) as Mutable<
+      typeof parameters2026
+    >;
     mutate(mutant);
     expect(parameterErrors(mutant).length).toBeGreaterThan(0);
   });
@@ -147,7 +149,7 @@ process.stdout.write(JSON.stringify(estimateAptc(JSON.parse(readFileSync(0, 'utf
     });
     expect(child.error).toBeUndefined();
     expect(child.status, child.stderr).toBe(0);
-    const mutant = JSON.parse(child.stdout);
+    const mutant = JSON.parse(child.stdout) as ReturnType<typeof estimateAptc>;
     expect(mutant.fplPercent).toBe(249); // 39,100 / wrong $15,650 table.
     expect(() => assertAlaskaExample(mutant)).toThrow(/249.*200/s);
   } finally {

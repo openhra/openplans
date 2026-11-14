@@ -489,7 +489,10 @@ describe("worker commands for events", () => {
     ]);
     const keyed = await run([...args, "--idempotency-key", "release-1"]);
     expect(keyed.code).toBe(0);
-    expect(JSON.parse(keyed.out[0]!).idempotency_key).toBe("release-1");
+    expect(
+      (JSON.parse(keyed.out[0]!) as { idempotency_key: string })
+        .idempotency_key,
+    ).toBe("release-1");
   });
 
   it("emit refuses bad arguments and payloads without printing payload values", async () => {

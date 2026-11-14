@@ -47,7 +47,7 @@ it.each(["native", "compat", "root"])(
     });
     expect(response.status).toBe(500);
     expect(log).toHaveBeenCalledTimes(1);
-    expect(JSON.parse(log.mock.calls[0]![0])).toEqual({
+    expect(JSON.parse(log.mock.calls[0]![0] as string)).toEqual({
       event: "api_internal_error",
       error_class: "TypeError",
       stack_hash: createHash("sha256").update(error.stack!).digest("hex"),
@@ -66,7 +66,10 @@ it("keeps non-Error payloads and unsafe class names out of logs", () => {
   });
   logInternalError(error);
   expect(
-    log.mock.calls.map(([entry]) => JSON.parse(entry).error_class),
+    log.mock.calls.map(
+      ([entry]) =>
+        (JSON.parse(entry as string) as { error_class: string }).error_class,
+    ),
   ).toEqual(["UnknownError", "Error"]);
   expect(JSON.stringify(log.mock.calls)).not.toContain("synthetic-secret");
 });

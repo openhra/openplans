@@ -360,7 +360,15 @@ the number of cell-less rows that pass the filters, read in the same search. A s
 only while the revisions of `address_point`, `npi_address`, `npi_provider` and `npi_taxonomy`
 equal the ones they were built from, checked again inside the search's own snapshot. After any
 import or geocode run they are stale until the next build, and searches take the paths above.
-Operator geocoder points and compatibility location pages always take those paths too.
+Compatibility location pages with a name, taxonomy, specialty or type filter use the same keys.
+Every matching identity in the radius comes from the cells, and the search then reads only those
+identities' practice addresses and points to build, count and page the normalized locations. A
+location page has to read every matching identity, so it reads the keys only up to 2,000 of them.
+Above that, and for pages without a filter, the radius scan reads fewer rows and answers. An operator geocoder point can replace a ZIP-centroid point or
+locate an address the Census geocoder tied or missed. The search reads the identities it touches
+from the effective points and every other identity from its keys. Plan searches never use the
+keys, because issuer addresses and their points are not in them. Searches without PostGIS or
+without a radius don't use them either.
 The worker fills the idle one of two slot tables and then switches, so no search waits for a build. Issuer radius search intersects spatial hits with current participating
 record keys before indexed address validation. Record IDs may contain colons; the
 last source-key component is the address ordinal, and the API rechecks the full key.

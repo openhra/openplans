@@ -30,7 +30,7 @@ async function cutFile(path: string): Promise<LineageFile> {
   const data = await readFile(path);
   const provenance = JSON.parse(
     await readFile(join(fixtures, "provenance.json"), "utf8"),
-  );
+  ) as { url: string };
   return {
     path,
     format: "csv",
@@ -91,7 +91,7 @@ describe("Plan ID Crosswalk PUF lineage: real CMS PY2026 cut and labelled synthe
   it("stores every published row 1:1 and publishes the snapshot", async () => {
     const provenance = JSON.parse(
       await readFile(join(fixtures, "provenance.json"), "utf8"),
-    );
+    ) as { cut_sha256: string; rows: number; pairs: unknown[] };
     const file = await cutFile(join(fixtures, "plan-id-crosswalk.csv"));
     expect(file.sha256).toBe(provenance.cut_sha256);
     const report = await importPlanLineage(db, {

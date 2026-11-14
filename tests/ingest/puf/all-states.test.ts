@@ -145,7 +145,7 @@ describe("publication-derived state batches", () => {
           join(directory, "reports/puf-2026-all-states.json"),
           "utf8",
         ),
-      );
+      ) as { results: { state: string }[] };
       expect(manifest.results.map((r: { state: string }) => r.state)).toEqual([
         "AL",
         "TX",
@@ -171,7 +171,7 @@ describe("publication-derived state batches", () => {
           expect(await ratingRule(db, state, year, "individual")).toMatchObject(
             {
               method: "per_member",
-              citation: expect.stringContaining("147.102(c)(1)"),
+              citation: expect.stringContaining("147.102(c)(1)") as string,
             },
           );
         for (const state of ["NY", "VT"])
@@ -196,10 +196,10 @@ describe("publication-derived state batches", () => {
           new URL("../../../data/rating-rules/2026.json", import.meta.url),
           "utf8",
         ),
-      );
+      ) as { rules: { state: string; method: string }[] };
       const ny = document.rules.find(
         (r: { state: string }) => r.state === "NY",
-      );
+      )!;
       expect(ny.method).toBe("unsupported");
       Object.assign(ny, {
         method: "per_member",

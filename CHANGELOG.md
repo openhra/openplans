@@ -3,6 +3,98 @@
 Release notes for OpenPlans. Earlier releases are on the
 [GitHub releases page](https://github.com/openhra/openplans/releases).
 
+## v0.4.9
+
+This release makes compatibility provider searches for common names answer in time, shows each
+source's publisher date on the status page, keeps words whole in its tables on phones, adds a
+read-only check for newer publisher files, and makes Census downloads work again with the
+shipped access manifest. The status plugin moves to 0.1.3, so an approved plugin list needs its
+new hash. There is no migration and no new backfill. Search results don't change, though some
+searches that answered 504 now answer in time. `/status.json` and the `get_status` tool only add
+fields. See Upgrading below.
+
+### What users notice
+
+- **Compatibility provider searches for common names answer in time.** A compatibility location
+  search for a name such as SMITH, or with a taxonomy, specialty or type filter, now reads the
+  provider search keys when 2,000 or fewer identities match in the radius. On a nationwide NPPES
+  load such a search answered 504 in v0.4.8. Results, totals and pages are the same as before.
+  Searches with more matches, or with no filter, keep the original path, which reads fewer rows
+  for them.
+- **Status tables keep words whole on phones.** At 390 px and narrower, `/status` split words
+  across lines, such as "Catal/og" and "unavailabl/e". Table cells now wrap only at spaces. Only
+  source IDs, snapshot IDs, times, hashes and event payloads can still break mid-token. A table
+  that is wider than the screen scrolls sideways inside its own region, which you can reach with
+  Tab and scroll with the arrow keys. The page itself never scrolls sideways.
+- **The status page shows when each publisher released its data.** "Retrieved" says when
+  OpenPlans fetched a source, so "retrieved 3 days ago" could read as "up to date". Each source
+  group now shows Published next to Retrieved, and its summary line gives the range of publisher
+  dates. The date comes from what the import stored: the publisher's release date (an RxNorm
+  release, an NPPES file date, a Medicare or Part D release label) first, else the file's
+  `Last-Modified` date. `/status.json`, `/status/operator.json` and `get_status` add two fields
+  per source: `published_at` (`YYYY-MM-DD`) and `published_from` (`release_date` or
+  `last_modified`). Both are `null` when the date is unknown. Every earlier field keeps its name
+  and meaning, and the status plugin makes no network call.
+- **A check for newer publisher files.** `node dist/fetch/freshness-cli.js --targets FILE` asks
+  whether publishers have released newer files than the ones you loaded. It downloads nothing.
+  Each archive gets one HEAD request and each listing page one read of at most 2 MiB, under the
+  usual robots, terms and pacing rules. `--plan` prints what it would check and sends nothing.
+  A target answers `behind: yes` or `no` only when both sides are known, and `unknown`
+  otherwise. A host that is held, has no current terms review or would run past its request cap
+  gets `unknown` without a request. A listing target can name the years it serves. Files for
+  other years are counted as out of scope and not compared, so an older year never reads as
+  behind. `src/fetch/README.md` describes the targets file.
+
+### Changed
+
+- The shipped access manifest lists the Medicare plan archives on www.cms.gov and the Part D
+  archives on data.cms.gov, with their listing pages, so the freshness check can reach them.
+  Collecting those files still takes an operator manifest entry.
+
+### Fixes
+
+- **Provider searches use the search keys when operator geocoder points exist.** In v0.4.8 any
+  operator point sent every radius search back to the original path. Now only the identities an
+  operator point touches are read from the corrected points, and every other identity comes from
+  the keys. Answers don't change.
+- **Census downloads work again with the shipped access manifest.** The Census copyright page the
+  manifest pins changed its bytes on 2026-11-13, so every www2.census.gov collection stopped on a
+  terms mismatch. A review on 2026-11-14 found the same permitted use, and the manifest now pins
+  the new hash.
+- **Medicare release imports no longer record the download day as the publisher's date.** When a
+  release file's name has no date and the server sends no `Last-Modified`, the import now stores
+  no publisher date. Before, it stored the day OpenPlans fetched the file. Snapshots imported
+  earlier keep their stored value, and the status page shows their publisher date as unknown.
+
+### Development
+
+- `scripts/ci.sh` builds the SDK, the plugins and the app once, before its checks, where it used
+  to build them three times. Vitest now runs test files in parallel: a third of the CPUs, at most
+  3 workers, and one file at a time on a machine with fewer than 6 CPUs. Set
+  `OPENPLANS_TEST_WORKERS=<n>` to choose the count. `scripts/postgis-tests.sh` still runs its
+  files one at a time, because they share one database server.
+- Tests and plugin tests no longer use `any`. ESLint now checks the `no-unsafe-*` rules there
+  with type information too, as it already did for `src/`.
+- `fetchTransient` takes `headOnly: true`. It sends the data request as HEAD, reads no body and
+  returns the publisher's `Last-Modified`, `ETag`, `Content-Length` and `Content-Type`.
+- `docs/mcp-tools.json` lists every MCP tool with its title, its description, whether it is core
+  or comes from a plugin, and when it is listed. `npm run mcp:manifest` rebuilds it from the
+  code, and a test fails when the committed file no longer matches.
+- CI tests each commit once. A push to `main` of a commit that already passed on `develop` skips
+  the check jobs and links that run, and tag pushes start no run. Everything else, pull requests
+  included, still runs every check.
+
+### Upgrading
+
+- Pull the new image. There is no migration to run. The provider search keys from the v0.4.8
+  backfill serve the new paths as they are. Run the backfill again only after an NPPES or geocode
+  load, as before.
+- The status plugin moves from 0.1.2 to 0.1.3, so its package hash changes. If you keep an
+  approved plugin list, start the new image on the side, read the plugin's version and `sha256`
+  from `/status/operator.json` as in the release preflight in `docs/plugins-operations.md`, and
+  replace the old entry.
+- The other bundled plugins keep their v0.4.8 versions and package hashes.
+
 ## v0.4.8
 
 This release makes nearby-provider searches answer within the request limit on a database with

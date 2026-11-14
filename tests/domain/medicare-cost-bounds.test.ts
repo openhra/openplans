@@ -227,7 +227,7 @@ describe("H3664-017 tier 3, 2026: greater of 20% and a 47/94/141 minimum", () =>
       mrx_tier_rsstd_copay_3m: "141.00",
     });
     // SPUF minimums by supply code: 1 = 30 days, 4 = 60 days, 2 = 90 days.
-    const minimums = Object.fromEntries(
+    const minimums: unknown = Object.fromEntries(
       plan.beneficiary_cost
         .filter((row) => row.cells.COVERAGE_LEVEL === "1")
         .map((row) => [row.cells.DAYS_SUPPLY, row.cells.COST_MIN_AMT_PREF]),

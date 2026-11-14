@@ -12,15 +12,17 @@ import {
 } from "../../../src/domain/providers/index.js";
 import { runWorker } from "../../../src/worker/commands.js";
 import { fixture, scope, setup } from "./provider-helpers.js";
+import type {
+  ProviderFixtures,
+  ProviderPlanEdge as PlanEdge,
+  ProviderRecord as Fixture,
+} from "./provider-helpers.js";
 
-/** Fixture JSON is untyped; the helper returns whatever the file holds. */
-type Fixture = Awaited<ReturnType<typeof fixture>>;
-type PlanEdge = { plan_id: string; years: number[]; network_tier: string };
 type BasePlan = { base_plan_id: string };
 
 describe("Synthetic issuer providers and labelled mutants", () => {
   let h: Awaited<ReturnType<typeof setup>>,
-    providers: Fixture[],
+    providers: ProviderFixtures["records"],
     plan: string,
     npi: string;
   beforeAll(async () => {
@@ -28,7 +30,7 @@ describe("Synthetic issuer providers and labelled mutants", () => {
     providers = await fixture("records");
     plan = providers[0].plans.find((p: PlanEdge) =>
       h.catalog.plans.some((c: BasePlan) => c.base_plan_id === p.plan_id),
-    ).plan_id;
+    )!.plan_id;
     npi = providers[0].npi;
   });
   afterAll(async () => {
@@ -66,15 +68,15 @@ describe("Synthetic issuer providers and labelled mutants", () => {
       )
     ).rows;
     for (const [i, row] of records.entries()) {
-      expect(row.name).toEqual(providers[i].name ?? null);
-      expect(row.facility_name).toEqual(providers[i].facility_name ?? null);
-      expect(row.group_name).toEqual(providers[i].group_name ?? null);
-      expect(row.facility_type).toEqual(providers[i].facility_type ?? null);
-      expect(row.speciality).toEqual(providers[i].speciality ?? null);
-      expect(row.specialty).toEqual(providers[i].specialty ?? null);
-      expect(row.accepting).toEqual(providers[i].accepting ?? null);
+      expect(row.name).toEqual(providers[i]!.name ?? null);
+      expect(row.facility_name).toEqual(providers[i]!.facility_name ?? null);
+      expect(row.group_name).toEqual(providers[i]!.group_name ?? null);
+      expect(row.facility_type).toEqual(providers[i]!.facility_type ?? null);
+      expect(row.speciality).toEqual(providers[i]!.speciality ?? null);
+      expect(row.specialty).toEqual(providers[i]!.specialty ?? null);
+      expect(row.accepting).toEqual(providers[i]!.accepting ?? null);
       expect(providerSpecialties(row)).toEqual(
-        providers[i].speciality ?? providers[i].specialty ?? [],
+        providers[i]!.speciality ?? providers[i]!.specialty ?? [],
       );
     }
     const addresses = (
@@ -91,7 +93,7 @@ describe("Synthetic issuer providers and labelled mutants", () => {
     const lookup = await providerParticipation(h.db, plan, npi, 2026);
     // Records say PREFERRED while the plan definitions declare SYNTHETICCONNECTNETWORK.
     const declared = (await fixture("plans"))
-      .find((p: PlanEdge) => p.plan_id === plan)
+      .find((p) => p.plan_id === plan)!
       .network.map((n: { network_tier: string }) => n.network_tier);
     const resolved = providers[0].plans
       .filter((p: PlanEdge) => p.plan_id === plan)
@@ -104,7 +106,7 @@ describe("Synthetic issuer providers and labelled mutants", () => {
       participation_scope: "provider_record",
       npi,
       source_record: 0,
-      raw_snapshot_id: expect.stringMatching(/^child-/),
+      raw_snapshot_id: expect.stringMatching(/^child-/) as unknown,
       source_updated_at: providers[0].last_updated_on,
     });
     expect(
@@ -118,7 +120,7 @@ describe("Synthetic issuer providers and labelled mutants", () => {
       structuredClone(
         providers[0].addresses[i % providers[0].addresses.length],
       ),
-    );
+    ) as Fixture["addresses"];
     mutant.plans = edgesFor(mutant).slice(0, 2);
     expect(mutant.plans).toHaveLength(2);
     await h.replace([mutant]);
@@ -138,7 +140,7 @@ describe("Synthetic issuer providers and labelled mutants", () => {
   });
   it("negative: truncated temporary child discards every row and keeps prior ACTIVE evidence", async () => {
     const mutant = structuredClone(providers[0]);
-    mutant.plans = [edgesFor(mutant)[0]];
+    mutant.plans = [edgesFor(mutant)[0]!];
     await h.replace([mutant]);
     const prior = await importProviders(h.db, scope);
     // Truncation of the synthetic records, written only into the harness temporary directory.
@@ -180,7 +182,7 @@ describe("Synthetic issuer providers and labelled mutants", () => {
   it("negative: a different issuer plan is omitted with a scoped issue", async () => {
     const mutant = structuredClone(providers[0]);
     mutant.plans = [
-      { ...edgesFor(mutant)[0], plan_id: "12846" + plan.slice(5) },
+      { ...edgesFor(mutant)[0]!, plan_id: "12846" + plan.slice(5) },
     ];
     await h.replace([mutant]);
     const result = await importProviders(h.db, scope);
@@ -197,7 +199,7 @@ describe("Synthetic issuer providers and labelled mutants", () => {
     ).rows[0]!;
     expect(JSON.parse(String(issue.explanation))).toMatchObject({
       requested_scope: scope,
-      first_plan_id: mutant.plans[0].plan_id,
+      first_plan_id: mutant.plans[0]!.plan_id,
     });
     expect(
       (
@@ -220,7 +222,7 @@ describe("Synthetic issuer providers and labelled mutants", () => {
       const mutant = structuredClone(providers[0]);
       mutant.plans = [
         {
-          ...edgesFor(mutant)[0],
+          ...edgesFor(mutant)[0]!,
           plan_id: scope.issuer + otherState + plan.slice(7),
         },
       ];
@@ -250,7 +252,7 @@ describe("Synthetic issuer providers and labelled mutants", () => {
         ).rows[0]!;
         expect(JSON.parse(String(issue.explanation))).toMatchObject({
           requested_scope: requested,
-          first_plan_id: mutant.plans[0].plan_id,
+          first_plan_id: mutant.plans[0]!.plan_id,
         });
         expect(
           (
@@ -317,9 +319,9 @@ describe("Synthetic issuer providers and labelled mutants", () => {
     "factors a %i-association list once and retains every duplicate source ordinal",
     async (count) => {
       const record = structuredClone(providers[0]);
-      record.addresses = record.addresses.slice(0, 1);
+      record.addresses = record.addresses.slice(0, 1) as Fixture["addresses"];
       record.plans = Array.from({ length: count }, () =>
-        structuredClone(edgesFor(providers[0])[0]),
+        structuredClone(edgesFor(providers[0])[0]!),
       );
       await h.replace([record, record]);
       const report = await importProviders(h.db, scope);
@@ -370,9 +372,9 @@ describe("Synthetic issuer providers and labelled mutants", () => {
   );
   it("stores identical dense lists once, preserving ordinals and isolating per-record overrides", async () => {
     const record = structuredClone(providers[0]);
-    record.addresses = record.addresses.slice(0, 1);
+    record.addresses = record.addresses.slice(0, 1) as Fixture["addresses"];
     record.plans = Array.from({ length: 100 }, () =>
-      structuredClone(edgesFor(providers[0])[0]),
+      structuredClone(edgesFor(providers[0])[0]!),
     );
     await h.replace([record, record]);
     const report = await importProviders(h.db, scope);
@@ -410,7 +412,7 @@ describe("Synthetic issuer providers and labelled mutants", () => {
     for (const [i, row] of rows.entries())
       expect(row).toMatchObject({
         source_plan_index: i % 100,
-        base_hios_id: record.plans[i % 100].plan_id,
+        base_hios_id: record.plans[i % 100]!.plan_id,
         participation_scope: "provider_record",
         evidence_status: "listed_participating",
       });
@@ -490,7 +492,7 @@ describe("Synthetic issuer providers and labelled mutants", () => {
   });
   it("refreshes a parse-failed cached body instead of reusing the same truncated hash forever", async () => {
     const record = structuredClone(providers[0]);
-    record.plans = [edgesFor(record)[0]];
+    record.plans = [edgesFor(record)[0]!];
     const healthy = JSON.stringify([record]),
       broken = healthy.slice(0, -1);
     const rawId = await h.replace(null, broken);
@@ -563,8 +565,8 @@ describe("Synthetic issuer providers and labelled mutants", () => {
   });
   it("negative: absent years quarantine the association and create no edge", async () => {
     const mutant = structuredClone(providers[0]);
-    mutant.plans = [edgesFor(mutant)[0]];
-    delete mutant.plans[0].years;
+    mutant.plans = [edgesFor(mutant)[0]!];
+    delete (mutant.plans[0] as Partial<PlanEdge>).years;
     await h.replace([mutant]);
     const r = await importProviders(h.db, scope);
     expect(r).toMatchObject({
@@ -579,7 +581,7 @@ describe("Synthetic issuer providers and labelled mutants", () => {
   it("negative: unknown tier is retained unresolved as a warning; structural failures still quarantine", async () => {
     const mutant = structuredClone(providers[0]);
     mutant.plans = [
-      { ...edgesFor(mutant)[0], network_tier: "SYNTHETIC-UNDECLARED" },
+      { ...edgesFor(mutant)[0]!, network_tier: "SYNTHETIC-UNDECLARED" },
     ];
     await h.replace([mutant]);
     const r = await importProviders(h.db, scope);
@@ -604,14 +606,16 @@ describe("Synthetic issuer providers and labelled mutants", () => {
         [r.snapshot_id],
       )
     ).rows;
-    expect(warnings.map((w) => JSON.parse(String(w.explanation)))).toEqual([
+    expect(
+      warnings.map((w) => JSON.parse(String(w.explanation)) as unknown),
+    ).toEqual([
       expect.objectContaining({
         base_hios_id: plan,
         network_tier: "SYNTHETIC-UNDECLARED",
         count: 1,
       }),
     ]);
-    mutant.plans[0].plan_id_type = "SYNTHETIC-BAD";
+    mutant.plans[0]!.plan_id_type = "SYNTHETIC-BAD";
     await h.replace([mutant]);
     expect(await importProviders(h.db, scope)).toMatchObject({
       status: "QUARANTINED",
@@ -621,8 +625,8 @@ describe("Synthetic issuer providers and labelled mutants", () => {
   });
   it("negative: no NPI retains a source-scoped record with a null NPI", async () => {
     const mutant = structuredClone(providers[0]);
-    delete mutant.npi;
-    mutant.plans = [edgesFor(mutant)[0]];
+    delete (mutant as Partial<Fixture>).npi;
+    mutant.plans = [edgesFor(mutant)[0]!];
     await h.replace([mutant]);
     const r = await importProviders(h.db, scope);
     const row = (
@@ -686,11 +690,11 @@ describe("Synthetic issuer providers and labelled mutants", () => {
   });
   it("all advertised shards must complete; missing shard preserves prior ACTIVE and blocks not_listed", async () => {
     const mutant = structuredClone(providers[0]);
-    mutant.plans = [edgesFor(mutant)[0]];
+    mutant.plans = [edgesFor(mutant)[0]!];
     const definitions = await fixture("plans");
-    mutant.plans[0].network_tier = definitions.find(
-      (p: PlanEdge) => p.plan_id === plan,
-    ).network[0].network_tier;
+    mutant.plans[0]!.network_tier = definitions.find(
+      (p) => p.plan_id === plan,
+    )!.network[0]!.network_tier;
     await h.replace([mutant]);
     const baseline = await importProviders(h.db, scope);
     expect((await providerParticipation(h.db, plan, npi, 2026)).status).toBe(
@@ -735,11 +739,11 @@ describe("Synthetic issuer providers and labelled mutants", () => {
   });
   it("resolved edges support NPI/record/variant lookup, explicit exclusions and conflicts without shard precedence", async () => {
     const mutant = structuredClone(providers[0]);
-    mutant.plans = [edgesFor(mutant)[0]];
+    mutant.plans = [edgesFor(mutant)[0]!];
     const definitions = await fixture("plans");
-    mutant.plans[0].network_tier = definitions.find(
-      (p: PlanEdge) => p.plan_id === plan,
-    ).network[0].network_tier;
+    mutant.plans[0]!.network_tier = definitions.find(
+      (p) => p.plan_id === plan,
+    )!.network[0]!.network_tier;
     await h.replace([mutant]);
     await h.child([mutant]);
     const report = await importProviders(h.db, scope);
@@ -757,7 +761,7 @@ describe("Synthetic issuer providers and labelled mutants", () => {
     ).toBe("listed_participating");
     const variant = h.catalog.variants.find(
       (v: BasePlan) => v.base_plan_id === plan,
-    ).variant_plan_id;
+    )!.variant_plan_id;
     expect((await providerParticipation(h.db, variant, npi, 2026)).status).toBe(
       "listed_participating",
     );
@@ -886,7 +890,7 @@ describe("Synthetic issuer providers and labelled mutants", () => {
       badDefinition,
     ]);
     const mutant = structuredClone(providers[0]);
-    mutant.plans = [{ ...edgesFor(mutant)[0], years: [] }];
+    mutant.plans = [{ ...edgesFor(mutant)[0]!, years: [] }];
     await h.replace([mutant]);
     expect(await importProviders(h.db, scope)).toMatchObject({
       status: "QUARANTINED",
@@ -927,7 +931,7 @@ describe("Synthetic issuer providers and labelled mutants", () => {
       ),
     ).toBe(0);
     expect(closed).toBe(true);
-    expect(JSON.parse(out[0]!).status).toBe("ACTIVE");
+    expect((JSON.parse(out[0]!) as { status: string }).status).toBe("ACTIVE");
     expect(errors).toEqual([]);
     expect(
       await runWorker(
@@ -1040,7 +1044,7 @@ describe("Synthetic issuer providers and labelled mutants", () => {
       warnings: expect.arrayContaining([
         "UNRESOLVED_NETWORK_TIER",
         "SOURCE_INCOMPLETE",
-      ]),
+      ]) as unknown,
     });
     expect(
       (await providerParticipation(h.db, plan, "synthetic-absent", 2026))
@@ -1061,13 +1065,13 @@ describe("Synthetic per-record rejection of values that are not NPIs", () => {
     base = structuredClone(providers[0]);
     plan = base.plans.find((p: PlanEdge) =>
       h.catalog.plans.some((c: BasePlan) => c.base_plan_id === p.plan_id),
-    ).plan_id;
+    )!.plan_id;
     base.plans = [
       {
-        ...base.plans.find((p: PlanEdge) => p.plan_id === plan),
+        ...base.plans.find((p) => p.plan_id === plan)!,
         years: [2026],
-        network_tier: definitions.find((p: PlanEdge) => p.plan_id === plan)
-          .network[0].network_tier,
+        network_tier: definitions.find((p) => p.plan_id === plan)!.network[0]!
+          .network_tier,
       },
     ];
   });
@@ -1171,7 +1175,7 @@ describe("Synthetic per-record rejection of values that are not NPIs", () => {
 
   it("negative: a rejected record with a structural defect still quarantines the child", async () => {
     const bad = structuredClone({ ...base, npi: rejectedNpi });
-    bad.plans[0].plan_id_type = "SYNTHETIC-BAD";
+    bad.plans[0]!.plan_id_type = "SYNTHETIC-BAD";
     await h.replace([...valid(100), bad]);
     const r = await importProviders(h.db, scope);
     expect(r).toMatchObject({

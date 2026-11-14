@@ -9,6 +9,13 @@ import { parameterRegistry } from "../../../src/domain/subsidy/generated.js";
 import { rebaseImports, replaceSyntax } from "../../source-mutation.js";
 import { CASES, evaluateCase, matches } from "./cases.mjs";
 
+interface MutableParameterFile extends Record<string, unknown> {
+  rules: Record<string, unknown> & {
+    affordability: { citations: [{ url: string }, ...{ url: string }[]] };
+    look_back_month: { value: { status: string } };
+  };
+}
+
 type Case = (typeof CASES)[number];
 
 describe("ICHRA affordability hand cases (SYNTHETIC LCSP inputs)", () => {
@@ -140,7 +147,7 @@ describe("cited ICHRA parameters", () => {
         new URL("../../../data/ichra/2026.json", import.meta.url),
         "utf8",
       ),
-    );
+    ) as MutableParameterFile;
     expect(ichra.ichraParameterErrors(file)).toEqual([]);
     const unconfirmed = { ...file, status: "unconfirmed" };
     expect(ichra.ichraParameters(2026, { 2026: unconfirmed })).toEqual({
@@ -345,7 +352,9 @@ console.log(JSON.stringify(affordabilityVerdict(wages, contribution, context)));
           encoding: "utf8",
         },
       );
-      expect(JSON.parse(output).affordable).toBe(true);
+      expect(
+        (JSON.parse(output) as { affordable: boolean | null }).affordable,
+      ).toBe(true);
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }
@@ -423,7 +432,9 @@ console.log(JSON.stringify(affordabilityVerdict(income, contribution, context)))
           encoding: "utf8",
         },
       );
-      expect(JSON.parse(output).affordable).toBe(true);
+      expect(
+        (JSON.parse(output) as { affordable: boolean | null }).affordable,
+      ).toBe(true);
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }
@@ -462,7 +473,7 @@ describe("rate of pay safe harbor, reduced salary (SYNTHETIC salary)", () => {
       reason: "rate_of_pay_salary_reduced",
       affordable: null,
       thresholdCents: null,
-      ruleIds: expect.arrayContaining(["rate_of_pay_safe_harbor"]),
+      ruleIds: expect.arrayContaining(["rate_of_pay_safe_harbor"]) as unknown,
     });
     for (const unreduced of [salary, { ...salary, reduced: false }]) {
       expect(

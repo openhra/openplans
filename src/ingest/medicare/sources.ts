@@ -174,6 +174,23 @@ export function labelDate(label: string, fallback: string): string {
   return fallback;
 }
 
+/**
+ * The publisher's date for a release: the date its file-name label carries, else the server's
+ * Last-Modified header. A year-only label is a contract year, not a date. With neither it is
+ * null (unknown); the day we fetched the file is never the publisher's date.
+ */
+export function publisherReleaseDate(
+  label: string,
+  lastModified: string | null | undefined,
+): string | null {
+  const fromLabel = labelDate(label, "");
+  if (fromLabel) return fromLabel;
+  const modified = lastModified ? Date.parse(lastModified) : NaN;
+  return Number.isNaN(modified)
+    ? null
+    : new Date(modified).toISOString().slice(0, 10);
+}
+
 /** Recovers family, year and label from a cached archive's URL. */
 export function parseArchiveUrl(value: string): Archive | null {
   let url: URL;

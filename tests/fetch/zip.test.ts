@@ -54,7 +54,7 @@ describe("ZIP central-directory inspection", () => {
     expect(result.members).toEqual([
       {
         name: "synthetic/data.csv",
-        compressedBytes: expect.any(Number),
+        compressedBytes: expect.any(Number) as unknown,
         uncompressedBytes: 18,
         compressionMethod: 8,
       },

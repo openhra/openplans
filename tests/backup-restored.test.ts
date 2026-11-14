@@ -201,7 +201,9 @@ async function contract(implementation: Run = Step.runBackupRestored) {
     implementation,
   );
   expect(second.code).toBe(0);
-  expect(JSON.parse(second.out[0]!).quarantined).toEqual({
+  expect(
+    (JSON.parse(second.out[0]!) as { quarantined: unknown }).quarantined,
+  ).toEqual({
     "cms-marketplace-api": 0,
     "synthetic-stored": 0,
     "synthetic-catalog": 0,
@@ -221,9 +223,11 @@ describe("worker backup-restored", () => {
   it("touches no receipt whose answers are still there", async () => {
     const result = await run(db, { excluded_table_data: excluded });
     expect(result.code).toBe(0);
-    expect(Object.values(JSON.parse(result.out[0]!).quarantined)).toEqual([
-      0, 0, 0,
-    ]);
+    expect(
+      Object.values(
+        (JSON.parse(result.out[0]!) as { quarantined: object }).quarantined,
+      ),
+    ).toEqual([0, 0, 0]);
     expect(
       Object.values(await states(db)).filter((s) => s === "ACTIVE"),
     ).toHaveLength(4);

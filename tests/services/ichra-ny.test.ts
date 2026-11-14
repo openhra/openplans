@@ -25,6 +25,24 @@ interface NyPlanProvenance {
   state_rule: { references: readonly unknown[] };
   filed_identity: unknown;
 }
+interface NyRecord extends Record<string, unknown> {
+  raw: Record<string, string>;
+}
+interface NySource {
+  url: string;
+  sha256: string;
+  records: NyRecord[];
+}
+interface NyTemplateCheck {
+  evidence: {
+    submission_source: Record<string, unknown> & { members: string[] };
+  };
+}
+interface NyFixture {
+  synthetic?: boolean;
+  sources: [NySource, ...NySource[]];
+  template_checks: [NyTemplateCheck, ...NyTemplateCheck[]];
+}
 /** The service types provenance loosely; the NY evidence it carries. */
 interface NyProv extends Record<string, unknown> {
   plans: readonly NyPlanProvenance[];
@@ -93,8 +111,8 @@ beforeAll(async () => {
       new URL("../fixtures/state/ny-2026.json", import.meta.url),
       "utf8",
     ),
-  );
-  const template = fixture.sources[0].records[0];
+  ) as NyFixture;
+  const template = fixture.sources[0].records[0]!;
   fixture.synthetic = true;
   fixture.sources[0].url =
     "https://myportal.dfs.ny.gov/documents/538523/45010883/Synthetic_IND_ONX_TEST-000000000_ApprRatesTemplate";

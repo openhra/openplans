@@ -114,7 +114,7 @@ it("distinguishes an unloaded terminology database from an unknown search after 
   );
   expect(await rx.activeRelease()).toMatchObject({
     source_version: "2026-11-02",
-    snapshot_id: expect.any(String),
+    snapshot_id: expect.any(String) as unknown,
   });
   const loaded = await search("metformin"),
     unknown = await search("zzzznotadrug");
@@ -292,8 +292,10 @@ it("negative controls: the same contracts reject removal of NDC lookup and case-
         },
       }).outputText,
     );
-    const repository = createRequire(import.meta.url)(
-      path,
+    const repository = (
+      createRequire(import.meta.url)(path) as {
+        createRxnormRepository: typeof createRxnormRepository;
+      }
     ).createRxnormRepository(db);
     await expect(contract(repository), name).rejects.toThrow();
   }

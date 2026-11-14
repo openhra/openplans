@@ -234,7 +234,9 @@ describe("fetch cache over the S3 store", () => {
           }),
         }),
       ),
-    ).rejects.toMatchObject({ code: expect.stringMatching(/^zip_/) });
+    ).rejects.toMatchObject({
+      code: expect.stringMatching(/^zip_/) as unknown,
+    });
     expect(
       objectKeys().every(
         (key) => !key.includes(createHash("sha256").update(bomb).digest("hex")),

@@ -138,6 +138,15 @@ function httpApp(entry: HttpEntry) {
     store: new MemoryCache(64 * 1024 * 1024, () => Date.parse(FIXED_TIME)),
   });
 }
+interface RpcBody {
+  error?: unknown;
+  result: {
+    isError?: boolean;
+    structuredContent?: { error?: unknown };
+    tools: { name: string }[];
+    nextCursor?: string;
+  };
+}
 function request(entry: HttpEntry): RequestInit {
   const headers = new Headers(entry.headers);
   if (entry.auth)
@@ -163,10 +172,10 @@ beforeAll(async () => {
     for (const each of modes) {
       expectedHttp[each] = JSON.parse(
         await readFile(new URL(files[each].http, fixtures), "utf8"),
-      );
+      ) as Digests;
       expectedMcp[each] = JSON.parse(
         await readFile(new URL(files[each].mcp, fixtures), "utf8"),
-      );
+      ) as Digests;
     }
 });
 beforeEach(environment);
@@ -217,7 +226,9 @@ for (const each of modes)
         const initial = post(entry.method, entry.params, headers);
         let input = initial;
         if (entry.legacy) {
-          const body = JSON.parse(await initial.text());
+          const body = JSON.parse(await initial.text()) as {
+            params: { _meta?: unknown };
+          };
           delete body.params._meta;
           initial.headers.set("MCP-Protocol-Version", "2025-11-25");
           input = new Request(initial.url, {
@@ -230,11 +241,11 @@ for (const each of modes)
         // Parse a clone only for coverage checks. The digest always hashes the original bytes.
         const text = await response.clone().text();
         const messages = text.startsWith("{")
-          ? [JSON.parse(text)]
+          ? [JSON.parse(text) as RpcBody]
           : text
               .split("\n")
               .filter((line) => line.startsWith("data: "))
-              .map((line) => JSON.parse(line.slice(6)));
+              .map((line) => JSON.parse(line.slice(6)) as RpcBody);
         const body = messages.find(
           (message) => "result" in message || "error" in message,
         );
@@ -243,10 +254,10 @@ for (const each of modes)
           entry.id === "call-denied" ? 401 : 200,
         );
         if (entry.method === "tools/call" && entry.id !== "call-denied") {
-          expect(body.error, entry.id).toBeUndefined();
+          expect(body!.error, entry.id).toBeUndefined();
           expect(
-            body.result.isError,
-            `${entry.id}: ${JSON.stringify(body.result.structuredContent?.error)}`,
+            body!.result.isError,
+            `${entry.id}: ${JSON.stringify(body!.result.structuredContent?.error)}`,
           ).not.toBe(true);
           const tool = entry.params.name as keyof typeof inputSchemas;
           expect(
@@ -264,9 +275,9 @@ for (const each of modes)
                   ),
               );
           expect(
-            body.result.tools.map((tool: { name: string }) => tool.name),
+            body!.result.tools.map((tool: { name: string }) => tool.name),
           ).toEqual(expected);
-          expect(body.result.nextCursor).toBeUndefined();
+          expect(body!.result.nextCursor).toBeUndefined();
         }
         const actual = await digest(response);
         if (!record)
