@@ -3,6 +3,25 @@
 Release notes for OpenPlans. Earlier releases are on the
 [GitHub releases page](https://github.com/openhra/openplans/releases).
 
+## v0.4.10
+
+This release fixes the MCP `get_status` tool. The status plugin moves to 0.1.4, so an approved
+plugin list needs its new hash. There is no migration and no new backfill.
+
+### Fixes
+
+- **The MCP `get_status` tool works again; it leaves out the per-source publisher dates, which
+  stay in `/status.json`.** In v0.4.9 a server with several hundred sources answered
+  `get_status` with `RESULT_TOO_LARGE`: the two new date fields pushed the answer past the
+  128 KiB MCP limit. The tool now returns the same fields as in v0.4.8. `/status.json`,
+  `/status/operator.json` and the status page still show `published_at` and `published_from`.
+
+### Known issues
+
+- On the hosted API, a compatibility provider search for a common name near a large city, such
+  as SMITH within 25 miles of ZIP 77002, can still answer 504. The same search through
+  `/v1/providers` answers in time.
+
 ## v0.4.9
 
 This release makes compatibility provider searches for common names answer in time, shows each
@@ -10,8 +29,8 @@ source's publisher date on the status page, keeps words whole in its tables on p
 read-only check for newer publisher files, and makes Census downloads work again with the
 shipped access manifest. The status plugin moves to 0.1.3, so an approved plugin list needs its
 new hash. There is no migration and no new backfill. Search results don't change, though some
-searches that answered 504 now answer in time. `/status.json` and the `get_status` tool only add
-fields. See Upgrading below.
+searches that answered 504 now answer in time. `/status.json` only adds fields. See Upgrading
+below.
 
 ### What users notice
 
@@ -31,10 +50,11 @@ fields. See Upgrading below.
   group now shows Published next to Retrieved, and its summary line gives the range of publisher
   dates. The date comes from what the import stored: the publisher's release date (an RxNorm
   release, an NPPES file date, a Medicare or Part D release label) first, else the file's
-  `Last-Modified` date. `/status.json`, `/status/operator.json` and `get_status` add two fields
-  per source: `published_at` (`YYYY-MM-DD`) and `published_from` (`release_date` or
-  `last_modified`). Both are `null` when the date is unknown. Every earlier field keeps its name
-  and meaning, and the status plugin makes no network call.
+  `Last-Modified` date. `/status.json` and `/status/operator.json` add two fields per source:
+  `published_at` (`YYYY-MM-DD`) and `published_from` (`release_date` or `last_modified`). Both
+  are `null` when the date is unknown. Every earlier field keeps its name and meaning, and the
+  status plugin makes no network call. The MCP `get_status` tool doesn't carry the dates: on a
+  server with several hundred sources they made its answer too large (see v0.4.10).
 - **A check for newer publisher files.** `node dist/fetch/freshness-cli.js --targets FILE` asks
   whether publishers have released newer files than the ones you loaded. It downloads nothing.
   Each archive gets one HEAD request and each listing page one read of at most 2 MiB, under the

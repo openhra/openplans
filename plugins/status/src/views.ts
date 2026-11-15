@@ -273,6 +273,26 @@ export function publicView(status: StatusData): PublicStatus {
   };
 }
 
+/**
+ * The `get_status` answer: the public view without each source's `published_at` and
+ * `published_from`. An MCP answer carries its JSON twice, as text and as structured content,
+ * and must fit in 128 KiB; with the dates, several hundred sources pass that limit.
+ * /status.json and the page keep the dates.
+ */
+export const getStatusSchema = publicStatusSchema.extend({
+  sources: z.array(publicSource.pick({ id: true, freshness: true })).nullable(),
+});
+export type GetStatus = z.infer<typeof getStatusSchema>;
+
+export function getStatusView(status: StatusData): GetStatus {
+  const view = publicView(status);
+  return {
+    ...view,
+    sources:
+      view.sources?.map(({ id, freshness }) => ({ id, freshness })) ?? null,
+  };
+}
+
 /** The operator serialiser: the public fields plus the detail in design 5.11. */
 export function operatorView(status: StatusData): OperatorStatus {
   const summary = publicView(status);

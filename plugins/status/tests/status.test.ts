@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { PGlite } from "@electric-sql/pglite";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { z } from "zod";
 import type { WorkerContext } from "@openplans/plugin-sdk";
 import {
   PASSTHROUGH_OPENING_REASONS,
@@ -14,8 +15,12 @@ import { loadConfig } from "../../../src/config/index.js";
 import type { Database } from "../../../src/db/database.js";
 import { migrate } from "../../../src/db/migrate.js";
 import { rowProvenanceLeaks } from "../../../src/db/row-provenance.js";
+import { MAX_OUTPUT_BYTES, messageBytes } from "../../../src/mcp/tools.js";
 import { loadPlugins } from "../../../src/plugins/index.js";
-import { pluginToolDefinition } from "../../../src/plugins/mcp-tools.js";
+import {
+  callPluginTool,
+  pluginToolDefinition,
+} from "../../../src/plugins/mcp-tools.js";
 import { packageSha256 } from "../../../src/plugins/package-hash.js";
 import { hostAvailability } from "../../../src/plugins/status-host.js";
 import {
@@ -36,6 +41,8 @@ import plugin, {
   ageBucket,
   applicationVersion,
   createStatusPlugin,
+  getStatusSchema,
+  getStatusView,
   healthStateSchema,
   HISTORY_LIMIT,
   nextHealth,
@@ -133,6 +140,33 @@ const PUBLIC_FIELDS = [
 ].sort();
 const hasExactlyPublicFields = (body: unknown) =>
   JSON.stringify(keyPaths(body).sort()) === JSON.stringify(PUBLIC_FIELDS);
+
+// What get_status returned in v0.4.8, frozen: the public fields without the publisher dates, in
+// the same order. An MCP answer must fit in MAX_OUTPUT_BYTES; at the hosted catalog's size the
+// dates push it over.
+const GET_STATUS_FIELDS_0_4_8 = PUBLIC_FIELDS.filter(
+  (field) => !field.startsWith("sources.*.published_"),
+);
+const GET_STATUS_ORDER_0_4_8 = [
+  "version",
+  "api",
+  "db",
+  "data",
+  "sources",
+  "worker",
+  "cache",
+  "passthrough",
+  "plugins",
+  "health_transitions",
+];
+const hasGetStatusFields = (body: unknown) =>
+  JSON.stringify(keyPaths(body).sort()) ===
+    JSON.stringify(GET_STATUS_FIELDS_0_4_8) &&
+  JSON.stringify(Object.keys(body as object)) ===
+    JSON.stringify(GET_STATUS_ORDER_0_4_8) &&
+  ((body as PublicStatus).sources ?? []).every(
+    (source) => JSON.stringify(Object.keys(source)) === '["id","freshness"]',
+  );
 
 const OPERATOR_ONLY = [
   "pool",
@@ -523,7 +557,7 @@ describe("@openplans/plugin-status", () => {
     expect(html).not.toContain("<b>x</b>");
   });
 
-  it("get_status returns the public JSON", async () => {
+  it("get_status returns the public JSON without the publisher dates", async () => {
     // The core host's availability service, as the loader supplies it.
     const loaded = await loadForTest(
       createStatusPlugin({
@@ -538,11 +572,12 @@ describe("@openplans/plugin-status", () => {
       >[0];
       expect(tool.name).toBe("get_status");
       expect(pluginToolDefinition(tool).annotations?.readOnlyHint).toBe(true);
+      expect(tool.outputSchema).toBe(getStatusSchema);
       const output = await tool.handler(
         {},
         { db, signal: AbortSignal.timeout(5000) },
       );
-      expect(hasExactlyPublicFields(output)).toBe(true);
+      expect(hasGetStatusFields(output)).toBe(true);
       expect("status" in (output as object)).toBe(false);
       // The kit app has no route wrapper, so compare with the real host's answer. The kit's
       // config turns the cache off and lists no plugins, and the kit has no core host;
@@ -551,6 +586,8 @@ describe("@openplans/plugin-status", () => {
         await (await app()).request("/status.json")
       ).json<PublicStatus>();
       expect(output).toMatchObject({ cache: { enabled: false }, plugins: 0 });
+      // /status.json keeps the dates that get_status leaves out.
+      expect(hasExactlyPublicFields(route)).toBe(true);
       expect({
         ...(output as object),
         cache: route.cache,
@@ -563,7 +600,10 @@ describe("@openplans/plugin-status", () => {
           expect([null, route.passthrough![i]!.enabled]).toContain(row.enabled);
           return { ...row, enabled: route.passthrough![i]!.enabled };
         }),
-      }).toEqual(route);
+      }).toEqual({
+        ...route,
+        sources: route.sources!.map(({ id, freshness }) => ({ id, freshness })),
+      });
     } finally {
       await loaded.close();
     }
@@ -987,14 +1027,14 @@ describe("host data from core", () => {
     expect(body.plugins).toEqual([
       {
         name: PLUGIN_NAME,
-        version: "0.1.3",
+        version: "0.1.4",
         apiVersion: "0.1",
         sha256: sha,
         enabled: true,
       },
     ]);
     expect(identities(body.plugins)).toEqual(
-      identities([{ name: PLUGIN_NAME, version: "0.1.3", sha256: sha! }]),
+      identities([{ name: PLUGIN_NAME, version: "0.1.4", sha256: sha! }]),
     );
     const pass = body.passthrough!.find(
       (row: { id: string }) => row.id === "synthetic-pass",
@@ -1094,7 +1134,7 @@ describe("host data from core", () => {
   it("planted mutant: a wrong plugin hash fails the approved-list comparison", async () => {
     const sha = (await packageSha256(statusRoot))!;
     const approved = identities([
-      { name: PLUGIN_NAME, version: "0.1.3", sha256: sha },
+      { name: PLUGIN_NAME, version: "0.1.4", sha256: sha },
     ]);
     const read = await plantMutant(
       readFile,
@@ -1413,6 +1453,152 @@ describe("publisher dates", () => {
       );
       expect(view.sources![0]!.freshness).not.toBe("<1d");
     } finally {
+      await mutant.cleanup();
+    }
+  });
+});
+
+// A synthetic catalog shaped like the hosted service's in November 2026: 777 sources in 16
+// families. Exchange files for 30 states and 3 plan years and state-exchange files for 19 states,
+// each a bundle ID plus six file IDs, and 14 single sources. Most carry a Last-Modified date, a
+// few a release date and the rest none. The IDs follow the real naming; the dates are synthetic.
+const EXCHANGE_STATES =
+  "AK AL AR AZ DE FL GA HI IA IN KS LA MI MO MS MT NC ND NE NH OH OK OR SC SD TN TX UT WI WY".split(
+    " ",
+  );
+const STATE_EXCHANGE_STATES =
+  "CA CO CT DC ID IL KY MA MD ME MN NJ NM NV NY PA RI VT WA".split(" ");
+const FILE_KINDS = [
+  "",
+  ":benefits-and-cost-sharing",
+  ":business-rules",
+  ":network",
+  ":plan-attributes",
+  ":rate",
+  ":service-area",
+];
+const SINGLE_SOURCES = [
+  "census-county-outlines-2024",
+  "census-geocoder-batch",
+  "census-zcta-county-2020",
+  "census-zcta-gazetteer-2021",
+  "cms-marketplace-api",
+  "cms-medicare-landscape",
+  "cms-medicare-service-area",
+  "cms-nppes",
+  "cms-partd-spuf-monthly",
+  "cms-partd-spuf-quarterly",
+  "cms-rating-areas",
+  "openplans-rating-rules-2025",
+  "openplans-rating-rules-2026",
+  "openplans-rating-rules-2027",
+];
+
+function hostedSizeStatus(): StatusData {
+  const ids = [
+    ...SINGLE_SOURCES,
+    ...[2025, 2026, 2027].flatMap((year) =>
+      EXCHANGE_STATES.flatMap((state) =>
+        FILE_KINDS.map((kind) => `cms-exchange-puf:${year}:${state}${kind}`),
+      ),
+    ),
+    ...STATE_EXCHANGE_STATES.flatMap((state) =>
+      FILE_KINDS.map((kind) => `cms_sbe_puf:2026:${state}${kind}`),
+    ),
+  ];
+  return sample({
+    version: "0.4.9",
+    sources: ids.map((id, i) => {
+      const dated = i % 7 !== 0;
+      const from = i < 5 ? "release_date" : "last_modified";
+      return {
+        id,
+        retrieved: new Date(NOW.getTime() - (i % 2 ? 3 : 12) * 86_400_000),
+        snapshotId: `${id}.1`,
+        published: dated
+          ? `2025-${String((i % 12) + 1).padStart(2, "0")}-12`
+          : null,
+        publishedFrom: dated ? from : null,
+      };
+    }),
+  });
+}
+
+/** The bytes the MCP host counts against MAX_OUTPUT_BYTES for this answer. */
+const answerBytes = (output: unknown) =>
+  messageBytes(output as Parameters<typeof messageBytes>[0]);
+// Fail well before the limit, so catalog growth shows up here first.
+const HEADROOM_LIMIT = Math.floor(MAX_OUTPUT_BYTES * 0.9);
+
+describe("get_status at the hosted catalog's size", () => {
+  it("the synthetic catalog has the hosted shape", () => {
+    const sources = hostedSizeStatus().sources!;
+    expect(sources).toHaveLength(777);
+    expect(new Set(sources.map((s) => s.id.split(":")[0])).size).toBe(16);
+    expect(sources.filter((s) => s.published).length).toBeGreaterThan(600);
+  });
+
+  it("fits in the MCP output limit with headroom", async () => {
+    const output = getStatusSchema.parse(getStatusView(hostedSizeStatus()));
+    const bytes = answerBytes(output);
+    expect(bytes).toBeLessThanOrEqual(HEADROOM_LIMIT);
+    // The host's own check answers with data, not RESULT_TOO_LARGE.
+    const tool = {
+      name: "get_status",
+      title: "Service status",
+      description: "synthetic",
+      inputSchema: z.strictObject({}),
+      outputSchema: getStatusSchema,
+      readOnly: true,
+      handler: async () => getStatusView(hostedSizeStatus()),
+    };
+    const result = await callPluginTool(
+      { db },
+      tool as Parameters<typeof callPluginTool>[1],
+      {},
+      AbortSignal.timeout(5000),
+    );
+    expect(result.isError).toBeUndefined();
+    expect(result.structuredContent).toEqual(output);
+  });
+
+  it("keeps exactly the v0.4.8 fields", () => {
+    const output = getStatusSchema.parse(getStatusView(hostedSizeStatus()));
+    expect(hasGetStatusFields(JSON.parse(JSON.stringify(output)))).toBe(true);
+  });
+
+  it("/status.json keeps the publisher dates", () => {
+    const view = publicView(hostedSizeStatus());
+    expect(hasExactlyPublicFields(JSON.parse(JSON.stringify(view)))).toBe(true);
+    expect(view.sources!.filter((s) => s.published_at).length).toBeGreaterThan(
+      600,
+    );
+    // The same view as an MCP answer would not fit, which is why get_status leaves the dates out.
+    expect(answerBytes(view)).toBeGreaterThan(MAX_OUTPUT_BYTES);
+  });
+
+  it("planted mutant: the publisher dates back in get_status fail the size and field tests", async () => {
+    const mutant = await plantMutant(
+      viewsFile,
+      `sources: z.array(publicSource.pick({ id: true, freshness: true })).nullable()`,
+      `sources: z.array(publicSource).nullable()`,
+    );
+    const both = await plantMutant(
+      mutant.path,
+      `sources: view.sources?.map(({ id, freshness }) => ({ id, freshness })) ?? null`,
+      `sources: view.sources`,
+    );
+    try {
+      const views = (await import(both.path)) as typeof viewsModule;
+      const output = views.getStatusSchema.parse(
+        views.getStatusView(hostedSizeStatus()),
+      );
+      expect(answerBytes(output)).toBeGreaterThan(HEADROOM_LIMIT);
+      expect(hasGetStatusFields(JSON.parse(JSON.stringify(output)))).toBe(
+        false,
+      );
+    } finally {
+      await both.cleanup();
       await mutant.cleanup();
     }
   });

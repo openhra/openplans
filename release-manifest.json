@@ -100,8 +100,8 @@
     {
       "path": "CHANGELOG.md",
       "mode": "100644",
-      "size": 60791,
-      "sha256": "0b7ba52ab558b154430a9e8ff708bbb7bea2fadf0a69b2a22e940a9234ae3c18"
+      "size": 61776,
+      "sha256": "7d6665c6ce5ec210d2da152915394499d7e89c7d681db4d987ed5f1174725921"
     },
     {
       "path": "CLAUDE.md",
@@ -376,8 +376,8 @@
     {
       "path": "docs/mcp-tools.json",
       "mode": "100644",
-      "size": 5671,
-      "sha256": "a53e02ea264832f7a6f01c9fea892d268571242ee020bc6476705682502b832a"
+      "size": 5643,
+      "sha256": "3eb1d6e0bb80e2aa120c5e0584e8002ffb88c5b1b264014b90d0f458140796d3"
     },
     {
       "path": "docs/medicare.md",
@@ -395,7 +395,7 @@
       "path": "docs/plugins-operations.md",
       "mode": "100644",
       "size": 20674,
-      "sha256": "d65fcfc09833c08688e7e1c1c2e4831ac52b9ccea7493fde32cc91288c707e60"
+      "sha256": "de715a27d983b8b0975a060028b5c12f40a03e759a8309cfaa942a30ac356f9f"
     },
     {
       "path": "docs/plugins.md",
@@ -880,14 +880,14 @@
     {
       "path": "package-lock.json",
       "mode": "100644",
-      "size": 106496,
-      "sha256": "613a192ed17ccc30770a41bb3e0a7d292c721c21554ec2e0aafc66f060ae42a0"
+      "size": 106498,
+      "sha256": "9798ad2bfafa6261c4dd12ec7b20f3ffb0bb85e7ebeadce95dc191b32f7f401a"
     },
     {
       "path": "package.json",
       "mode": "100644",
-      "size": 2382,
-      "sha256": "66e3e86699cf4bc8151499dec4c1d2660c3f9aa601cc3de08c7d75d95a27ac0f"
+      "size": 2383,
+      "sha256": "32487ee4d7fa7474aa0543b23d7923f0b2a299629045e52d46e7ddde48d71135"
     },
     {
       "path": "plugins/blob-s3/README.md",
@@ -1168,14 +1168,14 @@
     {
       "path": "plugins/status/README.md",
       "mode": "100644",
-      "size": 7317,
-      "sha256": "7c404fff68ded69af256f143c3b63903290d4f6d7bd2ed1333e9eff38531847b"
+      "size": 7580,
+      "sha256": "d0b9988737fd727319be9c941d0cfd9dae8fcc70e9199eb955ec6b5b43eb240a"
     },
     {
       "path": "plugins/status/package.json",
       "mode": "100644",
       "size": 348,
-      "sha256": "d124e7b13cadd459ab8772776dfd00cddb1e9d6ae852b05357d69e8b8368443b"
+      "sha256": "50fd5d7d72c206d3caff43a3174958a2b87633b04b14687ac1a76c7c1ce47170"
     },
     {
       "path": "plugins/status/src/html.ts",
@@ -1186,8 +1186,8 @@
     {
       "path": "plugins/status/src/index.ts",
       "mode": "100644",
-      "size": 5583,
-      "sha256": "f0845aa742044902115546b29ec1c5093679fb446a443cc354e32840d7c38575"
+      "size": 5616,
+      "sha256": "6e297642f35d40b1aee584d3bcad7435d5ef0ed8b639bc0d409a5d1eab1058ac"
     },
     {
       "path": "plugins/status/src/probe.ts",
@@ -1210,8 +1210,8 @@
     {
       "path": "plugins/status/src/views.ts",
       "mode": "100644",
-      "size": 10907,
-      "sha256": "4da0801697371cc510efff37c665a2b2474dda379bc4f08c575e60d830314003"
+      "size": 11646,
+      "sha256": "197ff73ea10dacd03995764546cc9ee4010fa52c8c5c97761381b5d97825ab12"
     },
     {
       "path": "plugins/status/tests/availability.test.ts",
@@ -1228,8 +1228,8 @@
     {
       "path": "plugins/status/tests/status.test.ts",
       "mode": "100644",
-      "size": 49740,
-      "sha256": "598db11be09bef95152a8741d24f7ec0dafcdb8f0f0d867d78971c0821537142"
+      "size": 56249,
+      "sha256": "b680d304d974ee0bc18d31edb4a9284c5bdb0871b3d0cc083b40f435b72e9224"
     },
     {
       "path": "plugins/status/tsconfig.json",
@@ -5513,13 +5513,13 @@
       "path": "tests/fixtures/plugins/mcp-digests-cms-on.json",
       "mode": "100644",
       "size": 10698,
-      "sha256": "c909598483cb7b9ca685ddcc8581de8b1b2961cd0a3102608f73ba8c5939d9f2"
+      "sha256": "35d9a21563527b3821423ae196fd572a5e49fec97bc048d783d852d809d80477"
     },
     {
       "path": "tests/fixtures/plugins/mcp-digests.json",
       "mode": "100644",
       "size": 10698,
-      "sha256": "c909598483cb7b9ca685ddcc8581de8b1b2961cd0a3102608f73ba8c5939d9f2"
+      "sha256": "35d9a21563527b3821423ae196fd572a5e49fec97bc048d783d852d809d80477"
     },
     {
       "path": "tests/fixtures/plugins/response-digests-cms-on.json",

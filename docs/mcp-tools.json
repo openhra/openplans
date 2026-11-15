@@ -116,7 +116,7 @@
     {
       "name": "get_status",
       "title": "Service status",
-      "description": "Returns the public status summary that /status.json serves: version, database state, coverage counts by status, source retrieval age buckets with each source's publisher date when one was recorded, last import age per source, cache on or off, pass-through budget state, plugin count and the age of the last health change.",
+      "description": "Returns the public status summary that /status.json serves, without each source's publisher date: version, database state, coverage counts by status, source age buckets, last import age per source, cache on or off, pass-through budget state, plugin count and the age of the last health change.",
       "kind": "plugin",
       "listed": "plugin",
       "plugin": "@openplans/plugin-status"

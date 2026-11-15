@@ -115,7 +115,10 @@ there, and read operator detail from the host itself.
 
 ## `get_status`
 
-The MCP tool takes no input and returns the same JSON as `/status.json`.
+The MCP tool takes no input and returns the same JSON as `/status.json`, without each source's
+`published_at` and `published_from`. An MCP answer carries its JSON twice, as text and as
+structured content, and must fit in 128 KiB. With several hundred sources the two dates pass that
+limit, so read them from `/status.json` or the page.
 
 ## `health-probe`
 
