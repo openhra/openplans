@@ -21,7 +21,12 @@ const eslint = new ESLint({
   cwd: packageRoot,
   overrideConfig: [
     {
-      files: ["src/**/*.ts", "plugins/*/src/**/*.ts"],
+      files: [
+        "src/**/*.ts",
+        "plugins/*/src/**/*.ts",
+        "tests/**/*.ts",
+        "plugins/*/tests/**/*.ts",
+      ],
       languageOptions: {
         parserOptions: { disallowAutomaticSingleRunInference: true },
       },

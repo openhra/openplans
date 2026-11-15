@@ -1384,8 +1384,8 @@
     {
       "path": "scripts/lint-setup-selftest.mjs",
       "mode": "100644",
-      "size": 11577,
-      "sha256": "0dc164ea7feb25878ff64f0f94e4af36b2fd28b5a7dcda398f6a414836ae4f4f"
+      "size": 11662,
+      "sha256": "0d864c72c70b23109d57773b912a110d1f4e92ac00adf4c2576ff38a4a554eb4"
     },
     {
       "path": "scripts/mcp-tools-manifest.mjs",
