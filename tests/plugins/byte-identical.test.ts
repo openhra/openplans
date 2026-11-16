@@ -11,6 +11,9 @@ import {
   it,
   vi,
 } from "vitest";
+import { loadConfig } from "../../src/config/index.js";
+import { loadPlugins } from "../../src/plugins/loader.js";
+import { currentRegistries } from "../../src/plugins/registries.js";
 import { createApp } from "../../src/api/app.js";
 import { MemoryCache } from "../../src/api/cache/store.js";
 import type { SqlSession } from "../../src/db/database.js";
@@ -135,6 +138,7 @@ function httpApp(entry: HttpEntry) {
   if (entry.token) vi.stubEnv("OPENPLANS_API_TOKEN", TOKEN);
   // Use the default options deliberately: exercise OPENPLANS_API_TOKEN itself.
   return createApp(session(entry.unavailable), undefined, {
+    plugins: currentRegistries(),
     store: new MemoryCache(64 * 1024 * 1024, () => Date.parse(FIXED_TIME)),
   });
 }
@@ -186,105 +190,135 @@ afterAll(async () => {
   vi.unstubAllEnvs();
 });
 
-for (const each of modes)
-  describe(`byte-identical HTTP, CMS fallback ${each}`, () => {
-    beforeAll(() => {
-      mode = each;
+const pluginModes = [
+  "absent",
+  "disabled",
+  "no-source",
+  "admin-disabled",
+] as const;
+async function offMode(pluginMode: (typeof pluginModes)[number]) {
+  const plugins = [];
+  if (pluginMode === "admin-disabled") {
+    plugins.push({ package: "@openplans/plugin-admin", enabled: false });
+  } else if (pluginMode !== "absent") {
+    plugins.push({
+      package: "@openplans/plugin-msot",
+      enabled: pluginMode !== "disabled",
     });
-    for (const entry of corpus.http)
-      it(`${entry.id} ${entry.method} ${entry.path}`, async () => {
-        const app = httpApp(entry);
-        if (entry.warm)
-          await (await app.request(entry.path, request(entry))).arrayBuffer();
-        const actual = await digest(
-          await app.request(entry.path, request(entry)),
-        );
-        expect(actual.status, entry.id).toBe(entry.status);
-        if (!record)
-          expect(actual, entry.id).toEqual(expectedHttp[each][entry.id]);
-        actualHttp[each][entry.id] = actual;
-      });
+  }
+  await loadPlugins(loadConfig({}, { version: 1, plugins }), "api", {
+    env: {},
   });
-
-for (const each of modes)
-  describe(`byte-identical MCP, CMS fallback ${each}`, () => {
-    beforeAll(() => {
-      mode = each;
-    });
-    for (const entry of corpus.mcp)
-      it(`${entry.id} ${entry.method}`, async () => {
-        const app = createMcpHttp(session(), {
-          env: {
-            OPENPLANS_MCP_TOKEN: TOKEN,
-            OPENPLANS_MCP_CURSOR_SECRET: CURSOR_SECRET,
-          },
-          now: () => Date.parse(FIXED_TIME),
-          log: () => {},
+}
+for (const pluginMode of pluginModes)
+  for (const each of modes)
+    describe(`byte-identical HTTP, CMS fallback ${each}, plugins ${pluginMode}`, () => {
+      beforeAll(async () => {
+        mode = each;
+        await offMode(pluginMode);
+      });
+      for (const entry of corpus.http)
+        it(`${entry.id} ${entry.method} ${entry.path}`, async () => {
+          const app = httpApp(entry);
+          if (entry.warm)
+            await (await app.request(entry.path, request(entry))).arrayBuffer();
+          const actual = await digest(
+            await app.request(entry.path, request(entry)),
+          );
+          expect(actual.status, entry.id).toBe(entry.status);
+          if (!record)
+            expect(actual, entry.id).toEqual(expectedHttp[each][entry.id]);
+          actualHttp[each][entry.id] = actual;
         });
-        const headers: Record<string, string> = {};
-        if (entry.grant) headers.authorization = `Bearer ${TOKEN}`;
-        const initial = post(entry.method, entry.params, headers);
-        let input = initial;
-        if (entry.legacy) {
-          const body = JSON.parse(await initial.text()) as {
-            params: { _meta?: unknown };
-          };
-          delete body.params._meta;
-          initial.headers.set("MCP-Protocol-Version", "2025-11-25");
-          input = new Request(initial.url, {
-            method: "POST",
-            headers: initial.headers,
-            body: JSON.stringify(body),
-          });
-        }
-        const response = await app.fetch(input);
-        // Parse a clone only for coverage checks. The digest always hashes the original bytes.
-        const text = await response.clone().text();
-        const messages = text.startsWith("{")
-          ? [JSON.parse(text) as RpcBody]
-          : text
-              .split("\n")
-              .filter((line) => line.startsWith("data: "))
-              .map((line) => JSON.parse(line.slice(6)) as RpcBody);
-        const body = messages.find(
-          (message) => "result" in message || "error" in message,
-        );
-        expect(body, entry.id).toBeDefined();
-        expect(response.status, entry.id).toBe(
-          entry.id === "call-denied" ? 401 : 200,
-        );
-        if (entry.method === "tools/call" && entry.id !== "call-denied") {
-          expect(body!.error, entry.id).toBeUndefined();
-          expect(
-            body!.result.isError,
-            `${entry.id}: ${JSON.stringify(body!.result.structuredContent?.error)}`,
-          ).not.toBe(true);
-          const tool = entry.params.name as keyof typeof inputSchemas;
-          expect(
-            inputSchemas[tool].safeParse(entry.params.arguments).success,
-            entry.id,
-          ).toBe(true);
-        }
-        if (entry.method === "tools/list") {
-          const expected = entry.grant
-            ? toolNames
-            : toolNames.filter(
-                (name) =>
-                  !["quote_premiums", "check_ichra_affordability"].includes(
-                    name,
-                  ),
-              );
-          expect(
-            body!.result.tools.map((tool: { name: string }) => tool.name),
-          ).toEqual(expected);
-          expect(body!.result.nextCursor).toBeUndefined();
-        }
-        const actual = await digest(response);
-        if (!record)
-          expect(actual, entry.id).toEqual(expectedMcp[each][entry.id]);
-        actualMcp[each][entry.id] = actual;
+    });
+
+for (const pluginMode of pluginModes)
+  for (const each of modes)
+    describe(`byte-identical MCP, CMS fallback ${each}, plugins ${pluginMode}`, () => {
+      beforeAll(async () => {
+        mode = each;
+        await offMode(pluginMode);
       });
-  });
+      for (const entry of corpus.mcp)
+        it(`${entry.id} ${entry.method}`, async () => {
+          const app = createMcpHttp(session(), {
+            env: {
+              OPENPLANS_MCP_TOKEN: TOKEN,
+              OPENPLANS_MCP_CURSOR_SECRET: CURSOR_SECRET,
+            },
+            now: () => Date.parse(FIXED_TIME),
+            log: () => {},
+          });
+          const headers: Record<string, string> = {};
+          if (entry.grant) headers.authorization = `Bearer ${TOKEN}`;
+          const initial = post(entry.method, entry.params, headers);
+          let input = initial;
+          if (entry.legacy) {
+            const body = JSON.parse(await initial.text()) as {
+              params: { _meta?: unknown };
+            };
+            delete body.params._meta;
+            initial.headers.set("MCP-Protocol-Version", "2025-11-25");
+            input = new Request(initial.url, {
+              method: "POST",
+              headers: initial.headers,
+              body: JSON.stringify(body),
+            });
+          }
+          const warmRequest = input.clone();
+          const response = await app.fetch(input);
+          // Parse a clone only for coverage checks. The digest always hashes the original bytes.
+          const text = await response.clone().text();
+          const messages = text.startsWith("{")
+            ? [JSON.parse(text) as RpcBody]
+            : text
+                .split("\n")
+                .filter((line) => line.startsWith("data: "))
+                .map((line) => JSON.parse(line.slice(6)) as RpcBody);
+          const body = messages.find(
+            (message) => "result" in message || "error" in message,
+          );
+          expect(body, entry.id).toBeDefined();
+          expect(response.status, entry.id).toBe(
+            entry.id === "call-denied" ? 401 : 200,
+          );
+          if (entry.method === "tools/call" && entry.id !== "call-denied") {
+            expect(body!.error, entry.id).toBeUndefined();
+            expect(
+              body!.result.isError,
+              `${entry.id}: ${JSON.stringify(body!.result.structuredContent?.error)}`,
+            ).not.toBe(true);
+            const tool = entry.params.name as keyof typeof inputSchemas;
+            expect(
+              inputSchemas[tool].safeParse(entry.params.arguments).success,
+              entry.id,
+            ).toBe(true);
+          }
+          if (entry.method === "tools/list") {
+            const expected = entry.grant
+              ? toolNames
+              : toolNames.filter(
+                  (name) =>
+                    !["quote_premiums", "check_ichra_affordability"].includes(
+                      name,
+                    ),
+                );
+            expect(
+              body!.result.tools.map((tool: { name: string }) => tool.name),
+            ).toEqual(expected);
+            expect(body!.result.nextCursor).toBeUndefined();
+          }
+          const actual = await digest(response);
+          if (!record)
+            expect(actual, entry.id).toEqual(expectedMcp[each][entry.id]);
+          actualMcp[each][entry.id] = actual;
+          const warm = await digest(await app.fetch(warmRequest));
+          if (!record)
+            expect(warm, `${entry.id}: warm MCP`).toEqual(
+              expectedMcp[each][entry.id],
+            );
+        });
+    });
 
 it("covers every mounted route and MCP tool with unique, traceable requests", async () => {
   const ids = [...corpus.http, ...corpus.mcp].map((entry) => entry.id);
@@ -344,4 +378,21 @@ it("covers every mounted route and MCP tool with unique, traceable requests", as
       );
     }
   }
+});
+
+it("rejects one_byte_response_mutant by its recorded HTTP case name", async () => {
+  const entry = corpus.http[0]!;
+  const response = await httpApp(entry).request(entry.path, request(entry));
+  const bytes = Buffer.from(await response.arrayBuffer());
+  const mutated = await digest(
+    new Response(Buffer.concat([bytes, Buffer.from(" ")]), {
+      status: response.status,
+      headers: response.headers,
+    }),
+  );
+  expect(() =>
+    expect(mutated, `one_byte_response_mutant:${entry.id}`).toEqual(
+      expectedHttp[mode][entry.id],
+    ),
+  ).toThrow(`one_byte_response_mutant:${entry.id}`);
 });

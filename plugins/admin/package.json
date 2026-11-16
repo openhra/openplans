@@ -1,0 +1,19 @@
+{
+  "name": "@openplans/plugin-admin",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "npm run build -w @openplans/plugin-status && tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@openplans/plugin-sdk": "0.1.0",
+    "@openplans/plugin-status": "0.1.6"
+  },
+  "peerDependencies": {
+    "hono": "4.13.16",
+    "zod": "4.6.7"
+  }
+}

@@ -2,6 +2,8 @@ import { readFileSync } from "node:fs";
 import { isAbsolute } from "node:path";
 import { inspect } from "node:util";
 import { z } from "zod";
+import type { SettingOrigin } from "@openplans/plugin-sdk";
+import { recordConfigOrigins } from "./diagnostics.js";
 
 export type Environment = Record<string, string | undefined>;
 
@@ -129,6 +131,26 @@ export const coreConfigSchema = z
       allowPersonalized: text,
     }),
     trustProxy: z.array(z.string()).default([]),
+    admin: section({
+      origin: z
+        .string()
+        .refine((value) => {
+          try {
+            const url = new URL(value);
+            return (
+              url.protocol === "https:" &&
+              url.origin === value &&
+              !url.username &&
+              !url.password
+            );
+          } catch {
+            return false;
+          }
+        })
+        .optional(),
+      ingressReviewed: z.boolean().default(false),
+      instances: z.number().int().min(1).default(1),
+    }),
     cmsFallback: section({
       enabled: z.boolean().default(false),
       quotes: z.boolean().default(false),
@@ -141,6 +163,7 @@ export const coreConfigSchema = z
     medicarePartD: z.boolean().default(false),
     medicareDrugCost: z.boolean().default(false),
     medicareDrugCostPrices: z.boolean().default(false),
+    lowestPremiums: z.boolean().default(false),
     gaQuoteRecovery: z.boolean().default(false),
     // Operator decision, off by default: NY issuers whose refused DFS template is replaced by
     // the CMS state-based exchange rate file. See src/ingest/state/README.md.
@@ -298,6 +321,7 @@ export const environmentPaths = {
   OPENPLANS_MEDICARE_PART_D: "medicarePartD",
   OPENPLANS_MEDICARE_DRUG_COST: "medicareDrugCost",
   OPENPLANS_MEDICARE_DRUG_COST_PRICES: "medicareDrugCostPrices",
+  OPENPLANS_LOWEST_PREMIUMS: "lowestPremiums",
   OPENPLANS_GA_QUOTE_RECOVERY: "gaQuoteRecovery",
   POSTGRES_USER: "compose.user",
   POSTGRES_PASSWORD: "compose.password",
@@ -399,6 +423,7 @@ const onlyOn = new Set([
   "OPENPLANS_MEDICARE_DRUG_COST",
   "OPENPLANS_MEDICARE_DRUG_COST_PRICES",
   "OPENPLANS_GA_QUOTE_RECOVERY",
+  "OPENPLANS_LOWEST_PREMIUMS",
 ]);
 function envValue(name: string, value: string): unknown {
   if (publicSwitches.has(name)) return onUnlessOff(name, value);
@@ -450,11 +475,27 @@ export function loadConfig(
     : {};
   delete settings.version;
   refuseEnvironmentOnlyKeys(settings);
+  const sources: Record<string, SettingOrigin> = {};
+  const noteFileOrigins = (value: Record<string, unknown>, prefix = "") => {
+    for (const [key, item] of Object.entries(value)) {
+      const path = prefix ? `${prefix}.${key}` : key;
+      if (
+        item &&
+        typeof item === "object" &&
+        !Array.isArray(item) &&
+        !(item instanceof SecretValue)
+      )
+        noteFileOrigins(item as Record<string, unknown>, path);
+      else if (item !== undefined) sources[path] = "file";
+    }
+  };
+  noteFileOrigins(settings);
   if (defaults.port !== undefined)
     settings.listen = { port: defaults.port, ...Object(settings.listen) };
   for (const [name, path] of Object.entries(environmentPaths)) {
     const value = env[name];
     if (value === undefined) continue;
+    sources[path] = "environment";
     const [group, field] = path.split(".");
     if (field === undefined) settings[group!] = envValue(name, value);
     else {
@@ -485,11 +526,14 @@ export function loadConfig(
     throw new Error("Invalid OpenPlans configuration");
   }
   const config = result.data;
-  if (config.cache.url) config.cache.provider = "valkey";
+  if (config.cache.url) {
+    config.cache.provider = "valkey";
+    sources["cache.provider"] = sources["cache.url"] ?? "default";
+  }
   // The data directory roots local blobs unless the file names its own blob root.
   config.blobs.root ??= config.access.dataDir;
   const port = env.PORT ?? String(config.listen.port);
-  return freeze({
+  const resolved = freeze({
     ...config,
     mcp: {
       ...config.mcp,
@@ -501,4 +545,23 @@ export function loadConfig(
         config.mcp.allowedOrigins ?? locals.map((h) => `http://${h}:${port}`),
     },
   });
+  // Only parsed leaves get a default origin; callers constructing configs directly remain unknown.
+  const noteDefaults = (value: Record<string, unknown>, prefix = "") => {
+    for (const [key, item] of Object.entries(value)) {
+      const path = prefix ? `${prefix}.${key}` : key;
+      if (
+        item &&
+        typeof item === "object" &&
+        !Array.isArray(item) &&
+        !(item instanceof SecretValue)
+      )
+        noteDefaults(item as Record<string, unknown>, path);
+      else sources[path] ??= "default";
+    }
+  };
+  noteDefaults(resolved);
+  // Optional secret keys may be omitted by the parser.
+  for (const path of Object.values(environmentPaths))
+    sources[path] ??= "default";
+  return recordConfigOrigins(resolved, sources);
 }

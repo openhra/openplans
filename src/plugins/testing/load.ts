@@ -6,6 +6,8 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { pluginManifestSchema } from "@openplans/plugin-sdk";
 import type {
+  CanonicalReader,
+  CatalogPolicyProvider,
   AdmittedFetch,
   BlobStoreFactory,
   CacheStoreFactory,
@@ -30,6 +32,7 @@ import { checkCatalogTriggers } from "./checks.js";
 import { checkRouteResponses } from "./response-columns.js";
 
 export interface TestPluginOptions {
+  canonicalReader?: CanonicalReader;
   options?: unknown;
   db?: Database;
   config?: CoreConfigView;
@@ -182,6 +185,7 @@ export async function loadForTest(
   }
   const app = checkRouteResponses(new Hono());
   const registrations = {
+    catalogPolicies: new Map<string, CatalogPolicyProvider>(),
     routes: [] as RouteSpec[],
     mcpTools: [] as unknown[],
     sources: [] as unknown[],
@@ -201,6 +205,12 @@ export async function loadForTest(
   const context: PluginContext = {
     plugin: { name: manifest.name, version: manifest.version },
     options,
+    canonicalReader: settings.canonicalReader,
+    catalogPolicies: {
+      provide: (name, provider) => {
+        registrations.catalogPolicies.set(name, provider);
+      },
+    },
     config: structuredClone(settings.config ?? testConfig),
     secrets: {
       get: (name) =>

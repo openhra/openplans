@@ -181,7 +181,11 @@ export async function locationZipCounties(
   return result;
 }
 
-export async function resolveLocation(db: SqlSession, input: LocationInput) {
+export async function resolveLocation(
+  db: SqlSession,
+  input: LocationInput,
+  options: CmsLookupOptions = {},
+) {
   if (!input.zip)
     return {
       status: "available" as const,
@@ -189,7 +193,7 @@ export async function resolveLocation(db: SqlSession, input: LocationInput) {
       counties: [],
       county: input.county!,
     };
-  const result = await locationZipCounties(db, input.zip);
+  const result = await locationZipCounties(db, input.zip, options);
   if (result.status === "unknown")
     return { ...input, status: "unknown" as const, counties: result.counties };
   // A multi-county Vermont ZCTA has the same statewide medical service area.

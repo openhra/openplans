@@ -52,6 +52,7 @@ export function configDependencies(
     principal: granted ? { id: "personalized" } : undefined,
     policy: { canEstimate: (principal) => principal?.id === "personalized" },
     publicQuoting: config.public.quoting,
+    lowestPremiums: config.lowestPremiums,
   };
 }
 export function requestDependencies(

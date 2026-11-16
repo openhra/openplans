@@ -46,6 +46,7 @@ async function migrations(
     await rm(join(core.directory, "1007_provider_search_keys.sql"));
     await rm(join(core.directory, "1008_provider_search_key_a_cell.sql"));
     await rm(join(core.directory, "1009_provider_search_key_b_cell.sql"));
+    await rm(join(core.directory, "995_handy_lowest.sql"));
   } else if (mutate) {
     const before = await readFile(path, "utf8");
     const after = mutate(before);
@@ -300,6 +301,7 @@ describe("row provenance values", () => {
       MIGRATION,
       "992_record_policy.sql",
       "994_cms_api_attempt_provenance.sql",
+      "995_handy_lowest.sql",
       "1000_plugin_events.sql",
       "1001_passthrough.sql",
       "1002_ingest_run_snapshot.sql",

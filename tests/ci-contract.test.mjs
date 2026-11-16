@@ -19,6 +19,15 @@ const { checkRequired, macosShardJobs, requiredJobs, sameCommitJob } =
   checkRequiredModule;
 
 const root = fileURLToPath(new URL("..", import.meta.url));
+const dockerIgnorePattern = (pattern) =>
+  new RegExp(
+    `^${pattern
+      .replace(/[.+^${}()|[\]\\]/g, "\\$&")
+      .replaceAll("**/", "(?:.*/)?")
+      .replaceAll("**", ".*")
+      .replaceAll("*", "[^/]*")
+      .replaceAll("?", "[^/]")}$`,
+  );
 const workflow = JSON.parse(
   await readFile(join(root, ".github/workflows/ci.yml"), "utf8"),
 );
@@ -386,6 +395,11 @@ const installScripts = ["preinstall", "install", "postinstall", "prepare"];
 // plugins may depend on no workspace package but the SDK, so "SDK first, then the rest" holds.
 function installOrderProblems(packages, sdkName) {
   const names = new Set(packages.map(({ manifest }) => manifest.name));
+  // Admin composes the status package's exported reader and view. Its build script builds
+  // that dependency first; npm install itself must still have no plugin lifecycle scripts.
+  const buildTimeWorkspaceDependencies = new Map([
+    ["plugins/admin", new Set(["@openplans/plugin-status"])],
+  ]);
   const problems = [];
   for (const { dir, manifest } of packages) {
     if (manifest.name === sdkName) {
@@ -405,7 +419,10 @@ function installOrderProblems(packages, sdkName) {
       "peerDependencies",
     ]) {
       for (const name of Object.keys(manifest[section] ?? {})) {
-        if (names.has(name) && name !== sdkName)
+        const isAllowedBuildDependency =
+          section === "dependencies" &&
+          buildTimeWorkspaceDependencies.get(dir)?.has(name);
+        if (names.has(name) && name !== sdkName && !isAllowedBuildDependency)
           problems.push(`${dir}: depends on workspace package ${name}`);
       }
     }
@@ -483,9 +500,45 @@ it("packages workspace manifests before install and retains only runtime plugin 
   expect(docker).toContain(
     "COPY --from=build --chown=node:node /runtime/plugins ./plugins",
   );
+  expect(docker).toContain("COPY plugins ./plugins");
+  const admin = JSON.parse(
+    await readFile(join(root, "plugins/admin/package.json"), "utf8"),
+  );
+  expect(admin.main).toBe("dist/index.js");
+  expect(admin.types).toBe("dist/index.d.ts");
+  expect(docker).toContain(
+    "-name dist -o -name package.json -o -name migrations",
+  );
   const ignore = await readFile(join(root, ".dockerignore"), "utf8");
+  const ignoredPaths = ignore.split("\n");
   for (const path of ["**/node_modules", "**/dist", "**/.env", "**/.env.*"]) {
-    expect(ignore.split("\n")).toContain(path);
+    expect(ignoredPaths).toContain(path);
+  }
+  const sourcePaths = [];
+  const collectSources = async (directory, relative = "") => {
+    for (const entry of await readdir(directory, { withFileTypes: true })) {
+      const path = join(relative, entry.name).replaceAll("\\", "/");
+      if (entry.isDirectory()) {
+        await collectSources(join(directory, entry.name), path);
+      } else if (path.includes("/src/")) {
+        sourcePaths.push(path);
+      }
+    }
+  };
+  await collectSources(join(root, "plugins"), "plugins");
+  const rules = ignoredPaths
+    .filter((line) => line && !line.startsWith("#") && !line.startsWith("!"))
+    .map((line) => dockerIgnorePattern(line.replace(/^\/+/, "")));
+  expect(sourcePaths.length).toBeGreaterThan(0);
+  for (const path of sourcePaths) {
+    const segments = path.split("/");
+    const prefixes = segments.map((_, index) =>
+      segments.slice(0, index + 1).join("/"),
+    );
+    expect(
+      rules.some((rule) => prefixes.some((prefix) => rule.test(prefix))),
+      `${path} must remain in the image build context`,
+    ).toBe(false);
   }
 });
 

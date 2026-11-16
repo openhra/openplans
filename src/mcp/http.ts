@@ -1,3 +1,7 @@
+import { activeRecorder } from "../telemetry/observer.js";
+import { performance } from "node:perf_hooks";
+import { loadedPluginTools } from "../plugins/mcp-tools.js";
+import { LOWEST_TOOL } from "./handy.js";
 import { loadConfig } from "../config/index.js";
 import { sharedResponseCache } from "../api/cache/index.js";
 import type { CacheOutcome } from "../api/cache/index.js";
@@ -134,9 +138,12 @@ export function createMcpHttp(db: SqlSession, options: HttpOptions = {}) {
       return failure(405, -32600, "Method not allowed", {
         Allow: "POST, OPTIONS",
       });
+    const telemetry = activeRecorder();
+    const monotonicStarted = telemetry ? performance.now() : 0;
     const started = now(),
       controller = new AbortController();
     const signal = AbortSignal.any([c.req.raw.signal, controller.signal]);
+    let telemetryOutcome: "completed" | "cancelled" | "timeout" = "completed";
     let done = false,
       acquired = false,
       bytes = 0,
@@ -163,6 +170,22 @@ export function createMcpHttp(db: SqlSession, options: HttpOptions = {}) {
       signal.removeEventListener("abort", onAbort);
       if (acquired) active--;
       void handler?.close().catch(() => {});
+      if (telemetry && tool) {
+        try {
+          const owner =
+            loadedPluginTools().find(({ spec }) => spec.name === tool)
+              ?.plugin ?? "core";
+          const labels = telemetry.register("mcp", tool, owner);
+          telemetry.complete(
+            labels,
+            status,
+            telemetryOutcome,
+            performance.now() - monotonicStarted,
+          );
+        } catch {
+          /* Collection cannot fail a public response. */
+        }
+      }
       log({
         tool,
         status,
@@ -176,12 +199,16 @@ export function createMcpHttp(db: SqlSession, options: HttpOptions = {}) {
       rejectAbort = reject;
     });
     const onAbort = () => {
+      if (c.req.raw.signal.aborted) telemetryOutcome = "cancelled";
       if (status === 500) status = 504;
       rejectAbort(new Error("Request cancelled"));
       finish();
     };
     signal.addEventListener("abort", onAbort, { once: true });
-    const timer = setTimeout(() => controller.abort(), DEADLINE_MS);
+    const timer = setTimeout(() => {
+      telemetryOutcome = "timeout";
+      controller.abort();
+    }, DEADLINE_MS);
     timer.unref();
     try {
       signal.throwIfAborted();
@@ -237,7 +264,9 @@ export function createMcpHttp(db: SqlSession, options: HttpOptions = {}) {
         estimateToolHooks.enabled();
       tool =
         parsed.method === "tools/call" &&
-        (isToolName(params?.name) || estimateCall)
+        (isToolName(params?.name) ||
+          estimateCall ||
+          (params?.name === LOWEST_TOOL && config.lowestPremiums))
           ? String(params?.name)
           : null;
       // Legacy initialize predates metadata headers; all modern metadata validation is delegated to the SDK.
@@ -369,6 +398,8 @@ export function createMcpHttp(db: SqlSession, options: HttpOptions = {}) {
             if (bytes > responseLimit) throw new Error("Response limit");
             out.enqueue(part.value);
           } catch {
+            if (telemetryOutcome === "completed")
+              telemetryOutcome = "cancelled";
             controller.abort();
             void reader.cancel();
             out.error(new Error("MCP response interrupted"));
@@ -376,6 +407,7 @@ export function createMcpHttp(db: SqlSession, options: HttpOptions = {}) {
           }
         },
         async cancel() {
+          telemetryOutcome = "cancelled";
           controller.abort();
           await reader.cancel();
           finish();

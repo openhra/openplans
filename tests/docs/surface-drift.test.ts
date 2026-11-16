@@ -20,7 +20,7 @@ interface Route {
 
 /** GET and POST handlers the API registers, without middleware entries. */
 function servedRoutes(): Route[] {
-  const app = createApp(testDatabase(new PGlite()));
+  const app = createApp(testDatabase(new PGlite()), { lowestPremiums: true });
   const seen = new Map<string, Route>();
   for (const { method, path } of app.routes)
     if (method === "GET" || method === "POST")
@@ -155,6 +155,9 @@ function undocumentedFileKeys(keys: readonly string[], doc: string): string[] {
   });
 }
 
+const configFileDocumentation = () =>
+  [read("docs/configuration.md"), read("docs/admin-access.md")].join("\n");
+
 // Public docs the export ships, excluding the private files export-public.exclude drops.
 const SHIPPED_DOCS = [
   "README.md",
@@ -162,6 +165,7 @@ const SHIPPED_DOCS = [
   "CONTRIBUTING.md",
   "docs/ci.md",
   "docs/configuration.md",
+  "docs/admin-access.md",
   "docs/development-tools.md",
   "docs/ichra.md",
   "docs/medicare.md",
@@ -284,9 +288,7 @@ describe("docs match the API surface", () => {
     const keys = configFileKeys(coreConfigSchema as unknown as SchemaNode);
     expect(keys.length).toBeGreaterThan(70);
     expect(keys).toContain("cache.maxMb");
-    expect(undocumentedFileKeys(keys, read("docs/configuration.md"))).toEqual(
-      [],
-    );
+    expect(undocumentedFileKeys(keys, configFileDocumentation())).toEqual([]);
   });
 
   it("names the pinned Node version where the docs give one", () => {
@@ -352,11 +354,22 @@ describe("planted doc mutants fail the checks", () => {
 
   it("a config file key dropped from the reference", () => {
     const keys = configFileKeys(coreConfigSchema as unknown as SchemaNode);
-    const mutant = read("docs/configuration.md").replaceAll(
+    const mutant = configFileDocumentation().replaceAll(
       "`mcp.allowedOrigins`",
       "the origin list",
     );
     expect(undocumentedFileKeys(keys, mutant)).toEqual(["mcp.allowedOrigins"]);
+  });
+
+  it("an admin file key dropped from its guide", () => {
+    const keys = configFileKeys(coreConfigSchema as unknown as SchemaNode);
+    const mutant = configFileDocumentation().replaceAll(
+      "`admin.ingressReviewed`",
+      "the ingress review flag",
+    );
+    expect(undocumentedFileKeys(keys, mutant)).toEqual([
+      "admin.ingressReviewed",
+    ]);
   });
 
   it("a Node version left behind after an update", () => {

@@ -182,6 +182,7 @@ describe("conservative migration preflight", () => {
     ["992_record_policy.sql", "risky"],
     ["993_rate_plan_count.sql", "additive-safe"],
     ["994_cms_api_attempt_provenance.sql", "additive-safe"],
+    ["995_handy_lowest.sql", "additive-safe"],
     ["1000_plugin_events.sql", "additive-safe"],
     ["1001_passthrough.sql", "additive-safe"],
     ["1002_ingest_run_snapshot.sql", "additive-safe"],
@@ -197,6 +198,7 @@ describe("conservative migration preflight", () => {
         ![
           "993_rate_plan_count.sql",
           "994_cms_api_attempt_provenance.sql",
+          "995_handy_lowest.sql",
           "1000_plugin_events.sql",
           "1001_passthrough.sql",
           "1002_ingest_run_snapshot.sql",
@@ -245,7 +247,7 @@ describe("conservative migration preflight", () => {
       migrations.filter(
         (m) => classifyMigration(m.sql).classification === "risky",
       ),
-    ).toHaveLength(22);
+    ).toHaveLength(23);
     expect(
       migrations.filter(
         (m) => classifyMigration(m.sql, tableSizes).classification === "risky",

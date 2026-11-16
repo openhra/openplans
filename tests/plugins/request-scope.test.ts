@@ -161,9 +161,9 @@ describe("scope establishment rules", () => {
         opened[name] = calls;
       if (/\bAsyncLocalStorage\b/.test(text)) storage.push(name);
     }
-    // Middleware and catalog() in the response cache; handler.fetch in the MCP HTTP handler.
+    // Middleware, catalog() and typed single-age cells in the cache; handler.fetch in MCP HTTP.
     expect(opened).toEqual({
-      "src/api/cache/index.ts": 2,
+      "src/api/cache/index.ts": 3,
       "src/mcp/http.ts": 1,
     });
     // The event bus keeps its own SQL-session store (PLG-13), and migrate.ts keeps the worker's

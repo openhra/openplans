@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Cache-only NY identity and LCSP check in an isolated, disposable database.
 import assert from "node:assert/strict";
+import { checkHandyFiled } from "../../../scripts/oracle/handy-filed.mjs";
 import { spawnSync } from "node:child_process";
 import {
   cp,
@@ -34,7 +35,10 @@ import {
 } from "../../../dist/services/ichra.js";
 import { dataDirectory } from "../../../dist/config/access.js";
 
-const data = resolve(process.argv[2] ?? dataDirectory());
+const suppliedData = process.argv[2]?.startsWith("--")
+  ? undefined
+  : process.argv[2];
+const data = resolve(suppliedData ?? dataDirectory());
 const project = fileURLToPath(new URL("../../../", import.meta.url));
 const reportDir = join(data, "reports/ny-ehb-2026");
 await mkdir(reportDir, { recursive: true });
@@ -294,6 +298,8 @@ try {
       lcspPremiumBasis: "gross",
     };
     const result = await ichraAffordability(db, request);
+    if (process.argv.includes("--with-lowest"))
+      await checkHandyFiled(db, county, result);
     const expected = audit.regions[region];
     const refused = refusedIn(region);
     if (refused.length) {

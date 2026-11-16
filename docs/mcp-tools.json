@@ -114,9 +114,16 @@
       "listed": "switched"
     },
     {
+      "name": "get_lowest_premiums",
+      "title": "Lowest silver premium",
+      "description": "Find the lowest gross on-exchange silver premium for one age, year and location. Requires complete pricing evidence; no subsidies are evaluated.",
+      "kind": "core",
+      "listed": "switched"
+    },
+    {
       "name": "get_status",
       "title": "Service status",
-      "description": "Returns the public status summary that /status.json serves, without each source's publisher date: version, database state, coverage counts by status, source age buckets, last import age per source, cache on or off, pass-through budget state, plugin count and the age of the last health change.",
+      "description": "Returns a compact public status summary: version, database state, coverage counts, source and import age counts, cache state, pass-through budget counts and plugin count. Use section (sources, worker or passthrough), offset and limit (1-100, default 50) for details. Source details include publisher date and its recorded origin. Results stay below 64 KiB; truncated and page.omitted label size omissions. Follow page.next_offset for more. Full public detail remains at /status.json.",
       "kind": "plugin",
       "listed": "plugin",
       "plugin": "@openplans/plugin-status"

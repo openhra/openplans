@@ -1,3 +1,5 @@
+import { loadConfig } from "../config/index.js";
+import { runLowestBuild, rebuildLowestPremiums } from "./handy-build.js";
 import { runRecordPolicy } from "./record-policy.js";
 import { databaseErrorDiagnostic } from "./database-error.js";
 import { runSbe } from "../ingest/sbe/command.js";
@@ -125,6 +127,14 @@ const notImplemented =
 export const coreWorkerCommands: readonly CoreWorkerCommand[] = Object.freeze(
   (
     [
+      {
+        argv: ["build", "lowest-premiums"],
+        usage:
+          "Usage: worker build lowest-premiums --year YYYY --age N (--zip ZIP | --county FIPS)",
+        queryTimeoutMs: 300_000,
+        run: (args, { open, output }) =>
+          runLowestBuild(args, () => open(), output),
+      },
       {
         argv: ["migrate"],
         usage: "Usage: worker migrate [--check|--size-evidence]",
@@ -447,8 +457,8 @@ export async function runWorker(
     core.queryTimeoutMs === undefined
       ? openDatabase
       : opener(core.queryTimeoutMs);
-  const runCore = () =>
-    withIngestEvents(core, rest, output, host.events, (io) =>
+  const runCore = async () => {
+    const code = await withIngestEvents(core, rest, output, host.events, (io) =>
       core.run(rest, {
         // Spread keeps the opener's arity: callers that pass nothing still pass nothing.
         open: (...connection) => io.opened(coreOpen(...connection)),
@@ -458,6 +468,24 @@ export async function runWorker(
         host: { ...host, dispatch },
       }),
     );
+    if (
+      code === 0 &&
+      loadConfig().lowestPremiums &&
+      (core.argv[0] === "ingest" || core.argv[0] === "bootstrap")
+    ) {
+      const db = coreOpen();
+      try {
+        await rebuildLowestPremiums(db);
+      } catch {
+        output.error(
+          "Lowest premium rebuild deferred; requests use full enumeration",
+        );
+      } finally {
+        await db.close();
+      }
+    }
+    return code;
+  };
   // Design 5.13: bootstrap and the ingest commands migrate before they write. With plugins
   // enabled, those migrate() calls run the plugins' migrations too, as `worker migrate` does.
   if (!migratingCommand(core.argv) || !host.migrations?.length)

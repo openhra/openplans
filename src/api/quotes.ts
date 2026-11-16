@@ -13,6 +13,8 @@ import type { PeerAddress, SourceLimits } from "./rate-limit.js";
 import * as v from "./validation.js";
 
 export interface QuoteOptions {
+  /** Opt-in single-age silver minimum. Defaults to OPENPLANS_LOWEST_PREMIUMS. */
+  lowestPremiums?: boolean;
   /** When set, personalized requests need this Bearer token. Never logged. */
   premiumToken?: string;
   /** Anonymous quotes by age and ZIP. Defaults to OPENPLANS_PUBLIC_QUOTING, else `public.quoting`. */

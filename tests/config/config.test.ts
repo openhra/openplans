@@ -51,6 +51,7 @@ const converted: Record<string, [string, unknown]> = {
   OPENPLANS_MEDICARE_DRUG_COST: ["on", true],
   OPENPLANS_MEDICARE_DRUG_COST_PRICES: ["on", true],
   OPENPLANS_GA_QUOTE_RECOVERY: ["on", true],
+  OPENPLANS_LOWEST_PREMIUMS: ["on", true],
   OPENPLANS_COMPAT_BENEFIT_TEXT: ["compact", true],
   OPENPLANS_MCP_ALLOWED_HOSTS: [
     " a.example, b.example ,",
@@ -410,10 +411,15 @@ describe("configuration rejection controls", () => {
     const file = join(directory, "unwrapped.mjs");
     writeFileSync(
       file,
-      output.replace(
-        'from "zod"',
-        `from ${JSON.stringify(pathToFileURL(createRequire(import.meta.url).resolve("zod")).href)}`,
-      ),
+      output
+        .replace(
+          'from "./diagnostics.js"',
+          `from ${JSON.stringify(new URL("../../dist/config/diagnostics.js", import.meta.url).href)}`,
+        )
+        .replace(
+          'from "zod"',
+          `from ${JSON.stringify(pathToFileURL(createRequire(import.meta.url).resolve("zod")).href)}`,
+        ),
     );
     const result = spawnSync(
       process.execPath,

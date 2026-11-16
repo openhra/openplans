@@ -1,4 +1,3 @@
-import { z } from "zod";
 import type {
   OpenPlansPlugin,
   PluginContext,
@@ -10,13 +9,8 @@ import { runHealthProbe } from "./probe.js";
 import { readStatus } from "./read.js";
 import type { StatusHost } from "./read.js";
 import { applicationVersion } from "./version.js";
-import {
-  getStatusSchema,
-  getStatusView,
-  operatorView,
-  publicView,
-  stateCodes,
-} from "./views.js";
+import { getStatusInputSchema, getStatusSchema, getStatusView } from "./mcp.js";
+import { operatorView, publicView, stateCodes } from "./views.js";
 
 export {
   renderStatusHtml,
@@ -53,19 +47,24 @@ export type {
 } from "./read.js";
 export { applicationVersion } from "./version.js";
 export {
-  ageBucket,
+  GET_STATUS_MAX_BYTES,
+  getStatusInputSchema,
   getStatusSchema,
   getStatusView,
+} from "./mcp.js";
+export type { GetStatus, GetStatusInput } from "./mcp.js";
+export {
+  ageBucket,
   operatorStatusSchema,
   operatorView,
   publicStatusSchema,
   publicView,
   stateCodes,
 } from "./views.js";
-export type { GetStatus, OperatorStatus, PublicStatus } from "./views.js";
+export type { OperatorStatus, PublicStatus } from "./views.js";
 
 export const PLUGIN_NAME = "@openplans/plugin-status";
-export const PLUGIN_VERSION = "0.1.4";
+export const PLUGIN_VERSION = "0.1.6";
 export const PUBLIC_TTL_SECONDS = 30;
 export const PROBE_ARGV = ["status-page", "health-probe"] as const;
 
@@ -153,14 +152,17 @@ export function createStatusPlugin(
         name: "get_status",
         title: "Service status",
         description:
-          "Returns the public status summary that /status.json serves, without each source's " +
-          "publisher date: version, database state, coverage counts by status, source age buckets, " +
-          "last import age per source, cache on or off, pass-through budget state, plugin count " +
-          "and the age of the last health change.",
-        inputSchema: z.strictObject({}),
+          "Returns a compact public status summary: version, database state, coverage counts, " +
+          "source and import age counts, cache state, pass-through budget counts and plugin count. " +
+          "Use section (sources, worker or passthrough), offset and limit (1-100, default 50) for " +
+          "details. Source details include publisher date and its recorded origin. Results stay " +
+          "below 64 KiB; truncated and page.omitted label size omissions. " +
+          "Follow page.next_offset for more. Full public detail remains at /status.json.",
+        inputSchema: getStatusInputSchema,
         outputSchema: getStatusSchema,
         readOnly: true,
-        handler: async (_input, tool) => getStatusView(await read(tool.db)),
+        handler: async (input, tool) =>
+          getStatusView(await read(tool.db), input),
       });
       ctx.workerCommands.add({
         argv: PROBE_ARGV,

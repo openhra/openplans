@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Cache-only evidence and service check in an isolated disposable database.
 import assert from "node:assert/strict";
+import { checkHandyFiled } from "../../../scripts/oracle/handy-filed.mjs";
 import { spawnSync } from "node:child_process";
 import {
   mkdir,
@@ -28,7 +29,10 @@ import {
 } from "../../../scripts/source-mutation.mjs";
 import { configuredDataDirectory } from "../../../dist/config/access.js";
 
-const data = resolve(process.argv[2] ?? configuredDataDirectory() ?? ".");
+const suppliedData = process.argv[2]?.startsWith("--")
+  ? undefined
+  : process.argv[2];
+const data = resolve(suppliedData ?? configuredDataDirectory() ?? ".");
 const root = fileURLToPath(new URL("../../../", import.meta.url));
 const reportDir = join(data, "reports/vt-metal-2026");
 await mkdir(reportDir, { recursive: true });
@@ -79,6 +83,10 @@ try {
   ))
     if (name.endsWith(".sql") && name !== "002_postgis.sql")
       await db.exec(await readFile(join(root, "migrations", name), "utf8"));
+  // Match the normal migration runner for tables added after the metadata migrations.
+  await db.exec(
+    "SELECT install_row_provenance_all(); SELECT install_record_policy_all();",
+  );
   const serviceModule = new URL(
     "../../../dist/services/ichra.js",
     import.meta.url,
@@ -129,6 +137,8 @@ try {
     const before = await old.ichraAffordability(db, request);
     assert.equal(before.status, "requires_state_rules");
     const result = await ichraAffordability(db, request);
+    if (process.argv.includes("--with-lowest"))
+      await checkHandyFiled(db, request.residence.county, result);
     assert.equal(result.status, "calculated", JSON.stringify(result));
     assert.equal(result.lcsp.monthly_cents, audit.gross_lcsp_cents);
     assert.equal(result.lcsp.silver_plan_count, audit.silver.length);

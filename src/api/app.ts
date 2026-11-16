@@ -1,7 +1,10 @@
+import { activeRecorder, httpObserver } from "../telemetry/observer.js";
+import type { Labels } from "../telemetry/aggregate.js";
 import { logInternalError, queryTimeoutResponse } from "./error-log.js";
 import { isQueryTimeout } from "../services/errors.js";
 import { createMcpHttp } from "../mcp/http.js";
 import { Hono } from "hono";
+import type { MiddlewareHandler } from "hono";
 import { checkDatabase } from "../db/availability.js";
 import type { SqlSession } from "../db/database.js";
 import { nativeRoutes } from "./routes.js";
@@ -14,6 +17,8 @@ import type { ResponseCacheOptions } from "./cache/index.js";
 import { publicQuoteAdmission } from "./quotes.js";
 import { loadConfig } from "../config/index.js";
 import { apiToken } from "../config/access.js";
+import { createAdminAuth } from "../operator/auth-routes.js";
+import { ADMIN_PLUGIN } from "../plugins/registries.js";
 import { pluginRoutes } from "../plugins/routes.js";
 import { SCHEMA_NOT_READY } from "./schema-gate.js";
 import type { SchemaGate } from "./schema-gate.js";
@@ -26,11 +31,45 @@ export function createApp(
   schema?: SchemaGate,
 ) {
   const app = new Hono();
+  const telemetry = activeRecorder();
+  const operations = new Map<string, Labels>();
+  if (telemetry) {
+    const unmatched = telemetry.register("http", "unmatched");
+    app.use(
+      "*",
+      httpObserver((method, template) => {
+        if (template === "/admin" || template.startsWith("/admin/"))
+          return undefined;
+        return (
+          operations.get(`${method} ${template}`) ??
+          operations.get(`ALL ${template}`) ??
+          unmatched
+        );
+      }),
+    );
+  }
   const cache = createResponseCache(db, options.premiumToken, cacheOptions);
   const config = () => cacheOptions?.config ?? loadConfig();
+  const adminEnabled = () =>
+    cacheOptions?.plugins?.routes.some(
+      ({ plugin, spec }) =>
+        plugin === ADMIN_PLUGIN && spec.adminSession === true,
+    ) ?? false;
+  const adminAuth = adminEnabled()
+    ? createAdminAuth({
+        enabled: adminEnabled,
+        config,
+        operatorToken: () => config().tokens.operator?.reveal(),
+        trustedProxies: options.trustedProxies ?? config().trustProxy,
+        peerAddress: options.peerAddress,
+        now: options.now,
+      })
+    : undefined;
+  adminAuth?.protect(app);
   const plugins = cacheOptions?.plugins?.routes.length
     ? pluginRoutes(cacheOptions.plugins, {
         db,
+        adminAuth,
         operatorToken: () => config().tokens.operator?.reveal(),
         trustedProxies: options.trustedProxies ?? config().trustProxy,
         peerAddress: options.peerAddress,
@@ -43,7 +82,17 @@ export function createApp(
   app.use("/v1/quotes", ...publicQuoteAdmission(options));
   // Plugin exposure and rate limits too; their handlers mount after the core routes.
   plugins?.guard(app);
-  app.use("*", cache.middleware);
+  // Admin route identity bypasses the shared cache even without an Authorization header.
+  const cacheAdmission: MiddlewareHandler = async (c, next) => {
+    if (
+      adminAuth &&
+      (c.req.path === "/admin" || c.req.path.startsWith("/admin/"))
+    )
+      return next();
+    return cache.middleware(c, next);
+  };
+  app.use("*", cacheAdmission);
+  adminAuth?.mount(app);
 
   // Liveness: the process and its database connection. A pending schema is reported, not failed,
   // so Compose can start the worker that migrates.
@@ -131,5 +180,21 @@ export function createApp(
     logInternalError(error);
     return c.json({ error: "internal_error" }, 500);
   });
+  if (telemetry) {
+    for (const route of app.routes) {
+      if (route.path.includes("*")) continue;
+      if (route.path === "/admin" || route.path.startsWith("/admin/")) continue;
+      const owner =
+        cacheOptions?.plugins?.routes.find(
+          ({ spec }) =>
+            spec.method === route.method && spec.path === route.path,
+        )?.plugin ?? "core";
+      const id = `${route.method.toLowerCase()}.${route.path.slice(1).replace(/[^a-zA-Z0-9_:-]+/g, ".")}`;
+      operations.set(
+        `${route.method} ${route.path}`,
+        telemetry.register("http", id, owner),
+      );
+    }
+  }
   return app;
 }

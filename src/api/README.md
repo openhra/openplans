@@ -66,10 +66,10 @@ plan list may be short or empty. It is empty when no plan is known to be missing
 
 | Code                               | Meaning                                                                    |
 | ---------------------------------- | -------------------------------------------------------------------------- |
-| `zip_limited_service_area`         | County only, and some plans serve only part of the county. Send a ZIP |
+| `zip_limited_service_area`         | County only, and some plans serve only part of the county. Send a ZIP      |
 | `zip_not_in_loaded_geography`      | The ZIP is not in the loaded geography                                     |
 | `state_catalog_not_loaded`         | No active catalog for the county's state and year, including NY/VT filings |
-| `template_saved_before_submission` | A refused New York rate template leaves that issuer's plans out             |
+| `template_saved_before_submission` | A refused New York rate template leaves that issuer's plans out            |
 
 Other refusal codes from the New York template check (see the state ingest README) can
 appear the same way. The MCP tools `search_plans` and `quote_plans` return the same list as
@@ -532,16 +532,44 @@ Native errors are `{"error":{"code":"...","field":"..."}}`. `field` names the re
 never echoes its value. The [quoting guide](../../docs/quoting.md#errors) lists the quote codes
 in full. The compatibility API keeps its own error shapes.
 
-| HTTP | Codes                                                                                                                                                                                                                                                                                | When                                                                                   |
-| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------- |
-| 400  | `INVALID_INPUT`, `INVALID_JSON`, `REQUEST_TOO_LARGE`, `UNKNOWN_FIELD`, `YEAR_REQUIRED`, `INVALID_YEAR`, `LOCATION_REQUIRED`, `ZIP_OR_COUNTY_REQUIRED`, `AGE_OR_DOB_REQUIRED`, `UNSUPPORTED_MARKET`, `QUERY_OR_NDC_REQUIRED`, `INVALID_NDC`, `TAXONOMY_OR_SPECIALTY_REQUIRED`, `INVALID_PLAN_KEY`, `INVALID_SCHEDULE` | An input is missing, malformed or not allowed; the quote caps and duplicates add their own codes |
-| 401  | `UNAUTHORIZED`                                                                                                                                                                                                                                                                       | A token is configured and the bearer token is missing or wrong                         |
-| 404  | `PLAN_NOT_FOUND`, `DRUG_NOT_FOUND`, `PROVIDER_NOT_FOUND`, `CATALOG_NOT_LOADED`                                                                                                                                                                                                       | The plan, drug or provider isn't in the active data, or no Medicare catalog is loaded for the year |
-| 422  | `unsupported_without_taxonomy`                                                                                                                                                                                                                                                       | A specialty name search before NUCC taxonomy is imported                               |
-| 429  | `RATE_LIMITED`                                                                                                                                                                                                                                                                       | A per-source limit; `Retry-After` gives seconds                                        |
-| 500  | `INTERNAL_ERROR`                                                                                                                                                                                                                                                                     | An unexpected failure; the log keeps only an error class and a stack hash              |
-| 503  | `schema_not_ready`, `AUTH_NOT_CONFIGURED`, `QUOTING_DISABLED`                                                                                                                                                                                                                        | A migration is pending, a closed household route has no token, or public quoting is off |
-| 504  | `query_timeout`, `REQUEST_DEADLINE`                                                                                                                                                                                                                                                  | One database read passed 5 seconds, or a quote, benchmark or ICHRA check passed 15     |
+| HTTP | Codes                                                                                                                                                                                                                                                                                                                | When                                                                                               |
+| ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| 400  | `INVALID_INPUT`, `INVALID_JSON`, `REQUEST_TOO_LARGE`, `UNKNOWN_FIELD`, `YEAR_REQUIRED`, `INVALID_YEAR`, `LOCATION_REQUIRED`, `ZIP_OR_COUNTY_REQUIRED`, `AGE_OR_DOB_REQUIRED`, `UNSUPPORTED_MARKET`, `QUERY_OR_NDC_REQUIRED`, `INVALID_NDC`, `TAXONOMY_OR_SPECIALTY_REQUIRED`, `INVALID_PLAN_KEY`, `INVALID_SCHEDULE` | An input is missing, malformed or not allowed; the quote caps and duplicates add their own codes   |
+| 401  | `UNAUTHORIZED`                                                                                                                                                                                                                                                                                                       | A token is configured and the bearer token is missing or wrong                                     |
+| 404  | `PLAN_NOT_FOUND`, `DRUG_NOT_FOUND`, `PROVIDER_NOT_FOUND`, `CATALOG_NOT_LOADED`                                                                                                                                                                                                                                       | The plan, drug or provider isn't in the active data, or no Medicare catalog is loaded for the year |
+| 422  | `unsupported_without_taxonomy`                                                                                                                                                                                                                                                                                       | A specialty name search before NUCC taxonomy is imported                                           |
+| 429  | `RATE_LIMITED`                                                                                                                                                                                                                                                                                                       | A per-source limit; `Retry-After` gives seconds                                                    |
+| 500  | `INTERNAL_ERROR`                                                                                                                                                                                                                                                                                                     | An unexpected failure; the log keeps only an error class and a stack hash                          |
+| 503  | `schema_not_ready`, `AUTH_NOT_CONFIGURED`, `QUOTING_DISABLED`                                                                                                                                                                                                                                                        | A migration is pending, a closed household route has no token, or public quoting is off            |
+| 504  | `query_timeout`, `REQUEST_DEADLINE`                                                                                                                                                                                                                                                                                  | One database read passed 5 seconds, or a quote, benchmark or ICHRA check passed 15                 |
 
 `GET /v1/data-availability` answers 503 `{"error":"data_availability_unavailable"}` when the
 database read fails, so a failure never looks like an empty list.
+
+<!-- lowest-premiums:generated -->
+
+## Lowest silver premium
+
+Enable `OPENPLANS_LOWEST_PREMIUMS=on` or `lowestPremiums: true` in the config file.
+The default is off. This route and `get_lowest_premiums` follow the public quoting switch
+and admission limits. Responses use `Cache-Control: no-store`; MCP pricing is uncached.
+
+`GET /v1/lowest-premiums?zip=77002&county=48201&year=2026&age=40` returns the lowest
+gross on-exchange silver premium for one person. Both year and age are required.
+Only individual medical plans, non-tobacco prices and January 1 coverage are supported.
+The answer does not evaluate subsidies and is not a bindable quote.
+
+Accepted fields: `zip`, `county`, `year`, `age`, `metal`, `tobacco`, `coverage_start`, `market`, `coverage`, `market_segment`, `premium_basis`, `page`, `evidence_page`.
+Unknown fields are rejected. An ambiguous ZIP requires a county selection.
+Missing catalog or candidate pricing evidence returns an unknown result with no minimum.
+County-only requests refuse when ZIP-specific offers or rating areas require a ZIP.
+Tied plan IDs are sorted and paged at 50. MCP tie pages use a generation-bound cursor. Candidate and evidence details use `evidence_page`, with 10 candidates per page. Every page keeps the winner, exact integer cents, total tie count, completeness and source references. The MCP response has a 64 KiB byte limit. It marks omitted rows with `truncated` and `omitted`. REST defaults to the first tie and evidence pages; use `page` and `evidence_page` to read more. The premium basis is gross and separate from SLCSP.
+
+Build an exact location/age cell with
+`worker build lowest-premiums --year 2026 --age 40 --zip 77002 --county 48201`.
+This command requires migrated tables and admitted imported data. Successful ingest commands
+rebuild previously registered cells while the switch is on. Other cells use full enumeration.
+A stale, expired, incomplete or absent build also uses full enumeration. Failed rebuilds leave
+that fallback available. Derived payloads are bounded to 1 GiB, reserving the rest of the
+2 GiB allowance for manifests and indexes; one cell may use at most 2 MiB.
+<!-- /lowest-premiums:generated -->

@@ -1,3 +1,6 @@
+import { recordCache } from "../../telemetry/observer.js";
+import type { LowestInput } from "../handy.js";
+import type { LowestCell } from "../../services/handy.js";
 import { loadConfig } from "../../config/index.js";
 import type { CoreConfig } from "../../config/index.js";
 import { createHash } from "node:crypto";
@@ -184,6 +187,7 @@ export function createResponseCache(
   const extraHeader = compatKeyHeader(config.tokens.compatKeyHeader);
   const bypass: MiddlewareHandler = async (c, next) => {
     stats.bypasses++;
+    recordCache("bypass");
     c.header("X-Cache", "bypass");
     await next();
   };
@@ -292,6 +296,7 @@ export function createResponseCache(
           throw new Error("Invalid cached response");
         }
         stats.hits++;
+        recordCache("hit");
         c.res = new Response(entry.body, {
           status: 200,
           headers: entry.headers,
@@ -312,6 +317,7 @@ export function createResponseCache(
       !c.res.headers.get("content-type")?.includes("application/json")
     ) {
       stats.bypasses++;
+      recordCache("bypass");
       c.header("X-Cache", "bypass");
       return;
     }
@@ -338,6 +344,7 @@ export function createResponseCache(
         credentials.some((value) => text.includes(value))
       ) {
         stats.bypasses++;
+        recordCache("bypass");
         c.res.headers.set("X-Cache", "bypass");
         return;
       }
@@ -351,14 +358,17 @@ export function createResponseCache(
       const value = JSON.stringify(entry);
       if (Buffer.byteLength(value) > MAX_ENTRY_BYTES) {
         stats.bypasses++;
+        recordCache("bypass");
         c.res.headers.set("X-Cache", "bypass");
         return;
       }
       await store.set(key, value, ttl);
       stats.misses++;
+      recordCache("miss");
       c.res.headers.set("X-Cache", "miss");
     } catch {
       stats.bypasses++;
+      recordCache("bypass");
       c.res.headers.set("X-Cache", "bypass");
     }
   };
@@ -386,6 +396,7 @@ export function createResponseCache(
         }
       }
       stats[counterForOutcome()]++;
+      recordCache(outcome);
       request.outcome?.(outcome);
     };
     if (disabled || !request.authorized() || !publicDto(request.query)) {
@@ -442,9 +453,68 @@ export function createResponseCache(
     }
     return dto;
   }
+  // Separate typed contract for single-age public-data cells. publicDto stays unchanged.
+  async function lowest(
+    request: {
+      input: LowestInput;
+      generation: string;
+      manifest: string;
+      accept: (value: unknown) => value is LowestCell;
+    },
+    load: () => Promise<LowestCell>,
+  ): Promise<LowestCell> {
+    const key = `openplans:lowest:v1:${createHash("sha256")
+      .update(canonical([request.input, request.generation, request.manifest]))
+      .digest("hex")}`;
+    if (disabled || scopeStoreTtl(30) === null) return load();
+    try {
+      const stored = await store.get(key);
+      if (stored !== null) {
+        const parsed: unknown = JSON.parse(stored);
+        if (
+          Buffer.byteLength(stored) <= MAX_ENTRY_BYTES &&
+          request.accept(parsed) &&
+          parsed.provenance.input_manifest === request.manifest &&
+          parsed.basis.age === request.input.age &&
+          parsed.year === request.input.year
+        ) {
+          stats.hits++;
+          recordCache("hit");
+          return parsed;
+        }
+      }
+    } catch {
+      stats.bypasses++;
+      recordCache("bypass");
+      return load();
+    }
+    const [answer, ttl] = await runWithScope(async () => {
+      const answer = await load();
+      return [answer, scopeStoreTtl(30)] as const;
+    });
+    if (
+      ttl !== null &&
+      request.accept(answer) &&
+      ["calculated", "no_plans"].includes(answer.status)
+    ) {
+      const serialized = JSON.stringify(answer);
+      if (Buffer.byteLength(serialized) <= MAX_ENTRY_BYTES) {
+        try {
+          await store.set(key, serialized, ttl);
+          stats.misses++;
+          recordCache("miss");
+        } catch {
+          stats.bypasses++;
+          recordCache("bypass");
+        }
+      }
+    }
+    return answer;
+  }
   const cache = {
     middleware,
     catalog,
+    lowest,
     stats: () => {
       function cacheBackend() {
         if (disabled) {

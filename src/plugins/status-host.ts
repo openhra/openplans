@@ -33,7 +33,8 @@ export interface StatusHostParts {
 /** Filled by the loader once every plugin ran setup. */
 export interface LoadedStatus {
   plugins: readonly HostPluginEntry[];
-  registries: Pick<PluginRegistries, "cacheStores">;
+  registries: Pick<PluginRegistries, "cacheStores"> &
+    Partial<Pick<PluginRegistries, "catalogPolicies">>;
 }
 
 let coreVersion: string | null | undefined;

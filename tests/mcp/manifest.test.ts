@@ -37,6 +37,7 @@ describe("MCP tool manifest", () => {
         .map((tool) => [tool.name, tool.kind, tool.listed, tool.plugin]),
     ).toEqual([
       ["estimate_medicare_drug_costs", "core", "switched", undefined],
+      ["get_lowest_premiums", "core", "switched", undefined],
       ["get_status", "plugin", "plugin", "@openplans/plugin-status"],
     ]);
     for (const tool of manifest.tools) {
@@ -60,7 +61,7 @@ describe("MCP tool manifest", () => {
     const mutant = await plantMutant(
       statusFile,
       "ctx.mcpTools.add({",
-      'ctx.mcpTools.add({ name: "planted_extra_tool", title: "Planted", description: "Planted.", inputSchema: z.strictObject({}), outputSchema: z.strictObject({}), readOnly: true, handler: async () => ({}) }); ctx.mcpTools.add({',
+      'ctx.mcpTools.add({ name: "planted_extra_tool", title: "Planted", description: "Planted.", inputSchema: getStatusInputSchema.pick({}), outputSchema: getStatusSchema.pick({}), readOnly: true, handler: async () => ({}) }); ctx.mcpTools.add({',
     );
     try {
       const module = (await import(mutant.path)) as {

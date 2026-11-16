@@ -62,6 +62,7 @@ export interface McpPolicy {
   canEstimate(principal: McpPrincipal | undefined): boolean;
 }
 export interface McpDependencies {
+  lowestPremiums?: boolean;
   db: SqlSession;
   cache?: ResponseCache;
   onCache?: (outcome: CacheOutcome) => void;

@@ -3,12 +3,16 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 years=(2026 2027)
 price_check=
+handy_check=
 usage() {
-  echo 'Usage: scripts/realdata.sh [--year 2025|2026|2027] [--with-price-check]' >&2
+  echo 'Usage: scripts/realdata.sh [--year 2025|2026|2027] [--with-price-check] [--with-lowest]' >&2
   exit 2
 }
 while [ "$#" -ne 0 ]; do
-  if [ "$1" = '--with-price-check' ] && [ -z "$price_check" ]; then
+  if [ "$1" = '--with-lowest' ] && [ -z "$handy_check" ]; then
+    handy_check=1
+    shift
+  elif [ "$1" = '--with-price-check' ] && [ -z "$price_check" ]; then
     price_check=1
     shift
   elif [ "$#" -ge 2 ] && [ "$1" = '--year' ] && [ "${#years[@]}" -eq 2 ] && { [ "$2" = '2025' ] || [ "$2" = '2026' ] || [ "$2" = '2027' ]; }; then
@@ -83,8 +87,13 @@ if [[ " ${years[*]} " == *" 2026 "* ]]; then
 fi
 # NY filed identities: cached DFS fields, regional LCSP and refusal controls.
 if [[ " ${years[*]} " == *" 2026 "* ]]; then
-  node src/ingest/state/ny-identitycheck.mjs
-  node src/ingest/state/vt-metalcheck.mjs
+  if [ -n "$handy_check" ]; then
+    node src/ingest/state/ny-identitycheck.mjs --with-lowest
+    node src/ingest/state/vt-metalcheck.mjs --with-lowest
+  else
+    node src/ingest/state/ny-identitycheck.mjs
+    node src/ingest/state/vt-metalcheck.mjs
+  fi
 fi
 # CMS SBE: independent CSV/Decimal counts, exact filed rates and households.
 for year in "${years[@]}"; do
@@ -99,3 +108,11 @@ for year in "${years[@]}"; do sweep_years+=(--year "$year"); done
 DATABASE_URL="${OPENPLANS_SURFACE_SWEEP_DATABASE_URL:-}" \
   node scripts/oracle/surface-sweep.mjs "${sweep_years[@]}" --optional
 echo 'PASS'
+
+if [ -n "$handy_check" ]; then
+  if [ "${#years[@]}" -eq 1 ]; then
+    node scripts/oracle/handy.mjs --year "${years[0]}"
+  else
+    node scripts/oracle/handy.mjs
+  fi
+fi
