@@ -1,3 +1,8 @@
+import { sharedResponseCache } from "./cache/index.js";
+import { lowestQuery } from "./handy.js";
+import { lowestPremiums, HandyDataChanged } from "../services/handy.js";
+import { loadConfig } from "../config/index.js";
+import { publicQuoteAdmission } from "./quotes.js";
 import { logInternalError, queryTimeoutResponse } from "./error-log.js";
 import {
   lookupZip,
@@ -23,6 +28,8 @@ export type ApiOptions = QuoteOptions;
 export function nativeRoutes(db: SqlSession, options: ApiOptions) {
   const app = new Hono();
   app.onError((error, c) => {
+    if (error instanceof HandyDataChanged)
+      return c.json({ error: { code: "DATA_CHANGED" } }, 503);
     if (error instanceof v.InputError) {
       return c.json({ error: { code: error.code, field: error.field } }, 400);
     } else if (error instanceof ReadError) {
@@ -38,6 +45,32 @@ export function nativeRoutes(db: SqlSession, options: ApiOptions) {
     }
   });
 
+  if (options.lowestPremiums ?? loadConfig().lowestPremiums) {
+    app.use("/lowest-premiums", ...publicQuoteAdmission(options));
+    app.get("/lowest-premiums", async (c) => {
+      c.header("Cache-Control", "no-store");
+      const deadline = AbortSignal.any([
+        c.req.raw.signal,
+        AbortSignal.timeout(DEADLINE_MS),
+      ]);
+      try {
+        return c.json(
+          await lowestPremiums(
+            boundedDatabase(db, deadline),
+            lowestQuery(c.req.query()),
+            {
+              cache: sharedResponseCache(db),
+              evidencePage: Number(c.req.query("evidence_page") ?? "1"),
+            },
+          ),
+        );
+      } catch (error) {
+        if (deadline.aborted)
+          return c.json({ error: { code: "REQUEST_DEADLINE" } }, 504);
+        throw error;
+      }
+    });
+  }
   app.route("/", drugRoutes(db));
   app.route("/", providerRoutes(db));
   app.route("/", medicareRoutes(db, options));

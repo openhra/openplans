@@ -404,3 +404,15 @@ Compatibility: Both tables are empty when these run, so each build takes well un
 Forward fix: If a build fails, it can leave an invalid index and the migration unrecorded. Check with `SELECT indexrelid::regclass FROM pg_index WHERE NOT indisvalid`. Drop it with `DROP INDEX CONCURRENTLY provider_search_key_a_cell` (or `_b_cell`), then run `worker migrate` again. Never add `IF NOT EXISTS`.
 
 Lock budget: Two-second lock acquisition limit for the SHARE UPDATE EXCLUSIVE lock on the new table. The worker's slot fill truncates the idle table, so run the first `worker backfill provider-search` after these migrations finish.
+
+### 995_handy_lowest.sql
+
+Stage: expand
+
+Expand release: Two empty tables for exact single-age silver cells and their activation pointers. `worker build lowest-premiums` fills one requested scope at a time.
+
+Compatibility: Older images ignore both tables. The new route and tool are off by default. Readers use only complete, unexpired cells whose source revisions, algorithm, input scope and payload hash match. Other requests use full enumeration. The first build registers the two generation rows; empty tables leave the generation unchanged. Publication then moves the API generation; derived revisions do not enter their own source manifest. The migration runner adds provenance and record-policy metadata.
+
+Forward fix: Add a repair migration and rebuild affected cells. Keep applied SQL unchanged. Deleting an activation pointer restores full enumeration without changing source data.
+
+Lock budget: Two-second acquisition limit. Both tables are new and empty. The literal insert into `row_provenance_rule` requires small-table evidence during preflight. No source table is rewritten. Rehearse on a disposable restored database before release.

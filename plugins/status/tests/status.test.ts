@@ -2,7 +2,6 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { PGlite } from "@electric-sql/pglite";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { z } from "zod";
 import type { WorkerContext } from "@openplans/plugin-sdk";
 import {
   PASSTHROUGH_OPENING_REASONS,
@@ -41,6 +40,8 @@ import plugin, {
   ageBucket,
   applicationVersion,
   createStatusPlugin,
+  GET_STATUS_MAX_BYTES,
+  getStatusInputSchema,
   getStatusSchema,
   getStatusView,
   healthStateSchema,
@@ -56,11 +57,13 @@ import plugin, {
   runHealthProbe,
 } from "../src/index.js";
 import type {
+  GetStatus,
   HealthState,
   OperatorStatus,
   PublicStatus,
   StatusData,
 } from "../src/index.js";
+import type * as mcpModule from "../src/mcp.js";
 import type * as readModule from "../src/read.js";
 import type * as viewsModule from "../src/views.js";
 
@@ -68,6 +71,7 @@ import type * as viewsModule from "../src/views.js";
 const NOW = new Date(Math.floor(Date.now() / 60_000) * 60_000);
 const OPERATOR = "synthetic-operator-secret";
 const indexFile = fileURLToPath(new URL("../src/index.ts", import.meta.url));
+const mcpFile = fileURLToPath(new URL("../src/mcp.ts", import.meta.url));
 const viewsFile = fileURLToPath(new URL("../src/views.ts", import.meta.url));
 const readFile = fileURLToPath(new URL("../src/read.ts", import.meta.url));
 const shipped = fileURLToPath(
@@ -140,33 +144,6 @@ const PUBLIC_FIELDS = [
 ].sort();
 const hasExactlyPublicFields = (body: unknown) =>
   JSON.stringify(keyPaths(body).sort()) === JSON.stringify(PUBLIC_FIELDS);
-
-// What get_status returned in v0.4.8, frozen: the public fields without the publisher dates, in
-// the same order. An MCP answer must fit in MAX_OUTPUT_BYTES; at the hosted catalog's size the
-// dates push it over.
-const GET_STATUS_FIELDS_0_4_8 = PUBLIC_FIELDS.filter(
-  (field) => !field.startsWith("sources.*.published_"),
-);
-const GET_STATUS_ORDER_0_4_8 = [
-  "version",
-  "api",
-  "db",
-  "data",
-  "sources",
-  "worker",
-  "cache",
-  "passthrough",
-  "plugins",
-  "health_transitions",
-];
-const hasGetStatusFields = (body: unknown) =>
-  JSON.stringify(keyPaths(body).sort()) ===
-    JSON.stringify(GET_STATUS_FIELDS_0_4_8) &&
-  JSON.stringify(Object.keys(body as object)) ===
-    JSON.stringify(GET_STATUS_ORDER_0_4_8) &&
-  ((body as PublicStatus).sources ?? []).every(
-    (source) => JSON.stringify(Object.keys(source)) === '["id","freshness"]',
-  );
 
 const OPERATOR_ONLY = [
   "pool",
@@ -557,8 +534,7 @@ describe("@openplans/plugin-status", () => {
     expect(html).not.toContain("<b>x</b>");
   });
 
-  it("get_status returns the public JSON without the publisher dates", async () => {
-    // The core host's availability service, as the loader supplies it.
+  it("get_status keeps a useful summary and exposes paged public detail", async () => {
     const loaded = await loadForTest(
       createStatusPlugin({
         now: () => NOW,
@@ -573,36 +549,49 @@ describe("@openplans/plugin-status", () => {
       expect(tool.name).toBe("get_status");
       expect(pluginToolDefinition(tool).annotations?.readOnlyHint).toBe(true);
       expect(tool.outputSchema).toBe(getStatusSchema);
-      const output = await tool.handler(
-        {},
-        { db, signal: AbortSignal.timeout(5000) },
+      const output = getStatusSchema.parse(
+        await tool.handler({}, { db, signal: AbortSignal.timeout(5000) }),
       );
-      expect(hasGetStatusFields(output)).toBe(true);
-      expect("status" in (output as object)).toBe(false);
-      // The kit app has no route wrapper, so compare with the real host's answer. The kit's
-      // config turns the cache off and lists no plugins, and the kit has no core host;
-      // everything else is the same read.
       const route = await (
         await (await app()).request("/status.json")
       ).json<PublicStatus>();
-      expect(output).toMatchObject({ cache: { enabled: false }, plugins: 0 });
-      // /status.json keeps the dates that get_status leaves out.
       expect(hasExactlyPublicFields(route)).toBe(true);
-      expect({
-        ...(output as object),
-        cache: route.cache,
-        plugins: route.plugins,
-        version: route.version,
-        // Without a host, whether a loaded plugin serves a source is unknown.
-        passthrough: (
-          output as { passthrough: { enabled: boolean | null }[] }
-        ).passthrough.map((row, i) => {
-          expect([null, route.passthrough![i]!.enabled]).toContain(row.enabled);
-          return { ...row, enabled: route.passthrough![i]!.enabled };
-        }),
-      }).toEqual({
-        ...route,
-        sources: route.sources!.map(({ id, freshness }) => ({ id, freshness })),
+      expect(output).toMatchObject({
+        api: route.api,
+        db: route.db,
+        data: route.data,
+        cache: { enabled: false },
+        plugins: 0,
+        section: "summary",
+        details: null,
+        page: null,
+        truncated: false,
+        sources: { total: route.sources!.length },
+        worker: { total: route.worker.last_ingest!.length },
+        passthrough: { total: route.passthrough!.length },
+      });
+      expect(JSON.stringify(output)).not.toContain("published_at");
+      const detail = getStatusSchema.parse(
+        await tool.handler(
+          { section: "sources", offset: 1, limit: 1 },
+          { db, signal: AbortSignal.timeout(5000) },
+        ),
+      );
+      expect(detail.details).toEqual(
+        route
+          .sources!.slice(1, 2)
+          .map(({ id, freshness, published_at, published_from }) => ({
+            id,
+            freshness,
+            published_at,
+            published_from,
+          })),
+      );
+      expect(detail.page).toMatchObject({
+        offset: 1,
+        limit: 1,
+        total: route.sources!.length,
+        omitted: 0,
       });
     } finally {
       await loaded.close();
@@ -656,7 +645,7 @@ describe("@openplans/plugin-status", () => {
             { db: down, signal: AbortSignal.timeout(5000) },
           ),
         ),
-      ) as PublicStatus;
+      ) as GetStatus;
       expect(body.db).toBe("down");
       expect(body.sources).toBeNull();
       expect(body.data).toEqual({
@@ -664,8 +653,13 @@ describe("@openplans/plugin-status", () => {
         years: null,
         status_counts: null,
       });
-      expect(publicStatusSchema.parse(body)).toEqual(body);
-      expect(renderStatusHtml(body)).toContain("Sources could not be read.");
+      expect(getStatusSchema.parse(body)).toEqual(body);
+      const rest = publicStatusSchema.parse(
+        await (await loaded.app.request("/status.json")).json(),
+      );
+      expect(rest.db).toBe("down");
+      expect(publicStatusSchema.parse(rest)).toEqual(rest);
+      expect(renderStatusHtml(rest)).toContain("Sources could not be read.");
     } finally {
       await loaded.close();
     }
@@ -1027,14 +1021,14 @@ describe("host data from core", () => {
     expect(body.plugins).toEqual([
       {
         name: PLUGIN_NAME,
-        version: "0.1.4",
+        version: "0.1.6",
         apiVersion: "0.1",
         sha256: sha,
         enabled: true,
       },
     ]);
     expect(identities(body.plugins)).toEqual(
-      identities([{ name: PLUGIN_NAME, version: "0.1.4", sha256: sha! }]),
+      identities([{ name: PLUGIN_NAME, version: "0.1.6", sha256: sha! }]),
     );
     const pass = body.passthrough!.find(
       (row: { id: string }) => row.id === "synthetic-pass",
@@ -1134,7 +1128,7 @@ describe("host data from core", () => {
   it("planted mutant: a wrong plugin hash fails the approved-list comparison", async () => {
     const sha = (await packageSha256(statusRoot))!;
     const approved = identities([
-      { name: PLUGIN_NAME, version: "0.1.4", sha256: sha },
+      { name: PLUGIN_NAME, version: "0.1.6", sha256: sha },
     ]);
     const read = await plantMutant(
       readFile,
@@ -1527,78 +1521,307 @@ function hostedSizeStatus(): StatusData {
 /** The bytes the MCP host counts against MAX_OUTPUT_BYTES for this answer. */
 const answerBytes = (output: unknown) =>
   messageBytes(output as Parameters<typeof messageBytes>[0]);
-// Fail well before the limit, so catalog growth shows up here first.
-const HEADROOM_LIMIT = Math.floor(MAX_OUTPUT_BYTES * 0.9);
-
-describe("get_status at the hosted catalog's size", () => {
-  it("the synthetic catalog has the hosted shape", () => {
-    const sources = hostedSizeStatus().sources!;
-    expect(sources).toHaveLength(777);
-    expect(new Set(sources.map((s) => s.id.split(":")[0])).size).toBe(16);
-    expect(sources.filter((s) => s.published).length).toBeGreaterThan(600);
-  });
-
-  it("fits in the MCP output limit with headroom", async () => {
-    const output = getStatusSchema.parse(getStatusView(hostedSizeStatus()));
-    const bytes = answerBytes(output);
-    expect(bytes).toBeLessThanOrEqual(HEADROOM_LIMIT);
-    // The host's own check answers with data, not RESULT_TOO_LARGE.
-    const tool = {
-      name: "get_status",
-      title: "Service status",
-      description: "synthetic",
-      inputSchema: z.strictObject({}),
-      outputSchema: getStatusSchema,
-      readOnly: true,
-      handler: async () => getStatusView(hostedSizeStatus()),
-    };
-    const result = await callPluginTool(
-      { db },
-      tool as Parameters<typeof callPluginTool>[1],
-      {},
-      AbortSignal.timeout(5000),
+// Synthetic stress catalog: every source family and file kind in all 56 jurisdictions,
+// with one import and pass-through row per source and coverage rollups across 100 years.
+function worstCaseStatus(): StatusData {
+  const jurisdictions =
+    "AL AK AZ AR CA CO CT DE DC FL GA HI ID IL IN IA KS KY LA ME MD MA MI MN MS MO MT NE NV NH NJ NM NY NC ND OH OK OR PA RI SC SD TN TX UT VT VA WA WV WI WY AS GU MP PR VI".split(
+      " ",
     );
+  const source = hostedSizeStatus().sources![0]!;
+  const sources = jurisdictions.flatMap((state) =>
+    [2025, 2026, 2027].flatMap((year) =>
+      [
+        ...SINGLE_SOURCES,
+        ...FILE_KINDS.map((kind) => `cms-exchange-puf${kind}`),
+      ].map((family) => ({
+        ...source,
+        id: `${family}:${year}:${state}`,
+      })),
+    ),
+  );
+  return sample({
+    sources,
+    ingests: sources.map(({ id }) => ({
+      source: id,
+      lastSuccess: NOW,
+      reasonCodes: [],
+      durationsMs: [],
+    })),
+    passthrough: sources.map(({ id }) => ({
+      ...sample().passthrough![0]!,
+      id,
+    })),
+    availability: jurisdictions.flatMap((state) =>
+      Array.from({ length: 100 }, (_, i) => ({
+        state,
+        year: 2000 + i,
+        market: "synthetic",
+        issuer_id: null,
+        catalog: "available" as const,
+        premium: "partial" as const,
+        provider: "unknown" as const,
+        formulary: "unknown" as const,
+        snapshot_id: null,
+      })),
+    ),
+  });
+}
+
+function statusTool(status: StatusData) {
+  return {
+    name: "get_status",
+    title: "Service status",
+    description: "synthetic",
+    inputSchema: getStatusInputSchema,
+    outputSchema: getStatusSchema,
+    readOnly: true as const,
+    handler: async (args: unknown) =>
+      getStatusView(status, getStatusInputSchema.parse(args)),
+  };
+}
+
+async function callStatus(status: StatusData, args = {}) {
+  return callPluginTool(
+    { db },
+    statusTool(status),
+    args,
+    AbortSignal.timeout(5000),
+  );
+}
+
+describe("bounded get_status", () => {
+  it("summarizes the hosted catalog in under 64 KiB", async () => {
+    const status = hostedSizeStatus();
+    const output = getStatusSchema.parse(getStatusView(status));
+    expect(output.sources!.total).toBe(777);
+    expect(
+      output.sources!.freshness["<7d"] + output.sources!.freshness["<30d"],
+    ).toBe(777);
+    expect(output.details).toBeNull();
+    expect(output.truncated).toBe(false);
+    expect(answerBytes(output)).toBeLessThan(GET_STATUS_MAX_BYTES);
+    const result = await callStatus(status);
     expect(result.isError).toBeUndefined();
     expect(result.structuredContent).toEqual(output);
   });
 
-  it("keeps exactly the v0.4.8 fields", () => {
-    const output = getStatusSchema.parse(getStatusView(hostedSizeStatus()));
-    expect(hasGetStatusFields(JSON.parse(JSON.stringify(output)))).toBe(true);
+  it("all 56 jurisdictions with every source and growing rollups stay under 64 KiB", async () => {
+    const status = worstCaseStatus();
+    expect(new Set(status.availability!.map((row) => row.state)).size).toBe(56);
+    expect(status.sources!.length).toBeGreaterThan(3000);
+    for (const section of [
+      "summary",
+      "sources",
+      "worker",
+      "passthrough",
+    ] as const) {
+      const output = getStatusSchema.parse(
+        getStatusView(status, { section, limit: 100 }),
+      );
+      expect(output.data.states).toBe(56);
+      expect(output.sources!.total).toBe(status.sources!.length);
+      expect(output.worker!.total).toBe(status.ingests!.length);
+      expect(output.data.years).toHaveLength(20);
+      expect(output.truncated).toBe(true);
+      expect(output.data.status_counts!.catalog.available).toBe(5600);
+      if (section === "summary") expect(output.details).toBeNull();
+      if (section === "sources") {
+        expect(output.details!.every((row) => "published_at" in row)).toBe(
+          true,
+        );
+        expect(
+          output.details!.every(
+            (row) =>
+              "published_at" in row &&
+              (!row.published_at ||
+                (row.published_at.length === 10 &&
+                  row.published_from !== null)),
+          ),
+        ).toBe(true);
+      }
+      expect(answerBytes(output)).toBeLessThan(GET_STATUS_MAX_BYTES);
+      const result = await callStatus(status, { section, limit: 100 });
+      expect(result.isError).toBeUndefined();
+      expect(result.structuredContent).toEqual(output);
+    }
   });
 
-  it("/status.json keeps the publisher dates", () => {
+  it("pages every detail section without losing or repeating rows", () => {
+    const status = hostedSizeStatus();
+    status.ingests = status.sources!.map(({ id }) => ({
+      ...sample().ingests![0]!,
+      source: id,
+    }));
+    status.passthrough = status.sources!.map(({ id }) => ({
+      ...sample().passthrough![0]!,
+      id,
+    }));
+    for (const section of ["sources", "worker", "passthrough"] as const) {
+      const seen: string[] = [];
+      let offset: number | null = 0;
+      while (offset !== null) {
+        const output: GetStatus = getStatusView(status, {
+          section,
+          offset,
+          limit: 100,
+        });
+        expect(getStatusSchema.safeParse(output).success).toBe(true);
+        expect(output.truncated).toBe(false);
+        expect(output.page!.omitted).toBe(0);
+        expect(answerBytes(output)).toBeLessThan(GET_STATUS_MAX_BYTES);
+        seen.push(
+          ...output.details!.map((row) =>
+            "source" in row ? row.source : row.id,
+          ),
+        );
+        offset = output.page!.next_offset;
+      }
+      expect(seen).toEqual(status.sources!.map((row) => row.id));
+    }
+    expect(
+      getStatusView(status, { section: "sources", offset: 10000 }).page!
+        .next_offset,
+    ).toBeNull();
+  });
+
+  it("unknown reads stay unknown and empty reads stay empty", () => {
+    const unknown = getStatusView(
+      sample({
+        availability: null,
+        sources: null,
+        ingests: null,
+        passthrough: null,
+        db: "down",
+      }),
+      { section: "sources" },
+    );
+    expect(unknown).toMatchObject({
+      db: "down",
+      sources: null,
+      worker: null,
+      passthrough: null,
+      page: { total: null },
+      truncated: false,
+    });
+    const empty = getStatusView(
+      sample({ sources: [], ingests: [], passthrough: [] }),
+      { section: "worker" },
+    );
+    expect(empty).toMatchObject({
+      sources: { total: 0 },
+      worker: { total: 0 },
+      passthrough: { total: 0 },
+      details: [],
+      page: { total: 0, next_offset: null },
+    });
+    expect(getStatusSchema.safeParse(unknown).success).toBe(true);
+    expect(getStatusSchema.safeParse(empty).success).toBe(true);
+  });
+
+  it("rejects invalid inputs and uses bounded defaults", async () => {
+    expect(getStatusInputSchema.parse({})).toEqual({
+      section: "summary",
+      offset: 0,
+      limit: 50,
+    });
+    for (const args of [
+      { section: "operator" },
+      { offset: -1 },
+      { offset: 0.5 },
+      { limit: 0 },
+      { limit: 101 },
+      { state: "TX" },
+    ]) {
+      const result = await callStatus(sample(), args);
+      expect(result.isError).toBe(true);
+      expect(result.structuredContent.error?.code).toBe("INVALID_INPUT");
+    }
+  });
+
+  it("omits oversized Unicode and escaped IDs without returning a size error", async () => {
+    const status = sample({ version: "🩺".repeat(100000) });
+    const hugeId = '"\\\n🩺'.repeat(10000);
+    status.sources = [
+      { ...status.sources![0]!, id: hugeId },
+      { ...status.sources![0]!, id: "synthetic-small" },
+    ];
+    status.ingests = [
+      { ...status.ingests![0]!, source: hugeId },
+      { ...status.ingests![0]!, source: "synthetic-small" },
+    ];
+    status.passthrough = [
+      { ...status.passthrough![0]!, id: hugeId },
+      { ...status.passthrough![0]!, id: "synthetic-small" },
+    ];
+    for (const section of [
+      "summary",
+      "sources",
+      "worker",
+      "passthrough",
+    ] as const) {
+      const result = await callStatus(status, { section, limit: 1 });
+      expect(result.isError).toBeUndefined();
+      const output = getStatusSchema.parse(result.structuredContent);
+      expect(answerBytes(output)).toBeLessThan(GET_STATUS_MAX_BYTES);
+      expect(output.truncated).toBe(true);
+      if (section !== "summary") {
+        expect(output.details).toEqual([]);
+        expect(output.page).toMatchObject({ omitted: 1, next_offset: 1 });
+        const next = getStatusView(status, { section, offset: 1 });
+        expect(next.details).toHaveLength(1);
+        expect(next.page!.next_offset).toBeNull();
+      }
+    }
+  });
+
+  it("the byte guard bounds a full page of medium escaped IDs", () => {
+    const status = sample();
+    status.sources = Array.from({ length: 100 }, (_, i) => ({
+      ...status.sources![0]!,
+      id: `${i}${'"\\\n🩺'.repeat(100)}`,
+    }));
+    const output = getStatusView(status, { section: "sources", limit: 100 });
+    expect(output.details!.length).toBeGreaterThan(0);
+    expect(output.page!.omitted).toBeGreaterThan(0);
+    expect(output.details!.length + output.page!.omitted).toBe(100);
+    expect(output.truncated).toBe(true);
+    expect(answerBytes(output)).toBeLessThan(GET_STATUS_MAX_BYTES);
+  });
+
+  it("/status.json keeps its complete public fields and publisher dates", () => {
     const view = publicView(hostedSizeStatus());
     expect(hasExactlyPublicFields(JSON.parse(JSON.stringify(view)))).toBe(true);
     expect(view.sources!.filter((s) => s.published_at).length).toBeGreaterThan(
       600,
     );
-    // The same view as an MCP answer would not fit, which is why get_status leaves the dates out.
     expect(answerBytes(view)).toBeGreaterThan(MAX_OUTPUT_BYTES);
   });
 
-  it("planted mutant: the publisher dates back in get_status fail the size and field tests", async () => {
+  it("planted mutant: disabling the byte guard fails the 64 KiB bound", async () => {
     const mutant = await plantMutant(
-      viewsFile,
-      `sources: z.array(publicSource.pick({ id: true, freshness: true })).nullable()`,
-      `sources: z.array(publicSource).nullable()`,
-    );
-    const both = await plantMutant(
-      mutant.path,
-      `sources: view.sources?.map(({ id, freshness }) => ({ id, freshness })) ?? null`,
-      `sources: view.sources`,
+      mcpFile,
+      "if (resultBytes(view) >= GET_STATUS_MAX_BYTES)",
+      "if (false)",
     );
     try {
-      const views = (await import(both.path)) as typeof viewsModule;
-      const output = views.getStatusSchema.parse(
-        views.getStatusView(hostedSizeStatus()),
+      const mcp = (await import(mutant.path)) as typeof mcpModule;
+      const status = sample();
+      status.sources = [
+        { ...status.sources![0]!, id: "synthetic".repeat(20000) },
+      ];
+      const output = mcp.getStatusView(status, { section: "sources" });
+      expect(answerBytes(output) < GET_STATUS_MAX_BYTES).toBe(false);
+      expect(output.truncated).toBe(false);
+      const tool = { ...statusTool(status), handler: async () => output };
+      const result = await callPluginTool(
+        { db },
+        tool,
+        {},
+        AbortSignal.timeout(5000),
       );
-      expect(answerBytes(output)).toBeGreaterThan(HEADROOM_LIMIT);
-      expect(hasGetStatusFields(JSON.parse(JSON.stringify(output)))).toBe(
-        false,
-      );
+      expect(result.structuredContent.error?.code).toBe("RESULT_TOO_LARGE");
     } finally {
-      await both.cleanup();
       await mutant.cleanup();
     }
   });

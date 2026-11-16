@@ -1,8 +1,13 @@
+import type {
+  CanonicalReader,
+  CatalogPolicyRegistry,
+} from "./catalog-policy.js";
 import type { Context } from "hono";
 import type { z } from "zod";
 import type { EventRegistry } from "./events.js";
 import type { PluginManifest } from "./index.js";
 import type { SourceRegistry } from "./sources.js";
+import type { OperatorHost } from "./operator-host.js";
 
 export interface SqlSession {
   query<Row extends Record<string, unknown> = Record<string, unknown>>(
@@ -149,6 +154,10 @@ export interface PluginContext {
     entry: Record<string, string | number | boolean | null>,
   ) => void;
   readonly db: PluginDatabase;
+  readonly canonicalReader?: CanonicalReader;
+  /** Granted only with capabilities.operatorDiagnostics; unavailable during setup. */
+  readonly operatorHost?: OperatorHost;
+  readonly catalogPolicies?: CatalogPolicyRegistry;
   readonly routes: RouteRegistry;
   readonly mcpTools: McpToolRegistry;
   readonly cacheStores: ProviderRegistry<CacheStoreFactory>;
@@ -162,6 +171,8 @@ export interface PluginContext {
 }
 /** Values the host sets on every plugin route request, read with `c.get(name)`. */
 export interface PluginRouteVariables {
+  /** Present only after core authorizes an explicitly opted-in admin browser route. */
+  pluginAdminSession?: { csrfToken: string; authenticatedAt: number };
   /** Read-only database scope for this request, bounded by the request deadline. */
   pluginDb: SqlSession;
   /** Aborts when the request deadline passes. */
@@ -182,6 +193,8 @@ export interface RouteSpec {
   method: "GET" | "POST";
   path: `/${string}`;
   exposure: "public" | "operator";
+  /** Only the admin package's operator routes may opt into cookie auth and fixed form CSP. */
+  adminSession?: true;
   rateLimit?: {
     perMinute: number;
     activePerSource: number;

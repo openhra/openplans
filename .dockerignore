@@ -5,12 +5,12 @@ dist
 !.env.example
 .git
 .claude-plan
-coverage
+/coverage
 docs
 tests
 **/node_modules
 **/dist
-**/coverage
+plugins/*/coverage
 **/.env
 **/.env.*
 !.env.example

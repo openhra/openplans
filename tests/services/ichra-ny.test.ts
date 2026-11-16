@@ -1,3 +1,6 @@
+import { lowestPremiums } from "../../src/services/handy.js";
+import { lowestInput } from "../../src/api/handy.js";
+import { buildLowestPremiums } from "../../src/worker/handy-build.js";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -735,4 +738,17 @@ it("plan lists in a region with a refused template name the refusal on every sur
   } finally {
     vi.unstubAllEnvs();
   }
+});
+
+it("single-age gross minimum uses the filed single tier with exact fast/fallback bytes", async () => {
+  const input = lowestInput({ county: "36061", year: 2026, age: 40 });
+  const expected = await ichraAffordability(db, request);
+  expect((await buildLowestPremiums(db, input)).status).toBe("active");
+  const fast = await lowestPremiums(db, input),
+    slow = await lowestPremiums(db, input, { slow: true });
+  expect(JSON.stringify(fast)).toBe(JSON.stringify(slow));
+  expect(fast.status).toBe("calculated");
+  expect(fast.lowest.monthly_cents).toBe(expected.lcsp?.monthly_cents);
+  expect(fast.lowest.plan_id).toBe(expected.lcsp?.plan_ids[0]);
+  expect(fast.basis.age_rating).toBe("none");
 });

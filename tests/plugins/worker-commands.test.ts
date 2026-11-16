@@ -219,6 +219,7 @@ describe("core worker commands", () => {
         ]),
       ),
     ).toEqual({
+      "build lowest-premiums": 300_000,
       migrate: 3_600_000,
       status: null,
       "record-policy": 3_600_000,

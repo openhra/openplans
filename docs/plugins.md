@@ -15,16 +15,30 @@ package hash (see [Status page](#status-page)).
 The plugin API is experimental. Its version is `0.1`, and the loader refuses a plugin that
 declares any other version. See [Versions](#versions).
 
+## Market Source of Truth
+
+The optional [`@openplans/plugin-msot`](../plugins/msot/README.md) adds
+`POST /msot/resolve` and the read-only `msot_resolve` tool when an inline source is configured.
+It resolves the operator's `custom_payment_allowed` flag from carrier, state and exchange-channel
+rules, with public plan facts and actor/scope provenance. Missing decisions stay unknown.
+Dual-channel plans keep separate answers. The flag describes an operator workflow; it does not
+establish insurer payment acceptance or binding authority.
+
+It ships off by default. Loading it without a source adds no route or tool. This first slice
+writes no tables and leaves catalog answers unchanged. It is not configured on the shared public
+instance. The additive SDK `canonicalReader` and `catalogPolicies` contracts load on API, worker
+and MCP stdio hosts; the provider supports annotations only.
+
 ## Turn plugins on
 
 Every process reads its plugin list at startup. The API, the worker and the MCP stdio server load
 the same list. Each one keeps only the kinds it hosts:
 
-| Process          | Keeps                                                                                      |
-| ---------------- | ------------------------------------------------------------------------------------------ |
-| API              | routes, MCP tools, cache stores, database providers, blob stores, sources, events          |
-| Worker           | cache stores, database providers, blob stores, sources, worker commands, schedules, events |
-| MCP stdio server | MCP tools, cache stores, database providers, sources                                       |
+| Process          | Keeps                                                                                                        |
+| ---------------- | ------------------------------------------------------------------------------------------------------------ |
+| API              | routes, MCP tools, catalog policies, cache stores, database providers, blob stores, sources, events          |
+| Worker           | catalog policies, cache stores, database providers, blob stores, sources, worker commands, schedules, events |
+| MCP stdio server | MCP tools, catalog policies, cache stores, database providers, sources                                       |
 
 With no plugins enabled, the worker never imports the loader.
 

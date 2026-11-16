@@ -1,3 +1,5 @@
+import { lowestToolDefinition } from "../mcp/handy.js";
+import { loadConfig } from "../config/index.js";
 import { z } from "zod";
 import type { JsonSchemaType, Tool } from "@modelcontextprotocol/server";
 import type { McpToolSpec } from "@openplans/plugin-sdk";
@@ -112,6 +114,7 @@ export function toolPageRefusal(
   ])[],
 ): ToolPageRefusal | undefined {
   const tools = [...toolNames.map(coreToolDefinition), ...switchedCoreTools()];
+  if (loadConfig().lowestPremiums) tools.push(lowestToolDefinition());
   for (const [plugin, specs] of plugins) {
     for (const spec of specs) {
       try {

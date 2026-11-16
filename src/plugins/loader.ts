@@ -1,3 +1,4 @@
+import { canonicalReader } from "./canonical-reader.js";
 import { isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import {
@@ -5,6 +6,7 @@ import {
   pluginManifestSchema,
 } from "@openplans/plugin-sdk";
 import type {
+  CanonicalReader,
   AdmittedFetch,
   HostPluginEntry,
   McpToolSpec,
@@ -21,6 +23,7 @@ import { shippedManifestPaths } from "../fetch/shipped.js";
 import { hostRefusal, readPublishers } from "./hosts.js";
 import { packageRoot, packageSha256 } from "./package-hash.js";
 import { createStatusHost } from "./status-host.js";
+import { createOperatorHost } from "./operator-host.js";
 import type { LoadedStatus, StatusHostParts } from "./status-host.js";
 import { toolPageRefusal } from "./mcp-tools.js";
 import {
@@ -57,6 +60,7 @@ const SECRET_KEY =
 
 export interface LoadPluginsOptions {
   /** Where declared secrets are read. Defaults to the process environment. */
+  canonicalReader?: CanonicalReader;
   env?: Environment;
   /** Base for relative specifiers: the config file's directory, or the working directory. */
   baseDirectory?: string;
@@ -284,6 +288,13 @@ export async function loadPlugins(
     () => status.current,
   );
   const hashes = new Map<string, string | null>();
+  const operatorHost = createOperatorHost(
+    config,
+    host,
+    statusHost,
+    () => status.current,
+    options.now,
+  );
   const migrations: PluginMigrationSource[] = [];
   let passThrough: OperatorPassThrough | undefined;
   try {
@@ -327,6 +338,10 @@ export async function loadPlugins(
       const context: PluginContext = {
         plugin: { name, version: candidate.manifest.version },
         options: candidate.options,
+        canonicalReader: options.canonicalReader ?? canonicalReader,
+        ...(candidate.manifest.capabilities?.operatorDiagnostics && {
+          operatorHost,
+        }),
         config: view,
         secrets: secretReader(candidate.manifest, env),
         log: pluginLog(name, writeLog),

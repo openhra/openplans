@@ -1,3 +1,5 @@
+import { Hono } from "hono";
+import { providerCompatRoutes } from "../../src/compat/v1/providers.js";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -30,7 +32,7 @@ import {
 
 type Repository = Pick<
   typeof repository,
-  "searchProviders" | "searchProviderLocations"
+  "searchProviders" | "searchProviderLocations" | "searchUnlocatedInState"
 >;
 const source = new URL("../../src/api/provider-repository.ts", import.meta.url);
 
@@ -47,6 +49,7 @@ async function withMutant<T>(
         file,
         "searchProviders",
         "searchProviderLocations",
+        "searchUnlocatedInState",
       ),
     ),
   );
@@ -587,5 +590,222 @@ describe.skipIf(!serverUrl)(
         },
       );
     }, 300_000);
+  },
+);
+
+describe.skipIf(!serverUrl)(
+  "compatibility name fallback reads cell-less keys",
+  () => {
+    let h: Awaited<ReturnType<typeof setup>>,
+      fresh: Awaited<ReturnType<typeof freshDatabase>>;
+    const q = { name: "SMITH", states: ["TX"] };
+    const requests = [
+      {},
+      { per_page: 1, page: 1 },
+      { per_page: 1, page: 2 },
+      { per_page: 1, page: 3 },
+      { per_page: 1, page: 30 },
+      { sort: "-distance" },
+      { type: "individual" },
+      { taxonomy: "207Q00000X" },
+      { search_term: "SM%TH" },
+    ];
+    const pages = async (db: SqlSession) => {
+      const app = providerCompatRoutes(db, new Hono());
+      const out = [];
+      for (const extra of requests) {
+        const response = await app.request("/providers/search", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            zip_code: "77002",
+            search_term: "SMITH",
+            ...extra,
+          }),
+        });
+        expect(response.status).toBe(200);
+        out.push([
+          await response.text(),
+          response.headers.get("x-openplans-gaps"),
+        ]);
+      }
+      return out;
+    };
+    beforeAll(async () => {
+      fresh = await freshDatabase();
+      h = await setup(fresh.db);
+      await load(h.db, [
+        {
+          npi: "1000070000",
+          name: "SMITH",
+          type: "1",
+          codes: ["207Q00000X"],
+          addresses: [[[29.76, -95.37]]],
+        },
+        {
+          npi: "1000070001",
+          name: "SMITH",
+          type: "1",
+          codes: ["207Q00000X"],
+          addresses: [[], []],
+        },
+        {
+          npi: "1000070002",
+          name: "SMITH",
+          type: "2",
+          codes: ["208D00000X"],
+          addresses: [[]],
+        },
+        {
+          npi: "1000070003",
+          name: "SMITH",
+          type: "1",
+          codes: [],
+          addresses: [[]],
+        },
+        {
+          npi: "1000070004",
+          name: "OTHER",
+          type: "1",
+          codes: [],
+          addresses: [[]],
+        },
+      ]);
+      await h.db.exec(`UPDATE npi_address SET state='LA' WHERE npi='1000070003';
+      UPDATE npi_address SET line_1=' Synthetic review address 0 ' WHERE npi='1000070001';
+      INSERT INTO geo_import(state,plan_year,relationship_snapshot_id,centroid_snapshot_id,rating_snapshot_id)
+        VALUES ('TX',2026,'catalog','catalog','catalog');
+      INSERT INTO zcta_centroid VALUES ('77002',29.76,-95.37,'catalog',2);
+      INSERT INTO zcta_county VALUES ('77002','48201','Harris County',1,0,1,0,1,0,'catalog',2),
+        ('77001','48201','Harris County',1,0,1,0,1,0,'catalog',2);`);
+    }, 120_000);
+    afterAll(async () => {
+      await h?.close();
+      await fresh?.drop();
+    });
+
+    it("keeps response bytes, totals, gaps and paging for both slots", async () => {
+      const original = await pages(h.db);
+      const fallback = await repository.searchUnlocatedInState(h.db, q, {
+        offset: 0,
+        size: 10,
+      });
+      expect(fallback.total).toBe(2);
+      expect(fallback.providers.map((p) => p.npi)).toEqual([
+        "1000070001",
+        "1000070002",
+      ]);
+      const allLocations = await repository.searchUnlocatedInState(
+        h.db,
+        { ...q, includeLocated: true },
+        { offset: 0 },
+      );
+      expect(allLocations.total).toBe(3);
+      for (const slot of ["a", "b"]) {
+        expect((await buildProviderSearchKeys(h.db)).slot).toBe(slot);
+        expect(await pages(h.db)).toEqual(original);
+        expect(
+          await repository.searchUnlocatedInState(
+            h.db,
+            { ...q, includeLocated: true },
+            { offset: 0 },
+          ),
+        ).toEqual(allLocations);
+        expect(
+          await repository.searchUnlocatedInState(h.db, q, {
+            offset: 0,
+            size: 10,
+          }),
+        ).toEqual(fallback);
+      }
+    });
+
+    async function bounded(search: typeof repository.searchUnlocatedInState) {
+      let captured: { sql: string; parameters: unknown[] } | undefined;
+      const session: SqlSession = {
+        exec: (sql) => h.db.exec(sql),
+        query: (sql, parameters, options) => {
+          if (sql.includes("WITH names AS MATERIALIZED"))
+            captured = { sql, parameters: parameters ?? [] };
+          return h.db.query(sql, parameters, options);
+        },
+      };
+      await search(session, q, { offset: 0, size: 10 });
+      expect(captured?.sql).toContain("k.cell IS NULL");
+      const plan = await h.db.transaction(async (tx) => {
+        await tx.exec("SET LOCAL enable_seqscan=off");
+        return tx.query<{ "QUERY PLAN": string }>(
+          "EXPLAIN " + captured!.sql,
+          captured!.parameters,
+        );
+      });
+      const text = plan.rows.map((r) => r["QUERY PLAN"]).join("\n");
+      expect(text).toMatch(
+        /Index (?:Only )?Scan using provider_search_key_b_cell[\s\S]*Index Cond: \(cell IS NULL\)/,
+      );
+      expect(text).not.toContain("provider_identity_name_search");
+    }
+
+    it("uses the cell index before probing identities", async () => {
+      await bounded(repository.searchUnlocatedInState);
+    });
+
+    it("rejects the old nationwide name path in a disposable mutant", async () => {
+      await withMutant(
+        "const keys = q.includeLocated ? undefined : await currentSearchKeys(db);",
+        "const keys = undefined;",
+        async (mutant) => {
+          await expect(
+            bounded(mutant.searchUnlocatedInState),
+          ).rejects.toThrow();
+        },
+      );
+    });
+
+    it("falls back when the chosen slot has been emptied", async () => {
+      const expected = await repository.searchUnlocatedInState(h.db, q, {
+        offset: 0,
+        size: 10,
+      });
+      const rollback = new Error("rollback emptied slot control");
+      await expect(
+        h.db.transaction(async (tx) => {
+          await tx.exec("TRUNCATE provider_search_key_b");
+          expect(
+            await repository.searchUnlocatedInState(tx, q, {
+              offset: 0,
+              size: 10,
+            }),
+          ).toEqual(expected);
+          throw rollback;
+        }),
+      ).rejects.toBe(rollback);
+    });
+
+    it("falls back when source revisions change after choosing the slot", async () => {
+      let changed = false;
+      const session: SqlSession = {
+        exec: (sql) => h.db.exec(sql),
+        query: async (sql, parameters, options) => {
+          if (!changed && sql.includes("WITH names AS MATERIALIZED")) {
+            changed = true;
+            await h.db.exec(
+              "UPDATE npi_address SET state='TX' WHERE npi='1000070003'",
+            );
+          }
+          return h.db.query(sql, parameters, options);
+        },
+      };
+      expect(
+        (
+          await repository.searchUnlocatedInState(session, q, {
+            offset: 0,
+            size: 10,
+          })
+        ).total,
+      ).toBe(3);
+      expect(changed).toBe(true);
+      expect(await currentSearchKeys(h.db)).toBeUndefined();
+    });
   },
 );

@@ -1,3 +1,4 @@
+import { registerLowestTool } from "./handy.js";
 import { applicationVersion } from "./version.js";
 import { sharedResponseCache } from "../api/cache/index.js";
 import { requestDependencies } from "./policy.js";
@@ -118,6 +119,8 @@ export function buildServer(deps: McpDependencies): McpServer {
   // The plugin loader counts it in the page budget, so it always fits.
   const estimate = registerEstimateTool(server, deps);
   if (estimate) definitions.push(estimate);
+  const lowest = registerLowestTool(server, deps);
+  if (lowest) definitions.push(lowest);
   // Plugin tools follow the core list, so the first entries never move for existing clients.
   for (const tool of deps.pluginTools ?? loadedPluginTools()) {
     const listed = pluginToolDefinition(tool.spec);

@@ -3,6 +3,59 @@
 Release notes for OpenPlans. Earlier releases are on the
 [GitHub releases page](https://github.com/openhra/openplans/releases).
 
+## v0.4.11
+
+This release bounds MCP status responses, fixes compatibility provider searches for common
+names, and adds optional lowest-premium, payment-permission and private admin tools. The new
+route, tool and plugins are off by default. Migration 995 adds two empty derived-data tables.
+The status plugin moves to 0.1.6 and needs a new approved-package hash. See Upgrading below.
+
+### What users notice
+
+- MCP `get_status` returns aggregate counts by default and stays below 64 KiB. Use `section`,
+  `offset` and `limit` for paged details. Oversized rows are omitted and counted, with
+  `truncated: true`. Paged source details include `published_at` and `published_from`; the
+  summary keeps aggregate counts. REST status responses keep their existing shape.
+- Opt-in `GET /v1/lowest-premiums` and MCP `get_lowest_premiums` find the lowest gross
+  on-exchange silver premium for one age, year and location. They require complete pricing
+  evidence, use exact derived cells when current, and otherwise rate every candidate. Ties and
+  evidence are paged; MCP reports omitted oversized rows while keeping the winner and amount.
+  Subsidies are not evaluated.
+- Optional `@openplans/plugin-msot` resolves an operator's `custom_payment_allowed` flag beside
+  public plan facts through `/msot/resolve` and MCP `msot_resolve`. It requires a reviewed inline
+  source. Missing evidence stays unknown; the flag does not establish insurer payment acceptance.
+- Optional `@openplans/plugin-admin` adds a private operator overview at `/admin`, protected by
+  the operator bearer credential. A separately configured HTTPS origin enables sign-in,
+  expiring browser sessions, sign-out and recent authentication forms. Keep the admin routes
+  behind a reviewed private ingress. The configuration page shows reviewed settings and drafts
+  proposals without applying them. Coverage and freshness shows loaded scope availability.
+  Metrics reports bounded current-process HTTP and MCP counts, latency histograms and cache
+  counters when collection is enabled. Releases and recovery reads versioned deployment
+  receipts and reports release, audit, backup and restore observations. Missing evidence stays
+  unknown; sections without an installed capability show an unavailable page.
+
+### Fixes
+
+- Compatibility provider searches use the search keys for matching identities without located
+  addresses too. This fixes timeouts for common-name searches such as SMITH near ZIP 77002.
+  Results and counts keep their existing meaning. No new provider-key backfill is needed.
+- The admin package builds to its declared output path, so the host can load it. Container
+  builds retain the admin coverage source module while excluding generated coverage reports.
+
+### Upgrading
+
+- Run `worker migrate` before starting the new API. Migration `995_handy_lowest.sql` adds two
+  empty tables and their metadata; older images ignore them. Its number is below migrations
+  already shipped, so check pending migrations by filename rather than the highest number.
+  No lowest-premium build or data import is required while the feature is off.
+- Update the approved-plugin entry for `@openplans/plugin-status` from 0.1.4 to 0.1.6 with the
+  rebuilt package hash. Read the version and `sha256` from the new image's
+  `/status/operator.json`, as in `docs/plugins-operations.md`, before replacing the entry.
+- `OPENPLANS_LOWEST_PREMIUMS` stays off unless set to `on`. The new `@openplans/plugin-msot`
+  and `@openplans/plugin-admin` packages are not loaded by default. Enable them explicitly
+  through the plugin configuration only after reviewing their setup. Browser admin sessions
+  also require the private HTTPS ingress configuration. These options stay off on the hosted API.
+
 ## v0.4.10
 
 This release fixes the MCP `get_status` tool. The status plugin moves to 0.1.4, so an approved

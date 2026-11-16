@@ -1,3 +1,4 @@
+import { lowestToolDefinition } from "./handy.js";
 import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import type {
@@ -128,6 +129,14 @@ export async function buildMcpToolManifest(
     name: estimate.name,
     title: estimate.title ?? estimate.name,
     description: ownText(estimate.description ?? ""),
+    kind: "core",
+    listed: "switched",
+  });
+  const lowest = lowestToolDefinition();
+  tools.push({
+    name: lowest.name,
+    title: lowest.title!,
+    description: ownText(lowest.description!),
     kind: "core",
     listed: "switched",
   });

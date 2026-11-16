@@ -18,6 +18,7 @@ export const pluginManifestSchema = z.strictObject({
     z.enum([
       "routes",
       "mcpTools",
+      "catalogPolicies",
       "cacheStores",
       "dbProviders",
       "blobStores",
@@ -37,6 +38,7 @@ export const pluginManifestSchema = z.strictObject({
       operatorRoutes: z.boolean().optional(),
       /** The module's `createPlugin({ host })` gets read-only host status (`StatusHost`). */
       hostStatus: z.boolean().optional(),
+      operatorDiagnostics: z.boolean().optional(),
     })
     .optional(),
   /**
@@ -56,3 +58,5 @@ export * from "./contracts.js";
 export * from "./events.js";
 export * from "./sources.js";
 export * from "./csv.js";
+export * from "./catalog-policy.js";
+export * from "./operator-host.js";

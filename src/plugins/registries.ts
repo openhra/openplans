@@ -1,5 +1,6 @@
 import { eventPayloadSchemas } from "@openplans/plugin-sdk";
 import type {
+  CatalogPolicyProvider,
   BlobStoreFactory,
   CacheStoreFactory,
   DbProviderFactory,
@@ -27,6 +28,7 @@ export const HOSTED_KINDS: Readonly<Record<PluginHost, readonly PluginKind[]>> =
     api: Object.freeze([
       "routes",
       "mcpTools",
+      "catalogPolicies",
       "cacheStores",
       "dbProviders",
       "blobStores",
@@ -34,6 +36,7 @@ export const HOSTED_KINDS: Readonly<Record<PluginHost, readonly PluginKind[]>> =
       "events",
     ] as const),
     worker: Object.freeze([
+      "catalogPolicies",
       "cacheStores",
       "dbProviders",
       "blobStores",
@@ -44,6 +47,7 @@ export const HOSTED_KINDS: Readonly<Record<PluginHost, readonly PluginKind[]>> =
     ] as const),
     stdio: Object.freeze([
       "mcpTools",
+      "catalogPolicies",
       "cacheStores",
       "dbProviders",
       "sources",
@@ -104,6 +108,7 @@ type ProviderTable<F> = Record<string, Registered<F>>;
 
 /** Plain arrays and records keep insertion order, which is plugin configuration order. */
 export interface StagingRegistries {
+  catalogPolicies: ProviderTable<CatalogPolicyProvider>;
   routes: Registered<RouteSpec>[];
   mcpTools: Registered<McpToolSpec<unknown, unknown>>[];
   cacheStores: ProviderTable<CacheStoreFactory>;
@@ -120,6 +125,7 @@ export type PluginRegistries = {
 
 /** Every name registered during one load, on any host, so collisions do not depend on the host. */
 export type SeenNames = Record<
+  | "catalogPolicies"
   | "routes"
   | "mcpTools"
   | "cacheStores"
@@ -133,8 +139,9 @@ export type SeenNames = Record<
 >;
 export function emptySeen(): SeenNames {
   return {
+    catalogPolicies: new Set(),
     routes: new Set(),
-    mcpTools: new Set(toolNames),
+    mcpTools: new Set([...toolNames, "get_lowest_premiums"]),
     cacheStores: new Set(CORE_PROVIDERS.cacheStores),
     dbProviders: new Set(CORE_PROVIDERS.dbProviders),
     blobStores: new Set(CORE_PROVIDERS.blobStores),
@@ -147,6 +154,7 @@ export function emptySeen(): SeenNames {
 
 export function emptyRegistries(): StagingRegistries {
   return {
+    catalogPolicies: {},
     routes: [],
     mcpTools: [],
     cacheStores: {},
@@ -184,6 +192,25 @@ export function activateRegistries(registries: PluginRegistries): void {
 // Core paths and provider names a plugin may not take (design 5.2). The core plugin registers them later.
 const CORE_ROUTE_PATHS = ["/healthz", "/readyz", "/mcp"];
 const CORE_ROUTE_PREFIXES = ["/v1", "/compat"];
+export const ADMIN_PLUGIN = "@openplans/plugin-admin";
+export const ADMIN_AUTH_PATHS = [
+  "/admin/login",
+  "/admin/logout",
+  "/admin/reauth",
+];
+export function isAdminPath(path: string) {
+  return path === "/admin" || path.startsWith("/admin/");
+}
+export function validAdminRoute(plugin: string, spec: RouteSpec) {
+  return (
+    spec.adminSession === undefined ||
+    (spec.adminSession === true &&
+      plugin === ADMIN_PLUGIN &&
+      isAdminPath(spec.path) &&
+      spec.exposure === "operator" &&
+      spec.cache === undefined)
+  );
+}
 /** `/status*` belongs to the status plugin; no other plugin may register under it. */
 export const STATUS_PLUGIN = "@openplans/plugin-status";
 export const STATUS_ROUTE_PREFIX = "/status";
@@ -195,6 +222,7 @@ const CORE_PROVIDERS = {
 /** Argv prefixes of the core worker commands (src/worker/commands.ts); a test keeps them in step. */
 export const CORE_WORKER_ARGV: readonly (readonly string[])[] = Object.freeze(
   [
+    ["build", "lowest-premiums"],
     ["migrate"],
     ["status"],
     ["record-policy"],
@@ -249,6 +277,8 @@ const CRON_FIELDS = 5;
 
 function isCorePath(path: string, plugin: string): boolean {
   return (
+    ADMIN_AUTH_PATHS.includes(path) ||
+    (plugin !== ADMIN_PLUGIN && isAdminPath(path)) ||
     (plugin !== STATUS_PLUGIN && path.startsWith(STATUS_ROUTE_PREFIX)) ||
     CORE_ROUTE_PATHS.includes(path) ||
     CORE_ROUTE_PREFIXES.some(
@@ -259,6 +289,7 @@ function isCorePath(path: string, plugin: string): boolean {
 
 type RegistryParts = Pick<
   PluginContext,
+  | "catalogPolicies"
   | "routes"
   | "mcpTools"
   | "cacheStores"
@@ -323,6 +354,16 @@ export function stagingRegistrar(
     };
 
   const context: RegistryParts = {
+    catalogPolicies: {
+      provide(name, spec) {
+        const keep = admit(
+          "catalogPolicies",
+          PROVIDER_NAME.test(name) && typeof spec?.resolve === "function",
+        );
+        claim("catalogPolicies", name, "plugin_provider_collision");
+        if (keep) staging.catalogPolicies[name] = { plugin, spec };
+      },
+    },
     routes: {
       add(spec) {
         const keep = admit(
@@ -335,6 +376,7 @@ export function stagingRegistrar(
                 manifest.capabilities?.operatorRoutes === true)) &&
             (spec.contentType === "application/json" ||
               spec.contentType === "text/html") &&
+            validAdminRoute(plugin, spec) &&
             typeof spec.handler === "function",
         );
         if (isCorePath(spec.path, plugin)) refuse("plugin_route_collision");

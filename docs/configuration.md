@@ -144,12 +144,13 @@ only `DATABASE_URL`.
 | `OPENPLANS_MEDICARE_PART_D`              | Off. `on` serves loaded Part D drug and pharmacy data after the operator reviews its agreement.                                                                                          |
 | `OPENPLANS_MEDICARE_DRUG_COST`           | Off. `on` turns on Part D drug-cost estimates. Also needs `OPENPLANS_MEDICARE_PART_D=on` and a Bearer token; see [Medicare](medicare.md).                                                |
 | `OPENPLANS_MEDICARE_DRUG_COST_PRICES`    | Off. `on` accepts the `cms_plan_average` price basis in drug-cost estimates. Counts only while the estimator is on, and needs loaded prices and fee ranges; see [Medicare](medicare.md). |
+| `OPENPLANS_LOWEST_PREMIUMS`              | Off. `on` enables the single-age gross silver minimum REST route and MCP tool, subject to public quoting policy.                                                                         |
 | `OPENPLANS_GA_QUOTE_RECOVERY`            | Off. `on` permits the documented Georgia CSV quote recovery and records a warning per recovered row.                                                                                     |
 
 OpenPlans reads the switches in this table when a request or import runs. Each one except
 `CMS_API_KEY` can also be set in the config file: `compat.catastrophicAgeRule`,
 `compat.benefitText` (`true` for compact), `cmsFallback.enabled`, `cmsFallback.quotes`,
-`medicarePartD`, `medicareDrugCost`, `medicareDrugCostPrices` and `gaQuoteRecovery`, all `true`
+`medicarePartD`, `medicareDrugCost`, `medicareDrugCostPrices`, `lowestPremiums` and `gaQuoteRecovery`, all `true`
 or `false`. A variable that is set wins over the file, so `OPENPLANS_MEDICARE_PART_D=off` turns
 Part D serving off even when the file has `"medicarePartD": true`. With neither set, every
 switch stays off. `compose.yml` forwards none of the Medicare or Georgia variables. Add the Medicare switches to the API

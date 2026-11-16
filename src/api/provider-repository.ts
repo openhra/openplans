@@ -1190,6 +1190,21 @@ export async function searchUnlocatedInState(
 ) {
   const states = q.states.filter((state) => /^[A-Z]{2}$/.test(state));
   if (!states.length || !q.name.trim()) return { providers: [], total: 0 };
+  const keys = q.includeLocated ? undefined : await currentSearchKeys(db);
+  if (keys) {
+    const keyed = await readUnlocatedInState(db, q, page, states, keys);
+    if (keyed) return keyed;
+  }
+  return (await readUnlocatedInState(db, q, page, states))!;
+}
+
+async function readUnlocatedInState(
+  db: SqlSession,
+  q: UnlocatedStateSearch,
+  page: UnlocatedStatePage,
+  states: string[],
+  keySlot?: SearchKeySlot,
+) {
   const taxonomy = await taxonomyRelation(db);
   const operatorHashes = (await searchOperatorPoints(db)).map(
     (p) => p.address_hash,
@@ -1199,7 +1214,15 @@ export async function searchUnlocatedInState(
   const longest = words.reduce((a, b) =>
     [...b].length > [...a].length ? b : a,
   );
-  const indexed = !/[%_\\]/.test(q.name) && [...longest].length >= 4;
+  const indexed =
+    !keySlot && !/[%_\\]/.test(q.name) && [...longest].length >= 4;
+  // Only cell-less keys can have a practice address without a current public point.
+  // Probe those identities before reading names or addresses across the loaded registry.
+  const identities = keySlot
+    ? `(SELECT DISTINCT k.npi FROM ${searchKeyTable(keySlot)} k
+      WHERE k.cell IS NULL AND k.in_scope AND k.search_name ILIKE '%'||$1||'%') keys
+    JOIN LATERAL (SELECT n.* FROM npi_provider n WHERE n.npi=keys.npi OFFSET 0) n ON true`
+    : "npi_provider n";
   const limit =
     page.size === undefined
       ? ""
@@ -1207,9 +1230,10 @@ export async function searchUnlocatedInState(
   const { rows } = await db.query<{
     total: number;
     providers: SearchRow[];
+    search_keys_current?: boolean;
   }>(
     `WITH names AS MATERIALIZED (
-    SELECT n.npi FROM npi_provider n WHERE n.in_scope
+    SELECT n.npi FROM ${identities} WHERE n.in_scope
       ${
         indexed
           ? `AND provider_search_trigrams(coalesce(n.organization_name,'')||' '||coalesce(n.first_name,'')||' '||coalesce(n.last_name,''))
@@ -1259,7 +1283,8 @@ export async function searchUnlocatedInState(
         'taxonomy_status',CASE WHEN nt.code IS NULL THEN 'unknown_code' ELSE 'known' END)
         ORDER BY t.ordinal) FROM npi_taxonomy t LEFT JOIN ${taxonomy} nt ON nt.code=t.code WHERE t.npi=n.npi),'[]'::jsonb))
       ORDER BY n.npi)
-    FROM npi_provider n WHERE n.npi IN (SELECT npi FROM paged)),'[]'::jsonb) AS providers`,
+    FROM npi_provider n WHERE n.npi IN (SELECT npi FROM paged)),'[]'::jsonb) AS providers
+    ${keySlot ? `,${searchKeysCurrentSql(keySlot)} AS search_keys_current` : ""}`,
     [
       q.name.trim(),
       q.taxonomy ?? null,
@@ -1272,6 +1297,7 @@ export async function searchUnlocatedInState(
     ],
   );
   const row = rows[0]!;
+  if (keySlot && !row.search_keys_current) return undefined;
   return {
     total: Number(row.total),
     providers: row.providers.map((provider) => ({

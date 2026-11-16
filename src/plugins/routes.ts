@@ -1,4 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
+import { ADMIN_CSP, adminHeaders } from "../operator/csrf.js";
+import type { AdminAuth } from "../operator/auth-routes.js";
 import type {
   PassThroughSource,
   PluginRouteEnv,
@@ -13,7 +15,14 @@ import type { PeerAddress, SourceLimits } from "../api/rate-limit.js";
 import { boundedDatabase, DEADLINE_MS } from "../db/bounded.js";
 import type { SqlSession } from "../db/database.js";
 import { rowProvenanceLeaks } from "../db/row-provenance.js";
-import { STATUS_PLUGIN, STATUS_ROUTE_PREFIX } from "./registries.js";
+import {
+  ADMIN_AUTH_PATHS,
+  ADMIN_PLUGIN,
+  isAdminPath,
+  validAdminRoute,
+  STATUS_PLUGIN,
+  STATUS_ROUTE_PREFIX,
+} from "./registries.js";
 import type { PluginRegistries } from "./registries.js";
 import { passThroughWriter } from "./sources/scoped-writer.js";
 
@@ -34,6 +43,8 @@ const CORE_PATHS = ["/healthz", "/readyz", "/mcp"];
 const CORE_PREFIXES = ["/v1", "/compat"];
 export function isCoreRoutePath(path: string, plugin?: string): boolean {
   return (
+    ADMIN_AUTH_PATHS.includes(path) ||
+    (plugin !== ADMIN_PLUGIN && isAdminPath(path)) ||
     (plugin !== STATUS_PLUGIN && path.startsWith(STATUS_ROUTE_PREFIX)) ||
     CORE_PATHS.includes(path) ||
     CORE_PREFIXES.some(
@@ -79,6 +90,7 @@ const HTML_HEADERS: readonly (readonly [string, string])[] = [
 
 export interface PluginRouteOptions {
   db: SqlSession;
+  adminAuth?: AdminAuth;
   /** Read per request, so a removed token closes the operator surface at once. */
   operatorToken: () => string | undefined;
   trustedProxies: readonly string[];
@@ -124,6 +136,7 @@ export function pluginRoutes(
   for (const spec of routes) {
     const key = `${spec.method} ${spec.path}`;
     if (
+      !validAdminRoute(routeOwner(registries, spec) ?? "", spec) ||
       isCoreRoutePath(spec.path, routeOwner(registries, spec)) ||
       seen.has(key)
     )
@@ -136,13 +149,22 @@ export function pluginRoutes(
 
   function exposure(spec: RouteSpec): MiddlewareHandler {
     return async (c, next) => {
+      if (spec.adminSession) adminHeaders(c);
       if (spec.exposure === "operator") {
         const token = options.operatorToken();
         // No token configured: the operator surface does not exist.
         if (!token) return c.notFound();
-        if (!bearerMatches(c.req.header("authorization"), token)) {
-          noStore(c);
-          return c.json({ error: { code: "UNAUTHORIZED" } }, 401);
+        if (
+          (spec.adminSession && spec.method === "POST") ||
+          !bearerMatches(c.req.header("authorization"), token)
+        ) {
+          if (spec.adminSession && options.adminAuth) {
+            const refusal = await options.adminAuth.authorize(c);
+            if (refusal) return refusal;
+          } else {
+            noStore(c);
+            return c.json({ error: { code: "UNAUTHORIZED" } }, 401);
+          }
         }
       }
       await next();
@@ -159,7 +181,11 @@ export function pluginRoutes(
     const sources = ownSources(owners.get(spec));
     // The SDK types these variables through PluginRouteEnv.
     return async (c: Context<PluginRouteEnv>) => {
-      const signal = AbortSignal.timeout(deadlineMs);
+      const signal =
+        (spec.adminSession && options.adminAuth?.signal(c)) ||
+        AbortSignal.timeout(deadlineMs);
+      if (signal.aborted)
+        return c.json({ error: "plugin_deadline_exceeded" }, 503);
       c.set("pluginSignal", signal);
       const reader = boundedDatabase(options.db, signal, { readOnly: true });
       c.set("pluginDb", reader);
@@ -204,15 +230,22 @@ export function pluginRoutes(
           headers: response.headers,
         });
       }
-      const html = new Response(response.body, response);
+      const text = await boundedText(response, PLUGIN_RESPONSE_MAX_BYTES);
+      if (text === undefined) return rejected(c, spec.path);
+      const html = new Response(text, response);
       for (const [name, value] of HTML_HEADERS) html.headers.set(name, value);
+      if (spec.adminSession) {
+        adminHeaders(c);
+        html.headers.set("Content-Security-Policy", ADMIN_CSP);
+        html.headers.set("Cache-Control", "no-store");
+      }
       return html;
     };
   }
 
   return {
     guard(app: Hono) {
-      for (const spec of routes)
+      for (const spec of routes) {
         app.on(
           spec.method,
           spec.path,
@@ -233,7 +266,19 @@ export function pluginRoutes(
               );
             },
           }),
+          async (c, next) => {
+            if (
+              spec.adminSession &&
+              spec.method === "POST" &&
+              options.adminAuth
+            ) {
+              const refusal = await options.adminAuth.authorizeForm(c);
+              if (refusal) return refusal;
+            }
+            await next();
+          },
         );
+      }
     },
     mount(app: Hono) {
       for (const spec of routes) app.on(spec.method, spec.path, handler(spec));

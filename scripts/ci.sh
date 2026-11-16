@@ -34,6 +34,7 @@ if [ "$static" = true ]; then
   npm run check:lint-setup
   # --ignore-scripts skips the pretypecheck rebuild of the plugins; the build above made them.
   npm run typecheck --ignore-scripts
+  node scripts/handy-docs.mjs --check
   node scripts/check-neutral.mjs
   node scripts/check-publisher-review.mjs
   npm run check:extraction

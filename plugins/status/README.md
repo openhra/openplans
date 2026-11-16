@@ -19,10 +19,10 @@ Compose `scheduler` profile).
 
 ## Routes
 
-| Route                       | Who                 | Cache           |
-| --------------------------- | ------------------- | --------------- |
-| `GET /status`               | anyone (HTML)       | 30 s            |
-| `GET /status.json`          | anyone (JSON)       | 30 s            |
+| Route                       | Who                 | Cache            |
+| --------------------------- | ------------------- | ---------------- |
+| `GET /status`               | anyone (HTML)       | 30 s             |
+| `GET /status.json`          | anyone (JSON)       | 30 s             |
 | `GET /status/operator`      | operator token only | never (no-store) |
 | `GET /status/operator.json` | operator token only | never (no-store) |
 
@@ -109,16 +109,36 @@ Set `OPENPLANS_OPERATOR_TOKEN` in the API's environment and send it as a bearer 
 curl -H "Authorization: Bearer $OPENPLANS_OPERATOR_TOKEN" http://127.0.0.1:3000/status/operator.json
 ```
 
-Without a configured token the operator routes answer 404. A missing or wrong token gets
-401. Keep the operator routes off the public edge: expose only `/status` and `/status.json`
+Without a configured token the operator routes answer 404. A missing or wrong token gets 401. Keep the operator routes off the public edge: expose only `/status` and `/status.json`
 there, and read operator detail from the host itself.
 
 ## `get_status`
 
-The MCP tool takes no input and returns the same JSON as `/status.json`, without each source's
-`published_at` and `published_from`. An MCP answer carries its JSON twice, as text and as
-structured content, and must fit in 128 KiB. With several hundred sources the two dates pass that
-limit, so read them from `/status.json` or the page.
+The default call, `{}`, returns a compact summary. It includes the service version and database
+state, coverage counts by status, source freshness counts, last-import age counts, cache state,
+pass-through totals and exhausted budgets, plugin count and last health-change age. A `null`
+summary means the read failed or no evidence was available. Zero means a successful empty read.
+
+Request details with `section`, `offset` and `limit`:
+
+```json
+{ "section": "sources", "offset": 0, "limit": 50 }
+```
+
+`section` accepts `summary`, `sources`, `worker` or `passthrough`. `limit` defaults to 50 and
+accepts 1 through 100. `offset` defaults to zero. The answer includes the summary plus `details`
+and `page`. Follow `page.next_offset` until it is `null`. Pages use the current read's ordering,
+so a new import between calls can change their contents. Summary calls have no detail page.
+
+Every answer stays below 64 KiB, counting both MCP copies of the JSON and reserving 4 KiB for
+framing. The summary shows at most 20 plan years and 128 version characters. If a detail row
+would exceed the byte budget, the tool omits it and increments `page.omitted`. `truncated: true`
+marks omitted rows, years or version characters. Paging still advances past omitted rows.
+`page.total` counts all rows in the requested section, or is `null` when the read failed.
+A normal page with more rows has `page.next_offset` and `truncated: false`.
+
+The MCP source details carry IDs and retrieval-age buckets. Publisher dates and complete public
+lists remain at `/status.json`. REST routes keep their existing fields and limits.
 
 ## `health-probe`
 
