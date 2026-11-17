@@ -1,6 +1,8 @@
+import { currentEnvironment } from "../../config/index.js";
 import type { Address } from "./address.js";
 import { countyAt, insideBounds } from "./counties.js";
 import type { County } from "./counties.js";
+import { geocoderSettings } from "../../config/access.js";
 
 export interface OperatorPoint {
   latitude: number;
@@ -77,19 +79,20 @@ export function assertNoGeocoderKey(log: string, key: string): void {
 
 /** The URL and JSON paths come only from operator environment settings. Never retain the reply or URL. */
 export function operatorGeocoder(
-  env: NodeJS.ProcessEnv = process.env,
+  env: NodeJS.ProcessEnv = currentEnvironment(),
   options: {
     sleep?: (ms: number) => Promise<void>;
     log?: (message: string) => void;
   } = {},
 ): OperatorGeocoder | null {
-  if (!env.OPENPLANS_GEOCODER_URL) return null;
-  const template: string = env.OPENPLANS_GEOCODER_URL;
-  const key = env.OPENPLANS_GEOCODER_KEY ?? "",
-    latPath = env.OPENPLANS_GEOCODER_LAT_PATH ?? "latitude",
-    lonPath = env.OPENPLANS_GEOCODER_LON_PATH ?? "longitude",
-    countyPath = env.OPENPLANS_GEOCODER_COUNTY_PATH ?? "county_fips";
-  const interval = Number(env.OPENPLANS_GEOCODER_INTERVAL_MS ?? 1000);
+  const settings = geocoderSettings(env);
+  if (!settings.url) return null;
+  const template = settings.url.reveal();
+  const key = settings.key?.reveal() ?? "",
+    latPath = settings.latPath ?? "latitude",
+    lonPath = settings.lonPath ?? "longitude",
+    countyPath = settings.countyPath ?? "county_fips";
+  const interval = Number(settings.intervalMs ?? 1000);
   if (!Number.isFinite(interval) || interval < 1000)
     throw new Error("Geocoder interval must be at least 1000 ms");
   const sleep =

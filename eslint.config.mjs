@@ -40,6 +40,32 @@ export default defineConfig([
     },
   },
   {
+    files: ["src/**/*.{js,mjs,cjs,ts,mts,cts}"],
+    rules: {
+      "no-restricted-properties": [
+        "error",
+        {
+          object: "process",
+          property: "env",
+          message: "Read runtime settings through src/config or injected env.",
+        },
+      ],
+    },
+  },
+  {
+    // The config module owns the process boundary. CLI entry points may also read it directly.
+    files: [
+      "src/config/**/*.{js,mjs,cjs,ts,mts,cts}",
+      "src/**/*-cli.{js,mjs,cjs,ts,mts,cts}",
+      "src/api/pglite.ts",
+      "src/ingest/**/pglite.ts",
+      "src/ingest/**/*-postgres*.ts",
+      "src/ingest/geo/fallback-realdata.ts",
+      "src/receipts/cli.ts",
+    ],
+    rules: { "no-restricted-properties": "off" },
+  },
+  {
     files: ["**/*.{ts,mts,cts}"],
     extends: [tseslint.configs.recommended],
     rules: {
@@ -91,6 +117,10 @@ export default defineConfig([
   {
     files: ["**/*.cjs", "**/*.cts"],
     languageOptions: { sourceType: "commonjs", globals: globals.node },
+  },
+  {
+    files: ["src/config/**/*.ts"],
+    rules: { "no-restricted-properties": "off" },
   },
   prettier,
 ]);

@@ -1,3 +1,5 @@
+import { cachedToolDefinition } from "./definition-cache.js";
+import { assertOutputFits, boundOutput, serializedBytes } from "./bounded.js";
 import type { CoreConfig } from "../config/index.js";
 import { assertCatalogToolAdmission } from "../plugins/catalog-policy.js";
 import { applicationVersion } from "./version.js";
@@ -167,14 +169,14 @@ export const toolDescriptions: Record<ToolName, [string, string]> = {
 /** One `tools/list` entry; key order is part of the recorded discovery bytes. */
 export function coreToolDefinition(tool: ToolName): Tool {
   const [title, description] = toolDescriptions[tool];
-  return {
+  return cachedToolDefinition(inputJsonSchemas[tool], () => ({
     name: tool,
     title,
     description: `${description} ${evidenceCaution}`,
     annotations: toolAnnotations,
     inputSchema: inputJsonSchemas[tool] as Tool["inputSchema"],
     outputSchema: outputJsonSchemas[tool],
-  };
+  }));
 }
 export const limits = {
   input_bytes: 64 * 1024,
@@ -1191,23 +1193,22 @@ export function messageBytes(
   output: ToolOutput<ToolName>,
   requestId: string | number = 0,
 ) {
-  return (
-    Buffer.byteLength(
-      JSON.stringify({
-        jsonrpc: "2.0",
-        id: requestId,
-        result: {
-          ...toolResult(output),
-          resultType: "complete",
-          _meta: {
-            "io.modelcontextprotocol/serverInfo": {
-              name: "openplans",
-              version: applicationVersion,
-            },
+  return serializedBytes(
+    {
+      jsonrpc: "2.0",
+      id: requestId,
+      result: {
+        ...toolResult(output),
+        resultType: "complete",
+        _meta: {
+          "io.modelcontextprotocol/serverInfo": {
+            name: "openplans",
+            version: applicationVersion,
           },
         },
-      }),
-    ) + 512
+      },
+    },
+    512,
   );
 }
 function pruneSources(output: Row, available: Map<string, Row>) {
@@ -1353,17 +1354,16 @@ export async function callTool(
           output.truncated = more;
         }
       }
-      complete();
-      while (
-        rows(output.provenance).length > 100 ||
-        messageBytes(output as ToolOutput<ToolName>, requestId) >
-          MAX_OUTPUT_BYTES
-      ) {
-        if (!list || list.length <= 1) throw new ToolError("RESULT_TOO_LARGE");
-        list.pop();
-        output.truncated = true;
-        complete();
-      }
+      boundOutput(output as ToolOutput<ToolName>, {
+        maxBytes: MAX_OUTPUT_BYTES,
+        measure: (value) => messageBytes(value, requestId),
+        groups: list ? [{ rows: list, minimum: 1 }] : [],
+        withinLimits: () => rows(output.provenance).length <= 100,
+        complete: (omitted) => {
+          if (omitted) output.truncated = true;
+          complete();
+        },
+      });
       context = answer.context ?? answer.p.context;
       assertHonest(tool, output, context);
       // Cursor signatures and caller access are request data, never shared cache data.
@@ -1431,8 +1431,10 @@ export async function callTool(
         offset + Number(row(output.page).returned),
       );
     assertHonest(tool, output, { ...context, ...honestyContext(dto) });
-    if (messageBytes(output, requestId) > MAX_OUTPUT_BYTES)
-      throw new ToolError("RESULT_TOO_LARGE");
+    assertOutputFits(output, {
+      maxBytes: MAX_OUTPUT_BYTES,
+      measure: (value) => messageBytes(value, requestId),
+    });
     return toolResult(output);
   } catch (error) {
     return errorResult(tool, error, generation, checkedAt);

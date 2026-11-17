@@ -1,7 +1,8 @@
+import { boundOutput, measuredToolResult, outputSizeError } from "./bounded.js";
 import { assertCatalogToolAdmission } from "../plugins/catalog-policy.js";
 import { dataGeneration } from "../api/cache/generation.js";
 import { z } from "zod";
-import { fromJsonSchema } from "@modelcontextprotocol/server";
+import { cachedJsonSchema, cachedToolDefinition } from "./definition-cache.js";
 import type {
   McpServer,
   Tool,
@@ -26,7 +27,7 @@ import {
 import { benchmarkSilver } from "../services/catalog.js";
 import { loadConfig } from "../config/index.js";
 import { evidenceCaution, toolAnnotations } from "./schemas.js";
-import { requestDependencies } from "./policy.js";
+import { requestDependencies, withRequestDependencies } from "./policy.js";
 import {
   errorResult,
   mayEstimate,
@@ -111,39 +112,40 @@ type LowestBoundedResult = {
 };
 
 /** Keep every MCP answer below the transport budget by dropping detail rows and counting them. */
-export function boundLowestResult(result: LowestBoundedResult): void {
-  const fits = () => {
-    const answer = {
-      content: [{ type: "text", text: JSON.stringify(result) }],
-      structuredContent: result,
-    };
-    return Buffer.byteLength(JSON.stringify(answer)) + 4096 <= MAX_OUTPUT_BYTES;
-  };
-  while (!fits()) {
-    if (result.provenance.candidates.length) {
-      result.provenance.candidates.pop();
-      result.omitted.candidates++;
-    } else if (result.provenance.excluded.length) {
-      result.provenance.excluded.pop();
-      result.omitted.excluded++;
-    } else if (result.provenance.evidence.length) {
-      result.provenance.evidence.pop();
-      result.omitted.evidence++;
-    } else if (result.ties.length) {
-      result.ties.pop();
-      result.omitted.ties++;
-    } else {
-      break;
-    }
-    result.truncated = true;
-  }
+export function boundLowestResult(result: LowestBoundedResult): string {
+  let text = "";
+  boundOutput(result, {
+    maxBytes: MAX_OUTPUT_BYTES,
+    measure: (value) => {
+      const measured = measuredToolResult(value, 4096);
+      text = measured.answer.content[0]!.text;
+      return measured.bytes;
+    },
+    groups: ["candidates", "excluded", "evidence", "ties"].map((key) => {
+      const field = key as keyof LowestBoundedResult["omitted"];
+      return {
+        rows: field === "ties" ? result.ties : result.provenance[field],
+        onOmit: () => {
+          result.omitted[field]++;
+        },
+      };
+    }),
+    complete: (omitted) => {
+      if (omitted) result.truncated = true;
+    },
+  });
+  return text;
 }
+
+const lowestDefinitionKeys = { full: {}, single_age_silver: {} };
+const summaryDefinitionKeys = { full: {}, single_age_silver: {} };
+const benchmarkDefinitionKey = {};
 
 // The complete canonical service result is returned, including ordered source and rate-row refs.
 export function lowestToolDefinition(
   scope = loadConfig().lowestPremiumsScope,
 ): Tool {
-  return {
+  return cachedToolDefinition(lowestDefinitionKeys[scope], () => ({
     name: LOWEST_TOOL,
     title: lowestToolTitle,
     description: `${scope === "single_age_silver" ? "Find the lowest gross non-tobacco Silver premium for one age, year and ZIP. Requires complete pricing evidence. Does not evaluate subsidies." : lowestToolDescription} ${evidenceCaution}`,
@@ -168,7 +170,7 @@ export function lowestToolDefinition(
         lowestOutput.omit({ truncated: true, omitted: true }),
       ]),
     ) as Tool["outputSchema"],
-  };
+  }));
 }
 export function registerLowestTool(
   server: McpServer,
@@ -188,11 +190,13 @@ export function registerLowestTool(
       title: definition.title,
       description: definition.description,
       annotations: toolAnnotations,
-      inputSchema: fromJsonSchema(definition.inputSchema as JsonSchemaType),
-      outputSchema: fromJsonSchema(definition.outputSchema as JsonSchemaType),
+      inputSchema: cachedJsonSchema(definition.inputSchema as JsonSchemaType),
+      outputSchema: cachedJsonSchema(definition.outputSchema as JsonSchemaType),
     },
     async (args, ctx) =>
-      callLowestTool(requestDependencies(deps, ctx.mcpReq.signal), args),
+      withRequestDependencies(deps, ctx.mcpReq.signal, (scoped) =>
+        callLowestTool(scoped, args),
+      ),
   );
   return definition;
 }
@@ -265,7 +269,7 @@ export async function callLowestTool(deps: McpDependencies, value: unknown) {
         ...input,
         page,
       },
-      { evidencePage: evidence_page ?? 1 },
+      { cache: deps.cache, evidencePage: evidence_page ?? 1 },
     );
     if (native.data_generation !== generation)
       throw new ToolError("DATA_CHANGED");
@@ -275,10 +279,10 @@ export async function callLowestTool(deps: McpDependencies, value: unknown) {
       truncated: false,
       omitted: { ties: 0, candidates: 0, excluded: 0, evidence: 0 },
     };
-    boundLowestResult(result);
+    const text = boundLowestResult(result);
     lowestOutput.parse(result);
     return {
-      content: [{ type: "text" as const, text: JSON.stringify(result) }],
+      content: [{ type: "text" as const, text }],
       structuredContent: result,
     };
   } catch (error) {
@@ -309,11 +313,13 @@ export function registerMarketSummaryTool(
       title: definition.title,
       description: definition.description,
       annotations: toolAnnotations,
-      inputSchema: fromJsonSchema(definition.inputSchema as JsonSchemaType),
-      outputSchema: fromJsonSchema(definition.outputSchema as JsonSchemaType),
+      inputSchema: cachedJsonSchema(definition.inputSchema as JsonSchemaType),
+      outputSchema: cachedJsonSchema(definition.outputSchema as JsonSchemaType),
     },
     async (args, ctx) =>
-      callMarketSummaryTool(requestDependencies(deps, ctx.mcpReq.signal), args),
+      withRequestDependencies(deps, ctx.mcpReq.signal, (scoped) =>
+        callMarketSummaryTool(scoped, args),
+      ),
   );
   return definition;
 }
@@ -321,7 +327,7 @@ export function registerMarketSummaryTool(
 export function marketSummaryToolDefinition(
   scope = loadConfig().lowestPremiumsScope,
 ): Tool {
-  return {
+  return cachedToolDefinition(summaryDefinitionKeys[scope], () => ({
     name: MARKET_SUMMARY_TOOL,
     title: "Market summary",
     description: `${scope === "single_age_silver" ? "Count base plans and issuers by metal for a ZIP and year. Premium ranges and household input are unavailable in this scope." : "Count base plans and issuers by metal, with optional gross premium ranges."} ${evidenceCaution}`,
@@ -339,7 +345,7 @@ export function marketSummaryToolDefinition(
         : marketSummaryInputSchemaForMcp,
     ) as Tool["inputSchema"],
     outputSchema: z.toJSONSchema(jsonObject) as Tool["outputSchema"],
-  };
+  }));
 }
 
 const marketSummaryInputSchemaForMcp = marketSummaryInputSchema.extend({
@@ -397,24 +403,20 @@ export async function callMarketSummaryTool(
 
 /** Refuse an oversized evidence result rather than emit dangling evidence references. */
 function pricingToolResult<T extends Record<string, unknown>>(result: T) {
-  const answer = {
-    content: [{ type: "text" as const, text: JSON.stringify(result) }],
-    structuredContent: result,
-  };
-  if (Buffer.byteLength(JSON.stringify(answer)) + 4096 > MAX_OUTPUT_BYTES)
-    throw new ToolError("RESULT_TOO_LARGE");
+  const { answer, bytes } = measuredToolResult(result, 4096);
+  if (bytes > MAX_OUTPUT_BYTES) throw outputSizeError();
   return answer;
 }
 export const BENCHMARK_TOOL = "get_benchmark";
 export function benchmarkToolDefinition(): Tool {
-  return {
+  return cachedToolDefinition(benchmarkDefinitionKey, () => ({
     name: BENCHMARK_TOOL,
     title: "Silver household benchmark",
     description: `Read the existing January 1 non-tobacco household silver benchmark, with EHB and pediatric dental adjustments and full evidence. ${evidenceCaution}`,
     annotations: toolAnnotations,
     inputSchema: z.toJSONSchema(benchmarkInputSchema) as Tool["inputSchema"],
     outputSchema: z.toJSONSchema(jsonObject) as Tool["outputSchema"],
-  };
+  }));
 }
 export function registerBenchmarkTool(
   server: McpServer,
@@ -433,8 +435,8 @@ export function registerBenchmarkTool(
       title: definition.title,
       description: definition.description,
       annotations: toolAnnotations,
-      inputSchema: fromJsonSchema(definition.inputSchema as JsonSchemaType),
-      outputSchema: fromJsonSchema(definition.outputSchema as JsonSchemaType),
+      inputSchema: cachedJsonSchema(definition.inputSchema as JsonSchemaType),
+      outputSchema: cachedJsonSchema(definition.outputSchema as JsonSchemaType),
     },
     async (args, ctx) =>
       callBenchmarkTool(requestDependencies(deps, ctx.mcpReq.signal), args),

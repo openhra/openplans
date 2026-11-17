@@ -1,10 +1,11 @@
 #!/usr/bin/env node
+import { loadMigrations } from "../../../dist/db/migrate.js";
 // Offline full-corpus check. Requires cached original publications and a build.
 // Uses a fresh, isolated PGlite database; never opens a shared serving database.
 import assert from "node:assert/strict";
 import { createHash, randomUUID } from "node:crypto";
 import { once } from "node:events";
-import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -49,11 +50,8 @@ const report = {
 };
 let server;
 try {
-  for (const name of (await readdir(join(root, "migrations")))
-    .filter((n) => n.endsWith(".sql") && n !== "002_postgis.sql")
-    .sort()) {
-    await db.exec(await readFile(join(root, "migrations", name), "utf8"));
-  }
+  for (const { name, sql } of await loadMigrations(join(root, "migrations")))
+    if (name !== "002_postgis.sql") await db.exec(sql);
   const artifactBytes = await readFile(prepared),
     artifact = JSON.parse(artifactBytes);
   report.imports.push(await ingestStateRates(db, prepared, "VT")); // original PDF bytes verified

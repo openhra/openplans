@@ -1,15 +1,16 @@
 #!/usr/bin/env node
+import { copyMigrations } from "../../db/copy-migrations.js";
 /** Explicit real-data check: bulk GeoNames/Census; at most the two requested live CMS ZIPs.
  * Run after build: node dist/ingest/geo/fallback-realdata.js. Never a ZIP-range crawler. */
 import { PGlite } from "@electric-sql/pglite";
 import { createReadStream } from "node:fs";
 import { createHash } from "node:crypto";
-import { cp, mkdir, mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import type { Database, SqlSession } from "../../db/database.js";
-import { migrationsDirectory } from "../../db/migrate.js";
 import { fetchToCache } from "../../fetch/index.js";
+import { cmsApiKeyConfigured } from "../../config/access.js";
 import { runGeo } from "./command.js";
 import { acquireGeoNames, geoNamesRows, geoNamesStream } from "./geonames.js";
 import { cachedHash, dataDirectory, GEO_SOURCES } from "./sources.js";
@@ -21,10 +22,7 @@ const dataDir = dataDirectory(),
   directory = await mkdtemp(join(tmpdir(), "openplans-p2f-migrations-"));
 let db: Database | undefined, databasePath: string | undefined;
 try {
-  for (const name of await readdir(migrationsDirectory))
-    if (name.endsWith(".sql") && name !== "002_postgis.sql") {
-      await cp(join(migrationsDirectory, name), join(directory, name));
-    }
+  await copyMigrations(directory, ["002_postgis.sql"]);
   await mkdir(join(dataDir, "work"), { recursive: true });
   databasePath = await mkdtemp(join(dataDir, "work", "p2f-geo-"));
   const pg = new PGlite(databasePath);
@@ -149,7 +147,7 @@ try {
       result,
     });
   }
-  const cmsConfigured = Boolean(process.env.CMS_API_KEY),
+  const cmsConfigured = cmsApiKeyConfigured(),
     live = [];
   if (cmsConfigured) {
     for (const zip of ["77001", "85001"]) {

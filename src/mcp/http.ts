@@ -1,7 +1,16 @@
+import { currentEnvironment } from "../config/index.js";
 import { activeRecorder } from "../telemetry/observer.js";
 import { performance } from "node:perf_hooks";
 import { loadedPluginTools } from "../plugins/mcp-tools.js";
-import { BENCHMARK_TOOL, LOWEST_TOOL, MARKET_SUMMARY_TOOL } from "./handy.js";
+import {
+  BENCHMARK_TOOL,
+  LOWEST_TOOL,
+  MARKET_SUMMARY_TOOL,
+  lowestToolDefinition,
+  marketSummaryToolDefinition,
+} from "./handy.js";
+import { cachedJsonSchema } from "./definition-cache.js";
+import type { JsonSchemaType } from "@modelcontextprotocol/server";
 import { loadConfig } from "../config/index.js";
 import { sharedResponseCache } from "../api/cache/index.js";
 import type { CacheOutcome } from "../api/cache/index.js";
@@ -83,7 +92,16 @@ function failure(
 
 export function createMcpHttp(db: SqlSession, options: HttpOptions = {}) {
   const cache = sharedResponseCache(db);
-  const config = loadConfig(options.env ?? process.env);
+  const config = loadConfig(options.env ?? currentEnvironment());
+  if (config.mcp.enabled && config.lowestPremiums && config.public.quoting) {
+    for (const definition of [
+      lowestToolDefinition(config.lowestPremiumsScope),
+      marketSummaryToolDefinition(config.lowestPremiumsScope),
+    ]) {
+      cachedJsonSchema(definition.inputSchema as JsonSchemaType, true);
+      cachedJsonSchema(definition.outputSchema as JsonSchemaType, true);
+    }
+  }
   const now = options.now ?? Date.now;
   const hosts = [...config.mcp.allowedHosts];
   const origins = config.mcp.allowedOrigins;
@@ -320,7 +338,9 @@ export function createMcpHttp(db: SqlSession, options: HttpOptions = {}) {
         () =>
           buildServer({
             ...configDependencies(
-              boundedDatabase(db, signal),
+              tool === LOWEST_TOOL || tool === MARKET_SUMMARY_TOOL
+                ? db
+                : boundedDatabase(db, signal),
               config,
               granted || open,
               granted,

@@ -1,6 +1,6 @@
 # Printable stipend range
 
-`@openplans/plugin-handy` 0.1.1 calculates four illustrative household profiles from the loaded public plan catalog. It stays off until a deployment loads it. Public quoting must also be enabled.
+`@openplans/plugin-handy` 0.1.3 calculates four illustrative household profiles from the loaded public plan catalog. It stays off until a deployment loads it. Public quoting must also be enabled.
 
 For a public installation, opt into preset-only registration:
 
@@ -21,7 +21,7 @@ This registers three routes and one MCP tool:
 
 | Request                         | Result                                       |
 | ------------------------------- | -------------------------------------------- |
-| `POST /handy/allowance`         | Full calculation JSON                        |
+| `POST /handy/allowance`         | Calculation summary and first evidence page |
 | `GET /handy/allowance/print`    | Printable HTML, Letter or A4                 |
 | `GET /handy/allowance/manifest` | Source manifest JSON                         |
 | MCP `get_allowance_range`       | Compact result with print and manifest links |
@@ -49,7 +49,9 @@ The profiles are employee only, employee plus spouse, employee plus spouse and o
 
 The target is the largest of the four lowest Silver premiums. If a required profile is missing, duplicated or unpriced, the target is unknown. Missing rates and incomplete sources remain unknown. The result makes no tax, eligibility, affordability, benefits or provider-participation determination. Check `/v1/data-availability` for loaded geography and years. Unsupported scopes receive evidence gaps instead of estimated amounts.
 
-Distribution and adjusted benchmark reads use the existing calculation host, read-only request database and cancellation signal. Mixed generations refuse the calculation. A printed sheet links to a generation-pinned manifest containing the full distribution provenance, profile counts, points, candidate evidence references and benchmark evidence. If the catalog changes before download, the manifest refuses with HTTP 409. Start a new sheet.
+Distribution and adjusted benchmark reads use the existing calculation host, read-only request database and cancellation signal. Mixed generations refuse the calculation. A printed sheet links to a generation-pinned manifest with profile counts, points, candidate evidence references and benchmark evidence. If the catalog changes before download, the manifest refuses with HTTP 409. Start a new sheet.
+
+The current host returns two evidence records per page. Follow `evidence_pagination.next_href` until it is null to retrieve the complete manifest. Later pages require both `evidence_page` and the original `data_generation`. Evidence indices are absolute across those pages. Each point retains its selected plan's first evidence index and the total tied-evidence count; the candidate pages contain all tied plans. Benchmark `evidence_range` values identify their source records in the same index. Source coordinates replace raw publisher rows, and the snapshot list supplies their content hashes. Allowance JSON responses are limited to 64 KiB. Older hosts retain their small response format within that limit.
 
 Use browser Print to PDF for Letter or A4. Each profile prints its ages, premiums and counts; source notes and unknown warnings stay visible. MCP returns a summary and the same generation-pinned links. Offer rows remain in the manifest. Oversized MCP summaries refuse rather than silently dropping amounts; the serialized success or error stays below 64 KiB.
 

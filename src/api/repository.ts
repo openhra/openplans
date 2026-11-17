@@ -882,6 +882,14 @@ export async function requestedPlansExist(
 }
 
 // Read-service persistence queries.
+// Rating needs every age row, but not the storage timestamps or policy metadata.
+const PREMIUM_RATE_COLUMNS = `snapshot_id,source_row,plan_year,state,issuer_id,base_plan_id,rating_area_id,
+  effective_date::text AS effective_date,expiration_date::text AS expiration_date,tobacco,age_band,rating_method,
+  individual_rate_cents,individual_tobacco_rate_cents,couple_cents,
+  primary_subscriber_and_one_dependent_cents,primary_subscriber_and_two_dependents_cents,
+  primary_subscriber_and_three_or_more_dependents_cents,couple_and_one_dependent_cents,
+  couple_and_two_dependents_cents,couple_and_three_or_more_dependents_cents,raw`;
+
 export function premiumRateRows(
   db: SqlSession,
   snapshotId: string | undefined,
@@ -889,7 +897,7 @@ export function premiumRateRows(
   area: string,
 ) {
   return db.query(
-    `SELECT *,effective_date::text AS effective_date,expiration_date::text AS expiration_date
+    `SELECT ${PREMIUM_RATE_COLUMNS}
     FROM rate WHERE snapshot_id=$1 AND base_plan_id=$2 AND rating_area_id=$3`,
     [snapshotId, base, area],
   );
@@ -903,7 +911,7 @@ export function premiumRateRowsForPlans(
   area: string,
 ) {
   return db.query(
-    `SELECT *,effective_date::text AS effective_date,expiration_date::text AS expiration_date
+    `SELECT ${PREMIUM_RATE_COLUMNS}
     FROM rate WHERE snapshot_id=$1 AND base_plan_id = ANY($2::text[]) AND rating_area_id=$3`,
     [snapshotId, bases, area],
   );

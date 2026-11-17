@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { copyMigrations } from "../../dist/db/copy-migrations.js";
 /**
  * Cache-only network and pricing check on a dedicated local Postgres database.
  * npm run build; OPENPLANS_PARTD_CHECK_DATABASE_URL=... node scripts/oracle/medicare-part-d-large.mjs
@@ -8,20 +9,12 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
-import {
-  cp,
-  mkdir,
-  mkdtemp,
-  readdir,
-  rm,
-  stat,
-  writeFile,
-} from "node:fs/promises";
+import { mkdir, mkdtemp, rm, stat, writeFile } from "node:fs/promises";
 import { createReadStream } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import pg from "pg";
-import { migrate, migrationsDirectory } from "../../dist/db/migrate.js";
+import { migrate } from "../../dist/db/migrate.js";
 import { parsePlanKey } from "../../dist/domain/medicare/index.js";
 import { dataDirectory } from "../../dist/ingest/medicare/acquire.js";
 import { cachedSpuf, importSpuf } from "../../dist/ingest/medicare/spuf.js";
@@ -128,9 +121,7 @@ try {
     );
     const migrations = join(directory, "migrations");
     await mkdir(migrations);
-    for (const name of await readdir(migrationsDirectory))
-      if (name.endsWith(".sql") && name !== "002_postgis.sql")
-        await cp(join(migrationsDirectory, name), join(migrations, name));
+    await copyMigrations(migrations, ["002_postgis.sql"]);
     const session = {
       query: (s, p) => client.query(s, p),
       exec: async (s) => void (await client.query(s)),

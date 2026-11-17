@@ -1,17 +1,10 @@
 #!/usr/bin/env node
+import { copyMigrations } from "../../../dist/db/copy-migrations.js";
 // Cache-only NY identity and LCSP check in an isolated, disposable database.
 import assert from "node:assert/strict";
 import { checkHandyFiled } from "../../../scripts/oracle/handy-filed.mjs";
 import { spawnSync } from "node:child_process";
-import {
-  cp,
-  mkdir,
-  mkdtemp,
-  readFile,
-  readdir,
-  rm,
-  writeFile,
-} from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import {
@@ -39,7 +32,6 @@ const suppliedData = process.argv[2]?.startsWith("--")
   ? undefined
   : process.argv[2];
 const data = resolve(suppliedData ?? dataDirectory());
-const project = fileURLToPath(new URL("../../../", import.meta.url));
 const reportDir = join(data, "reports/ny-ehb-2026");
 await mkdir(reportDir, { recursive: true });
 const raw = spawnSync(
@@ -72,9 +64,7 @@ const db = {
   close: () => pg.close(),
 };
 try {
-  for (const file of await readdir(join(project, "migrations")))
-    if (file.endsWith(".sql") && file !== "002_postgis.sql")
-      await cp(join(project, "migrations", file), join(directory, file));
+  await copyMigrations(directory, ["002_postgis.sql"]);
   await migrate(db, directory);
   const files = await cachedSbe(
     {

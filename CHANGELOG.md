@@ -3,6 +3,24 @@
 Release notes for OpenPlans. Earlier releases are on the
 [GitHub releases page](https://github.com/openhra/openplans/releases).
 
+## Unreleased
+
+## v0.4.13
+
+- Effective settings report whether telemetry is enabled.
+
+- Household comparison pages include only sources used by the displayed offers and share member rate evidence.
+
+- MCP replies enforce size limits while keeping complete evidence and continuation cursors.
+
+- MCP requests reuse tool definitions and compiled schemas to reduce setup time.
+
+- Premium and market-summary lookups reuse validators, database setup and public pricing cells.
+
+- Generation and pricing hashes stay stable across database locales.
+
+- Allowance replies stay within 64 KiB and page source evidence tied to snapshots.
+
 ## v0.4.12
 
 ### Fixes
@@ -26,6 +44,10 @@ All new and optional capabilities stay off on the hosted API. Hosted MCP discove
 ### Upgrading
 
 Remove retired Slack configuration, refresh approved hashes for enabled plugins and run `worker migrate` for enabled MSoT/admin upgrades. Core SQL files are unchanged.
+
+### Known issues
+
+- Intermittent client-side delivery stalls of about 10 seconds have been observed since at least v0.4.10. Server logs record 200 responses in about 2 ms; the delivery path is under investigation.
 
 ## v0.4.11
 

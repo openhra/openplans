@@ -56,6 +56,11 @@ for (const [path, text, rule] of [
     "@typescript-eslint/no-unsafe-member-access",
   ],
   [
+    "src/mcp/version.ts",
+    "export const runtimeValue = process.env.OPENPLANS_SECRET;",
+    "no-restricted-properties",
+  ],
+  [
     "plugins/status/src/index.ts",
     "export const field = (text: string): unknown => JSON.parse(text).field;",
     "@typescript-eslint/no-unsafe-member-access",

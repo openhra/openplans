@@ -1,11 +1,12 @@
 #!/usr/bin/env node
+import { copyMigrations } from "../../db/copy-migrations.js";
 /** Developer real-data runner. npm run build; node dist/ingest/rxnorm/pglite.js */
 import { PGlite } from "@electric-sql/pglite";
-import { cp, mkdir, mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Database, SqlSession } from "../../db/database.js";
-import { migrate, migrationsDirectory } from "../../db/migrate.js";
+import { migrate } from "../../db/migrate.js";
 import { acquireRelease, dataDirectory } from "./acquire.js";
 import { importRxnorm } from "./import.js";
 import type { DrugConcept } from "./repository.js";
@@ -16,10 +17,7 @@ const dataDir = dataDirectory(),
 let db: Database | undefined;
 try {
   // Portable RxNorm SQL; only this developer copy omits PostGIS, never production migrations.
-  for (const name of await readdir(migrationsDirectory)) {
-    if (name.endsWith(".sql") && name !== "002_postgis.sql")
-      await cp(join(migrationsDirectory, name), join(directory, name));
-  }
+  await copyMigrations(directory, ["002_postgis.sql"]);
   await mkdir(dataDir, { recursive: true });
   const dbPath = join(dataDir, "rxnorm-pglite-p2a"),
     pg = new PGlite(dbPath);

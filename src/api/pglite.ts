@@ -1,15 +1,16 @@
 #!/usr/bin/env node
+import { copyMigrations } from "../db/copy-migrations.js";
+import { currentEnvironment } from "../config/index.js";
 import { EnvironmentOnlyKeyError, loadConfig } from "../config/index.js";
 /** Developer-only native API/worker runner; requires dev dependencies, never PostGIS. */
 import { PGlite } from "@electric-sql/pglite";
 import { serve } from "@hono/node-server";
-import { cp, mkdtemp, readdir, rm } from "node:fs/promises";
+import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { isAbsolute, join } from "node:path";
 import type { DbProviderFactory } from "@openplans/plugin-sdk";
 import type { Database } from "../db/database.js";
 import { providerTables, selectDatabase } from "../plugins/providers.js";
-import { migrationsDirectory } from "../db/migrate.js";
 import { unappliedMigrations } from "../db/schema-ready.js";
 import { runWorker } from "../worker/commands.js";
 import { createApp } from "./app.js";
@@ -17,7 +18,7 @@ import { schemaGate } from "./schema-gate.js";
 
 let config: ReturnType<typeof loadConfig> | undefined;
 try {
-  config = loadConfig(process.env, undefined, { port: 3001 });
+  config = loadConfig(currentEnvironment(), undefined, { port: 3001 });
 } catch (error) {
   console.error(
     error instanceof EnvironmentOnlyKeyError
@@ -39,10 +40,7 @@ if (!config || port === undefined || !path || !isAbsolute(path)) {
   let db: Database | undefined;
   try {
     // Production migrations never skip PostGIS. This portable developer copy does.
-    for (const name of await readdir(migrationsDirectory)) {
-      if (name.endsWith(".sql") && name !== "002_postgis.sql")
-        await cp(join(migrationsDirectory, name), join(directory, name));
-    }
+    await copyMigrations(directory, ["002_postgis.sql"]);
     // The developer runner registers `pglite` itself and always selects it.
     const pglite: DbProviderFactory = () => {
       const pg = new PGlite(path);

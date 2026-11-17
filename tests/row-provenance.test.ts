@@ -1,7 +1,7 @@
 import { PGlite } from "@electric-sql/pglite";
 import { createHash } from "node:crypto";
 import { createReadStream } from "node:fs";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -47,6 +47,14 @@ async function migrations(
     await rm(join(core.directory, "1008_provider_search_key_a_cell.sql"));
     await rm(join(core.directory, "1009_provider_search_key_b_cell.sql"));
     await rm(join(core.directory, "995_handy_lowest.sql"));
+    const retained = new Set(await readdir(core.directory));
+    await writeFile(
+      join(core.directory, "INDEX"),
+      (await readFile(join(core.directory, "INDEX"), "utf8"))
+        .split("\n")
+        .filter((name) => retained.has(name))
+        .join("\n") + "\n",
+    );
   } else if (mutate) {
     const before = await readFile(path, "utf8");
     const after = mutate(before);
@@ -184,6 +192,10 @@ describe("row provenance schema", () => {
       `CREATE TABLE late_lane (id integer PRIMARY KEY,
          snapshot_id text NOT NULL REFERENCES snapshot(snapshot_id));
        CREATE TABLE late_app_state (id integer PRIMARY KEY);`,
+    );
+    await writeFile(
+      join(dir, "INDEX"),
+      (await readFile(join(dir, "INDEX"), "utf8")) + "989_late_lane.sql\n",
     );
     expect(await migrate(db, dir)).toEqual(["989_late_lane.sql"]);
     // late_app_state names no receipt, so the test asks for an explicit rule.

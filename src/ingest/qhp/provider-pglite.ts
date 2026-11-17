@@ -1,11 +1,13 @@
 #!/usr/bin/env node
+import { copyMigrations } from "../../db/copy-migrations.js";
+import { runnerSettings } from "../../config/access.js";
 /** Real-data runner; all DB/download/report bytes stay in the external cache. */
 import { PGlite } from "@electric-sql/pglite";
-import { cp, mkdir, mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Database, SqlSession } from "../../db/database.js";
-import { migrate, migrationsDirectory } from "../../db/migrate.js";
+import { migrate } from "../../db/migrate.js";
 import { runWorker } from "../../worker/commands.js";
 import { providerCachedRecords } from "./provider.js";
 import { acquireProviders, soleCachedHash } from "./provider-acquire.js";
@@ -14,8 +16,7 @@ import { createProviderRepository } from "../../domain/providers/index.js";
 import { dataDirectory } from "../../config/access.js";
 
 const cache = dataDirectory();
-const path =
-  process.env.OPENPLANS_PROVIDER_DB ?? join(cache, "provider-pglite-p3b");
+const path = runnerSettings().providerDb ?? join(cache, "provider-pglite-p3b");
 const directory = await mkdtemp(
   join(tmpdir(), "openplans-provider-migrations-"),
 );
@@ -140,10 +141,7 @@ async function bootstrap(db: Database) {
   );
 }
 try {
-  for (const name of await readdir(migrationsDirectory))
-    if (name.endsWith(".sql") && name !== "002_postgis.sql") {
-      await cp(join(migrationsDirectory, name), join(directory, name));
-    }
+  await copyMigrations(directory, ["002_postgis.sql"]);
   pg = new PGlite(path);
   const session: SqlSession = {
     query: (sql, args) => pg!.query(sql, args),

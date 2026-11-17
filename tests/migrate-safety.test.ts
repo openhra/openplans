@@ -335,9 +335,13 @@ FROM partd_unit_cost u JOIN partd_pricing_release k ON k.snapshot_id = u.snapsho
     const path = join(core.directory, "1000_plugin_events.sql");
     try {
       const sql = await readFile(path, "utf8");
+      const indexPath = join(core.directory, "INDEX");
+      const index = await readFile(indexPath, "utf8");
       await rm(path);
+      await writeFile(indexPath, index.replace("1000_plugin_events.sql\n", ""));
       await migrate(db, core.directory);
       await writeFile(path, sql);
+      await writeFile(indexPath, index);
       const out: string[] = [],
         errors: string[] = [];
       expect(
@@ -375,9 +379,13 @@ FROM partd_unit_cost u JOIN partd_pricing_release k ON k.snapshot_id = u.snapsho
     const path = join(core.directory, "1001_passthrough.sql");
     try {
       const sql = await readFile(path, "utf8");
+      const indexPath = join(core.directory, "INDEX");
+      const index = await readFile(indexPath, "utf8");
       await rm(path);
+      await writeFile(indexPath, index.replace("1001_passthrough.sql\n", ""));
       await migrate(db, core.directory);
       await writeFile(path, sql);
+      await writeFile(indexPath, index);
       const out: string[] = [],
         errors: string[] = [];
       expect(
@@ -604,6 +612,10 @@ FROM partd_unit_cost u JOIN partd_pricing_release k ON k.snapshot_id = u.snapsho
           `CREATE INDEX ${name}_idx ON ${name}(id)`,
         );
       }
+      await writeFile(
+        join(directory, "INDEX"),
+        "1_small.sql\n2_big.sql\n3_wide.sql\n4_unknown.sql\n5_unknown.sql\n6_unknown.sql\n7_unknown.sql\n",
+      );
       const report = await checkMigrations(testDatabase(pg), directory);
       expect(report.pending.map((m) => m.classification)).toEqual([
         "additive-safe",

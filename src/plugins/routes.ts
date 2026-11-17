@@ -174,8 +174,15 @@ export function pluginRoutes(
     };
   }
 
-  function rejected(c: Context, path: string) {
-    writeLog(JSON.stringify({ event: "plugin_response_rejected", path }));
+  function rejected(
+    c: Context,
+    path: string,
+    reason:
+      "response_too_large" | "invalid_json" | "row_provenance" | "credentials",
+  ) {
+    writeLog(
+      JSON.stringify({ event: "plugin_response_rejected", path, reason }),
+    );
     noStore(c);
     return c.json({ error: "plugin_response_rejected" }, 500);
   }
@@ -248,25 +255,25 @@ export function pluginRoutes(
       }
       if (spec.contentType === "application/json") {
         const text = await boundedText(response, PLUGIN_RESPONSE_MAX_BYTES);
-        if (text === undefined) return rejected(c, spec.path);
+        if (text === undefined)
+          return rejected(c, spec.path, "response_too_large");
         let body: unknown;
         try {
           body = JSON.parse(text);
         } catch {
-          return rejected(c, spec.path);
+          return rejected(c, spec.path, "invalid_json");
         }
-        if (
-          rowProvenanceLeaks(body, spec.path).length > 0 ||
-          hasCredentials(body)
-        )
-          return rejected(c, spec.path);
+        if (rowProvenanceLeaks(body, spec.path).length > 0)
+          return rejected(c, spec.path, "row_provenance");
+        if (hasCredentials(body)) return rejected(c, spec.path, "credentials");
         return new Response(text, {
           status: response.status,
           headers: response.headers,
         });
       }
       const text = await boundedText(response, PLUGIN_RESPONSE_MAX_BYTES);
-      if (text === undefined) return rejected(c, spec.path);
+      if (text === undefined)
+        return rejected(c, spec.path, "response_too_large");
       const html = new Response(text, response);
       for (const [name, value] of HTML_HEADERS) html.headers.set(name, value);
       if (spec.adminSession) {

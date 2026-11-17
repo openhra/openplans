@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { currentEnvironment } from "../../config/index.js";
 import pg from "pg";
 import { readFile, mkdir, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
@@ -126,7 +127,7 @@ try {
     get deadline() {
       return deadline;
     },
-    operator: operatorGeocoder(process.env, { log: console.log }),
+    operator: operatorGeocoder(currentEnvironment(), { log: console.log }),
     progress: console.log,
   });
   await mkdir(join(root, "reports"), { recursive: true });

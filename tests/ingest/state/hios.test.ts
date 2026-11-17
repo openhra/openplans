@@ -488,13 +488,17 @@ it("backfills pre-existing imports when migration 860 is applied", async () => {
     previous = await coreMigrations();
   try {
     const name = "860_vt_hios_match.sql";
+    const indexPath = join(previous.directory, "INDEX");
+    const index = await readFile(indexPath, "utf8");
     await rm(join(previous.directory, name));
+    await writeFile(indexPath, index.replace(name + "\n", ""));
     await migrate(isolated, previous.directory);
     await attributes(isolated, "pre-migration");
     await ingestStateRates(isolated, join(directory, "VT.json"), "VT", {
       verifyRaw: false,
     });
     await cp(join(migrationsDirectory, name), join(previous.directory, name));
+    await writeFile(indexPath, index);
     expect(await migrate(isolated, previous.directory)).toEqual([name]);
     expect((await stateCatalog(isolated, 2026, "VT", key))[0]).toMatchObject({
       hios_id: id,

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { runnerSettings } from "../../config/access.js";
 /** Read-only HTTP and attribution checks against the isolated, consolidated developer DB. */
 import pg from "pg";
 import { serve } from "@hono/node-server";
@@ -15,8 +16,8 @@ import type { SqlSession } from "../../db/database.js";
 import { dataDirectory } from "../../config/access.js";
 
 const cache = dataDirectory();
-const prefix = process.env.OPENPLANS_QHP_REPORT_PREFIX ?? "p6c";
-const url = process.env.OPENPLANS_QHP_DATABASE_URL;
+const prefix = runnerSettings().qhpReportPrefix ?? "p6c";
+const url = runnerSettings().qhpDatabaseUrl?.reveal();
 try {
   if (
     !url ||

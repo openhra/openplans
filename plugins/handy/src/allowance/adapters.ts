@@ -7,6 +7,7 @@ import { z } from "zod";
 import { allowanceMcpAnswer } from "./mcp.js";
 import { allowanceOutput, privateInput, presetInput } from "./contract.js";
 import { allowanceScenario } from "./service.js";
+import { allowanceJson } from "./evidence.js";
 import { allowanceSourceManifest, printAllowanceSheet } from "./sheet.js";
 
 export const ALLOWANCE_PATH = "/handy/allowance";
@@ -19,36 +20,44 @@ type Host = {
   slcsp: NonNullable<CalculationHost["slcsp"]>;
 };
 const PUBLIC_LIMITS = { perMinute: 30, activePerSource: 2, activeTotal: 4 };
-const presetQuery = z.strictObject({
-  zip: z.string().regex(/^\d{5}$/),
-  county: z
-    .string()
-    .regex(/^\d{5}$/)
-    .optional(),
-  year: z.coerce.number().int().min(2014).max(2100),
-  preset: z.literal("family-40-40-10-8-v1"),
-  data_generation: z.string().min(1).max(200).optional(),
-  paper: z.enum(["letter", "A4"]).optional(),
-});
+const optionsSchema = z
+  .strictObject({ publicOnly: z.boolean().default(false) })
+  .prefault({});
+const presetQuery = z
+  .strictObject({
+    zip: z.string().regex(/^\d{5}$/),
+    county: z
+      .string()
+      .regex(/^\d{5}$/)
+      .optional(),
+    year: z.coerce.number().int().min(2014).max(2100),
+    preset: z.literal("family-40-40-10-8-v1"),
+    data_generation: z.string().min(1).max(200).optional(),
+    paper: z.enum(["letter", "A4"]).optional(),
+    evidence_page: z.coerce.number().int().min(1).max(100_000).optional(),
+  })
+  .refine(
+    (value) =>
+      (value.evidence_page ?? 1) === 1 || Boolean(value.data_generation),
+  );
 const answerForPreset = (
   host: Host,
   scope: CalculationScope,
   parsed: z.infer<typeof presetQuery>,
-) => allowanceScenario(host, scope, parsed);
+) => allowanceScenario(host, scope, parsed, parsed.evidence_page ?? 1);
 
 const plugin: OpenPlansPlugin = {
   manifest: {
     name: "@openplans/plugin-handy",
-    version: "0.1.1",
+    version: "0.1.3",
     apiVersion: "0.1",
     kinds: ["routes", "mcpTools"],
     capabilities: { operatorRoutes: true },
+    options: optionsSchema,
   },
   setup(ctx) {
     if (!ctx.config.public.quoting) return;
-    const { publicOnly } = z
-      .strictObject({ publicOnly: z.boolean().default(false) })
-      .parse(ctx.options ?? {});
+    const { publicOnly } = optionsSchema.parse(ctx.options);
     const candidate = ctx.calculationHost;
     const host =
       candidate?.householdDistributions && candidate.slcsp
@@ -86,7 +95,11 @@ const plugin: OpenPlansPlugin = {
                 "Content-Disposition",
                 'attachment; filename="allowance-source-manifest.json"',
               );
-              return c.json(allowanceSourceManifest(answer));
+              return c.body(
+                allowanceJson(allowanceSourceManifest(answer)),
+                200,
+                { "Content-Type": "application/json" },
+              );
             }
             const query = new URLSearchParams(
               Object.entries({
@@ -94,7 +107,10 @@ const plugin: OpenPlansPlugin = {
                 data_generation: answer.data_generation,
               }).map(([key, value]) => [key, String(value)]),
             ).toString();
-            const manifestHref = `/handy/allowance/manifest?${query}`;
+            const manifestHref =
+              typeof answer.manifest_href === "string"
+                ? answer.manifest_href
+                : `/handy/allowance/manifest?${query}`;
             return c.html(
               printAllowanceSheet(
                 { ...answer, generated_at: new Date().toISOString() },
@@ -134,7 +150,10 @@ const plugin: OpenPlansPlugin = {
             { db: c.get("pluginDb"), signal: c.get("pluginSignal") },
             parsed.data,
           );
-          return c.json(result, 200, { "Cache-Control": "no-store" });
+          return c.body(allowanceJson(result), 200, {
+            "Content-Type": "application/json",
+            "Cache-Control": "no-store",
+          });
         } catch {
           return c.json({ error: "CALCULATION_UNKNOWN" }, 503, {
             "Cache-Control": "no-store",
@@ -170,7 +189,10 @@ const plugin: OpenPlansPlugin = {
               { db: c.get("pluginDb"), signal: c.get("pluginSignal") },
               parsed.data,
             );
-            return c.json(result, 200, { "Cache-Control": "no-store" });
+            return c.body(allowanceJson(result), 200, {
+              "Content-Type": "application/json",
+              "Cache-Control": "no-store",
+            });
           } catch {
             return c.json({ error: "CALCULATION_UNKNOWN" }, 503, {
               "Cache-Control": "no-store",

@@ -1,3 +1,4 @@
+import { currentEnvironment } from "../config/index.js";
 import { createOperatorCommandClient } from "../operator/commands/service.js";
 import { tpaReceiptHost } from "./tpa-host.js";
 import { createCalculationHost } from "./calculation-host.js";
@@ -268,7 +269,7 @@ export async function loadPlugins(
     options.writeLog ?? ((line) => void process.stderr.write(`${line}\n`));
   const exit = options.exit ?? ((code) => process.exit(code));
   const bound = options.teardownBoundMs ?? TEARDOWN_BOUND_MS;
-  const env = options.env ?? process.env;
+  const env = options.env ?? currentEnvironment();
   const started: OpenPlansPlugin[] = [];
   let tornDown = false;
   const teardown = async () => {

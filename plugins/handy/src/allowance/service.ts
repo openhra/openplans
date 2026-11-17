@@ -1,5 +1,6 @@
 import type { CalculationHost, CalculationScope } from "@openplans/plugin-sdk";
 import type { AllowancePrivateInput } from "./contract.js";
+import { distributionPage, object, rows } from "./evidence.js";
 
 type LocationYear = { zip: string; county?: string; year: number };
 type Host = {
@@ -8,12 +9,6 @@ type Host = {
   >;
   slcsp: NonNullable<CalculationHost["slcsp"]>;
 };
-
-function object(value: unknown): Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : {};
-}
 
 export async function allowanceScenario(
   host: Host,
@@ -24,6 +19,7 @@ export async function allowanceScenario(
         members?: never;
       })
     | AllowancePrivateInput,
+  evidencePage = 1,
 ) {
   scope.signal.throwIfAborted();
   const request =
@@ -57,6 +53,15 @@ export async function allowanceScenario(
     profiles.length === 4 &&
     expected.every((id, index) => object(profiles[index]).id === id);
   const benchmarks = [];
+  const evidence = Array.isArray(object(raw.provenance).evidence)
+    ? [...(object(raw.provenance).evidence as unknown[])]
+    : [];
+  const snapshots = new Map(
+    rows(object(raw.provenance).snapshots).map((item) => [
+      item.snapshot_id,
+      item,
+    ]),
+  );
   for (const entry of profiles) {
     scope.signal.throwIfAborted();
     const profile = object(entry);
@@ -77,7 +82,19 @@ export async function allowanceScenario(
     );
     scope.signal.throwIfAborted();
     if (silver.data_generation !== generation) throw new Error("DATA_CHANGED");
-    benchmarks.push({ profile_id: profile.id, result: silver });
+    const { source_refs, snapshots: pins, ...summary } = silver;
+    const start = evidence.length;
+    evidence.push(...rows(source_refs).map((ref) => ({ source_refs: [ref] })));
+    rows(pins).forEach((pin) => snapshots.set(pin.snapshot_id, pin));
+    benchmarks.push(
+      source_refs === undefined
+        ? { profile_id: profile.id, result: silver }
+        : {
+            profile_id: profile.id,
+            result: summary,
+            evidence_range: { start, count: evidence.length - start },
+          },
+    );
   }
   const targetKnown =
     completeProfiles &&
@@ -85,6 +102,19 @@ export async function allowanceScenario(
       const cents = object(object(item).lowest_silver).monthly_cents;
       return Number.isSafeInteger(cents) && Number(cents) >= 0;
     });
+  const projected = distributionPage(
+    {
+      ...raw,
+      provenance: {
+        ...object(raw.provenance),
+        evidence,
+        snapshots: [...snapshots.values()],
+      },
+    },
+    evidencePage,
+  );
+  // Older calculation hosts retain their small DTO contract. Both formats share the response cap.
+  const compact = raw.evidence_format === "source-references-v1";
   const answer: Record<string, unknown> = {
     schema_version: "1",
     status: raw.status ?? "unknown",
@@ -95,7 +125,7 @@ export async function allowanceScenario(
     reason: completeProfiles
       ? (raw.reason ?? null)
       : "required_profile_missing",
-    profiles,
+    profiles: compact ? projected.profiles : profiles,
     slcsp: benchmarks,
     target: {
       basis: "full_gross_lowest_silver_premium",
@@ -111,8 +141,24 @@ export async function allowanceScenario(
       status: targetKnown ? "calculated" : "unknown",
     },
     data_generation: raw.data_generation ?? null,
-    provenance: raw.provenance ?? null,
+    provenance: compact ? projected.provenance : (raw.provenance ?? null),
   };
+  if (compact) answer.evidence_pagination = projected.evidence_pagination;
+  if (compact && !("members" in input)) {
+    const query = new URLSearchParams({
+      zip: input.zip,
+      ...(input.county ? { county: input.county } : {}),
+      year: String(input.year),
+      preset: input.preset,
+      data_generation: generation,
+    });
+    answer.manifest_href = `/handy/allowance/manifest?${query}`;
+    const pagination = object(answer.evidence_pagination);
+    pagination.next_href =
+      pagination.next_page === null
+        ? null
+        : `${answer.manifest_href}&evidence_page=${pagination.next_page}`;
+  }
   if ("allowance_cents" in input && typeof input.allowance_cents === "number") {
     const target = object(answer.target);
     let fundingStatus = "unknown";

@@ -191,10 +191,25 @@ it("equals full household quote enumeration for every metal and all four profile
       for (const candidate of group.candidates) {
         const evidence = answer.provenance.evidence[candidate.evidence_ref] as {
           rating: Record<string, unknown>;
+          source_refs: Record<string, unknown>[];
         };
         const quote = population.find((p) => p.id === candidate.plan_id)!.quote;
-        expect(evidence.rating.provenance).toEqual(quote.provenance);
-        expect(evidence.rating.rate_rows_used).toEqual(quote.rate_rows_used);
+        expect(evidence.rating.total_cents).toEqual(quote.total_cents);
+        expect(evidence.rating.rating_rule).toEqual(
+          quote.provenance.rating_rule,
+        );
+        for (const used of quote.rate_rows_used) {
+          if (!("provenance" in used))
+            throw new Error("Expected a filed per-member rate row");
+          const provenance = used.provenance as {
+            snapshot_id: string;
+            source_row: number;
+          };
+          expect(evidence.source_refs).toContainEqual({
+            snapshot_id: provenance.snapshot_id,
+            source_row: provenance.source_row,
+          });
+        }
       }
     }
     expect(profile.lowest_silver).toEqual(

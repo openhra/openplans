@@ -5,7 +5,7 @@ import { migrate } from "../src/db/migrate.js";
 import { runWorker } from "../src/worker/commands.js";
 import { coreMigrations, testDatabase } from "./pglite.js";
 import { schemaViolations } from "./row-provenance.js";
-import { readFile, writeFile, rm } from "node:fs/promises";
+import { readFile, readdir, writeFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 
 let db: Database;
@@ -68,6 +68,11 @@ it("installs eight columns on every table, including late tables", async () => {
   await writeFile(
     join(directory, "989_late_policy.sql"),
     "CREATE TABLE late_policy(id integer, snapshot_id text REFERENCES snapshot(snapshot_id)); INSERT INTO late_policy VALUES (0,'synthetic-policy');",
+  );
+  await writeFile(
+    join(directory, "INDEX"),
+    (await readFile(join(directory, "INDEX"), "utf8")) +
+      "989_late_policy.sql\n",
   );
   await migrate(db, directory);
   expect(await schemaViolations(db)).toEqual([]);
@@ -193,6 +198,14 @@ it("backfills an already-provenanced fallback and is idempotent", async () => {
   await rm(join(directory, "1008_provider_search_key_a_cell.sql"));
   await rm(join(directory, "1009_provider_search_key_b_cell.sql"));
   await rm(join(directory, "995_handy_lowest.sql"));
+  const retained = new Set(await readdir(directory));
+  await writeFile(
+    join(directory, "INDEX"),
+    (await readFile(join(directory, "INDEX"), "utf8"))
+      .split("\n")
+      .filter((name) => retained.has(name))
+      .join("\n") + "\n",
+  );
   await migrate(db, directory);
   await receipt();
   await db.query(`INSERT INTO cms_api_drug_coverage(plan_id,rxcui,plan_year,coverage,snapshot_id,source_row,expires_at)
@@ -203,7 +216,7 @@ it("backfills an already-provenanced fallback and is idempotent", async () => {
   expect(
     (
       await db.query(
-        "SELECT backfill_row_provenance('cms_api_drug_coverage',0,2000) AS n",
+        "SELECT backfill_row_provenance('cms_api_drug_coverage',0,2000)::int AS n",
       )
     ).rows[0]!.n,
   ).toBe(0);

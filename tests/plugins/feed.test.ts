@@ -1,6 +1,13 @@
 import { PGlite } from "@electric-sql/pglite";
 import { createHash } from "node:crypto";
-import { cp, mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
+import {
+  cp,
+  mkdtemp,
+  readFile,
+  readdir,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -179,6 +186,11 @@ beforeAll(async () => {
   await cp(
     fileURLToPath(new URL("migration.sql", fixture)),
     join(core.directory, "9000_synthetic_feed.sql"),
+  );
+  await writeFile(
+    join(core.directory, "INDEX"),
+    (await readFile(join(core.directory, "INDEX"), "utf8")) +
+      "9000_synthetic_feed.sql\n",
   );
   pg = new PGlite();
   db = testDatabase(pg);

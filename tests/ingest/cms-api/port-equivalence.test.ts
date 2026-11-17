@@ -185,10 +185,10 @@ async function rows(sql: string) {
 async function state() {
   return normalize({
     drugs: await rows(
-      `SELECT *,(expired_at-sourced_at)::text AS ttl_span FROM cms_api_drug_coverage ORDER BY plan_id,rxcui,plan_year`,
+      `SELECT *,record_ttl::text AS record_ttl,(expired_at-sourced_at)::text AS ttl_span FROM cms_api_drug_coverage ORDER BY plan_id,rxcui,plan_year`,
     ),
     providers: await rows(
-      `SELECT *,(expired_at-sourced_at)::text AS ttl_span FROM cms_api_provider_coverage ORDER BY plan_id,npi,plan_year`,
+      `SELECT *,record_ttl::text AS record_ttl,(expired_at-sourced_at)::text AS ttl_span FROM cms_api_provider_coverage ORDER BY plan_id,npi,plan_year`,
     ),
     attempts: await rows(
       `SELECT endpoint,plan_year,pairs,snapshot_id,outcome,http_status,failure_code,refusal_reason
@@ -204,7 +204,7 @@ async function state() {
         blocked_until>now()+interval '50 minutes' AS blocked_long FROM cms_api_budget`,
     ),
     receipts: await rows(
-      `SELECT snapshot_id,source_id,requested_url,final_url,http_status,content_type,compressed_bytes,
+      `SELECT snapshot_id,source_id,requested_url,final_url,http_status,content_type,compressed_bytes::int AS compressed_bytes,
         sha256,raw_path,schema_version,parser_version,terms_review_reference,validation_state
        FROM snapshot WHERE source_id='cms-marketplace-api' ORDER BY requested_url,sha256`,
     ),

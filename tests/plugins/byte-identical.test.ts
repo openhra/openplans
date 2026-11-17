@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import type * as Crypto from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 import {
@@ -20,10 +19,15 @@ import { MemoryCache } from "../../src/api/cache/store.js";
 import type { SqlSession } from "../../src/db/database.js";
 import { createMcpHttp } from "../../src/mcp/http.js";
 import { inputSchemas, toolNames } from "../../src/mcp/schemas.js";
+import { applicationVersion } from "../../src/mcp/version.js";
 import { post } from "../mcp/transport-helpers.js";
 import { CURSOR_SECRET, digestFixture, FIXED_TIME, TOKEN } from "./fixture.js";
+import {
+  responseDigest as digest,
+  type ResponseDigest as Digest,
+} from "./admin-support/digests.js";
 
-// Only import identities are synthetic; bytes returned by the app are never rewritten.
+// Import identities are synthetic; only separately asserted release metadata is normalized.
 vi.mock("node:crypto", async (importOriginal) => {
   const original = await importOriginal<typeof Crypto>();
   let sequence = 0;
@@ -55,11 +59,6 @@ type McpEntry = {
   grant: boolean;
   legacy?: boolean;
 };
-type Digest = {
-  status: number;
-  body_sha256: string;
-  headers: Record<string, string | null>;
-};
 type Digests = Record<string, Digest>;
 const fixtures = new URL("../fixtures/plugins/", import.meta.url);
 const corpus = JSON.parse(
@@ -69,13 +68,6 @@ const corpus = JSON.parse(
   mcp: McpEntry[];
 };
 const record = process.env.OPENPLANS_RECORD_DIGESTS === "1";
-const headerNames = [
-  "content-type",
-  "cache-control",
-  "x-cache",
-  "x-openplans-gaps",
-  "x-quote-tier",
-];
 let fixture: Awaited<ReturnType<typeof digestFixture>>;
 /**
  * The corpus replays twice: with the CMS Marketplace API fallback off (the default) and on.
@@ -96,21 +88,19 @@ const actualHttp: Record<Mode, Digests> = { off: {}, on: {} },
   actualMcp: Record<Mode, Digests> = { off: {}, on: {} };
 let mode: Mode = "off";
 
-async function digest(response: Response): Promise<Digest> {
-  return {
-    status: response.status,
-    body_sha256: createHash("sha256")
-      .update(Buffer.from(await response.arrayBuffer()))
-      .digest("hex"),
-    headers: Object.fromEntries(
-      headerNames.map((name) => [name, response.headers.get(name)]),
-    ),
-  };
-}
 function environment() {
-  // Host configuration must never enter the corpus. Values are restored after each test.
+  // Reset application configuration but keep the database harness. Restore values after each test.
   for (const name of Object.keys(process.env))
-    if (name.startsWith("OPENPLANS_") && name !== "OPENPLANS_RECORD_DIGESTS")
+    if (
+      name.startsWith("OPENPLANS_") &&
+      ![
+        "OPENPLANS_RECORD_DIGESTS",
+        "OPENPLANS_TEST_DB",
+        "OPENPLANS_POSTGRES_TEST_URL",
+        "OPENPLANS_POSTGIS_CONTAINER",
+        "OPENPLANS_POSTGIS_REQUIRED",
+      ].includes(name)
+    )
       vi.stubEnv(name, undefined);
   vi.stubEnv("OPENPLANS_CMS_FALLBACK", mode);
   if (mode === "on") {
@@ -294,7 +284,7 @@ for (const pluginMode of pluginModes)
           }
           const warmRequest = input.clone();
           const response = await app.fetch(input);
-          // Parse a clone only for coverage checks. The digest always hashes the original bytes.
+          // Parse a clone for coverage checks; digest() also asserts release metadata.
           const text = await response.clone().text();
           const messages = text.startsWith("{")
             ? [JSON.parse(text) as RpcBody]
@@ -336,6 +326,20 @@ for (const pluginMode of pluginModes)
             expect(body!.result.nextCursor).toBeUndefined();
           }
           const actual = await digest(response);
+          const bumped = text.replaceAll(
+            `"version":${JSON.stringify(applicationVersion)}`,
+            '"version":"999.0.0-synthetic"',
+          );
+          expect(
+            await digest(
+              new Response(bumped, {
+                status: response.status,
+                headers: response.headers,
+              }),
+              "999.0.0-synthetic",
+            ),
+            `${entry.id}: version bump`,
+          ).toEqual(actual);
           if (!record)
             expect(actual, entry.id).toEqual(expectedMcp[each][entry.id]);
           actualMcp[each][entry.id] = actual;
@@ -444,7 +448,45 @@ it("rejects one_byte_response_mutant by its recorded HTTP case name", async () =
   );
   expect(() =>
     expect(mutated, `one_byte_response_mutant:${entry.id}`).toEqual(
-      expectedHttp[mode][entry.id],
+      record ? actualHttp[mode][entry.id] : expectedHttp[mode][entry.id],
     ),
   ).toThrow(`one_byte_response_mutant:${entry.id}`);
+});
+
+it("keeps the recorded MCP digest on a version bump and rejects a response field mutant", async () => {
+  const entry = corpus.mcp.find((entry) => entry.id === "tools-list-granted")!;
+  const app = createMcpHttp(session(), {
+    env: {
+      OPENPLANS_MCP_TOKEN: TOKEN,
+      OPENPLANS_MCP_CURSOR_SECRET: CURSOR_SECRET,
+    },
+    now: () => Date.parse(FIXED_TIME),
+    log: () => {},
+  });
+  const original = await app.fetch(
+    post(entry.method, entry.params, { authorization: `Bearer ${TOKEN}` }),
+  );
+  const text = await original.text();
+  const expected = record
+    ? actualMcp[mode][entry.id]
+    : expectedMcp[mode][entry.id];
+  expect(text).toContain(`"version":${JSON.stringify(applicationVersion)}`);
+  const bumped = text.replaceAll(
+    `"version":${JSON.stringify(applicationVersion)}`,
+    '"version":"999.0.0-synthetic"',
+  );
+  expect(
+    await digest(
+      new Response(bumped, { headers: original.headers }),
+      "999.0.0-synthetic",
+    ),
+  ).toEqual(expected);
+  const mutant = await digest(
+    new Response(text.replace('"name":"openplans"', '"name":"mutant"'), {
+      headers: original.headers,
+    }),
+  );
+  expect(() =>
+    expect(mutant, "mcp_response_field_mutant").toEqual(expected),
+  ).toThrow("mcp_response_field_mutant");
 });

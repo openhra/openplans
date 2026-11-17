@@ -17,6 +17,7 @@ import { operatorManifest } from "../../config/access.js";
 import { restrictCacheLevel } from "../../plugins/request-scope.js";
 import type { FetchOptions } from "../../fetch/index.js";
 import { dataDirectory } from "./sources.js";
+import { cmsApiKey, cmsApiKeyConfigured } from "../../config/access.js";
 import { saveFallbackSnapshot } from "./fallback-snapshot.js";
 import { STATE_FIPS } from "./states.js";
 
@@ -60,7 +61,7 @@ function zipAdmission(options: CmsLookupOptions): AdmissionSession | undefined {
 
 /** Prepare policy without spending a ZIP lookup or changing its cache. */
 export async function warmCmsZipLookup(): Promise<void> {
-  if (!process.env.CMS_API_KEY) return;
+  if (!cmsApiKeyConfigured()) return;
   const admission = zipAdmission({});
   if (!admission) return;
   await prepareFetch(base, {
@@ -92,7 +93,7 @@ const inflight = new Set<Promise<void>>();
 
 /** Startup and early requests share one bounded policy attempt. Readiness never waits. */
 export function prepareCmsZipFallback(): Promise<boolean> {
-  if (!process.env.CMS_API_KEY || stopped) return Promise.resolve(false);
+  if (!cmsApiKeyConfigured() || stopped) return Promise.resolve(false);
   if (preparation) return preparation;
   if (Date.now() < retryAt) return Promise.resolve(false);
   clearTimeout(retry);
@@ -197,7 +198,7 @@ export async function cmsCountySnapshot(
   zip: string,
   options: CmsLookupOptions = {},
 ): Promise<string | null> {
-  const key = process.env.CMS_API_KEY;
+  const key = cmsApiKey();
   if (!key || cmsFallbackUnavailable()) return null;
   const year = options.year ?? new Date().getUTCFullYear();
   if (

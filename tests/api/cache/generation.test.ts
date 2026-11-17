@@ -1,3 +1,11 @@
+import { createHash } from "node:crypto";
+import { importMutant, withMutantFile } from "../../mutant-file.js";
+import { loadConfig } from "../../../src/config/index.js";
+import {
+  handyManifest,
+  handyVersion,
+  HANDY_ALGORITHM,
+} from "../../../src/db/handy-repository.js";
 import { rebaseImports, replaceSyntax } from "../../source-mutation.js";
 import { PGlite } from "@electric-sql/pglite";
 import { Hono } from "hono";
@@ -15,7 +23,10 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import ts from "typescript";
 import { createApp } from "../../../src/api/app.js";
-import { createResponseCache } from "../../../src/api/cache/index.js";
+import {
+  canonical,
+  createResponseCache,
+} from "../../../src/api/cache/index.js";
 import { dataGeneration } from "../../../src/api/cache/generation.js";
 import { MemoryCache } from "../../../src/api/cache/store.js";
 import {
@@ -287,3 +298,71 @@ describe("transactional catalog generations", () => {
     expect(staleName).toBe(old.counties[0]!.county_name);
   });
 });
+
+async function assertCanonicalGenerations(
+  readers = { dataGeneration, handyVersion, handyManifest },
+) {
+  const { rows } = await db.query<{ table_name: string; revision: string }>(
+    "SELECT table_name,revision::text FROM api_data_generation",
+  );
+  rows.sort((a, b) => {
+    if (a.table_name === b.table_name) return 0;
+    return a.table_name < b.table_name ? -1 : 1;
+  });
+  const generation = createHash("md5")
+    .update(rows.map((row) => `${row.table_name}:${row.revision}`).join(","))
+    .digest("hex");
+  const config = loadConfig();
+  const manifest = createHash("sha256")
+    .update(
+      canonical([
+        HANDY_ALGORITHM,
+        rows.filter((row) => !row.table_name.startsWith("handy_lowest_")),
+        config.ny,
+        config.gaQuoteRecovery,
+      ]),
+    )
+    .digest("hex");
+  expect(await readers.dataGeneration(db)).toBe(generation);
+  expect(await readers.handyVersion(db)).toEqual({ generation, manifest });
+  expect(await readers.handyManifest(db)).toBe(manifest);
+}
+
+it("hashes generation vectors in byte order regardless of database collation", async () => {
+  await assertCanonicalGenerations();
+});
+
+it.runIf(process.env.OPENPLANS_TEST_DB === "postgres")(
+  "negative control: locale-dependent ordering changes generation and manifest identities",
+  async () => {
+    for (const path of [
+      "../../../src/api/cache/generation.ts",
+      "../../../src/db/handy-repository.ts",
+    ]) {
+      const original = new URL(path, import.meta.url);
+      const source = await readFile(original, "utf8");
+      expect(source).toContain('COLLATE "C"');
+      await withMutantFile(
+        original,
+        source.replaceAll(' COLLATE "C"', ""),
+        async (file) => {
+          const mutant = await importMutant<
+            Partial<{
+              dataGeneration: typeof dataGeneration;
+              handyVersion: typeof handyVersion;
+              handyManifest: typeof handyManifest;
+            }>
+          >(file);
+          await expect(
+            assertCanonicalGenerations({
+              dataGeneration,
+              handyVersion,
+              handyManifest,
+              ...mutant,
+            }),
+          ).rejects.toThrow(/expected/);
+        },
+      );
+    }
+  },
+);

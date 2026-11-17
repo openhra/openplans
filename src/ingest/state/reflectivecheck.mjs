@@ -1,9 +1,10 @@
 #!/usr/bin/env node
+import { loadMigrations } from "../../../dist/db/migrate.js";
 // Cache-only validation: original source hashes, isolated PGlite, loopback TCP.
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { once } from "node:events";
-import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { PGlite } from "@electric-sql/pglite";
@@ -30,11 +31,8 @@ const db = {
 const token = randomUUID();
 let server;
 try {
-  for (const name of (await readdir(join(root, "migrations")))
-    .filter((n) => n.endsWith(".sql") && n !== "002_postgis.sql")
-    .sort()) {
-    await db.exec(await readFile(join(root, "migrations", name), "utf8"));
-  }
+  for (const { name, sql } of await loadMigrations(join(root, "migrations")))
+    if (name !== "002_postgis.sql") await db.exec(sql);
   const originalPath = join(data, "derived/state-rating/vt-2026.json");
   const original = JSON.parse(await readFile(originalPath, "utf8"));
   const originalImport = await ingestStateRates(db, originalPath, "VT");

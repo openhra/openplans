@@ -199,7 +199,7 @@ describe("plugin route wrapper", () => {
     expect(calls()["/synthetic/public"]).toBe(1);
   });
 
-  it("rejects a response carrying row provenance and logs the path only", async () => {
+  it("rejects row provenance and logs only the path and rejection category", async () => {
     const log = vi.spyOn(console, "error").mockImplementation(() => {});
     const api = await app();
     const response = await api.request("/synthetic/leak");
@@ -213,6 +213,7 @@ describe("plugin route wrapper", () => {
         JSON.stringify({
           event: "plugin_response_rejected",
           path: "/synthetic/leak",
+          reason: "row_provenance",
         }),
       ],
     ]);
@@ -365,8 +366,8 @@ describe("planted mutants", () => {
   it("is caught when the response-column guard is disabled", async () => {
     const mutant = await plantMutant(
       routesFile,
-      "rowProvenanceLeaks(body, spec.path).length > 0 ||",
-      "false ||",
+      "rowProvenanceLeaks(body, spec.path).length > 0",
+      "false",
     );
     try {
       const module = (await import(mutant.path)) as typeof routesModule;
@@ -533,6 +534,7 @@ describe("reserved status paths and body caps", () => {
       JSON.stringify({
         event: "plugin_response_rejected",
         path: "/synthetic/large",
+        reason: "response_too_large",
       }),
     ]);
   });

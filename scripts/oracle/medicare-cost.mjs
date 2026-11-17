@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { copyMigrations } from "../../dist/db/copy-migrations.js";
 /**
  * Cache-only check of the Part D drug-cost estimator on real CMS files. Imports the cached
  * Medicare archives and the newest cached Part D archive of a contract year into a disposable
@@ -17,14 +18,14 @@
  * The CMS worked examples run end to end in tests/ingest/medicare/medicare-cost-oracle.test.ts.
  */
 import assert from "node:assert/strict";
-import { cp, mkdir, mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { PGlite } from "@electric-sql/pglite";
 import { createApp } from "../../dist/api/app.js";
 import { MemoryCache } from "../../dist/api/cache/store.js";
 import { loadConfig } from "../../dist/config/index.js";
-import { migrate, migrationsDirectory } from "../../dist/db/migrate.js";
+import { migrate } from "../../dist/db/migrate.js";
 import {
   cachedArchives,
   dataDirectory,
@@ -72,9 +73,7 @@ if (!spuf || !landscape || !pbp || !(year in THRESHOLD_CENTS)) {
 }
 
 const migrations = await mkdtemp(join(tmpdir(), "medicare-cost-migrations-"));
-for (const name of await readdir(migrationsDirectory))
-  if (name.endsWith(".sql") && name !== "002_postgis.sql")
-    await cp(join(migrationsDirectory, name), join(migrations, name));
+await copyMigrations(migrations, ["002_postgis.sql"]);
 const pg = new PGlite();
 const db = {
   query: (sql, parameters) => pg.query(sql, parameters),

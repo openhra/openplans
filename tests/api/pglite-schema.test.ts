@@ -22,6 +22,7 @@ describe("PGlite runner refuses an unmigrated database", () => {
     // Synthetic migrations: only the journal check is under test.
     await writeFile(join(directory, "1_one.sql"), "CREATE TABLE one (v int);");
     await writeFile(join(directory, "2_two.sql"), "CREATE TABLE two (v int);");
+    await writeFile(join(directory, "INDEX"), "1_one.sql\n2_two.sql\n");
   });
   afterEach(async () => {
     await pg.close();
@@ -41,6 +42,10 @@ describe("PGlite runner refuses an unmigrated database", () => {
     await migrate(db, directory);
     expect(await check(db, directory)).toEqual([]);
     await writeFile(join(directory, "3_three.sql"), "SELECT 1;");
+    await writeFile(
+      join(directory, "INDEX"),
+      "1_one.sql\n2_two.sql\n3_three.sql\n",
+    );
     expect(await check(db, directory)).toEqual(["3_three.sql"]);
   }
 

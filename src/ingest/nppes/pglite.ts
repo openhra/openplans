@@ -1,8 +1,9 @@
 #!/usr/bin/env node
+import { copyMigrations } from "../../db/copy-migrations.js";
+import { runnerSettings } from "../../config/access.js";
 /** Developer-only file DB runner. Downloaded bytes, database and reports remain in the shared cache. */
 import { PGlite } from "@electric-sql/pglite";
 import {
-  cp,
   mkdir,
   mkdtemp,
   readdir,
@@ -13,7 +14,7 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Database, SqlSession } from "../../db/database.js";
-import { migrate, migrationsDirectory } from "../../db/migrate.js";
+import { migrate } from "../../db/migrate.js";
 import { acquireRelease, dataDirectory, discoverCurrent } from "./acquire.js";
 import { importNppes } from "./import.js";
 import { providerByNpi } from "./lookup.js";
@@ -24,10 +25,7 @@ const directory = await mkdtemp(join(tmpdir(), "openplans-nppes-migrations-"));
 let db: Database | undefined;
 try {
   await mkdir(join(dataDir, "reports"), { recursive: true });
-  for (const name of await readdir(migrationsDirectory)) {
-    if (name.endsWith(".sql") && name !== "002_postgis.sql")
-      await cp(join(migrationsDirectory, name), join(directory, name));
-  }
+  await copyMigrations(directory, ["002_postgis.sql"]);
   const pg = new PGlite(dbPath),
     session: SqlSession = {
       query: (sql, args) => pg.query(sql, args),
@@ -82,11 +80,9 @@ try {
     console.log(JSON.stringify(report));
   }
   const spots = [];
-  if (process.env.OPENPLANS_REFERENCE_CAPTURES_DIR) {
-    const root = join(
-      process.env.OPENPLANS_REFERENCE_CAPTURES_DIR,
-      "providers",
-    );
+  const referenceCapturesDir = runnerSettings().referenceCapturesDir;
+  if (referenceCapturesDir) {
+    const root = join(referenceCapturesDir, "providers");
     const npis = new Set<string>();
     async function visit(dir: string) {
       for (const file of await readdir(dir, { withFileTypes: true })) {

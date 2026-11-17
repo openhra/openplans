@@ -1,11 +1,12 @@
 #!/usr/bin/env node
+import { copyMigrations } from "../../db/copy-migrations.js";
 /** Developer real-data runner. Copies only county-selected published rows into a fresh, isolated file DB. */
 import { PGlite } from "@electric-sql/pglite";
-import { cp, mkdir, mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Database, SqlSession } from "../../db/database.js";
-import { migrate, migrationsDirectory } from "../../db/migrate.js";
+import { migrate } from "../../db/migrate.js";
 import { ingestGeocode } from "./index.js";
 import { dataDirectory } from "./census.js";
 const root = dataDirectory(),
@@ -41,9 +42,7 @@ function session(pg: PGlite): Database {
 }
 try {
   await mkdir(join(root, "reports"), { recursive: true });
-  for (const name of await readdir(migrationsDirectory))
-    if (name.endsWith(".sql") && name !== "002_postgis.sql")
-      await cp(join(migrationsDirectory, name), join(directory, name));
+  await copyMigrations(directory, ["002_postgis.sql"]);
   const pg = new PGlite(dbPath);
   db = session(pg);
   await migrate(db, directory);

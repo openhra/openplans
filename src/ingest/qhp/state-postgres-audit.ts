@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { runnerSettings } from "../../config/access.js";
 /** Read-only per-state HTTP validation against an explicitly selected loopback developer DB. */
 import pg from "pg";
 import { serve } from "@hono/node-server";
@@ -10,12 +11,11 @@ import type { SqlSession } from "../../db/database.js";
 import { dataDirectory } from "../../config/access.js";
 
 const cache = dataDirectory();
-const url = process.env.OPENPLANS_QHP_DATABASE_URL;
-const state = process.env.OPENPLANS_QHP_STATE ?? "TX";
-const year = Number(process.env.OPENPLANS_QHP_YEAR ?? 2026);
+const url = runnerSettings().qhpDatabaseUrl?.reveal();
+const state = runnerSettings().qhpState ?? "TX";
+const year = Number(runnerSettings().qhpYear ?? 2026);
 const prefix =
-  process.env.OPENPLANS_QHP_REPORT_PREFIX ??
-  `qhp-${state.toLowerCase()}-${year}`;
+  runnerSettings().qhpReportPrefix ?? `qhp-${state.toLowerCase()}-${year}`;
 if (
   !url ||
   new URL(url).hostname !== "127.0.0.1" ||

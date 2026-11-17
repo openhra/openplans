@@ -1,6 +1,7 @@
+import { copyMigrations } from "../../db/copy-migrations.js";
 import { PGlite } from "@electric-sql/pglite";
 import { Hono } from "hono";
-import { cp, mkdtemp, readdir, rm } from "node:fs/promises";
+import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -61,11 +62,15 @@ const testConfig: CoreConfigView = {
 
 function fixtureDatabase(): Database {
   const pg = new PGlite();
-  return {
+  const session: Pick<Database, "query" | "exec"> = {
     query: (sql, parameters) => pg.query(sql, parameters),
     exec: async (sql) => {
       await pg.exec(sql);
     },
+  };
+  return {
+    ...session,
+    withSession: (run) => run(session),
     transaction: (run) =>
       pg.transaction((tx) =>
         run({
@@ -100,9 +105,7 @@ async function migrateForTest(
     join(tmpdir(), "openplans-plugin-migrations-"),
   );
   try {
-    for (const file of await readdir(migrationsDirectory))
-      if (file.endsWith(".sql") && file !== "002_postgis.sql")
-        await cp(join(migrationsDirectory, file), join(directory, file));
+    await copyMigrations(directory, ["002_postgis.sql"]);
     await migrate(db, directory, plugins);
   } finally {
     await rm(directory, { recursive: true, force: true });

@@ -1,16 +1,10 @@
 #!/usr/bin/env node
+import { loadMigrations } from "../../../dist/db/migrate.js";
 // Cache-only evidence and service check in an isolated disposable database.
 import assert from "node:assert/strict";
 import { checkHandyFiled } from "../../../scripts/oracle/handy-filed.mjs";
 import { spawnSync } from "node:child_process";
-import {
-  mkdir,
-  mkdtemp,
-  readFile,
-  readdir,
-  rm,
-  writeFile,
-} from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { PGlite } from "@electric-sql/pglite";
@@ -78,11 +72,8 @@ const request = {
   lcspPremiumBasis: "gross",
 };
 try {
-  for (const name of (await readdir(join(root, "migrations"))).sort(
-    (a, b) => parseInt(a, 10) - parseInt(b, 10),
-  ))
-    if (name.endsWith(".sql") && name !== "002_postgis.sql")
-      await db.exec(await readFile(join(root, "migrations", name), "utf8"));
+  for (const { name, sql } of await loadMigrations(join(root, "migrations")))
+    if (name !== "002_postgis.sql") await db.exec(sql);
   // Match the normal migration runner for tables added after the metadata migrations.
   await db.exec(
     "SELECT install_row_provenance_all(); SELECT install_record_policy_all();",

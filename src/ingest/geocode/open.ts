@@ -1,9 +1,11 @@
+import { currentEnvironment } from "../../config/index.js";
 import type { Address } from "./address.js";
 import type { County } from "./counties.js";
 import { countyAt, insideBounds } from "./counties.js";
 import { normalizeAddress } from "./normalize.js";
 import { geocoderJson } from "./operator.js";
 import type { Geocoder } from "./operator.js";
+import { geocoderSettings } from "../../config/access.js";
 
 export const openAttribution = "© OpenStreetMap contributors";
 export const openLicence = "ODbL-1.0";
@@ -112,11 +114,12 @@ export function validateOpenIndexDate(
 export function openGeocoder(
   counties: County[],
   dataset: OpenDataset,
-  env: NodeJS.ProcessEnv = process.env,
+  env: NodeJS.ProcessEnv = currentEnvironment(),
 ): OpenGeocoder | null {
-  if (!env.OPENPLANS_OPEN_GEOCODER_URL) return null;
+  const settings = geocoderSettings(env);
+  if (!settings.openUrl) return null;
   validateOpenDataset(dataset);
-  const base = nominatimUrl(env.OPENPLANS_OPEN_GEOCODER_URL);
+  const base = nominatimUrl(settings.openUrl);
   base.pathname = "/search";
   return {
     dataset,

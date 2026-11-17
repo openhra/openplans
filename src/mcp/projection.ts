@@ -1,6 +1,7 @@
 import type { SqlSession } from "../db/database.js";
 import { getSnapshot } from "../services/provenance.js";
 import type { HonestyContext } from "./schemas.js";
+import { assertOutputCount } from "./bounded.js";
 import { ToolError } from "./cursor.js";
 import { countyState } from "../api/repository.js";
 import { TERRITORY_FIPS } from "../ingest/geo/states.js";
@@ -50,7 +51,7 @@ function snapshotIds(value: unknown, ids = new Set<string>()): Set<string> {
 /** A request-local projection: only columns already published by the read services can enter a DTO. */
 export async function projector(db: SqlSession, native: unknown) {
   const ids = [...snapshotIds(native)];
-  if (ids.length > 100) throw new ToolError("RESULT_TOO_LARGE");
+  assertOutputCount(ids.length, 100);
   const metadata = new Map<
     string,
     NonNullable<Awaited<ReturnType<typeof getSnapshot>>>

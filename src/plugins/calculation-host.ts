@@ -3,6 +3,8 @@ import { dataGeneration } from "../api/cache/generation.js";
 import { boundedDatabase } from "../db/bounded.js";
 import { enumerateHouseholdOffers } from "../services/offer-cohort.js";
 import { householdDistributions } from "../services/handy.js";
+import { allowanceBenchmark } from "../services/allowance-evidence.js";
+import { handySnapshots } from "../db/handy-repository.js";
 import { benchmark } from "../services/subsidies.js";
 import { premiumRequest } from "../api/validation.js";
 import { resolveLocation } from "../api/repository.js";
@@ -74,10 +76,21 @@ export function createCalculationHost(
           year: request.year,
         }),
       );
+      const compact = allowanceBenchmark(result);
+      const ids = compact.source_refs.flatMap((ref) =>
+        typeof (ref.snapshot_id ?? ref.publication_snapshot_id) === "string"
+          ? [String(ref.snapshot_id ?? ref.publication_snapshot_id)]
+          : [],
+      );
+      const snapshots = await handySnapshots(db, [...new Set(ids)]);
       scope.signal.throwIfAborted();
       if ((await dataGeneration(db)) !== generation)
         throw new Error("DATA_CHANGED");
-      return { ...result, data_generation: generation };
+      return {
+        ...compact,
+        snapshots,
+        data_generation: generation,
+      };
     },
   });
 }

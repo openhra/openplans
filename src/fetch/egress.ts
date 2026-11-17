@@ -1,3 +1,4 @@
+import { currentEnvironment } from "../config/index.js";
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { isAbsolute } from "node:path";
@@ -197,7 +198,7 @@ export function assertEgressCurrent(
  */
 export function egressFromEnvironment(
   declaredCountry: string | undefined,
-  env: NodeJS.ProcessEnv = process.env,
+  env: NodeJS.ProcessEnv = currentEnvironment(),
 ): EgressBinding | undefined {
   const file = env.OPENPLANS_EGRESS_FILE || undefined;
   if (!file) return undefined;

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { copyMigrations } from "../../dist/db/copy-migrations.js";
 /**
  * Cache-only Part D check. Imports the newest cached Part D public use archive of a contract year
  * into a disposable PGlite database, then compares every imported row group, every plan's
@@ -8,12 +9,12 @@
  */
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { cp, mkdir, mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { PGlite } from "@electric-sql/pglite";
-import { migrate, migrationsDirectory } from "../../dist/db/migrate.js";
+import { migrate } from "../../dist/db/migrate.js";
 import { parsePlanKey } from "../../dist/domain/medicare/index.js";
 import { dataDirectory } from "../../dist/ingest/medicare/acquire.js";
 import { cachedSpuf, importSpuf } from "../../dist/ingest/medicare/spuf.js";
@@ -51,9 +52,7 @@ assert.equal(reference.status, 0, reference.stderr);
 const expected = JSON.parse(reference.stdout);
 
 const migrations = await mkdtemp(join(tmpdir(), "part-d-oracle-migrations-"));
-for (const name of await readdir(migrationsDirectory))
-  if (name.endsWith(".sql") && name !== "002_postgis.sql")
-    await cp(join(migrationsDirectory, name), join(migrations, name));
+await copyMigrations(migrations, ["002_postgis.sql"]);
 const pg = new PGlite();
 const db = {
   query: (sql, parameters) => pg.query(sql, parameters),

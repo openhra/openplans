@@ -1,3 +1,4 @@
+import { currentEnvironment } from "../../config/index.js";
 import { createHash } from "node:crypto";
 import { readFile, rm } from "node:fs/promises";
 import { dirname } from "node:path";
@@ -189,7 +190,7 @@ function evidenceKey(source: Source): string {
 }
 function keyValue(source: Source): string | undefined {
   const name = source.manifest.apiKeyEnv;
-  return name ? process.env[name] || undefined : undefined;
+  return name ? currentEnvironment()[name] || undefined : undefined;
 }
 
 export function createPassThrough(deps: PassThroughDeps): PassThroughApi {

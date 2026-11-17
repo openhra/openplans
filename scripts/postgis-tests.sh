@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Runs the test files that need PostGIS against a disposable PostGIS container, then removes it.
 #
-#   scripts/postgis-tests.sh --image IMAGE
+#   scripts/postgis-tests.sh --image IMAGE [--all] [--results ABSOLUTE_PATH] [-- TEST_FILE...]
+# --all uses OPENPLANS_TEST_DB=postgres; paths after -- select files instead of the whole suite.
 #
 # IMAGE is a build of Dockerfile.db, named by tag or by image ID. The container gets a random
 # localhost port and a random password, and each suite gets its own empty database. Docker must
@@ -16,17 +17,32 @@ fail() {
 }
 
 image=""
+all=false
+results=""
+selected_files=()
 while [ $# -gt 0 ]; do
   case "$1" in
+    --all) all=true; shift ;;
+    --) shift; [ $# -gt 0 ] || fail "-- needs at least one test file"; selected_files=("$@"); break ;;
+    --results)
+      [ $# -ge 2 ] && [ -n "$2" ] || fail "--results needs a path"
+      results="$2"; shift 2 ;;
     --image)
       [ $# -ge 2 ] && [ -n "$2" ] || fail "--image needs a value"
       image="$2"
       shift 2
       ;;
-    *) fail "usage: scripts/postgis-tests.sh --image IMAGE" ;;
+    *) fail "usage: scripts/postgis-tests.sh --image IMAGE [--all] [--results PATH] [-- TEST_FILE...]" ;;
   esac
 done
-[ -n "$image" ] || fail "usage: scripts/postgis-tests.sh --image IMAGE"
+[ -n "$image" ] || fail "usage: scripts/postgis-tests.sh --image IMAGE [--all] [--results PATH] [-- TEST_FILE...]"
+
+if [ "${#selected_files[@]}" -gt 0 ]; then
+  $all || fail "test file selection requires --all"
+  for file in "${selected_files[@]}"; do
+    [[ "$file" != -* && "$file" == *.test.* && -f "$file" ]] || fail "expected an existing test file"
+  done
+fi
 
 command -v docker >/dev/null 2>&1 || fail "docker is not installed; the PostGIS suites need it"
 docker info >/dev/null 2>&1 || fail "docker is not running or not reachable; the PostGIS suites need it"
@@ -46,6 +62,7 @@ databases=(
 )
 # The multistate suite opens one database per state beside the one its URL names.
 extra_databases=(openplans_p3l_controls_fl openplans_p3l_controls_nc)
+if $all; then extra_databases+=(openplans_nightly); fi
 files=(
   tests/postgis-required.test.ts
   tests/api/providers.test.ts
@@ -61,7 +78,13 @@ files=(
   tests/db/maintenance-locks.test.ts
 )
 
-name="${OPENPLANS_POSTGIS_CONTAINER:-openplans-postgis-tests-$$}"
+focused_files=("${files[@]}")
+
+if $all; then
+  name="${OPENPLANS_POSTGIS_CONTAINER:-openplans-fa14-nightly-tests-$$}"
+else
+  name="${OPENPLANS_POSTGIS_CONTAINER:-openplans-postgis-tests-$$}"
+fi
 password="$(node -e 'process.stdout.write(require("node:crypto").randomBytes(18).toString("hex"))')"
 cleanup() {
   docker rm --force --volumes "$name" >/dev/null 2>&1 || true
@@ -99,26 +122,38 @@ for database in "${extra_databases[@]}"; do
     -qc "CREATE DATABASE $database" || fail "could not create database $database"
 done
 export OPENPLANS_POSTGIS_REQUIRED=1
+if $all; then
+  export OPENPLANS_TEST_DB=postgres
+  export OPENPLANS_POSTGRES_TEST_URL="postgresql://openplans:$password@127.0.0.1:$port/openplans_nightly"
+  export READ_TIMEOUT_POSTGRES_URL="$OPENPLANS_POSTGRES_TEST_URL"
+  files=("${selected_files[@]}")
+fi
 echo "postgis-tests: $name ready in $(($(date +%s) - started)) s on 127.0.0.1:$port"
 
 report="$(mktemp -d)"
 trap 'cleanup; rm -rf "$report"' EXIT INT TERM
 # These suites share one database server and count server-wide advisory locks, so their files
 # run one at a time.
-OPENPLANS_TEST_WORKERS=1 npx vitest run --reporter=default --reporter=json --outputFile.json="$report/results.json" "${files[@]}"
+# Preserve JSON on failure too, so the nightly report can name every divergence.
+status=0
+OPENPLANS_TEST_WORKERS=1 npx vitest run --reporter=default --reporter=json --outputFile.json="$report/results.json" ${files[@]+"${files[@]}"} || status=$?
+if [ -n "$results" ] && [ -f "$report/results.json" ]; then cp "$report/results.json" "$results"; fi
+[ "$status" -eq 0 ] || fail "vitest failed (exit $status)"
 # Print each file's counts. Every test must run: a skipped test here means a suite fell back to
 # PGlite or skipped its PostGIS checks.
 node -e '
 const results = JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8"));
+const all = process.argv[2] === "true";
+const focused = new Set(process.argv.slice(3));
 let skipped = 0;
 for (const file of results.testResults) {
   const counts = {};
   for (const test of file.assertionResults) counts[test.status] = (counts[test.status] ?? 0) + 1;
-  skipped += (counts.skipped ?? 0) + (counts.pending ?? 0) + (counts.todo ?? 0);
   const name = file.name.slice(process.cwd().length + 1);
+  if (!all || focused.has(name)) skipped += (counts.skipped ?? 0) + (counts.pending ?? 0) + (counts.todo ?? 0);
   console.log(`postgis-tests: ${name}: ${Object.entries(counts).map(([k, v]) => `${v} ${k}`).join(", ")}`);
 }
 console.log(`postgis-tests: ${results.numPassedTests} passed, ${results.numFailedTests} failed, ${skipped} skipped in ${results.numTotalTestSuites ? results.testResults.length : 0} files`);
-if (skipped) { console.error("postgis-tests: tests were skipped; every PostGIS test must run"); process.exit(1); }
-' "$report/results.json" || fail "skipped tests in the PostGIS run"
+if (skipped) { console.error("postgis-tests: tests were skipped; every required PostGIS test must run"); process.exit(1); }
+' "$report/results.json" "$all" "${focused_files[@]}" || fail "skipped tests in the PostGIS run"
 echo "postgis-tests: PASS in $(($(date +%s) - started)) s"

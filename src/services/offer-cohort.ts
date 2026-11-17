@@ -8,6 +8,7 @@ import { offerStatistics } from "../domain/comparison/statistics.js";
 import {
   enumerateLowest as enumerateSilverOffers,
   householdDistributions,
+  householdEvidence,
 } from "./handy.js";
 export { enumerateSilverOffers };
 
@@ -62,7 +63,29 @@ export async function enumerateHouseholdOffers(
     const evidencePage = input.evidence_page;
     const pageSize = 2;
     const start = (evidencePage - 1) * pageSize;
-    const rows = household.provenance.evidence as unknown[];
+    const shown = {
+      candidates: rated.slice(start, start + pageSize),
+      excluded: excluded.slice(start, start + pageSize),
+      unknown: candidates
+        .filter((row) => row.status !== "rated")
+        .slice(start, start + pageSize),
+    };
+    const refs = [
+      ...new Set(
+        Object.values(shown).flatMap((entries) =>
+          entries.map((entry) => Number(entry.evidence_ref)),
+        ),
+      ),
+    ].sort((a, b) => a - b);
+    const rows = household.provenance.evidence;
+    if (refs.some((ref) => !Number.isInteger(ref) || !rows[ref]))
+      throw new Error("household_evidence_unavailable");
+    const remap = new Map(refs.map((ref, index) => [ref, index]));
+    const pageRows = (entries: Record<string, unknown>[]) =>
+      entries.map((entry) => ({
+        ...entry,
+        evidence_ref: remap.get(Number(entry.evidence_ref))!,
+      }));
     const snapshots = household.provenance.snapshots as Record<
       string,
       unknown
@@ -103,12 +126,10 @@ export async function enumerateHouseholdOffers(
         manifest: String(household.provenance.input_manifest),
         offer_set: null,
         snapshots,
-        candidates: rated.slice(start, start + pageSize),
-        excluded: excluded.slice(start, start + pageSize),
-        unknown: candidates
-          .filter((row) => row.status !== "rated")
-          .slice(start, start + pageSize),
-        sources: rows.slice(start, start + pageSize),
+        candidates: pageRows(shown.candidates),
+        excluded: pageRows(shown.excluded),
+        unknown: pageRows(shown.unknown),
+        sources: refs.map((ref) => householdEvidence(rows[ref])),
         page: evidencePage,
         page_size: pageSize,
         next_page:

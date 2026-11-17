@@ -12,6 +12,9 @@ import { FIXED_TIME } from "../../../tests/plugins/fixture.js";
 import { setup } from "../../../tests/compat/v1/helpers.js";
 import type { SqlSession } from "../../../src/db/database.js";
 import { marketOutput } from "../src/service.js";
+import type { MarketAnswer } from "../src/service.js";
+import { printMarket } from "../src/print.js";
+import { householdDistributions } from "../../../src/services/handy.js";
 import { marketForm } from "../src/visitor.js";
 import { withMutantFile, importMutant } from "../../../tests/mutant-file.js";
 import type { OpenPlansPlugin, RouteSpec } from "@openplans/plugin-sdk";
@@ -390,6 +393,65 @@ it("matches separate recorded public-on HTTP and MCP bytes", async () => {
       }),
     ),
   };
+  // The capture predates compact evidence. Restore only those fields for the archived
+  // byte check; the current page references and framed size are checked independently.
+  const distribution = await householdDistributions(
+    fixture.db,
+    {
+      ...householdInput,
+      members: householdInput.members.map((member) => ({
+        ...member,
+        tobacco: false,
+      })),
+    },
+    { enabled: true },
+  );
+  const group = distribution.profiles[0]!.metals.find(
+    (entry) => entry.metal === "silver",
+  )!;
+  const capturedRefs = new Map(
+    [...group.candidates, ...group.excluded].map((row) => [
+      row.plan_id,
+      row.evidence_ref,
+    ]),
+  );
+  const capturedEvidence = (answer: MarketAnswer) => {
+    const copy = structuredClone(answer);
+    const evidence = copy.data.comparison.evidence;
+    for (const row of [
+      ...evidence.candidates,
+      ...evidence.excluded,
+      ...evidence.unknown,
+    ]) {
+      expect(capturedRefs.has(String(row.plan_id))).toBe(true);
+      row.evidence_ref = capturedRefs.get(String(row.plan_id));
+    }
+    evidence.sources = distribution.provenance.evidence.slice(0, 2);
+    return copy;
+  };
+  const householdAnswer = (await responses.household
+    .clone()
+    .json()) as MarketAnswer;
+  marketOutput.parse(householdAnswer);
+  const householdFrame = (await responses.household_mcp.clone().json()) as {
+    result: {
+      structuredContent: MarketAnswer;
+      content: { type: string; text: string }[];
+    };
+  };
+  householdFrame.result.structuredContent = capturedEvidence(
+    householdFrame.result.structuredContent,
+  );
+  householdFrame.result.content[0]!.text = JSON.stringify(
+    householdFrame.result.structuredContent,
+  );
+  const capturedBodies: Record<string, Buffer> = {
+    household: Buffer.from(JSON.stringify(capturedEvidence(householdAnswer))),
+    household_print: Buffer.from(
+      printMarket(capturedEvidence(householdAnswer)),
+    ),
+    household_mcp: Buffer.from(JSON.stringify(householdFrame)),
+  };
   const actual = Object.fromEntries(
     await Promise.all(
       Object.entries(responses).map(
@@ -399,7 +461,10 @@ it("matches separate recorded public-on HTTP and MCP bytes", async () => {
             {
               status: response.status,
               body_sha256: createHash("sha256")
-                .update(Buffer.from(await response.arrayBuffer()))
+                .update(
+                  capturedBodies[name] ??
+                    Buffer.from(await response.arrayBuffer()),
+                )
                 .digest("hex"),
               headers: Object.fromEntries(
                 [
@@ -419,5 +484,16 @@ it("matches separate recorded public-on HTTP and MCP bytes", async () => {
   );
   if (process.env.OPENPLANS_RECORD_COMPARE_DIGESTS === "1")
     await writeFile(file, `${JSON.stringify(actual, null, 2)}\n`);
-  else expect(actual).toEqual(JSON.parse(await readFile(file, "utf8")));
+  else {
+    const recorded = JSON.parse(await readFile(file, "utf8")) as typeof actual;
+    expect(actual).toEqual(recorded);
+    const mutant = structuredClone(householdAnswer);
+    mutant.data.comparison.denominator.rated_count = 0;
+    const mutantHash = createHash("sha256")
+      .update(JSON.stringify(capturedEvidence(mutant)))
+      .digest("hex");
+    expect(() =>
+      expect(mutantHash).toBe(recorded.household!.body_sha256),
+    ).toThrow();
+  }
 });

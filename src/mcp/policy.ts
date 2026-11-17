@@ -69,3 +69,27 @@ export function requestDependencies(
     ),
   };
 }
+
+/** Pricing reads share one cancellable, read-only SQL scope instead of one per query. */
+export async function withRequestDependencies<T>(
+  deps: McpDependencies,
+  signal: AbortSignal,
+  run: (dependencies: McpDependencies) => Promise<T>,
+): Promise<T> {
+  const deadline = AbortSignal.any([signal, AbortSignal.timeout(DEADLINE_MS)]);
+  const invoke = (db: SqlSession) =>
+    run({
+      ...deps,
+      db: boundedDatabase(
+        {
+          query: db.query.bind(db),
+          exec: db.exec.bind(db),
+          background: deps.db.background ?? db.background ?? deps.db,
+        },
+        deadline,
+      ),
+    });
+  return deps.db.withRequest
+    ? deps.db.withRequest(deadline, invoke)
+    : invoke(deps.db);
+}

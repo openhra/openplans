@@ -1,17 +1,9 @@
 #!/usr/bin/env node
+import { copyMigrations } from "../../dist/db/copy-migrations.js";
 /** Cache-only SBE oracle. Python csv/Decimal/zipfile is independent of the importer. */
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import {
-  cp,
-  mkdir,
-  mkdtemp,
-  readdir,
-  rm,
-  stat,
-  writeFile,
-} from "node:fs/promises";
-import { fileURLToPath } from "node:url";
+import { mkdir, mkdtemp, rm, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { PGlite } from "@electric-sql/pglite";
 import { migrate } from "../../dist/db/migrate.js";
@@ -134,7 +126,6 @@ const table = {
   "business-rules": "business_rule",
   "benefits-and-cost-sharing": "plan_benefit",
 };
-const project = fileURLToPath(new URL("../../", import.meta.url));
 const dataDir = importDataDirectory();
 const args = process.argv.slice(2);
 const year = Number(
@@ -179,9 +170,7 @@ let failed = false;
 const reports = [];
 try {
   await mkdir(join(dataDir, "reports"), { recursive: true });
-  for (const n of await readdir(join(project, "migrations")))
-    if (n.endsWith(".sql") && n !== "002_postgis.sql")
-      await cp(join(project, "migrations", n), join(directory, n));
+  await copyMigrations(directory, ["002_postgis.sql"]);
   const published = await sbePublications(dataDir, false);
   const links = published.filter(
     (l) => l.year === year && (!selected || selected.includes(l.state)),

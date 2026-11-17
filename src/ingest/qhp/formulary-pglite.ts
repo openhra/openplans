@@ -1,20 +1,13 @@
 #!/usr/bin/env node
+import { copyMigrations } from "../../db/copy-migrations.js";
+import { runnerSettings } from "../../config/access.js";
 /** Real-data developer runner; isolated PGlite DB and report stay in the data cache. */
 import { PGlite } from "@electric-sql/pglite";
-import {
-  cp,
-  mkdir,
-  mkdtemp,
-  readdir,
-  rm,
-  stat,
-  writeFile,
-} from "node:fs/promises";
+import { cp, mkdir, mkdtemp, rm, stat, writeFile } from "node:fs/promises";
 import { createReadStream } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Database, SqlSession } from "../../db/database.js";
-import { migrationsDirectory } from "../../db/migrate.js";
 import { runWorker } from "../../worker/commands.js";
 import { readJsonArray } from "../json/index.js";
 import { createDrugRepository } from "../../domain/drugs/repository.js";
@@ -22,7 +15,7 @@ import { dataDirectory } from "../../config/access.js";
 
 const cache = dataDirectory();
 const path =
-  process.env.OPENPLANS_FORMULARY_DB ?? join(cache, "formulary-pglite-p2c");
+  runnerSettings().formularyDb ?? join(cache, "formulary-pglite-p2c");
 const directory = await mkdtemp(
   join(tmpdir(), "openplans-formulary-migrations-"),
 );
@@ -152,10 +145,7 @@ async function bootstrap() {
   );
 }
 try {
-  for (const name of await readdir(migrationsDirectory))
-    if (name.endsWith(".sql") && name !== "002_postgis.sql") {
-      await cp(join(migrationsDirectory, name), join(directory, name));
-    }
+  await copyMigrations(directory, ["002_postgis.sql"]);
   let exists = true;
   try {
     await stat(path);
@@ -268,7 +258,7 @@ try {
     const output = join(
       cache,
       "reports",
-      process.env.OPENPLANS_FORMULARY_REPORT ?? "p2c-formulary-realdata.json",
+      runnerSettings().formularyReport ?? "p2c-formulary-realdata.json",
     );
     await writeFile(
       output,

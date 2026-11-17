@@ -1,9 +1,11 @@
+import { currentEnvironment } from "../config/index.js";
 import type { Database } from "../db/database.js";
 import { createFlusher } from "./flush.js";
 import { scheduleFlush } from "./schedule.js";
 import { setOperatorTelemetryReader } from "../plugins/operator-host.js";
 import { activeRecorder, createRecorder, useRecorder } from "./observer.js";
 import { currentReader } from "./read.js";
+import { loadConfig } from "../config/index.js";
 
 /** Host opt-in before createApp, independent of admin. Disabled means no recorder, timers, SQL or buffers. */
 export function configureTelemetry(options: {
@@ -30,7 +32,7 @@ export function startTelemetry(options: {
   env?: NodeJS.ProcessEnv;
 }) {
   const enabled =
-    (options.env ?? process.env).OPENPLANS_METRICS === "on" &&
+    loadConfig(options.env ?? currentEnvironment()).telemetry.enabled &&
     options.plugins.some((plugin) => plugin.name === "@openplans/plugin-admin");
   configureTelemetry({ enabled });
   if (!enabled) return undefined;

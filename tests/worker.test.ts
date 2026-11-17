@@ -2,9 +2,10 @@ import { PGlite } from "@electric-sql/pglite";
 import { describe, expect, it } from "vitest";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { loadMigrations } from "../src/db/migrate.js";
 import { runWorker } from "../src/worker/commands.js";
 import { coreMigrations, testDatabase } from "./pglite.js";
 
@@ -77,9 +78,7 @@ describe("worker CLI", () => {
         0,
       );
       expect(JSON.parse(stdout[0]!)).toEqual({
-        applied: (await readdir(core.directory))
-          .filter((name) => name.endsWith(".sql"))
-          .sort((a, b) => a.localeCompare(b, "en", { numeric: true })),
+        applied: (await loadMigrations(core.directory)).map(({ name }) => name),
       });
       expect(await runWorker(["migrate"], open, output, core.directory)).toBe(
         0,
@@ -116,6 +115,7 @@ describe("worker CLI", () => {
         join(directory, "001_synthetic.sql"),
         "DROP TABLE synthetic;",
       );
+      await writeFile(join(directory, "INDEX"), "001_synthetic.sql\n");
       expect(
         await runWorker(["migrate", "--check"], open, output, directory),
       ).toBe(0);
@@ -151,6 +151,44 @@ describe("worker CLI", () => {
     }
   });
 
+  it("negative control: migrate --check refuses a planted unindexed SQL file without applying it", async () => {
+    const pg = new PGlite();
+    const db = testDatabase(pg);
+    const core = await coreMigrations();
+    const stdout: string[] = [],
+      errors: string[] = [];
+    try {
+      await writeFile(
+        join(core.directory, "20261117041530_unindexed.sql"),
+        "CREATE TABLE synthetic_unindexed(id int);",
+      );
+      expect(
+        await runWorker(
+          ["migrate", "--check"],
+          () => ({ ...db, close: async () => {} }),
+          {
+            out: (line) => stdout.push(line),
+            error: (line) => errors.push(line),
+          },
+          core.directory,
+        ),
+      ).toBe(1);
+      expect(stdout).toEqual([]);
+      expect(errors).toHaveLength(1);
+      expect(errors[0]).toContain("worker migrate failed");
+      expect(
+        (
+          await pg.query(
+            "SELECT to_regclass('schema_migrations') AS journal, to_regclass('synthetic_unindexed') AS planted",
+          )
+        ).rows,
+      ).toEqual([{ journal: null, planted: null }]);
+    } finally {
+      await db.close();
+      await core.cleanup();
+    }
+  });
+
   it("negative control: a syntax error makes the runner command fail and records nothing", async () => {
     const pg = new PGlite();
     const db = testDatabase(pg);
@@ -161,6 +199,7 @@ describe("worker CLI", () => {
         join(directory, "001_broken.sql"),
         "CREATE TABLE transient (id integer); INVALID SQL;",
       );
+      await writeFile(join(directory, "INDEX"), "001_broken.sql\n");
       const code = await runWorker(
         ["migrate"],
         () => ({ ...db, close: async () => {} }),

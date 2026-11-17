@@ -118,6 +118,25 @@ it("keeps metal groups separate and prices each household on the same plans", as
       { age: 8, relationship: "child" },
     ],
   };
+  const client = await connect({
+    db: h.db,
+    cursorSecret: "synthetic-household-evidence-secret",
+    pluginTools: loaded.registries.mcpTools,
+  });
+  try {
+    const result = await client.client.callTool({
+      name: "compare_market_costs",
+      arguments: householdInput,
+    });
+    expect(result.isError, JSON.stringify(result)).not.toBe(true);
+    expect(Buffer.byteLength(JSON.stringify(result)) + 4096).toBeLessThan(
+      64 * 1024,
+    );
+    const answer = marketOutput.parse(result.structuredContent);
+    expect(answer.data.comparison.evidence.sources.length).toBeGreaterThan(0);
+  } finally {
+    await client.close();
+  }
   const printed = await app.request("/compare/v1/print", {
     method: "POST",
     headers: { "content-type": "application/json" },

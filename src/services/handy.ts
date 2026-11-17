@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { allowanceEvidence } from "./allowance-evidence.js";
 import { fail, premiumRequest } from "../api/validation.js";
 import { canonical } from "../api/cache/index.js";
 import type { ResponseCache } from "../api/cache/index.js";
@@ -1009,17 +1010,19 @@ async function enumerateHouseholds(
   }
   const evidenceIndex = new Map<string, number>();
   const ref = (value: unknown) => {
-    const key = JSON.stringify(value);
+    const stored = fourProfiles ? allowanceEvidence(value) : value;
+    const key = JSON.stringify(stored);
     const found = evidenceIndex.get(key);
     if (found !== undefined) return found;
     evidenceIndex.set(key, evidence.length);
-    collectSources(value);
-    evidence.push(value);
+    collectSources(stored);
+    evidence.push(stored);
     return evidence.length - 1;
   };
   const result = {
     schema_version: "1" as const,
     algorithm_version: "household-nearest-rank-v1" as const,
+    ...(fourProfiles ? { evidence_format: "source-references-v1" } : {}),
     status: "unknown" as string,
     reason: null as string | null,
     year: input.year,
@@ -1411,7 +1414,7 @@ const householdRateEvidence = z
   })
   .passthrough();
 /** Preserve source rows and the fields used for family, metal and channel decisions. */
-function householdEvidence(value: unknown): unknown {
+export function householdEvidence(value: unknown): unknown {
   const parsed = householdAttributeEvidence.safeParse(value);
   if (!parsed.success) return value;
   const result = {
