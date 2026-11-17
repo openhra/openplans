@@ -322,6 +322,7 @@ describe("read-only size evidence collector", () => {
         join(directory, "1_small.sql"),
         "CREATE INDEX synthetic_small_idx ON synthetic_small(id)",
       );
+      await writeFile(join(directory, "INDEX"), "1_small.sql\n");
       await migrate(testDatabase(pg), directory);
       await pg.exec("BEGIN READ ONLY");
       const evidence = await collectSizeEvidence(testDatabase(pg));
@@ -396,6 +397,7 @@ describe("read-only size evidence collector", () => {
         join(directory, "1_small.sql"),
         "CREATE INDEX synthetic_small_idx ON synthetic_small(id)",
       );
+      await writeFile(join(directory, "INDEX"), "1_small.sql\n");
       const db = testDatabase(pg);
       const run = async (args: string[]) => {
         const out: string[] = [],

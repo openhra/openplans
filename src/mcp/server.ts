@@ -1,3 +1,11 @@
+import { cachedJsonSchema } from "./definition-cache.js";
+import {
+  assertOutputFits,
+  boundOutput,
+  fitsOutput,
+  outputSizeError,
+  serializedBytes,
+} from "./bounded.js";
 import {
   registerBenchmarkTool,
   registerLowestTool,
@@ -9,7 +17,6 @@ import { requestDependencies } from "./policy.js";
 import {
   McpServer,
   ResourceTemplate,
-  fromJsonSchema,
   ProtocolError,
   ProtocolErrorCode,
 } from "@modelcontextprotocol/server";
@@ -99,8 +106,8 @@ export function buildServer(deps: McpDependencies): McpServer {
         title,
         description: `${description} ${evidenceCaution}`,
         annotations: toolAnnotations,
-        inputSchema: fromJsonSchema(inputJsonSchemas[tool]),
-        outputSchema: fromJsonSchema(outputJsonSchemas[tool]),
+        inputSchema: cachedJsonSchema(inputJsonSchemas[tool]),
+        outputSchema: cachedJsonSchema(outputJsonSchemas[tool]),
       },
       async (args, ctx) => {
         const token = ctx.mcpReq._meta?.progressToken;
@@ -139,8 +146,8 @@ export function buildServer(deps: McpDependencies): McpServer {
         title: listed.title,
         description: listed.description,
         annotations: toolAnnotations,
-        inputSchema: fromJsonSchema(listed.inputSchema as JsonSchemaType),
-        outputSchema: fromJsonSchema(listed.outputSchema as JsonSchemaType),
+        inputSchema: cachedJsonSchema(listed.inputSchema as JsonSchemaType),
+        outputSchema: cachedJsonSchema(listed.outputSchema as JsonSchemaType),
       },
       async (args, ctx) =>
         callPluginTool(
@@ -166,23 +173,21 @@ export function buildServer(deps: McpDependencies): McpServer {
         tools = definitions.slice(offset, offset + TOOL_LIST_PAGE_SIZE);
       if (offset > definitions.length) throw new ToolError("INVALID_CURSOR");
       if (offset === definitions.length) return { tools: [] };
-      while (tools.length) {
-        const nextCursor =
-          offset + tools.length < definitions.length
-            ? codec.issue(binding, offset + tools.length)
-            : undefined;
-        const result = { tools, ...(nextCursor ? { nextCursor } : {}) };
-        if (
-          Buffer.byteLength(
-            JSON.stringify({ jsonrpc: "2.0", id: ctx.mcpReq.id, result }),
-          ) +
-            512 <=
-          MAX_TOOL_LIST_BYTES
-        )
-          return result;
-        tools.pop();
-      }
-      throw new ToolError("RESULT_TOO_LARGE");
+      const result: { tools: Tool[]; nextCursor?: string } = { tools };
+      return boundOutput(result, {
+        maxBytes: MAX_TOOL_LIST_BYTES,
+        measure: (value) =>
+          serializedBytes(
+            { jsonrpc: "2.0", id: ctx.mcpReq.id, result: value },
+            512,
+          ),
+        groups: [{ rows: tools, minimum: 1 }],
+        complete: () => {
+          if (offset + tools.length < definitions.length)
+            result.nextCursor = codec.issue(binding, offset + tools.length);
+          else delete result.nextCursor;
+        },
+      }).output;
     } catch (error) {
       throw new ProtocolError(
         ProtocolErrorCode.InvalidParams,
@@ -205,15 +210,18 @@ export function buildServer(deps: McpDependencies): McpServer {
       ],
     };
     if (
-      Buffer.byteLength(
-        JSON.stringify({ jsonrpc: "2.0", id: requestId, result }),
-      ) +
-        512 >
-      MAX_OUTPUT_BYTES
+      !fitsOutput(result, {
+        maxBytes: MAX_OUTPUT_BYTES,
+        measure: (value) =>
+          serializedBytes(
+            { jsonrpc: "2.0", id: requestId, result: value },
+            512,
+          ),
+      })
     ) {
       const failed = errorResult(
         "fetch",
-        new ToolError("RESULT_TOO_LARGE"),
+        outputSizeError(),
         output.data_generation,
         new Date((deps.now ?? Date.now)()).toISOString(),
       ).structuredContent;
@@ -300,8 +308,10 @@ export function buildServer(deps: McpDependencies): McpServer {
           error: null,
         };
         assertHonest("fetch", output, p.context);
-        if (messageBytes(output) > MAX_OUTPUT_BYTES)
-          throw new ToolError("RESULT_TOO_LARGE");
+        assertOutputFits(output, {
+          maxBytes: MAX_OUTPUT_BYTES,
+          measure: messageBytes,
+        });
         return resource(uri, output, ctx.mcpReq.id);
       } catch (error) {
         return resource(

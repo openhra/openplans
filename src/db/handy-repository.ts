@@ -11,7 +11,7 @@ export const digest = (value: string) =>
 // Conservative: all admitted source revisions, including rules, geography and policy changes.
 // Derived publications are excluded so a build cannot invalidate its own inputs.
 const sourceVector = `SELECT table_name,revision::text FROM api_data_generation
- WHERE table_name NOT LIKE 'handy_lowest_%' ORDER BY table_name`;
+ WHERE table_name NOT LIKE 'handy_lowest_%' ORDER BY table_name COLLATE "C"`;
 type SourceRevision = { table_name: string; revision: string };
 export async function handyManifest(db: SqlSession) {
   const { rows } = await db.query<SourceRevision>(sourceVector);
@@ -24,8 +24,8 @@ export async function handyVersion(db: SqlSession) {
     generation: string;
     revisions: SourceRevision[];
   }>(`SELECT
-    md5(string_agg(table_name || ':' || revision::text, ',' ORDER BY table_name)) AS generation,
-    coalesce(jsonb_agg(jsonb_build_object('table_name',table_name,'revision',revision::text) ORDER BY table_name)
+    md5(string_agg(table_name || ':' || revision::text, ',' ORDER BY table_name COLLATE "C")) AS generation,
+    coalesce(jsonb_agg(jsonb_build_object('table_name',table_name,'revision',revision::text) ORDER BY table_name COLLATE "C")
       FILTER (WHERE table_name NOT LIKE 'handy_lowest_%'), '[]'::jsonb) AS revisions
     FROM api_data_generation`);
   const state = rows[0];

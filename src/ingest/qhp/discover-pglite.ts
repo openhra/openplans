@@ -1,11 +1,11 @@
 #!/usr/bin/env node
+import { copyMigrations } from "../../db/copy-migrations.js";
 /** Portable real-data discovery runner. Every persisted byte stays in OPENPLANS_DATA_DIR. */
 import { PGlite } from "@electric-sql/pglite";
-import { cp, mkdir, mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Database, SqlSession } from "../../db/database.js";
-import { migrationsDirectory } from "../../db/migrate.js";
 import { runWorker } from "../../worker/commands.js";
 import { qhpDataDirectory } from "./discover.js";
 import type { DiscoveryReport } from "./discover.js";
@@ -17,10 +17,7 @@ const scope = `${process.argv[process.argv.indexOf("--year") + 1]}-${process.arg
 let db: Database | undefined;
 let report: DiscoveryReport | undefined;
 try {
-  for (const name of await readdir(migrationsDirectory)) {
-    if (name.endsWith(".sql") && name !== "002_postgis.sql")
-      await cp(join(migrationsDirectory, name), join(directory, name));
-  }
+  await copyMigrations(directory, ["002_postgis.sql"]);
   await mkdir(join(dataDir, "reports"), { recursive: true });
   process.exitCode = await runWorker(
     process.argv.slice(2),

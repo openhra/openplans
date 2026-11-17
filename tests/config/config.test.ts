@@ -53,6 +53,7 @@ const converted: Record<string, [string, unknown]> = {
   OPENPLANS_MEDICARE_DRUG_COST: ["on", true],
   OPENPLANS_MEDICARE_DRUG_COST_PRICES: ["on", true],
   OPENPLANS_GA_QUOTE_RECOVERY: ["on", true],
+  OPENPLANS_METRICS: ["on", true],
   OPENPLANS_LOWEST_PREMIUMS: ["on", true],
   OPENPLANS_LOWEST_PREMIUMS_SCOPE: ["single_age_silver", "single_age_silver"],
   OPENPLANS_COMPAT_BENEFIT_TEXT: ["compact", true],

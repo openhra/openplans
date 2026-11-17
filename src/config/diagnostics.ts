@@ -35,6 +35,7 @@ export function configurationSettings(
     "public.household": config.public.household,
     "public.compat": config.public.compat,
     "mcp.enabled": config.mcp.enabled,
+    "telemetry.enabled": config.telemetry.enabled,
     "cmsFallback.enabled": config.cmsFallback.enabled,
     "cmsFallback.quotes": config.cmsFallback.quotes,
     "access.shipped": config.access.shipped,

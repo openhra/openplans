@@ -1,10 +1,11 @@
 import { PGlite } from "@electric-sql/pglite";
 import type { PGliteInterface } from "@electric-sql/pglite";
-import { cp, mkdtemp, readdir, rm } from "node:fs/promises";
+import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Database, SqlSession } from "../src/db/database.js";
-import { migrate, migrationsDirectory } from "../src/db/migrate.js";
+import { copyMigrations } from "../src/db/copy-migrations.js";
+import { migrate } from "../src/db/migrate.js";
 
 export function testDatabase(pg: PGliteInterface): Database {
   const session: SqlSession = {
@@ -29,17 +30,16 @@ export function testDatabase(pg: PGliteInterface): Database {
   };
 }
 
-// The production runner has no skip switch: only this test copy omits PostGIS.
+// Offline tests omit PostGIS; the nightly PostgreSQL run applies every migration.
 export async function coreMigrations(): Promise<{
   directory: string;
   cleanup(): Promise<void>;
 }> {
   const directory = await mkdtemp(join(tmpdir(), "openplans-migrations-"));
-  for (const file of await readdir(migrationsDirectory)) {
-    if (file.endsWith(".sql") && file !== "002_postgis.sql") {
-      await cp(join(migrationsDirectory, file), join(directory, file));
-    }
-  }
+  await copyMigrations(
+    directory,
+    process.env.OPENPLANS_TEST_DB === "postgres" ? [] : ["002_postgis.sql"],
+  );
   return {
     directory,
     cleanup: () => rm(directory, { recursive: true, force: true }),

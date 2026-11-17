@@ -1,9 +1,10 @@
+import { copyMigrations } from "../../dist/db/copy-migrations.js";
 import { PGlite } from "@electric-sql/pglite";
 import { createHash } from "node:crypto";
-import { cp, mkdir, readFile, readdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { migrate, migrationsDirectory } from "../../dist/db/migrate.js";
+import { migrate } from "../../dist/db/migrate.js";
 import { importPufs } from "../../dist/ingest/puf/import.js";
 import { IMPORT_KINDS } from "../../dist/ingest/puf/import-source.js";
 import { plansForCounty } from "../../dist/ingest/puf/import-repository.js";
@@ -18,6 +19,7 @@ export function database(pg) {
   };
   return {
     ...session,
+    withSession: (run) => run(session),
     close: () => pg.close(),
     transaction: (run) =>
       pg.transaction((tx) =>
@@ -32,10 +34,7 @@ export function database(pg) {
 }
 export async function portableMigrations(directory) {
   await mkdir(directory, { recursive: true });
-  for (const name of await readdir(migrationsDirectory)) {
-    if (name.endsWith(".sql") && name !== "002_postgis.sql")
-      await cp(join(migrationsDirectory, name), join(directory, name));
-  }
+  await copyMigrations(directory, ["002_postgis.sql"]);
   return directory;
 }
 

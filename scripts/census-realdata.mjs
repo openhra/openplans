@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { copyMigrations } from "../dist/db/copy-migrations.js";
 // Cached public evidence only. Persons and operator inputs are synthetic and never stored.
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
@@ -15,7 +16,7 @@ import { join, resolve } from "node:path";
 import { arch, cpus, loadavg, platform, totalmem } from "node:os";
 import { PGlite } from "@electric-sql/pglite";
 import { createDatabase } from "../dist/db/database.js";
-import { migrate, migrationsDirectory } from "../dist/db/migrate.js";
+import { migrate } from "../dist/db/migrate.js";
 import { createApp } from "../dist/api/app.js";
 import { ingestStateRates } from "../dist/ingest/state/index.js";
 import { ichraAffordability } from "../dist/services/ichra.js";
@@ -165,9 +166,7 @@ async function copyPublicDatabase(source) {
   const directory = join(scratch, "migrations");
   const { mkdir } = await import("node:fs/promises");
   await mkdir(directory, { recursive: true });
-  for (const name of await readdir(migrationsDirectory))
-    if (name.endsWith(".sql") && name !== "002_postgis.sql")
-      await cp(join(migrationsDirectory, name), join(directory, name));
+  await copyMigrations(directory, ["002_postgis.sql"]);
   try {
     await migrate(portable, directory);
     const sourceReport = {

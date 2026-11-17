@@ -1,7 +1,8 @@
 #!/usr/bin/env node
+import { loadMigrations } from "../../../dist/db/migrate.js";
 // Developer-only real corpus check. Run after npm run build; no network in CI.
 import assert from "node:assert/strict";
-import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { PGlite } from "@electric-sql/pglite";
@@ -39,11 +40,8 @@ const report = {
     "NOT RUN: state catalog/API integration outside P8a lease",
 };
 try {
-  for (const file of (await readdir(join(root, "migrations")))
-    .filter((n) => n.endsWith(".sql") && n !== "002_postgis.sql")
-    .sort()) {
-    await db.exec(await readFile(join(root, "migrations", file), "utf8"));
-  }
+  for (const { name, sql } of await loadMigrations(join(root, "migrations")))
+    if (name !== "002_postgis.sql") await db.exec(sql);
   for (const state of ["NY", "VT"]) {
     const path = join(
       dataDir,

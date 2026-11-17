@@ -1,3 +1,4 @@
+import { currentEnvironment } from "../../config/index.js";
 import {
   mkdir,
   readFile,
@@ -13,7 +14,7 @@ import { dataDirectory } from "./census.js";
 import { validateOperatorPoint } from "./operator.js";
 import type { OperatorPoint } from "./operator.js";
 import type { County } from "./counties.js";
-import { responseCacheEnabled } from "../../config/access.js";
+import { geocoderSettings, responseCacheEnabled } from "../../config/access.js";
 
 export interface StoredOperatorPoint extends OperatorPoint {
   address_hash: string;
@@ -49,9 +50,9 @@ async function storePath(root: string): Promise<string> {
 }
 export async function readOperatorPoints(
   root = dataDirectory(),
-  env: NodeJS.ProcessEnv = process.env,
+  env: NodeJS.ProcessEnv = currentEnvironment(),
 ): Promise<StoredOperatorPoint[]> {
-  if (env.OPENPLANS_GEOCODER_STORE !== "1") return [];
+  if (geocoderSettings(env).store !== "1") return [];
   try {
     const value: unknown = JSON.parse(
       await readFile(await storePath(root), "utf8"),
@@ -76,9 +77,9 @@ export async function storeOperatorPoints(
   points: StoredOperatorPoint[],
   counties: County[],
   root = dataDirectory(),
-  env: NodeJS.ProcessEnv = process.env,
+  env: NodeJS.ProcessEnv = currentEnvironment(),
 ): Promise<number> {
-  if (env.OPENPLANS_GEOCODER_STORE !== "1") return 0;
+  if (geocoderSettings(env).store !== "1") return 0;
   if (
     points.some(
       (p) =>

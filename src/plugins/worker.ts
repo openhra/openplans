@@ -1,3 +1,4 @@
+import { currentEnvironment } from "../config/index.js";
 import { createHash, randomUUID } from "node:crypto";
 import { dirname, isAbsolute, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -100,7 +101,7 @@ const NO_PLUGINS: WorkerPlugins = Object.freeze({
 export async function loadWorkerPlugins(
   options: LoadWorkerPluginsOptions = {},
 ): Promise<WorkerPlugins> {
-  const env = options.env ?? process.env;
+  const env = options.env ?? currentEnvironment();
   let config;
   try {
     config = loadConfig(env);

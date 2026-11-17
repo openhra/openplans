@@ -1,3 +1,4 @@
+import { assertOutputCount, assertOutputFits } from "./bounded.js";
 import { assertCatalogToolAdmission } from "../plugins/catalog-policy.js";
 import { z } from "zod";
 import { MEDICARE_REASON_CODES, reasonCodeList } from "../api/reason-codes.js";
@@ -6,7 +7,7 @@ import type {
   JsonSchemaType,
   Tool,
 } from "@modelcontextprotocol/server";
-import { fromJsonSchema } from "@modelcontextprotocol/server";
+import { cachedJsonSchema, cachedToolDefinition } from "./definition-cache.js";
 import { drugCostRequestSchema } from "../api/medicare-schemas.js";
 import { dataGeneration } from "../api/cache/generation.js";
 import { restrictCacheLevel } from "../plugins/request-scope.js";
@@ -187,7 +188,7 @@ function jsonSchema(schema: z.ZodType, io: "input" | "output") {
 }
 /** The `tools/list` entry, built like a core entry. */
 export function estimateToolDefinition(): Tool {
-  return {
+  return cachedToolDefinition(estimateInputSchema, () => ({
     name: MEDICARE_ESTIMATE_TOOL,
     title,
     description: `${description} ${evidenceCaution}`,
@@ -200,7 +201,7 @@ export function estimateToolDefinition(): Tool {
       estimateOutputSchema,
       "output",
     ) as Tool["outputSchema"],
-  };
+  }));
 }
 
 const envelopeStatus = {
@@ -327,7 +328,7 @@ async function provenance(deps: McpDependencies, answer: DrugCostEstimate) {
       if ("snapshot_id" in item && typeof item.snapshot_id === "string")
         ids.add(item.snapshot_id);
   }
-  if (ids.size > 100) throw new ToolError("RESULT_TOO_LARGE");
+  assertOutputCount(ids.size, 100);
   const sources = [];
   for (const id of [...ids].sort()) {
     const snapshot = await getSnapshot(deps.db, id);
@@ -429,8 +430,10 @@ export async function callEstimateTool(
     assertEstimateHonest(output, answer);
     const result = output as unknown as ToolOutput<ToolName>;
     // Never truncate a calculation: a schedule too large to answer asks for a smaller one.
-    if (messageBytes(result, requestId) > MAX_OUTPUT_BYTES)
-      throw new ToolError("RESULT_TOO_LARGE");
+    assertOutputFits(result, {
+      maxBytes: MAX_OUTPUT_BYTES,
+      measure: (value) => messageBytes(value, requestId),
+    });
     return toolResult(result);
   } catch (error) {
     // The error envelope is the same for every tool; its fields name schema paths, never values.
@@ -463,8 +466,8 @@ export function registerEstimateTool(
       title: listed.title,
       description: listed.description,
       annotations: toolAnnotations,
-      inputSchema: fromJsonSchema(listed.inputSchema as JsonSchemaType),
-      outputSchema: fromJsonSchema(listed.outputSchema as JsonSchemaType),
+      inputSchema: cachedJsonSchema(listed.inputSchema as JsonSchemaType),
+      outputSchema: cachedJsonSchema(listed.outputSchema as JsonSchemaType),
     },
     async (args, ctx) =>
       callEstimateTool(

@@ -167,6 +167,12 @@ export function allowanceSourceManifest(answer: Row) {
     preset: answer.preset ?? null,
     provenance: answer.provenance ?? null,
     benchmarks: answer.slcsp ?? [],
+    ...(answer.evidence_pagination
+      ? {
+          evidence_pagination: answer.evidence_pagination,
+          manifest_href: answer.manifest_href,
+        }
+      : {}),
     profile_evidence: (Array.isArray(answer.profiles)
       ? answer.profiles
       : []

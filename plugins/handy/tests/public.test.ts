@@ -315,6 +315,27 @@ describe("public stipend preparation", () => {
     expect(await stale.json()).toEqual({ error: "DATA_CHANGED" });
   });
 
+  it("requires a generation pin on later evidence pages and rejects private fields there", async () => {
+    const { app } = setup();
+    for (const suffix of [
+      "&evidence_page=2",
+      "&evidence_page=0",
+      "&members=private",
+      "&allowance_cents=100",
+    ])
+      expect(
+        (await app.request(`/handy/allowance/manifest?${query}${suffix}`))
+          .status,
+      ).toBe(400);
+    expect(
+      (
+        await app.request(
+          `/handy/allowance/manifest?${query}&evidence_page=2&data_generation=stale`,
+        )
+      ).status,
+    ).toBe(409);
+  });
+
   it.each([
     "/handy/allowance",
     "/handy/allowance/print",

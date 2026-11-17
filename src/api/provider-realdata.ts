@@ -1,11 +1,12 @@
 #!/usr/bin/env node
+import { copyMigrations } from "../db/copy-migrations.js";
 /** Isolated, network-enabled lane validation. Reuses completed caches; never imports new source bytes into git. */
 import { PGlite } from "@electric-sql/pglite";
-import { cp, mkdir, mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { serve } from "@hono/node-server";
-import { migrate, migrationsDirectory } from "../db/migrate.js";
+import { migrate } from "../db/migrate.js";
 import type { Database } from "../db/database.js";
 import { ingestGeocode } from "../ingest/geocode/index.js";
 import { dataDirectory } from "../ingest/geocode/census.js";
@@ -23,10 +24,7 @@ const temporary = await mkdtemp(join(tmpdir(), "openplans-provider-api-"));
 let pg: PGlite | undefined;
 try {
   await mkdir(join(root, "reports"), { recursive: true });
-  for (const name of await readdir(migrationsDirectory))
-    if (name.endsWith(".sql") && name !== "002_postgis.sql") {
-      await cp(join(migrationsDirectory, name), join(temporary, name));
-    }
+  await copyMigrations(temporary, ["002_postgis.sql"]);
   if (mode === "prepare") {
     // Clone first, so earlier lanes' validation databases remain unchanged.
     await cp(join(root, "provider-pglite-p3b"), path, {

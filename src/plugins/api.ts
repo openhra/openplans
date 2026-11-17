@@ -1,3 +1,4 @@
+import { currentEnvironment } from "../config/index.js";
 import { dirname } from "node:path";
 import { loadConfig } from "../config/index.js";
 import type { CoreConfig, Environment } from "../config/index.js";
@@ -65,7 +66,7 @@ const NO_PLUGINS: ApiPlugins = Object.freeze({
 export async function loadApiPlugins(
   options: LoadApiPluginsOptions = {},
 ): Promise<ApiPlugins> {
-  const env = options.env ?? process.env;
+  const env = options.env ?? currentEnvironment();
   let config;
   try {
     config = loadConfig(env);

@@ -34,12 +34,43 @@ export async function loadMigrations(directory = migrationsDirectory) {
   const files = (await readdir(directory)).filter((name) =>
     name.endsWith(".sql"),
   );
+  const index = await readFile(join(directory, "INDEX"), "utf8");
+  const names = index === "" ? [] : index.replace(/\r?\n$/, "").split(/\r?\n/);
+  const indexed = new Set<string>();
+  for (const name of names) {
+    if (!/^\d+_[-a-z0-9_]+\.sql$/.test(name))
+      throw new Error(`Invalid migration INDEX entry: ${name}`);
+    if (indexed.has(name))
+      throw new Error(`Duplicate migration INDEX entry: ${name}`);
+    indexed.add(name);
+    if (!files.includes(name))
+      throw new Error(`Migration INDEX entry missing file: ${name}`);
+  }
+  for (const name of files) {
+    if (!indexed.has(name))
+      throw new Error(`Migration file missing from INDEX: ${name}`);
+  }
+  return loadMigrationFiles(directory, names);
+}
+
+const coreTimestampDigits = 14;
+
+async function loadMigrationFiles(
+  directory: string,
+  files: string[],
+  uniqueVersions = false,
+) {
   const versions = new Set<number>();
-  const migrations = await Promise.all(
+  return Promise.all(
     files.map(async (name) => {
       const match = /^(\d+)_[-a-z0-9_]+\.sql$/.exec(name);
       const version = Number(match?.[1]);
-      if (!match || !Number.isSafeInteger(version) || versions.has(version)) {
+      if (
+        !match ||
+        !Number.isSafeInteger(version) ||
+        ((uniqueVersions || match[1]!.length !== coreTimestampDigits) &&
+          versions.has(version))
+      ) {
         throw new Error(`Invalid or duplicate migration number: ${name}`);
       }
       versions.add(version);
@@ -52,9 +83,6 @@ export async function loadMigrations(directory = migrationsDirectory) {
       };
     }),
   );
-  migrations.sort((a, b) => a.version - b.version);
-
-  return migrations;
 }
 
 type Migration = Awaited<ReturnType<typeof loadMigrations>>[number];
@@ -187,7 +215,8 @@ export async function loadPluginMigrations(
       );
     let migrations: Migration[];
     try {
-      migrations = await loadMigrations(source.directory);
+      migrations = await loadMigrationFiles(source.directory, files, true);
+      migrations.sort((a, b) => a.version - b.version);
     } catch {
       throw new PluginMigrationRefusal(
         source.plugin,
@@ -459,7 +488,7 @@ export async function migrate(
     const { rows } = await tx.query<{ name: string; sha256: string }>(
       "SELECT name, sha256 FROM schema_migrations ORDER BY name",
     );
-    // Disjoint lane ranges can merge below the newest applied migration. Core runs first.
+    // INDEX orders pending core files; already applied files are verified by name and hash.
     const pending = pendingMigrations(migrations, rows, plugins);
     for (const migration of pending) {
       await tx.exec(migration.sql);

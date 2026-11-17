@@ -5,7 +5,16 @@ import { rebaseImports, replaceSyntax } from "../source-mutation.js";
 import { afterAll, beforeAll, expect, it } from "vitest";
 import { setup } from "../compat/v1/helpers.js";
 import { enumerateHouseholdOffers } from "../../src/services/offer-cohort.js";
-import { lowestPremiums } from "../../src/services/handy.js";
+import { assertOutputFits } from "../../src/mcp/bounded.js";
+import { messageBytes } from "../../src/mcp/tools.js";
+import type { ToolName, ToolOutput } from "../../src/mcp/schemas.js";
+import { marketCosts } from "../../plugins/compare/src/service.js";
+import { createCalculationHost } from "../../src/plugins/calculation-host.js";
+import { offerCohortInputSchema } from "@openplans/plugin-sdk";
+import {
+  lowestPremiums,
+  householdDistributions,
+} from "../../src/services/handy.js";
 import {
   countyPlans,
   resolveLocation,
@@ -406,4 +415,186 @@ it("retries the whole scan once and refuses repeated generation churn", async ()
     else requireComplete(await enumerateHouseholdOffers(db, input));
     expect(generations).toBe(4);
   }
+});
+
+function requireHouseholdPage(cell: OfferCohort) {
+  const { candidates, excluded, unknown, sources } = cell.evidence;
+  const refs = new Set<number>();
+  for (const candidate of [...candidates, ...excluded, ...unknown]) {
+    const ref = Number(candidate.evidence_ref);
+    expect(Number.isInteger(ref)).toBe(true);
+    expect(ref).toBeGreaterThanOrEqual(0);
+    expect(ref).toBeLessThan(sources.length);
+    refs.add(ref);
+    expect(sources[ref]).toMatchObject({
+      catalog: { plan_id: candidate.plan_id },
+    });
+  }
+  expect(refs.size).toBe(sources.length);
+}
+
+const householdInput = {
+  zip: "77002",
+  county: "48201",
+  year: 2026,
+  members: [
+    { age: 40, relationship: "subscriber" },
+    { age: 40, relationship: "spouse" },
+    { age: 10, relationship: "child" },
+    { age: 8, relationship: "child" },
+  ],
+};
+
+it("pages compact household evidence with exact references and stable cohort statistics", async () => {
+  const first = await enumerateHouseholdOffers(h.db, householdInput);
+  requireComplete(first);
+  const original = await householdDistributions(
+    h.db,
+    {
+      ...householdInput,
+      members: householdInput.members.map((member) => ({
+        ...member,
+        tobacco: false,
+      })),
+    },
+    { enabled: true },
+  );
+  const ids: unknown[] = [];
+  let cell: OfferCohort | null = first;
+  while (cell) {
+    requireHouseholdPage(cell);
+    expect(cell.statistics).toEqual(first.statistics);
+    ids.push(...cell.evidence.candidates.map((row) => row.plan_id));
+    for (const source of cell.evidence.sources) {
+      const evidence = source as {
+        catalog: { plan_id: string };
+        attributes: { raw: Record<string, string> }[];
+        rating: {
+          members: { rate_rows?: unknown[]; rate_row_refs: number[] }[];
+          rate_rows_used: unknown[];
+        };
+      };
+      const full = (original.provenance.evidence as (typeof evidence)[]).find(
+        (row) => row.catalog.plan_id === evidence.catalog.plan_id,
+      )!;
+      expect(evidence.attributes).toEqual(
+        full.attributes.map((attribute) => ({
+          ...attribute,
+          raw: Object.fromEntries(
+            Object.entries(attribute.raw).filter(([field]) =>
+              [
+                "ChildOnlyOffering",
+                "MetalLevel",
+                "QHPNonQHPTypeId",
+                "StandardComponentId",
+                "PlanId",
+              ].includes(field),
+            ),
+          ),
+        })),
+      );
+      const expandedRating = {
+        ...evidence.rating,
+        members: evidence.rating.members.map(
+          ({ rate_row_refs, ...member }) => ({
+            ...member,
+            rate_rows: rate_row_refs.map(
+              (ref) => evidence.rating.rate_rows_used[ref],
+            ),
+          }),
+        ),
+      };
+      expect(expandedRating).toEqual(full.rating);
+      for (const member of evidence.rating.members) {
+        expect(member.rate_rows).toBeUndefined();
+        expect(member.rate_row_refs.length).toBeGreaterThan(0);
+        for (const ref of member.rate_row_refs)
+          expect(evidence.rating.rate_rows_used[ref]).toBeDefined();
+      }
+    }
+    if (!cell.evidence.next_page) break;
+    cell = await enumerateHouseholdOffers(h.db, {
+      ...householdInput,
+      evidence_page: cell.evidence.next_page,
+      data_generation: first.data_generation,
+    });
+  }
+  expect(ids.length).toBe(first.denominator.rated_count);
+  expect(new Set(ids).size).toBe(ids.length);
+  await expect(
+    enumerateHouseholdOffers(h.db, {
+      ...householdInput,
+      evidence_page: 2,
+      data_generation: "stale",
+    }),
+  ).rejects.toThrow("generation_changed");
+  const empty = await enumerateHouseholdOffers(h.db, {
+    ...householdInput,
+    evidence_page: 100000,
+    data_generation: first.data_generation,
+  });
+  requireHouseholdPage(empty);
+  expect(empty.evidence.sources).toEqual([]);
+  expect(empty.evidence.next_page).toBeNull();
+});
+
+it("detects dangling and orphaned household evidence and keeps unknown and excluded pages linked", async () => {
+  const first = await enumerateHouseholdOffers(h.db, householdInput);
+  const dangling = structuredClone(first);
+  dangling.evidence.candidates[0]!.evidence_ref =
+    dangling.evidence.sources.length;
+  expect(() => requireHouseholdPage(dangling)).toThrow();
+  const orphan = structuredClone(first);
+  orphan.evidence.candidates.pop();
+  expect(() => requireHouseholdPage(orphan)).toThrow();
+  await rollback(async (tx) => {
+    await tx.query("DELETE FROM rate WHERE base_plan_id=$1", [
+      first.evidence.candidates[0]!.plan_id,
+    ]);
+    await tx.query(
+      `UPDATE plan_attribute SET raw=raw || '{"ChildOnlyOffering":"Allows Child-Only"}'::jsonb WHERE base_plan_id=$1`,
+      [first.evidence.candidates[1]!.plan_id],
+    );
+    const cell = await enumerateHouseholdOffers(tx, householdInput);
+    expect(cell.evidence.unknown.length).toBeGreaterThan(0);
+    expect(cell.evidence.excluded.length).toBeGreaterThan(0);
+    requireHouseholdPage(cell);
+  });
+});
+
+it("bounds the complete four-member tool frame through the shared output helper and rejects oversized evidence", async () => {
+  const answer = await marketCosts(
+    createCalculationHost({
+      public: { quoting: true, household: false, compat: false },
+    }),
+    offerCohortInputSchema.parse(householdInput),
+    { db: h.db, signal: new AbortController().signal },
+  );
+  const framedBytes = (value: typeof answer) =>
+    messageBytes(
+      value as unknown as ToolOutput<ToolName>,
+      "household-evidence",
+    );
+  expect(() =>
+    assertOutputFits(answer, { measure: framedBytes }),
+  ).not.toThrow();
+  const oversized = structuredClone(answer);
+  oversized.data.comparison.evidence.sources.push({
+    synthetic: "x".repeat(65536),
+  });
+  expect(() => assertOutputFits(oversized, { measure: framedBytes })).toThrow(
+    "RESULT_TOO_LARGE",
+  );
+});
+
+it("rejects a dangling source index in the household reader", async () => {
+  await mutatedCohort(
+    "entries.map((entry) => Number(entry.evidence_ref))",
+    "entries.map(() => 1000000)",
+    async (consumer) => {
+      await expect(consumer(h.db, householdInput)).rejects.toThrow(
+        "household_evidence_unavailable",
+      );
+    },
+  );
 });

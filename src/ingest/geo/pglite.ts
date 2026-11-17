@@ -1,12 +1,12 @@
 #!/usr/bin/env node
+import { copyMigrations } from "../../db/copy-migrations.js";
 // Developer entry point: npm run build, then node dist/ingest/geo/pglite.js ingest geo --state TX.
 // Requires dev dependencies. Real downloads, DB files and reports remain in OPENPLANS_DATA_DIR.
 import { PGlite } from "@electric-sql/pglite";
-import { mkdtemp, cp, readdir, rm, mkdir, writeFile } from "node:fs/promises";
+import { mkdtemp, rm, mkdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Database, SqlSession } from "../../db/database.js";
-import { migrationsDirectory } from "../../db/migrate.js";
 import { runGeo } from "./command.js";
 import { dataDirectory } from "./sources.js";
 import { createGeoRepository } from "./repository.js";
@@ -24,10 +24,7 @@ if (args[0] !== "ingest" || args[1] !== "geo") {
   let db: Database | undefined;
   try {
     // PGlite has no PostGIS. Geo uses portable SQL; production migrate never skips extensions.
-    for (const name of await readdir(migrationsDirectory)) {
-      if (name.endsWith(".sql") && name !== "002_postgis.sql")
-        await cp(join(migrationsDirectory, name), join(directory, name));
-    }
+    await copyMigrations(directory, ["002_postgis.sql"]);
     const dbPath = join(dataDir, "geo-pglite");
     const output: string[] = [];
     process.exitCode = await runGeo(

@@ -1,19 +1,13 @@
 #!/usr/bin/env node
+import { copyMigrations } from "../../db/copy-migrations.js";
+import { runnerSettings } from "../../config/access.js";
 /** Isolated real-data batch runner. Uses existing discovery/catalog databases; no fixture data. */
 import { PGlite } from "@electric-sql/pglite";
-import {
-  cp,
-  readFile,
-  mkdir,
-  mkdtemp,
-  readdir,
-  rm,
-  writeFile,
-} from "node:fs/promises";
+import { readFile, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Database, SqlSession } from "../../db/database.js";
-import { migrate, migrationsDirectory } from "../../db/migrate.js";
+import { migrate } from "../../db/migrate.js";
 import type { QhpBatchOptions } from "./formulary-batch.js";
 import { ingestQhpBatch } from "./formulary-batch.js";
 import { dataDirectory } from "../../config/access.js";
@@ -22,7 +16,7 @@ import { dataDirectory } from "../../config/access.js";
 type SavedReport = { database?: unknown; issuers: Record<string, unknown>[] };
 
 const cache = dataDirectory();
-const path = process.env.OPENPLANS_QHP_DB ?? join(cache, "qhp-pglite-p6a");
+const path = runnerSettings().qhpDb ?? join(cache, "qhp-pglite-p6a");
 const directory = await mkdtemp(join(tmpdir(), "openplans-p6a-"));
 const pg = new PGlite(path);
 const session: SqlSession = {
@@ -56,9 +50,7 @@ async function copy(from: PGlite, table: string, where = "") {
     );
 }
 try {
-  for (const name of await readdir(migrationsDirectory))
-    if (name.endsWith(".sql") && name !== "002_postgis.sql")
-      await cp(join(migrationsDirectory, name), join(directory, name));
+  await copyMigrations(directory, ["002_postgis.sql"]);
   await migrate(db, directory);
   if (!(await db.query("SELECT 1 FROM qhp_index LIMIT 1")).rows.length) {
     const discovery = new PGlite(join(cache, "qhp-pglite-discovery-2026-TX"));
@@ -96,7 +88,7 @@ try {
     /* first run */
   }
   const deadline =
-    Date.now() + Number(process.env.OPENPLANS_QHP_RUN_BUDGET_MS ?? 3_000_000);
+    Date.now() + Number(runnerSettings().qhpRunBudgetMs ?? 3_000_000);
   const controller = new AbortController();
   const options: QhpBatchOptions = {
     year: 2026,
@@ -104,10 +96,10 @@ try {
     deadline,
     signal: controller.signal,
     skipIssuers:
-      process.env.OPENPLANS_QHP_RESUME === "1"
+      runnerSettings().qhpResume === "1"
         ? reports.map((r) => String(r.issuer))
         : undefined,
-    issuer: process.env.OPENPLANS_QHP_ISSUER,
+    issuer: runnerSettings().qhpIssuer,
     onReport: async (row) => {
       reports = [...reports.filter((r) => r.issuer !== row.issuer), row];
       await writeFile(

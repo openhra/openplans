@@ -42,7 +42,7 @@ export default defineConfig({
       "tests/**/*.{test,spec}.?(c|m)[jt]s?(x)",
       "plugins/*/tests/**/*.test.ts",
     ],
-    setupFiles: ["tests/response-columns.setup.ts"],
+    setupFiles: ["tests/postgres.setup.ts", "tests/response-columns.setup.ts"],
     pool: "forks",
     maxWorkers: testWorkers(),
     // Vitest 5 clears mock calls before every test by default; keep them as earlier versions did.

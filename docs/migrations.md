@@ -13,6 +13,28 @@ Run `worker migrate` before starting a new API image; for local PGlite, run `npm
   in its own file. Concurrent files commit separately, so a failed run may have applied
   earlier files. Inspect invalid indexes before retrying.
 
+## Core migration order
+
+`migrations/INDEX` lists every core SQL filename once, in application order. The
+loader refuses duplicate entries, invalid filenames, unlisted SQL files and entries
+whose files are missing. Both `worker migrate` and `worker migrate --check` use this
+list. The journal still verifies each applied filename and SHA-256.
+
+For a new migration:
+
+1. Name the file `<utc-timestamp>_<snake_case>.sql`. Generate the UTC timestamp with
+   `date -u +%Y%m%d%H%M%S`, for example `20261117041530_add_lookup.sql`.
+2. Append its filename to `migrations/INDEX`. Do not sort the list or insert into
+   the existing order. Existing numbered files keep their names and order.
+3. Commit the SQL and INDEX together. If two branches append to INDEX, resolve the
+   conflict by reviewing dependencies and choosing the order, then rerun the gate.
+   Different names may share a timestamp; the list decides their order.
+4. Add contract notes for risky SQL and run `worker migrate --check` before applying.
+
+Do not rename applied files or regenerate recorded hashes. On an existing database,
+the runner skips matching journal entries and applies pending files in INDEX order.
+Plugin migrations keep their separate numbering rules below.
+
 ## Size evidence
 
 `worker migrate --size-evidence` reads relation sizes and capped row counts in a

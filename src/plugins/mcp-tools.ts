@@ -1,3 +1,5 @@
+import { cachedToolDefinition } from "../mcp/definition-cache.js";
+import { assertOutputFits, serializedBytes } from "../mcp/bounded.js";
 import { assertCatalogToolAdmission } from "./catalog-policy.js";
 import {
   benchmarkToolDefinition,
@@ -72,11 +74,28 @@ function objectSchema(
   return json as JsonSchemaType;
 }
 
+const definitionKeys = new WeakMap<
+  McpToolSpec<unknown, unknown>,
+  readonly unknown[]
+>();
+
 /** The `tools/list` entry for a plugin tool, built the same way as a core entry. */
 export function pluginToolDefinition(
   spec: McpToolSpec<unknown, unknown>,
 ): Tool {
-  return {
+  const revision = [
+    spec.name,
+    spec.title,
+    spec.description,
+    spec.inputSchema,
+    spec.outputSchema,
+  ];
+  const previous = definitionKeys.get(spec);
+  const key = previous?.every((value, index) => value === revision[index])
+    ? previous
+    : revision;
+  definitionKeys.set(spec, key);
+  return cachedToolDefinition(key, () => ({
     name: spec.name,
     title: spec.title,
     description: `${spec.description} ${evidenceCaution}`,
@@ -86,16 +105,12 @@ export function pluginToolDefinition(
       spec.outputSchema,
       "output",
     ) as Tool["outputSchema"],
-  };
+  }));
 }
 
 /** Bytes of a one-page `tools/list` response, with the same 512-byte reserve the handler keeps. */
 export function toolListBytes(tools: readonly Tool[]): number {
-  return (
-    Buffer.byteLength(
-      JSON.stringify({ jsonrpc: "2.0", id: 0, result: { tools } }),
-    ) + 512
-  );
+  return serializedBytes({ jsonrpc: "2.0", id: 0, result: { tools } }, 512);
 }
 
 export interface ToolPageRefusal {
@@ -240,8 +255,10 @@ export async function callPluginTool(
     if ("status" in output) assertPluginHonest(output);
     // Same framing as core answers; the envelope type is only used for its byte layout.
     const listed = output as unknown as ToolOutput<ToolName>;
-    if (messageBytes(listed, requestId) > MAX_OUTPUT_BYTES)
-      throw new ToolError("RESULT_TOO_LARGE");
+    assertOutputFits(listed, {
+      maxBytes: MAX_OUTPUT_BYTES,
+      measure: (value) => messageBytes(value, requestId),
+    });
     return toolResult(listed);
   } catch (error) {
     // The error envelope is the same for every tool, so any core name builds it.

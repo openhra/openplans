@@ -65,10 +65,13 @@ This file sets the listener and leaves plugins disabled:
 
 The typed loader wraps credentials so logs and JSON show `"<set>"`. It freezes the
 result and gives plugins a view without credentials. The API server and the worker
-load the configured plugins at startup. Compose and developer-runner settings are mapped as optional strings;
-their existing readers still apply the defaults listed below. Use environment
-variables for settings read by ingestion commands and REST handlers that have not
-yet moved to the typed loader.
+load the configured plugins at startup. Runtime code reads environment settings
+through this loader, including developer runners and ingestion commands. Settings
+under `compose`, `geocoder` and `runners` remain environment-only because their
+values belong to the process that launches those tools.
+
+`OPENPLANS_METRICS` maps to `telemetry.enabled`. It defaults to `false`; set it to
+`on` to enable telemetry when the admin plugin is loaded.
 
 ### Database and blob providers
 

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { geocoderSettings } from "../../config/access.js";
 import { readFile, mkdir, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { join } from "node:path";
@@ -124,7 +125,7 @@ try {
   const adapter = openGeocoder(counties, dataset);
   if (!adapter) throw new Error("OPENPLANS_OPEN_GEOCODER_URL is required");
   await assertOpenServerDate(
-    process.env.OPENPLANS_OPEN_GEOCODER_URL!,
+    geocoderSettings().openUrl!,
     index.object_timestamp,
   );
   const report = await retryOpenGeocoder(db, counties, {

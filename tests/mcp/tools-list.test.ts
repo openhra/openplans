@@ -259,8 +259,8 @@ it.each([
   ],
   [
     "tool-result byte budget",
-    "512 <= MAX_TOOL_LIST_BYTES",
-    "512 <= MAX_OUTPUT_BYTES",
+    "maxBytes: MAX_TOOL_LIST_BYTES",
+    "maxBytes: MAX_OUTPUT_BYTES",
   ],
   [
     "unreviewed sixteenth tool",

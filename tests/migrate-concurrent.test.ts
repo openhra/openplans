@@ -62,6 +62,10 @@ describe("concurrent migration execution boundaries", () => {
         join(directory, "003_column.sql"),
         "ALTER TABLE synthetic ADD COLUMN value text;",
       );
+      await writeFile(
+        join(directory, "INDEX"),
+        "001_table.sql\n002_index.sql\n003_column.sql\n",
+      );
       const db = testDatabase(pg);
       expect(await migrate(db, directory)).toEqual([
         "001_table.sql",
@@ -95,11 +99,21 @@ describe("concurrent migration execution boundaries", () => {
         join(directory, "002_index.sql"),
         "CREATE INDEX CONCURRENTLY synthetic_idx ON synthetic(id);",
       );
+      await writeFile(
+        join(directory, "INDEX"),
+        "001_table.sql\n002_index.sql\n",
+      );
       const { withSession: _unused, ...bare } = testDatabase(pg);
-      expect(await migrate(bare as Database, directory)).toEqual([
-        "001_table.sql",
-        "002_index.sql",
-      ]);
+      if (process.env.OPENPLANS_TEST_DB === "postgres") {
+        await expect(migrate(bare as Database, directory)).rejects.toThrow(
+          "Concurrent indexes require a pinned PostgreSQL session",
+        );
+      } else {
+        expect(await migrate(bare as Database, directory)).toEqual([
+          "001_table.sql",
+          "002_index.sql",
+        ]);
+      }
       // A server that is not PGlite, reached without a pinned session, must not build it.
       const { db } = fakeSession();
       const { withSession: _pooled, ...pooled } = db;
@@ -139,12 +153,20 @@ describe("concurrent migration execution boundaries", () => {
         join(directory, "003_column.sql"),
         "ALTER TABLE synthetic ADD COLUMN value text;",
       );
+      await writeFile(
+        join(directory, "INDEX"),
+        "001_table.sql\n002_index.sql\n003_column.sql\n",
+      );
       expect(await migrate(db, directory)).toEqual([
         "001_table.sql",
         "002_index.sql",
         "003_column.sql",
       ]);
-      expect(journal).toHaveLength(3);
+      expect(journal.map(({ name }) => name)).toEqual([
+        "001_table.sql",
+        "002_index.sql",
+        "003_column.sql",
+      ]);
       expect(calls.indexOf("COMMIT")).toBeLessThan(
         calls.findIndex((s) => s.startsWith("CREATE INDEX CONCURRENTLY")),
       );
@@ -172,6 +194,7 @@ describe("concurrent migration execution boundaries", () => {
         join(directory, "001_index.sql"),
         "CREATE INDEX CONCURRENTLY synthetic_idx ON synthetic(id);",
       );
+      await writeFile(join(directory, "INDEX"), "001_index.sql\n");
       await expect(migrate(db, directory)).rejects.toThrow(
         "Synthetic index failure",
       );
@@ -194,6 +217,7 @@ describe("concurrent migration execution boundaries", () => {
       const { db, journal } = fakeSession();
       try {
         await writeFile(join(directory, "001_index.sql"), sql);
+        await writeFile(join(directory, "INDEX"), "001_index.sql\n");
         await expect(migrate(db, directory)).rejects.toThrow(
           /standalone|inspection/,
         );

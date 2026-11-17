@@ -1,3 +1,4 @@
+import { currentEnvironment } from "../config/index.js";
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { isAbsolute } from "node:path";
@@ -378,7 +379,7 @@ export class AdmissionSession {
     if (options.egressFile === undefined)
       return egressFromEnvironment(options.egressCountry);
     return egressFromEnvironment(options.egressCountry, {
-      ...process.env,
+      ...currentEnvironment(),
       OPENPLANS_EGRESS_FILE: options.egressFile,
       OPENPLANS_EGRESS_SHA256: options.egressSha256,
     });
@@ -407,7 +408,7 @@ export class AdmissionSession {
     if (!publisher.apiKey) return undefined;
     const key =
       this.options.apiKeys?.[publisher.host] ??
-      process.env[publisher.apiKey.env];
+      currentEnvironment()[publisher.apiKey.env];
     return key && /^[\x21-\x7e]{8,256}$/.test(key) ? key : undefined;
   }
 

@@ -1,11 +1,12 @@
 #!/usr/bin/env node
+import { copyMigrations } from "../../db/copy-migrations.js";
+import { runnerSettings } from "../../config/access.js";
 /** Developer runner for the real import without Docker. DB and reports stay in the shared cache. */
 import { PGlite } from "@electric-sql/pglite";
-import { cp, mkdir, mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Database, SqlSession } from "../../db/database.js";
-import { migrationsDirectory } from "../../db/migrate.js";
 import { runWorker } from "../../worker/commands.js";
 import { plansForCounty } from "./import.js";
 import { importDataDirectory } from "./import-source.js";
@@ -15,12 +16,9 @@ const dataDir = importDataDirectory(),
 let db: Database | undefined;
 try {
   // PUF tables use portable SQL. This developer-only copy skips the unavailable PostGIS extension.
-  for (const name of await readdir(migrationsDirectory)) {
-    if (name.endsWith(".sql") && name !== "002_postgis.sql")
-      await cp(join(migrationsDirectory, name), join(directory, name));
-  }
+  await copyMigrations(directory, ["002_postgis.sql"]);
   const dbPath =
-    process.env.OPENPLANS_PUF_DB ??
+    runnerSettings().pufDb ??
     join(
       dataDir,
       process.argv.includes("--all-states")

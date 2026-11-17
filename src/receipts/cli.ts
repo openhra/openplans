@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { currentEnvironment } from "../config/index.js";
 import { readFile } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
 import { createDatabase } from "../db/database.js";
@@ -20,7 +21,7 @@ export function localReplayUrl(value: string | undefined): string {
 
 export async function receiptCli(
   args: string[],
-  env: NodeJS.ProcessEnv = process.env,
+  env: NodeJS.ProcessEnv = currentEnvironment(),
   out: (line: string) => void = console.log,
 ): Promise<number> {
   let db: Database | undefined;

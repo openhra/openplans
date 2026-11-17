@@ -259,7 +259,7 @@ describe("registry-first QHP discovery", () => {
     expect(
       (
         await db.query(
-          "SELECT count(*) AS n FROM snapshot WHERE validation_state='ACTIVE'",
+          "SELECT count(*)::int AS n FROM snapshot WHERE validation_state='ACTIVE'",
         )
       ).rows[0]!.n,
     ).toBe(0);
@@ -382,7 +382,7 @@ describe("registry-first QHP discovery", () => {
         identities.every(
           (value) =>
             value ===
-            "openplans/0.4.12 (public health-plan source discovery; +https://project.example/openplans)",
+            "openplans/0.4.13 (public health-plan source discovery; +https://project.example/openplans)",
         ),
       ).toBe(true);
       expect(
@@ -605,8 +605,11 @@ describe("registry-first QHP discovery", () => {
       "cache_error",
     );
     expect(
-      (await db.query("SELECT count(*) AS n FROM qhp_index WHERE status='ok'"))
-        .rows[0]!.n,
+      (
+        await db.query(
+          "SELECT count(*)::int AS n FROM qhp_index WHERE status='ok'",
+        )
+      ).rows[0]!.n,
     ).toBe(2);
   });
   it("reads the reproducible real TX cut without retaining contact fields", async () => {

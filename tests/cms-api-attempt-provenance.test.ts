@@ -1,5 +1,5 @@
 import { PGlite } from "@electric-sql/pglite";
-import { readFile, rm } from "node:fs/promises";
+import { readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { Database } from "../src/db/database.js";
@@ -29,7 +29,14 @@ afterEach(async () => {
 async function migrated(omit = false) {
   const core = await coreMigrations();
   cleanup = core.cleanup;
-  if (omit) await rm(join(core.directory, MIGRATION));
+  if (omit) {
+    await rm(join(core.directory, MIGRATION));
+    const index = join(core.directory, "INDEX");
+    await writeFile(
+      index,
+      (await readFile(index, "utf8")).replace(MIGRATION + "\n", ""),
+    );
+  }
   await migrate(db, core.directory);
 }
 

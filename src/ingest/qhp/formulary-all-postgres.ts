@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { runnerSettings } from "../../config/access.js";
 /** Isolated native Postgres developer run; the caller owns the openplans-<lane> container. */
 import pg from "pg";
 import { bootstrapEnrichment } from "./postgres-enrichment.js";
@@ -16,9 +17,9 @@ import { dataDirectory } from "../../config/access.js";
 type SavedReport = { database?: unknown; issuers: Record<string, unknown>[] };
 
 const cache = dataDirectory();
-const url = process.env.OPENPLANS_QHP_DATABASE_URL;
-const state = process.env.OPENPLANS_QHP_STATE ?? "TX";
-const year = Number(process.env.OPENPLANS_QHP_YEAR ?? 2026);
+const url = runnerSettings().qhpDatabaseUrl?.reveal();
+const state = runnerSettings().qhpState ?? "TX";
+const year = Number(runnerSettings().qhpYear ?? 2026);
 if (
   !/^[A-Z]{2}$/.test(state) ||
   !Number.isInteger(year) ||
@@ -83,7 +84,7 @@ async function copy(from: PGlite, table: string) {
     );
 }
 try {
-  await migrate(db, process.env.OPENPLANS_QHP_MIGRATIONS_DIRECTORY);
+  await migrate(db, runnerSettings().qhpMigrationsDirectory);
   if (
     !(
       await db.query(
@@ -93,7 +94,7 @@ try {
     ).rows.length
   ) {
     const catalog = new PGlite(
-      process.env.OPENPLANS_QHP_CATALOG_DB ??
+      runnerSettings().qhpCatalogDb ??
         join(
           cache,
           state === "TX" && year === 2026
@@ -153,14 +154,14 @@ try {
     await db.exec(`SELECT setval(pg_get_serial_sequence('qhp_child_url','qhp_child_url_id'),
       GREATEST(1,COALESCE((SELECT max(qhp_child_url_id) FROM qhp_child_url),0)),true)`);
   }
-  if (process.env.OPENPLANS_QHP_ENRICHMENT === "1")
+  if (runnerSettings().qhpEnrichment === "1")
     await bootstrapEnrichment(db, cache);
   if (process.argv[2] === "bootstrap") {
     await db.close();
     process.exit(0);
   }
   const kind = process.argv[2] === "providers" ? "providers" : "formulary";
-  const prefix = process.env.OPENPLANS_QHP_REPORT_PREFIX ?? "p6a-postgres";
+  const prefix = runnerSettings().qhpReportPrefix ?? "p6a-postgres";
   if (!/^[a-z0-9-]+$/.test(prefix)) throw new Error("Invalid report prefix");
   const database =
       prefix === "p6a-postgres"
@@ -180,12 +181,11 @@ try {
   const options: QhpBatchOptions = {
     year,
     state,
-    deadline:
-      Date.now() + Number(process.env.OPENPLANS_QHP_RUN_BUDGET_MS ?? 1_800_000),
+    deadline: Date.now() + Number(runnerSettings().qhpRunBudgetMs ?? 1_800_000),
     signal: controller.signal,
-    issuer: process.env.OPENPLANS_QHP_ISSUER,
+    issuer: runnerSettings().qhpIssuer,
     skipIssuers:
-      process.env.OPENPLANS_QHP_RESUME === "1"
+      runnerSettings().qhpResume === "1"
         ? (
             await db.query<{ issuer_id: string }>(
               `SELECT issuer_id

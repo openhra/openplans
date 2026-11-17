@@ -7,6 +7,9 @@ import { recordConfigOrigins } from "./diagnostics.js";
 
 export type Environment = Record<string, string | undefined>;
 
+/** The sole process environment boundary; callers may pass an injected environment instead. */
+export const currentEnvironment = (): NodeJS.ProcessEnv => process.env;
+
 /** Values require explicit access; logs and JSON only show whether one is set. */
 export class SecretValue {
   readonly #value: string;
@@ -134,6 +137,7 @@ export const coreConfigSchema = z
       // Other values have always inherited the household policy.
       allowPersonalized: text,
     }),
+    telemetry: section({ enabled: z.boolean().default(false) }),
     trustProxy: z.array(z.string()).default([]),
     admin: section({
       origin: z
@@ -386,6 +390,7 @@ export const environmentPaths = {
   OPENPLANS_DENYLIST_FILE: "runners.denylistFile",
   OPENPLANS_COMPOSE_PROJECT: "runners.composeProject",
   OPENPLANS_SMOKE_TMPDIR: "runners.smokeTmpdir",
+  OPENPLANS_METRICS: "telemetry.enabled",
 } as const;
 /**
  * Keys the environment fills but the config file may not set, because their readers take the
@@ -438,6 +443,7 @@ const unlessOff = new Set([
   "OPENPLANS_MCP",
 ]);
 const onlyOn = new Set([
+  "OPENPLANS_METRICS",
   "OPENPLANS_TPA",
   "OPENPLANS_TPA_PRIVATE_INGRESS",
   "OPENPLANS_CMS_FALLBACK",
