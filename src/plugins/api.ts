@@ -20,7 +20,8 @@ export interface ApiPlugins {
   readonly registries?: Pick<
     PluginRegistries,
     "routes" | "cacheStores" | "sources"
-  >;
+  > &
+    Partial<Pick<PluginRegistries, "catalogPolicies">>;
   readonly plugins: readonly { name: string; version: string }[];
   /** Setup subscriptions; non-durable ones hear this host's own emits (`plugin.loaded`). */
   readonly subscriptions: readonly Registered<EventSubscription>[];
@@ -103,6 +104,9 @@ export async function loadApiPlugins(
             routes: loaded.registries.routes,
             cacheStores: loaded.registries.cacheStores,
             sources: loaded.registries.sources,
+            ...(Object.keys(loaded.registries.catalogPolicies).length
+              ? { catalogPolicies: loaded.registries.catalogPolicies }
+              : {}),
           })
         : undefined,
     plugins: Object.freeze(

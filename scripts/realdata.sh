@@ -1,15 +1,55 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cd "$(dirname "$0")/.."
+if [ "${1:-}" = '--census-only' ]; then
+  shift
+  if [ ! -x node_modules/.bin/tsc ]; then
+    npm ci --offline --no-audit --no-fund
+  fi
+  npm run build
+  node scripts/census-realdata.mjs "$@"
+  echo 'PASS census cached-data check'
+  exit 0
+fi
+if [ "${1:-}" = '--tpa-postgres' ]; then
+  shift
+  while ! python3 -c 'import os,sys; sys.exit(0 if os.getloadavg()[0] <= 30 else 1)'; do sleep 15; done
+  if [ ! -x node_modules/.bin/tsc ]; then
+    npm ci --offline --no-audit --no-fund
+  fi
+  npm run build
+  scripts/tpa-postgres-realdata.sh "$@"
+  exit 0
+fi
+if [ "${1:-}" = '--compare-audits-only' ]; then
+  shift
+  [ "$#" -eq 0 ] || { echo 'Usage: scripts/realdata.sh --compare-audits-only' >&2; exit 2; }
+  if [ ! -x node_modules/.bin/tsc ]; then
+    npm ci --offline --no-audit --no-fund
+  fi
+  npm run build
+  data_dir=$(node --input-type=module -e 'import { dataDirectory } from "./dist/config/access.js"; process.stdout.write(dataDirectory())')
+  compare_report_dir="${OPENPLANS_COMPARE_REALDATA_REPORT_DIR:-$data_dir/work/gvi1}"
+  export OPENPLANS_COMPARE_REALDATA_REPORT_DIR="$compare_report_dir"
+  node plugins/compare/tests/realdata.mjs
+  node plugins/compare/tests/filed-realdata.mjs
+  node node_modules/vitest/vitest.mjs run tests/domain/rating/community-negative-controls.test.ts -t 'compiled source mutant applying the federal per-age rows to NY'
+  echo 'PASS comparator cached-data audits'
+  exit 0
+fi
 years=(2026 2027)
 price_check=
+household_check=
 handy_check=
 usage() {
-  echo 'Usage: scripts/realdata.sh [--year 2025|2026|2027] [--with-price-check] [--with-lowest]' >&2
+  echo 'Usage: scripts/realdata.sh [--tpa-postgres [--skip-timing]] [--compare-audits-only] [--year 2025|2026|2027] [--with-price-check] [--with-lowest] [--with-household]' >&2
   exit 2
 }
 while [ "$#" -ne 0 ]; do
-  if [ "$1" = '--with-lowest' ] && [ -z "$handy_check" ]; then
+  if [ "$1" = '--with-household' ] && [ -z "$household_check" ]; then
+    household_check=1
+    shift
+  elif [ "$1" = '--with-lowest' ] && [ -z "$handy_check" ]; then
     handy_check=1
     shift
   elif [ "$1" = '--with-price-check' ] && [ -z "$price_check" ]; then
@@ -115,4 +155,8 @@ if [ -n "$handy_check" ]; then
   else
     node scripts/oracle/handy.mjs
   fi
+fi
+
+if [ -n "$household_check" ]; then
+  node scripts/oracle/handy-household.mjs
 fi

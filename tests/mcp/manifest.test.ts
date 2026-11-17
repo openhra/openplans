@@ -26,7 +26,7 @@ describe("MCP tool manifest", () => {
     expect(manifestProblems(await committed(), await current())).toEqual([]);
   });
 
-  it("lists every core tool, the switched estimate tool and the status plugin tool", async () => {
+  it("lists core tools and the first-party plugin tools", async () => {
     const manifest = await current();
     const always = manifest.tools.filter((tool) => tool.listed === "always");
     expect(always.map((tool) => tool.name)).toEqual(toolNames);
@@ -38,6 +38,10 @@ describe("MCP tool manifest", () => {
     ).toEqual([
       ["estimate_medicare_drug_costs", "core", "switched", undefined],
       ["get_lowest_premiums", "core", "switched", undefined],
+      ["get_market_summary", "core", "switched", undefined],
+      ["get_benchmark", "core", "switched", undefined],
+      ["compare_market_costs", "plugin", "plugin", "@openplans/plugin-compare"],
+      ["get_allowance_range", "plugin", "plugin", "@openplans/plugin-handy"],
       ["get_status", "plugin", "plugin", "@openplans/plugin-status"],
     ]);
     for (const tool of manifest.tools) {

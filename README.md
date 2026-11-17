@@ -2,11 +2,11 @@
 
 # OpenPlans
 
-US health plan data you can host yourself.
+Search public health-plan data on your own server.
 
-OpenPlans turns public CMS, Census, NPPES, NLM RxNorm and insurer files into an HTTP API and an
-MCP endpoint for ACA marketplace plans, premium quotes, subsidy estimates, drug coverage and
-provider networks. It also serves Medicare catalogs and benefits where CMS releases are loaded.
+OpenPlans serves data from CMS, Census, NPPES, NLM RxNorm and insurer files through HTTP and
+MCP. Search ACA marketplace plans, quote premiums, estimate subsidies and check drug and
+provider evidence. It also serves Medicare catalogs and benefits where CMS releases are loaded.
 Part D drug data is off until the operator reviews its terms and enables it. It runs in Docker on your own server. You can trace every answer to the public
 file it came from.
 
@@ -46,7 +46,7 @@ Project page: <https://plans.openhra.com/> · Part of [OpenHRA](https://www.open
 - The fetcher reads each host's `robots.txt` and downloads only after a person has reviewed the
   publisher's terms.
 - Host it yourself with Docker Compose, PostgreSQL and PostGIS. Services bind to `127.0.0.1`.
-- The image and the native tools run on Node.js 22.23.5, the version in `.node-version`.
+- Use the Node.js version pinned in `.node-version` for the image and native tools.
 - Before a release, independent checks compare the stored rates with the 2026 and 2027 public
   rate files for every state those files cover. Cost-sharing, household premium and dental checks
   have run for Texas only so far. The

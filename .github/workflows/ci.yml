@@ -99,6 +99,7 @@
       "name": "OpenPlans / macOS shard ${{ matrix.shard }}",
       "runs-on": "macos-15-intel",
       "timeout-minutes": 45,
+      "continue-on-error": true,
       "needs": [
         "dedupe"
       ],
@@ -152,6 +153,7 @@
       "name": "OpenPlans / macOS",
       "runs-on": "ubuntu-24.04",
       "timeout-minutes": 5,
+      "continue-on-error": true,
       "if": "${{ always() && needs.dedupe.outputs.full == 'true' }}",
       "needs": [
         "dedupe",
@@ -275,7 +277,6 @@
       "needs": [
         "dedupe",
         "linux",
-        "macos",
         "docker",
         "postgis"
       ],

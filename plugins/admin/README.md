@@ -17,3 +17,24 @@ The overview reports scope availability, source snapshots, worker observations, 
 The host initializes diagnostics after all plugin setups complete. Availability and catalog readers use the caller's read-only request database and cancellation signal. The MSoT facade calls only the configured MSoT provider and retains its public facts and annotation provenance. Missing providers are unavailable. The facade adds no MCP tools, policy sources, collector, commands or persistence.
 
 The core collector can install or remove its reader through `setOperatorTelemetryReader` in `src/plugins/operator-host.ts`. Existing host facades then expose the bounded telemetry interface. With no reader, `operator.telemetry` is absent. The handoff creates no collector, database table or background job.
+
+Retained metrics require the admin plugin and `OPENPLANS_METRICS=on` on the API
+host. Run `worker migrate` with the plugin enabled before starting collection.
+The API never creates tables. Without both switches, startup allocates no recorder,
+writer or timer. Disabling collection keeps existing history.
+
+The host flushes on a 60-second timer and at shutdown through a separate database
+connection, with a five-second deadline. It retains five-minute rows for seven days
+and hourly rows for 90 days. Two pending windows and 128 series per window bound
+the flush buffer. Failed writes retry without adding counts twice. A restart gets
+a new boot ID; unflushed samples can be lost. Retained observations remain partial
+because other instances and collection gaps cannot be inferred.
+
+Telemetry has a 256 MiB storage limit. Cleanup removes expired and oldest rows,
+reserving 2 KiB per live row for labels, histograms, provenance and indexes. If
+allocated PostgreSQL pages still exceed 256 MiB, the host clears disposable
+telemetry history and reports dropped windows. Business audit is never trimmed.
+The host reader offers `1h`, `24h`, `7d` and `90d` windows; the admin page shows the
+current process and its last successful flush. The 90-day window uses hourly rows
+only, so it does not count detailed rows twice. Empty history is not collected,
+never a successful zero. Refresh approved admin package hashes after upgrading.

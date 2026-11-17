@@ -4,13 +4,12 @@ The exported repository owns `.github/workflows/ci.yml`. It runs from the
 repository root on branch pushes, pull requests and manual dispatches. It needs no
 secrets, data downloads or publication policy file. The workflow uses JSON syntax,
 which is valid YAML, so the command-contract tests can parse it without adding a
-YAML dependency. Checkout v4.3.1 and setup-node v4.4.0 are pinned to commit IDs.
+YAML dependency. The workflow pins Checkout and setup-node to commit IDs.
 
-Node is pinned in `.node-version` to 22.23.5. npm is pinned in
-`.github/npm-version` to 10.9.10. The Docker build uses the same versions. Each
+Node is pinned in `.node-version`. npm is pinned in `.github/npm-version`. The Docker build uses the same versions. Each
 `FROM` line in `Dockerfile` and `Dockerfile.db` names its base image by tag and by
 multi-platform index digest, so a retagged base image can't change the build. Package
-versions remain in `package-lock.json`, including TypeScript 5.9.3 and Vitest 5.0.5.
+versions are pinned in `package-lock.json`.
 To reproduce a project job with that Node version on Linux or macOS, run:
 
 ```sh
@@ -33,7 +32,8 @@ Require these exact check names when activating branch protection and release
 validation:
 
 - `OpenPlans / Linux`, Ubuntu 24.04, clean install and offline project checks.
-- `OpenPlans / macOS`, which passes only when every macOS shard passed.
+- `OpenPlans / PostGIS`, Ubuntu 24.04, the keyed provider search and maintenance locks against a
+  PostGIS container.
 - `OpenPlans / Docker Linux`, Ubuntu 24.04, Docker build and compiled entry check.
 - `OpenPlans / required`, checks every prerequisite result, even after failure.
 
@@ -59,6 +59,11 @@ full run:
   condition as passing, so the other required names never block a `main` push.
 
 To see why a `main` run skipped its checks, open its same-commit job summary.
+
+The macOS checks are advisory. `OpenPlans / macOS shard <n>` and the `OpenPlans / macOS` summary
+run on every full run and report, but both carry `continue-on-error`, so a failed or cancelled
+macOS runner never blocks the run, the same-commit proof or a release; the product ships as a
+Linux image. Read the summary when you change platform-specific code.
 
 The macOS checks run on macOS 15 on Intel x64 as three `OpenPlans / macOS shard <n>` jobs on
 separate runners. Those runners take about twice as long as Linux for the same tests, and with

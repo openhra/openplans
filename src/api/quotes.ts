@@ -15,6 +15,7 @@ import * as v from "./validation.js";
 export interface QuoteOptions {
   /** Opt-in single-age silver minimum. Defaults to OPENPLANS_LOWEST_PREMIUMS. */
   lowestPremiums?: boolean;
+  lowestPremiumsScope?: "full" | "single_age_silver";
   /** When set, personalized requests need this Bearer token. Never logged. */
   premiumToken?: string;
   /** Anonymous quotes by age and ZIP. Defaults to OPENPLANS_PUBLIC_QUOTING, else `public.quoting`. */
@@ -73,7 +74,7 @@ function quotingDisabled(c: Context) {
 /** Runs before the response cache, so cached answers count against the same limits. */
 export function publicQuoteAdmission(
   options: QuoteOptions,
-): MiddlewareHandler[] {
+): [MiddlewareHandler, MiddlewareHandler] {
   const enabled = publicQuotingEnabled(options);
   return [
     async (c, next) => (enabled ? next() : quotingDisabled(c)),
@@ -81,12 +82,12 @@ export function publicQuoteAdmission(
   ];
 }
 
-const jsonBodyLimit = bodyLimit({
+export const jsonBodyLimit = bodyLimit({
   maxSize: MAX_BODY_BYTES,
   onError: (c) =>
     c.json({ error: { code: "REQUEST_TOO_LARGE", field: "body" } }, 400),
 });
-async function jsonBody(c: Context): Promise<unknown> {
+export async function jsonBody(c: Context): Promise<unknown> {
   try {
     return await c.req.json();
   } catch {

@@ -36,12 +36,11 @@ describe("config examples in the docs", () => {
     });
   }
 
-  it("the full example enables the three plugins and tightens one source", () => {
+  it("the full example enables the status and webhook plugins and tightens one source", () => {
     const [full] = configBlocks("plugins-operations.md");
     const config = loadConfig({}, full);
     expect(config.plugins.map((plugin) => plugin.package)).toEqual([
       "@openplans/plugin-status",
-      "@openplans/plugin-slack",
       "@openplans/plugin-webhook",
     ]);
     expect(config.plugins[0]?.sources["cms-marketplace-api"]?.cacheLevel).toBe(

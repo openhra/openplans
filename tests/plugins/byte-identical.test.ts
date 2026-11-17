@@ -11,6 +11,7 @@ import {
   it,
   vi,
 } from "vitest";
+import { startTelemetry, activeRecorder } from "../../src/telemetry/index.js";
 import { loadConfig } from "../../src/config/index.js";
 import { loadPlugins } from "../../src/plugins/loader.js";
 import { currentRegistries } from "../../src/plugins/registries.js";
@@ -195,10 +196,17 @@ const pluginModes = [
   "disabled",
   "no-source",
   "admin-disabled",
+  "admin-disabled-metrics-on",
+  "compare-disabled",
 ] as const;
 async function offMode(pluginMode: (typeof pluginModes)[number]) {
   const plugins = [];
-  if (pluginMode === "admin-disabled") {
+  if (pluginMode === "compare-disabled") {
+    plugins.push({ package: "@openplans/plugin-compare", enabled: false });
+  } else if (
+    pluginMode === "admin-disabled" ||
+    pluginMode === "admin-disabled-metrics-on"
+  ) {
     plugins.push({ package: "@openplans/plugin-admin", enabled: false });
   } else if (pluginMode !== "absent") {
     plugins.push({
@@ -206,9 +214,28 @@ async function offMode(pluginMode: (typeof pluginModes)[number]) {
       enabled: pluginMode !== "disabled",
     });
   }
-  await loadPlugins(loadConfig({}, { version: 1, plugins }), "api", {
-    env: {},
+  const loaded = await loadPlugins(
+    loadConfig({}, { version: 1, plugins }),
+    "api",
+    {
+      env: {},
+    },
+  );
+  const openDatabase = vi.fn(() => {
+    throw new Error("Disabled telemetry must not open storage");
   });
+  expect(
+    startTelemetry({
+      plugins: loaded.plugins.map((plugin) => ({ name: plugin.name })),
+      env:
+        pluginMode === "admin-disabled-metrics-on"
+          ? { OPENPLANS_METRICS: "on" }
+          : {},
+      openDatabase,
+    }),
+  ).toBeUndefined();
+  expect(activeRecorder()).toBeUndefined();
+  expect(openDatabase).not.toHaveBeenCalled();
 }
 for (const pluginMode of pluginModes)
   for (const each of modes)
@@ -333,6 +360,31 @@ it("covers every mounted route and MCP tool with unique, traceable requests", as
         (path.endsWith("/*") && path.includes("/compat/v1/plans/"))),
   );
   for (const route of routes) {
+    if (
+      route.method === "POST" &&
+      route.path === "/v1/ichra/affordability/batch"
+    ) {
+      // This default-off route is additive; all historical digests remain frozen.
+      const source = "tests/api/ichra-batch.test.ts";
+      await readFile(new URL(`../../${source}`, import.meta.url));
+      for (const token of [false, true]) {
+        const entry: HttpEntry = {
+          id: "census-default-off",
+          method: "POST",
+          path: route.path,
+          status: 404,
+          source,
+          token,
+          body: { rows: [] },
+        };
+        const denied = await httpApp(entry).request(entry.path, request(entry));
+        expect(denied.status).toBe(404);
+        expect(denied.headers.get("cache-control")).toBe("no-store");
+        expect(denied.headers.get("x-cache")).toBe("bypass");
+        expect(await denied.text()).toBe("404 Not Found");
+      }
+      continue;
+    }
     const pattern = new RegExp(
       `^${route.path.replace(/:[^/]+/g, "[^/]+").replace(/\*/g, ".*")}$`,
     );

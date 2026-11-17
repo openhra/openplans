@@ -1,3 +1,9 @@
+import {
+  applicationStateCatalogImpact,
+  applicationStateDeclarationAllowed,
+  applicationStateDeclarationSchema,
+} from "@openplans/plugin-sdk";
+import type { ApplicationStateDeclaration } from "@openplans/plugin-sdk";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { createHash } from "node:crypto";
 import { readdir, readFile } from "node:fs/promises";
@@ -61,10 +67,12 @@ export interface PluginMigrationSource {
   readonly tablePrefix?: string;
   /** `<package root>/migrations`; it need not exist. */
   readonly directory: string;
+  readonly applicationState?: readonly ApplicationStateDeclaration[];
 }
 export interface PluginMigration extends Migration {
   readonly plugin: string;
   readonly tablePrefix: string;
+  readonly applicationState?: readonly ApplicationStateDeclaration[];
 }
 
 // The worker sets this around bootstrap and ingest commands, so their own migrate() calls run
@@ -94,6 +102,49 @@ export class PluginMigrationRefusal extends Error {
   }
 }
 
+function validateApplicationState(source: {
+  plugin: string;
+  tablePrefix?: string;
+  applicationState?: readonly ApplicationStateDeclaration[];
+}) {
+  const declared = new Set<string>();
+  for (const entry of source.applicationState ?? []) {
+    if (
+      !applicationStateDeclarationSchema.safeParse(entry).success ||
+      !applicationStateDeclarationAllowed(
+        source.plugin,
+        source.tablePrefix,
+        entry,
+      ) ||
+      declared.has(entry.table)
+    )
+      throw new PluginMigrationRefusal(
+        source.plugin,
+        "plugin_migration_scope",
+        "applicationState",
+      );
+    declared.add(entry.table);
+  }
+}
+
+function validatePluginDeclarations(plugins: readonly PluginMigration[]) {
+  const owners = new Map<string, string>();
+  for (const migration of plugins) {
+    validateApplicationState(migration);
+    if (
+      !/^[a-z][a-z0-9]{1,15}$/.test(migration.tablePrefix) ||
+      (owners.has(migration.tablePrefix) &&
+        owners.get(migration.tablePrefix) !== migration.plugin)
+    )
+      throw new PluginMigrationRefusal(
+        migration.plugin,
+        "plugin_migration_scope",
+        "migrations",
+      );
+    owners.set(migration.tablePrefix, migration.plugin);
+  }
+}
+
 const PLUGIN_JOURNAL = "plugin:";
 export const pluginMigrationName = (plugin: string, file: string) =>
   `${PLUGIN_JOURNAL}${plugin}/${file}`;
@@ -113,6 +164,7 @@ export async function loadPluginMigrations(
 ): Promise<PluginMigration[]> {
   const loaded: PluginMigration[] = [];
   for (const source of sources) {
+    validateApplicationState(source);
     let files: string[];
     try {
       files = (await readdir(source.directory)).filter((name) =>
@@ -156,9 +208,11 @@ export async function loadPluginMigrations(
         name: pluginMigrationName(source.plugin, migration.name),
         plugin: source.plugin,
         tablePrefix: source.tablePrefix,
+        applicationState: source.applicationState,
       });
     }
   }
+  validatePluginDeclarations(loaded);
   return loaded;
 }
 
@@ -171,6 +225,7 @@ function pendingMigrations(
   rows: { name: string; sha256: string }[],
   plugins: readonly PluginMigration[] = [],
 ) {
+  validatePluginDeclarations(plugins);
   const enabled = new Set(plugins.map((migration) => migration.plugin));
   migrations = [...migrations, ...plugins];
   for (const row of rows) {
@@ -254,37 +309,76 @@ async function installMetadata(tx: SqlSession) {
 }
 
 /**
- * Plugin migrations may not create triggers, so the core gives every enabled plugin's
- * `plg_<prefix>_` tables the `api_data_changed` trigger and a generation row. Cached responses
- * built from a plugin table then expire when it changes, as they do for core tables.
+ * Keep generation rows and statement triggers on every plugin table. Only reviewed,
+ * declared operational tables receive a false trigger condition, preserving the warmed
+ * generation token while keeping provenance and policy triggers active.
  */
 async function installPluginGeneration(
   tx: SqlSession,
   plugins: readonly PluginMigration[],
+  classificationOnly = false,
 ) {
   const prefixes = [
     ...new Set(plugins.map(({ tablePrefix }) => pluginTableName(tablePrefix))),
   ];
   if (prefixes.length === 0) return;
-  const { rows } = await tx.query<{ table_name: string }>(
-    `SELECT c.relname AS table_name FROM pg_class c
+  const { rows } = await tx.query<{
+    table_name: string;
+    trigger_present: boolean;
+    operational: boolean;
+    catalog: boolean;
+  }>(
+    `SELECT c.relname AS table_name, t.oid IS NOT NULL AS trigger_present,
+      coalesce(t.tgqual IS NOT NULL AND pg_get_expr(t.tgqual,t.tgrelid) = 'false'
+        AND t.tgtype=60 AND t.tgenabled IN ('O','A')
+        AND t.tgfoid=to_regproc('bump_api_data_generation'), false) AS operational,
+      coalesce(t.tgqual IS NULL AND t.tgtype=60 AND t.tgenabled IN ('O','A')
+        AND t.tgfoid=to_regproc('bump_api_data_generation'), false) AS catalog
+      FROM pg_class c LEFT JOIN pg_trigger t
+        ON t.tgrelid=c.oid AND t.tgname='api_data_changed' AND NOT t.tgisinternal
       WHERE c.relnamespace = 'public'::regnamespace AND c.relkind IN ('r','p')
         AND EXISTS (SELECT 1 FROM unnest($1::text[]) p(prefix)
           WHERE left(c.relname, length(p.prefix)) = p.prefix)
         AND to_regproc('bump_api_data_generation') IS NOT NULL
-        AND NOT EXISTS (SELECT 1 FROM pg_trigger t
-          WHERE t.tgrelid = c.oid AND t.tgname = 'api_data_changed' AND NOT t.tgisinternal)
       ORDER BY c.relname`,
     [prefixes],
   );
-  for (const { table_name } of rows) {
-    const quoted = '"' + table_name.replaceAll('"', '""') + '"';
+  for (const row of rows) {
+    const owner = plugins.find((migration) =>
+      row.table_name.startsWith(pluginTableName(migration.tablePrefix)),
+    )!;
+    const declared = plugins.some(
+      (migration) =>
+        migration.plugin === owner.plugin &&
+        migration.applicationState?.some(
+          (entry) => entry.table === row.table_name,
+        ),
+    );
+    // Replay reconciles classification, leaving ordinary catalog corruption for the integrity checks.
+    if (classificationOnly && !declared && !row.operational) continue;
+    const operational =
+      declared &&
+      applicationStateCatalogImpact(
+        owner.plugin,
+        owner.tablePrefix,
+        row.table_name,
+      ) === "operational";
+    // Do not rewrite a correct trigger or touch its generation row on replay.
+    if (operational ? row.operational : row.catalog) continue;
+    const quoted = '"' + row.table_name.replaceAll('"', '""') + '"';
     await tx.query(
       "INSERT INTO api_data_generation(table_name) VALUES ($1) ON CONFLICT DO NOTHING",
-      [table_name],
+      [row.table_name],
     );
+    if (row.trigger_present)
+      await tx.exec(`DROP TRIGGER api_data_changed ON public.${quoted}`);
     await tx.exec(`CREATE TRIGGER api_data_changed AFTER INSERT OR UPDATE OR DELETE OR TRUNCATE ON public.${quoted}
-      FOR EACH STATEMENT EXECUTE FUNCTION bump_api_data_generation()`);
+      FOR EACH STATEMENT ${operational ? "WHEN (false)" : ""} EXECUTE FUNCTION bump_api_data_generation()`);
+    if (!operational && row.trigger_present)
+      await tx.query(
+        "UPDATE api_data_generation SET revision=revision+1,writer_xid=NULL WHERE table_name=$1",
+        [row.table_name],
+      );
   }
 }
 
@@ -292,11 +386,60 @@ const journalSql = `CREATE TABLE IF NOT EXISTS schema_migrations (
   name text PRIMARY KEY, sha256 text NOT NULL, applied_at timestamptz NOT NULL DEFAULT now()
 )`;
 
+async function installApplicationState(
+  tx: SqlSession,
+  plugins: readonly PluginMigration[],
+  allowMissing = false,
+) {
+  const installed = new Set<string>();
+  for (const migration of plugins) {
+    for (const entry of migration.applicationState ?? []) {
+      if (installed.has(entry.table)) continue;
+      installed.add(entry.table);
+      const slug = `app:plugin-${migration.tablePrefix}:${entry.table}`;
+      const { rows } = await tx.query<{ present: boolean }>(
+        "SELECT to_regclass($1) IS NOT NULL AS present",
+        [entry.table],
+      );
+      if (!rows[0]?.present) {
+        if (allowMissing) continue;
+        throw new Error("Plugin application table missing");
+      }
+      const prior = await tx.query<{
+        fixed_by: string;
+        fixed_slug: string;
+        policy_name: string;
+        reference_columns: string[];
+      }>(
+        "SELECT fixed_by,fixed_slug,policy_name,reference_columns FROM row_provenance_rule WHERE table_name=$1",
+        [entry.table],
+      );
+      if (
+        prior.rows.some(
+          (r) =>
+            r.reference_columns.length !== 0 ||
+            r.fixed_by !== "openplans" ||
+            r.fixed_slug !== slug ||
+            r.policy_name !== "app_state",
+        )
+      )
+        throw new Error("Plugin application provenance conflict");
+      if (prior.rows.length) continue;
+      await tx.query(
+        `INSERT INTO row_provenance_rule(table_name,reference_columns,fixed_by,fixed_slug,reason,policy_name)
+        VALUES ($1,'{}','openplans',$2,$3,'app_state') ON CONFLICT (table_name) DO NOTHING`,
+        [entry.table, slug, entry.reason],
+      );
+    }
+  }
+}
+
 export async function migrate(
   db: Database,
   directory = migrationsDirectory,
   plugins: readonly PluginMigration[] = ambientPlugins.getStore() ?? [],
 ): Promise<string[]> {
+  validatePluginDeclarations(plugins);
   const migrations = await loadMigrations(directory);
   if (
     [...migrations, ...plugins].some(
@@ -327,10 +470,9 @@ export async function migrate(
     }
     // A lane's table can land below 990 after 990 has run on this database. Give every
     // table the row provenance columns and trigger, whatever order the migrations ran in.
-    if (pending.length > 0) {
-      await installMetadata(tx);
-      await installPluginGeneration(tx, plugins);
-    }
+    await installApplicationState(tx, plugins);
+    if (pending.length > 0) await installMetadata(tx);
+    await installPluginGeneration(tx, plugins, pending.length === 0);
     return pending.map((migration) => migration.name);
   });
 }
@@ -419,6 +561,7 @@ async function migrateWithConcurrentIndexes(
             await session.exec(migration.sql);
             await journal(session, migration);
           }
+          await installApplicationState(session, plugins, end < pending.length);
           await installMetadata(session);
           await installPluginGeneration(session, plugins);
           await session.exec("COMMIT");
@@ -427,6 +570,15 @@ async function migrateWithConcurrentIndexes(
           throw error;
         }
         start = end;
+      }
+      await session.exec("BEGIN");
+      try {
+        await installApplicationState(session, plugins);
+        await installPluginGeneration(session, plugins, true);
+        await session.exec("COMMIT");
+      } catch (error) {
+        await session.exec("ROLLBACK");
+        throw error;
       }
       return pending.map((m) => m.name);
     } finally {

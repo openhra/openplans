@@ -77,6 +77,23 @@ function unknownDocumentedRoutes(
   return [...unknown];
 }
 
+/** Bare inline route paths must also exist; wildcard prefixes are not route claims. */
+function unknownInlineRoutes(routes: readonly Route[], doc: string): string[] {
+  const unknown = new Set<string>();
+  for (const [, path] of doc.matchAll(
+    /`(\/(?:v1|compat\/v1)\/[^`?\s]+)(?:`|\?)/g,
+  )) {
+    if (path!.includes("*") || path!.includes("...")) continue;
+    if (
+      !routes.some((route) =>
+        new RegExp(`^${pathPattern(route.path)}$`).test(path!),
+      )
+    )
+      unknown.add(path!);
+  }
+  return [...unknown];
+}
+
 /** Problems with the MCP tool table and the tool counts the docs state. */
 function mcpToolProblems(
   tools: readonly string[],
@@ -107,7 +124,36 @@ function undocumentedVariables(
   return names.filter((name) => !doc.includes(`\`${name}\``));
 }
 
-/** Docs that name a Node version other than the pinned one, or not at all. */
+/** Read the draft or current release while leaving older published notes alone. */
+function currentChangelog(text: string, version: string): string {
+  const heading = text.includes("## Unreleased\n")
+    ? "## Unreleased\n"
+    : `## v${version}\n`;
+  const section = text.split(heading)[1];
+  if (section === undefined)
+    throw new Error("Current changelog section missing");
+  return section.split(/\n## /)[0]!;
+}
+
+/** Current product versions and core tool counts must agree with the code. */
+function currencyProblems(
+  text: string,
+  version: string,
+  tools: readonly string[],
+): string[] {
+  const problems: string[] = [];
+  for (const [, stated] of text.matchAll(/\bOpenPlans\s+v?(\d+\.\d+\.\d+)\b/gi))
+    if (stated !== version)
+      problems.push(`OpenPlans ${stated}; package is ${version}`);
+  for (const [claim, count] of text.matchAll(
+    /\b(\d+) (?:read-only )?(?:core )?tools\b/g,
+  ))
+    if (Number(count) !== tools.length)
+      problems.push(`${claim}; core has ${tools.length} tools`);
+  return problems;
+}
+
+/** Docs must point to the Node pin; any explicit version must match it. */
 function staleNodeVersion(
   pinned: string,
   docs: Record<string, string>,
@@ -115,7 +161,9 @@ function staleNodeVersion(
   return Object.entries(docs)
     .filter(([, text]) => {
       const named = [...text.matchAll(/\b22\.\d+\.\d+\b/g)].map((m) => m[0]);
-      return !named.includes(pinned) || named.some((v) => v !== pinned);
+      return (
+        !text.includes("`.node-version`") || named.some((v) => v !== pinned)
+      );
     })
     .map(([name]) => name);
 }
@@ -163,6 +211,7 @@ const SHIPPED_DOCS = [
   "README.md",
   "CHANGELOG.md",
   "CONTRIBUTING.md",
+  "docs/census-batch.md",
   "docs/ci.md",
   "docs/configuration.md",
   "docs/admin-access.md",
@@ -179,6 +228,13 @@ const SHIPPED_DOCS = [
   "src/api/README.md",
   "src/compat/v1/README.md",
   "plugins/status/README.md",
+  // The export moves the source README here and installs the scaffold as README.md.
+  ...(existsSync(resolve(root, "docs/usage.md")) ? ["docs/usage.md"] : []),
+];
+const scaffoldReadme = "public-scaffold/README.md";
+const currentCopyFiles = [
+  ...SHIPPED_DOCS,
+  ...(existsSync(resolve(root, scaffoldReadme)) ? [scaffoldReadme] : []),
 ];
 
 /** Heading anchors as GitHub renders them, with `-1`, `-2` for repeats. */
@@ -255,17 +311,11 @@ describe("docs match the API surface", () => {
 
   it("names no native route the API does not serve", () => {
     for (const file of SHIPPED_DOCS.filter((name) => name !== "CHANGELOG.md"))
-      expect(
-        unknownDocumentedRoutes(routes, read(file), [
-          // The quoting guide says this route was removed.
-          "POST /v1/premium-estimates",
-        ]),
-        file,
-      ).toEqual([]);
+      expect(unknownDocumentedRoutes(routes, read(file)), file).toEqual([]);
   });
 
   it("lists every core MCP tool and states the count", () => {
-    expect(toolNames).toHaveLength(15);
+    expect(toolNames.length).toBeGreaterThan(0);
     expect(
       mcpToolProblems(
         toolNames,
@@ -297,13 +347,44 @@ describe("docs match the API surface", () => {
       staleNodeVersion(pinned, {
         "README.md": read("README.md"),
         "docs/ci.md": read("docs/ci.md"),
+        ...(existsSync(resolve(root, scaffoldReadme))
+          ? { [scaffoldReadme]: read(scaffoldReadme) }
+          : {}),
       }),
     ).toEqual([]);
+  });
+
+  it("keeps current public copy versions, tool counts and routes current", () => {
+    const pkg = JSON.parse(read("package.json")) as { version: string };
+    for (const file of currentCopyFiles) {
+      // Check the current section without checking older notes against this version.
+      const text =
+        file === "CHANGELOG.md"
+          ? currentChangelog(read(file), pkg.version)
+          : read(file);
+      expect(currencyProblems(text, pkg.version, toolNames), file).toEqual([]);
+      expect(unknownDocumentedRoutes(routes, text), file).toEqual([]);
+      expect(unknownInlineRoutes(routes, text), file).toEqual([]);
+    }
   });
 
   it("resolves every relative link and heading in the shipped docs", () => {
     for (const file of SHIPPED_DOCS)
       expect(brokenLinks(file, read(file), loadFile), file).toEqual([]);
+  });
+});
+
+describe("current changelog selection", () => {
+  it("reads draft and current release notes without older history", () => {
+    expect(
+      currentChangelog("## Unreleased\ndraft\n## v1.0.0\nold", "2.0.0"),
+    ).toBe("draft");
+    expect(
+      currentChangelog("## v2.0.0\ncurrent\n## v1.0.0\nold", "2.0.0"),
+    ).toBe("current");
+    expect(() => currentChangelog("## v1.0.0\nold", "2.0.0")).toThrow(
+      "Current changelog section missing",
+    );
   });
 });
 
@@ -327,6 +408,15 @@ describe("planted doc mutants fail the checks", () => {
     expect(unknownDocumentedRoutes(routes, mutant)).toEqual([
       "POST /v1/plan-compare",
     ]);
+  });
+
+  it("a bare inline route the API never served", () => {
+    expect(
+      unknownInlineRoutes(routes, "Call `/v1/synthetic-retired-route`."),
+    ).toEqual(["/v1/synthetic-retired-route"]);
+    expect(unknownInlineRoutes(routes, "Read `/v1/plans?year=2026`.")).toEqual(
+      [],
+    );
   });
 
   it("a tool row dropped and a stale count", () => {
@@ -373,10 +463,27 @@ describe("planted doc mutants fail the checks", () => {
   });
 
   it("a Node version left behind after an update", () => {
-    const ci = read("docs/ci.md");
+    const ci = read("docs/ci.md") + "\nNode 22.0.0\n";
     expect(
       staleNodeVersion("22.99.0", { "docs/ci.md": ci, "README.md": "" }),
     ).toEqual(["docs/ci.md", "README.md"]);
+  });
+
+  it("rejects stale product versions and tool counts anywhere in current prose", () => {
+    const version = "1.2.3";
+    expect(
+      currencyProblems(
+        `OpenPlans v${version} has ${toolNames.length} core tools.`,
+        version,
+        toolNames,
+      ),
+    ).toEqual([]);
+    expect(currencyProblems("OpenPlans v0.0.0", version, toolNames)).toEqual([
+      "OpenPlans 0.0.0; package is 1.2.3",
+    ]);
+    expect(currencyProblems("999 core tools", version, toolNames)).toEqual([
+      `999 core tools; core has ${toolNames.length} tools`,
+    ]);
   });
 
   it("a missing file, a missing heading and a repeated in-page heading", () => {

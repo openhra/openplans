@@ -135,13 +135,7 @@ The [ICHRA guide](ichra.md#coverage) describes its readiness and look-back field
 [Medicare availability](medicare.md#routes) is a separate endpoint,
 `GET /v1/medicare/data-availability`, with its loaded releases and counts.
 
-A catalog import stores the rate-row count of each plan with its rate file, so
-availability reads one small row per file instead of counting rate rows again.
-Catalogs imported before migration 993 have no stored counts, so availability
-counts their rate rows on every read. That takes seconds on a national catalog. Run
-`worker backfill rate-plan-count` once after migrating to store their counts.
-The command handles one rate file per transaction and skips files that already
-have counts. Responses are the same either way.
+For catalogs without stored rate-row counts, run `worker backfill rate-plan-count` once; it skips files that already have counts and leaves responses unchanged.
 
 ## Publisher access
 
@@ -512,7 +506,7 @@ config file read-only at the same path in each. Recreate the services after a ch
 `docker compose up -d api`, plus `docker compose --profile scheduler up -d scheduler` when the
 scheduler runs. Plugin secrets need a local Compose override. The
 [operator guide](plugins-operations.md) walks through the status page and the operator token, the
-`scheduler` profile, Slack and the webhook, pass-through cache levels, backups and restores, the
+`scheduler` profile, the signed webhook, pass-through cache levels, backups and restores, the
 approved-plugin list and the checks to run before an update. The [plugin guide](plugins.md) covers
 the first-party plugins, config file entries, event delivery and writing a plugin.
 
@@ -581,7 +575,14 @@ It uses public OSM state extracts and binds its port to 127.0.0.1. Start with TX
 stop commands are in [the geocoder guide](../src/ingest/geocode/README.md#self-hosted-open-geocoder).
 
 Leave `OPENPLANS_OPEN_GEOCODER_URL` unset to disable it. Stored open results retain their
-source, licence, attribution and extract date in a separate SQL ledger. They do not yet
+source, licence, attribution and extract date in a separate SQL ledger. They do not
 replace Census/ZCTA evidence in provider API responses. Keep 40 GiB free on both the VM
 Docker disk and external data disk, monitor imports, and stop the service when finished.
 The stop command retains its state database for reuse.
+
+## Private census processing
+
+[Census affordability batches](census-batch.md) are off by default. Enable them
+only on a private installation with a configured API bearer credential and
+reviewed ingress settings. Ordinary anonymous household access does not grant
+batch access. Public installations must keep census processing disabled.

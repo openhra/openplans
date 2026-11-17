@@ -1,6 +1,20 @@
+import {
+  cmsFallbackUnavailable,
+  disableCmsFallback,
+  enableCmsFallback,
+} from "../../config/cms-fallback.js";
+import type { CmsFallbackFailure } from "../../config/cms-fallback.js";
 import { readFile } from "node:fs/promises";
 import type { SqlSession } from "../../db/database.js";
-import { fetchToCache, FetchError } from "../../fetch/index.js";
+import {
+  AdmissionSession,
+  fetchToCache,
+  FetchError,
+  prepareFetch,
+  shippedManifestPaths,
+} from "../../fetch/index.js";
+import { operatorManifest } from "../../config/access.js";
+import { restrictCacheLevel } from "../../plugins/request-scope.js";
 import type { FetchOptions } from "../../fetch/index.js";
 import { dataDirectory } from "./sources.js";
 import { saveFallbackSnapshot } from "./fallback-snapshot.js";
@@ -15,6 +29,162 @@ export interface CmsLookupOptions {
   dataDir?: string;
   fetchOptions?: Pick<FetchOptions, "lookup" | "transport">;
 }
+const SESSION_MAX_AGE_MS = 12 * 60 * 60 * 1000;
+let held: { session: AdmissionSession; created: number } | undefined;
+
+function zipAdmission(options: CmsLookupOptions): AdmissionSession | undefined {
+  // Injected transports can run offline without publisher policy fixtures.
+  if (options.fetchOptions?.transport) return undefined;
+  const operator = operatorManifest();
+  const paths = [...shippedManifestPaths(), ...(operator ? [operator] : [])];
+  const current = held;
+  if (
+    current &&
+    !current.session.isStopped &&
+    current.session.manifestPaths.length === paths.length &&
+    paths.every(
+      (path, index) => path === current.session.manifestPaths[index],
+    ) &&
+    Date.now() - current.created < SESSION_MAX_AGE_MS
+  )
+    return current.session;
+  held = {
+    session: new AdmissionSession(paths, {
+      maxRequests: 1000,
+      maxTransferBytes: 128 * 1024 ** 2,
+    }),
+    created: Date.now(),
+  };
+  return held.session;
+}
+
+/** Prepare policy without spending a ZIP lookup or changing its cache. */
+export async function warmCmsZipLookup(): Promise<void> {
+  if (!process.env.CMS_API_KEY) return;
+  const admission = zipAdmission({});
+  if (!admission) return;
+  await prepareFetch(base, {
+    admission,
+    source: "cms-marketplace-zip",
+    allowHosts: ["marketplace.api.healthcare.gov"],
+    expectedContent: "json",
+    maxBytes: 256 * 1024,
+    maxAttempts: 1,
+    maxRedirects: 0,
+    connectTimeoutMs: 3_000,
+    readTimeoutMs: 3_000,
+  });
+}
+
+export const CMS_POLICY_PREPARE_MS = 6_000;
+/** A ZIP request waits this long at most for the shared policy attempt. Afterwards it
+ * answers from loaded data and treats the CMS fallback as unavailable for that request;
+ * the preparation itself keeps running for later requests. */
+export const CMS_REQUEST_PREPARE_WAIT_MS = 250;
+const RETRY_MIN_MS = 1_000;
+const RETRY_MAX_MS = 60_000;
+let preparation: Promise<boolean> | undefined;
+let retry: ReturnType<typeof setTimeout> | undefined;
+let retryDelay = RETRY_MIN_MS;
+let retryAt = 0;
+let stopped = false;
+const inflight = new Set<Promise<void>>();
+
+/** Startup and early requests share one bounded policy attempt. Readiness never waits. */
+export function prepareCmsZipFallback(): Promise<boolean> {
+  if (!process.env.CMS_API_KEY || stopped) return Promise.resolve(false);
+  if (preparation) return preparation;
+  if (Date.now() < retryAt) return Promise.resolve(false);
+  clearTimeout(retry);
+  preparation = prepareOptionalFallback().finally(() => {
+    preparation = undefined;
+  });
+  return preparation;
+}
+
+/** Policy readiness within a request's bound. Pending, timed-out and failed preparation
+ * all answer false quickly; a request never waits on the publisher behind this call. */
+export async function cmsZipFallbackPrepared(
+  waitMs = CMS_REQUEST_PREPARE_WAIT_MS,
+): Promise<boolean> {
+  const pending = prepareCmsZipFallback();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      pending,
+      new Promise<boolean>((resolve) => {
+        timer = setTimeout(() => resolve(false), waitMs);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** Stop this process's retry timer and retire its policy session during shutdown. */
+export function stopCmsZipPreparation(): void {
+  stopped = true;
+  clearTimeout(retry);
+  held?.session.stop();
+}
+
+/** Resolves once every policy attempt this process started has settled, however it ended. */
+export async function cmsZipPreparationSettled(): Promise<void> {
+  await Promise.all(inflight);
+}
+
+async function prepareOptionalFallback(): Promise<boolean> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let reason: CmsFallbackFailure = "policy_failed";
+  const work = warmCmsZipLookup();
+  // A retired attempt may still be writing its policy cache; shutdown and tests can wait for it.
+  const settled: Promise<void> = work
+    .then(
+      () => undefined,
+      () => undefined,
+    )
+    .finally(() => {
+      inflight.delete(settled);
+    });
+  inflight.add(settled);
+  const session = held?.session;
+  try {
+    await Promise.race([
+      work,
+      new Promise<never>((_resolve, reject) => {
+        timer = setTimeout(() => {
+          reason = "policy_timeout";
+          reject(new Error("CMS policy preparation timed out"));
+        }, CMS_POLICY_PREPARE_MS);
+      }),
+    ]);
+    if (stopped) return false;
+    retryAt = 0;
+    retryDelay = RETRY_MIN_MS;
+    enableCmsFallback();
+    return true;
+  } catch (error) {
+    session?.stop();
+    // Network failures and timeouts do not withdraw configured or stored sources.
+    if (error instanceof FetchError && error.code === "admission_denied")
+      disableCmsFallback("policy_failed");
+    if (!stopped) {
+      console.warn(
+        JSON.stringify({ event: "cms_policy_preparation_failed", reason }),
+      );
+      retryAt = Date.now() + retryDelay;
+      retry = setTimeout(() => {
+        void prepareCmsZipFallback();
+      }, retryDelay);
+      retry.unref();
+      retryDelay = Math.min(retryDelay * 2, RETRY_MAX_MS);
+    }
+    return false;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 interface Lookup extends Record<string, unknown> {
   snapshot_id: string | null;
   outcome: string;
@@ -28,7 +198,7 @@ export async function cmsCountySnapshot(
   options: CmsLookupOptions = {},
 ): Promise<string | null> {
   const key = process.env.CMS_API_KEY;
-  if (!key) return null;
+  if (!key || cmsFallbackUnavailable()) return null;
   const year = options.year ?? new Date().getUTCFullYear();
   if (
     !/^\d{5}$/.test(zip) ||
@@ -44,6 +214,7 @@ export async function cmsCountySnapshot(
       [zip, year],
     )
   ).rows[0];
+  if (cmsFallbackUnavailable()) return null;
   if (cached?.fresh)
     return cached.outcome === "available" ? cached.snapshot_id : null;
   if (options.allowCmsLive === false) return null;
@@ -54,6 +225,12 @@ export async function cmsCountySnapshot(
     )
   ).rows[0];
   if (mode?.read_only === "on") return null;
+  // A cold request answers from loaded data while preparation is pending or failed.
+  if (!options.fetchOptions?.transport && !(await cmsZipFallbackPrepared())) {
+    // That answer omits a configured source, so no shared cache may keep it.
+    restrictCacheLevel("request");
+    return null;
+  }
   // Atomic persistent reservation, shared by all processes. Never queue a batch behind this limiter.
   const reserved = await db.query(`UPDATE cms_zip_budget SET
     daily_requests=CASE WHEN day_start<(now() AT TIME ZONE 'UTC')::date THEN 1 ELSE daily_requests+1 END,
@@ -72,6 +249,7 @@ export async function cmsCountySnapshot(
   try {
     const result = await fetchToCache(url.href, {
       ...options.fetchOptions,
+      admission: zipAdmission(options),
       source: "cms-marketplace-zip",
       allowHosts: ["marketplace.api.healthcare.gov"],
       expectedContent: "json",
@@ -83,6 +261,7 @@ export async function cmsCountySnapshot(
       connectTimeoutMs: 3_000,
       readTimeoutMs: 3_000,
     });
+    if (cmsFallbackUnavailable()) return null;
     if (result.outcome === "not_modified") throw new Error("Missing CMS body");
     httpStatus = result.metadata.status;
     const body: unknown = JSON.parse(await readFile(result.path, "utf8"));
@@ -137,6 +316,11 @@ export async function cmsCountySnapshot(
     outcome = counties.length ? "available" : "empty";
     ttlSeconds = counties.length ? 86400 : 3600;
   } catch (error) {
+    if (error instanceof FetchError && error.code === "admission_denied") {
+      disableCmsFallback("policy_failed");
+      void prepareCmsZipFallback();
+    }
+    if (cmsFallbackUnavailable()) return null;
     // Persist only controlled codes/status; error messages/bodies/URLs can contain credentials.
     snapshot = null;
     code = error instanceof FetchError ? error.code : "invalid_response";
@@ -174,5 +358,5 @@ export async function cmsCountySnapshot(
       fetched_at=EXCLUDED.fetched_at,expires_at=EXCLUDED.expires_at`,
     [zip, year, snapshot, outcome, httpStatus, code, safeUrl, ttlSeconds],
   );
-  return outcome === "available" ? snapshot : null;
+  return !cmsFallbackUnavailable() && outcome === "available" ? snapshot : null;
 }

@@ -24,8 +24,8 @@ for publisher reviews, cache mounts, backups and proxy configuration.
 
 The [plugin guide](plugins.md) explains the config file's `plugins` entries, the first-party
 plugins, event delivery and how to write a plugin. [Running plugins](plugins-operations.md)
-is the operator checklist: a full config file, the Compose override, the scheduler, Slack and
-the webhook, cache levels, backups and the approved-plugin list.
+is the operator checklist: a full config file, the Compose override, the scheduler, the signed
+webhook, cache levels, backups and the approved-plugin list.
 
 The signed webhook plugin reads these variables. See its
 [README](../plugins/webhook/README.md).
@@ -35,13 +35,6 @@ The signed webhook plugin reads these variables. See its
 | `OPENPLANS_WEBHOOK_HOST`   | Unset. Not secret. The receiver's host name, read when the worker loads the plugin. It is the plugin's only network host and must be `allowed` in an admission manifest. Setup refuses a URL on any other host. |
 | `OPENPLANS_WEBHOOK_URL`    | Required with the plugin. Secret. The receiver's full `https://` URL.                                                                                                                                           |
 | `OPENPLANS_WEBHOOK_SECRET` | Required with the plugin. Secret, 32 characters or more. The HMAC key for `X-OpenPlans-Signature`.                                                                                                              |
-
-The Slack plugin reads these variables. See its [README](../plugins/slack/README.md).
-
-| Variable                      | Default and effect                                                                                                                                                                           |
-| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `OPENPLANS_SLACK_HOST`        | `hooks.slack.com`. Not secret. The incoming webhook's host name, read when the worker loads the plugin. It is the plugin's only network host and must be `allowed` in an admission manifest. |
-| `OPENPLANS_SLACK_WEBHOOK_URL` | Required with the plugin. Secret. The incoming webhook URL, on that host. Never logged.                                                                                                      |
 
 The S3-compatible blob store plugin reads these variables. Compose does not forward them; see
 its [README](../plugins/blob-s3/README.md).
@@ -56,7 +49,7 @@ its [README](../plugins/blob-s3/README.md).
 | `OPENPLANS_BLOB_S3_SESSION_TOKEN`     | Optional secret. List it under `optionalSecrets` when you leave it unset.                         |
 
 `compose.yml` forwards only `OPENPLANS_PLUGINS`, `OPENPLANS_CONFIG` and (API only)
-`OPENPLANS_OPERATOR_TOKEN`. The webhook, Slack and blob store variables need a local Compose
+`OPENPLANS_OPERATOR_TOKEN`. The webhook and blob store variables need a local Compose
 override on the `api`, `worker` and `scheduler` services, as
 [Running plugins](plugins-operations.md#variables) shows.
 
@@ -126,6 +119,11 @@ message. Treat a file that holds one like `.env`, and let only the services that
 it. `scripts/smoke.sh`, `scripts/realdata.sh` and the checks under `scripts/oracle/` read
 only `DATABASE_URL`.
 
+`catalogPolicy` is unset by default. Its reserved file keys are `catalogPolicy.provider`,
+`catalogPolicy.source`, `catalogPolicy.version`, `catalogPolicy.selection`,
+`catalogPolicy.allowPublicRead` and `catalogPolicy.asOf`. Catalog serving remains disabled
+while the transport checks are incomplete. Leave this section unset.
+
 ## Access and optional sources
 
 | Variable                                 | Default and effect                                                                                                                                                                       |
@@ -144,8 +142,18 @@ only `DATABASE_URL`.
 | `OPENPLANS_MEDICARE_PART_D`              | Off. `on` serves loaded Part D drug and pharmacy data after the operator reviews its agreement.                                                                                          |
 | `OPENPLANS_MEDICARE_DRUG_COST`           | Off. `on` turns on Part D drug-cost estimates. Also needs `OPENPLANS_MEDICARE_PART_D=on` and a Bearer token; see [Medicare](medicare.md).                                                |
 | `OPENPLANS_MEDICARE_DRUG_COST_PRICES`    | Off. `on` accepts the `cms_plan_average` price basis in drug-cost estimates. Counts only while the estimator is on, and needs loaded prices and fee ranges; see [Medicare](medicare.md). |
-| `OPENPLANS_LOWEST_PREMIUMS`              | Off. `on` enables the single-age gross silver minimum REST route and MCP tool, subject to public quoting policy.                                                                         |
+| `OPENPLANS_TPA`                          | Off. `on` enables private census batching, subject to private ingress and API authentication.                                                                                            |
+| `OPENPLANS_TPA_PRIVATE_INGRESS`          | Off. `on` attests that the installation restricts ingress and disables census body capture. Required with `OPENPLANS_TPA=on`.                                                            |
+| `OPENPLANS_LOWEST_PREMIUMS`              | Off. `on` enables gross minima and market summaries for single ages and households, plus MCP `get_benchmark`. Public quoting and household admission still apply.                        |
 | `OPENPLANS_GA_QUOTE_RECOVERY`            | Off. `on` permits the documented Georgia CSV quote recovery and records a warning per recovered row.                                                                                     |
+
+`OPENPLANS_LOWEST_PREMIUMS_SCOPE` selects the admitted requests while the feature is enabled.
+Its config key is `lowestPremiumsScope`. The default `full` keeps all minimum, summary and
+benchmark contracts. `single_age_silver` admits only ZIP-based non-tobacco Silver GET
+minimums and unpriced GET market counts. It omits both household POSTs and MCP
+`get_benchmark`, and rejects household, other-metal minimums and priced-summary inputs even
+with a household grant. MCP discovery describes the reduced schemas. This setting never
+enables the feature by itself; `lowestPremiums` still defaults to false.
 
 OpenPlans reads the switches in this table when a request or import runs. Each one except
 `CMS_API_KEY` can also be set in the config file: `compat.catastrophicAgeRule`,
@@ -198,6 +206,26 @@ template was not refused, or when the CMS file differs by even one cent from the
 rates of any other issuer it lists. Turning the switch on or off means preparing
 `ny-2026.json` again before the next import. Details are in the
 [state rating README](../src/ingest/state/README.md#ny-rate-source-override).
+
+## Public individual offer comparator
+
+The comparator is opt-in. Load `@openplans/plugin-compare` 0.1.4 with `public.quoting: true`
+and keep `tpa.enabled` and `tpa.privateIngress` false for public use. No library default
+changes when the package is installed. This exposes `GET /compare/v1` for browser forms,
+`GET /compare/v1/market` for JSON, `POST /compare/v1/print` for HTML, and one read-only MCP
+tool, `compare_market_costs`. It does not expose employer or group routes.
+
+The public flow accepts one age or an explicitly aged household and returns a distribution
+of gross individual medical premiums. Unknown prices prevent a complete headline; all
+later evidence pages require the returned generation and calculation manifest token.
+Employer contributions, renewals and census fields are refused. See the
+[comparator README](../plugins/compare/README.md) for config, request examples, supported
+metals, source limits and print instructions.
+
+A comparator-only installation adds one tool to the default 15, for 16. With the status
+plugin it lists 17. `lowestPremiums` adds three more tools; the allowance plugin adds one.
+Count only tools actually enabled and admitted for the caller. These counts do not enable
+any additional feature.
 
 ## MCP tools
 
@@ -405,3 +433,16 @@ Labels, used where no single row exists:
 The API server and the worker each write `plugin.loaded` at startup when at least one
 plugin loaded. Both use the same idempotency key for a given set of plugin names and
 versions, so each distinct set gets one row.
+
+Private census settings use `tpa.enabled` and `tpa.privateIngress` in the version 1
+config file. Both default to `false`. See [private census batches](census-batch.md)
+for ingress requirements and limits.
+
+### Public stipend preset
+
+The allowance plugin stays unloaded by default. A public deployment must explicitly
+load `@openplans/plugin-handy` with `options: { "publicOnly": true }` and leave
+public quoting enabled. That option registers the preset calculation, printable
+sheet, source manifest and one MCP tool. It omits the private scenario route even
+when an operator token is configured. See the [stipend plugin](../plugins/handy/README.md)
+for inputs, print links, limits and recovery. This documentation does not enable a deployment.

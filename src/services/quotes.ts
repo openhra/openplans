@@ -1,3 +1,9 @@
+import {
+  selectCatalogPlans,
+  guardCatalogPlans,
+  annotateCatalogPlan,
+  withCatalogPolicyContext,
+} from "./catalog-policy.js";
 import type { SqlSession } from "../db/database.js";
 import type { Plan } from "../api/repository.js";
 import {
@@ -52,6 +58,10 @@ async function requestedPlans(
       });
     plans.push({ requestedId: id.full, plan });
   }
+  await guardCatalogPlans(
+    plans.map((p) => p.requestedId),
+    request.premium.year,
+  );
   return plans;
 }
 
@@ -61,15 +71,24 @@ async function catalogPage(
   county: string,
   zip: string | undefined,
 ) {
-  const offered = (
-    await reads.countyPlans(county, request.premium.year, zip, request.coverage)
-  )
-    .filter(
-      (plan) =>
-        request.metal === undefined ||
-        plan.metal.toLowerCase() === request.metal,
+  const offered = await selectCatalogPlans(
+    (
+      await reads.countyPlans(
+        county,
+        request.premium.year,
+        zip,
+        request.coverage,
+      )
     )
-    .sort((a, b) => a.base_plan_id.localeCompare(b.base_plan_id));
+      .filter(
+        (plan) =>
+          request.metal === undefined ||
+          plan.metal.toLowerCase() === request.metal,
+      )
+      .sort((a, b) => a.base_plan_id.localeCompare(b.base_plan_id)),
+    request.premium.year,
+    (p) => p.base_plan_id,
+  );
   const start = (request.page - 1) * QUOTE_PAGE_SIZE;
   return {
     plans: offered
@@ -94,18 +113,22 @@ async function quotePlan(
     request.rxcuis,
     request.premium.year,
   );
-  return {
-    ...(await estimatePremium(
-      db,
-      plan,
-      requestedId,
-      request.premium,
-      location,
-      reads,
-    )),
-    providers,
-    drugs,
-  };
+  return annotateCatalogPlan(
+    {
+      ...(await estimatePremium(
+        db,
+        plan,
+        requestedId,
+        request.premium,
+        location,
+        reads,
+      )),
+      providers,
+      drugs,
+    },
+    requestedId,
+    request.premium.year,
+  );
 }
 
 function summarize(statuses: unknown[]): EvidenceStatus {
@@ -171,7 +194,7 @@ export async function quotePlans(
     : QUOTE_PAGE_SIZE;
   const hasNext =
     !request.explicitPlans && request.page * QUOTE_PAGE_SIZE < selection.total;
-  return {
+  return withCatalogPolicyContext({
     schema_version: "1",
     tier,
     bindable_quote: false,
@@ -206,5 +229,5 @@ export async function quotePlans(
     page_size: pageSize,
     total: selection.total,
     next_page: hasNext ? request.page + 1 : null,
-  };
+  });
 }

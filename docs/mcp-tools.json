@@ -115,10 +115,40 @@
     },
     {
       "name": "get_lowest_premiums",
-      "title": "Lowest silver premium",
-      "description": "Find the lowest gross on-exchange silver premium for one age, year and location. Requires complete pricing evidence; no subsidies are evaluated.",
+      "title": "Lowest metal premium",
+      "description": "Find the lowest gross on-exchange silver, bronze, expanded bronze or gold premium for one age, year and location. Tobacco can be selected. Requires complete pricing evidence. Does not evaluate subsidies.",
       "kind": "core",
       "listed": "switched"
+    },
+    {
+      "name": "get_market_summary",
+      "title": "Market summary",
+      "description": "Count base plans and issuers by metal, with optional gross premium ranges.",
+      "kind": "core",
+      "listed": "switched"
+    },
+    {
+      "name": "get_benchmark",
+      "title": "Silver household benchmark",
+      "description": "Read the existing January 1 non-tobacco household silver benchmark, with EHB and pediatric dental adjustments and full evidence.",
+      "kind": "core",
+      "listed": "switched"
+    },
+    {
+      "name": "compare_market_costs",
+      "title": "Individual offer distribution",
+      "description": "Gross monthly prices across eligible public base plans for one exact age or an explicitly listed non-tobacco household. Counts gaps; no group quote, subsidy or employer inputs. Evidence pages require the returned generation.",
+      "kind": "plugin",
+      "listed": "plugin",
+      "plugin": "@openplans/plugin-compare"
+    },
+    {
+      "name": "get_allowance_range",
+      "title": "Allowance range",
+      "description": "Calculate the named four-profile gross premium range and adjusted SLCSP context for one ZIP and year.",
+      "kind": "plugin",
+      "listed": "plugin",
+      "plugin": "@openplans/plugin-handy"
     },
     {
       "name": "get_status",

@@ -1,3 +1,5 @@
+import type { CoreConfig } from "../config/index.js";
+import { assertCatalogToolAdmission } from "../plugins/catalog-policy.js";
 import { applicationVersion } from "./version.js";
 import { cmsFallbackContext } from "../ingest/cms-api/fallback.js";
 import { quoteFallbackEnabled } from "../services/quote-coverage.js";
@@ -62,7 +64,9 @@ export interface McpPolicy {
   canEstimate(principal: McpPrincipal | undefined): boolean;
 }
 export interface McpDependencies {
+  catalogPolicy?: CoreConfig["catalogPolicy"];
   lowestPremiums?: boolean;
+  lowestPremiumsScope?: CoreConfig["lowestPremiumsScope"];
   db: SqlSession;
   cache?: ResponseCache;
   onCache?: (outcome: CacheOutcome) => void;
@@ -97,7 +101,7 @@ export const MAX_TOOL_LIST_BYTES = 512 * 1024;
 // Core tools plus plugin tools; the loader refuses a configuration that would need a second page.
 export const TOOL_LIST_PAGE_SIZE = 32;
 export const MAX_INPUT_ELEMENTS = 512;
-/** Core titles and descriptions, in the words every client has seen; never reworded. */
+/** Core titles and descriptions are covered by recorded discovery digests. */
 export const toolDescriptions: Record<ToolName, [string, string]> = {
   search: [
     "Search public evidence",
@@ -1288,6 +1292,7 @@ export async function callTool(
   let generation = "unknown";
   deps.onCache?.("bypass");
   try {
+    assertCatalogToolAdmission(deps.catalogPolicy, tool);
     if (PERSONALIZED_TOOLS.has(tool) && !mayEstimate(deps))
       throw new ToolError("AUTH_REQUIRED");
     if (tool === "quote_plans" && !mayQuotePublic(deps))

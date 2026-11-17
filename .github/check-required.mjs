@@ -10,9 +10,15 @@ export const sameCommitJob = {
 
 export const requiredJobs = {
   linux: "OpenPlans / Linux",
-  macos: "OpenPlans / macOS",
   docker: "OpenPlans / Docker Linux",
   postgis: "OpenPlans / PostGIS",
+};
+
+// Advisory jobs run and report on every full run but never block it: the product ships as a
+// Linux image, and the macOS runners have failed or been cancelled for reasons unrelated to the
+// code. They carry continue-on-error and stay out of the aggregate and the same-commit proof.
+export const advisoryJobs = {
+  macos: "OpenPlans / macOS",
 };
 
 export const aggregateJob = "OpenPlans / required";

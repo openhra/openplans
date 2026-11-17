@@ -5,8 +5,14 @@ import type {
   McpToolContext,
   CanonicalPlan,
 } from "@openplans/plugin-sdk";
-import { FIELD, resolveInput, sourceSchema } from "./schema.js";
-import type { Source, Rule, Scope, Resolution } from "./schema.js";
+import { MARKETABLE, resolveInput, sourceSchema } from "./schema.js";
+import type {
+  Source,
+  Rule,
+  Scope,
+  Resolution,
+  FieldResolution,
+} from "./schema.js";
 
 const dimensions = ["issuer_id", "state", "market_segment"] as const;
 function canonical(value: unknown): string {
@@ -33,9 +39,13 @@ const active = (rule: Rule, date: string) =>
 
 export function compileSource(raw: unknown, reader: CanonicalReader) {
   const source: Source = sourceSchema.parse(raw);
+  const definitions = new Map(source.fields.map((f) => [f.name, f]));
+  if (definitions.size !== source.fields.length)
+    throw new Error("MSOT_DUPLICATE_DEFINITION");
   const ids = new Set<string>();
   let comparisons = 0;
   for (const rule of source.rules) {
+    if (!definitions.has(rule.field)) throw new Error("MSOT_FIELD_UNDEFINED");
     for (const dimension of dimensions)
       if (rule.scope[dimension] === "*") delete rule.scope[dimension];
     if (ids.has(rule.id)) throw new Error("MSOT_DUPLICATE_RULE");
@@ -48,7 +58,7 @@ export function compileSource(raw: unknown, reader: CanonicalReader) {
     for (let j = i + 1; j < source.rules.length; j++) {
       if (++comparisons > 100000) throw new Error("MSOT_VALIDATION_BUDGET");
       const b = source.rules[j]!;
-      if (rank(a.scope) !== rank(b.scope)) continue;
+      if (a.field !== b.field || rank(a.scope) !== rank(b.scope)) continue;
       const overlap = dimensions.every(
         (d) =>
           a.scope[d] === undefined ||
@@ -68,12 +78,17 @@ export function compileSource(raw: unknown, reader: CanonicalReader) {
   freeze(source);
   const index = new Map<string, Rule[]>();
   for (const rule of source.rules) {
-    const key = indexKey(rule.scope);
+    const key = `${rule.field}:${indexKey(rule.scope)}`;
     const group = index.get(key) ?? [];
     group.push(rule);
     index.set(key, group);
   }
-  function choose(plan: CanonicalPlan, segment: string, date: string) {
+  function choose(
+    plan: CanonicalPlan,
+    segment: string,
+    date: string,
+    field: string,
+  ) {
     const facts = {
       issuer_id: plan.issuer_id,
       state: plan.state,
@@ -84,6 +99,7 @@ export function compileSource(raw: unknown, reader: CanonicalReader) {
     if (Object.values(facts).some((v) => v === null)) {
       for (const rule of source.rules)
         if (
+          rule.field === field &&
           dimensions.every(
             (d) =>
               rule.scope[d] === undefined ||
@@ -98,13 +114,26 @@ export function compileSource(raw: unknown, reader: CanonicalReader) {
         dimensions.forEach((d, bit) => {
           if (mask & (1 << bit)) scope[d] = facts[d]!;
         });
-        for (const rule of index.get(indexKey(scope)) ?? [])
+        for (const rule of index.get(`${field}:${indexKey(scope)}`) ?? [])
           candidates.add(rule);
       }
     }
     return [...candidates]
       .filter((r) => active(r, date))
-      .sort((a, b) => rank(b.scope) - rank(a.scope));
+      .sort(
+        (a, b) =>
+          rank(b.scope) - rank(a.scope) ||
+          Number(
+            dimensions.some(
+              (d) => b.scope[d] !== undefined && facts[d] === null,
+            ),
+          ) -
+            Number(
+              dimensions.some(
+                (d) => a.scope[d] !== undefined && facts[d] === null,
+              ),
+            ),
+      );
   }
   return Object.freeze({
     source,
@@ -116,6 +145,8 @@ export function compileSource(raw: unknown, reader: CanonicalReader) {
       const input = resolveInput.parse(rawInput);
       if (input.source_id !== source.source_id)
         throw new Error("MSOT_SOURCE_NOT_READABLE");
+      if (input.version !== undefined && input.version !== source.version)
+        throw new Error("MSOT_VERSION_UNAVAILABLE");
       const date = input.as_of ?? new Date().toISOString().slice(0, 10);
       const batch = await reader.plans(
         { plan_ids: input.plan_ids, year: input.year },
@@ -126,6 +157,24 @@ export function compileSource(raw: unknown, reader: CanonicalReader) {
         string,
         Resolution["msot"]["provenance"][number]
       >();
+      // Retained versions keep their hash; absent built-in decisions stay unknown.
+      const effectiveDefinitions = [...source.fields];
+      for (const name of ["custom_payment_allowed", MARKETABLE] as const) {
+        if (!effectiveDefinitions.some((f) => f.name === name))
+          effectiveDefinitions.push({
+            ...source.fields[0]!,
+            name,
+            filterable: name === MARKETABLE,
+            visibility: {
+              audience: "answer",
+              rest: true,
+              compat: name === MARKETABLE,
+              mcp: true,
+            },
+            set_by: "openplans",
+            description: "Operator decision",
+          });
+      }
       const plans = batch.plans.map((plan) => {
         if (
           !source.product_families.includes(plan.product_family) ||
@@ -150,69 +199,76 @@ export function compileSource(raw: unknown, reader: CanonicalReader) {
             segment === "unknown"
               ? null
               : plan[segment as "on_exchange" | "off_exchange"];
-          const candidates = flag === false ? [] : choose(plan, segment, date);
-          const rule = candidates[0];
-          const missing =
-            !!rule &&
-            dimensions.some(
+          const fields = {} as Record<
+            "custom_payment_allowed" | "marketable",
+            FieldResolution
+          >;
+          for (const definition of effectiveDefinitions) {
+            const candidates =
+              flag === false
+                ? []
+                : choose(plan, segment, date, definition.name);
+            const rule = candidates[0];
+            const missing =
+              !!rule &&
+              dimensions.some(
+                (d) =>
+                  rule.scope[d] !== undefined &&
+                  (d === "market_segment" ? flag === null : plan[d] === null),
+              );
+            let reason = "no_matching_rule";
+            if (flag === false) reason = "channel_inapplicable";
+            else if (missing) reason = "insufficient_scope_evidence";
+            const selected = missing ? undefined : rule;
+            const unresolved = dimensions.filter(
               (d) =>
-                rule.scope[d] !== undefined &&
+                rule?.scope[d] !== undefined &&
                 (d === "market_segment" ? flag === null : plan[d] === null),
             );
-          let reason = "no_matching_rule";
-          if (flag === false) reason = "channel_inapplicable";
-          else if (missing) reason = "insufficient_scope_evidence";
-          const selected = missing ? undefined : rule;
-          const unresolved = dimensions.filter(
-            (d) =>
-              rule?.scope[d] !== undefined &&
-              (d === "market_segment" ? flag === null : plan[d] === null),
-          );
-          const candidateIds = missing
-            ? candidates
-                .filter((r) => rank(r.scope) === rank(rule!.scope))
-                .map((r) => r.id)
-            : [];
-          const origin = selected ? "msot" : "msot_default";
-          const ref = selected
-            ? `rule:${selected.id}:matched`
-            : `default:${reason}:${candidateIds.join(",")}:${unresolved.join(",")}`;
-          const definition = source.fields[0];
-          const value = rule && !missing ? rule.value : definition.default;
-          provenance.set(ref, {
-            id: ref,
-            origin,
-            source_id: source.source_id,
-            version: source.version,
-            definition: `${FIELD}@${definition.definition_version}`,
-            rule_id: selected?.id ?? null,
-            matched_scope: selected?.scope ?? null,
-            set_by: selected?.set_by ?? definition.set_by,
-            set_at: selected?.set_at ?? definition.set_at,
-            valid_from: selected?.valid_from ?? null,
-            valid_until: selected?.valid_until ?? null,
-            reason_code: rule && !missing ? rule.reason_code : reason,
-            ...(missing
-              ? {
-                  unresolved_dimensions: unresolved,
-                  candidate_rule_ids: candidateIds,
-                }
-              : {}),
-          });
+            const candidateIds = missing
+              ? candidates
+                  .filter((r) => rank(r.scope) === rank(rule!.scope))
+                  .map((r) => r.id)
+              : [];
+            const origin = selected ? "msot" : "msot_default";
+            const ref = selected
+              ? `rule:${selected.id}:matched`
+              : `default:${definition.name}:${reason}:${candidateIds.join(",")}:${unresolved.join(",")}`;
+            const value = rule && !missing ? rule.value : definition.default;
+            provenance.set(ref, {
+              id: ref,
+              origin,
+              source_id: source.source_id,
+              version: source.version,
+              definition: `${definition.name}@${definition.definition_version}`,
+              rule_id: selected?.id ?? null,
+              matched_scope: selected?.scope ?? null,
+              set_by: selected?.set_by ?? definition.set_by,
+              set_at: selected?.set_at ?? definition.set_at,
+              valid_from: selected?.valid_from ?? null,
+              valid_until: selected?.valid_until ?? null,
+              reason_code: rule && !missing ? rule.reason_code : reason,
+              ...(missing
+                ? {
+                    unresolved_dimensions: unresolved,
+                    candidate_rule_ids: candidateIds,
+                  }
+                : {}),
+            });
+            fields[definition.name] = {
+              ...value,
+              origin,
+              provenance_ref: ref,
+              public: { state: "not_defined", value: null },
+            };
+          }
           let applicability: "unknown" | "applicable" | "inapplicable" =
             "unknown";
           if (flag === true) applicability = "applicable";
           else if (flag === false) applicability = "inapplicable";
           channels[segment as keyof typeof channels] = {
             applicability,
-            fields: {
-              custom_payment_allowed: {
-                ...value,
-                origin,
-                provenance_ref: ref,
-                public: { state: "not_defined", value: null },
-              },
-            },
+            fields,
           };
         }
         return {
@@ -231,6 +287,13 @@ export function compileSource(raw: unknown, reader: CanonicalReader) {
           evaluator_version: 1,
           dimension_schema_version: 1,
           provenance: [...provenance.values()],
+          field_definitions: effectiveDefinitions.map(
+            ({ name, filterable, visibility }) => ({
+              name,
+              filterable,
+              visibility,
+            }),
+          ),
         },
         plans,
       };

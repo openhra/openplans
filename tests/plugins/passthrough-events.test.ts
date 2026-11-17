@@ -1,5 +1,5 @@
-// Pass-through events from the CMS source through the outbox to the Slack plugin. Synthetic
-// catalog, synthetic key, injected transport; nothing reaches the network or Slack.
+// Pass-through events from the CMS source through the outbox to the signed webhook. Synthetic
+// catalog, synthetic key, injected transport; nothing reaches the network.
 import { createHash } from "node:crypto";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -32,10 +32,12 @@ import { createCoreEvents } from "../../src/plugins/worker.js";
 import { deliverEvents } from "../../src/worker/deliver-events.js";
 import type { DurableSubscriber } from "../../src/worker/deliver-events.js";
 import {
-  createSlackPlugin,
-  messageText,
+  createWebhookPlugin,
+  HMAC_SECRET,
+  SIGNATURE_HEADER,
   URL_SECRET,
-} from "../../plugins/slack/src/index.js";
+  verifySignature,
+} from "../../plugins/webhook/src/index.js";
 import { setup } from "../ingest/qhp/formulary-helpers.js";
 import { importMutant, plantMutantFile } from "../mutant-file.js";
 
@@ -45,8 +47,9 @@ vi.mock("../../src/fetch/limiter.js", () => ({
 
 const plantedKey = "PLANTED-cms-key-5e4d3c2b1a09";
 const docs = "Synthetic CMS API documentation for offline tests.";
-const SLACK_HOST = "slack-receiver.test";
-const SLACK_URL = `https://${SLACK_HOST}/services/TSYNTH000/BSYNTH000/synthetic0123456789abcd`;
+const WEBHOOK_HOST = "webhook-receiver.test";
+const WEBHOOK_URL = `https://${WEBHOOK_HOST}/events`;
+const WEBHOOK_SECRET = "synthetic-event-hmac-secret-0123456789";
 const fixtures = fileURLToPath(
   new URL("../fixtures/plugins/", import.meta.url),
 );
@@ -273,33 +276,38 @@ afterEach(async () => {
 });
 
 describe("passthrough.budget_exhausted", () => {
-  it("an exhausted budget gives one outbox row, and the Slack plugin posts it", async () => {
-    // The Slack plugin as the worker loads it, posting through a recording fetch.
-    const posted: { url: string; text: string }[] = [];
+  it("an exhausted budget gives one outbox row, and the webhook posts it", async () => {
+    const posted: {
+      url: string;
+      body: Buffer;
+      headers: Record<string, string>;
+    }[] = [];
     const fetch = Object.assign(
       async () => {
-        throw new Error("Slack never downloads");
+        throw new Error("Webhook never downloads");
       },
       {
-        post: async (url: string, request: { body: Buffer }) => {
-          posted.push({
-            url,
-            text: (
-              JSON.parse(request.body.toString("utf8")) as { text: string }
-            ).text,
-          });
+        post: async (
+          url: string,
+          request: { body: Buffer; headers: Record<string, string> },
+        ) => {
+          posted.push({ url, body: request.body, headers: request.headers });
           return { status: 200 };
         },
       },
     ) as unknown as AdmittedFetch;
-    const slack = await loadForTest(createSlackPlugin({ host: SLACK_HOST }), {
-      db: h.db,
-      secrets: { [URL_SECRET]: SLACK_URL },
-      fetch,
-    });
+    const webhook = await loadForTest(
+      createWebhookPlugin({ host: WEBHOOK_HOST }),
+      {
+        db: h.db,
+        options: { events: ["passthrough.budget_exhausted"] },
+        secrets: { [URL_SECRET]: WEBHOOK_URL, [HMAC_SECRET]: WEBHOOK_SECRET },
+        fetch,
+      },
+    );
     const subscribers: DurableSubscriber[] =
-      slack.registrations.subscriptions.map((entry) => ({
-        plugin: "@openplans/plugin-slack",
+      webhook.registrations.subscriptions.map((entry) => ({
+        plugin: "@openplans/plugin-webhook",
         type: entry.type as DurableSubscriber["type"],
         subscriber: entry.options.subscriber,
         handler: entry.handler as DurableSubscriber["handler"],
@@ -338,18 +346,31 @@ describe("passthrough.budget_exhausted", () => {
 
     const report = await deliverEvents(h.db, subscribers);
     expect(report.delivered).toBe(1);
-    expect(posted).toEqual([
-      {
-        url: SLACK_URL,
-        text: "OpenPlans: Fallback budget used up for cms-marketplace-api: all 500 requests for today are spent.",
-      },
-    ]);
+    expect(posted).toHaveLength(1);
+    const [delivery] = posted;
+    expect(delivery!.url).toBe(WEBHOOK_URL);
+    expect(JSON.parse(delivery!.body.toString("utf8"))).toMatchObject({
+      type: row!.event_type,
+      emittedBy: row!.emitted_by,
+      idempotencyKey: row!.idempotency_key,
+      payload: row!.payload,
+    });
+    expect(
+      verifySignature(
+        WEBHOOK_SECRET,
+        delivery!.body,
+        delivery!.headers[SIGNATURE_HEADER],
+      ),
+    ).toBe(true);
+    const duplicate = await deliverEvents(h.db, subscribers);
+    expect(duplicate.delivered).toBe(0);
+    expect(posted).toHaveLength(1);
     // Another process (a fresh core) refused later the same day adds no row.
     expect(await exhaustedScenario(real)).toEqual({
       ...exhaustedExpected,
       rows: 1,
     });
-    await slack.close();
+    await webhook.close();
   });
 
   it("negative control: a call refused for spacing alone emits nothing", async () => {
@@ -415,9 +436,6 @@ describe("passthrough.breaker_open", () => {
       )
     ).rows[0]!.blocked_until;
     expect(payload.untilAt).toBe(new Date(until).toISOString());
-    expect(messageText(heard[0]!)).toBe(
-      `OpenPlans: Fallback paused for cms-marketplace-api after failed calls, until ${payload.untilAt}.`,
-    );
     // The pause ends; the trial call fails and the pause goes on without a second event.
     await h.db.query(
       `UPDATE cms_api_budget SET blocked_until=now()-interval '1 second'`,

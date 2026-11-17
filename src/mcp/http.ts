@@ -1,7 +1,7 @@
 import { activeRecorder } from "../telemetry/observer.js";
 import { performance } from "node:perf_hooks";
 import { loadedPluginTools } from "../plugins/mcp-tools.js";
-import { LOWEST_TOOL } from "./handy.js";
+import { BENCHMARK_TOOL, LOWEST_TOOL, MARKET_SUMMARY_TOOL } from "./handy.js";
 import { loadConfig } from "../config/index.js";
 import { sharedResponseCache } from "../api/cache/index.js";
 import type { CacheOutcome } from "../api/cache/index.js";
@@ -266,7 +266,10 @@ export function createMcpHttp(db: SqlSession, options: HttpOptions = {}) {
         parsed.method === "tools/call" &&
         (isToolName(params?.name) ||
           estimateCall ||
-          (params?.name === LOWEST_TOOL && config.lowestPremiums))
+          ((params?.name === LOWEST_TOOL ||
+            params?.name === MARKET_SUMMARY_TOOL ||
+            params?.name === BENCHMARK_TOOL) &&
+            config.lowestPremiums))
           ? String(params?.name)
           : null;
       // Legacy initialize predates metadata headers; all modern metadata validation is delegated to the SDK.
@@ -285,7 +288,14 @@ export function createMcpHttp(db: SqlSession, options: HttpOptions = {}) {
       }
       const needsGrant =
         parsed.method === "tools/call" &&
-        PERSONALIZED_TOOLS.has(params?.name as ToolName) &&
+        (PERSONALIZED_TOOLS.has(params?.name as ToolName) ||
+          (config.lowestPremiums &&
+            (params?.name === BENCHMARK_TOOL ||
+              ((params?.name === LOWEST_TOOL ||
+                params?.name === MARKET_SUMMARY_TOOL) &&
+                typeof params?.arguments === "object" &&
+                params.arguments !== null &&
+                "members" in params.arguments)))) &&
         !granted &&
         !open;
       // The estimate needs a verified Bearer token; household openness never grants it.

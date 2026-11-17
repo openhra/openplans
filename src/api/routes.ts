@@ -1,8 +1,13 @@
 import { sharedResponseCache } from "./cache/index.js";
-import { lowestQuery } from "./handy.js";
-import { lowestPremiums, HandyDataChanged } from "../services/handy.js";
+import { lowestQuery, marketSummaryQuery, admitsHandyScope } from "./handy.js";
+import {
+  householdHandy,
+  getMarketSummary,
+  lowestPremiums,
+  HandyDataChanged,
+} from "../services/handy.js";
 import { loadConfig } from "../config/index.js";
-import { publicQuoteAdmission } from "./quotes.js";
+import { jsonBody, jsonBodyLimit, publicQuoteAdmission } from "./quotes.js";
 import { logInternalError, queryTimeoutResponse } from "./error-log.js";
 import {
   lookupZip,
@@ -15,6 +20,8 @@ import { isQueryTimeout, ReadError } from "../services/errors.js";
 import { providerRoutes } from "./providers.js";
 import { drugRoutes } from "./drugs.js";
 import { medicareRoutes } from "./medicare.js";
+import { ichraBatchRoutes } from "./ichra-batch.js";
+import type { TpaOptions } from "./ichra-batch.js";
 import { ichraRoutes } from "./ichra.js";
 import { Hono } from "hono";
 import { boundedDatabase, DEADLINE_MS } from "../db/bounded.js";
@@ -24,7 +31,7 @@ import * as v from "./validation.js";
 import { personalizedOnly, quoteRoutes } from "./quotes.js";
 import type { QuoteOptions } from "./quotes.js";
 
-export type ApiOptions = QuoteOptions;
+export type ApiOptions = QuoteOptions & { tpa?: TpaOptions };
 export function nativeRoutes(db: SqlSession, options: ApiOptions) {
   const app = new Hono();
   app.onError((error, c) => {
@@ -45,24 +52,28 @@ export function nativeRoutes(db: SqlSession, options: ApiOptions) {
     }
   });
 
+  // One household admission: premium quotes, ICHRA checks and the benchmark share its limits.
+  const household = personalizedOnly(options);
+
   if (options.lowestPremiums ?? loadConfig().lowestPremiums) {
-    app.use("/lowest-premiums", ...publicQuoteAdmission(options));
-    app.get("/lowest-premiums", async (c) => {
+    const scope =
+      options.lowestPremiumsScope ?? loadConfig().lowestPremiumsScope;
+    app.get("/lowest-premiums", ...publicQuoteAdmission(options), async (c) => {
       c.header("Cache-Control", "no-store");
       const deadline = AbortSignal.any([
         c.req.raw.signal,
         AbortSignal.timeout(DEADLINE_MS),
       ]);
       try {
+        const input = lowestQuery(c.req.query());
+        if (!admitsHandyScope(scope, input)) return v.fail("scope");
+        const run = (session: SqlSession) =>
+          lowestPremiums(boundedDatabase(session, deadline), input, {
+            cache: sharedResponseCache(db),
+            evidencePage: Number(c.req.query("evidence_page") ?? "1"),
+          });
         return c.json(
-          await lowestPremiums(
-            boundedDatabase(db, deadline),
-            lowestQuery(c.req.query()),
-            {
-              cache: sharedResponseCache(db),
-              evidencePage: Number(c.req.query("evidence_page") ?? "1"),
-            },
-          ),
+          db.withRequest ? await db.withRequest(deadline, run) : await run(db),
         );
       } catch (error) {
         if (deadline.aborted)
@@ -70,6 +81,51 @@ export function nativeRoutes(db: SqlSession, options: ApiOptions) {
         throw error;
       }
     });
+    app.get("/market-summary", ...publicQuoteAdmission(options), async (c) => {
+      c.header("Cache-Control", "no-store");
+      const deadline = AbortSignal.any([
+        c.req.raw.signal,
+        AbortSignal.timeout(DEADLINE_MS),
+      ]);
+      try {
+        const input = marketSummaryQuery(c.req.query());
+        if (!admitsHandyScope(scope, input, true)) return v.fail("scope");
+        const run = (session: SqlSession) =>
+          getMarketSummary(boundedDatabase(session, deadline), input);
+        return c.json(
+          db.withRequest ? await db.withRequest(deadline, run) : await run(db),
+        );
+      } catch (error) {
+        if (deadline.aborted)
+          return c.json({ error: { code: "REQUEST_DEADLINE" } }, 504);
+        throw error;
+      }
+    });
+    for (const path of scope === "full"
+      ? (["/lowest-premiums", "/market-summary"] as const)
+      : []) {
+      app.post(path, household, jsonBodyLimit, async (c) => {
+        const deadline = AbortSignal.any([
+          c.req.raw.signal,
+          AbortSignal.timeout(DEADLINE_MS),
+        ]);
+        try {
+          const result = await householdHandy(
+            boundedDatabase(db, deadline),
+            await jsonBody(c),
+            path === "/market-summary",
+          );
+          deadline.throwIfAborted();
+          if (Buffer.byteLength(JSON.stringify(result)) > 2 * 1024 * 1024)
+            return c.json({ error: { code: "RESULT_TOO_LARGE" } }, 422);
+          return c.json(result);
+        } catch (error) {
+          if (deadline.aborted)
+            return c.json({ error: { code: "REQUEST_DEADLINE" } }, 504);
+          throw error;
+        }
+      });
+    }
   }
   app.route("/", drugRoutes(db));
   app.route("/", providerRoutes(db));
@@ -85,10 +141,9 @@ export function nativeRoutes(db: SqlSession, options: ApiOptions) {
     c.json(await getPlan(db, v.planId(c.req.param("id")).full, c.req.query())),
   );
 
-  // One household admission: premium quotes, ICHRA checks and the benchmark share its limits.
-  const household = personalizedOnly(options);
   app.route("/", quoteRoutes(db, options, household));
   app.route("/", ichraRoutes(db, options, household));
+  app.route("/", ichraBatchRoutes(db, options));
   app.use("/benchmark", household);
   app.get("/benchmark", async (c) => {
     const deadline = AbortSignal.any([

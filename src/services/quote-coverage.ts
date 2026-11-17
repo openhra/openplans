@@ -1,3 +1,5 @@
+import { guardCatalogPlans } from "./catalog-policy.js";
+import { cmsFallbackUnavailable } from "../config/cms-fallback.js";
 import type { SqlSession } from "../db/database.js";
 import { providerParticipation } from "../domain/providers/repository.js";
 import { drugCoverage } from "../domain/drugs/repository.js";
@@ -11,7 +13,10 @@ import { loadConfig } from "../config/index.js";
 export function quoteFallbackEnabled(): boolean {
   const { cmsFallback } = loadConfig();
   return (
-    cmsFallback.quotes && cmsFallback.enabled && Boolean(cmsFallback.apiKey)
+    !cmsFallbackUnavailable() &&
+    cmsFallback.quotes &&
+    cmsFallback.enabled &&
+    Boolean(cmsFallback.apiKey)
   );
 }
 
@@ -37,6 +42,7 @@ export async function readQuoteCoverage(
   rxcuis: string[],
   year: number,
 ): Promise<QuoteCoverage> {
+  await guardCatalogPlans([requestedId], year);
   const providers = [],
     drugs = [];
   for (const code of npis)
@@ -58,11 +64,13 @@ export async function applyQuoteFallback<T extends QuoteCoverage>(
     quotes.flatMap((q) => q.providers),
     cms,
   );
+  if (!quoteFallbackEnabled()) return quotes;
   const drugs = await passThrough.apply(
     "drug",
     quotes.flatMap((q) => q.drugs),
     cms,
   );
+  if (!quoteFallbackEnabled()) return quotes;
   function label<A extends ProviderParticipation | DrugCoverage>(answer: A): A {
     if (!answer.cms_api) return answer;
     let freshness: "fresh" | "stale" | "refetched" = "fresh";

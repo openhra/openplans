@@ -146,7 +146,7 @@ async function sourceFiles(directory: string): Promise<string[]> {
 }
 
 describe("scope establishment rules", () => {
-  it("opens scopes only in the response cache and the MCP HTTP handler", async () => {
+  it("opens scopes only in the declared cache, MCP and catalog policy boundaries", async () => {
     const files = [
       ...(await sourceFiles(join(root, "src"))),
       ...(await sourceFiles(join(root, "plugins/sdk/src"))),
@@ -165,6 +165,7 @@ describe("scope establishment rules", () => {
     expect(opened).toEqual({
       "src/api/cache/index.ts": 3,
       "src/mcp/http.ts": 1,
+      "src/services/catalog-policy.ts": 1,
     });
     // The event bus keeps its own SQL-session store (PLG-13), and migrate.ts keeps the worker's
     // enabled plugin migrations for bootstrap and ingest (5.13). No request scope lives there.
@@ -172,6 +173,7 @@ describe("scope establishment rules", () => {
       "src/db/migrate.ts",
       "src/plugins/events.ts",
       "src/plugins/request-scope.ts",
+      "src/services/catalog-policy.ts",
     ]);
   });
 });

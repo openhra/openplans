@@ -91,7 +91,7 @@ async function unscopedCatalog() {
   // Plan views on the raw session, outside both the page scope and the request's reads.
   const mutant = text
     .replace("const scoped = planPageScope(db);", "const scoped = db;")
-    .replace("planView(\n          reads.db,", "planView(\n          db,");
+    .replace(/planView\(\s+reads\.db,/, "planView(\n          db,");
   expect(mutant).toContain("const scoped = db;");
   expect(mutant).toContain("planView(\n          db,");
   // Node caches the module by URL, so it stays usable after the file is removed.

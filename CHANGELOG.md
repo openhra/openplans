@@ -3,6 +3,30 @@
 Release notes for OpenPlans. Earlier releases are on the
 [GitHub releases page](https://github.com/openhra/openplans/releases).
 
+## v0.4.12
+
+### Fixes
+
+- Prepare CMS policy in the background, preserve availability on failure and bound cold ZIP preparation waits to 250 ms; unprepared answers stay uncached.
+- Keep public caches during MSoT draft, preview and audit writes; published policy changes still invalidate them.
+- Update the Node HTTP server to 2.1.6 and shorten status 0.1.7's publisher-date explanation.
+- Remove Slack integration; signed webhooks and the event outbox remain available.
+
+### Optional capabilities
+
+All new and optional capabilities stay off on the hosted API. Hosted MCP discovery is unchanged.
+
+- Add household premium minima, metal and tobacco ranges, market summaries and a silver benchmark tool.
+- Add offer distributions, renewal comparisons, public age and household forms, and evidence-pinned comparison sheets.
+- Add allowance adapters for four household profiles, a public preset and printable Letter/A4 sheets with source manifests.
+- Add private census batches for up to 25 employees, answer receipts, offline replay and explicitly granted operator commands.
+- Add versioned MSoT imports, marketable decisions, typed selections and private previews; catalog serving stays disabled.
+- Add private admin inspection, recovery receipts and opt-in retained metrics with bounded buffers and retention.
+
+### Upgrading
+
+Remove retired Slack configuration, refresh approved hashes for enabled plugins and run `worker migrate` for enabled MSoT/admin upgrades. Core SQL files are unchanged.
+
 ## v0.4.11
 
 This release bounds MCP status responses, fixes compatibility provider searches for common
@@ -515,11 +539,10 @@ change for `search_medicare_plans` and `check_ichra_affordability`.
   `location_issues` see `state_catalog_not_loaded` for more counties.
 - Each bundled plugin now names the new hono version as its peer dependency, so each one has a
   new patch version and a new package hash. The status, webhook, template, S3 blob store and
-  both source plugins move from 0.1.0 to 0.1.1, and Slack moves from 0.2.0 to 0.2.1. Their code
+  both source plugins move from 0.1.0 to 0.1.1. Their code
   and messages do not change. If you keep an approved plugin list, start the new image on the
   side, read each entry's version and `sha256` from `/status/operator.json` as in the release
-  preflight in `docs/plugins-operations.md`, and replace the old entries. "Upgrade to Slack
-  0.2.0" there gives the Slack 0.2.1 entry.
+  preflight in `docs/plugins-operations.md`, and replace the old entries.
 - Check your config file before upgrading. Keys from the list above that it already holds now
   take effect. For example, `tokens.compatKey` in the file now guards the compatibility routes,
   and a `public.*` switch set to `false` turns that access off. Without a config file nothing
@@ -605,12 +628,6 @@ only from the environment now stops startup.
   default. `access.dataDir` also sets the root of the `local` blob store unless the file sets
   `blobs.root`. `scripts/smoke.sh` and `src/ingest/geocode/geocoder.sh` still read only
   `OPENPLANS_DATA_DIR`.
-- **Slack plugin 0.2.0 posts rollbacks.** The Slack plugin posts `release.rolled_back` as a
-  `warning`, for example `OpenPlans: Release rolled back from 1.4.0 to 1.3.2.` It names the two
-  versions and never the image ID. Without an `events` option it posts rollbacks as soon as 0.2.0
-  loads. With an `events` list, add `"release.rolled_back"` to get them. With `minSeverity` set
-  to `error`, rollbacks are dropped. See "Upgrade to Slack 0.2.0" in
-  `docs/plugins-operations.md`.
 
 ### Fixes
 
@@ -659,9 +676,6 @@ only from the environment now stops startup.
   `--allow-risky-migration 1005_partd_staged_generation.sql`. Apply it before any Part D price
   load. Images from v0.4.2 keep working on the new schema.
 - No backfill is needed.
-- If you run the Slack plugin, replace its approved-list entry with version `0.2.0` and the
-  sha256 given in "Upgrade to Slack 0.2.0" in `docs/plugins-operations.md`. Version 0.1.0 refuses
-  `"release.rolled_back"` in `events`, so change that list only together with the upgrade.
 - If you parse plan search or quote responses, expect the new `issues` field on REST and
   `location_issues` on MCP, and the two new subsidy reason codes. The compatibility search adds
   the codes to `x-openplans-gaps`.
@@ -737,7 +751,7 @@ York and Part D pricing changes stay off until an operator turns them on.
   `OPENPLANS_MEDICARE_DRUG_COST_PRICES` setting, described above, turns it on.
 - **New event `release.rolled_back`.** The plugin event catalog gains `release.rolled_back`
   (`version`, `imageId`, `fromVersion`), emitted after a hard-release rollback. The webhook plugin
-  posts it when its `events` list names it. The Slack plugin does not post it.
+  posts it when its `events` list names it.
 - **Hosted release process.** The hosted service's release tooling gained a blue/green mode with
   a time limit on checks after a switch, recorded rollbacks and a fix for a rollback that held
   the release lock. It can also add states to a plan year that is already served, and a load that
@@ -881,10 +895,6 @@ part-county areas, New York 2026 benchmarks, and EHB-portion figures with long E
   value used to replace the config file's plugin list with nothing, so plugin options never
   applied. Now the file's list is used. To turn one plugin off, set `"enabled": false` in the
   file. An empty value no longer forces zero plugins.
-- **Slack notification runbook.** The self-host docs walk through turning on
-  `@openplans/plugin-slack`: the webhook URL and host settings, the access manifest, the
-  approved-plugins entry, a preflight check that never prints the webhook, and an optional test
-  message. Turning it off is documented too.
 - **Scheduler profile.** The Compose `scheduler` profile delivers queued events and runs the
   status plugin's health probe each minute. Worker health on `/status` is live, and the status
   plugin can send worker down and recovered messages. `down` now stops the scheduler too.
@@ -914,7 +924,7 @@ part-county areas, New York 2026 benchmarks, and EHB-portion figures with long E
   capabilities, registration rules, an approval checklist, and the versioning policy: what counts
   as a breaking API change, and how plugin versions relate to approved-list entries.
 - New `docs/plugins-operations.md` for operators: the config file, the status page and operator
-  token, Slack and the signed webhook, the scheduler, pass-through cache levels, the approved
+  token, the signed webhook, the scheduler, pass-through cache levels, the approved
   plugin list, and backups and restores.
 - CI builds and runs the guide's example plugin, so the guide stays in step with the SDK.
 - `docs/medicare.md` describes the new estimate evidence shape and its checks.

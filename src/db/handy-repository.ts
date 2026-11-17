@@ -12,10 +12,31 @@ export const digest = (value: string) =>
 // Derived publications are excluded so a build cannot invalidate its own inputs.
 const sourceVector = `SELECT table_name,revision::text FROM api_data_generation
  WHERE table_name NOT LIKE 'handy_lowest_%' ORDER BY table_name`;
+type SourceRevision = { table_name: string; revision: string };
 export async function handyManifest(db: SqlSession) {
-  const { rows } = await db.query<{ table_name: string; revision: string }>(
-    sourceVector,
-  );
+  const { rows } = await db.query<SourceRevision>(sourceVector);
+  return manifestFromRows(rows);
+}
+
+/** One atomic read for the public generation and its pricing source vector. */
+export async function handyVersion(db: SqlSession) {
+  const { rows } = await db.query<{
+    generation: string;
+    revisions: SourceRevision[];
+  }>(`SELECT
+    md5(string_agg(table_name || ':' || revision::text, ',' ORDER BY table_name)) AS generation,
+    coalesce(jsonb_agg(jsonb_build_object('table_name',table_name,'revision',revision::text) ORDER BY table_name)
+      FILTER (WHERE table_name NOT LIKE 'handy_lowest_%'), '[]'::jsonb) AS revisions
+    FROM api_data_generation`);
+  const state = rows[0];
+  if (!state?.generation) throw new Error("Data generation unavailable");
+  return {
+    generation: state.generation,
+    manifest: manifestFromRows(state.revisions),
+  };
+}
+
+function manifestFromRows(rows: SourceRevision[]) {
   const required = [
     "snapshot",
     "source",
@@ -162,11 +183,15 @@ export async function* lowestBuildRequests(db: SqlSession) {
   }
 }
 
-export async function handySnapshots(db: SqlSession, ids: string[]) {
+export async function handySnapshots(
+  db: SqlSession,
+  ids: string[],
+  includeDates = false,
+) {
   return (
     await db.query(
       `SELECT s.snapshot_id,p.publisher,
-    coalesce(s.final_url,s.requested_url) AS url,s.sha256,s.validation_state
+    coalesce(s.final_url,s.requested_url) AS url,s.sha256,s.validation_state${includeDates ? `,to_char(s.retrieved_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS retrieved_at` : ""}
     FROM snapshot s JOIN source p USING(source_id) WHERE s.snapshot_id=ANY($1::text[])
     ORDER BY s.snapshot_id`,
       [ids],

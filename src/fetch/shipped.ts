@@ -1,9 +1,10 @@
+import { cmsFallbackUnavailable } from "../config/cms-fallback.js";
 import { loadConfig } from "../config/index.js";
 import { fileURLToPath } from "node:url";
 
 /** True only when the operator opted in with `OPENPLANS_CMS_FALLBACK=on` (default off). */
 export function cmsFallbackEnabled(): boolean {
-  return loadConfig().cmsFallback.enabled;
+  return !cmsFallbackUnavailable() && loadConfig().cmsFallback.enabled;
 }
 
 /**

@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { callBenchmarkTool } from "../../src/mcp/handy.js";
 import { createApp } from "../../src/api/app.js";
 import { resolveLocation } from "../../src/api/repository.js";
 import { premiumRequest } from "../../src/api/validation.js";
@@ -146,7 +147,27 @@ async function benchmark(tx: SqlSession, ages = "40,10") {
     { headers },
   );
   expect(response.status).toBe(200);
-  return (await response.json()) as DentalBenchmark;
+  const result = (await response.json()) as DentalBenchmark;
+  const projected = await callBenchmarkTool(
+    {
+      db: tx,
+      lowestPremiums: true,
+      principal: { id: "synthetic" },
+      policy: { canEstimate: () => true },
+    },
+    {
+      year: 2026,
+      location: { zip: "77002" },
+      ages: ages.split(",").map(Number),
+    },
+  );
+  expect("isError" in projected && projected.isError).not.toBe(true);
+  if (!("basis" in projected.structuredContent))
+    throw new Error("Missing benchmark basis");
+  const { basis, ...native } = projected.structuredContent;
+  expect(basis).toMatchObject({ premium_basis: "ehb_plus_pediatric_dental" });
+  expect(JSON.stringify(native)).toBe(JSON.stringify(result));
+  return result;
 }
 function assertChild(result: DentalBenchmark) {
   expect(result.status).toBe("calculated");
@@ -250,7 +271,27 @@ async function countyBenchmark(tx: SqlSession, ages: string) {
     { headers },
   );
   expect(response.status).toBe(200);
-  return (await response.json()) as DentalBenchmark;
+  const result = (await response.json()) as DentalBenchmark;
+  const projected = await callBenchmarkTool(
+    {
+      db: tx,
+      lowestPremiums: true,
+      principal: { id: "synthetic" },
+      policy: { canEstimate: () => true },
+    },
+    {
+      year: 2026,
+      location: { county: "48201" },
+      ages: ages.split(",").map(Number),
+    },
+  );
+  expect("isError" in projected && projected.isError).not.toBe(true);
+  if (!("basis" in projected.structuredContent))
+    throw new Error("Missing benchmark basis");
+  const { basis, ...native } = projected.structuredContent;
+  expect(basis).toMatchObject({ premium_basis: "ehb_plus_pediatric_dental" });
+  expect(JSON.stringify(native)).toBe(JSON.stringify(result));
+  return result;
 }
 describe("county-only benchmark where a dental plan serves part of the county", () => {
   const answers = (edit?: (tx: SqlSession) => Promise<void>) => {

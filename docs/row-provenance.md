@@ -41,24 +41,7 @@ the migrations ran in. A table with a `snapshot_id` column, or a single foreign 
 `row_provenance_rule` in the same migration. Otherwise `tests/row-provenance.test.ts` fails.
 Views and extension tables carry no rows of their own; that test lists them with a reason.
 
-## Upgrading an existing database
-
-The migration adds the columns without rewriting tables, and fills tables of up to 100,000 rows.
-Larger tables say `unknown` until you run:
-
-```sh
-docker compose run --rm worker backfill row-provenance
-```
-
-The command works through each table in batches of 2,000 heap blocks, one transaction per batch,
-and runs `VACUUM` every five batches. It can be stopped and run again; filled rows are skipped.
-`--table NAME` limits it to one table and `--blocks N` changes the batch size. For rows written
-before the migration, `created_at` and `updated_at` are set to the snapshot's `created_at`, the
-time of the import that wrote them.
-
-On a 3-million-row rate table (625 MB) the migration took under a second. The backfill took
-97 seconds, and the table grew to 892 MB. Only `VACUUM FULL` or a rebuild returns that space. Leave that much
-free disk before running it. The trigger adds about a third to the time of a bare bulk insert.
+If older rows still have unknown provenance, run `docker compose run --rm worker backfill row-provenance`; it resumes safely and accepts `--table NAME` and `--blocks N`.
 
 ## API responses
 

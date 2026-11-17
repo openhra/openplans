@@ -16,7 +16,7 @@ export interface CurrentTelemetry extends OperatorTelemetry {
   readonly seriesCap: number;
   readonly memoryCap: number;
   readonly reservedBytes: number;
-  readonly lastFlush: null;
+  readonly lastFlush: string | null;
   readonly cache: {
     readonly hits: number;
     readonly misses: number;
@@ -50,9 +50,12 @@ export class Aggregate {
   constructor(private readonly now: () => number = Date.now) {
     this.since = now();
   }
+  onRollover?: (snapshot: CurrentTelemetry) => void;
   private rotate() {
     const now = this.now();
-    if (now - this.since < BUCKET_MS) return;
+    if (Math.floor(now / BUCKET_MS) === Math.floor(this.since / BUCKET_MS))
+      return;
+    this.onRollover?.(this.value());
     this.series.clear();
     this.cache = { hits: 0, misses: 0, bypasses: 0 };
     this.since = now;
@@ -103,6 +106,9 @@ export class Aggregate {
   }
   snapshot(): CurrentTelemetry {
     this.rotate();
+    return this.value();
+  }
+  private value(): CurrentTelemetry {
     return {
       collection: "partial",
       since: new Date(this.since).toISOString(),

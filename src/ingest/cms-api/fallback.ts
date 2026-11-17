@@ -66,7 +66,8 @@ export async function applyCmsFallback<
   T extends DrugCoverage | ProviderParticipation,
 >(kind: CmsKind, answers: T[], context: CmsFallbackContext | undefined) {
   if (!context || !cmsFallbackEnabled()) return answers;
-  return passThrough.apply(kind, answers, context);
+  const filled = await passThrough.apply(kind, answers, context);
+  return cmsFallbackEnabled() ? filled : answers;
 }
 
 /** Test hook: forgets every client's count. */

@@ -1,0 +1,74 @@
+{
+  "visitor": {
+    "status": 200,
+    "body_sha256": "4cf5e0a2d6d4bd9fd7245c5c3c71d8b37eac1c46c2b5920ecfb88bb7a52aaaf5",
+    "headers": {
+      "content-type": "text/html; charset=UTF-8",
+      "cache-control": "no-store",
+      "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'"
+    }
+  },
+  "age": {
+    "status": 200,
+    "body_sha256": "a43f9c5fe30b843f15637c572ff9d5fa0e2e71acb3908c57e365ef049f844363",
+    "headers": {
+      "content-type": "application/json",
+      "cache-control": "no-store",
+      "content-security-policy": null
+    }
+  },
+  "household": {
+    "status": 200,
+    "body_sha256": "106767cf69ee032af16e1b97f2045a673cb07eb6a7d84a3c71f2d9046f6f2e96",
+    "headers": {
+      "content-type": "application/json",
+      "cache-control": "no-store",
+      "content-security-policy": null
+    }
+  },
+  "age_print": {
+    "status": 200,
+    "body_sha256": "782912aa1a7aff3aa3f03baf6bfbbeaa8678e8efc073d80c660570a192f08d36",
+    "headers": {
+      "content-type": "text/html; charset=UTF-8",
+      "cache-control": "no-store",
+      "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'"
+    }
+  },
+  "household_print": {
+    "status": 200,
+    "body_sha256": "59a767f3b08853177631d00f1d1b1b64d613c387a35edc903dadcf3e9cca88f5",
+    "headers": {
+      "content-type": "text/html; charset=UTF-8",
+      "cache-control": "no-store",
+      "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'"
+    }
+  },
+  "tools": {
+    "status": 200,
+    "body_sha256": "ac0e13e8b6b0d0037f26e1652d61a3d0b1a2a8aef2c8e1267264c2070a840cfe",
+    "headers": {
+      "content-type": "application/json",
+      "cache-control": "no-store",
+      "content-security-policy": null
+    }
+  },
+  "age_mcp": {
+    "status": 200,
+    "body_sha256": "3354328f337f626d8a1447d3d0c5c623620339f36b41e3787d2d31eb1fe885ec",
+    "headers": {
+      "content-type": "application/json",
+      "cache-control": "no-store",
+      "content-security-policy": null
+    }
+  },
+  "household_mcp": {
+    "status": 200,
+    "body_sha256": "87a143f84b1b1f52e8d051cabc57719a0ba568e1aac3a7cf0c75a4b05003e33c",
+    "headers": {
+      "content-type": "application/json",
+      "cache-control": "no-store",
+      "content-security-policy": null
+    }
+  }
+}

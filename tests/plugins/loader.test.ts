@@ -122,6 +122,39 @@ async function manifestWith(
   return path;
 }
 
+describe("removed package", () => {
+  const removed = "@openplans/plugin-slack";
+  for (const input of ["file", "environment"] as const) {
+    it(`refuses the removed package from ${input} on every host`, async () => {
+      const config =
+        input === "file"
+          ? loadConfig({}, { version: 1, plugins: [{ package: removed }] })
+          : loadConfig({ OPENPLANS_PLUGINS: removed });
+      for (const host of ["api", "worker", "stdio"] as const) {
+        const before = currentRegistries();
+        const lines: string[] = [];
+        await expect(
+          loadPlugins(config, host, {
+            env: {},
+            writeLog: (line) => lines.push(line),
+            exit: (code) => {
+              throw new Exit(code);
+            },
+          }),
+        ).rejects.toMatchObject({ code: 1 });
+        expect(refusals(lines)).toEqual([
+          {
+            plugin: removed,
+            code: "plugin_import_failed",
+            reason: "package_removed",
+          },
+        ]);
+        expect(currentRegistries()).toBe(before);
+      }
+    });
+  }
+});
+
 describe("loadPlugins with no plugins", () => {
   it("returns empty registries without logging or exiting", async () => {
     const before = currentRegistries();

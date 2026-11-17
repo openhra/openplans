@@ -7,7 +7,24 @@ import { checkEventPayloads } from "../../../src/plugins/testing/checks.js";
 import { plantMutant } from "../../../src/plugins/testing/artifacts.js";
 
 // All event inputs in this file are synthetic.
+const change = {
+  sourceId: "synthetic",
+  version: 1,
+  previousHash: null,
+  newHash: "a".repeat(64),
+  operation: "publish",
+  changedCount: 1,
+  reasonCode: "synthetic",
+} as const;
 const examples = {
+  "msot.changed": change,
+  "msot.retired": { ...change, operation: "retire", newHash: null },
+  "msot.review_required": {
+    sourceId: "synthetic",
+    versionHash: "a".repeat(64),
+    changedCount: 1,
+    reasonCode: "synthetic",
+  },
   "release.deployed": {
     version: "1.0.0",
     imageId: "synthetic-image",
@@ -62,11 +79,11 @@ const examples = {
 } satisfies EventPayloads;
 
 describe("event catalog", () => {
-  it("has all 15 payload schemas and permits only inspectable, safe property names", () => {
+  it("has all 18 payload schemas and permits only inspectable, safe property names", () => {
     expect(Object.keys(eventPayloadSchemas).sort()).toEqual(
       Object.keys(examples).sort(),
     );
-    expect(Object.keys(eventPayloadSchemas)).toHaveLength(15);
+    expect(Object.keys(eventPayloadSchemas)).toHaveLength(18);
     expect(checkEventPayloads(eventPayloadSchemas)).toEqual([]);
     for (const [type, schema] of Object.entries(eventPayloadSchemas)) {
       const payload = examples[type as keyof EventPayloads];

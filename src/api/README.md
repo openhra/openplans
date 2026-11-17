@@ -13,6 +13,7 @@ POST /v1/quotes                (public, on unless OPENPLANS_PUBLIC_QUOTING=off)
 POST /v1/premium-quotes        (household, on unless OPENPLANS_PUBLIC_HOUSEHOLD=off)
 GET  /v1/benchmark?zip=77002&year=2026&ages=40
 POST /v1/ichra/affordability  (household)
+POST /v1/ichra/affordability/batch  (private, off by default)
 GET  /v1/carriers?state=TX[&year=2026]
 GET  /v1/networks?state=TX[&year=2026]
 GET  /v1/drugs?q=metformin[&limit=50]
@@ -45,6 +46,15 @@ the readiness check; [migrations](../../docs/migrations.md) says what each answe
 migration is pending. `/v1/cache-stats` reports response cache counters, as the
 [cache contract](cache/README.md) describes. The MCP endpoint is `/mcp`; see the
 [self-hosting guide](../../docs/self-host.md#mcp-endpoint).
+
+With a CMS API key configured, the API prepares ZIP fallback policy in the background.
+Readiness checks only the database and schema. An early live ZIP lookup shares the
+policy attempt but waits at most 250 ms for it. Past that it answers from ZCTA and
+stored fallback rows, or `status: "unknown"`, and that answer is not cached. The
+attempt continues for later requests and gives up after six seconds. Failed
+attempts retry with backoff from one second to one minute. A policy denial blocks fallback use until a later
+check succeeds. Availability rows describe configured sources throughout preparation,
+failure and recovery. Logs contain controlled reason codes, without publisher error details.
 
 Plan search and detail require an explicit year. Premium coverage_start supplies
 the year. Carriers/networks can list all imported years, with plan_year on each row.
@@ -546,30 +556,80 @@ in full. The compatibility API keeps its own error shapes.
 `GET /v1/data-availability` answers 503 `{"error":"data_availability_unavailable"}` when the
 database read fails, so a failure never looks like an empty list.
 
+## Optional individual offer distribution
+
+The opt-in compare plugin adds `GET /compare/v1` (browser forms),
+`GET /compare/v1/market` (JSON) and `POST /compare/v1/print` (HTML from JSON or browser
+form fields). MCP `compare_market_costs` uses the same age or household input and result.
+For example, `GET /compare/v1/market?zip=77002&county=48201&year=2026&age=40` returns the
+gross, non-tobacco Silver offer distribution when that public scope is loaded.
+
+Set an explicit year, ZIP or county, and either one age or household members. Other
+supported metals are bronze, expanded bronze and gold. Employer, group and census inputs
+are refused; public group costs are unavailable. Keep both TPA switches off so the private
+employer routes do not register. Later evidence pages require `evidence_page` and the full
+returned `data_generation` token. Missing prices stay unknown; the print sheet includes
+counts, exact statistics, source evidence and a link to the next evidence page. See the
+[comparator README](../../plugins/compare/README.md) for the complete contract and examples.
+
 <!-- lowest-premiums:generated -->
 
-## Lowest silver premium
+## Lowest premiums and market summary
 
 Enable `OPENPLANS_LOWEST_PREMIUMS=on` or `lowestPremiums: true` in the config file.
-The default is off. This route and `get_lowest_premiums` follow the public quoting switch
-and admission limits. Responses use `Cache-Control: no-store`; MCP pricing is uncached.
+The default is off. Set `lowestPremiumsScope: "single_age_silver"` to admit only ZIP-based non-tobacco Silver minimums and unpriced market counts. This scope omits household POSTs and MCP benchmark; direct calls reject the excluded inputs. The default `full` scope retains the contracts below.
+For a ZIP visitor flow, see [Lowest Silver by ZIP](https://github.com/openhra/openplans/blob/main/docs/lowest-silver.md).
+The GET routes and single-age MCP tools follow the public quoting switch and admission
+limits. Responses use `Cache-Control: no-store`; MCP pricing is uncached.
 
 `GET /v1/lowest-premiums?zip=77002&county=48201&year=2026&age=40` returns the lowest
-gross on-exchange silver premium for one person. Both year and age are required.
-Only individual medical plans, non-tobacco prices and January 1 coverage are supported.
+gross on-exchange premium for one person. Send both year and age. It supports silver,
+bronze, expanded bronze and gold, tobacco selection, individual medical plans and January 1 coverage.
 The answer does not evaluate subsidies and is not a bindable quote.
 
 Accepted fields: `zip`, `county`, `year`, `age`, `metal`, `tobacco`, `coverage_start`, `market`, `coverage`, `market_segment`, `premium_basis`, `page`, `evidence_page`.
-Unknown fields are rejected. An ambiguous ZIP requires a county selection.
+The route rejects unknown fields. Select a county when a ZIP spans several.
 Missing catalog or candidate pricing evidence returns an unknown result with no minimum.
-County-only requests refuse when ZIP-specific offers or rating areas require a ZIP.
-Tied plan IDs are sorted and paged at 50. MCP tie pages use a generation-bound cursor. Candidate and evidence details use `evidence_page`, with 10 candidates per page. Every page keeps the winner, exact integer cents, total tie count, completeness and source references. The MCP response has a 64 KiB byte limit. It marks omitted rows with `truncated` and `omitted`. REST defaults to the first tie and evidence pages; use `page` and `evidence_page` to read more. The premium basis is gross and separate from SLCSP.
+Send a ZIP when offers or rating areas cover only part of a county.
+Tied plan IDs are sorted and paged at 50. MCP tie pages use a generation-bound cursor. Candidate and evidence details use `evidence_page`, with 10 candidates per page. Every page keeps the winner, exact integer cents, total tie count, completeness and source references. The MCP response has a 128 KiB byte limit. It marks omitted rows with `truncated` and `omitted`. REST defaults to the first tie and evidence pages; use `page` and `evidence_page` to read more. The result is a gross premium, separate from SLCSP.
+
+`GET /v1/market-summary?zip=77002&county=48201&year=2026` and MCP `get_market_summary`
+report distinct on-exchange base-plan and issuer counts by metal. Add `age` to request gross minimum
+and maximum prices. Tobacco can be set only with an age. Counts keep bronze and expanded bronze
+separate. Missing catalog data stays unknown, and a ZIP that spans counties needs an explicit county.
+Platinum and catastrophic counts are available, but their price ranges are not supported.
+
+Market summary fields: `zip`, `county`, `year`, `metal`, `market_segment`, `age`, `tobacco`, `coverage_start`.
+
+Household requests use `POST /v1/lowest-premiums` or `POST /v1/market-summary` at the same paths.
+Send `year`, a `zip` or `county`, and 1 to 10 `members`. Each member supplies an integer
+`age`, `relationship` and boolean `tobacco`. Relationships are `subscriber`, `spouse`,
+`child` or `other`. Optional `coverage_start` defaults to January 1 of the requested year.
+The minimum defaults to silver. The summary covers supported metals unless `metal` is selected.
+Household routes use the existing household token or public-household policy. They rate every
+eligible plan for the complete household, including child charging limits and filed family tiers.
+They accept no income, names, birth dates or preset households and never cache household results.
+MCP `get_lowest_premiums` and `get_market_summary` also accept members, with the household grant.
+Household evidence pages contain two detail rows plus the selected minimum/maximum evidence. Follow `next_evidence_page` to inspect the remaining rows. Member `rate_row_refs` index the complete `rating.rate_rows_used` table within that evidence record.
+Supply either a single age or members. Household tie pages contain 50 IDs; candidate evidence uses
+`evidence_page` with 10 rows per page plus the selected extremes. Evidence references resolve within each page.
+An oversized MCP result returns `RESULT_TOO_LARGE` rather than dropping required evidence.
+
+MCP `get_benchmark` takes `year`, `location: {zip, county}` and 1 to 100 integer `ages`.
+It follows household access rules and the same feature switch. Its result preserves the existing
+`GET /v1/benchmark` answer and adds a basis describing January 1, non-tobacco pricing,
+EHB allocation and pediatric dental adjustment. Missing adjustment evidence stays unknown.
+The existing REST benchmark and ICHRA calculations keep their current contracts.
 
 Build an exact location/age cell with
 `worker build lowest-premiums --year 2026 --age 40 --zip 77002 --county 48201`.
-This command requires migrated tables and admitted imported data. Successful ingest commands
-rebuild previously registered cells while the switch is on. Other cells use full enumeration.
-A stale, expired, incomplete or absent build also uses full enumeration. Failed rebuilds leave
-that fallback available. Derived payloads are bounded to 1 GiB, reserving the rest of the
+This command requires migrated tables and admitted imported data. Successful imports
+rebuild registered cells while the switch is on. Other cells rate the full candidate list.
+A stale, expired, incomplete or absent build also rates the full list. This fallback
+remains available if a rebuild fails. Derived payloads are bounded to 1 GiB, reserving the rest of the
 2 GiB allowance for manifests and indexes; one cell may use at most 2 MiB.
 <!-- /lowest-premiums:generated -->
+
+Private installations can opt into [census affordability batches](../../docs/census-batch.md).
+The route accepts at most 25 unchanged employee requests and requires private
+ingress plus API authentication. It has no MCP tool and stays off on public installations.

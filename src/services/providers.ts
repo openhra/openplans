@@ -1,3 +1,4 @@
+import { guardCatalogPlans, catalogPolicyActive } from "./catalog-policy.js";
 import type { SqlSession } from "../db/database.js";
 import { providerParticipation } from "../domain/providers/repository.js";
 import { passThrough } from "../plugins/sources/passthrough.js";
@@ -47,6 +48,7 @@ export async function findProviders(
     const id = v.planId(params.plan_id);
     q.plan = id.base;
     q.year = providerYear(params.year);
+    await guardCatalogPlans([id.full], q.year);
     const plan = await findPlan(db, id.base, q.year);
     if (!plan || (id.variant && !(await variantExists(db, plan, id.full))))
       throw new ReadError({ code: "PLAN_NOT_FOUND" });
@@ -219,6 +221,8 @@ export async function checkProviderNetwork(
   year: unknown,
   cms?: CmsFallbackContext,
 ) {
+  if (catalogPolicyActive())
+    await guardCatalogPlans([v.planId(plan).full], providerYear(year));
   const answer = await providerParticipation(
     db,
     v.planId(plan).full,
@@ -262,6 +266,7 @@ export async function checkProviderNetworks(
     return v.fail("year");
   const year = providerYear(String(body.year)),
     results = [];
+  await guardCatalogPlans(plans, year);
   for (const plan of plans)
     for (const code of npis)
       results.push(await providerParticipation(db, plan, code, year));

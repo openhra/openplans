@@ -1,4 +1,9 @@
-import { lowestToolDefinition } from "../mcp/handy.js";
+import { assertCatalogToolAdmission } from "./catalog-policy.js";
+import {
+  benchmarkToolDefinition,
+  lowestToolDefinition,
+  marketSummaryToolDefinition,
+} from "../mcp/handy.js";
 import { loadConfig } from "../config/index.js";
 import { z } from "zod";
 import type { JsonSchemaType, Tool } from "@modelcontextprotocol/server";
@@ -114,7 +119,12 @@ export function toolPageRefusal(
   ])[],
 ): ToolPageRefusal | undefined {
   const tools = [...toolNames.map(coreToolDefinition), ...switchedCoreTools()];
-  if (loadConfig().lowestPremiums) tools.push(lowestToolDefinition());
+  if (loadConfig().lowestPremiums)
+    tools.push(
+      lowestToolDefinition(),
+      marketSummaryToolDefinition(),
+      benchmarkToolDefinition(),
+    );
   for (const [plugin, specs] of plugins) {
     for (const spec of specs) {
       try {
@@ -217,6 +227,7 @@ export async function callPluginTool(
   const checkedAt = new Date((deps.now ?? Date.now)()).toISOString();
   deps.onCache?.("bypass");
   try {
+    assertCatalogToolAdmission(deps.catalogPolicy, spec.name);
     const input = spec.inputSchema.safeParse(args);
     if (!input.success) throw new ToolError("INVALID_INPUT");
     const answer = await spec.handler(input.data, {

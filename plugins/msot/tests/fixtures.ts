@@ -73,6 +73,7 @@ export const plans: CanonicalPlan[] = [
   },
 }));
 export const reader: CanonicalReader = {
+  validateScopes: async () => {},
   plans: async (input) => ({
     catalog_generation: "synthetic-generation",
     plans: input.plan_ids.map((id) => plans.find((p) => p.id === id)!),
@@ -86,3 +87,17 @@ export const input = {
 };
 export const db = { query: async () => ({ rows: [] }), exec: async () => {} };
 export const scope = { db, signal: new AbortController().signal };
+
+// Synthetic operator decisions over the shared synthetic canonical reader.
+export function marketSource(): Source {
+  const result = structuredClone(source);
+  result.fields.push({
+    ...result.fields[0]!,
+    name: "marketable",
+    filterable: true,
+    visibility: { audience: "answer", rest: true, compat: true, mcp: true },
+    description: "The operator offers this plan in the selected channel.",
+  });
+  result.rules.push({ ...result.rules[0]!, id: "offer", field: "marketable" });
+  return result;
+}

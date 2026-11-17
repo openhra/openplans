@@ -515,7 +515,7 @@ async function requestChain(
     evidence.address = address.address;
     const headers: Record<string, string> = {
       "accept-encoding": "identity",
-      "user-agent": `openplans/0.4.11 (public health-plan source discovery; +${projectUrl(options)})`,
+      "user-agent": `openplans/0.4.12 (public health-plan source discovery; +${projectUrl(options)})`,
     };
     if (options.expectedContent === "json")
       headers.accept = "application/json, */*;q=0.1";
@@ -1169,6 +1169,30 @@ export async function fetchToCache(
   });
   const used = admission ?? (fallback?.active ? fallback : undefined);
   return used ? { ...result, admission: used.receipt() } : result;
+}
+
+/** Review publisher policy without sending a data request. The caller keeps the session. */
+export async function prepareFetch(
+  input: string | URL,
+  options: FetchOptions & { admission: AdmissionSession },
+): Promise<void> {
+  validateOptions(options);
+  const url = checkedUrl(input, options.allowHosts);
+  assertObservedHostAllowed(url);
+  const dataDir = options.dataDir ?? dataDirectory();
+  if (!isAbsolute(dataDir))
+    throw new FetchError(
+      "invalid_options",
+      "Data cache directory must be absolute",
+    );
+  const prepared = {
+    ...options,
+    dataDir,
+    blobStore: storeOf({ ...options, dataDir }),
+  };
+  await options.admission.authorize(url, (policyUrl, delay) =>
+    readPublisherPolicy(policyUrl, prepared, delay),
+  );
 }
 
 interface AcquireOptions extends FetchOptions {

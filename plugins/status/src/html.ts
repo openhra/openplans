@@ -94,8 +94,8 @@ const COUNTED_AGE: Record<string, string> = {
 
 /** What the two dates mean. A recent retrieval says nothing about the publisher's latest release. */
 export const DATES_EXPLAINED =
-  "Retrieved is when OpenPlans last downloaded a source and Published is the publisher's own " +
-  "date for that copy, so a source retrieved today can still hold data published months ago.";
+  "Retrieved is when OpenPlans downloaded the source. Published is the publisher's own date " +
+  "for that copy. A recent download can contain older data.";
 
 /** The family's publisher dates for its summary line: one date, a range, and how many are unknown. */
 function publishedSummary(dates: readonly (string | null)[]): string {

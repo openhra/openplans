@@ -64,7 +64,7 @@ export {
 export type { OperatorStatus, PublicStatus } from "./views.js";
 
 export const PLUGIN_NAME = "@openplans/plugin-status";
-export const PLUGIN_VERSION = "0.1.6";
+export const PLUGIN_VERSION = "0.1.7";
 export const PUBLIC_TTL_SECONDS = 30;
 export const PROBE_ARGV = ["status-page", "health-probe"] as const;
 

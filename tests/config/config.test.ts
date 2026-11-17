@@ -36,6 +36,8 @@ const raw = (value: unknown) =>
 
 // Synthetic values exercise the documented environment contract, not downloaded data.
 const converted: Record<string, [string, unknown]> = {
+  OPENPLANS_TPA: ["on", true],
+  OPENPLANS_TPA_PRIVATE_INGRESS: ["on", true],
   PORT: ["4321", 4321],
   OPENPLANS_API_CACHE_MB: ["12", 12],
   OPENPLANS_API_CACHE: ["off", false],
@@ -52,6 +54,7 @@ const converted: Record<string, [string, unknown]> = {
   OPENPLANS_MEDICARE_DRUG_COST_PRICES: ["on", true],
   OPENPLANS_GA_QUOTE_RECOVERY: ["on", true],
   OPENPLANS_LOWEST_PREMIUMS: ["on", true],
+  OPENPLANS_LOWEST_PREMIUMS_SCOPE: ["single_age_silver", "single_age_silver"],
   OPENPLANS_COMPAT_BENEFIT_TEXT: ["compact", true],
   OPENPLANS_MCP_ALLOWED_HOSTS: [
     " a.example, b.example ,",
@@ -82,8 +85,6 @@ describe("typed configuration", () => {
       OPENPLANS_WEBHOOK_HOST: "../../plugins/webhook/src/index.ts",
       OPENPLANS_WEBHOOK_URL: "../../plugins/webhook/src/index.ts",
       OPENPLANS_WEBHOOK_SECRET: "../../plugins/webhook/src/index.ts",
-      OPENPLANS_SLACK_HOST: "../../plugins/slack/src/index.ts",
-      OPENPLANS_SLACK_WEBHOOK_URL: "../../plugins/slack/src/index.ts",
       OPENPLANS_BLOB_S3_ENDPOINT: "../../plugins/blob-s3/src/index.ts",
       OPENPLANS_BLOB_S3_REGION: "../../plugins/blob-s3/src/index.ts",
       OPENPLANS_BLOB_S3_BUCKET: "../../plugins/blob-s3/src/index.ts",

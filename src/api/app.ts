@@ -1,3 +1,4 @@
+import { catalogPolicyAdmission } from "../plugins/catalog-policy.js";
 import { activeRecorder, httpObserver } from "../telemetry/observer.js";
 import type { Labels } from "../telemetry/aggregate.js";
 import { logInternalError, queryTimeoutResponse } from "./error-log.js";
@@ -20,6 +21,7 @@ import { apiToken } from "../config/access.js";
 import { createAdminAuth } from "../operator/auth-routes.js";
 import { ADMIN_PLUGIN } from "../plugins/registries.js";
 import { pluginRoutes } from "../plugins/routes.js";
+import { prepareCmsZipFallback } from "../ingest/geo/cms.js";
 import { SCHEMA_NOT_READY } from "./schema-gate.js";
 import type { SchemaGate } from "./schema-gate.js";
 
@@ -29,6 +31,7 @@ export function createApp(
   cacheOptions?: ResponseCacheOptions,
   // The servers pass one; without it no route checks the migration journal.
   schema?: SchemaGate,
+  operatorCommands?: { writable: () => boolean },
 ) {
   const app = new Hono();
   const telemetry = activeRecorder();
@@ -70,6 +73,7 @@ export function createApp(
     ? pluginRoutes(cacheOptions.plugins, {
         db,
         adminAuth,
+        commandWritable: operatorCommands?.writable,
         operatorToken: () => config().tokens.operator?.reveal(),
         trustedProxies: options.trustedProxies ?? config().trustProxy,
         peerAddress: options.peerAddress,
@@ -91,6 +95,7 @@ export function createApp(
       return next();
     return cache.middleware(c, next);
   };
+  app.use("*", catalogPolicyAdmission(config(), cacheOptions?.plugins));
   app.use("*", cacheAdmission);
   adminAuth?.mount(app);
 
@@ -116,7 +121,9 @@ export function createApp(
     );
   });
 
-  // Readiness: 200 only once the database answers and every migration is applied.
+  if (schema) void prepareCmsZipFallback();
+
+  // Only database and schema availability can leave the API unready.
   app.get("/readyz", async (c) => {
     const noStore = { "Cache-Control": "no-store" };
     if (!(await checkDatabase(db)))
@@ -171,7 +178,10 @@ export function createApp(
   });
 
   app.route("/", createMcpHttp(db));
-  app.route("/v1", nativeRoutes(db, options));
+  app.route(
+    "/v1",
+    nativeRoutes(db, { ...options, tpa: options.tpa ?? config().tpa }),
+  );
   app.route("/", compatRoutes(db, options));
   plugins?.mount(app);
 

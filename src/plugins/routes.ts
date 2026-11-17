@@ -1,3 +1,4 @@
+import { createOperatorCommandClient } from "../operator/commands/service.js";
 import { timingSafeEqual } from "node:crypto";
 import { ADMIN_CSP, adminHeaders } from "../operator/csrf.js";
 import type { AdminAuth } from "../operator/auth-routes.js";
@@ -16,6 +17,7 @@ import { boundedDatabase, DEADLINE_MS } from "../db/bounded.js";
 import type { SqlSession } from "../db/database.js";
 import { rowProvenanceLeaks } from "../db/row-provenance.js";
 import {
+  operatorCommandsForRoutes,
   ADMIN_AUTH_PATHS,
   ADMIN_PLUGIN,
   isAdminPath,
@@ -90,6 +92,7 @@ const HTML_HEADERS: readonly (readonly [string, string])[] = [
 
 export interface PluginRouteOptions {
   db: SqlSession;
+  commandWritable?: () => boolean;
   adminAuth?: AdminAuth;
   /** Read per request, so a removed token closes the operator surface at once. */
   operatorToken: () => string | undefined;
@@ -116,7 +119,7 @@ function noStore(c: Context) {
  */
 export function pluginRoutes(
   registries: Pick<PluginRegistries, "routes"> &
-    Partial<Pick<PluginRegistries, "sources">>,
+    Partial<Pick<PluginRegistries, "sources" | "operatorCommands">>,
   options: PluginRouteOptions,
 ) {
   const routes = registries.routes.map(({ spec }) => spec);
@@ -181,9 +184,10 @@ export function pluginRoutes(
     const sources = ownSources(owners.get(spec));
     // The SDK types these variables through PluginRouteEnv.
     return async (c: Context<PluginRouteEnv>) => {
-      const signal =
+      const deadline =
         (spec.adminSession && options.adminAuth?.signal(c)) ||
         AbortSignal.timeout(deadlineMs);
+      const signal = AbortSignal.any([deadline, c.req.raw.signal]);
       if (signal.aborted)
         return c.json({ error: "plugin_deadline_exceeded" }, 503);
       c.set("pluginSignal", signal);
@@ -196,6 +200,37 @@ export function pluginRoutes(
         boundedDatabase(options.db, signal, { readOnly: false }),
       );
       if (writer) c.set("pluginPassThroughWriter", writer);
+      if (spec.adminSession && owners.get(spec) === ADMIN_PLUGIN) {
+        const commands =
+          registries.operatorCommands ??
+          operatorCommandsForRoutes(registries.routes);
+        const credential = options.operatorToken();
+        c.set(
+          "pluginOperatorCommands",
+          createOperatorCommandClient(
+            {
+              db: options.db,
+              commands,
+              writable: () =>
+                spec.method === "POST" &&
+                Boolean(credential) &&
+                credential === options.operatorToken() &&
+                options.commandWritable?.() === true,
+              now: options.now,
+            },
+            {
+              actor: { class: "shared_operator" },
+              signal,
+              grants: commands.flatMap(({ spec: command }) =>
+                command.sources.map((source) => ({
+                  source,
+                  permissions: [command.permission],
+                })),
+              ),
+            },
+          ),
+        );
+      }
       let response: Response;
       try {
         response = await new Promise<Response>((resolve, reject) => {

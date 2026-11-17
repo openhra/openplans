@@ -1,8 +1,13 @@
 import { afterAll, beforeAll, expect, it } from "vitest";
 import { setup } from "../compat/v1/helpers.js";
-import { lowestInput, lowestQuery } from "../../src/api/handy.js";
+import {
+  lowestInput,
+  lowestQuery,
+  marketSummaryQuery,
+} from "../../src/api/handy.js";
 import {
   enumerateLowest,
+  getMarketSummary,
   lowestPremiums,
   isLowestCell,
 } from "../../src/services/handy.js";
@@ -23,6 +28,7 @@ import { connect } from "../mcp/client.js";
 import {
   boundLowestResult,
   callLowestTool,
+  MARKET_SUMMARY_TOOL,
   LOWEST_TOOL,
 } from "../../src/mcp/handy.js";
 import { MemoryCache } from "../../src/api/cache/store.js";
@@ -57,10 +63,17 @@ async function rollback(run: (tx: SqlSession) => Promise<void>) {
 
 // Independent orchestration: each public candidate goes directly through ratePremium.
 // It does not call the handy aggregate, builder or batched request reads.
-async function slow(db: SqlSession, age: number) {
+async function slow(
+  db: SqlSession,
+  age: number,
+  filters: { metal?: string; tobacco?: boolean } = {},
+) {
   const location = await resolveLocation(db, input);
   const plans = (await countyPlans(db, "48201", 2026, "77002"))
-    .filter((p) => p.on_exchange && p.metal.toLowerCase() === "silver")
+    .filter(
+      (p) =>
+        p.on_exchange && p.metal.toLowerCase() === (filters.metal ?? "silver"),
+    )
     .sort((a, b) => a.base_plan_id.localeCompare(b.base_plan_id));
   const candidates = [];
   for (const plan of plans) {
@@ -75,7 +88,9 @@ async function slow(db: SqlSession, age: number) {
       zip: "77002",
       county: "48201",
       coverage_start: "2026-01-01",
-      members: [{ age, tobacco: false, relationship: "subscriber" }],
+      members: [
+        { age, tobacco: filters.tobacco ?? false, relationship: "subscriber" },
+      ],
     });
     const { estimate } = await ratePremium(
       db,
@@ -141,15 +156,13 @@ it("matches full direct rating enumeration at exact age-cell endpoints, includin
   }
 });
 
-it("rejects inputs outside slice 1 and requires both year and age", () => {
+it("rejects inputs outside the supported minimum contract and requires both year and age", () => {
   for (const patch of [
     { age: undefined },
     { year: undefined },
     { age: 121 },
     { age: -1 },
     { age: 1.5 },
-    { tobacco: true },
-    { metal: "gold" },
     { premium_basis: "ehb" },
     { market_segment: "off_exchange" },
     { coverage_start: "2026-02-01" },
@@ -157,6 +170,8 @@ it("rejects inputs outside slice 1 and requires both year and age", () => {
     { income: 100 },
   ])
     expect(() => lowestInput({ ...input, ...patch })).toThrow();
+  expect(lowestInput({ ...input, tobacco: true }).tobacco).toBe(true);
+  expect(lowestInput({ ...input, metal: "gold" }).metal).toBe("gold");
   expect(() => lowestQuery({ zip: "77002", year: "2026", age: "" })).toThrow();
   expect(() =>
     lowestQuery({
@@ -247,7 +262,7 @@ it("catches a one-cent winner, dropped evidence and missing cheaper candidate mu
   expect(isLowestCell(trace)).toBe(false);
 });
 
-it("preserves legacy route bytes with the feature absent, off and on, and adds only one MCP definition", async () => {
+it("preserves legacy route bytes with the feature absent, off and on, and gates both added MCP definitions", async () => {
   const path = "/v1/plans?zip=77002&year=2026";
   const absent = await h.app.request(path),
     bytes = await absent.text();
@@ -257,7 +272,11 @@ it("preserves legacy route bytes with the feature absent, off and on, and adds o
     const newRoute = await app.request(
       "/v1/lowest-premiums?zip=77002&year=2026&age=40",
     );
+    const summaryRoute = await app.request(
+      "/v1/market-summary?zip=77002&year=2026",
+    );
     expect(newRoute.status).toBe(enabled ? 200 : 404);
+    expect(summaryRoute.status).toBe(enabled ? 200 : 404);
     if (enabled) expect(newRoute.headers.get("cache-control")).toBe("no-store");
   }
   expect(digest(bytes + " ")).not.toBe(digest(bytes));
@@ -268,12 +287,17 @@ it("preserves legacy route bytes with the feature absent, off and on, and adds o
   try {
     const oldTools = await off.client.listTools(),
       newTools = await on.client.listTools();
-    expect(newTools.tools.filter((t) => t.name !== LOWEST_TOOL)).toEqual(
-      oldTools.tools,
-    );
+    expect(
+      newTools.tools.filter(
+        (t) => ![LOWEST_TOOL, MARKET_SUMMARY_TOOL].includes(t.name),
+      ),
+    ).toEqual(oldTools.tools);
     expect(newTools.tools.filter((t) => t.name === LOWEST_TOOL)).toHaveLength(
       1,
     );
+    expect(
+      newTools.tools.filter((t) => t.name === MARKET_SUMMARY_TOOL),
+    ).toHaveLength(1);
     const answer = await on.client.callTool({
       name: LOWEST_TOOL,
       arguments: input,
@@ -286,12 +310,207 @@ it("preserves legacy route bytes with the feature absent, off and on, and adds o
       truncated: false,
       omitted: { ties: 0, candidates: 0, excluded: 0, evidence: 0 },
     });
+    const summaryAnswer = await on.client.callTool({
+      name: MARKET_SUMMARY_TOOL,
+      arguments: { zip: "77002", county: "48201", year: 2026 },
+    });
+    expect(summaryAnswer.isError, JSON.stringify(summaryAnswer)).toBeFalsy();
+    expect(summaryAnswer.structuredContent).toMatchObject({
+      status: "calculated",
+      basis: { premium_basis: "not_requested", count_unit: "base_plan" },
+    });
     expect(
       Buffer.byteLength(JSON.stringify(answer)) + 4096,
     ).toBeLessThanOrEqual(64 * 1024);
   } finally {
     await off.close();
     await on.close();
+  }
+});
+
+it("counts distinct base plans and issuers by separate metals, with no default age", async () => {
+  const summary = await getMarketSummary(
+    h.db,
+    marketSummaryQuery({
+      zip: "77002",
+      county: "48201",
+      year: "2026",
+    }),
+  );
+  const catalog = await countyPlans(h.db, "48201", 2026, "77002");
+  const plans = new Map(
+    catalog.filter((p) => p.on_exchange).map((p) => [p.base_plan_id, p]),
+  );
+  expect(summary.status).toBe("calculated");
+  expect(summary.plan_count).toBe(plans.size);
+  expect(summary.carrier_count).toBe(
+    new Set([...plans.values()].map((p) => p.issuer_id)).size,
+  );
+  expect(summary.basis.premium_basis).toBe("not_requested");
+  expect(summary.by_metal.map((row) => row.metal)).toEqual([
+    "bronze",
+    "expanded bronze",
+    "silver",
+    "gold",
+    "platinum",
+    "catastrophic",
+  ]);
+  for (const row of summary.by_metal) {
+    const group = [...plans.values()].filter(
+      (p) => p.metal.toLowerCase() === row.metal,
+    );
+    expect(row.plan_count).toBe(group.length);
+    expect(row.carrier_count).toBe(new Set(group.map((p) => p.issuer_id)).size);
+  }
+  expect(() =>
+    marketSummaryQuery({ zip: "77002", year: "2026", tobacco: "true" }),
+  ).toThrow();
+});
+
+it("keeps an unloaded market unknown instead of returning zero counts", async () => {
+  const query = h.db.query.bind(h.db);
+  const db: SqlSession = {
+    async query<Row extends Record<string, unknown>>(
+      sql: string,
+      parameters?: unknown[],
+      options?: QueryOptions,
+    ) {
+      if (sql.includes("FROM puf_active_catalog")) return { rows: [] as Row[] };
+      return query<Row>(sql, parameters, options);
+    },
+    exec: (sql) => h.db.exec(sql),
+  };
+  const result = await getMarketSummary(db, {
+    zip: "77002",
+    county: "48201",
+    year: 2027,
+  });
+  expect(result).toMatchObject({
+    status: "unknown",
+    reason: "catalog_not_loaded",
+    plan_count: null,
+    carrier_count: null,
+  });
+});
+
+it("refuses ambiguous ZIPs and county-only summaries with partial offerings", async () => {
+  await rollback(async (tx) => {
+    await tx.exec(`INSERT INTO zcta_county
+      (zcta,county_fips,county_name,arealand_zcta,areawater_zcta,arealand_county,areawater_county,arealand_part,areawater_part,snapshot_id,source_row)
+      SELECT zcta,'48001','SYNTHETIC',arealand_zcta,areawater_zcta,arealand_county,areawater_county,0,0,snapshot_id,source_row+10000000
+      FROM zcta_county WHERE zcta='77002' LIMIT 1`);
+    const ambiguous = await getMarketSummary(tx, {
+      zip: "77002",
+      year: 2026,
+    });
+    expect(ambiguous.status).toBe("ambiguous");
+    expect(ambiguous.plan_count).toBeNull();
+  });
+  await rollback(async (tx) => {
+    const plan = (await countyPlans(tx, "48201", 2026, "77002"))[0]!;
+    await tx.query(
+      `UPDATE service_area_county SET partial_county=true,zip_codes='77003'
+      WHERE service_area_id IN (SELECT service_area_id FROM plan WHERE base_plan_id=$1)`,
+      [plan.base_plan_id],
+    );
+    const partial = await getMarketSummary(tx, {
+      county: "48201",
+      year: 2026,
+    });
+    expect(partial).toMatchObject({
+      status: "location_requires_zip",
+      reason: "zip_limited_service_area",
+      plan_count: null,
+    });
+  });
+});
+
+it("accepts tobacco and the added metal categories for single-age minima", () => {
+  expect(
+    lowestInput({
+      zip: "77002",
+      year: 2026,
+      age: 40,
+      metal: "bronze",
+      tobacco: true,
+    }),
+  ).toMatchObject({
+    metal: "bronze",
+    tobacco: true,
+  });
+  expect(
+    lowestInput({
+      zip: "77002",
+      year: 2026,
+      age: 40,
+      metal: "expanded bronze",
+    }),
+  ).toMatchObject({
+    metal: "expanded bronze",
+  });
+  expect(() =>
+    lowestInput({ zip: "77002", year: 2026, age: 40, metal: "platinum" }),
+  ).toThrow();
+});
+
+it("matches every supported metal range against full rate enumeration", async () => {
+  for (const metal of ["silver", "bronze", "expanded bronze", "gold"]) {
+    const expected = await slow(h.db, 40, { metal, tobacco: false });
+    const result = await getMarketSummary(h.db, {
+      zip: "77002",
+      county: "48201",
+      year: 2026,
+      metal,
+      age: 40,
+    });
+    expect(result.status).toBe("calculated");
+    expect(result.by_metal).toHaveLength(1);
+    expect(result.by_metal[0]).toMatchObject({
+      metal,
+      minimum_monthly_cents: Math.min(
+        ...expected.candidates.map((p) => p.cents),
+      ),
+      maximum_monthly_cents: Math.max(
+        ...expected.candidates.map((p) => p.cents),
+      ),
+      rated_count: expected.candidates.length,
+    });
+  }
+});
+
+it("uses tobacco-rated bronze prices for the market range", async () => {
+  const expected = await slow(h.db, 40, { metal: "bronze", tobacco: true });
+  const nonTobacco = await slow(h.db, 40, { metal: "bronze", tobacco: false });
+  expect(expected.cents).not.toBe(nonTobacco.cents);
+  const minimum = await lowestPremiums(
+    h.db,
+    { ...input, metal: "bronze", tobacco: true },
+    { slow: true },
+  );
+  expect(minimum.lowest.monthly_cents).toBe(expected.cents);
+  const result = await getMarketSummary(h.db, {
+    zip: "77002",
+    county: "48201",
+    year: 2026,
+    metal: "bronze",
+    age: 40,
+    tobacco: true,
+  });
+  expect(result.status).toBe("calculated");
+  const row = result.by_metal[0]!;
+  expect(row).toMatchObject({
+    metal: "bronze",
+    minimum_monthly_cents: Math.min(...expected.candidates.map((p) => p.cents)),
+    maximum_monthly_cents: Math.max(...expected.candidates.map((p) => p.cents)),
+    rated_count: expected.candidates.length,
+  });
+  const evidenceRefs = row.evidence_refs as Record<string, unknown>;
+  for (const key of ["catalog_snapshots", "pricing_snapshots"]) {
+    const refs = evidenceRefs[key];
+    expect(Array.isArray(refs)).toBe(true);
+    if (!Array.isArray(refs)) throw new Error(`${key} must be an array`);
+    expect(refs.length).toBeGreaterThan(0);
+    expect(refs.every((ref: unknown) => typeof ref === "string")).toBe(true);
   }
 });
 

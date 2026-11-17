@@ -1,4 +1,11 @@
 import {
+  selectCatalogPlans,
+  guardCatalogPlans,
+  annotateCatalogPlan,
+  catalogPolicyActive,
+  withCatalogPolicyContext,
+} from "./catalog-policy.js";
+import {
   activeCatalog,
   directoryRows,
   planPageScope,
@@ -67,40 +74,50 @@ export async function searchPlans(
       next_page: null,
     };
   }
-  const plans = (
-    await reads.countyPlans(location.county, year, location.zip)
-  ).filter((p) => metal === undefined || p.metal.toLowerCase() === metal);
+  const plans = await selectCatalogPlans(
+    (await reads.countyPlans(location.county, year, location.zip)).filter(
+      (p) => metal === undefined || p.metal.toLowerCase() === metal,
+    ),
+    year,
+    (p) => p.base_plan_id,
+  );
   const active = await activeCatalog(db, year, countyState(location.county));
   const start = (page - 1) * 50;
   const shown = plans.slice(start, start + 50);
   reads.plan(shown);
   const options = { csrVariant };
-  return {
+  return withCatalogPolicyContext({
     status: active.rows.length ? "available" : "unknown",
     year,
     market: market.toLowerCase(),
     location,
     issues,
     plans: await Promise.all(
-      shown.map(async (plan) => ({
-        ...(await planView(
-          reads.db,
-          plan,
-          options,
-          reads.costSharing(plan, options),
-          reads.lineage,
-        )),
-        availability: {
-          zip_restricted: plan.zip_restricted,
-          zip_codes: plan.zip_codes,
-        },
-      })),
+      shown.map(async (plan) =>
+        annotateCatalogPlan(
+          {
+            ...(await planView(
+              reads.db,
+              plan,
+              options,
+              reads.costSharing(plan, options),
+              reads.lineage,
+            )),
+            availability: {
+              zip_restricted: plan.zip_restricted,
+              zip_codes: plan.zip_codes,
+            },
+          },
+          plan.base_plan_id,
+          year,
+        ),
+      ),
     ),
     page,
     page_size: 50,
     total: plans.length,
     next_page: start + 50 < plans.length ? page + 1 : null,
-  };
+  });
 }
 
 export async function getPlan(
@@ -116,6 +133,7 @@ export async function getPlan(
     (id.variant !== null && !(await variantExists(db, plan, id.full)))
   )
     throw new ReadError({ code: "PLAN_NOT_FOUND", plan_id: id.full, year });
+  await guardCatalogPlans([id.full], year);
   const csrVariant = v.csrVariant(params.csr_variant);
   v.checkVariant(id.base, csrVariant, id.variant);
   const view = await planView(db, plan, {
@@ -123,15 +141,19 @@ export async function getPlan(
     requestedVariant: id.variant,
     allBenefits: true,
   });
-  return {
-    ...view,
-    requested_variant_id: id.variant === null ? null : id.full,
-    variant_cost_sharing_resolved:
-      view.cost_sharing.status === "available" &&
-      view.cost_sharing.benefits_status === "available",
-    benefits_status: view.cost_sharing.benefits_status,
-    benefits: view.cost_sharing.benefits,
-  };
+  return annotateCatalogPlan(
+    {
+      ...view,
+      requested_variant_id: id.variant === null ? null : id.full,
+      variant_cost_sharing_resolved:
+        view.cost_sharing.status === "available" &&
+        view.cost_sharing.benefits_status === "available",
+      benefits_status: view.cost_sharing.benefits_status,
+      benefits: view.cost_sharing.benefits,
+    },
+    id.full,
+    year,
+  );
 }
 
 export async function estimatePremiums(db: SqlSession, body: unknown) {
@@ -156,6 +178,10 @@ export async function estimatePremiums(db: SqlSession, body: unknown) {
       });
     plans.push({ id, plan });
   }
+  await guardCatalogPlans(
+    request.ids.map((id) => id.full),
+    request.year,
+  );
   const location = await resolveLocation(db, request.location);
   const reads = requestReads(db);
   reads.plan(plans.map(({ plan }) => plan));
@@ -163,13 +189,17 @@ export async function estimatePremiums(db: SqlSession, body: unknown) {
   const estimates = [];
   for (const { id, plan } of plans)
     estimates.push(
-      withSubsidy(
-        await estimatePremium(db, plan, id.full, request, location, reads),
-        subsidy,
-        plan,
+      await annotateCatalogPlan(
+        withSubsidy(
+          await estimatePremium(db, plan, id.full, request, location, reads),
+          subsidy,
+          plan,
+        ),
+        id.full,
+        request.year,
       ),
     );
-  return { estimates };
+  return withCatalogPolicyContext({ estimates });
 }
 
 export async function benchmarkSilver(
@@ -185,6 +215,8 @@ export async function listCarriersNetworks(
   kind: "carriers" | "networks",
   params: Record<string, string>,
 ) {
+  if (catalogPolicyActive())
+    throw new ReadError({ code: "MSOT_OPERATION_UNSUPPORTED" });
   const state = v.state(params.state),
     year = params.year === undefined ? null : v.year(params.year);
   const rows = await directoryRows(db, kind, state, year);
