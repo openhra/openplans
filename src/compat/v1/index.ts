@@ -1,3 +1,9 @@
+import {
+  selectCatalogPlans,
+  guardCatalogPlans,
+  annotateCatalogPlan,
+} from "../../services/catalog-policy.js";
+import { ReadError } from "../../services/errors.js";
 import { logInternalError, queryTimeoutResponse } from "../../api/error-log.js";
 import { isQueryTimeout } from "../../services/errors.js";
 import { catastrophicEligibility } from "../../domain/eligibility/catastrophic.js";
@@ -151,6 +157,7 @@ export function compatRoutes(db: SqlSession, options: ApiOptions = {}) {
   app.onError((error, c) => {
     if (error instanceof v.InputError)
       return c.json({ error: { code: error.code, field: error.field } }, 400);
+    if (error instanceof ReadError) return c.json({ error: error.error }, 403);
     if (isQueryTimeout(error)) return queryTimeoutResponse(c);
     logInternalError(error);
     return c.json({ error: "internal_error" }, 500);
@@ -430,14 +437,22 @@ export function compatRoutes(db: SqlSession, options: ApiOptions = {}) {
           location.zip,
           product,
         );
-        const offered = catalog.filter(
-          (p) =>
-            (product === "dental" || p.on_exchange || p.state_catalog) &&
-            !excludedCatastrophic(p),
+        const offered = await selectCatalogPlans(
+          catalog.filter(
+            (p) =>
+              (product === "dental" || p.on_exchange || p.state_catalog) &&
+              !excludedCatastrophic(p),
+          ),
+          request.year,
+          (p) => p.base_plan_id,
         );
         if (product === "dental") reasons.add("dental_benefits_unmapped");
         const targets: { plan: (typeof offered)[number]; id: string }[] = [];
         if (ids.length > 0) {
+          await guardCatalogPlans(
+            ids.map((id) => id.full),
+            request.year,
+          );
           const requested = [
             ...new Map(ids.map((id) => [id.full, id])).values(),
           ].map((id) => ({
@@ -555,6 +570,14 @@ export function compatRoutes(db: SqlSession, options: ApiOptions = {}) {
                 },
           );
         }
+        for (let index = 0; index < plans.length; index++) {
+          const plan = plans[index]!;
+          plans[index] = await annotateCatalogPlan(
+            plan,
+            String(plan.id),
+            request.year,
+          );
+        }
         orderPlans(plans, body.sort as string | undefined);
         const page = plans.slice(start, start + size);
         const cms =
@@ -617,6 +640,7 @@ export function compatRoutes(db: SqlSession, options: ApiOptions = {}) {
       (parsed.variant !== null && !(await variantExists(db, plan, parsed.full)))
     )
       return null;
+    await guardCatalogPlans([parsed.full], year);
     v.checkVariant(parsed.base, csrVariant, parsed.variant);
     const view = await planView(db, plan, {
       csrVariant,
@@ -638,7 +662,7 @@ export function compatRoutes(db: SqlSession, options: ApiOptions = {}) {
       );
     }
     return {
-      mapped,
+      mapped: await annotateCatalogPlan(mapped, parsed.full, year),
       dental: plan.dental_only,
       plan,
       costSharing: view.cost_sharing,

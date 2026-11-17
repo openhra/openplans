@@ -221,11 +221,3 @@ curl -s http://127.0.0.1:3000/v1/premium-quotes \
   -H 'content-type: application/json' \
   -d '{"plan_ids":["87226TX0100013"],"zip":"77002","coverage_start":"2026-01-01","members":[{"age":35,"tobacco":false,"relationship":"subscriber"}]}'
 ```
-
-## Removed names
-
-Earlier 0.1 releases answered household quotes at `POST /v1/premium-estimates` and through
-the MCP tool `estimate_premiums`. Both are gone. The route now returns the same 404
-as any unknown route, and the tool is no longer listed; calling it returns the MCP
-unknown-tool error. Use `POST /v1/premium-quotes` and `quote_premiums`, and read
-the results from the `quotes` key instead of `estimates`.

@@ -1,4 +1,7 @@
-import { lowestPremiums } from "../../src/services/handy.js";
+import {
+  lowestPremiums,
+  householdDistributions,
+} from "../../src/services/handy.js";
 import { lowestInput } from "../../src/api/handy.js";
 import { buildLowestPremiums } from "../../src/worker/handy-build.js";
 import assert from "node:assert/strict";
@@ -751,4 +754,54 @@ it("single-age gross minimum uses the filed single tier with exact fast/fallback
   expect(fast.lowest.monthly_cents).toBe(expected.lcsp?.monthly_cents);
   expect(fast.lowest.plan_id).toBe(expected.lcsp?.plan_ids[0]);
   expect(fast.basis.age_rating).toBe("none");
+});
+
+it("household distributions withhold refused metals and keep independently complete tiers", async () => {
+  const input = { county: "36061", year: 2026, preset: "family-40-40-10-8-v1" };
+  const options = { enabled: true, fourProfiles: true };
+  const baseline = await householdDistributions(db, input, options);
+  expect(
+    baseline.profiles.every(
+      (p) => p.lowest_silver !== null && p.median_gold !== null,
+    ),
+  ).toBe(true);
+  await rollback(async (tx) => {
+    await refuse(
+      tx,
+      [{ plan_id: refusedPlan, region: "Rating Area 4" }],
+      "Silver",
+    );
+    const result = await householdDistributions(tx, input, options);
+    for (const [i, profile] of result.profiles.entries()) {
+      expect(profile.lowest_silver).toBeNull();
+      expect({ ...profile.median_gold, evidence_refs: [] }).toEqual({
+        ...baseline.profiles[i]!.median_gold,
+        evidence_refs: [],
+      });
+      expect(
+        profile.median_gold!.evidence_refs.map(
+          (ref) => result.provenance.evidence[ref],
+        ),
+      ).toEqual(
+        baseline.profiles[i]!.median_gold!.evidence_refs.map(
+          (ref) => baseline.provenance.evidence[ref],
+        ),
+      );
+      const silver = profile.metals.find((g) => g.metal === "silver")!;
+      expect(silver.reasons).toContain("template_saved_before_submission");
+      expect(silver.counts.catalog).toBeNull();
+      expect(silver.counts.eligible).toBeNull();
+    }
+  });
+  await rollback(async (tx) => {
+    await refuse(tx, null);
+    const result = await householdDistributions(tx, input, options);
+    expect(
+      result.profiles.every((p) =>
+        p.metals.every(
+          (g) => g.status === "unknown" && g.points.minimum === null,
+        ),
+      ),
+    ).toBe(true);
+  });
 });

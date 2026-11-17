@@ -3,8 +3,31 @@ import type { SqlSession } from "./contracts.js";
 
 const count = z.number().int().nonnegative();
 const health = z.enum(["ok", "degraded", "down"]);
+const msotChange = z.strictObject({
+  sourceId: z.string().max(100),
+  version: z.number().int().positive(),
+  previousHash: z
+    .string()
+    .regex(/^[a-f0-9]{64}$/)
+    .nullable(),
+  newHash: z
+    .string()
+    .regex(/^[a-f0-9]{64}$/)
+    .nullable(),
+  operation: z.enum(["publish", "activate", "rollback", "retire"]),
+  changedCount: count,
+  reasonCode: z.string().max(100),
+});
 
 export const eventPayloadSchemas = {
+  "msot.changed": msotChange,
+  "msot.retired": msotChange,
+  "msot.review_required": z.strictObject({
+    sourceId: z.string().max(100),
+    versionHash: z.string().regex(/^[a-f0-9]{64}$/),
+    changedCount: count,
+    reasonCode: z.string().max(100),
+  }),
   "release.deployed": z.strictObject({
     version: z.string(),
     imageId: z.string(),
@@ -103,6 +126,8 @@ export type EventInput<T extends EventType = EventType> = {
 export interface EmitOptions {
   /** The caller's open transaction. The outbox row commits or rolls back with it. */
   session?: SqlSession;
+  /** Require a caller transaction and a durable outbox insert; propagate failures, without in-process delivery. */
+  requireOutbox?: boolean;
 }
 
 export interface EventRegistry {

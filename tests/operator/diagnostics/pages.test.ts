@@ -115,6 +115,15 @@ it("freezes exact page/action registrations and leaves every unimplemented capab
       expect(html).not.toContain("<script");
       continue;
     }
+    if (spec.path === "/admin/customizations/inspect") {
+      expect(response.status, spec.path).toBe(503);
+      expect(response.headers.get("cache-control")).toBe("no-store");
+      expect(await response.json()).toMatchObject({
+        state: "unavailable",
+        reason: "not_supported",
+      });
+      continue;
+    }
     expect(response.status, spec.path).toBe(503);
     expect(response.headers.get("cache-control")).toBe("no-store");
     const html = await response.text();

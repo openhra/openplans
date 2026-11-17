@@ -1,14 +1,17 @@
 import type { AdminPageRegistrar } from "../contracts.js";
-import { registerUnavailable, unavailableHandler } from "../render.js";
+import { unavailableHandler } from "../render.js";
 import { fieldsAvailable, fieldsHandler } from "./fields.js";
 import { overridesAvailable, overridesHandler } from "./overrides.js";
 import { registerDrafts } from "./drafts.js";
 import { registerPreview } from "./preview.js";
 import { registerPublish } from "./publish.js";
 import { registerHistory } from "./history.js";
+import { inspectPage, registerInspect } from "./inspect.js";
 
 export const registerCustomizations: AdminPageRegistrar = (dependencies) => {
-  const source = unavailableHandler(dependencies, "Customizations");
+  const source = dependencies.operator?.msot
+    ? inspectPage(dependencies)
+    : unavailableHandler(dependencies, "Customizations");
   const fields = fieldsHandler(dependencies);
   const overrides = overridesHandler(dependencies);
   dependencies.routes.add({
@@ -31,12 +34,7 @@ export const registerCustomizations: AdminPageRegistrar = (dependencies) => {
       return c.html("<p>Unsupported customization view.</p>", 400);
     },
   });
-  registerUnavailable(
-    dependencies,
-    "POST",
-    "/admin/customizations/inspect",
-    "Inspect customizations",
-  );
+  registerInspect(dependencies);
   registerDrafts(dependencies);
   registerPreview(dependencies);
   registerPublish(dependencies);

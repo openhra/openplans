@@ -1,4 +1,8 @@
-import { lowestPremiums } from "../../src/services/handy.js";
+import {
+  lowestPremiums,
+  householdDistributions,
+  householdHandy,
+} from "../../src/services/handy.js";
 import { lowestInput } from "../../src/api/handy.js";
 import { buildLowestPremiums } from "../../src/worker/handy-build.js";
 import { createHash } from "node:crypto";
@@ -294,4 +298,59 @@ it("single-age gross minimum uses the filed single tier with exact fast/fallback
   expect(fast.lowest.monthly_cents).toBe(expected.lcsp?.monthly_cents);
   expect(fast.lowest.plan_id).toBe(expected.lcsp?.plan_ids[0]);
   expect(fast.basis.age_rating).toBe("none");
+});
+
+it("all four household distributions equal the cited VT tier cents without single-rate multiplication", async () => {
+  const result = await householdDistributions(
+    db,
+    { county: "50007", year: 2026, preset: "family-40-40-10-8-v1" },
+    { enabled: true, fourProfiles: true },
+  );
+  for (const [i, profile] of result.profiles.entries()) {
+    const tier = (["single", "couple", "family", "family"] as const)[i]!;
+    for (const group of profile.metals) {
+      const expected = cut.plans
+        .filter((p) => p.metal.toLowerCase() === group.metal)
+        .map((p) => ({ id: p.plan_key, cents: p.prices[tier] }))
+        .sort((a, b) => a.cents - b.cents || a.id.localeCompare(b.id));
+      expect(group.counts.rated).toBe(expected.length);
+      expect(group.counts.unknown).toBe(0);
+      if (!expected.length) {
+        expect(group.status).toBe("no_plans");
+        continue;
+      }
+      expect(group.status).toBe("calculated");
+      expect(group.points.minimum!.monthly_cents).toBe(expected[0]!.cents);
+      expect(group.points.median!.monthly_cents).toBe(
+        expected[Math.ceil(expected.length / 2) - 1]!.cents,
+      );
+      expect(
+        group.candidates.map((c) => [c.plan_id, c.monthly_cents]).sort(),
+      ).toEqual(expected.map((p) => [p.id, p.cents]).sort());
+    }
+  }
+  expect(result.profiles[2]!.lowest_silver!.monthly_cents).toBe(
+    result.profiles[3]!.lowest_silver!.monthly_cents,
+  );
+  expect(result.profiles[2]!.median_gold!.monthly_cents).toBe(
+    result.profiles[3]!.median_gold!.monthly_cents,
+  );
+});
+
+it("household minimum projects the filed family tier and keeps ages out of rating", async () => {
+  const result = await householdHandy(db, {
+    county: "50007",
+    year: 2026,
+    members: [
+      { age: 40, relationship: "subscriber", tobacco: false },
+      { age: 35, relationship: "spouse", tobacco: false },
+      { age: 10, relationship: "child", tobacco: false },
+      { age: 8, relationship: "child", tobacco: false },
+    ],
+  });
+  expect(result.basis).toMatchObject({
+    rating_method: "filed_family_tier",
+    age_rating: "none",
+    family_tier: "family",
+  });
 });

@@ -1,6 +1,6 @@
 {
   "name": "@openplans/plugin-admin",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "type": "module",
   "main": "dist/index.js",
@@ -9,8 +9,8 @@
     "build": "npm run build -w @openplans/plugin-status && tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@openplans/plugin-sdk": "0.1.0",
-    "@openplans/plugin-status": "0.1.6"
+    "@openplans/plugin-sdk": "0.1.1",
+    "@openplans/plugin-status": "0.1.7"
   },
   "peerDependencies": {
     "hono": "4.13.16",

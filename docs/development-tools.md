@@ -4,14 +4,8 @@ Use the Node and npm versions in `.node-version` and `.github/npm-version`.
 Run `npm ci` once with network access to install the locked development tools.
 Later CI runs stay offline. No configuration imports a parent directory.
 
-| Tool                   | Version |
-| ---------------------- | ------- |
-| Prettier               | 3.9.10  |
-| ESLint and @eslint/js  | 9.39.5  |
-| typescript-eslint      | 8.72.1  |
-| eslint-config-prettier | 10.1.8  |
-| globals                | 17.14.0 |
-| TypeScript             | 5.9.3   |
+`package.json` lists the development tools and their pinned versions.
+`package-lock.json` pins their dependencies.
 
 Run these commands from the package root:
 
@@ -21,8 +15,8 @@ npm run lint
 npm run check:lint-setup
 ```
 
-`scripts/ci.sh` runs format checking, lint and the tooling negative controls before
-TypeScript checks, builds and tests. It uses the locked tools and stays offline
+`scripts/ci.sh` builds first, then checks formatting, lint, types and tests.
+It also runs the tooling negative controls. It uses the locked tools and stays offline
 after the npm cache has been primed.
 
 `npm run format` writes formatting changes across selected files in the package.
@@ -35,7 +29,7 @@ configuration stays selected; lockfiles and payload JSON do not.
 ESLint uses the JavaScript recommended rules, the ordinary TypeScript recommended
 preset for TypeScript files, and `eslint-config-prettier/flat` last. The two extra
 rules are `no-nested-ternary` and `@typescript-eslint/consistent-type-imports`.
-There is no typed lint pass. Code runs in Node with ESM parsing, with CommonJS
+Source and tests also use typed lint rules. Code runs in Node with ESM parsing, with CommonJS
 parsing for `.cjs` and `.cts` files. Tests import their test symbols; no test or
 browser globals are enabled. Unused disable comments are errors.
 Unused callback parameters start with `_`;

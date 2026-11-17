@@ -1,3 +1,5 @@
+import { catalogPolicyActive } from "../../services/catalog-policy.js";
+import { cmsFallbackUnavailable } from "../../config/cms-fallback.js";
 import { recordCache } from "../../telemetry/observer.js";
 import type { LowestInput } from "../handy.js";
 import type { LowestCell } from "../../services/handy.js";
@@ -39,7 +41,9 @@ export interface ResponseCacheOptions {
    * can be selected with `cache.provider`.
    */
   plugins?: Pick<PluginRegistries, "routes"> &
-    Partial<Pick<PluginRegistries, "cacheStores" | "sources">>;
+    Partial<
+      Pick<PluginRegistries, "cacheStores" | "sources" | "catalogPolicies">
+    >;
 }
 interface Entry {
   body: string;
@@ -195,6 +199,15 @@ export function createResponseCache(
   const middleware: MiddlewareHandler = (c, next) =>
     runWithScope(() => respond(c, next));
   const respond: MiddlewareHandler = async (c, next) => {
+    if (config.catalogPolicy || catalogPolicyActive()) {
+      c.header("Cache-Control", "no-store");
+      return bypass(c, next);
+    }
+    // Census bodies must not become cache keys, including under a conflicting plugin TTL.
+    if (c.req.path === "/v1/ichra/affordability/batch") {
+      c.header("Cache-Control", "no-store");
+      return bypass(c, next);
+    }
     const seconds = ttls.get(`${c.req.method} ${c.req.path}`);
     if (disabled || !seconds) return bypass(c, next);
     const compat = c.req.path.startsWith("/compat/v1/");
@@ -269,6 +282,7 @@ export function createResponseCache(
       if (hasCredentials(body)) return bypass(c, next);
     }
     let key: string;
+    const cmsUnavailable = cmsFallbackUnavailable();
     try {
       const generation = await dataGeneration(db);
       const request = canonical([
@@ -277,9 +291,11 @@ export function createResponseCache(
         [...url.searchParams],
         body,
         generation,
+        ...(cmsUnavailable ? ["cms_fallback_unavailable"] : []),
       ]);
       key = `openplans:response:v1:${createHash("sha256").update(request).digest("hex")}`;
       const cached = await store.get(key);
+      if (cmsUnavailable !== cmsFallbackUnavailable()) return bypass(c, next);
       if (cached !== null) {
         const entry = JSON.parse(cached) as Entry;
         if (
@@ -399,19 +415,30 @@ export function createResponseCache(
       recordCache(outcome);
       request.outcome?.(outcome);
     };
-    if (disabled || !request.authorized() || !publicDto(request.query)) {
+    if (
+      disabled ||
+      catalogPolicyActive() ||
+      !request.authorized() ||
+      !publicDto(request.query)
+    ) {
       report("bypass");
       return load();
     }
+    const cmsUnavailable = cmsFallbackUnavailable();
     const identity = canonical([
       request.namespace,
       request.version,
       request.generation,
       request.query,
+      ...(cmsUnavailable ? ["cms_fallback_unavailable"] : []),
     ]);
     const key = `openplans:catalog:v1:${createHash("sha256").update(identity).digest("hex")}`;
     try {
       const cached = await store.get(key);
+      if (cmsUnavailable !== cmsFallbackUnavailable()) {
+        report("bypass");
+        return load();
+      }
       if (cached !== null) {
         if (Buffer.byteLength(cached) > MAX_ENTRY_BYTES)
           throw new Error("Cache entry too large");

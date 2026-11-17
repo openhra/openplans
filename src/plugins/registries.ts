@@ -1,5 +1,7 @@
+import { z } from "zod";
 import { eventPayloadSchemas } from "@openplans/plugin-sdk";
 import type {
+  OperatorCommandSpec,
   CatalogPolicyProvider,
   BlobStoreFactory,
   CacheStoreFactory,
@@ -29,6 +31,7 @@ export const HOSTED_KINDS: Readonly<Record<PluginHost, readonly PluginKind[]>> =
       "routes",
       "mcpTools",
       "catalogPolicies",
+      "operatorCommands",
       "cacheStores",
       "dbProviders",
       "blobStores",
@@ -37,6 +40,7 @@ export const HOSTED_KINDS: Readonly<Record<PluginHost, readonly PluginKind[]>> =
     ] as const),
     worker: Object.freeze([
       "catalogPolicies",
+      "operatorCommands",
       "cacheStores",
       "dbProviders",
       "blobStores",
@@ -108,6 +112,7 @@ type ProviderTable<F> = Record<string, Registered<F>>;
 
 /** Plain arrays and records keep insertion order, which is plugin configuration order. */
 export interface StagingRegistries {
+  operatorCommands: Registered<OperatorCommandSpec>[];
   catalogPolicies: ProviderTable<CatalogPolicyProvider>;
   routes: Registered<RouteSpec>[];
   mcpTools: Registered<McpToolSpec<unknown, unknown>>[];
@@ -125,6 +130,7 @@ export type PluginRegistries = {
 
 /** Every name registered during one load, on any host, so collisions do not depend on the host. */
 export type SeenNames = Record<
+  | "operatorCommands"
   | "catalogPolicies"
   | "routes"
   | "mcpTools"
@@ -139,9 +145,15 @@ export type SeenNames = Record<
 >;
 export function emptySeen(): SeenNames {
   return {
+    operatorCommands: new Set(),
     catalogPolicies: new Set(),
     routes: new Set(),
-    mcpTools: new Set([...toolNames, "get_lowest_premiums"]),
+    mcpTools: new Set([
+      ...toolNames,
+      "get_lowest_premiums",
+      "get_market_summary",
+      "get_benchmark",
+    ]),
     cacheStores: new Set(CORE_PROVIDERS.cacheStores),
     dbProviders: new Set(CORE_PROVIDERS.dbProviders),
     blobStores: new Set(CORE_PROVIDERS.blobStores),
@@ -154,6 +166,7 @@ export function emptySeen(): SeenNames {
 
 export function emptyRegistries(): StagingRegistries {
   return {
+    operatorCommands: [],
     catalogPolicies: {},
     routes: [],
     mcpTools: [],
@@ -167,9 +180,22 @@ export function emptyRegistries(): StagingRegistries {
   };
 }
 
+// API projections retain route-array identity while omitting other registry fields.
+const commandsByRoutes = new WeakMap<
+  readonly Registered<RouteSpec>[],
+  readonly Registered<OperatorCommandSpec>[]
+>();
+export function operatorCommandsForRoutes(
+  routes: readonly Registered<RouteSpec>[],
+): readonly Registered<OperatorCommandSpec>[] {
+  return commandsByRoutes.get(routes) ?? [];
+}
+
 export function freezeRegistries(
   registries: StagingRegistries,
 ): PluginRegistries {
+  if (registries.operatorCommands.length)
+    commandsByRoutes.set(registries.routes, registries.operatorCommands);
   for (const table of Object.values(registries) as object[]) {
     for (const entry of Object.values(table)) Object.freeze(entry);
     Object.freeze(table);
@@ -289,6 +315,7 @@ function isCorePath(path: string, plugin: string): boolean {
 
 type RegistryParts = Pick<
   PluginContext,
+  | "operatorCommands"
   | "catalogPolicies"
   | "routes"
   | "mcpTools"
@@ -354,6 +381,69 @@ export function stagingRegistrar(
     };
 
   const context: RegistryParts = {
+    operatorCommands: {
+      add(spec) {
+        const strict = (schema: unknown) =>
+          schema instanceof z.ZodObject &&
+          schema._zod.def.catchall instanceof z.ZodNever;
+        const keep = admit(
+          "operatorCommands",
+          /^[a-z][a-z0-9_.-]{2,95}$/.test(spec.name) &&
+            (spec.permission === "edit" || spec.permission === "publish") &&
+            (spec.publication === false ||
+              (spec.publication === true &&
+                spec.permission === "publish" &&
+                plugin === "@openplans/plugin-msot" &&
+                manifest.capabilities?.writes?.includes("events") === true)) &&
+            strict(spec.inputSchema) &&
+            strict(spec.outputSchema) &&
+            Number.isSafeInteger(spec.timeoutMs) &&
+            spec.timeoutMs > 0 &&
+            spec.timeoutMs <= 15_000 &&
+            Array.isArray(spec.sources) &&
+            spec.sources.length > 0 &&
+            spec.sources.length <= 100 &&
+            spec.sources.every(
+              (source: unknown) =>
+                typeof source === "string" &&
+                /^[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,99}$/.test(source),
+            ) &&
+            Array.isArray(spec.tables) &&
+            spec.tables.length > 0 &&
+            spec.tables.every(
+              (table: unknown) =>
+                typeof table === "string" &&
+                Boolean(manifest.tablePrefix) &&
+                table.startsWith(`plg_${manifest.tablePrefix}_`) &&
+                manifest.applicationState?.some(
+                  (entry) => entry.table === table,
+                ) === true,
+            ) &&
+            typeof spec.run === "function" &&
+            ["lookup", "current", "audit", "remember"].every(
+              (method) =>
+                typeof spec.store?.[method as keyof typeof spec.store] ===
+                "function",
+            ),
+        );
+        claim("operatorCommands", spec.name, "plugin_registration_collision");
+        if (keep)
+          staging.operatorCommands.push({
+            plugin,
+            spec: Object.freeze({
+              ...spec,
+              sources: Object.freeze([...spec.sources]),
+              tables: Object.freeze([...spec.tables]),
+              store: Object.freeze({
+                lookup: spec.store.lookup.bind(spec.store),
+                current: spec.store.current.bind(spec.store),
+                audit: spec.store.audit.bind(spec.store),
+                remember: spec.store.remember.bind(spec.store),
+              }),
+            }) as OperatorCommandSpec,
+          });
+      },
+    },
     catalogPolicies: {
       provide(name, spec) {
         const keep = admit(

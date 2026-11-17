@@ -1,3 +1,6 @@
+import type { Database } from "../db/database.js";
+import { createFlusher } from "./flush.js";
+import { scheduleFlush } from "./schedule.js";
 import { setOperatorTelemetryReader } from "../plugins/operator-host.js";
 import { activeRecorder, createRecorder, useRecorder } from "./observer.js";
 import { currentReader } from "./read.js";
@@ -19,3 +22,38 @@ export function configureTelemetry(options: {
 }
 export { activeRecorder } from "./observer.js";
 export { currentReader } from "./read.js";
+
+/** Production API only. Plugin admission precedes collection; this never installs tables. */
+export function startTelemetry(options: {
+  plugins: readonly { name: string }[];
+  openDatabase: () => Database;
+  env?: NodeJS.ProcessEnv;
+}) {
+  const enabled =
+    (options.env ?? process.env).OPENPLANS_METRICS === "on" &&
+    options.plugins.some((plugin) => plugin.name === "@openplans/plugin-admin");
+  configureTelemetry({ enabled });
+  if (!enabled) return undefined;
+  let db: Database;
+  try {
+    db = options.openDatabase();
+  } catch {
+    configureTelemetry({ enabled: false });
+    return undefined;
+  }
+  const aggregate = activeRecorder()!.aggregate;
+  const flusher = createFlusher(db, aggregate);
+  setOperatorTelemetryReader(currentReader(aggregate, flusher));
+  const scheduler = scheduleFlush(flusher);
+  let stopped = false;
+  return {
+    async stop() {
+      if (stopped) return;
+      stopped = true;
+      await scheduler.stop();
+      flusher.detach();
+      configureTelemetry({ enabled: false });
+      await db.close();
+    },
+  };
+}

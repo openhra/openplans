@@ -1,4 +1,8 @@
 import type {
+  OperatorCommandClient,
+  OperatorCommandRegistry,
+} from "./operator-commands.js";
+import type {
   CanonicalReader,
   CatalogPolicyRegistry,
 } from "./catalog-policy.js";
@@ -7,6 +11,7 @@ import type { z } from "zod";
 import type { EventRegistry } from "./events.js";
 import type { PluginManifest } from "./index.js";
 import type { SourceRegistry } from "./sources.js";
+import type { CalculationHost } from "./calculation-host.js";
 import type { OperatorHost } from "./operator-host.js";
 
 export interface SqlSession {
@@ -54,6 +59,7 @@ export interface CoreConfigView {
     projectUrl?: string;
     egressCountry?: string;
   };
+  tpa?: { enabled: boolean; privateIngress: boolean };
   public: { quoting: boolean; household: boolean; compat: boolean };
   mcp: {
     enabled: boolean;
@@ -145,6 +151,14 @@ export interface OpenPlansPlugin {
   setup(ctx: PluginContext): void | Promise<void>;
   teardown?(): Promise<void>;
 }
+/** Request-only receipt export. No storage or outbound fetch capability. */
+export interface TpaReceiptHost {
+  prepare(
+    input: unknown,
+    includeInput: boolean,
+    scope: { db: SqlSession; signal: AbortSignal },
+  ): Promise<Record<string, unknown>>;
+}
 export interface PluginContext {
   readonly plugin: { name: string; version: string };
   readonly options: unknown;
@@ -155,8 +169,11 @@ export interface PluginContext {
   ) => void;
   readonly db: PluginDatabase;
   readonly canonicalReader?: CanonicalReader;
+  readonly calculationHost?: CalculationHost;
+  readonly tpaReceiptHost?: TpaReceiptHost;
   /** Granted only with capabilities.operatorDiagnostics; unavailable during setup. */
   readonly operatorHost?: OperatorHost;
+  readonly operatorCommands?: OperatorCommandRegistry;
   readonly catalogPolicies?: CatalogPolicyRegistry;
   readonly routes: RouteRegistry;
   readonly mcpTools: McpToolRegistry;
@@ -184,6 +201,8 @@ export interface PluginRouteVariables {
    * source's own storage tables is refused.
    */
   pluginPassThroughWriter?: SqlSession;
+  /** Core-bound client; present only on authenticated admin routes. */
+  pluginOperatorCommands?: OperatorCommandClient;
 }
 /** The Hono environment plugin route handlers run in. */
 export interface PluginRouteEnv {
@@ -270,6 +289,8 @@ export interface PluginState {
   delete(key: string): Promise<void>;
 }
 export interface WorkerContext {
+  /** Core-bound command client for this worker invocation, when handlers are installed. */
+  readonly operatorCommandClient?: OperatorCommandClient;
   db: PluginDatabase;
   config: Readonly<CoreConfigView>;
   log: PluginContext["log"];

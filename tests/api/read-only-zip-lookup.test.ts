@@ -179,9 +179,12 @@ describe("ZIP lookups in read-only request scopes", () => {
         original,
       ),
     );
+    const transport = vi.fn(async () => {
+      throw new Error("Synthetic transport must not run in a read-only scope");
+    });
     const scope = (lookup: typeof cmsCountySnapshot) =>
       readOnly.withRequest!(new AbortController().signal, (session) =>
-        lookup(session, "10001"),
+        lookup(session, "10001", { fetchOptions: { transport } }),
       );
     try {
       const mutant = (await import(path)) as {
@@ -192,6 +195,7 @@ describe("ZIP lookups in read-only request scopes", () => {
         /read-only/,
       );
       await expect(scope(cmsCountySnapshot)).resolves.toBeNull();
+      expect(transport).not.toHaveBeenCalled();
     } finally {
       await rm(directory, { recursive: true, force: true });
     }

@@ -1,3 +1,5 @@
+import { cmsFallbackUnavailable } from "../config/cms-fallback.js";
+import { loadConfig } from "../config/index.js";
 import { readFile } from "node:fs/promises";
 import taxonomyPlugin, {
   createTaxonomySource,
@@ -17,11 +19,7 @@ import { parse_hios } from "../domain/hios/index.js";
 import { createRxnormRepository } from "../ingest/rxnorm/repository.js";
 import type { Database } from "../db/database.js";
 import { migrate, migrationsDirectory } from "../db/migrate.js";
-import {
-  cmsFallbackEnabled,
-  fetchToCache,
-  snapshotStore,
-} from "../fetch/index.js";
+import { fetchToCache, snapshotStore } from "../fetch/index.js";
 import type { FetchOptions } from "../fetch/index.js";
 import { runFeedSource } from "./sources/feed.js";
 import type { FeedRunOptions } from "./sources/feed.js";
@@ -144,7 +142,7 @@ let cmsSource: PassThrough | undefined;
  * RxCUI that resolves to an unsuppressed concept in the active local RxNorm release.
  */
 export function implicitPassThroughSources(): readonly PassThrough[] {
-  if (!cmsFallbackEnabled()) return [];
+  if (!loadConfig().cmsFallback.enabled) return [];
   cmsSource ??= createCmsMarketplaceSource({
     planBase: (id) => parse_hios(id).base,
     async knownRxcuis(db, rxcuis) {
@@ -156,5 +154,15 @@ export function implicitPassThroughSources(): readonly PassThrough[] {
       return known;
     },
   }) as unknown as PassThrough;
-  return [cmsSource];
+  const source = cmsSource;
+  return [
+    {
+      ...source,
+      eligibility: {
+        ...source.eligibility,
+        accepts: (question) =>
+          !cmsFallbackUnavailable() && source.eligibility.accepts(question),
+      },
+    },
+  ];
 }

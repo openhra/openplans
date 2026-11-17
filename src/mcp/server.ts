@@ -1,4 +1,8 @@
-import { registerLowestTool } from "./handy.js";
+import {
+  registerBenchmarkTool,
+  registerLowestTool,
+  registerMarketSummaryTool,
+} from "./handy.js";
 import { applicationVersion } from "./version.js";
 import { sharedResponseCache } from "../api/cache/index.js";
 import { requestDependencies } from "./policy.js";
@@ -121,6 +125,10 @@ export function buildServer(deps: McpDependencies): McpServer {
   if (estimate) definitions.push(estimate);
   const lowest = registerLowestTool(server, deps);
   if (lowest) definitions.push(lowest);
+  const summary = registerMarketSummaryTool(server, deps);
+  if (summary) definitions.push(summary);
+  const benchmark = registerBenchmarkTool(server, deps);
+  if (benchmark) definitions.push(benchmark);
   // Plugin tools follow the core list, so the first entries never move for existing clients.
   for (const tool of deps.pluginTools ?? loadedPluginTools()) {
     const listed = pluginToolDefinition(tool.spec);

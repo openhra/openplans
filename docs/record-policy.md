@@ -68,7 +68,7 @@ An expired row remains eligible for stale serving until `expired_at + stale_wind
 tries a live refresh first when it can. After that window, an unsuccessful refresh leaves the
 answer `unknown`.
 
-The two coverage tables retain `expires_at` as a deprecated alias for this release. The trigger
+The two coverage tables retain `expires_at` as a deprecated alias. The trigger
 copies `expired_at` into it on every write. New readers must use `expired_at`.
 Each successful fetch gets a receipt that includes the fetch time in its identity, even when the
 response bytes match an earlier fetch. A refresh therefore uses the new retrieval time.

@@ -101,6 +101,9 @@ it.each(["api", "worker", "stdio"] as const)(
     expect(noSource.registries.mcpTools).toEqual([]);
     expect(noSource.registries.routes).toEqual([]);
     expect(noSource.registries.catalogPolicies).toEqual({});
+    expect(noSource.migrations, "no_mandatory_policy_migrations").toHaveLength(
+      host === "worker" ? 1 : 0,
+    );
     const loaded = await loadPlugins(config({ source }), host, {
       env: {},
       canonicalReader: reader,
@@ -108,7 +111,7 @@ it.each(["api", "worker", "stdio"] as const)(
     expect(loaded.registries.catalogPolicies.msot?.spec.resolve).toBeTypeOf(
       "function",
     );
-    expect(loaded.migrations).toHaveLength(1); // No SQL files; table prefix is reserved only.
+    expect(loaded.migrations).toHaveLength(1);
   },
 );
 it("rejects invalid scopes, types, duplicate rules and equal-rank time overlaps", () => {
@@ -300,7 +303,7 @@ describe("named negative controls in temporary source copies", () => {
   it("rejects tool_requires_configured_source", async () => {
     const mutant = await plantMutant(
       new URL("../src/index.ts", import.meta.url),
-      "if (!source) return;",
+      "if (!source && !readableSources.length) return;",
       `if (!source) { ctx.mcpTools.add({ name: "msot_resolve", title: "Synthetic mutant", description: "Synthetic mutant", inputSchema: resolveInput, outputSchema: mcpOutput, readOnly: true, handler: async () => { throw new Error("unused"); } }); return; }`,
     );
     try {
@@ -445,4 +448,62 @@ it("normalizes wildcard scopes and preserves explicit false, unknown masking and
       reader,
     ),
   ).not.toThrow();
+});
+
+it("keeps actual API schema readiness unchanged without a source and refuses configured missing state", async () => {
+  const { digestFixture } = await import("../../../tests/plugins/fixture.js");
+  const { coreMigrations } = await import("../../../tests/pglite.js");
+  const { schemaGate } = await import("../../../src/api/schema-gate.js");
+  const fixture = await digestFixture();
+  const core = await coreMigrations();
+  try {
+    let baseline: { status: number; body: string } | undefined;
+    for (const mode of ["absent", "disabled", "no-source"] as const) {
+      const configured =
+        mode === "absent"
+          ? loadConfig({}, { version: 1 })
+          : config(undefined, mode !== "disabled");
+      const loaded = await loadPlugins(configured, "api", { env: {} });
+      const readiness = schemaGate(fixture.db, {
+        directory: core.directory,
+        plugins: loaded.migrations,
+      });
+      expect((await readiness.status()).state, `off_mode_ready:${mode}`).toBe(
+        "ready",
+      );
+      const app = createApp(
+        fixture.db,
+        undefined,
+        { plugins: loaded.registries },
+        readiness,
+      );
+      const response = await app.request("/v1/data-availability");
+      const actual = { status: response.status, body: await response.text() };
+      baseline ??= actual;
+      expect(actual, `off_mode_bytes:${mode}`).toEqual(baseline);
+    }
+    const active = await loadPlugins(
+      config({ readableSources: [source.source_id] }),
+      "api",
+      { env: {} },
+    );
+    const missing = schemaGate(fixture.db, {
+      directory: core.directory,
+      plugins: active.migrations,
+    });
+    expect(
+      (await missing.status()).state,
+      "configured_missing_state_refuses",
+    ).toBe("pending");
+    const app = createApp(
+      fixture.db,
+      undefined,
+      { plugins: active.registries },
+      missing,
+    );
+    expect((await app.request("/v1/data-availability")).status).toBe(503);
+  } finally {
+    await fixture.close();
+    await core.cleanup();
+  }
 });

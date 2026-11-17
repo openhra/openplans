@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { request as httpRequest } from "node:http";
 import type { ChildProcess } from "node:child_process";
 import { readFile, writeFile } from "node:fs/promises";
 import { createServer } from "node:net";
@@ -98,6 +99,45 @@ const get = (
   path: string,
   headers: Record<string, string> = {},
 ) => fetch(`http://127.0.0.1:${port}${path}`, { headers });
+
+function getRawPath(
+  port: number,
+  path: string,
+  headers: Record<string, string> = {},
+): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const req = httpRequest(
+      { hostname: "127.0.0.1", port, path, method: "GET", headers },
+      (response) => {
+        response.resume();
+        response.once("end", () => resolve(response.statusCode ?? 0));
+      },
+    );
+    req.once("error", reject);
+    req.end();
+  });
+}
+
+const operatorPaths = [
+  "/status/operator.json",
+  "/status/%6fperator.json",
+  "/status/./operator.json",
+  "/status/x/../operator.json",
+];
+
+async function operatorTokenRequired(port: number) {
+  for (const path of operatorPaths) {
+    for (const headers of [
+      {},
+      { authorization: "Bearer synthetic-wrong-token" },
+    ] as Record<string, string>[])
+      expect(await getRawPath(port, path, headers), path).toBe(401);
+    expect(
+      await getRawPath(port, path, { authorization: `Bearer ${TOKEN}` }),
+      path,
+    ).toBe(200);
+  }
+}
 
 interface McpBody {
   error?: unknown;
@@ -265,6 +305,69 @@ describe("the API server loads configured plugins at startup", () => {
       expect((await get(api.port, "/status/operator")).status).toBe(404);
     } finally {
       await api.stop();
+    }
+  });
+
+  it("rejects alternate separators and authenticates normalized operator paths", async () => {
+    const api = await startApi({
+      OPENPLANS_PLUGINS: STATUS,
+      OPENPLANS_OPERATOR_TOKEN: TOKEN,
+    });
+    try {
+      for (const [path, status] of [
+        ["/status%2foperator.json", 404],
+        ["/status%2Foperator.json", 404],
+        ["/status\\operator.json", 400],
+        ["/status%5coperator.json", 404],
+        ["/status%5Coperator.json", 404],
+        ["/status%252foperator.json", 404],
+        ["/status%255coperator.json", 404],
+      ] as const)
+        for (const headers of [
+          {},
+          { authorization: "Bearer synthetic-wrong-token" },
+          { authorization: `Bearer ${TOKEN}` },
+        ] as Record<string, string>[])
+          expect(await getRawPath(api.port, path, headers), path).toBe(status);
+      await operatorTokenRequired(api.port);
+    } finally {
+      expect(await api.stop()).toBe(0);
+    }
+  });
+
+  it("negative control: removing the plugin guard fails the operator token check", async () => {
+    const appFile = new URL("../../dist/api/app.js", import.meta.url);
+    const appSource = await readFile(appFile, "utf8");
+    const guard = "plugins?.guard(app);";
+    expect(appSource).toContain(guard);
+    const appMutant = await plantMutantFile(
+      appFile,
+      appSource.replace(guard, ""),
+    );
+    try {
+      const serverSource = await readFile(server, "utf8");
+      expect(serverSource).toContain('"./app.js"');
+      const serverMutant = await plantMutantFile(
+        server,
+        serverSource.replace('"./app.js"', JSON.stringify(appMutant.url.href)),
+      );
+      try {
+        const api = await startApi(
+          { OPENPLANS_PLUGINS: STATUS, OPENPLANS_OPERATOR_TOKEN: TOKEN },
+          serverMutant.path,
+        );
+        try {
+          for (const path of operatorPaths)
+            expect(await getRawPath(api.port, path), path).toBe(200);
+          await expect(operatorTokenRequired(api.port)).rejects.toThrow();
+        } finally {
+          expect(await api.stop()).toBe(0);
+        }
+      } finally {
+        await serverMutant.cleanup();
+      }
+    } finally {
+      await appMutant.cleanup();
     }
   });
 

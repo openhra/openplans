@@ -1,6 +1,24 @@
 import { z } from "zod";
 
+export const applicationState = [
+  "source",
+  "draft",
+  "version",
+  "field_definition",
+  "rule",
+  "provenance",
+  "preview",
+  "activation",
+  "audit",
+  "retirement",
+].map((name) => ({
+  table: `plg_msot_${name}`,
+  reason: "Operator policy versions and authoring history",
+}));
+
 export const FIELD = "custom_payment_allowed";
+export const MARKETABLE = "marketable";
+export const fieldNameSchema = z.enum([FIELD, MARKETABLE]);
 export const segmentSchema = z.enum(["on_exchange", "off_exchange"]);
 const key = z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,99}$/);
 export const dateSchema = z.iso.date();
@@ -14,26 +32,37 @@ export const scopeSchema = z.strictObject({
   market_segment: z.union([segmentSchema, z.literal("*")]).optional(),
 });
 const author = { set_by: key, set_at: z.iso.datetime({ offset: true }) };
-const definitionSchema = z.strictObject({
-  name: z.literal(FIELD),
-  entity: z.literal("plan"),
-  definition_version: z.literal(1),
-  type: z.literal("boolean"),
-  allowed_values: z.tuple([z.literal(true), z.literal(false)]),
-  default: z.strictObject({ state: z.literal("unknown"), value: z.null() }),
-  description: z.string().min(1).max(500),
-  visibility: z.strictObject({
-    audience: z.literal("answer"),
-    rest: z.literal(true),
-    compat: z.boolean(),
-    mcp: z.literal(true),
-  }),
-  filterable: z.boolean(),
-  ...author,
-});
+export const definitionSchema = z
+  .strictObject({
+    name: fieldNameSchema,
+    entity: z.literal("plan"),
+    definition_version: z.literal(1),
+    type: z.literal("boolean"),
+    allowed_values: z.tuple([z.literal(true), z.literal(false)]),
+    default: z.strictObject({ state: z.literal("unknown"), value: z.null() }),
+    description: z.string().min(1).max(500),
+    visibility: z.strictObject({
+      audience: z.literal("answer"),
+      rest: z.literal(true),
+      compat: z.boolean(),
+      mcp: z.literal(true),
+    }),
+    filterable: z.boolean(),
+    ...author,
+  })
+  .superRefine((definition, ctx) => {
+    if (
+      definition.name === MARKETABLE &&
+      (!definition.filterable || !definition.visibility.compat)
+    )
+      ctx.addIssue({
+        code: "custom",
+        message: "Marketable must be filterable on every transport",
+      });
+  });
 export const ruleSchema = z.strictObject({
   id: key,
-  field: z.literal(FIELD),
+  field: fieldNameSchema,
   scope: scopeSchema,
   valid_from: dateSchema,
   valid_until: dateSchema.nullable(),
@@ -49,14 +78,18 @@ export const sourceSchema = z.strictObject({
     .min(1)
     .default(["medical", "dental"]),
   business_markets: z.tuple([z.literal("individual")]).default(["individual"]),
-  fields: z.tuple([definitionSchema]),
+  fields: z.array(definitionSchema).min(1).max(2),
   rules: z.array(ruleSchema).max(10000),
 });
 export const optionsSchema = z
-  .strictObject({ source: sourceSchema.optional() })
+  .strictObject({
+    source: sourceSchema.optional(),
+    readableSources: z.array(key).max(100).default([]),
+  })
   .prefault({});
 export const resolveInput = z.strictObject({
   source_id: key,
+  version: z.number().int().positive().optional(),
   plan_ids: z.array(z.string().min(1).max(220)).min(1).max(100),
   year: z.number().int().min(2014).max(2100),
   as_of: dateSchema.optional(),
@@ -95,7 +128,7 @@ export const provenanceSchema = z.strictObject({
     .optional(),
   candidate_rule_ids: z.array(z.string()).optional(),
 });
-const fieldSchema = valueSchema.and(
+export const fieldSchema = valueSchema.and(
   z.object({
     origin: z.enum(["msot", "msot_default"]),
     provenance_ref: z.string(),
@@ -105,9 +138,13 @@ const fieldSchema = valueSchema.and(
     }),
   }),
 );
+export type FieldResolution = z.infer<typeof fieldSchema>;
 const channelSchema = z.strictObject({
   applicability: z.enum(["applicable", "inapplicable", "unknown"]),
-  fields: z.strictObject({ custom_payment_allowed: fieldSchema }),
+  fields: z.object({
+    custom_payment_allowed: fieldSchema,
+    marketable: fieldSchema,
+  }),
 });
 export const resolveOutput = z.strictObject({
   msot: z.strictObject({
@@ -119,6 +156,18 @@ export const resolveOutput = z.strictObject({
     evaluator_version: z.literal(1),
     dimension_schema_version: z.literal(1),
     provenance: z.array(provenanceSchema),
+    field_definitions: z.array(
+      z.strictObject({
+        name: fieldNameSchema,
+        filterable: z.boolean(),
+        visibility: z.strictObject({
+          audience: z.literal("answer"),
+          rest: z.boolean(),
+          compat: z.boolean(),
+          mcp: z.boolean(),
+        }),
+      }),
+    ),
   }),
   plans: z.array(
     z.strictObject({

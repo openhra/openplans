@@ -40,7 +40,7 @@ describe("metrics page", () => {
     expect(html).toContain("Window resets: 2");
     expect(html).toContain("Series cap: 128");
     expect(html).toContain("Other processes and stdio are not included");
-    expect(html).toContain("No SQL storage");
+    expect(html).toContain("No successful flush observed");
     expect(html).toMatch(/prefers-color-scheme:\s*dark/);
     expect(html).toContain('scope="col"');
     expect(html).not.toContain("<script");

@@ -48,11 +48,13 @@ export function configDependencies(
   return {
     ...(estimateGranted ? { medicareEstimateGrant: true } : {}),
     db,
+    catalogPolicy: config.catalogPolicy,
     cursorSecret: config.tokens.mcpCursorSecret?.reveal() || processSecret,
     principal: granted ? { id: "personalized" } : undefined,
     policy: { canEstimate: (principal) => principal?.id === "personalized" },
     publicQuoting: config.public.quoting,
     lowestPremiums: config.lowestPremiums,
+    lowestPremiumsScope: config.lowestPremiumsScope,
   };
 }
 export function requestDependencies(

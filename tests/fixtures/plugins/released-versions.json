@@ -1,0 +1,44 @@
+[
+  {
+    "directory": "blob-s3",
+    "name": "@openplans/blob-s3",
+    "version": "0.1.1",
+    "sha256": "6777eb8c34d397b613410cf300f5c56dfed661b48ae6d0ef4e98a18ee2b86625"
+  },
+  {
+    "directory": "msot",
+    "name": "@openplans/plugin-msot",
+    "version": "0.1.0",
+    "sha256": "2e9fc4adc6a41a1dbf28f54b95ae9146885321830d202cecdc15ed0b9de157f0"
+  },
+  {
+    "directory": "source-cms-marketplace-api",
+    "name": "@openplans/source-cms-marketplace-api",
+    "version": "0.1.1",
+    "sha256": "688a8a0cdc06f4984fbde822de96e864634ddb00cbc43c05c5b79f8267bc10a6"
+  },
+  {
+    "directory": "source-nucc-taxonomy",
+    "name": "@openplans/source-nucc-taxonomy",
+    "version": "0.1.1",
+    "sha256": "3b0d60a082d6b3a0e9e0c1275aa6ae2a1ec1078c5c6dc79d7d31acee65e0bfb2"
+  },
+  {
+    "directory": "status",
+    "name": "@openplans/plugin-status",
+    "version": "0.1.6",
+    "sha256": "d4d317ac9d84d11c506210fceaa7ecc65833d49c1fa0ab5d43a275e060e60e70"
+  },
+  {
+    "directory": "tpa",
+    "name": "@openplans/plugin-tpa",
+    "version": "0.1.0",
+    "sha256": "41e766200650dd9e7580bb9c0d9b04e27ce7fad5e230781f9ec5008b969a8dee"
+  },
+  {
+    "directory": "webhook",
+    "name": "@openplans/plugin-webhook",
+    "version": "0.1.1",
+    "sha256": "7e37243e23bf2cb20d7c22b22220848d7460768b7dc74747d58860d9e27dc58c"
+  }
+]

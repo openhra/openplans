@@ -1,3 +1,4 @@
+import { assertCatalogToolAdmission } from "../plugins/catalog-policy.js";
 import { z } from "zod";
 import { MEDICARE_REASON_CODES, reasonCodeList } from "../api/reason-codes.js";
 import type {
@@ -377,6 +378,10 @@ export async function callEstimateTool(
   hooks.restrict();
   deps.onCache?.("bypass");
   try {
+    assertCatalogToolAdmission(
+      deps.catalogPolicy,
+      "estimate_medicare_drug_cost",
+    );
     if (!hooks.granted(deps)) throw new ToolError("AUTH_REQUIRED");
     const parsed = estimateInputSchema.safeParse(args);
     // Keys outside the schema, such as an asserted benefit type or drug class, are refused.

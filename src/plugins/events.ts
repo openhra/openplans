@@ -141,13 +141,17 @@ function validate(input: unknown): EventInput {
   return { type, idempotencyKey, payload: parsed.data } as EventInput;
 }
 
-async function insertOutbox(session: SqlSession, event: Event): Promise<void> {
+async function insertOutbox(
+  session: SqlSession,
+  event: Event,
+  required = false,
+): Promise<void> {
   // Idempotent: a repeated key keeps the first row, as the snapshot trigger does.
   await session.query(
     `INSERT INTO plugin_event_outbox
        (event_id, event_type, idempotency_key, emitted_by, emitted_at, payload)
      VALUES ($1, $2, $3, $4, $5, $6::jsonb)
-     ON CONFLICT (idempotency_key) DO NOTHING`,
+     ${required ? "" : "ON CONFLICT (idempotency_key) DO NOTHING"}`,
     [
       event.id,
       event.type,
@@ -163,10 +167,11 @@ async function insertOutbox(session: SqlSession, event: Event): Promise<void> {
 async function insertInTransaction(
   session: SqlSession,
   event: Event,
+  required = false,
 ): Promise<void> {
   await session.exec("SAVEPOINT plugin_event_emit");
   try {
-    await insertOutbox(session, event);
+    await insertOutbox(session, event, required);
   } catch (error) {
     await session.exec("ROLLBACK TO SAVEPOINT plugin_event_emit");
     await session.exec("RELEASE SAVEPOINT plugin_event_emit");
@@ -242,9 +247,10 @@ export function createEventBus(options: EventBusOptions): EventBus {
   async function writeOutbox(
     event: Event,
     session: SqlSession | undefined,
+    required = false,
   ): Promise<void> {
     try {
-      if (session) await insertInTransaction(session, event);
+      if (session) await insertInTransaction(session, event, required);
       else await options.db.transaction((own) => insertOutbox(own, event));
     } catch (error) {
       log({
@@ -253,6 +259,7 @@ export function createEventBus(options: EventBusOptions): EventBus {
         in_transaction: session !== undefined,
         error_class: errorClass(error),
       });
+      if (required) throw error;
     }
   }
 
@@ -276,8 +283,14 @@ export function createEventBus(options: EventBusOptions): EventBus {
       emittedAt: now().toISOString(),
       emittedBy: emitterName(emitter),
     } as Event;
-    await fanOut(event);
-    await writeOutbox(event, emitOptions.session ?? sessions.getStore());
+    const session = emitOptions.session ?? sessions.getStore();
+    if (emitOptions.requireOutbox && !session)
+      throw new EventRefusedError(
+        "invalid_envelope",
+        "Required outbox needs a transaction",
+      );
+    if (!emitOptions.requireOutbox) await fanOut(event);
+    await writeOutbox(event, session, emitOptions.requireOutbox);
     return event;
   }
 

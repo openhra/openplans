@@ -1,6 +1,6 @@
 {
   "name": "openplans",
-  "version": "0.4.11",
+  "version": "0.4.12",
   "private": true,
   "type": "module",
   "engines": {
@@ -8,7 +8,8 @@
   },
   "bin": {
     "worker": "./dist/worker/cli.js",
-    "openplans-mcp": "./dist/mcp/stdio.js"
+    "openplans-mcp": "./dist/mcp/stdio.js",
+    "openplans-receipt": "./dist/receipts/cli.js"
   },
   "scripts": {
     "format": "prettier --ignore-path .prettierignore --write .",
@@ -35,10 +36,10 @@
     "lint:prune": "eslint . --max-warnings 0 --prune-suppressions && node scripts/lint-baseline.mjs --prune"
   },
   "dependencies": {
-    "@hono/node-server": "1.19.18",
+    "@hono/node-server": "2.1.6",
     "@modelcontextprotocol/hono": "2.0.2",
     "@modelcontextprotocol/server": "2.4.0",
-    "@openplans/plugin-sdk": "0.1.0",
+    "@openplans/plugin-sdk": "0.1.1",
     "@openplans/source-cms-marketplace-api": "0.1.0",
     "@openplans/source-nucc-taxonomy": "0.1.0",
     "hono": "4.13.16",

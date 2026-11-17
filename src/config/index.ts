@@ -107,6 +107,10 @@ export const coreConfigSchema = z
       egressFile: text,
       egressSha256: text,
     }),
+    tpa: section({
+      enabled: z.boolean().default(false),
+      privateIngress: z.boolean().default(false),
+    }),
     public: section({
       quoting: z.boolean().default(true),
       household: z.boolean().default(true),
@@ -164,6 +168,7 @@ export const coreConfigSchema = z
     medicareDrugCost: z.boolean().default(false),
     medicareDrugCostPrices: z.boolean().default(false),
     lowestPremiums: z.boolean().default(false),
+    lowestPremiumsScope: z.enum(["full", "single_age_silver"]).default("full"),
     gaQuoteRecovery: z.boolean().default(false),
     // Operator decision, off by default: NY issuers whose refused DFS template is replaced by
     // the CMS state-based exchange rate file. See src/ingest/state/README.md.
@@ -220,6 +225,20 @@ export const coreConfigSchema = z
       composeProject: text,
       smokeTmpdir: text,
     }),
+    catalogPolicy: z
+      .strictObject({
+        provider: z.string().regex(/^[a-z][a-z0-9_-]{0,63}$/),
+        source: z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,99}$/),
+        version: z
+          .union([z.literal("active"), z.number().int().positive()])
+          .default("active"),
+        selection: z
+          .enum(["annotation", "marketable_only"])
+          .default("annotation"),
+        allowPublicRead: z.boolean().default(false),
+        asOf: z.iso.date().optional(),
+      })
+      .optional(),
     plugins: z.array(pluginSchema).default([]),
   })
   .strict();
@@ -299,6 +318,8 @@ export const environmentPaths = {
   OPENPLANS_EGRESS_COUNTRY: "access.egressCountry",
   OPENPLANS_EGRESS_FILE: "access.egressFile",
   OPENPLANS_EGRESS_SHA256: "access.egressSha256",
+  OPENPLANS_TPA: "tpa.enabled",
+  OPENPLANS_TPA_PRIVATE_INGRESS: "tpa.privateIngress",
   OPENPLANS_PUBLIC_QUOTING: "public.quoting",
   OPENPLANS_PUBLIC_HOUSEHOLD: "public.household",
   OPENPLANS_PUBLIC_COMPAT: "public.compat",
@@ -322,6 +343,7 @@ export const environmentPaths = {
   OPENPLANS_MEDICARE_DRUG_COST: "medicareDrugCost",
   OPENPLANS_MEDICARE_DRUG_COST_PRICES: "medicareDrugCostPrices",
   OPENPLANS_LOWEST_PREMIUMS: "lowestPremiums",
+  OPENPLANS_LOWEST_PREMIUMS_SCOPE: "lowestPremiumsScope",
   OPENPLANS_GA_QUOTE_RECOVERY: "gaQuoteRecovery",
   POSTGRES_USER: "compose.user",
   POSTGRES_PASSWORD: "compose.password",
@@ -416,6 +438,8 @@ const unlessOff = new Set([
   "OPENPLANS_MCP",
 ]);
 const onlyOn = new Set([
+  "OPENPLANS_TPA",
+  "OPENPLANS_TPA_PRIVATE_INGRESS",
   "OPENPLANS_CMS_FALLBACK",
   "OPENPLANS_CMS_FALLBACK_QUOTES",
   "OPENPLANS_COMPAT_CATASTROPHIC_AGE_RULE",

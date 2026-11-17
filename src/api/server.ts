@@ -1,9 +1,11 @@
+import { stopCmsZipPreparation } from "../ingest/geo/cms.js";
 import { EnvironmentOnlyKeyError, loadConfig } from "../config/index.js";
 import { serve } from "@hono/node-server";
 import { createApp } from "./app.js";
 import { schemaGate } from "./schema-gate.js";
 import { emitApiPluginLoaded, loadApiPlugins } from "../plugins/api.js";
 import { openHostDatabase, startHostStorage } from "../plugins/host-storage.js";
+import { startTelemetry } from "../telemetry/index.js";
 import type { StatusHostParts } from "../plugins/status-host.js";
 
 try {
@@ -16,6 +18,10 @@ try {
   const db = openHostDatabase(config);
   // Pool waits for the status host view come from this database.
   statusHost.database = db;
+  const telemetry = startTelemetry({
+    plugins: plugins.plugins,
+    openDatabase: () => openHostDatabase(config),
+  });
   const app = createApp(
     db,
     {
@@ -43,16 +49,20 @@ try {
   });
   server.on("error", () => {
     console.error("API listener failed; check PORT availability");
-    void db.close().catch(() => {
-      process.exitCode = 1;
-    });
+    void Promise.resolve(telemetry?.stop())
+      .then(() => plugins.teardown())
+      .then(() => db.close())
+      .catch(() => {
+        process.exitCode = 1;
+      });
     process.exitCode = 1;
   });
   const shutdown = () => {
+    stopCmsZipPreparation();
     server.close(() => {
       // Plugins stop first, in reverse load order, then the database closes.
-      void plugins
-        .teardown()
+      void Promise.resolve(telemetry?.stop())
+        .then(() => plugins.teardown())
         .then(() => db.close())
         .catch(() => {
           console.error("API database shutdown failed");

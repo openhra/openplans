@@ -53,7 +53,7 @@ OPENPLANS_PLUGINS=@openplans/plugin-status
 Each plugin then gets its default options. The variable replaces the plugin list in the config
 file. An empty or unset value keeps the file's list. To turn off a plugin listed there, set
 `"enabled": false` on its entry. Use the config file for any plugin that needs options, such as
-the webhook and Slack plugins.
+the webhook plugin.
 
 ### `OPENPLANS_CONFIG`
 
@@ -166,6 +166,10 @@ For `plugin_network_host_not_allowed`, `reason` says why:
 | the host's `state`    | The entry is not `allowed`, for example `terms-restricted`. |
 | `terms_expired`       | The terms review is missing, not yet valid or expired.      |
 
+`@openplans/plugin-slack` has been removed. An enabled entry refuses to load with
+`plugin_import_failed` and `reason: "package_removed"`. Remove the entry from your config;
+use the signed webhook plugin for event delivery.
+
 A refusal raised in `setup` wins even when the plugin catches the thrown error.
 
 `worker migrate` checks plugin migrations separately, before it opens the database, and refuses
@@ -231,23 +235,6 @@ carries `X-OpenPlans-Signature: sha256=<hex HMAC-SHA256 of the body>` and
 The option `events` lists the event types to post. The host must be `allowed` in your operator
 manifest. The [webhook README](../plugins/webhook/README.md) has a manifest template, a
 signature test vector and a minimal receiver.
-
-### Slack
-
-`@openplans/plugin-slack` posts one short message per event to a Slack channel through an
-incoming webhook. It handles eight events: `release.deployed`, `release.rolled_back`,
-`ingest.failed`, `readiness.failed`, `audit.failed`, `passthrough.budget_exhausted`,
-`passthrough.breaker_open` and `health.changed`.
-
-| Variable                      | Secret | Value                                         |
-| ----------------------------- | ------ | --------------------------------------------- |
-| `OPENPLANS_SLACK_WEBHOOK_URL` | yes    | The incoming webhook URL                      |
-| `OPENPLANS_SLACK_HOST`        | no     | The webhook's host. Default `hooks.slack.com` |
-
-Options: `events`, a subset of the eight (default all), and `minSeverity`, one of `info`,
-`warning` or `error` (default `info`). Messages carry short codes only; anything else shows as
-`[withheld]`. The plugin sends at most 20 messages a minute and summarises the rest. Details:
-[Slack plugin](../plugins/slack/README.md).
 
 ### S3-compatible blob store
 
@@ -466,8 +453,7 @@ reason codes and timestamps only.
 
 `release.rolled_back` follows a release rollback. Release tooling sends it with `worker emit`
 once the rollback has passed its checks. `version` and `imageId` name the release the pin went
-back to; `fromVersion` is the version it left. The Slack plugin posts it from version 0.2.0 on,
-with both versions and without the image ID. The webhook plugin posts it when `events` lists it.
+back to; `fromVersion` is the version it left. The webhook plugin posts it when `events` lists it.
 
 Each event also has `id`, `type`, `emittedAt`, `emittedBy` and `idempotencyKey`. The `sourceId`
 of each `ingest *` command is listed in the

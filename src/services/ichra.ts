@@ -317,6 +317,7 @@ async function lcspEvidence(
   db: SqlSession,
   question: LcspQuestion,
   reads: RequestReads = requestReads(db),
+  allowCmsLive?: boolean,
 ): Promise<LcspEvidence> {
   const base = {
     reason: null as string | null,
@@ -341,7 +342,9 @@ async function lcspEvidence(
     status: LcspStatus,
     reason: string | null = null,
   ): LcspEvidence => ({ status, ...base, reason });
-  const location = await resolveLocation(db, question.location);
+  const location = await resolveLocation(db, question.location, {
+    allowCmsLive,
+  });
   if (location.status === "ambiguous")
     return refuse("unknown", "location_ambiguous");
   if (location.status !== "available" || !location.county)
@@ -833,6 +836,7 @@ function basisSensitive(
 export async function ichraAffordability(
   db: SqlSession,
   request: IchraRequest,
+  options: { reads?: RequestReads; allowCmsLive?: boolean } = {},
 ) {
   const year = dateParts(request.planStart).year;
   const lookup = ichraParameters(year);
@@ -884,10 +888,12 @@ export async function ichraAffordability(
     basis,
   };
   // Both questions share one request's catalog reads.
-  const reads = requestReads(db);
-  const ptc = needsPtc ? await lcspEvidence(db, ptcQuestion, reads) : null;
+  const reads = options.reads ?? requestReads(db);
+  const ptc = needsPtc
+    ? await lcspEvidence(db, ptcQuestion, reads, options.allowCmsLive)
+    : null;
   const employer = needsEmployer
-    ? await lcspEvidence(db, employerQuestion, reads)
+    ? await lcspEvidence(db, employerQuestion, reads, options.allowCmsLive)
     : null;
   const failed = [ptc, employer].find((e) => e && e.status !== "calculated");
   const applicable_age = age;
@@ -904,7 +910,11 @@ export async function ichraAffordability(
       employer_lcsp: employer,
     };
   const employmentLocation = request.worksite ?? request.residence;
-  const employmentState = await stateOf(db, employmentLocation);
+  const employmentState = await stateOf(
+    db,
+    employmentLocation,
+    options.allowCmsLive,
+  );
   const guideline = guidelineInEffect(request.planStart, parameters.guidelines);
   const line =
     guideline && employmentState
@@ -996,8 +1006,9 @@ export async function ichraAffordability(
 async function stateOf(
   db: SqlSession,
   location: LocationInput,
+  allowCmsLive?: boolean,
 ): Promise<string | null> {
-  const resolved = await resolveLocation(db, location);
+  const resolved = await resolveLocation(db, location, { allowCmsLive });
   return resolved.status === "available" && resolved.county
     ? countyState(resolved.county)
     : null;

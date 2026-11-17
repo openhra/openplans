@@ -162,8 +162,8 @@ describe("shared public DTO boundary", () => {
 it.each([
   [
     "generation",
-    "[request.namespace, request.version, request.generation, request.query]",
-    "[request.namespace, request.version, request.query]",
+    "[request.namespace, request.version, request.generation, request.query, ...(cmsUnavailable ? ['cms_fallback_unavailable'] : [])]",
+    "[request.namespace, request.version, request.query, ...(cmsUnavailable ? ['cms_fallback_unavailable'] : [])]",
   ],
   [
     "household",

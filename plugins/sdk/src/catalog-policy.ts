@@ -26,6 +26,19 @@ export interface CanonicalPlanBatch {
 }
 /** Host-owned bounded reads; callers supply the current request's session and cancellation. */
 export interface CanonicalReader {
+  /** Validate authored default dimensions against loaded public identities before publication. */
+  validateScopes?(
+    input: {
+      year: number;
+      product_families: readonly ("medical" | "dental")[];
+      scopes: readonly {
+        issuer_id?: string;
+        state?: string;
+        market_segment?: string;
+      }[];
+    },
+    scope: McpToolContext,
+  ): Promise<void>;
   plans(
     input: CanonicalPlanRequest,
     scope: McpToolContext,
@@ -33,6 +46,7 @@ export interface CanonicalReader {
 }
 export interface CatalogPolicyInput extends CanonicalPlanRequest {
   source_id: string;
+  version?: number;
   as_of?: string;
   market_segment?: "on_exchange" | "off_exchange";
 }
@@ -70,6 +84,16 @@ export interface CatalogPolicyResolution {
     readonly evaluator_version: number;
     readonly dimension_schema_version: number;
     readonly provenance: readonly CatalogPolicyProvenance[];
+    readonly field_definitions?: readonly {
+      readonly name: string;
+      readonly filterable: boolean;
+      readonly visibility: {
+        readonly audience: "answer" | "operator";
+        readonly rest: boolean;
+        readonly compat: boolean;
+        readonly mcp: boolean;
+      };
+    }[];
   };
   readonly plans: readonly {
     readonly id: string;
@@ -89,7 +113,7 @@ export interface CatalogPolicyResolution {
     };
   }[];
 }
-/** Annotation only. A provider cannot change public rows or select catalog offerings. */
+/** Returns field decisions only. Core owns offering selection and public calculation reads. */
 export interface CatalogPolicyProvider {
   resolve(
     input: CatalogPolicyInput,

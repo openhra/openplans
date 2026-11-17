@@ -4,7 +4,11 @@ export type {
   TransientFetchResult,
   TransientValidators,
 } from "./transient.js";
-export { assertSnapshotAdmissible, fetchToCache } from "./cache.js";
+export {
+  assertSnapshotAdmissible,
+  fetchToCache,
+  prepareFetch,
+} from "./cache.js";
 export { cmsFallbackEnabled, shippedManifestPaths } from "./shipped.js";
 export type {
   FetchOptions,

@@ -40,11 +40,23 @@ export const headers = {
   "X-Api-Key": TOKEN,
 };
 
-export async function setup() {
+export async function setup(options: { fixedTime?: string } = {}) {
   process.env.OPENPLANS_COMPAT_API_KEY = TOKEN;
   const db = testDatabase(new PGlite()),
     core = await coreMigrations(),
     directory = await mkdtemp(join(tmpdir(), "openplans-facade-"));
+  if (options.fixedTime) {
+    const time = new Date(options.fixedTime).toISOString();
+    await db.exec(`
+      CREATE FUNCTION public.now() RETURNS timestamptz LANGUAGE sql IMMUTABLE
+        AS $$ SELECT '${time}'::timestamptz $$;
+      CREATE FUNCTION public.clock_timestamp() RETURNS timestamptz LANGUAGE sql IMMUTABLE
+        AS $$ SELECT '${time}'::timestamptz $$;
+      SET search_path TO public, pg_catalog;
+      SET timezone TO 'UTC';
+      SELECT setseed(0.5);
+    `);
+  }
   await migrate(db, core.directory);
   await ingestGeo(db, { files: await geoFiles() });
   const root = fileURLToPath(new URL("./fixtures/", import.meta.url));

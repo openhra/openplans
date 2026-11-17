@@ -1,3 +1,6 @@
+import { createOperatorCommandClient } from "../operator/commands/service.js";
+import { tpaReceiptHost } from "./tpa-host.js";
+import { createCalculationHost } from "./calculation-host.js";
 import { canonicalReader } from "./canonical-reader.js";
 import { isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -6,6 +9,7 @@ import {
   pluginManifestSchema,
 } from "@openplans/plugin-sdk";
 import type {
+  WorkerContext,
   CanonicalReader,
   AdmittedFetch,
   HostPluginEntry,
@@ -152,6 +156,8 @@ async function importPlugin(
   specifier: string,
   base: string,
 ): Promise<Omit<Candidate, "options">> {
+  if (specifier === "@openplans/plugin-slack")
+    return refuse(specifier, "plugin_import_failed", "package_removed");
   let module: { default?: unknown; createPlugin?: unknown };
   const resolved = moduleSpecifier(specifier, base);
   try {
@@ -310,6 +316,7 @@ export async function loadPlugins(
               tablePrefix: candidate.manifest.tablePrefix,
             }),
             directory: join(root, "migrations"),
+            applicationState: candidate.manifest.applicationState,
           }),
         );
     }
@@ -339,6 +346,10 @@ export async function loadPlugins(
         plugin: { name, version: candidate.manifest.version },
         options: candidate.options,
         canonicalReader: options.canonicalReader ?? canonicalReader,
+        calculationHost: createCalculationHost(view),
+        ...(name === "@openplans/plugin-tpa" &&
+          config.tpa.enabled &&
+          config.tpa.privateIngress && { tpaReceiptHost }),
         ...(candidate.manifest.capabilities?.operatorDiagnostics && {
           operatorHost,
         }),
@@ -401,6 +412,43 @@ export async function loadPlugins(
     exit(1);
     throw error;
   }
+  if (host === "worker" && staging.operatorCommands.length) {
+    staging.workerCommands = staging.workerCommands.map((entry) => {
+      const run = entry.spec.run;
+      const commands = staging.operatorCommands.filter(
+        (command) => command.plugin === entry.plugin,
+      );
+      if (!commands.length) return entry;
+      return {
+        ...entry,
+        spec: {
+          ...entry.spec,
+          run: (args: string[], context: WorkerContext) =>
+            run(args, {
+              ...context,
+              operatorCommandClient: createOperatorCommandClient(
+                {
+                  db: context.db.writer ?? context.db.reader,
+                  commands,
+                  writable: () => context.db.writer !== undefined,
+                  now: options.now,
+                },
+                {
+                  actor: { class: "worker" },
+                  signal: context.signal,
+                  grants: commands.flatMap(({ spec }) =>
+                    spec.sources.map((source) => ({
+                      source,
+                      permissions: [spec.permission],
+                    })),
+                  ),
+                },
+              ),
+            }),
+        },
+      };
+    });
+  }
   const registries = freezeRegistries(staging);
   activateRegistries(registries);
   const plugins = Object.freeze(
@@ -426,12 +474,33 @@ export async function loadPlugins(
     ),
     registries,
   };
+  const activeOwners = new Set(
+    [
+      ...registries.operatorCommands,
+      ...registries.routes,
+      ...registries.mcpTools,
+      ...registries.sources,
+      ...registries.events,
+      ...Object.values(registries.catalogPolicies),
+      ...Object.values(registries.cacheStores),
+      ...Object.values(registries.dbProviders),
+      ...Object.values(registries.blobStores),
+    ].map((entry) => entry.plugin),
+  );
+  // A read host with no active entry cannot use the plugin's application tables. Workers
+  // retain migrations even before a source is configured so file authoring remains available.
+  const requiredMigrations = migrations.filter(
+    (source) =>
+      host === "worker" ||
+      !source.applicationState?.length ||
+      activeOwners.has(source.plugin),
+  );
   return Object.freeze({
     registries,
     plugins,
     teardown,
     passThrough: passThrough!,
-    migrations: Object.freeze(migrations),
+    migrations: Object.freeze(requiredMigrations),
   });
 }
 

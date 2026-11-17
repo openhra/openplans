@@ -136,6 +136,7 @@ async function pluginMigrations(
   name: string,
   tablePrefix: string | undefined,
   packageRoot: string | URL | undefined,
+  applicationState?: readonly { table: string; reason: string }[],
 ): Promise<PluginMigration[]> {
   if (packageRoot === undefined) {
     if (tablePrefix)
@@ -151,6 +152,7 @@ async function pluginMigrations(
       plugin: name,
       ...(tablePrefix && { tablePrefix }),
       directory: join(root, "migrations"),
+      applicationState,
     },
   ]);
 }
@@ -168,6 +170,7 @@ export async function loadForTest(
     manifest.name,
     manifest.tablePrefix,
     settings.packageRoot,
+    manifest.applicationState,
   );
   const db = settings.db ?? fixtureDatabase();
   try {

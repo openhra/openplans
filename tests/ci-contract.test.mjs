@@ -15,8 +15,13 @@ import { getFileInfo } from "prettier";
 import { pathToFileURL } from "node:url";
 import * as checkRequiredModule from "../.github/check-required.mjs";
 
-const { checkRequired, macosShardJobs, requiredJobs, sameCommitJob } =
-  checkRequiredModule;
+const {
+  advisoryJobs,
+  checkRequired,
+  macosShardJobs,
+  requiredJobs,
+  sameCommitJob,
+} = checkRequiredModule;
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const dockerIgnorePattern = (pattern) =>
@@ -157,7 +162,7 @@ function commandContract(value) {
   // The macOS check name the release tooling requires belongs to a summary job that fails
   // unless every shard succeeded.
   const macos = value.jobs.macos;
-  expect(macos.name).toBe(requiredJobs.macos);
+  expect(macos.name).toBe(advisoryJobs.macos);
   expect(macos["runs-on"]).toBe("ubuntu-24.04");
   expect(macos.if).toBe(
     "${{ always() && needs.dedupe.outputs.full == 'true' }}",
@@ -169,8 +174,13 @@ function commandContract(value) {
   expect(macos.steps[2].run).toBe("node .github/check-required.mjs macos");
   expect(macos.steps[2].env).toEqual({ NEEDS_RESULTS: "${{ toJSON(needs) }}" });
   for (const step of macos.steps) expect(step.if).toBeUndefined();
-  for (const job of Object.values(value.jobs)) {
-    expect(job["continue-on-error"]).toBeUndefined();
+  // Only the macOS shards and their summary are advisory; every other job can fail the run.
+  const advisory = new Set(["macos-shard", ...Object.keys(advisoryJobs)]);
+  expect(advisoryJobs).toEqual({ macos: "OpenPlans / macOS" });
+  for (const [id, job] of Object.entries(value.jobs)) {
+    expect(job["continue-on-error"], id).toBe(
+      advisory.has(id) ? true : undefined,
+    );
     expect(job["working-directory"]).toBeUndefined();
     expect(job.defaults).toBeUndefined();
     expect(job.steps[0].uses).toMatch(/^actions\/checkout@[a-f0-9]{40}$/);
@@ -620,6 +630,24 @@ it.each([
     "ignored failure",
     (copy) => {
       copy.jobs.docker["continue-on-error"] = true;
+    },
+  ],
+  [
+    "a macOS shard that can block the run",
+    (copy) => {
+      delete copy.jobs["macos-shard"]["continue-on-error"];
+    },
+  ],
+  [
+    "a macOS summary that can block the run",
+    (copy) => {
+      delete copy.jobs.macos["continue-on-error"];
+    },
+  ],
+  [
+    "a required macOS summary",
+    (copy) => {
+      copy.jobs.required.needs.splice(2, 0, "macos");
     },
   ],
   [

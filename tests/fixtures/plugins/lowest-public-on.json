@@ -1,0 +1,11 @@
+{
+  "GET lowest-premiums": "a7e1ef850b3b353e044c270fc63c1ebc8b3969fd88b54eab66975ada3e644d98",
+  "POST lowest-premiums": "c0230e6f917768c740d654e63347ecddaf912a2e0d59788bd169a10fe5185134",
+  "GET market-summary": "a5e6ffc64df5f5e9eefb08f30c1de650c20298dd831bb7c81b08ed6d4207e5e0",
+  "POST market-summary": "4277d357527f25c35fe281b43a83dcb6051975f8c3756f88d772c68e4f40eb44",
+  "lowest": "55620107e7850a03d9820636935bfdcfc9e3c24e059d152d83757cd4a0b2ddce",
+  "summary": "51637fa53b053e70d9f31f4fbe40f84526516f685b23b28424a46893207c4b40",
+  "household-lowest": "c505fa65a5a056a8d75d7bcef52945fba6878a3ae9ad46aca8f958cbf1d36fce",
+  "household-summary": "77fe6068b3a7df471419767bc908d7154f3d677b89ded9314bff94421031aa5d",
+  "benchmark": "a3e4fbf17a16a08c90d728e6b5173f5dddffcd97277222ea0bd0025f1a5fa2b9"
+}

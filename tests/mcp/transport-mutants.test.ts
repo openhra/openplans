@@ -16,8 +16,8 @@ it.each([
   ["origin", "origin !== undefined && !origins.includes(origin)", "false", 403],
   [
     "auth",
-    "PERSONALIZED_TOOLS.has(params?.name as ToolName) && !granted",
-    "PERSONALIZED_TOOLS.has(params?.name as ToolName) && false",
+    "needsGrant && (status === 200 || status === 404)",
+    "false && (status === 200 || status === 404)",
     401,
   ],
   [

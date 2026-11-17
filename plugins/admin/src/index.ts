@@ -16,7 +16,14 @@ export type { EvidencePanel } from "./html.js";
 
 export const PLUGIN_NAME = "@openplans/plugin-admin";
 export const ADMIN_PATH = "/admin";
-export const PLUGIN_VERSION = "0.1.0";
+export const PLUGIN_VERSION = "0.1.1";
+export const applicationState = [
+  {
+    table: "plg_admin_telemetry",
+    reason: "Disposable aggregate request telemetry",
+    catalogImpact: "operational" as const,
+  },
+];
 
 const adminOptions = z
   .strictObject({
@@ -48,6 +55,8 @@ export function createAdminPlugin(
       name: PLUGIN_NAME,
       version: PLUGIN_VERSION,
       apiVersion: "0.1",
+      tablePrefix: "admin",
+      applicationState,
       kinds: ["routes"],
       options: adminOptions,
       capabilities: {

@@ -1,3 +1,4 @@
+import { guardCatalogPlans, catalogPolicyActive } from "./catalog-policy.js";
 import type { SqlSession } from "../db/database.js";
 import { createRxnormRepository } from "../ingest/rxnorm/repository.js";
 import { drugCoverage } from "../domain/drugs/repository.js";
@@ -100,6 +101,8 @@ export async function checkDrugCoverage(
   year: unknown,
   cms?: CmsFallbackContext,
 ) {
+  if (catalogPolicyActive())
+    await guardCatalogPlans([v.planId(plan).full], drugYear(year));
   const answer = await drugCoverage(
     db,
     v.planId(plan).full,
@@ -115,6 +118,7 @@ export async function checkDrugCoverages(
 ) {
   const request = coverageRequest(body),
     results = [];
+  await guardCatalogPlans(request.plans, request.year);
   for (const plan of request.plans)
     for (const code of request.codes)
       results.push(await drugCoverage(db, plan, code, request.year));

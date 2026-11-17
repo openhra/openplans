@@ -1,10 +1,5 @@
 # OpenPlans
 
-## Name
-
-OpenPlans is the project name in prose. Package, CLI, path, environment-variable
-and other technical identifiers keep their defined forms.
-
 OpenPlans is a self-hosted, open-source health-plan data service built from CMS plan files,
 Census geography, NPPES provider identities, NLM RxNorm and issuer QHP files.
 Its native HTTP API and MCP endpoint support plan search, premium quotes, drugs,
@@ -17,8 +12,8 @@ A fresh database is empty. Load public-source snapshots before searching.
 
 Every result keeps its source evidence. Missing evidence stays `unknown`, not
 "not covered". Optional [compatibility API routes](#optional-compatibility-api)
-adapt the native API for existing clients. No proprietary health-plan API is
-called. The optional CMS Marketplace API fallback can resolve ZIP counties and fill
+support existing quoting integrations. The optional CMS Marketplace API fallback can resolve
+ZIP counties and fill
 unknown drug or provider coverage. Coverage calls are off by default. See the
 [fallback guide](../src/ingest/cms-api/README.md) before enabling them.
 
@@ -98,7 +93,7 @@ Linux, make all three directories writable by the image's `node` user (UID 1000)
 On macOS, put the cache in a shared home directory or configure the Docker VM to
 share it. See [.env.example](../.env.example) and the [configuration reference](configuration.md)
 for defaults, native-only options and Compose forwarding. The [plugin guide](plugins.md) covers the
-status page, webhook and Slack notifications, S3-compatible storage and writing your own plugin. Connection URL
+status page, signed webhook notifications, S3-compatible storage and writing your own plugin. Connection URL
 credentials must be URL-safe (percent-encode reserved characters).
 
 Both ports bind to `127.0.0.1`. `API_PORT` and `DB_PORT` avoid local conflicts.
@@ -112,7 +107,7 @@ adds current source completeness, rating and ICHRA readiness. Run
 `docker compose run --rm --no-deps worker migrate` before starting the API.
 The API never migrates at startup. Until migrations finish, `/readyz` and the data
 routes answer 503 `schema_not_ready`, while `/healthz` stays 200 and reports
-`"schema":"not_ready"`. See [migration authoring and preflight](migrations.md).
+`"schema":"not_ready"`. See [migration checks](migrations.md).
 
 Household quotes at `POST /v1/premium-quotes`, the benchmark and ICHRA checks
 are open by default, with the same per-source limits as public quotes. Set
@@ -211,7 +206,8 @@ conditional subsidy estimates.
   dental benchmark adjustments can leave a subsidy estimate unresolved.
 - Off-exchange and state-exchange coverage is incomplete. Dental catalog data
   does not imply supported dental rating; vision search is unsupported.
-- A Census ZCTA is not a postal ZIP. PO-box ZIPs without a ZCTA return unknown.
+- A Census ZCTA is not a postal ZIP. ZIPs without a ZCTA use configured fallbacks;
+  without county evidence, they return unknown.
   Provider locations may be ZIP-level approximations. An NPI alone proves
   neither licensing nor network participation. Issuer evidence may be incomplete
   or stale; inspect completeness and provenance rather than inferring a denial.
@@ -249,8 +245,8 @@ Read the [facade guide](../src/compat/v1/README.md) for routes, defaults and gap
 
 ## Local development
 
-Requires Node.js 22 or newer. CI and the Docker image use the version in `.node-version`,
-22.23.5. Dependencies are pinned in the package and lockfile.
+Requires Node.js 22 or newer. Use the version pinned in `.node-version` to match
+CI and the Docker image. Dependencies are pinned in `package-lock.json`.
 
 ```sh
 npm ci --no-audit --no-fund

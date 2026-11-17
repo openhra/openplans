@@ -1,4 +1,9 @@
-import { lowestToolDefinition } from "./handy.js";
+import { coreConfigView, loadConfig } from "../config/index.js";
+import {
+  benchmarkToolDefinition,
+  lowestToolDefinition,
+  marketSummaryToolDefinition,
+} from "./handy.js";
 import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import type {
@@ -61,6 +66,26 @@ function recordingContext(
   const named: Partial<PluginContext> = {
     plugin: { name: plugin.manifest.name ?? pkg, version: "" },
     options: undefined,
+    config: coreConfigView(
+      loadConfig({}, { version: 1, plugins: [] }),
+    ) as unknown as PluginContext["config"],
+    calculationHost: {
+      enumerateHouseholdOffers: async () => {
+        throw new Error(
+          "Calculations are unavailable while recording tool definitions",
+        );
+      },
+      householdDistributions: async () => {
+        throw new Error(
+          "Calculations are unavailable while recording tool definitions",
+        );
+      },
+      slcsp: async () => {
+        throw new Error(
+          "Calculations are unavailable while recording tool definitions",
+        );
+      },
+    },
     secrets: { get: () => undefined },
     log: () => {},
     mcpTools: {
@@ -137,6 +162,22 @@ export async function buildMcpToolManifest(
     name: lowest.name,
     title: lowest.title!,
     description: ownText(lowest.description!),
+    kind: "core",
+    listed: "switched",
+  });
+  const marketSummary = marketSummaryToolDefinition();
+  tools.push({
+    name: marketSummary.name,
+    title: marketSummary.title ?? marketSummary.name,
+    description: ownText(marketSummary.description ?? ""),
+    kind: "core",
+    listed: "switched",
+  });
+  const benchmark = benchmarkToolDefinition();
+  tools.push({
+    name: benchmark.name,
+    title: benchmark.title!,
+    description: ownText(benchmark.description!),
     kind: "core",
     listed: "switched",
   });

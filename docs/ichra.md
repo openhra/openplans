@@ -392,3 +392,8 @@ affordability parameters alone do not supply a state LCSP or a look-back catalog
 Not covered: the employer's section 4980H payment, QSEHRA, class rules, months after the first one,
 a required contribution that changes during the offered months, and part-year periods across
 taxable years ([26 CFR 1.36B-2(c)(5)(vi)](https://www.ecfr.gov/current/title-26/section-1.36B-2)).
+
+## Private census batches
+
+Private installations can opt into [bounded census batches](census-batch.md) of
+up to 25 unchanged employee requests. Public installations keep this route off.
