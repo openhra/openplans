@@ -351,6 +351,26 @@ describe("allowance printable sheet", () => {
   it("keeps null prices unknown and exports source provenance without inventing amounts", () => {
     const html = printAllowanceSheet(sheetDto, "/manifest");
     expect(html).toContain("<td>Unknown</td>");
+    const checkPrices = (rendered: string) => {
+      expect(rendered).not.toMatch(/<(?:td|li)>[^<]*\$0(?:\.00)?(?:<| )/);
+      expect(rendered).toContain("targets:</strong> Unknown");
+    };
+    checkPrices(html);
+    expect(() =>
+      checkPrices(html.replace("<td>Unknown</td>", "<td>$0.00</td>")),
+    ).toThrow();
+    expect(() =>
+      checkPrices(
+        html.replace("targets:</strong> Unknown", "targets:</strong> $0"),
+      ),
+    ).toThrow();
+    const zero = structuredClone(sheetDto);
+    zero.profiles[0]!.metals[0]!.points.minimum.monthly_cents = 0;
+    expect(printAllowanceSheet(zero, "/manifest")).toContain("<td>$0.00</td>");
+    expect(html).toContain("Gross premiums are not the subsidy benchmark.");
+    expect(html).toContain(
+      "Restart the sheet to use current prices and sources together.",
+    );
     const manifest = allowanceSourceManifest(sheetDto);
     expect(manifest.data_generation).toBe("generation-sheet-a");
     expect(manifest.provenance).toEqual(sheetDto.provenance);

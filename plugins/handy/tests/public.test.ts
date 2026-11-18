@@ -238,6 +238,12 @@ describe("public stipend preparation", () => {
         denominator: 4,
       });
       expect(answer.reason).toBe("required_profile_missing");
+      const html = printAllowanceSheet(answer, "/manifest");
+      expect(html).toContain(
+        "The allowance target is unknown because a required preset profile is missing.",
+      );
+      expect(html).toContain("All four profiles are needed.");
+      expect(html).toContain("targets:</strong> Unknown");
     }
   });
 
@@ -313,6 +319,33 @@ describe("public stipend preparation", () => {
     );
     expect(stale.status).toBe(409);
     expect(await stale.json()).toEqual({ error: { code: "DATA_CHANGED" } });
+  });
+
+  it("explains stale print requests and restarts without the old generation or evidence page", async () => {
+    for (const host of [
+      hostFor(),
+      {
+        ...hostFor(),
+        householdDistributions: async () => {
+          throw new Error("DATA_CHANGED");
+        },
+      },
+    ]) {
+      const { app } = setup({ publicOnly: true }, true, host);
+      const response = await app.request(
+        `/handy/allowance/print?${query}&data_generation=synthetic-old&evidence_page=2&paper=A4`,
+      );
+      expect(response.status).toBe(409);
+      expect(response.headers.get("content-type")).toContain("text/html");
+      const html = await response.text();
+      expect(html).toContain("The source data has changed.");
+      expect(html).toContain("Restart the sheet");
+      expect(html).toContain("<code>DATA_CHANGED</code>");
+      expect(html).toContain("paper=A4");
+      expect(html).not.toContain("data_generation=");
+      expect(html).not.toContain("evidence_page=");
+      expect(html).not.toContain("synthetic-old");
+    }
   });
 
   it("requires a generation pin on later evidence pages and rejects private fields there", async () => {

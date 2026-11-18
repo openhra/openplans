@@ -112,7 +112,13 @@ export function createOperatorHost(
               approved: { state: "unverified", reason: "evidence_unavailable" },
             });
         }
-        plugins.sort((a, b) => (a.name ?? "").localeCompare(b.name ?? ""));
+        plugins.sort((a, b) => {
+          const left = a.name ?? "",
+            right = b.name ?? "";
+          if (left < right) return -1;
+          if (left > right) return 1;
+          return 0;
+        });
         return { settings: configurationSettings(config, process), plugins };
       }),
     availability: (scope) =>

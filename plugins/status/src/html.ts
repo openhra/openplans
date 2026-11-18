@@ -95,7 +95,8 @@ const COUNTED_AGE: Record<string, string> = {
 /** What the two dates mean. A recent retrieval says nothing about the publisher's latest release. */
 export const DATES_EXPLAINED =
   "Retrieved is when OpenPlans downloaded the source. Published is the publisher's own date " +
-  "for that copy. A recent download can contain older data.";
+  "for that copy. A recent download can contain older data. " +
+  "An import without its own date shows the latest date of its recorded files only when every file has one.";
 
 /** The family's publisher dates for its summary line: one date, a range, and how many are unknown. */
 function publishedSummary(dates: readonly (string | null)[]): string {
@@ -107,6 +108,19 @@ function publishedSummary(dates: readonly (string | null)[]): string {
   const range =
     first === last ? `published ${first}` : `published ${first} to ${last}`;
   return missing ? `${range}, ${missing} unknown` : range;
+}
+/** A source's Published cell: the date, "unknown", or a rollup's date with its file count. */
+function publishedCell(source: {
+  published_at: string | null;
+  published_from: string | null;
+  published_files?: number;
+}): string {
+  if (source.published_at === null) return "unknown";
+  if (source.published_from !== "latest_of_files") return source.published_at;
+  const files = source.published_files;
+  return files === undefined
+    ? `${source.published_at}, latest of its files`
+    : `${source.published_at}, latest of ${files} ${files === 1 ? "file" : "files"}`;
 }
 const age = (bucket: string) => escapeHtml(FRESHNESS[bucket] ?? bucket);
 // A retrieval age under the "Retrieved" heading: "under 7 days ago".
@@ -282,7 +296,7 @@ ${operator ? `<dt>Waiting for a database connection</dt><dd>${escapeHtml(view.po
                 s.id,
                 FRESHNESS[s.freshness],
                 s.retrieved_at ?? "unknown",
-                s.published_at ?? "unknown",
+                publishedCell(s),
                 s.snapshot_id,
               ],
             })),
@@ -296,11 +310,7 @@ ${operator ? `<dt>Waiting for a database connection</dt><dd>${escapeHtml(view.po
               id: s.id,
               freshness: s.freshness,
               published: s.published_at,
-              cells: [
-                s.id,
-                retrievedAgo(s.freshness),
-                s.published_at ?? "unknown",
-              ],
+              cells: [s.id, retrievedAgo(s.freshness), publishedCell(s)],
             })),
             [0, 2],
             [2],

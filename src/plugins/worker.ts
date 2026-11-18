@@ -488,6 +488,11 @@ export function createCoreEvents(options: CoreEventsOptions): CoreEvents {
   };
 }
 
+// Code-unit order. localeCompare would load the ICU collator: several milliseconds of main-thread
+// work that the API host would spend just as its first requests arrive. The shipped plugin names
+// sort the same either way, so their idempotency keys do not change.
+const codeUnitOrder = (a: string, b: string) => Number(a > b) - Number(a < b);
+
 /**
  * One emit per set of loaded plugins: the key repeats while the set stays the same, so the API
  * and the worker share one row for the same set, whichever host starts first.
@@ -503,8 +508,8 @@ export async function emitPluginLoaded(
       JSON.stringify(
         [...list].sort((a, b) =>
           a.name === b.name
-            ? a.version.localeCompare(b.version)
-            : a.name.localeCompare(b.name),
+            ? codeUnitOrder(a.version, b.version)
+            : codeUnitOrder(a.name, b.name),
         ),
       ),
     )

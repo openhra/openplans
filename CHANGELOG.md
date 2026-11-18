@@ -5,6 +5,32 @@ Release notes for OpenPlans. Earlier releases are on the
 
 ## Unreleased
 
+## v0.4.15
+
+- Blue/green releases accept approved risky migrations after a signed restore rehearsal checks lock safety and serving-version readiness.
+
+- Reject invalid plugin cron expressions at startup.
+
+- Fix the v0.4.14 issue where denied and unknown API routes returned HTML 404 errors; edge errors now return JSON.
+
+- Allowance and comparison sheets explain unknown prices, missing profiles and stale sources.
+
+- Load allowance and comparison calculations and print code on first use to reduce startup work.
+
+- Add a guarded lowest-premium renewal job that stays disabled until explicitly enabled.
+
+- Preserve HTTP 400 and 414 for malformed API requests, oversized headers and long URLs.
+
+- Migration checks retain table-size evidence across unrelated writes.
+
+- Status shows a grouped import's publisher date only when every file has a date, and includes the distinct file count.
+
+- Status 0.1.9 reuses publisher dates until source data changes, while health and pool readings stay live.
+
+- Reduce configuration checks during pricing reads while detecting file and environment changes on every read.
+
+- Reuse unchanged source manifests on lowest-premium reads.
+
 ## v0.4.14
 
 - Compatibility provider searches that match more than 2,000 search keys return 422 and ask for a narrower filter instead of timing out.

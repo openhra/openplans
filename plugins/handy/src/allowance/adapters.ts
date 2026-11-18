@@ -4,11 +4,8 @@ import type {
   OpenPlansPlugin,
 } from "@openplans/plugin-sdk";
 import { z } from "zod";
-import { allowanceMcpAnswer } from "./mcp.js";
 import { allowanceOutput, privateInput, presetInput } from "./contract.js";
-import { allowanceScenario } from "./service.js";
-import { allowanceJson } from "./evidence.js";
-import { allowanceSourceManifest, printAllowanceSheet } from "./sheet.js";
+import { allowanceAnswers } from "./lazy.js";
 
 export const ALLOWANCE_PATH = "/handy/allowance";
 export const ALLOWANCE_PRIVATE_PATH = "/handy/allowance/scenario";
@@ -39,16 +36,22 @@ const presetQuery = z
     (value) =>
       (value.evidence_page ?? 1) === 1 || Boolean(value.data_generation),
   );
-const answerForPreset = (
+const answerForPreset = async (
   host: Host,
   scope: CalculationScope,
   parsed: z.infer<typeof presetQuery>,
-) => allowanceScenario(host, scope, parsed, parsed.evidence_page ?? 1);
+) =>
+  (await allowanceAnswers()).allowanceScenario(
+    host,
+    scope,
+    parsed,
+    parsed.evidence_page ?? 1,
+  );
 
 const plugin: OpenPlansPlugin = {
   manifest: {
     name: "@openplans/plugin-handy",
-    version: "0.1.4",
+    version: "0.1.5",
     apiVersion: "0.1",
     kinds: ["routes", "mcpTools"],
     capabilities: { operatorRoutes: true },
@@ -78,7 +81,24 @@ const plugin: OpenPlansPlugin = {
             return c.json({ error: { code: "INVALID_INPUT" } }, 400);
           if (!host)
             return c.json({ error: { code: "CALCULATION_UNKNOWN" } }, 503);
+          const dataChanged = async () => {
+            if (mode === "manifest")
+              return c.json({ error: { code: "DATA_CHANGED" } }, 409);
+            const restart = new URLSearchParams(c.req.query());
+            restart.delete("data_generation");
+            restart.delete("evidence_page");
+            const { printAllowanceChanged } = await allowanceAnswers();
+            return c.html(
+              printAllowanceChanged(`/handy/allowance/print?${restart}`),
+              409,
+            );
+          };
           try {
+            const {
+              allowanceJson,
+              allowanceSourceManifest,
+              printAllowanceSheet,
+            } = await allowanceAnswers();
             const answer = await answerForPreset(
               host,
               { db: c.get("pluginDb"), signal: c.get("pluginSignal") },
@@ -88,7 +108,7 @@ const plugin: OpenPlansPlugin = {
               parsed.data.data_generation &&
               parsed.data.data_generation !== answer.data_generation
             )
-              return c.json({ error: { code: "DATA_CHANGED" } }, 409);
+              return dataChanged();
             if (mode === "manifest") {
               c.header(
                 "Content-Disposition",
@@ -119,7 +139,7 @@ const plugin: OpenPlansPlugin = {
             );
           } catch (error) {
             if (error instanceof Error && error.message === "DATA_CHANGED")
-              return c.json({ error: { code: "DATA_CHANGED" } }, 409);
+              return dataChanged();
             return c.json({ error: { code: "CALCULATION_UNKNOWN" } }, 503, {
               "Cache-Control": "no-store",
             });
@@ -145,6 +165,7 @@ const plugin: OpenPlansPlugin = {
           return c.json({ error: { code: "INVALID_INPUT" } }, 400);
         try {
           if (!host) throw new Error("calculation_host_required");
+          const { allowanceJson, allowanceScenario } = await allowanceAnswers();
           const result = await allowanceScenario(
             host,
             { db: c.get("pluginDb"), signal: c.get("pluginSignal") },
@@ -184,6 +205,8 @@ const plugin: OpenPlansPlugin = {
             return c.json({ error: { code: "INVALID_INPUT" } }, 400);
           try {
             if (!host) throw new Error("calculation_host_required");
+            const { allowanceJson, allowanceScenario } =
+              await allowanceAnswers();
             const result = await allowanceScenario(
               host,
               { db: c.get("pluginDb"), signal: c.get("pluginSignal") },
@@ -210,6 +233,8 @@ const plugin: OpenPlansPlugin = {
       readOnly: true,
       handler: async (input, scope) => {
         if (!host) throw new Error("calculation_host_required");
+        const { allowanceMcpAnswer, allowanceScenario } =
+          await allowanceAnswers();
         return allowanceMcpAnswer(
           await allowanceScenario(host, scope, input),
           input,

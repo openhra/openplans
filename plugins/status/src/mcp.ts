@@ -30,12 +30,7 @@ const ages = z.strictObject({
   older: count,
   unknown: count,
 });
-const sourceDetail = z.strictObject({
-  id: z.string(),
-  freshness: z.enum(AGE_BUCKETS),
-  published_at: z.iso.date().nullable(),
-  published_from: z.enum(["release_date", "last_modified"]).nullable(),
-});
+const sourceDetail = publicStatusSchema.shape.sources.unwrap().element;
 const ingestDetail = z.strictObject({
   source: z.string(),
   last_success: z.enum(AGE_BUCKETS),
@@ -183,6 +178,10 @@ export function getStatusView(
         freshness: ageBucket(row.retrieved, status.now),
         published_at: row.published,
         published_from: row.publishedFrom,
+        ...(row.publishedFrom === "latest_of_files" &&
+        row.publishedFiles !== undefined
+          ? { published_files: row.publishedFiles }
+          : {}),
       };
     } else if ("lastSuccess" in row) {
       detail = {

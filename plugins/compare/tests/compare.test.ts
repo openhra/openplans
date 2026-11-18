@@ -277,7 +277,17 @@ it("escapes source markup and prints unknown amounts explicitly", async () => {
     { db: h.db, signal: new AbortController().signal },
   );
   const html = printMarket(answer);
-  expect(html).toContain("Unknown");
+  const checkPrices = (rendered: string) => {
+    expect(rendered).toContain(
+      "<td>Unknown</td><td>Unknown</td><td>Unknown</td><td>Unknown to Unknown</td>",
+    );
+    expect(rendered).not.toMatch(/<td>\$0(?:\.00)?<\/td>/);
+  };
+  checkPrices(html);
+  expect(() =>
+    checkPrices(html.replace("<td>Unknown</td>", "<td>$0.00</td>")),
+  ).toThrow();
+  expect(html).toContain("Gross premiums are not the subsidy benchmark.");
   expect(html).toContain("&lt;script&gt;");
   expect(html).not.toContain("<script>");
 });

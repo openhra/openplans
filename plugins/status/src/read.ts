@@ -41,8 +41,13 @@ export interface PassthroughRow {
   hitRate: number | null;
 }
 
-/** Where a source's publisher date came from. */
-export type PublishedFrom = "release_date" | "last_modified";
+/**
+ * Where a source's publisher date came from. `latest_of_files` is a rollup snapshot with no date
+ * of its own: the latest date of the file snapshots it records, given only when every one of
+ * them has a date.
+ */
+export type PublishedFrom =
+  "release_date" | "last_modified" | "latest_of_files";
 
 export interface SourceRow {
   id: string;
@@ -52,6 +57,8 @@ export interface SourceRow {
   /** The publisher's date for this copy, `YYYY-MM-DD`; null when none was recorded. */
   published: string | null;
   publishedFrom: PublishedFrom | null;
+  /** How many file snapshots a `latest_of_files` date was taken from; absent otherwise. */
+  publishedFiles?: number;
 }
 
 /** The snapshot columns a publisher date can come from, as the source query reads them. */
@@ -94,6 +101,29 @@ export function publisherDate(row: SnapshotDates): {
       publishedFrom: "last_modified",
     };
   return { published: null, publishedFrom: null };
+}
+
+/**
+ * The publisher date for a snapshot that may be a rollup. `files` are the file snapshots the
+ * data records under it (`puf_import_file`, `state_community_rate`). A snapshot's own date always
+ * wins. Without one, a rollup takes the latest date of its files, but only when every file has
+ * a date: one undated file makes the rollup unknown, never a partial maximum.
+ */
+export function rollupPublisherDate(
+  row: SnapshotDates,
+  files: readonly SnapshotDates[],
+): Pick<SourceRow, "published" | "publishedFrom" | "publishedFiles"> {
+  const own = publisherDate(row);
+  if (own.published !== null || !files.length) return own;
+  const known = files
+    .map((file) => publisherDate(file).published)
+    .filter((published): published is string => published !== null);
+  if (known.length < files.length) return own;
+  return {
+    published: known.sort().at(-1)!,
+    publishedFrom: "latest_of_files",
+    publishedFiles: files.length,
+  };
 }
 
 /** One read of everything the status page shows. Both serialisers work from this. */
@@ -244,10 +274,138 @@ function hostPluginList(host: StatusHost): PluginEntry[] | undefined {
   return entries ? hostPlugins(entries) : undefined;
 }
 
+// The snapshot columns `publisherDate` reads, selected from `snapshot`.
+const SNAPSHOT_DATES = `snapshot.publisher_updated_at::date::text AS publisher_date,
+  snapshot.last_modified, snapshot.schema_version,
+  to_char(snapshot.retrieved_at AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS retrieved_date`;
+const text = (value: unknown) => (typeof value === "string" ? value : null);
+const snapshotDates = (row: Record<string, unknown>): SnapshotDates => ({
+  publisher_date: text(row.publisher_date),
+  last_modified: text(row.last_modified),
+  retrieved_date: text(row.retrieved_date),
+  schema_version: text(row.schema_version),
+});
+
+const SOURCE_PROJECTION_MAX_ROWS = 4096;
+const SOURCE_PROJECTION_MAX_BYTES = 1024 * 1024;
+
+interface SourceProjection {
+  rows: SourceRow[];
+  complete: boolean;
+}
+
+type SourceRead = (db: SqlSession) => Promise<SourceProjection>;
+
+async function readSources(db: SqlSession): Promise<SourceProjection> {
+  const { rows } = await db.query(`
+      SELECT DISTINCT ON (source_id) source_id, retrieved_at, snapshot_id,
+        ${SNAPSHOT_DATES}
+      FROM snapshot WHERE validation_state = 'ACTIVE'
+      ORDER BY source_id, retrieved_at DESC NULLS LAST, snapshot_id`);
+  const undated = rows
+    .filter((row) => publisherDate(snapshotDates(row)).published === null)
+    .map((row) => String(row.snapshot_id));
+  // The file snapshots behind each undated rollup. If they cannot be read, the rows keep
+  // their own (unknown) dates.
+  const files = new Map<string, SnapshotDates[]>();
+  let complete = true;
+  if (undated.length) {
+    const children = await attempt(() =>
+      db.query(
+        `WITH edge AS (
+            SELECT import_id AS parent, snapshot_id AS child FROM puf_import_file
+            WHERE import_id = ANY($1::text[])
+            UNION SELECT import_id, publication_snapshot_id FROM state_community_rate
+            WHERE import_id = ANY($1::text[]))
+          SELECT edge.parent, ${SNAPSHOT_DATES}
+          FROM edge LEFT JOIN snapshot ON snapshot.snapshot_id = edge.child`,
+        [undated],
+      ),
+    );
+    complete = children !== null;
+    for (const row of children?.rows ?? []) {
+      const parent = String(row.parent);
+      const dates = files.get(parent) ?? [];
+      dates.push(snapshotDates(row));
+      files.set(parent, dates);
+    }
+  }
+  return {
+    complete,
+    rows: rows.map((row): SourceRow => ({
+      id: String(row.source_id),
+      retrieved: date(row.retrieved_at),
+      snapshotId: String(row.snapshot_id),
+      ...rollupPublisherDate(
+        snapshotDates(row),
+        files.get(String(row.snapshot_id)) ?? [],
+      ),
+    })),
+  };
+}
+
+/** One bounded source projection, invalidated by freshly read publication revisions. */
+export function sourceDateMemo(): SourceRead {
+  let memo:
+    { generation: string; projection: Promise<SourceProjection> } | undefined;
+  return async (db) => {
+    const revision = await attempt(() =>
+      db.query(`
+      SELECT md5(string_agg(table_name || ':' || revision::text, ','
+        ORDER BY table_name COLLATE "C")) AS generation
+      FROM api_data_generation
+      WHERE table_name IN ('snapshot', 'puf_import_file', 'state_community_rate')
+        OR starts_with(table_name, '__database__:')
+      HAVING count(*) = 4`),
+    );
+    const generation = text(revision?.rows[0]?.generation);
+    if (!generation) {
+      memo = undefined;
+      return readSources(db);
+    }
+    let entry = memo;
+    const shared = entry?.generation === generation;
+    if (!entry || !shared) {
+      const fresh = { generation, projection: readSources(db) };
+      memo = entry = fresh;
+      fresh.projection.then(
+        (result) => {
+          if (
+            memo === fresh &&
+            (!result.complete ||
+              result.rows.length > SOURCE_PROJECTION_MAX_ROWS ||
+              Buffer.byteLength(JSON.stringify(result.rows)) >
+                SOURCE_PROJECTION_MAX_BYTES)
+          )
+            memo = undefined;
+        },
+        () => {
+          if (memo === fresh) memo = undefined;
+        },
+      );
+    }
+    let result: SourceProjection;
+    try {
+      result = await entry.projection;
+    } catch (error) {
+      if (!shared) throw error;
+      result = await readSources(db);
+    }
+    return {
+      ...result,
+      rows: result.rows.map((row) => ({
+        ...row,
+        retrieved: row.retrieved && new Date(row.retrieved.getTime()),
+      })),
+    };
+  };
+}
+
 /** Reads the status once. A part that cannot be read is `null`; the page still renders. */
 export async function readStatus(
   db: SqlSession,
   settings: ReadSettings,
+  sourceRead: SourceRead = readSources,
 ): Promise<StatusData> {
   const { config, host, now } = settings;
   const up = (await attempt(() => db.query("SELECT 1"))) !== null;
@@ -274,26 +432,7 @@ export async function readStatus(
       )
     : null;
 
-  const sources = await read(async () => {
-    const { rows } = await db.query(`
-      SELECT DISTINCT ON (source_id) source_id, retrieved_at, snapshot_id,
-        publisher_updated_at::date::text AS publisher_date, last_modified, schema_version,
-        to_char(retrieved_at AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS retrieved_date
-      FROM snapshot WHERE validation_state = 'ACTIVE'
-      ORDER BY source_id, retrieved_at DESC NULLS LAST, snapshot_id`);
-    const text = (value: unknown) => (typeof value === "string" ? value : null);
-    return rows.map((row): SourceRow => ({
-      id: String(row.source_id),
-      retrieved: date(row.retrieved_at),
-      snapshotId: String(row.snapshot_id),
-      ...publisherDate({
-        publisher_date: text(row.publisher_date),
-        last_modified: text(row.last_modified),
-        retrieved_date: text(row.retrieved_date),
-        schema_version: text(row.schema_version),
-      }),
-    }));
-  });
+  const sources = await read(async () => (await sourceRead(db)).rows);
 
   const ingests = await read(async () => {
     const { rows } = await db.query(

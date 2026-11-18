@@ -304,9 +304,12 @@ it("pins both kinds of evidence to generation and manifest and refuses changed o
       expect(
         (await server.request(marketPath({ ...pin, data_generation }))).status,
       ).toBe(503);
-      expect((await printed(server, { ...pin, data_generation })).status).toBe(
-        503,
-      );
+      const stalePrint = await printed(server, { ...pin, data_generation });
+      expect(stalePrint.status).toBe(503);
+      const html = await stalePrint.text();
+      expect(html).toContain("The source data has changed.");
+      expect(html).toContain("Restart the comparison");
+      expect(html).toContain("<code>generation_changed</code>");
       const result = await rpc({ ...pin, data_generation });
       expect(Boolean(result.error || result.result?.isError)).toBe(true);
     }
@@ -495,5 +498,28 @@ it("matches separate recorded public-on HTTP and MCP bytes", async () => {
     expect(() =>
       expect(mutantHash).toBe(recorded.household!.body_sha256),
     ).toThrow();
+  }
+});
+
+it("explains refused private and group form inputs without echoing them", async () => {
+  const server = await app();
+  const form = await (await server.request("/compare/v1")).text();
+  expect(form).toContain(
+    "This public form refuses private employer and group inputs",
+  );
+  for (const extra of [
+    { employer_id: "synthetic-private-value" },
+    { group_premium_cents: 10000 },
+  ]) {
+    const response = await printed(server, { ...ageInput, ...extra });
+    expect(response.status).toBe(400);
+    const html = await response.text();
+    expect(html).toContain(
+      "This public form refuses private employer and group inputs.",
+    );
+    expect(html).toContain("<code>INVALID_INPUT</code>");
+    expect(html).not.toContain("synthetic-private-value");
+    const api = await server.request(marketPath({ ...ageInput, ...extra }));
+    expect(await api.json()).toEqual({ error: { code: "INVALID_INPUT" } });
   }
 });

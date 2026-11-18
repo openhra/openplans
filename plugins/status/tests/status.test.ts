@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { PGlite } from "@electric-sql/pglite";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import type { WorkerContext } from "@openplans/plugin-sdk";
+import type { CoreConfigView, WorkerContext } from "@openplans/plugin-sdk";
 import {
   PASSTHROUGH_OPENING_REASONS,
   pluginManifestSchema,
@@ -11,7 +11,7 @@ import { createApp } from "../../../src/api/app.js";
 import { hasCredentials } from "../../../src/api/cache/index.js";
 import { MemoryCache } from "../../../src/api/cache/store.js";
 import { loadConfig } from "../../../src/config/index.js";
-import type { Database } from "../../../src/db/database.js";
+import type { Database, SqlSession } from "../../../src/db/database.js";
 import { migrate } from "../../../src/db/migrate.js";
 import { rowProvenanceLeaks } from "../../../src/db/row-provenance.js";
 import { MAX_OUTPUT_BYTES, messageBytes } from "../../../src/mcp/tools.js";
@@ -54,6 +54,8 @@ import plugin, {
   publicView,
   publisherDate,
   renderStatusHtml,
+  rollupPublisherDate,
+  readStatus,
   runHealthProbe,
 } from "../src/index.js";
 import type {
@@ -65,6 +67,7 @@ import type {
 } from "../src/index.js";
 import type * as mcpModule from "../src/mcp.js";
 import type * as readModule from "../src/read.js";
+import { sourceDateMemo } from "../src/read.js";
 import type * as viewsModule from "../src/views.js";
 
 // Seeds are relative to the real clock, because the default plugin reads the time itself.
@@ -1021,14 +1024,14 @@ describe("host data from core", () => {
     expect(body.plugins).toEqual([
       {
         name: PLUGIN_NAME,
-        version: "0.1.7",
+        version: "0.1.9",
         apiVersion: "0.1",
         sha256: sha,
         enabled: true,
       },
     ]);
     expect(identities(body.plugins)).toEqual(
-      identities([{ name: PLUGIN_NAME, version: "0.1.7", sha256: sha! }]),
+      identities([{ name: PLUGIN_NAME, version: "0.1.9", sha256: sha! }]),
     );
     const pass = body.passthrough!.find(
       (row: { id: string }) => row.id === "synthetic-pass",
@@ -1128,7 +1131,7 @@ describe("host data from core", () => {
   it("planted mutant: a wrong plugin hash fails the approved-list comparison", async () => {
     const sha = (await packageSha256(statusRoot))!;
     const approved = identities([
-      { name: PLUGIN_NAME, version: "0.1.7", sha256: sha },
+      { name: PLUGIN_NAME, version: "0.1.9", sha256: sha },
     ]);
     const read = await plantMutant(
       readFile,
@@ -1137,8 +1140,8 @@ describe("host data from core", () => {
     );
     const index = await plantMutant(
       indexFile,
-      'import { readStatus } from "./read.js";',
-      `import { readStatus } from ${JSON.stringify(read.path)};`,
+      'import { readStatus, sourceDateMemo } from "./read.js";',
+      `import { readStatus, sourceDateMemo } from ${JSON.stringify(read.path)};`,
     );
     try {
       const api = await hostedApp(pooled(), index.path);
@@ -1424,10 +1427,12 @@ describe("publisher dates", () => {
       `freshness: ageBucket(source.retrieved, status.now),
         published_at: source.published,
         published_from: source.publishedFrom,
+        ...publishedFiles(source),
       })) ?? null,`,
       `freshness: ageBucket(source.published ? new Date(source.published) : null, status.now),
         published_at: source.published,
         published_from: source.publishedFrom,
+        ...publishedFiles(source),
       })) ?? null,`,
     );
     try {
@@ -1504,7 +1509,10 @@ function hostedSizeStatus(): StatusData {
     version: "0.4.9",
     sources: ids.map((id, i) => {
       const dated = i % 7 !== 0;
-      const from = i < 5 ? "release_date" : "last_modified";
+      let from: "release_date" | "last_modified" | "latest_of_files" =
+        "last_modified";
+      if (i < 5) from = "release_date";
+      if (i % 7 === 1) from = "latest_of_files";
       return {
         id,
         retrieved: new Date(NOW.getTime() - (i % 2 ? 3 : 12) * 86_400_000),
@@ -1513,6 +1521,7 @@ function hostedSizeStatus(): StatusData {
           ? `2025-${String((i % 12) + 1).padStart(2, "0")}-12`
           : null,
         publishedFrom: dated ? from : null,
+        ...(dated && from === "latest_of_files" ? { publishedFiles: 6 } : {}),
       };
     }),
   });
@@ -1791,7 +1800,13 @@ describe("bounded get_status", () => {
 
   it("/status.json keeps its complete public fields and publisher dates", () => {
     const view = publicView(hostedSizeStatus());
-    expect(hasExactlyPublicFields(JSON.parse(JSON.stringify(view)))).toBe(true);
+    expect(keyPaths(view).sort()).toEqual(
+      [...PUBLIC_FIELDS, "sources.*.published_files"].sort(),
+    );
+    expect(publicStatusSchema.parse(view)).toEqual(view);
+    expect(view.sources!.some((source) => source.published_files === 6)).toBe(
+      true,
+    );
     expect(view.sources!.filter((s) => s.published_at).length).toBeGreaterThan(
       600,
     );
@@ -1824,5 +1839,741 @@ describe("bounded get_status", () => {
     } finally {
       await mutant.cleanup();
     }
+  });
+});
+
+describe("publisher dates for rollup snapshots", () => {
+  // Synthetic rollups: a state PUF import whose three files all carry a date, one whose rate
+  // file has none, and a state rate import with repeated publication references. The rollups have no URL and
+  // no date of their own, like a real per-state import.
+  const SOURCES = [
+    "synthetic-puf:2026:QA",
+    "synthetic-puf:2026:QA:rate",
+    "synthetic-puf:2026:QA:plan-attributes",
+    "synthetic-puf:2026:QA:business-rules",
+    "synthetic-puf:2026:QB",
+    "synthetic-puf:2026:QB:rate",
+    "synthetic-puf:2026:QB:plan-attributes",
+    "synthetic-state-rates:2026:VT",
+    "synthetic-state-rates:2026:VT:publication",
+  ];
+  const sha = (n: number) => n.toString(16).padStart(64, "e");
+  const snap = (
+    id: string,
+    n: number,
+    children: number,
+    dates: { release?: string; modified?: string } = {},
+  ) =>
+    `('${id}.1', '${id}', '${sha(n)}', '${hoursAgo(4)}', ${children}, ${children}, 'ACTIVE',
+      '${hoursAgo(4)}', ${dates.release ? `'${dates.release}'` : "NULL"},
+      ${dates.modified ? `'${dates.modified}'` : "NULL"})`;
+  async function withRollups<T>(run: () => Promise<T>): Promise<T> {
+    await db.exec(`
+      INSERT INTO source (source_id, publisher, source_kind) VALUES
+        ${SOURCES.map((id) => `('${id}', 'Synthetic publisher', 'synthetic')`).join(",\n")};
+      INSERT INTO snapshot (snapshot_id, source_id, sha256, retrieved_at, expected_children,
+          fetched_children, validation_state, activated_at, publisher_updated_at,
+          last_modified) VALUES
+        ${snap("synthetic-puf:2026:QA", 1, 3)},
+        ${snap("synthetic-puf:2026:QA:rate", 2, 0, { modified: "Fri, 30 Oct 2026 13:15:27 GMT" })},
+        ${snap("synthetic-puf:2026:QA:plan-attributes", 3, 0, { modified: "Fri, 05 Jun 2026 10:00:00 GMT" })},
+        ${snap("synthetic-puf:2026:QA:business-rules", 4, 0, { release: "2026-10-31" })},
+        ${snap("synthetic-puf:2026:QB", 5, 2)},
+        ${snap("synthetic-puf:2026:QB:rate", 6, 0)},
+        ${snap("synthetic-puf:2026:QB:plan-attributes", 7, 0, { modified: "Fri, 05 Jun 2026 10:00:00 GMT" })},
+        ${snap("synthetic-state-rates:2026:VT", 8, 1)},
+        ${snap("synthetic-state-rates:2026:VT:publication", 9, 0, { release: "2026-08-15" })};
+      INSERT INTO puf_import (import_id, state, plan_year) VALUES
+        ('synthetic-puf:2026:QA.1', 'QA', 2026), ('synthetic-puf:2026:QB.1', 'QB', 2026);
+      INSERT INTO puf_import_file (import_id, kind, snapshot_id) VALUES
+        ('synthetic-puf:2026:QA.1', 'rate', 'synthetic-puf:2026:QA:rate.1'),
+        ('synthetic-puf:2026:QA.1', 'plan-attributes', 'synthetic-puf:2026:QA:plan-attributes.1'),
+        ('synthetic-puf:2026:QA.1', 'business-rules', 'synthetic-puf:2026:QA:business-rules.1'),
+        ('synthetic-puf:2026:QB.1', 'rate', 'synthetic-puf:2026:QB:rate.1'),
+        ('synthetic-puf:2026:QB.1', 'plan-attributes', 'synthetic-puf:2026:QB:plan-attributes.1');
+      INSERT INTO state_rate_import (import_id, state, plan_year, rules_document,
+          artifact_sha256, record_count) VALUES
+        ('synthetic-state-rates:2026:VT.1', 'VT', 2026, '{}', '${sha(10)}', 2);
+      INSERT INTO state_community_rate (import_id, source_index, record_index,
+          publication_snapshot_id, plan_key, region, rate, raw_record) VALUES
+        ('synthetic-state-rates:2026:VT.1', 0, 0, 'synthetic-state-rates:2026:VT:publication.1',
+          'synthetic-plan', 'synthetic-region', '{}', '{}'),
+        ('synthetic-state-rates:2026:VT.1', 0, 1, 'synthetic-state-rates:2026:VT:publication.1',
+          'synthetic-plan', 'synthetic-region-2', '{}', '{}');`);
+    try {
+      return await run();
+    } finally {
+      await db.exec(`
+        DELETE FROM state_community_rate WHERE import_id = 'synthetic-state-rates:2026:VT.1';
+        DELETE FROM state_rate_import WHERE import_id = 'synthetic-state-rates:2026:VT.1';
+        DELETE FROM puf_import_file WHERE import_id LIKE 'synthetic-puf:2026:Q_.1';
+        DELETE FROM puf_import WHERE import_id LIKE 'synthetic-puf:2026:Q_.1';
+        DELETE FROM snapshot WHERE source_id IN ('${SOURCES.join("','")}');
+        DELETE FROM source WHERE source_id IN ('${SOURCES.join("','")}');`);
+    }
+  }
+
+  const undated = {
+    publisher_date: null,
+    last_modified: null,
+    retrieved_date: "2026-11-14",
+    schema_version: null,
+  };
+  const dated = (publisher_date: string) => ({ ...undated, publisher_date });
+
+  /** A rollup with one undated file must read unknown, never the latest of the dated ones. */
+  function noPartialMaximum(date: typeof rollupPublisherDate): boolean {
+    const result = date(undated, [
+      dated("2026-10-30"),
+      undated,
+      dated("2026-06-05"),
+    ]);
+    return result.published === null && result.publishedFrom === null;
+  }
+
+  it("all files dated: the rollup reads the latest file date and the file count", async () => {
+    expect(
+      rollupPublisherDate(undated, [
+        dated("2026-06-05"),
+        dated("2026-10-31"),
+        dated("2026-10-30"),
+      ]),
+    ).toEqual({
+      published: "2026-10-31",
+      publishedFrom: "latest_of_files",
+      publishedFiles: 3,
+    });
+    const api = await app({ operator: OPERATOR });
+    const [body, operator] = await withRollups(async () => [
+      await (await api.request("/status.json")).json<PublicStatus>(),
+      await (
+        await api.request("/status/operator.json", bearer(OPERATOR))
+      ).json<OperatorStatus>(),
+    ]);
+    expect(publicStatusSchema.parse(body)).toEqual(body);
+    expect(operatorStatusSchema.parse(operator)).toEqual(operator);
+    expect(body.sources!.find((s) => s.id === "synthetic-puf:2026:QA")).toEqual(
+      {
+        id: "synthetic-puf:2026:QA",
+        freshness: "<1d",
+        published_at: "2026-10-31",
+        published_from: "latest_of_files",
+        published_files: 3,
+      },
+    );
+    // A state rate import counts each publication once, however many records cite it.
+    expect(
+      body.sources!.find((s) => s.id === "synthetic-state-rates:2026:VT"),
+    ).toMatchObject({
+      published_at: "2026-08-15",
+      published_from: "latest_of_files",
+      published_files: 1,
+    });
+    expect(
+      operator.sources!.find((s) => s.id === "synthetic-puf:2026:QA"),
+    ).toMatchObject({
+      published_at: "2026-10-31",
+      published_from: "latest_of_files",
+      published_files: 3,
+      snapshot_id: "synthetic-puf:2026:QA.1",
+    });
+    expect(renderStatusHtml(body)).toContain(
+      '<tr><td class="token">synthetic-puf:2026:QA</td><td>under 1 day ago</td><td class="token date">2026-10-31, latest of 3 files</td></tr>',
+    );
+    expect(renderStatusHtml(operator)).toContain(
+      '<td class="token date">2026-10-31, latest of 3 files</td><td class="token">synthetic-puf:2026:QA.1</td>',
+    );
+  });
+
+  it("one undated file: the rollup reads unknown, not a partial maximum", async () => {
+    expect(noPartialMaximum(rollupPublisherDate)).toBe(true);
+    const body = await withRollups(async () =>
+      (await (await app()).request("/status.json")).json<PublicStatus>(),
+    );
+    expect(body.sources!.find((s) => s.id === "synthetic-puf:2026:QB")).toEqual(
+      {
+        id: "synthetic-puf:2026:QB",
+        freshness: "<1d",
+        published_at: null,
+        published_from: null,
+      },
+    );
+    expect(renderStatusHtml(body)).toContain(
+      '<tr><td class="token">synthetic-puf:2026:QB</td><td>under 1 day ago</td><td class="token date">unknown</td></tr>',
+    );
+  });
+
+  it("a row with no files, or a date of its own, reads as before", async () => {
+    for (const row of [undated, dated("2026-09-01")])
+      expect(rollupPublisherDate(row, [])).toEqual(publisherDate(row));
+    // A snapshot's own date wins over its files.
+    expect(
+      rollupPublisherDate(dated("2026-01-02"), [dated("2026-10-30")]),
+    ).toEqual({ published: "2026-01-02", publishedFrom: "release_date" });
+    const before = await (
+      await (await app()).request("/status.json")
+    ).json<PublicStatus>();
+    const after = await withRollups(async () =>
+      (await (await app()).request("/status.json")).json<PublicStatus>(),
+    );
+    for (const id of ["synthetic-fresh", "synthetic-old"])
+      expect(after.sources!.find((s) => s.id === id)).toEqual(
+        before.sources!.find((s) => s.id === id),
+      );
+    expect(after.sources!.find((s) => s.id === "synthetic-fresh")).toEqual({
+      id: "synthetic-fresh",
+      freshness: "<1d",
+      published_at: "2026-10-30",
+      published_from: "last_modified",
+    });
+    // The files are sources of their own and keep their own dates.
+    expect(
+      after.sources!.find((s) => s.id === "synthetic-puf:2026:QA:rate"),
+    ).toEqual({
+      id: "synthetic-puf:2026:QA:rate",
+      freshness: "<1d",
+      published_at: "2026-10-30",
+      published_from: "last_modified",
+    });
+  });
+
+  it("only adds fields: published_files is new and every earlier field stays", async () => {
+    const api = await app({ operator: OPERATOR });
+    const [body, operator] = await withRollups(async () => [
+      await (await api.request("/status.json")).json<PublicStatus>(),
+      await (
+        await api.request("/status/operator.json", bearer(OPERATOR))
+      ).json<OperatorStatus>(),
+    ]);
+    const paths = keyPaths(body);
+    expect(paths.filter((p) => !PUBLIC_FIELDS.includes(p)).sort()).toEqual([
+      "sources.*.published_files",
+    ]);
+    for (const field of PUBLIC_FIELDS) expect(paths).toContain(field);
+    expect(leaks(body)).toEqual([]);
+    expect(leaks(operator)).toEqual([]);
+    // Every earlier published_from value keeps its meaning; one value is new.
+    expect(
+      [...new Set(body.sources!.map((s) => s.published_from))].sort(),
+    ).toEqual(
+      ["last_modified", "latest_of_files", "release_date", null].sort(),
+    );
+    // published_files appears only beside a latest_of_files date.
+    for (const source of [...body.sources!, ...operator.sources!])
+      expect("published_files" in source).toBe(
+        source.published_from === "latest_of_files",
+      );
+    const operatorPaths = keyPaths(operator);
+    for (const field of [
+      "sources.*.published_files",
+      "sources.*.retrieved_at",
+      "sources.*.snapshot_id",
+    ])
+      expect(operatorPaths).toContain(field);
+  });
+
+  it("planted mutant: a partial maximum over the dated files is caught", async () => {
+    const mutant = await plantMutant(
+      readFile,
+      "if (known.length < files.length) return own;",
+      "if (!known.length) return own;",
+    );
+    try {
+      const read = (await import(mutant.path)) as typeof readModule;
+      expect(noPartialMaximum(read.rollupPublisherDate)).toBe(false);
+    } finally {
+      await mutant.cleanup();
+    }
+  });
+  let readConfig: CoreConfigView;
+  beforeAll(async () => {
+    const loaded = await loadForTest(createStatusPlugin(), { db });
+    readConfig = loaded.context.config;
+    await loaded.close();
+  });
+  const settings = () => ({
+    config: readConfig,
+    host: {},
+    plugin: PLUGIN_NAME,
+    now: NOW,
+  });
+
+  it("shares the plugin projection across HTTP and MCP, then sees publication", async () => {
+    await withRollups(async () => {
+      let parents = 0;
+      let generations = 0;
+      const target: Database = {
+        query: (sql, values) => {
+          if (sql.includes("SELECT DISTINCT ON (source_id)")) parents++;
+          if (sql.includes("HAVING count(*) = 4")) generations++;
+          return db.query(sql, values);
+        },
+        exec: db.exec,
+        transaction: db.transaction,
+        close: async () => {},
+      };
+      const plugins = await registries();
+      const api = createApp(
+        target,
+        { premiumToken: undefined, trustedProxies: [] },
+        {
+          config: config(OPERATOR),
+          plugins,
+        },
+      );
+      expect((await api.request("/status")).status).toBe(200);
+      expect(
+        (await api.request("/status/operator.json", bearer(OPERATOR))).status,
+      ).toBe(200);
+      const tool = plugins.mcpTools.find(
+        (tool) => tool.spec.name === "get_status",
+      )!;
+      const call = () =>
+        callPluginTool(
+          { db: target },
+          tool.spec,
+          { section: "sources", limit: 100 },
+          AbortSignal.timeout(5000),
+        );
+      expect((await call()).isError).toBeUndefined();
+      expect(parents).toBe(1);
+      expect(generations).toBe(3);
+      await db.exec(`UPDATE snapshot SET publisher_updated_at = '2026-11-02'
+        WHERE snapshot_id = 'synthetic-puf:2026:QA:business-rules.1'`);
+      const output = getStatusSchema.parse((await call()).structuredContent);
+      expect(
+        output.details!.find(
+          (row) => "id" in row && row.id === "synthetic-puf:2026:QA",
+        ),
+      ).toMatchObject({ published_at: "2026-11-02" });
+      expect(parents).toBe(2);
+      expect(generations).toBe(4);
+    });
+  });
+
+  it("reuses source rows only and preserves the complete status JSON", async () => {
+    await withRollups(async () => {
+      const sourceRead = sourceDateMemo();
+      const queries: string[] = [];
+      const session: SqlSession = {
+        ...db,
+        query: (sql, values) => {
+          queries.push(sql);
+          return db.query(sql, values);
+        },
+      };
+      let waiting = 1;
+      const live = { ...settings(), host: { poolWaiting: () => waiting } };
+      const baseline = await readStatus(session, live);
+      const cold = await readStatus(session, live, sourceRead);
+      const warm = await readStatus(session, live, sourceRead);
+      expect(JSON.stringify(cold)).toBe(JSON.stringify(baseline));
+      expect(JSON.stringify(warm)).toBe(JSON.stringify(baseline));
+      expect(
+        queries.filter((sql) => sql.includes("WITH edge AS")),
+      ).toHaveLength(2);
+      expect(
+        queries.filter((sql) => sql.includes("FROM api_data_generation")),
+      ).toHaveLength(2);
+      warm.sources![0]!.id = "changed by caller";
+      warm.sources![0]!.retrieved?.setUTCFullYear(1990);
+      waiting = 7;
+      const next = await readStatus(session, live, sourceRead);
+      expect(next.poolWaiting).toBe(7);
+      expect(next.sources).toEqual(baseline.sources);
+      expect(queries.filter((sql) => sql.includes("SELECT 1"))).toHaveLength(4);
+      expect(
+        queries.filter((sql) => sql.includes("FROM plugin_state")),
+      ).toHaveLength(4);
+      expect(
+        queries.filter((sql) => sql.includes("FROM cms_api_budget")),
+      ).toHaveLength(4);
+    });
+  });
+
+  async function seesPublication(
+    module: Pick<typeof readModule, "readStatus" | "sourceDateMemo">,
+  ) {
+    const sourceRead = module.sourceDateMemo();
+    await module.readStatus(db, settings(), sourceRead);
+    await module.readStatus(db, settings(), sourceRead);
+    await db.exec(`UPDATE snapshot SET publisher_updated_at = '2026-11-02'
+      WHERE snapshot_id = 'synthetic-puf:2026:QA:business-rules.1'`);
+    const after = await module.readStatus(db, settings(), sourceRead);
+    return (
+      after.sources!.find((row) => row.id === "synthetic-puf:2026:QA")
+        ?.published === "2026-11-02"
+    );
+  }
+
+  it("sees a source publication immediately after warming", async () => {
+    await withRollups(async () => {
+      expect(await seesPublication({ readStatus, sourceDateMemo })).toBe(true);
+    });
+  });
+
+  it("selects a newly published snapshot after warming", async () => {
+    await withRollups(async () => {
+      const sourceRead = sourceDateMemo();
+      await readStatus(db, settings(), sourceRead);
+      await db.exec(`INSERT INTO snapshot (snapshot_id, source_id, sha256, retrieved_at,
+        expected_children, fetched_children, validation_state, activated_at, publisher_updated_at)
+        VALUES ('synthetic-puf:2026:QA.2', 'synthetic-puf:2026:QA', '${sha(12)}',
+          '${hoursAgo(1)}', 0, 0, 'ACTIVE', '${hoursAgo(1)}', '2026-11-10')`);
+      const next = await readStatus(db, settings(), sourceRead);
+      expect(
+        next.sources!.find((row) => row.id === "synthetic-puf:2026:QA"),
+      ).toEqual({
+        id: "synthetic-puf:2026:QA",
+        snapshotId: "synthetic-puf:2026:QA.2",
+        retrieved: new Date(hoursAgo(1)),
+        published: "2026-11-10",
+        publishedFrom: "release_date",
+      });
+    });
+  });
+
+  it("negative control: a projection reused after its generation changes fails freshness", async () => {
+    const mutant = await plantMutant(
+      readFile,
+      "const shared = entry?.generation === generation;",
+      "const shared = entry !== undefined;",
+    );
+    try {
+      const module = (await import(mutant.path)) as typeof readModule;
+      await withRollups(async () => {
+        expect(await seesPublication(module)).toBe(false);
+      });
+    } finally {
+      await mutant.cleanup();
+    }
+  });
+
+  it("reads afresh when generation lookup fails or is incomplete, then warms again", async () => {
+    await withRollups(async () => {
+      const sourceRead = sourceDateMemo();
+      let mode = "ok";
+      let parents = 0;
+      const session: SqlSession = {
+        ...db,
+        query: (sql, values) => {
+          if (sql.includes("FROM api_data_generation")) {
+            if (mode === "throw")
+              throw new Error("synthetic generation unavailable");
+            if (mode === "empty") return Promise.resolve({ rows: [] });
+          }
+          if (sql.includes("FROM snapshot WHERE")) parents++;
+          return db.query(sql, values);
+        },
+      };
+      await readStatus(session, settings(), sourceRead);
+      for (const fallback of ["throw", "empty"]) {
+        mode = fallback;
+        await db.exec(`UPDATE snapshot SET publisher_updated_at = '2026-11-03'
+          WHERE snapshot_id = 'synthetic-puf:2026:QA:business-rules.1'`);
+        const result = await readStatus(session, settings(), sourceRead);
+        expect(
+          result.sources!.find((row) => row.id === "synthetic-puf:2026:QA")
+            ?.published,
+        ).toBe("2026-11-03");
+      }
+      expect(parents).toBe(3);
+      mode = "ok";
+      await readStatus(session, settings(), sourceRead);
+      await readStatus(session, settings(), sourceRead);
+      expect(parents).toBe(4);
+    });
+  });
+
+  it("invalidates when file edges change without a snapshot update", async () => {
+    await withRollups(async () => {
+      const sourceRead = sourceDateMemo();
+      await readStatus(db, settings(), sourceRead);
+      await db.exec(`UPDATE puf_import_file SET snapshot_id = 'synthetic-state-rates:2026:VT:publication.1'
+        WHERE import_id = 'synthetic-puf:2026:QA.1' AND kind = 'business-rules'`);
+      const puf = await readStatus(db, settings(), sourceRead);
+      expect(
+        puf.sources!.find((row) => row.id === "synthetic-puf:2026:QA"),
+      ).toMatchObject({
+        published: "2026-10-30",
+        publishedFiles: 3,
+      });
+      await db.exec(`UPDATE state_community_rate SET publication_snapshot_id = 'synthetic-puf:2026:QA:business-rules.1'
+        WHERE import_id = 'synthetic-state-rates:2026:VT.1'`);
+      const community = await readStatus(db, settings(), sourceRead);
+      expect(
+        community.sources!.find(
+          (row) => row.id === "synthetic-state-rates:2026:VT",
+        ),
+      ).toMatchObject({
+        published: "2026-10-31",
+        publishedFiles: 1,
+      });
+    });
+  });
+
+  it("does not retain source projections beyond its row or byte bound", async () => {
+    for (const bound of ["rows", "bytes"]) {
+      const sourceRead = sourceDateMemo();
+      let reads = 0;
+      const session: SqlSession = {
+        exec: async () => {},
+        query: async <Row extends Record<string, unknown>>(sql: string) => {
+          if (sql.includes("FROM api_data_generation"))
+            return {
+              rows: [{ generation: "synthetic-g1" }] as unknown as Row[],
+            };
+          reads++;
+          const row = {
+            source_id:
+              bound === "bytes" ? "s".repeat(1024 * 1024) : "synthetic-source",
+            snapshot_id: "synthetic.1",
+            publisher_date: "2026-11-01",
+          };
+          return {
+            rows: Array.from(
+              { length: bound === "rows" ? 4097 : 1 },
+              () => row,
+            ) as unknown as Row[],
+          };
+        },
+      };
+      await sourceRead(session);
+      await sourceRead(session);
+      expect(reads).toBe(2);
+    }
+  });
+
+  it("does not retain a failed parent read or a partial child read", async () => {
+    await withRollups(async () => {
+      for (const part of ["FROM snapshot WHERE", "WITH edge AS"]) {
+        const sourceRead = sourceDateMemo();
+        let fail = true;
+        const session: SqlSession = {
+          ...db,
+          query: (sql, values) => {
+            if (fail && sql.includes(part))
+              throw new Error("synthetic read failure");
+            return db.query(sql, values);
+          },
+        };
+        const first = await readStatus(session, settings(), sourceRead);
+        if (part === "FROM snapshot WHERE") expect(first.sources).toBeNull();
+        else
+          expect(
+            first.sources!.find((row) => row.id === "synthetic-puf:2026:QA")
+              ?.published,
+          ).toBeNull();
+        fail = false;
+        const next = await readStatus(session, settings(), sourceRead);
+        expect(
+          next.sources!.find((row) => row.id === "synthetic-puf:2026:QA")
+            ?.published,
+        ).toBe("2026-10-31");
+      }
+    });
+  });
+
+  it("shares concurrent source reads and retries a failed shared session on the caller", async () => {
+    await withRollups(async () => {
+      const sourceRead = sourceDateMemo();
+      let parents = 0;
+      const session: SqlSession = {
+        ...db,
+        query: (sql, values) => {
+          if (sql.includes("FROM snapshot WHERE")) parents++;
+          return db.query(sql, values);
+        },
+      };
+      const [a, b] = await Promise.all([
+        sourceRead(session),
+        sourceRead(session),
+      ]);
+      expect(parents).toBe(1);
+      a.rows[0]!.retrieved?.setUTCFullYear(1990);
+      expect(b.rows[0]!.retrieved).not.toEqual(a.rows[0]!.retrieved);
+      const retry = sourceDateMemo();
+      let reject!: (error: Error) => void;
+      let started!: () => void;
+      const blocked = new Promise<void>((done) => {
+        started = done;
+      });
+      const broken: SqlSession = {
+        ...db,
+        query: (sql, values) => {
+          if (sql.includes("FROM snapshot WHERE")) {
+            started();
+            return new Promise((_, fail) => {
+              reject = fail;
+            });
+          }
+          return db.query(sql, values);
+        },
+      };
+      const first = retry(broken).catch(() => null);
+      await blocked;
+      const second = retry(session);
+      // This session's generation query must finish before the first read rejects.
+      await db.query("SELECT 1");
+      reject(new Error("synthetic request deadline"));
+      expect(await first).toBeNull();
+      expect((await second).rows).toEqual(b.rows);
+    });
+  });
+
+  it("counts distinct community publications and requires a date on each", async () => {
+    await withRollups(async () => {
+      await db.exec(`INSERT INTO snapshot (snapshot_id, source_id, sha256, retrieved_at,
+          expected_children, fetched_children, validation_state, activated_at, publisher_updated_at)
+        VALUES ('synthetic-state-rates:2026:VT:publication-second.1',
+          'synthetic-state-rates:2026:VT:publication', '${sha(11)}', '${hoursAgo(4)}',
+          0, 0, 'ACTIVE', '${hoursAgo(4)}', '2026-10-31');
+        INSERT INTO state_community_rate (import_id, source_index, record_index,
+            publication_snapshot_id, plan_key, region, rate, raw_record) VALUES
+          ('synthetic-state-rates:2026:VT.1', 1, 0,
+            'synthetic-state-rates:2026:VT:publication-second.1', 'synthetic-plan', 'region-3', '{}', '{}'),
+          ('synthetic-state-rates:2026:VT.1', 1, 1,
+            'synthetic-state-rates:2026:VT:publication-second.1', 'synthetic-plan', 'region-4', '{}', '{}');
+        UPDATE snapshot SET expected_children = 2, fetched_children = 2
+          WHERE snapshot_id = 'synthetic-state-rates:2026:VT.1';
+        UPDATE state_rate_import SET record_count = 4
+          WHERE import_id = 'synthetic-state-rates:2026:VT.1'`);
+      const datedStatus = await readStatus(db, settings());
+      expect(
+        datedStatus.sources!.find(
+          (s) => s.id === "synthetic-state-rates:2026:VT",
+        ),
+      ).toMatchObject({
+        published: "2026-10-31",
+        publishedFrom: "latest_of_files",
+        publishedFiles: 2,
+      });
+      await db.exec(`UPDATE snapshot SET publisher_updated_at = NULL
+        WHERE snapshot_id = 'synthetic-state-rates:2026:VT:publication-second.1'`);
+      const partialStatus = await readStatus(db, settings());
+      const parent = partialStatus.sources!.find(
+        (s) => s.id === "synthetic-state-rates:2026:VT",
+      )!;
+      expect(parent).toMatchObject({ published: null, publishedFrom: null });
+      expect(parent).not.toHaveProperty("publishedFiles");
+    });
+  });
+
+  it("preserves a parent's own release or header date even with undated children", async () => {
+    await withRollups(async () => {
+      await db.exec(`UPDATE snapshot SET publisher_updated_at = '2026-01-02'
+        WHERE snapshot_id = 'synthetic-puf:2026:QB.1';
+        UPDATE snapshot SET last_modified = 'Wed, 01 Jul 2026 12:00:00 GMT'
+        WHERE snapshot_id = 'synthetic-state-rates:2026:VT.1'`);
+      const view = publicView(await readStatus(db, settings()));
+      expect(
+        view.sources!.find((s) => s.id === "synthetic-puf:2026:QB"),
+      ).toMatchObject({
+        published_at: "2026-01-02",
+        published_from: "release_date",
+      });
+      expect(
+        view.sources!.find((s) => s.id === "synthetic-state-rates:2026:VT"),
+      ).toMatchObject({
+        published_at: "2026-07-01",
+        published_from: "last_modified",
+      });
+      expect(view.sources!.filter((s) => "published_files" in s)).toHaveLength(
+        1,
+      );
+    });
+  });
+
+  it("keeps known dates and other status fields when the child query fails", async () => {
+    await withRollups(async () => {
+      let failed = false;
+      const session: SqlSession = {
+        ...db,
+        query: (sql, parameters) => {
+          if (sql.includes("WITH edge AS")) {
+            failed = true;
+            throw new Error("synthetic child read failure");
+          }
+          return db.query(sql, parameters);
+        },
+      };
+      const status = await readStatus(session, settings());
+      expect(failed).toBe(true);
+      expect(status.db).toBe("ok");
+      expect(status.sources).not.toBeNull();
+      for (const id of [
+        "synthetic-puf:2026:QA",
+        "synthetic-state-rates:2026:VT",
+      ])
+        expect(status.sources!.find((s) => s.id === id)).toMatchObject({
+          published: null,
+          publishedFrom: null,
+        });
+      expect(
+        status.sources!.find((s) => s.id === "synthetic-fresh"),
+      ).toMatchObject({
+        published: "2026-10-30",
+        publishedFrom: "last_modified",
+      });
+    });
+  });
+
+  it("a recorded edge with a missing snapshot blocks the date in real SQL", async () => {
+    await withRollups(async () => {
+      let checked = false;
+      const session: SqlSession = {
+        ...db,
+        query: (sql, parameters) => {
+          if (sql.includes("WITH edge AS")) {
+            checked = true;
+            // Inject an orphaned edge into the query result without weakening foreign keys.
+            sql = sql.replace(
+              "FROM edge LEFT JOIN",
+              `FROM (SELECT * FROM edge UNION
+              SELECT 'synthetic-puf:2026:QA.1', 'synthetic-missing') edge LEFT JOIN`,
+            );
+            expect(sql).toContain("synthetic-missing");
+          }
+          return db.query(sql, parameters);
+        },
+      };
+      const status = await readStatus(session, settings());
+      expect(checked).toBe(true);
+      expect(
+        status.sources!.find((s) => s.id === "synthetic-puf:2026:QA"),
+      ).toMatchObject({
+        published: null,
+        publishedFrom: null,
+      });
+      expect(
+        status.sources!.find((s) => s.id === "synthetic-state-rates:2026:VT"),
+      ).toMatchObject({
+        published: "2026-08-15",
+        publishedFrom: "latest_of_files",
+        publishedFiles: 1,
+      });
+    });
+  });
+
+  it("pages real rollup dates and counts through the bounded MCP tool", async () => {
+    await withRollups(async () => {
+      const status = await readStatus(db, settings());
+      const result = await callStatus(status, {
+        section: "sources",
+        limit: 100,
+      });
+      expect(result.isError).toBeUndefined();
+      const output = getStatusSchema.parse(result.structuredContent);
+      expect(
+        output.details!.find(
+          (s) => "id" in s && s.id === "synthetic-puf:2026:QA",
+        ),
+      ).toMatchObject({
+        published_at: "2026-10-31",
+        published_from: "latest_of_files",
+        published_files: 3,
+      });
+      expect(answerBytes(output)).toBeLessThan(GET_STATUS_MAX_BYTES);
+    });
   });
 });

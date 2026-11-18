@@ -471,6 +471,8 @@ function envValue(name: string, value: string): unknown {
   return value;
 }
 
+const configEnvelope = z.object({ version: z.literal(1) }).passthrough();
+
 /** Load afresh so injected environments and later operator changes are never cached globally. */
 export function loadConfig(
   env: Environment = process.env,
@@ -494,10 +496,7 @@ export function loadConfig(
       throw new Error("OPENPLANS_CONFIG must contain valid JSON");
     }
   }
-  const envelope = z
-    .object({ version: z.literal(1) })
-    .passthrough()
-    .safeParse(input);
+  const envelope = configEnvelope.safeParse(input);
   if (input !== undefined && !envelope.success)
     throw new Error("OPENPLANS_CONFIG must have version 1");
   const settings: Record<string, unknown> = envelope.success

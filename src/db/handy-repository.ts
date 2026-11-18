@@ -38,6 +38,9 @@ export async function handyVersion(db: SqlSession) {
   };
 }
 
+const manifestCacheBytes = 64 * 1024;
+let lastManifest: { key: string; value: string } | undefined;
+
 function manifestFromRows(rows: SourceRevision[]) {
   const required = [
     "snapshot",
@@ -62,9 +65,14 @@ function manifestFromRows(rows: SourceRevision[]) {
   )
     throw new Error("Data generation unavailable");
   const config = loadConfig();
-  return digest(
-    canonical([HANDY_ALGORITHM, rows, config.ny, config.gaQuoteRecovery]),
-  );
+  const inputs = [HANDY_ALGORITHM, rows, config.ny, config.gaQuoteRecovery];
+  // Exact inputs, rather than generation alone, preserve checks across sessions and config edits.
+  const key = JSON.stringify(inputs);
+  if (lastManifest?.key === key) return lastManifest.value;
+  const value = digest(canonical(inputs));
+  lastManifest =
+    Buffer.byteLength(key) <= manifestCacheBytes ? { key, value } : undefined;
+  return value;
 }
 /** ZIPs resolve before this boundary. All adult ages above 64 share the filed 64+ cell. */
 export function countyLowestInput(input: LowestInput): LowestInput {
@@ -251,15 +259,19 @@ export async function readLowestGroup(
   input: LowestInput,
   manifest: string,
   evidence: LowestEvidence,
+  renewBeforeMs = 0,
 ) {
   const { rows } = await db.query<StoredLowest>(
     `SELECT b.request_key,b.payload,b.payload_sha256,b.request_json
     FROM handy_lowest_active a JOIN handy_lowest_build b USING(build_id)
-    WHERE b.evidence_id=$1 AND a.request_key=b.request_key AND ${readableLowest}`,
+    JOIN handy_lowest_evidence e USING(evidence_id)
+    WHERE b.evidence_id=$1 AND a.request_key=b.request_key AND ${readableLowest}
+      AND least(b.expires_at,b.expired_at,a.expired_at,e.expired_at)>now()+($4::double precision * interval '1 millisecond')`,
     [
       lowestEvidenceKey(input, manifest),
       manifest,
       LOWEST_PUBLICATION_ALGORITHM,
+      renewBeforeMs,
     ],
   );
   return new Map(
@@ -326,6 +338,34 @@ export async function publishLowestCells(
     (pg_total_relation_size('handy_lowest_build') + pg_total_relation_size('handy_lowest_active') + pg_total_relation_size('handy_lowest_evidence') + pg_total_relation_size('handy_lowest_usage'))::text AS bytes`);
   if (Number(actual.rows[0]?.bytes ?? 0) > 2 * 1024 ** 3)
     throw new Error("Lowest premium disk budget exceeded");
+}
+
+/** Stable county/year keys survive a source-generation change and interrupted publication. */
+export async function lowestRenewalGroups(
+  db: SqlSession,
+  after: string,
+  manifest: string,
+  renewBeforeMs: number,
+  limit: number,
+) {
+  const { rows } = await db.query<{ group_key: string; requests: string[] }>(
+    `SELECT (b.request_json::jsonb->>'year') || ':' || (b.request_json::jsonb->>'county') AS group_key,
+      jsonb_agg(b.request_json ORDER BY b.request_key) AS requests
+     FROM handy_lowest_active a JOIN handy_lowest_build b USING(build_id)
+     JOIN handy_lowest_evidence e USING(evidence_id)
+     WHERE b.request_json::jsonb->>'metal'='silver' AND b.request_json::jsonb->>'tobacco'='false'
+     GROUP BY group_key
+     HAVING (b.request_json::jsonb->>'year') || ':' || (b.request_json::jsonb->>'county') > $1
+       AND bool_or(least(b.expires_at,b.expired_at,a.expired_at,e.expired_at)<=now()+($3::double precision * interval '1 millisecond')
+         OR b.input_manifest<>$2 OR b.algorithm<>$4 OR NOT b.complete
+         OR b.expected_partitions<>b.written_partitions)
+     ORDER BY group_key LIMIT $5`,
+    [after, manifest, renewBeforeMs, LOWEST_PUBLICATION_ALGORITHM, limit],
+  );
+  return rows.map((row) => ({
+    key: row.group_key,
+    inputs: row.requests.map((request) => lowestInput(JSON.parse(request))),
+  }));
 }
 
 /** Registered cells are rebuilt as bounded county/year groups after an import. */

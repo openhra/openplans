@@ -611,7 +611,9 @@ describe("provider API: record scope, distance and source evidence", () => {
     ).toBe("unknown");
     await h.db
       .exec(`INSERT INTO qhp_index(qhp_index_id,discovery_id,issuer_id,plan_year,state,registry_snapshot_id,registry_row,status,discovered_at)
-      VALUES ('synthetic-denied','synthetic-denied','00010',2026,'TX','registry',1,'access_denied',clock_timestamp())`);
+      VALUES ('synthetic-denied','synthetic-denied','00010',2026,'TX','registry',1,'access_denied',
+        (SELECT max(discovered_at) + interval '1 second' FROM qhp_index
+         WHERE issuer_id='00010' AND plan_year=2026 AND state='TX'))`);
     expect(
       (
         await get<Participation>(

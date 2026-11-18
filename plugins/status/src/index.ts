@@ -6,7 +6,7 @@ import type {
 } from "@openplans/plugin-sdk";
 import { renderStatusHtml } from "./html.js";
 import { runHealthProbe } from "./probe.js";
-import { readStatus } from "./read.js";
+import { readStatus, sourceDateMemo } from "./read.js";
 import type { StatusHost } from "./read.js";
 import { applicationVersion } from "./version.js";
 import { getStatusInputSchema, getStatusSchema, getStatusView } from "./mcp.js";
@@ -36,6 +36,7 @@ export {
   publisherDate,
   readStatus,
   redactLocations,
+  rollupPublisherDate,
 } from "./read.js";
 export type {
   PluginEntry,
@@ -64,7 +65,7 @@ export {
 export type { OperatorStatus, PublicStatus } from "./views.js";
 
 export const PLUGIN_NAME = "@openplans/plugin-status";
-export const PLUGIN_VERSION = "0.1.7";
+export const PLUGIN_VERSION = "0.1.9";
 export const PUBLIC_TTL_SECONDS = 30;
 export const PROBE_ARGV = ["status-page", "health-probe"] as const;
 
@@ -96,13 +97,18 @@ export function createStatusPlugin(
       },
     },
     setup(ctx: PluginContext) {
+      const sourceRead = sourceDateMemo();
       const read = (db: SqlSession) =>
-        readStatus(db, {
-          config: ctx.config,
-          host,
-          plugin: ctx.plugin.name,
-          now: now(),
-        });
+        readStatus(
+          db,
+          {
+            config: ctx.config,
+            host,
+            plugin: ctx.plugin.name,
+            now: now(),
+          },
+          sourceRead,
+        );
       ctx.routes.add({
         method: "GET",
         path: "/status",

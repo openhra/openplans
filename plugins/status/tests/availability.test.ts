@@ -267,8 +267,8 @@ describe("status availability matches /v1/data-availability", () => {
     );
     const index = await plantMutant(
       indexFile,
-      'import { readStatus } from "./read.js";',
-      `import { readStatus } from ${JSON.stringify(read.path)};`,
+      'import { readStatus, sourceDateMemo } from "./read.js";',
+      `import { readStatus, sourceDateMemo } from ${JSON.stringify(read.path)};`,
     );
     try {
       const found = disagreements(await answers(index.path));
