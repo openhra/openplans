@@ -1,7 +1,8 @@
 import { existsSync } from "node:fs";
 import { availableParallelism } from "node:os";
 import { fileURLToPath } from "node:url";
-import { defineConfig, type Plugin } from "vitest/config";
+import { configDefaults, defineConfig, type Plugin } from "vitest/config";
+import TimedSequencer from "./scripts/test-sequencer.js";
 
 // scripts/source-mutation.mjs rewrites a planted mutant's relative imports to file URLs. Vitest 5
 // maps a relative `.js` import to the `.ts` source beside it, but not a `.js` file URL.
@@ -35,18 +36,46 @@ export function testWorkers(
   return Math.max(1, Math.min(3, Math.floor(cpus / 3)));
 }
 
+// These files rebuild the complete host module graph or scan an optional large SQLite cache.
+// Run them without sibling workers competing for CPU and I/O, keeping their original timeouts.
+export const isolatedOracles = [
+  "tests/plugins/passthrough-wiring.test.ts",
+  "tests/oracle/harness.test.mjs",
+];
+
 export default defineConfig({
   plugins: [fileUrlSources],
   test: {
-    include: [
-      "tests/**/*.{test,spec}.?(c|m)[jt]s?(x)",
-      "plugins/*/tests/**/*.test.ts",
-    ],
     setupFiles: ["tests/postgres.setup.ts", "tests/response-columns.setup.ts"],
     pool: "forks",
     maxWorkers: testWorkers(),
     // Vitest 5 clears mock calls before every test by default; keep them as earlier versions did.
     clearMocks: false,
+    sequence: { sequencer: TimedSequencer },
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: "parallel",
+          include: [
+            "tests/**/*.{test,spec}.?(c|m)[jt]s?(x)",
+            "plugins/*/tests/**/*.test.ts",
+          ],
+          exclude: [...configDefaults.exclude, ...isolatedOracles],
+          sequence: { groupOrder: 1 },
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: "isolated-oracles",
+          include: isolatedOracles,
+          maxWorkers: 1,
+          fileParallelism: false,
+          sequence: { groupOrder: 2 },
+        },
+      },
+    ],
     testTimeout: 20_000,
     hookTimeout: 30_000,
   },

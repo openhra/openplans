@@ -52,20 +52,22 @@ export const registerConfiguration: AdminPageRegistrar = (dependencies) => {
     handler: async (c) => {
       c.header("Cache-Control", "no-store");
       const form = proposalForm.safeParse(await c.req.parseBody());
-      if (!form.success) return c.json({ error: "invalid_proposal" }, 400);
+      if (!form.success)
+        return c.json({ error: { code: "invalid_proposal" } }, 400);
 
       const host = dependencies.operator;
-      if (!host) return c.json({ error: "configuration_unavailable" }, 503);
+      if (!host)
+        return c.json({ error: { code: "configuration_unavailable" } }, 503);
       const observedAt = dependencies.now().toISOString();
       const observation = await safeConfiguration(host, c, observedAt);
       if (observation.state !== "available")
-        return c.json({ error: observation.reason }, 503);
+        return c.json({ error: { code: observation.reason } }, 503);
 
       const current = observation.value.settings.find(
         (setting) => setting.key === "admin.instances",
       );
       if (!current || typeof current.displayValue !== "number")
-        return c.json({ error: "setting_unavailable" }, 503);
+        return c.json({ error: { code: "setting_unavailable" } }, 503);
 
       const value = Number(form.data.value);
       const proposal = {

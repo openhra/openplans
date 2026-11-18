@@ -116,7 +116,11 @@ export function createApp(
         { "Cache-Control": "no-store" },
       );
     return c.json(
-      { status: "ok", db: healthy ? "ok" : "down" },
+      {
+        status: "ok",
+        db: healthy ? "ok" : "down",
+        ...(healthy ? {} : { error: { code: "db_down" } }),
+      },
       healthy ? 200 : 503,
     );
   });
@@ -127,7 +131,11 @@ export function createApp(
   app.get("/readyz", async (c) => {
     const noStore = { "Cache-Control": "no-store" };
     if (!(await checkDatabase(db)))
-      return c.json({ status: "not_ready", reason: "db_down" }, 503, noStore);
+      return c.json(
+        { status: "not_ready", reason: "db_down", error: { code: "db_down" } },
+        503,
+        noStore,
+      );
     const schemaStatus = (await schema?.status()) ?? {
       state: "ready",
       pending: 0,
@@ -137,6 +145,7 @@ export function createApp(
         {
           status: "not_ready",
           reason: SCHEMA_NOT_READY,
+          error: { code: SCHEMA_NOT_READY },
           pending: schemaStatus.pending,
         },
         503,
@@ -144,7 +153,11 @@ export function createApp(
       );
     if (schemaStatus.state === "unknown")
       return c.json(
-        { status: "not_ready", reason: "schema_unknown" },
+        {
+          status: "not_ready",
+          reason: "schema_unknown",
+          error: { code: "schema_unknown" },
+        },
         503,
         noStore,
       );
@@ -173,7 +186,7 @@ export function createApp(
     } catch (error) {
       if (error instanceof InputError)
         return c.json({ error: { code: error.code, field: error.field } }, 400);
-      return c.json({ error: "data_availability_unavailable" }, 503);
+      return c.json({ error: { code: "data_availability_unavailable" } }, 503);
     }
   });
 
@@ -185,10 +198,12 @@ export function createApp(
   app.route("/", compatRoutes(db, options));
   plugins?.mount(app);
 
+  app.notFound((c) => c.json({ error: { code: "NOT_FOUND" } }, 404));
+
   app.onError((error, c) => {
     if (isQueryTimeout(error)) return queryTimeoutResponse(c);
     logInternalError(error);
-    return c.json({ error: "internal_error" }, 500);
+    return c.json({ error: { code: "INTERNAL_ERROR" } }, 500);
   });
   if (telemetry) {
     for (const route of app.routes) {

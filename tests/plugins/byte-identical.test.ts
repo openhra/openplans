@@ -385,7 +385,7 @@ it("covers every mounted route and MCP tool with unique, traceable requests", as
         expect(denied.status).toBe(404);
         expect(denied.headers.get("cache-control")).toBe("no-store");
         expect(denied.headers.get("x-cache")).toBe("bypass");
-        expect(await denied.text()).toBe("404 Not Found");
+        expect(await denied.json()).toEqual({ error: { code: "NOT_FOUND" } });
       }
       continue;
     }

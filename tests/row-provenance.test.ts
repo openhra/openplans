@@ -47,6 +47,10 @@ async function migrations(
     await rm(join(core.directory, "1008_provider_search_key_a_cell.sql"));
     await rm(join(core.directory, "1009_provider_search_key_b_cell.sql"));
     await rm(join(core.directory, "995_handy_lowest.sql"));
+    await rm(join(core.directory, "20261117210614_lowest_county_evidence.sql"));
+    await rm(
+      join(core.directory, "20261118000213_lowest_active_build_index.sql"),
+    );
     const retained = new Set(await readdir(core.directory));
     await writeFile(
       join(core.directory, "INDEX"),
@@ -322,6 +326,8 @@ describe("row provenance values", () => {
       "1007_provider_search_keys.sql",
       "1008_provider_search_key_a_cell.sql",
       "1009_provider_search_key_b_cell.sql",
+      "20261117210614_lowest_county_evidence.sql",
+      "20261118000213_lowest_active_build_index.sql",
     ]);
     expect(await receiptViolations(db)).toEqual([]);
     const { rows } = await db.query(

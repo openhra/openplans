@@ -128,6 +128,7 @@ export async function benchmark(
   request: Request,
   location: Location,
   reads: RequestReads = requestReads(db),
+  premiums?: ReadonlyMap<string, Awaited<ReturnType<typeof ratePremium>>>,
 ) {
   const empty = {
     ...QUOTE_METADATA,
@@ -228,14 +229,16 @@ export async function benchmark(
         status: "incomplete_benchmark",
         issues: [`${plan.base_plan_id}: coverage_family_eligibility_unknown`],
       };
-    const rated = await ratePremium(
-      db,
-      plan,
-      plan.base_plan_id,
-      { ...request, members: [...household.members] },
-      location,
-      reads,
-    );
+    const rated =
+      premiums?.get(plan.base_plan_id) ??
+      (await ratePremium(
+        db,
+        plan,
+        plan.base_plan_id,
+        { ...request, members: [...household.members] },
+        location,
+        reads,
+      ));
     const premium = rated.householdPremium;
     if (!premium || premium.status !== "rated")
       return {

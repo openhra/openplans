@@ -1,3 +1,4 @@
+import { setImmediate } from "node:timers/promises";
 import { dentalBusinessRows, premiumAttributeRows } from "../api/repository.js";
 import { communityFamilyPremium } from "../domain/rating/index.js";
 import { medicalTobaccoPolicy } from "../domain/rating/medical-policy.js";
@@ -103,6 +104,8 @@ export async function ratePremium(
   // the catalog once, not once per plan.
   reads: RequestReads = requestReads(db),
 ) {
+  // Cached reads resolve as microtasks; let sockets run between plan ratings.
+  await setImmediate();
   // State dispatch precedes all federal policy/PUF reads, including mislabelled catalogs.
   if (plan.state === "NY" || plan.state === "VT")
     return statePremium(db, plan, requestedId, request, location);
@@ -174,11 +177,7 @@ export async function ratePremium(
   if (resolution.status !== "available")
     return failure(resolution.status, "UNRESOLVED_RATING_AREA");
   const area = resolution.areas[0]!;
-  const { rows } = await reads.rateRows(
-    files.rate,
-    plan.base_plan_id,
-    area.rating_area_id,
-  );
+  await reads.rateRows(files.rate, plan.base_plan_id, area.rating_area_id);
   const household = {
     members: request.members,
     coverageStartDate: request.coverage,
@@ -229,9 +228,15 @@ export async function ratePremium(
       );
     }
   }
+  const parsed = await reads.parsedRateRows(
+    files.rate,
+    plan.base_plan_id,
+    area.rating_area_id,
+    storedRate,
+  );
   const result = plan.dental_only
     ? dentalPremium(
-        rows.map(storedRate),
+        parsed,
         plan.base_plan_id,
         area.rating_area_id,
         household,
@@ -239,7 +244,7 @@ export async function ratePremium(
         business,
       )
     : householdPremium(
-        rows.map(storedRate),
+        parsed,
         plan.base_plan_id,
         area.rating_area_id,
         household,

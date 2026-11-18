@@ -85,8 +85,12 @@ function app(writable?: () => boolean) {
         } catch (error) {
           return c.json(
             {
-              error:
-                error instanceof OperatorCommandRefused ? error.code : "failed",
+              error: {
+                code:
+                  error instanceof OperatorCommandRefused
+                    ? error.code
+                    : "failed",
+              },
             },
             409,
           );
@@ -174,7 +178,7 @@ it("defaults to read-only even with a signed session and registered handler", as
     { csrf: csrf(await page.text()) },
   );
   expect(await response.json()).toEqual({
-    error: "operator_command_read_only",
+    error: { code: "operator_command_read_only" },
   });
   expect(await unchanged(db)).toEqual(before);
 });

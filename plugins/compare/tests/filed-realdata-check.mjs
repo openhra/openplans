@@ -3,12 +3,9 @@ import { appendFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { mkdir } from "node:fs/promises";
 import { dataDirectory } from "../../../dist/config/access.js";
-import {
-  enumerateHouseholdOffers,
-  enumerateSilverOffers,
-} from "../../../dist/services/offer-cohort.js";
+import { enumerateHouseholdOffers } from "../../../dist/services/offer-cohort.js";
 import { lowestInput } from "../../../dist/api/handy.js";
-import { handyManifest } from "../../../dist/db/handy-repository.js";
+import { householdDistributions } from "../../../dist/services/handy.js";
 import { checkHandyFiled as checkMinimum } from "../../../scripts/oracle/handy-filed.mjs";
 import { countyPlans, resolveLocation } from "../../../dist/api/repository.js";
 import { premiumRequest } from "../../../dist/api/validation.js";
@@ -31,15 +28,19 @@ export async function checkHandyFiled(db, county, expected) {
     assert.equal(cell.status, "calculated");
     assert.equal(cell.statistics.lowest_cents, expected.lcsp.monthly_cents);
     assert.equal(cell.denominator.rated_count, expected.lcsp.silver_plan_count);
-    const scan = await enumerateSilverOffers(
+    const scan = await householdDistributions(
       db,
-      input,
-      await handyManifest(db),
-      { unknown: [], consumeOffer() {} },
+      {
+        county,
+        year: 2026,
+        members: [{ age, tobacco: false, relationship: "subscriber" }],
+      },
+      { enabled: true, metals: ["silver"] },
     );
     const plans = await countyPlans(db, county, 2026);
     const location = await resolveLocation(db, input);
-    for (const offer of scan.provenance.candidates) {
+    for (const offer of scan.profiles[0].metals[0].candidates) {
+      const rating = scan.provenance.evidence[offer.evidence_ref].rating;
       const plan = plans.find((row) => row.base_plan_id === offer.plan_id);
       assert(plan);
       const identity = offer.plan_id.includes(":")
@@ -60,13 +61,10 @@ export async function checkHandyFiled(db, county, expected) {
       );
       assert.equal(estimate.status, "rated");
       assert.equal(estimate.total_cents, offer.monthly_cents);
-      assert.deepEqual(offer.members, estimate.members);
+      assert.deepEqual(rating.members, estimate.members);
       assert.equal(offer.status, estimate.status);
-      assert.deepEqual(estimate.rate_rows_used, offer.rate_rows_used);
-      assert.deepEqual(
-        estimate.provenance,
-        scan.provenance.evidence[offer.evidence_ref],
-      );
+      assert.deepEqual(estimate.rate_rows_used, rating.rate_rows_used);
+      assert.deepEqual(estimate.provenance, rating.provenance);
     }
     cases.push({
       age,

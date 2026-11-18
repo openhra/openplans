@@ -1,6 +1,6 @@
 # Individual offer distribution
 
-`@openplans/plugin-compare` 0.1.4 shows gross monthly premiums across individual medical plans for one exact age or an explicitly aged household. The package is opt-in; library defaults do not load it. This preparation does not enable a public deployment.
+`@openplans/plugin-compare` 0.1.6 shows gross monthly premiums across individual medical plans for one exact age or an explicitly aged household. The package is opt-in; library defaults do not load it. This preparation does not enable a public deployment.
 
 ## Public configuration
 
@@ -68,7 +68,9 @@ The printed appendix identifies its evidence page and any remaining pages. It pr
 
 Public quoting must be enabled. All three routes declare 30 requests per minute, two active requests per source and four total. MCP uses the host transport's admission, cancellation and 64 KiB output limit; an oversized answer refuses rather than dropping required evidence. Responses use `Cache-Control: no-store`, calculations use the request's read-only database and abort signal, and inputs are not retained.
 
-`CalculationHost.enumerateHouseholdOffers` reuses core offer enumeration and rating. It grants no database pool, outbound fallback or persistence. No new calculation framework or census engine is added by this plugin.
+`CalculationHost.enumerateHouseholdOffers` uses the core household enumerator for both inputs. An age becomes a one-member household. Counts, statistics and evidence pages follow the same path, and only the requested metal is rated. Candidate source records contain the catalog decision and household rating; member rate-row references index that record's `rate_rows_used` table. The host grants no database pool, outbound fallback or persistence.
+
+The same household enumerator supplies [stipend distributions](../handy/README.md). Its gross lowest Silver amount is a funding input. The adjusted second-lowest Silver benchmark applies EHB and pediatric dental rules before ranking and remains a separate amount. Check shared household prices and unknown evidence once, then check each plugin's route admission, source links, output bounds and print agreement.
 
 The offline suite covers the public route inventory, actual MCP calls, household eligibility, exact statistics, missing prices, stale evidence pins, browser forms and print output. `tests/fixtures/plugins/response-digests-compare-on.json` records only the enabled surface, separately from frozen disabled-state recordings. Its synthetic request identities and fixed clocks wrap the existing public-source fixture cuts. To intentionally record this fixture after an approved enabled-contract change, run `OPENPLANS_RECORD_COMPARE_DIGESTS=1 npm test -- plugins/compare/tests/public-launch.test.ts` after building. Never use that command to update disabled-state fixtures.
 

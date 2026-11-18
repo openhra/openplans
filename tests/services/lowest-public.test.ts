@@ -1,3 +1,4 @@
+import { buildLowestPremiums } from "../../src/worker/handy-build.js";
 import type { SqlSession } from "../../src/db/database.js";
 import { createResponseCache } from "../../src/api/cache/index.js";
 import { MemoryCache } from "../../src/api/cache/store.js";
@@ -64,6 +65,7 @@ beforeAll(async () => {
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(new Date(FIXED_TIME));
   h = await setup({ fixedTime: FIXED_TIME });
+  await buildLowestPremiums(h.db, lowestInput(input));
 });
 afterAll(async () => {
   await h?.close();
@@ -87,6 +89,9 @@ it("records the enabled public contracts separately from off-state digests", asy
     expect(get.status).toBe(200);
     const body = await get.text();
     if (path === "lowest-premiums") {
+      expect(JSON.parse(body)).toEqual(
+        await lowestPremiums(h.db, input, { slow: true }),
+      );
       const answer = JSON.parse(body) as {
         status: string;
         provenance: { snapshots: { retrieved_at: string }[] };

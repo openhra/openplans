@@ -222,11 +222,16 @@ try {
     const input = lowestInput({ ...scope, age: 40 });
     await buildLowestPremiums(db, input);
     const fast = await lowestPremiums(db, input),
+      countySlow = await lowestPremiums(
+        db,
+        lowestInput({ county: scope.county, year: scope.year, age: 40 }),
+        { slow: true },
+      ),
       slow = await lowestPremiums(db, input, { slow: true });
     assert.deepEqual(
       fast,
-      slow,
-      "Derived and complete enumeration answers differ",
+      { ...countySlow, location: fast.location },
+      "Published county and complete county enumeration answers differ",
     );
     if (scope.county === "48201") {
       const files = (
@@ -291,10 +296,10 @@ try {
         { timeout: 120000 },
       );
       const raw = JSON.parse(await readFile(output, "utf8")).cases[0];
-      assert.equal(fast.status, raw.bases.gross.status);
-      assert.equal(fast.lowest.monthly_cents, raw.bases.gross.monthly_cents);
-      assert.deepEqual(fast.ties, raw.bases.gross.plan_ids);
-      assert.equal(fast.candidate_count, raw.silver_plan_count);
+      assert.equal(slow.status, raw.bases.gross.status);
+      assert.equal(slow.lowest.monthly_cents, raw.bases.gross.monthly_cents);
+      assert.deepEqual(slow.ties, raw.bases.gross.plan_ids);
+      assert.equal(slow.candidate_count, raw.silver_plan_count);
       report.correctness.push({
         scope,
         raw_file_checksums: files,
@@ -362,7 +367,8 @@ try {
   }
   const scope = cases[0],
     input = lowestInput({ ...scope, age: 40 });
-  const winner = (await lowestPremiums(db, input)).lowest.plan_id;
+  const winner = (await lowestPremiums(db, input, { slow: true })).lowest
+    .plan_id;
   assert(winner);
   const rollback = new Error("synthetic missing-rate rollback");
   await assert.rejects(
@@ -446,9 +452,10 @@ try {
     for (let i = 0; i < inputs.length; i++) await httpMinimum(i);
     await timing("warm HTTP minimum in-process", httpMinimum, 25);
     report.http_minimum_cache = responseCacheFor(measured).stats();
-    assert(
-      report.http_minimum_cache.hits >= samples,
-      "HTTP workload must hit the warm cache",
+    assert.equal(
+      report.http_minimum_cache.hits,
+      0,
+      "HTTP minimums must check publication expiry on every request",
     );
     await timing(
       "health baseline",

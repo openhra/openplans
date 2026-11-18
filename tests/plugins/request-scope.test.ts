@@ -159,7 +159,17 @@ describe("scope establishment rules", () => {
       const calls = text.match(/\brunWithScope\(/g)?.length ?? 0;
       if (calls && name !== "src/plugins/request-scope.ts")
         opened[name] = calls;
-      if (/\bAsyncLocalStorage\b/.test(text)) storage.push(name);
+      if (
+        name === "src/services/calculation-executor.ts" ||
+        name === "src/services/calculation-queue.ts"
+      ) {
+        // These files preserve a caller's scope; they cannot establish another store.
+        const snapshots = text.match(/\bAsyncLocalStorage\.snapshot\b/g) ?? [];
+        expect(snapshots).toHaveLength(name.endsWith("executor.ts") ? 2 : 1);
+        expect(text.match(/\bAsyncLocalStorage\b/g)).toHaveLength(
+          snapshots.length + 1,
+        );
+      } else if (/\bAsyncLocalStorage\b/.test(text)) storage.push(name);
     }
     // Middleware, catalog() and typed single-age cells in the cache; handler.fetch in MCP HTTP.
     expect(opened).toEqual({

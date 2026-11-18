@@ -17,7 +17,6 @@ type Host = {
   householdDistributions: NonNullable<
     CalculationHost["householdDistributions"]
   >;
-  slcsp: NonNullable<CalculationHost["slcsp"]>;
 };
 const PUBLIC_LIMITS = { perMinute: 30, activePerSource: 2, activeTotal: 4 };
 const optionsSchema = z
@@ -49,7 +48,7 @@ const answerForPreset = (
 const plugin: OpenPlansPlugin = {
   manifest: {
     name: "@openplans/plugin-handy",
-    version: "0.1.3",
+    version: "0.1.4",
     apiVersion: "0.1",
     kinds: ["routes", "mcpTools"],
     capabilities: { operatorRoutes: true },
@@ -59,14 +58,12 @@ const plugin: OpenPlansPlugin = {
     if (!ctx.config.public.quoting) return;
     const { publicOnly } = optionsSchema.parse(ctx.options);
     const candidate = ctx.calculationHost;
-    const host =
-      candidate?.householdDistributions && candidate.slcsp
-        ? {
-            householdDistributions:
-              candidate.householdDistributions.bind(candidate),
-            slcsp: candidate.slcsp.bind(candidate),
-          }
-        : undefined;
+    const host = candidate?.householdDistributions
+      ? {
+          householdDistributions:
+            candidate.householdDistributions.bind(candidate),
+        }
+      : undefined;
     for (const mode of ["print", "manifest"] as const) {
       ctx.routes.add({
         method: "GET",
@@ -77,8 +74,10 @@ const plugin: OpenPlansPlugin = {
         handler: async (c) => {
           c.header("Cache-Control", "no-store");
           const parsed = presetQuery.safeParse(c.req.query());
-          if (!parsed.success) return c.json({ error: "INVALID_INPUT" }, 400);
-          if (!host) return c.json({ error: "CALCULATION_UNKNOWN" }, 503);
+          if (!parsed.success)
+            return c.json({ error: { code: "INVALID_INPUT" } }, 400);
+          if (!host)
+            return c.json({ error: { code: "CALCULATION_UNKNOWN" } }, 503);
           try {
             const answer = await answerForPreset(
               host,
@@ -89,7 +88,7 @@ const plugin: OpenPlansPlugin = {
               parsed.data.data_generation &&
               parsed.data.data_generation !== answer.data_generation
             )
-              return c.json({ error: "DATA_CHANGED" }, 409);
+              return c.json({ error: { code: "DATA_CHANGED" } }, 409);
             if (mode === "manifest") {
               c.header(
                 "Content-Disposition",
@@ -120,8 +119,8 @@ const plugin: OpenPlansPlugin = {
             );
           } catch (error) {
             if (error instanceof Error && error.message === "DATA_CHANGED")
-              return c.json({ error: "DATA_CHANGED" }, 409);
-            return c.json({ error: "CALCULATION_UNKNOWN" }, 503, {
+              return c.json({ error: { code: "DATA_CHANGED" } }, 409);
+            return c.json({ error: { code: "CALCULATION_UNKNOWN" } }, 503, {
               "Cache-Control": "no-store",
             });
           }
@@ -139,10 +138,11 @@ const plugin: OpenPlansPlugin = {
         try {
           value = await c.req.json();
         } catch {
-          return c.json({ error: "INVALID_INPUT" }, 400);
+          return c.json({ error: { code: "INVALID_INPUT" } }, 400);
         }
         const parsed = presetInput.safeParse(value);
-        if (!parsed.success) return c.json({ error: "INVALID_INPUT" }, 400);
+        if (!parsed.success)
+          return c.json({ error: { code: "INVALID_INPUT" } }, 400);
         try {
           if (!host) throw new Error("calculation_host_required");
           const result = await allowanceScenario(
@@ -155,7 +155,7 @@ const plugin: OpenPlansPlugin = {
             "Cache-Control": "no-store",
           });
         } catch {
-          return c.json({ error: "CALCULATION_UNKNOWN" }, 503, {
+          return c.json({ error: { code: "CALCULATION_UNKNOWN" } }, 503, {
             "Cache-Control": "no-store",
           });
         }
@@ -173,7 +173,7 @@ const plugin: OpenPlansPlugin = {
           try {
             value = await c.req.json();
           } catch {
-            return c.json({ error: "INVALID_INPUT" }, 400);
+            return c.json({ error: { code: "INVALID_INPUT" } }, 400);
           }
           const parsed = privateInput.safeParse(value);
           if (
@@ -181,7 +181,7 @@ const plugin: OpenPlansPlugin = {
             parsed.data.members.map((m) => m.relationship).join(",") !==
               "subscriber,spouse,child,child"
           )
-            return c.json({ error: "INVALID_INPUT" }, 400);
+            return c.json({ error: { code: "INVALID_INPUT" } }, 400);
           try {
             if (!host) throw new Error("calculation_host_required");
             const result = await allowanceScenario(
@@ -194,7 +194,7 @@ const plugin: OpenPlansPlugin = {
               "Cache-Control": "no-store",
             });
           } catch {
-            return c.json({ error: "CALCULATION_UNKNOWN" }, 503, {
+            return c.json({ error: { code: "CALCULATION_UNKNOWN" } }, 503, {
               "Cache-Control": "no-store",
             });
           }

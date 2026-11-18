@@ -14,7 +14,7 @@ const PUBLIC_LIMITS = { perMinute: 30, activePerSource: 2, activeTotal: 4 };
 const plugin: OpenPlansPlugin = {
   manifest: {
     name: PLUGIN_NAME,
-    version: "0.1.5",
+    version: "0.1.6",
     apiVersion: "0.1",
     kinds: ["routes", "mcpTools"],
     capabilities: { operatorRoutes: true },

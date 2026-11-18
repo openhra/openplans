@@ -286,12 +286,29 @@ it("refuses a dropped evidence record or source pin and an unbounded evidence mu
 it("keeps REST, manifest and complete MCP frames bounded, with generation-pinned next links", async () => {
   const raw = dense();
   const host = {
-    householdDistributions: async () => raw,
-    slcsp: async () => ({
-      status: "calculated",
-      data_generation: raw.data_generation,
-      slcsp_monthly_cents: 12000,
-      source_refs: [{ snapshot_id: "synthetic-rates", source_row: 8 }],
+    householdDistributions: async () => ({
+      ...raw,
+      provenance: {
+        ...raw.provenance,
+        evidence: [
+          ...raw.provenance.evidence,
+          ...raw.profiles.map(() => ({
+            source_refs: [{ snapshot_id: "synthetic-rates", source_row: 8 }],
+          })),
+        ],
+      },
+      benchmarks: raw.profiles.map((profile, index) => ({
+        profile_id: profile.id,
+        result: {
+          status: "calculated",
+          data_generation: raw.data_generation,
+          slcsp_monthly_cents: 12000,
+        },
+        evidence_range: {
+          start: raw.provenance.evidence.length + index,
+          count: 1,
+        },
+      })),
     }),
   } as never;
   const answer = await allowanceScenario(

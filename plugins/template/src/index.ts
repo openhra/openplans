@@ -50,7 +50,8 @@ const plugin: OpenPlansPlugin = {
       cache: { ttlSeconds: 60 },
       handler: (c) => {
         const name = nameSchema.safeParse(c.req.query("name"));
-        if (!name.success) return c.json({ error: "invalid_name" }, 400);
+        if (!name.success)
+          return c.json({ error: { code: "invalid_name" } }, 400);
         return c.json(greet(greeting, name.data));
       },
     });

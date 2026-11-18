@@ -24,7 +24,12 @@ then runs formatting and lint checks, tooling negative controls, typechecking,
 publisher-review freshness, extraction boundaries and fixture tests. Vitest runs
 test files in parallel on a third of the CPUs, at most 3 workers, and one at a time
 on a machine with fewer than 6 CPUs. Set `OPENPLANS_TEST_WORKERS=<n>` to choose the
-count. The optional neutrality audit skips when no external
+count. The pass-through wiring checks and optional SQLite harness run after the parallel
+files, in a separate group with one worker. Their cold module imports and cache reads
+then have no sibling test workers competing for CPU or I/O. The checks keep the same
+assertions and timeouts.
+
+The optional neutrality audit skips when no external
 policy is supplied. That skip does not approve publication. Public CI does not
 run real-data checks or deploy anything.
 
@@ -60,10 +65,10 @@ full run:
 
 To see why a `main` run skipped its checks, open its same-commit job summary.
 
-The macOS checks are advisory. `OpenPlans / macOS shard <n>` and the `OpenPlans / macOS` summary
-run on every full run and report, but both carry `continue-on-error`, so a failed or cancelled
-macOS runner never blocks the run, the same-commit proof or a release; the product ships as a
-Linux image. Read the summary when you change platform-specific code.
+The macOS checks are advisory when GitHub cancels or skips them. The required job reads the
+`OpenPlans / macOS` summary and records that outcome. A failed macOS test still fails the
+required job. The same-commit proof requires Linux, Docker, PostGIS and the required summary.
+Read the macOS summary when you change platform-specific code.
 
 The macOS checks run on macOS 15 on Intel x64 as three `OpenPlans / macOS shard <n>` jobs on
 separate runners. Those runners take about twice as long as Linux for the same tests, and with
@@ -71,11 +76,29 @@ separate runners. Those runners take about twice as long as Linux for the same t
 `OPENPLANS_CI_SHARD=<n>/<count>`, and `scripts/ci.sh` then builds everything and runs that
 slice of the test files with `vitest --shard`. Shard 1 also runs the formatting, lint,
 typecheck, publisher-review and extraction checks. Vitest assigns every test file to exactly
-one slice, so the shards together run the whole suite. To run one slice locally:
+one slice, so the shards together run the whole suite. A checked-in timing file,
+`scripts/test-timings.json`, gives each file its median wall time from three full JSON
+reporter runs. The sequencer assigns each file, longest first, to the lightest shard. Ties use the
+file path, then the shard index. New files use the median known duration and still
+run once. Each runner reads the same committed timing file. Local Vitest caches
+do not change shard membership.
+To run one slice locally:
 
 ```sh
 OPENPLANS_CI_SHARD=2/3 scripts/ci.sh
 ```
+
+Omit `OPENPLANS_CI_SHARD` for a single-command full run. Collect fresh timings from
+three unsharded runs on the same source and with the same worker count:
+
+```sh
+npx vitest run --reporter=default --reporter=json --outputFile.json=/tmp/tests-1.json
+npx vitest run --reporter=default --reporter=json --outputFile.json=/tmp/tests-2.json
+npx vitest run --reporter=default --reporter=json --outputFile.json=/tmp/tests-3.json
+node scripts/test-timings.mjs scripts/test-timings.json /tmp/tests-{1,2,3}.json
+```
+
+Commit the resulting timing file. It stores durations under relative test paths.
 
 The final job rejects missing, canceled and failed prerequisites, and skipped ones unless
 a passing run of the same commit exists (see above). Required jobs have no path filters,

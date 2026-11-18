@@ -76,6 +76,7 @@ export const registerInspect: AdminPageRegistrar = (dependencies) => {
           {
             state: "unavailable",
             reason: "not_supported",
+            error: { code: "not_supported" },
             observedAt: dependencies.now().toISOString(),
           },
           503,
@@ -88,7 +89,7 @@ export const registerInspect: AdminPageRegistrar = (dependencies) => {
       if (isForm) {
         const raw = await boundedText(c);
         if (raw === null)
-          return c.json({ error: "INSPECT_BODY_TOO_LARGE" }, 413);
+          return c.json({ error: { code: "INSPECT_BODY_TOO_LARGE" } }, 413);
         const form = new URLSearchParams(raw);
         body = {
           field: "custom_payment_allowed",
@@ -105,12 +106,12 @@ export const registerInspect: AdminPageRegistrar = (dependencies) => {
       }
       if (body && typeof body === "object" && "error" in body)
         return c.json(
-          { error: body.error },
+          { error: { code: body.error } },
           body.error === "INSPECT_BODY_TOO_LARGE" ? 413 : 400,
         );
       const input = inspectInputSchema.safeParse(body);
       if (!input.success)
-        return c.json({ error: "INSPECT_INVALID_INPUT" }, 400);
+        return c.json({ error: { code: "INSPECT_INVALID_INPUT" } }, 400);
       try {
         const observation = await inspectAnnotation(
           dependencies.operator.msot,
@@ -125,6 +126,7 @@ export const registerInspect: AdminPageRegistrar = (dependencies) => {
             {
               state: "unavailable",
               reason: "read_failed",
+              error: { code: "read_failed" },
               observedAt: dependencies.now().toISOString(),
             },
             503,
@@ -132,7 +134,9 @@ export const registerInspect: AdminPageRegistrar = (dependencies) => {
         if (isForm && observation.state === "available")
           return c.html(renderInspection(observation.value), 200);
         return c.json(
-          observation,
+          observation.state === "available"
+            ? observation
+            : { ...observation, error: { code: observation.reason } },
           observation.state === "available" ? 200 : 503,
         );
       } catch {
@@ -140,6 +144,7 @@ export const registerInspect: AdminPageRegistrar = (dependencies) => {
           {
             state: "unavailable",
             reason: "read_failed",
+            error: { code: "read_failed" },
             observedAt: dependencies.now().toISOString(),
           },
           503,

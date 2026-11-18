@@ -184,7 +184,7 @@ export function pluginRoutes(
       JSON.stringify({ event: "plugin_response_rejected", path, reason }),
     );
     noStore(c);
-    return c.json({ error: "plugin_response_rejected" }, 500);
+    return c.json({ error: { code: "plugin_response_rejected" } }, 500);
   }
 
   function handler(spec: RouteSpec) {
@@ -196,7 +196,7 @@ export function pluginRoutes(
         AbortSignal.timeout(deadlineMs);
       const signal = AbortSignal.any([deadline, c.req.raw.signal]);
       if (signal.aborted)
-        return c.json({ error: "plugin_deadline_exceeded" }, 503);
+        return c.json({ error: { code: "plugin_deadline_exceeded" } }, 503);
       c.set("pluginSignal", signal);
       const reader = boundedDatabase(options.db, signal, { readOnly: true });
       c.set("pluginDb", reader);
@@ -251,7 +251,15 @@ export function pluginRoutes(
       } catch (error) {
         if (!signal.aborted) throw error;
         noStore(c);
-        return c.json({ error: "plugin_deadline_exceeded" }, 503);
+        return c.json({ error: { code: "plugin_deadline_exceeded" } }, 503);
+      }
+      if (
+        spec.exposure === "public" &&
+        response.status === 503 &&
+        !response.headers.has("Retry-After")
+      ) {
+        response = new Response(response.body, response);
+        response.headers.set("Retry-After", "1");
       }
       if (spec.contentType === "application/json") {
         const text = await boundedText(response, PLUGIN_RESPONSE_MAX_BYTES);

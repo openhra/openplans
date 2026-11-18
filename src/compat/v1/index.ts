@@ -3,6 +3,7 @@ import {
   guardCatalogPlans,
   annotateCatalogPlan,
 } from "../../services/catalog-policy.js";
+import { ProviderLocationLimitError } from "../../api/provider-repository.js";
 import { ReadError } from "../../services/errors.js";
 import { logInternalError, queryTimeoutResponse } from "../../api/error-log.js";
 import { isQueryTimeout } from "../../services/errors.js";
@@ -157,10 +158,17 @@ export function compatRoutes(db: SqlSession, options: ApiOptions = {}) {
   app.onError((error, c) => {
     if (error instanceof v.InputError)
       return c.json({ error: { code: error.code, field: error.field } }, 400);
+    if (error instanceof ProviderLocationLimitError)
+      return c.json(
+        {
+          error: { code: "provider_search_too_broad", message: error.message },
+        },
+        422,
+      );
     if (error instanceof ReadError) return c.json({ error: error.error }, 403);
     if (isQueryTimeout(error)) return queryTimeoutResponse(c);
     logInternalError(error);
-    return c.json({ error: "internal_error" }, 500);
+    return c.json({ error: { code: "INTERNAL_ERROR" } }, 500);
   });
 
   app.use("*", async (c: Context<BlankEnv, string>, next) => {
@@ -188,7 +196,16 @@ export function compatRoutes(db: SqlSession, options: ApiOptions = {}) {
   app.get("/zip_counties", async (c) => {
     const prefix = c.req.query("zip_prefix");
     if (!prefix || !/^\d{3,5}$/.test(prefix))
-      return c.json({ error: "zip_prefix required (3-5 digit string)" }, 400);
+      return c.json(
+        {
+          error: {
+            code: "INVALID_INPUT",
+            field: "zip_prefix",
+            message: "zip_prefix required (3-5 digit string)",
+          },
+        },
+        400,
+      );
     if (prefix.length === 5)
       c.header("Link", `</v1/zip-counties?zip=${prefix}>; rel="describedby"`);
     const missing = [
@@ -286,14 +303,33 @@ export function compatRoutes(db: SqlSession, options: ApiOptions = {}) {
       `/plans/${product}/search`,
       bodyLimit({
         maxSize: 65_536,
-        onError: (c) => c.json({ error: "Request too large" }, 400),
+        onError: (c) =>
+          c.json(
+            {
+              error: {
+                code: "REQUEST_TOO_LARGE",
+                field: "body",
+                message: "Request too large",
+              },
+            },
+            400,
+          ),
       }),
       async (c) => {
         let json: unknown;
         try {
           json = await c.req.json();
         } catch {
-          return c.json({ error: "Invalid JSON body" }, 400);
+          return c.json(
+            {
+              error: {
+                code: "INVALID_JSON",
+                field: "body",
+                message: "Invalid JSON body",
+              },
+            },
+            400,
+          );
         }
         const body = object(json),
           reasons = new Set(PLAN_GAPS),
@@ -315,7 +351,16 @@ export function compatRoutes(db: SqlSession, options: ApiOptions = {}) {
           !Array.isArray(body.applicants) ||
           !body.applicants.length
         ) {
-          return c.json({ error: "fips_code and applicants[] required" }, 400);
+          return c.json(
+            {
+              error: {
+                code: "INVALID_INPUT",
+                field: "body",
+                message: "fips_code and applicants[] required",
+              },
+            },
+            400,
+          );
         }
         const county = v.county(body.fips_code),
           zip = body.zip_code === undefined ? undefined : v.zip(body.zip_code);
@@ -714,14 +759,23 @@ export function compatRoutes(db: SqlSession, options: ApiOptions = {}) {
         ? c.json({
             plan: record.dental ? record.mapped : planResponse(record.mapped),
           })
-        : c.json({ error: "Plan not found" }, 404);
+        : c.json(
+            { error: { code: "PLAN_NOT_FOUND", message: "Plan not found" } },
+            404,
+          );
     });
 
   app.get("/drugs", async (c) => {
     const term = c.req.query("search_term");
     if (!term || term.trim().length < 2 || term.length > 200)
       return c.json(
-        { error: "search_term required (min 2 chars, max 200)" },
+        {
+          error: {
+            code: "INVALID_INPUT",
+            field: "search_term",
+            message: "search_term required (min 2 chars, max 200)",
+          },
+        },
         400,
       );
     const { start, size } = pagination(c.req.query(), 25),
@@ -904,7 +958,10 @@ export function compatRoutes(db: SqlSession, options: ApiOptions = {}) {
       gaps(c, [
         `unsupported_route:${path.split("/")[0] === "plans" ? path.split("/")[1] : path.split("/")[0]}`,
       ]);
-      return c.json({ error: "Not implemented" }, 501);
+      return c.json(
+        { error: { code: "NOT_IMPLEMENTED", message: "Not implemented" } },
+        501,
+      );
     });
   return app;
 }

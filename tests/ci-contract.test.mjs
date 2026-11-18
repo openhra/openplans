@@ -159,8 +159,7 @@ function commandContract(value) {
   const slices = shard.strategy.matrix.shard;
   expect(slices.length).toBeGreaterThan(1);
   expect(slices).toEqual(slices.map((_, index) => index + 1));
-  // The macOS check name the release tooling requires belongs to a summary job that fails
-  // unless every shard succeeded.
+  // The macOS check has a summary job. Cancellation is advisory; a test failure is not.
   const macos = value.jobs.macos;
   expect(macos.name).toBe(advisoryJobs.macos);
   expect(macos["runs-on"]).toBe("ubuntu-24.04");
@@ -174,13 +173,9 @@ function commandContract(value) {
   expect(macos.steps[2].run).toBe("node .github/check-required.mjs macos");
   expect(macos.steps[2].env).toEqual({ NEEDS_RESULTS: "${{ toJSON(needs) }}" });
   for (const step of macos.steps) expect(step.if).toBeUndefined();
-  // Only the macOS shards and their summary are advisory; every other job can fail the run.
-  const advisory = new Set(["macos-shard", ...Object.keys(advisoryJobs)]);
   expect(advisoryJobs).toEqual({ macos: "OpenPlans / macOS" });
   for (const [id, job] of Object.entries(value.jobs)) {
-    expect(job["continue-on-error"], id).toBe(
-      advisory.has(id) ? true : undefined,
-    );
+    expect(job["continue-on-error"], id).toBeUndefined();
     expect(job["working-directory"]).toBeUndefined();
     expect(job.defaults).toBeUndefined();
     expect(job.steps[0].uses).toMatch(/^actions\/checkout@[a-f0-9]{40}$/);
@@ -258,6 +253,7 @@ function commandContract(value) {
   expect(required.needs).toEqual([
     ...Object.keys(sameCommitJob),
     ...Object.keys(requiredJobs),
+    "macos",
   ]);
   expect(required.steps).toHaveLength(3);
   expect(required.steps[1].with).toEqual({
@@ -367,7 +363,9 @@ it("builds workspace packages before core and discovers their tests", async () =
   });
   const config = (await import("../vitest.config.ts")).default;
   expect(config.test.dir).toBeUndefined();
-  expect(config.test.include).toContain("plugins/*/tests/**/*.test.ts");
+  expect(config.test.projects[0].test.include).toContain(
+    "plugins/*/tests/**/*.test.ts",
+  );
 });
 
 it("sizes the test workers for a shared machine", async () => {
@@ -633,21 +631,9 @@ it.each([
     },
   ],
   [
-    "a macOS shard that can block the run",
+    "an aggregate that omits the macOS summary",
     (copy) => {
-      delete copy.jobs["macos-shard"]["continue-on-error"];
-    },
-  ],
-  [
-    "a macOS summary that can block the run",
-    (copy) => {
-      delete copy.jobs.macos["continue-on-error"];
-    },
-  ],
-  [
-    "a required macOS summary",
-    (copy) => {
-      copy.jobs.required.needs.splice(2, 0, "macos");
+      copy.jobs.required.needs.pop();
     },
   ],
   [
@@ -729,7 +715,7 @@ const fullRun = () => ({
 const successful = () => ({
   ...fullRun(),
   ...Object.fromEntries(
-    Object.keys(requiredJobs).map((id) => [
+    [...Object.keys(requiredJobs), "macos"].map((id) => [
       id,
       { result: "success", outputs: {} },
     ]),
@@ -777,19 +763,37 @@ it("accepts only a complete successful set of required job results", () => {
   }
 });
 
-it("accepts only successful macOS shards", () => {
+it("allows cancelled macOS shards but still rejects test and Linux failures", () => {
+  const unavailable = {
+    ...successful(),
+    macos: { result: "cancelled", outputs: {} },
+  };
+  expect(checkRequired(unavailable)).toBe("full");
+  for (const result of ["failure", "timed_out"]) {
+    expect(() =>
+      checkRequired({ ...successful(), macos: { result, outputs: {} } }),
+    ).toThrow("OpenPlans / macOS did not succeed");
+  }
+  expect(() =>
+    checkRequired({ ...successful(), linux: { result: "failure" } }),
+  ).toThrow(`${requiredJobs.linux} did not succeed`);
+});
+
+it("summarizes cancelled macOS shards and rejects shard test failures", () => {
   const shards = {
     ...fullRun(),
     "macos-shard": { result: "success", outputs: {} },
   };
   expect(() => checkRequired(shards, macosShardJobs)).not.toThrow();
-  for (const status of [
-    "skipped",
-    "failure",
-    "cancelled",
-    "pending",
-    undefined,
-  ]) {
+  for (const status of ["cancelled", "skipped"]) {
+    expect(
+      checkRequired(
+        { ...fullRun(), "macos-shard": { result: status, outputs: {} } },
+        macosShardJobs,
+      ),
+    ).toBe("advisory-unavailable");
+  }
+  for (const status of ["failure", "pending", undefined]) {
     expect(() =>
       checkRequired(
         { ...fullRun(), "macos-shard": { result: status, outputs: {} } },
@@ -884,7 +888,9 @@ it("passes the shard to vitest and keeps the static checks in shard 1", async ()
 
 it.each([
   [JSON.stringify(successful()), 0],
-  [JSON.stringify({ ...successful(), macos: { result: "skipped" } }), 1],
+  [JSON.stringify({ ...successful(), macos: { result: "cancelled" } }), 0],
+  [JSON.stringify({ ...successful(), macos: { result: "failure" } }), 1],
+  [JSON.stringify({ ...successful(), linux: { result: "failure" } }), 1],
   ["{", 1],
   ["", 1],
 ])(
@@ -973,6 +979,7 @@ const sourceJobs = (module) =>
   [
     module.sameCommitJob.dedupe,
     ...Object.values(module.requiredJobs),
+    module.advisoryJobs.macos,
     module.aggregateJob,
   ].map((name, id) => ({
     id,
@@ -1007,7 +1014,10 @@ const sameCommitResults = (module, overrides = {}) => ({
     outputs: { full: "false", source_run: sourceUrl },
   },
   ...Object.fromEntries(
-    Object.keys(module.requiredJobs).map((id) => [id, { result: "skipped" }]),
+    [...Object.keys(module.requiredJobs), "macos"].map((id) => [
+      id,
+      { result: "skipped" },
+    ]),
   ),
   ...overrides,
 });
@@ -1038,8 +1048,15 @@ async function proofIsRequired(module) {
   ).toThrow();
   const jobs = sourceJobs(module);
   expect(module.checkSourceRun(sourceRun(), jobs, sha)).toBe(sourceUrl);
+  expect(
+    module.checkSourceRun(sourceRun({ conclusion: "failure" }), jobs, sha),
+  ).toBe(sourceUrl);
+  const failedMac = structuredClone(jobs);
+  failedMac[4].conclusion = "failure";
+  expect(() =>
+    module.checkSourceRun(sourceRun({ conclusion: "failure" }), failedMac, sha),
+  ).toThrow();
   for (const run of [
-    sourceRun({ conclusion: "failure" }),
     sourceRun({ status: "in_progress", conclusion: null }),
     sourceRun({ head_sha: "b".repeat(40) }),
     sourceRun({ head_branch: "main" }),
@@ -1062,7 +1079,11 @@ async function proofIsRequired(module) {
   // A failed develop run fails the main run instead of letting it skip.
   const failed = fakeGitHub(
     [[sourceRun({ conclusion: "failure" })]],
-    sourceJobs(module),
+    sourceJobs(module).map((job) =>
+      job.name === module.advisoryJobs.macos
+        ? { ...job, conclusion: "failure" }
+        : job,
+    ),
   );
   await expect(
     module.findSameCommitRun({ env: mainPush, ...failed }),
@@ -1120,7 +1141,10 @@ async function otherRefsRunFull(module) {
   );
   // With full checks, a skipped check job still fails the aggregate.
   const full = Object.fromEntries(
-    Object.keys(module.requiredJobs).map((id) => [id, { result: "success" }]),
+    [...Object.keys(module.requiredJobs), "macos"].map((id) => [
+      id,
+      { result: "success" },
+    ]),
   );
   full.dedupe = {
     result: "success",
@@ -1153,13 +1177,7 @@ const sameCommitMutants = [
     proofIsRequired,
   ],
   [
-    "a failed develop run accepted as proof",
-    'run.status !== "completed" || run.conclusion !== "success"',
-    'run.status !== "completed"',
-    proofIsRequired,
-  ],
-  [
-    "a develop run with skipped checks accepted as proof",
+    "a failed macOS summary accepted as proof",
     'matching[0].conclusion !== "success"',
     "false",
     proofIsRequired,

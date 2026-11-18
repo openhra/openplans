@@ -1,3 +1,6 @@
+import { buildLowestPremiums } from "../../src/worker/handy-build.js";
+import { lowestInput } from "../../src/api/handy.js";
+import { lowestPremiums } from "../../src/services/handy.js";
 import { afterAll, beforeAll, expect, it } from "vitest";
 import type { SqlSession } from "../../src/db/database.js";
 import { createMcpHttp } from "../../src/mcp/http.js";
@@ -19,6 +22,7 @@ import { storedRate } from "../../src/services/premiums.js";
 let fixture: Awaited<ReturnType<typeof setup>>;
 beforeAll(async () => {
   fixture = await setup();
+  await buildLowestPremiums(fixture.db, lowestInput(input));
 });
 afterAll(async () => {
   await fixture?.close();
@@ -140,10 +144,11 @@ it.each([
   },
 );
 
-it("single-age MCP reuses only generation-checked public cells", async () => {
+it("single-age MCP reads publications even when the response cache contains a stale cell", async () => {
   const store = new MemoryCache(2 * 1024 * 1024);
   const cache = createResponseCache(fixture.db, undefined, { store });
   const deps = { db: fixture.db, lowestPremiums: true, cache };
+  await lowestPremiums(fixture.db, input, { cache });
   const first = await callLowestTool(deps, input);
   const keys = store
     .keys()

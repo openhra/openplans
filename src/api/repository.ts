@@ -84,8 +84,12 @@ interface RelationshipSnapshot extends Record<string, unknown> {
   compressed_bytes: string;
 }
 // Keep one immutable national index, shared by concurrent requests. A changed file is reverified.
+interface RelationshipIndex {
+  zipCounties: Map<string, CountyShare[]>;
+  counties: string[];
+}
 let relationshipIndex:
-  { key: string; rows: Promise<Map<string, CountyShare[]>> } | undefined;
+  { key: string; rows: Promise<RelationshipIndex> } | undefined;
 
 async function snapshotCounties(snapshot: RelationshipSnapshot) {
   let info;
@@ -111,7 +115,9 @@ async function snapshotCounties(snapshot: RelationshipSnapshot) {
       )
         throw new Error("Geography snapshot hash mismatch");
       const index = new Map<string, CountyShare[]>();
+      const countyFips = new Set<string>();
       for await (const row of relationships(Readable.from([bytes]))) {
+        countyFips.add(row.countyFips);
         if (!row.zcta || !row.areas) continue;
         const [landZip, waterZip, landCounty, waterCounty, land, water] =
           row.areas;
@@ -135,7 +141,7 @@ async function snapshotCounties(snapshot: RelationshipSnapshot) {
         });
         index.set(row.zcta, counties);
       }
-      return index;
+      return { zipCounties: index, counties: [...countyFips].sort() };
     })();
     relationshipIndex = { key, rows };
     // A failed read must be retryable once the operator repairs the cache.
@@ -144,6 +150,35 @@ async function snapshotCounties(snapshot: RelationshipSnapshot) {
     });
   }
   return relationshipIndex.rows;
+}
+
+async function currentRelationshipSnapshots(db: SqlSession) {
+  const { rows } = await db.query<RelationshipSnapshot>(
+    `SELECT DISTINCT s.snapshot_id,s.raw_path,s.sha256,s.compressed_bytes::text,s.retrieved_at
+    FROM snapshot s JOIN (
+      SELECT DISTINCT ON (state) relationship_snapshot_id FROM geo_import
+      ORDER BY state,imported_at DESC,plan_year DESC
+    ) g ON g.relationship_snapshot_id=s.snapshot_id
+    WHERE s.source_id=$1 AND s.requested_url=$2 AND s.validation_state='ACTIVE'
+    ORDER BY s.retrieved_at DESC,s.snapshot_id`,
+    [GEO_SOURCES.relationship.source, GEO_SOURCES.relationship.url],
+  );
+  return rows;
+}
+
+/** The admitted national source includes counties not imported into state-scoped lookup tables. */
+export async function relationshipInventoryCounties(db: SqlSession) {
+  const counties = new Set<string>();
+  const snapshots = await currentRelationshipSnapshots(db);
+  if (!snapshots.length)
+    throw new Error("County inventory needs an admitted geography snapshot");
+  for (const snapshot of snapshots) {
+    const index = await snapshotCounties(snapshot);
+    if (!index)
+      throw new Error("County inventory needs its mounted geography snapshot");
+    for (const county of index.counties) counties.add(county);
+  }
+  return [...counties].sort();
 }
 
 export async function locationZipCounties(
@@ -155,18 +190,9 @@ export async function locationZipCounties(
   if (result.source === "zcta") return result;
   // A state-scoped import loads only its ZCTAs, but retains the national source.
   // Postal locality lists can omit secondary counties; consult that exact source before rejecting.
-  const { rows: snapshots } = await db.query<RelationshipSnapshot>(
-    `SELECT DISTINCT s.snapshot_id,s.raw_path,s.sha256,s.compressed_bytes::text,s.retrieved_at
-    FROM snapshot s JOIN (
-      SELECT DISTINCT ON (state) relationship_snapshot_id FROM geo_import
-      ORDER BY state,imported_at DESC,plan_year DESC
-    ) g ON g.relationship_snapshot_id=s.snapshot_id
-    WHERE s.source_id=$1 AND s.requested_url=$2 AND s.validation_state='ACTIVE'
-    ORDER BY s.retrieved_at DESC,s.snapshot_id`,
-    [GEO_SOURCES.relationship.source, GEO_SOURCES.relationship.url],
-  );
+  const snapshots = await currentRelationshipSnapshots(db);
   for (const snapshot of snapshots) {
-    const counties = (await snapshotCounties(snapshot))?.get(zip);
+    const counties = (await snapshotCounties(snapshot))?.zipCounties.get(zip);
     if (counties?.length)
       return {
         zip,

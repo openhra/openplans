@@ -12,7 +12,7 @@
   },
   "healthz-db-down": {
     "status": 503,
-    "body_sha256": "b9c5694069fb0c56f7e447ec169fab51f668f8e1a465ff3f57c37ccc0e710c82",
+    "body_sha256": "971ef2e86432f9b46e7829dea2fd25a6dc016ff873a55d45f911b4a3b6328638",
     "headers": {
       "content-type": "application/json",
       "cache-control": null,
@@ -276,7 +276,7 @@
   },
   "availability-db-down": {
     "status": 503,
-    "body_sha256": "543f9b5e7bd1f74b867663dda9bbba73d072d15c9dec6434c8bca6ae92a035aa",
+    "body_sha256": "03143e5e604df39b9c6827371676dc1f24a4816b9f3ae6a014b290df1ed2a957",
     "headers": {
       "content-type": "application/json",
       "cache-control": null,
@@ -540,9 +540,9 @@
   },
   "premium-estimates-retired": {
     "status": 404,
-    "body_sha256": "7d04f7431bbfa41a04bcc7e6b98b9de0d919756c4c671c5785c99fff45f16402",
+    "body_sha256": "0fe0c0acf4499fe6dbf3ea3bb6f4126a1ae537b38b4ad40063cd00f2a86f3c18",
     "headers": {
-      "content-type": "text/plain; charset=UTF-8",
+      "content-type": "application/json",
       "cache-control": null,
       "x-cache": "bypass",
       "x-openplans-gaps": null,
@@ -551,9 +551,9 @@
   },
   "no-such-route": {
     "status": 404,
-    "body_sha256": "7d04f7431bbfa41a04bcc7e6b98b9de0d919756c4c671c5785c99fff45f16402",
+    "body_sha256": "0fe0c0acf4499fe6dbf3ea3bb6f4126a1ae537b38b4ad40063cd00f2a86f3c18",
     "headers": {
-      "content-type": "text/plain; charset=UTF-8",
+      "content-type": "application/json",
       "cache-control": null,
       "x-cache": "bypass",
       "x-openplans-gaps": null,
@@ -815,7 +815,7 @@
   },
   "compat-zip-invalid": {
     "status": 400,
-    "body_sha256": "dcb293f6f4a4acf6be2fb9d67563f9e8f19fa6a36a29c7c18bcbc110599a20d2",
+    "body_sha256": "8de2ccd2aee39e9748c2593b38397d8e22f53b5a135bc5df643ed7a7917a9698",
     "headers": {
       "content-type": "application/json",
       "cache-control": "no-store",
@@ -859,7 +859,7 @@
   },
   "compat-detail-dental": {
     "status": 404,
-    "body_sha256": "d8278959e616db0c852bec6fec84af621987d60adc05f14b4a42530a6519b8a1",
+    "body_sha256": "2f0d1da902267c0a96642f6662060a2d571779784fd44d9705cc884fbfa1a13b",
     "headers": {
       "content-type": "application/json",
       "cache-control": "no-store",
@@ -892,7 +892,7 @@
   },
   "compat-search-invalid": {
     "status": 400,
-    "body_sha256": "b177ef0bbae38677720631604ee7ec49d1c328f877036f9d9fd9ce9c9d1214d4",
+    "body_sha256": "1edbba3482760dd781bbf65529d051af3ac508bf71e3cebad4c0ebdf503483a9",
     "headers": {
       "content-type": "application/json",
       "cache-control": "no-store",
@@ -969,7 +969,7 @@
   },
   "compat-unsupported-vision": {
     "status": 501,
-    "body_sha256": "4505bfe86161a01f3981fbb0f7f1804997525b02770012724a4bbbc4ddd68199",
+    "body_sha256": "c4bffa1bdfb7a714b3c2d1d4b0541fda2affefbe413721930de17f73d2678ed6",
     "headers": {
       "content-type": "application/json",
       "cache-control": "no-store",
@@ -980,7 +980,7 @@
   },
   "compat-unsupported-medadv": {
     "status": 501,
-    "body_sha256": "4505bfe86161a01f3981fbb0f7f1804997525b02770012724a4bbbc4ddd68199",
+    "body_sha256": "c4bffa1bdfb7a714b3c2d1d4b0541fda2affefbe413721930de17f73d2678ed6",
     "headers": {
       "content-type": "application/json",
       "cache-control": "no-store",
@@ -1079,7 +1079,7 @@
   },
   "readyz-db-down": {
     "status": 503,
-    "body_sha256": "5b6e9cafb59352b91bb42a05745e40e3a917696c64845277f9e610875b40c199",
+    "body_sha256": "eca13d512b0025eb0de2e384ba57ede2e51e558ccb988570c62410eaf6a716a1",
     "headers": {
       "content-type": "application/json",
       "cache-control": "no-store",
@@ -1431,9 +1431,9 @@
   },
   "premium-estimates-retired-with-api-token": {
     "status": 404,
-    "body_sha256": "7d04f7431bbfa41a04bcc7e6b98b9de0d919756c4c671c5785c99fff45f16402",
+    "body_sha256": "0fe0c0acf4499fe6dbf3ea3bb6f4126a1ae537b38b4ad40063cd00f2a86f3c18",
     "headers": {
-      "content-type": "text/plain; charset=UTF-8",
+      "content-type": "application/json",
       "cache-control": null,
       "x-cache": "bypass",
       "x-openplans-gaps": null,
@@ -1442,9 +1442,9 @@
   },
   "no-such-route-with-api-token": {
     "status": 404,
-    "body_sha256": "7d04f7431bbfa41a04bcc7e6b98b9de0d919756c4c671c5785c99fff45f16402",
+    "body_sha256": "0fe0c0acf4499fe6dbf3ea3bb6f4126a1ae537b38b4ad40063cd00f2a86f3c18",
     "headers": {
-      "content-type": "text/plain; charset=UTF-8",
+      "content-type": "application/json",
       "cache-control": null,
       "x-cache": "bypass",
       "x-openplans-gaps": null,
@@ -1706,7 +1706,7 @@
   },
   "compat-zip-invalid-with-api-token": {
     "status": 400,
-    "body_sha256": "dcb293f6f4a4acf6be2fb9d67563f9e8f19fa6a36a29c7c18bcbc110599a20d2",
+    "body_sha256": "8de2ccd2aee39e9748c2593b38397d8e22f53b5a135bc5df643ed7a7917a9698",
     "headers": {
       "content-type": "application/json",
       "cache-control": "no-store",
@@ -1750,7 +1750,7 @@
   },
   "compat-detail-dental-with-api-token": {
     "status": 404,
-    "body_sha256": "d8278959e616db0c852bec6fec84af621987d60adc05f14b4a42530a6519b8a1",
+    "body_sha256": "2f0d1da902267c0a96642f6662060a2d571779784fd44d9705cc884fbfa1a13b",
     "headers": {
       "content-type": "application/json",
       "cache-control": "no-store",
@@ -1783,7 +1783,7 @@
   },
   "compat-search-invalid-with-api-token": {
     "status": 400,
-    "body_sha256": "b177ef0bbae38677720631604ee7ec49d1c328f877036f9d9fd9ce9c9d1214d4",
+    "body_sha256": "1edbba3482760dd781bbf65529d051af3ac508bf71e3cebad4c0ebdf503483a9",
     "headers": {
       "content-type": "application/json",
       "cache-control": "no-store",
@@ -1860,7 +1860,7 @@
   },
   "compat-unsupported-vision-with-api-token": {
     "status": 501,
-    "body_sha256": "4505bfe86161a01f3981fbb0f7f1804997525b02770012724a4bbbc4ddd68199",
+    "body_sha256": "c4bffa1bdfb7a714b3c2d1d4b0541fda2affefbe413721930de17f73d2678ed6",
     "headers": {
       "content-type": "application/json",
       "cache-control": "no-store",
@@ -1871,7 +1871,7 @@
   },
   "compat-unsupported-medadv-with-api-token": {
     "status": 501,
-    "body_sha256": "4505bfe86161a01f3981fbb0f7f1804997525b02770012724a4bbbc4ddd68199",
+    "body_sha256": "c4bffa1bdfb7a714b3c2d1d4b0541fda2affefbe413721930de17f73d2678ed6",
     "headers": {
       "content-type": "application/json",
       "cache-control": "no-store",

@@ -269,7 +269,7 @@ export async function callLowestTool(deps: McpDependencies, value: unknown) {
         ...input,
         page,
       },
-      { cache: deps.cache, evidencePage: evidence_page ?? 1 },
+      { builtOnly: true, evidencePage: evidence_page ?? 1 },
     );
     if (native.data_generation !== generation)
       throw new ToolError("DATA_CHANGED");

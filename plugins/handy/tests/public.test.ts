@@ -60,6 +60,19 @@ const distribution = {
     snapshots: [],
     evidence: [{ status: "unknown", reason: "synthetic_gap" }],
   },
+  benchmarks: [
+    "employee_only",
+    "employee_spouse",
+    "employee_spouse_child",
+    "employee_spouse_children",
+  ].map((profile_id) => ({
+    profile_id,
+    result: {
+      status: "calculated",
+      slcsp_monthly_cents: 12345,
+      data_generation: "synthetic-generation-a",
+    },
+  })),
   profiles: [
     "employee_only",
     "employee_spouse",
@@ -91,11 +104,6 @@ function hostFor(raw = distribution): Required<CalculationHost> {
       throw new Error("unused");
     },
     householdDistributions: async () => raw,
-    slcsp: async () => ({
-      status: "calculated",
-      slcsp_monthly_cents: 12345,
-      data_generation: raw.data_generation,
-    }),
   };
 }
 function setup(
@@ -233,28 +241,19 @@ describe("public stipend preparation", () => {
     }
   });
 
-  it("rejects mixed or absent benchmark generations and stops calls after cancellation", async () => {
-    const host = hostFor();
-    for (const generation of ["synthetic-generation-b", undefined]) {
-      host.slcsp = async () => ({
-        status: "calculated",
-        data_generation: generation,
-      });
-      await expect(allowanceScenario(host, scope(), input)).rejects.toThrow(
-        "DATA_CHANGED",
-      );
+  it("rejects mixed, absent and missing benchmarks from the atomic result", async () => {
+    for (const data_generation of ["synthetic-generation-b", undefined]) {
+      const raw = structuredClone(distribution);
+      Object.assign(raw.benchmarks[0]!.result, { data_generation });
+      await expect(
+        allowanceScenario(hostFor(raw), scope(), input),
+      ).rejects.toThrow("DATA_CHANGED");
     }
-    const controller = new AbortController();
-    let calls = 0;
-    host.slcsp = async () => {
-      calls++;
-      controller.abort();
-      return { data_generation: distribution.data_generation };
-    };
+    const raw = structuredClone(distribution);
+    raw.benchmarks.pop();
     await expect(
-      allowanceScenario(host, { db, signal: controller.signal }, input),
-    ).rejects.toThrow();
-    expect(calls).toBe(1);
+      allowanceScenario(hostFor(raw), scope(), input),
+    ).rejects.toThrow("BENCHMARK_MISSING");
   });
 
   it.each([
@@ -265,16 +264,12 @@ describe("public stipend preparation", () => {
     const controller = new AbortController();
     const host = hostFor();
     let observed: AbortSignal | undefined;
-    let benchmarks = 0;
+    let calculations = 0;
     host.householdDistributions = async (_input, scope) => {
+      calculations++;
       observed = scope.signal;
       controller.abort();
       return distribution;
-    };
-    const slcsp = host.slcsp;
-    host.slcsp = async (...args) => {
-      benchmarks++;
-      return slcsp(...args);
     };
     const { app } = setup({ publicOnly: true }, true, host);
     const request =
@@ -288,7 +283,7 @@ describe("public stipend preparation", () => {
           });
     const response = await app.request(request);
     expect(observed?.aborted).toBe(true);
-    expect(benchmarks).toBe(0);
+    expect(calculations).toBe(1);
     expect(response.status).toBe(503);
   });
 
@@ -306,13 +301,18 @@ describe("public stipend preparation", () => {
     expect(await manifest.json()).toMatchObject({
       data_generation: distribution.data_generation,
 
-      provenance: distribution.provenance,
+      provenance: {
+        ...distribution.provenance,
+        evidence: distribution.provenance.evidence.map(
+          (source, evidence_ref) => ({ evidence_ref, source }),
+        ),
+      },
     });
     const stale = await app.request(
       `/handy/allowance/manifest?${query}&data_generation=synthetic-generation-b`,
     );
     expect(stale.status).toBe(409);
-    expect(await stale.json()).toEqual({ error: "DATA_CHANGED" });
+    expect(await stale.json()).toEqual({ error: { code: "DATA_CHANGED" } });
   });
 
   it("requires a generation pin on later evidence pages and rejects private fields there", async () => {
@@ -544,9 +544,7 @@ describe("stipend core calculation integration", () => {
         public: { quoting: true, household: false, compat: false },
       });
       const result = await allowanceScenario(
-        host as Required<
-          Pick<CalculationHost, "householdDistributions" | "slcsp">
-        >,
+        host as Required<Pick<CalculationHost, "householdDistributions">>,
         scope,
         input,
       );
@@ -564,7 +562,9 @@ describe("stipend core calculation integration", () => {
           return async (sql: string, parameters?: unknown[]) => {
             const result = await target.query(sql, parameters);
             if (sql.includes("AS generation FROM") && ++generations > 1)
-              return { rows: [{ generation: "synthetic-changed" }] };
+              return {
+                rows: [{ generation: `synthetic-changed-${generations}` }],
+              };
             return result;
           };
         },
@@ -572,7 +572,7 @@ describe("stipend core calculation integration", () => {
       // Keep a stable query function so the planted generation changes on the second read.
       const changingQuery = changingDb.query;
       await expect(
-        host.slcsp!(inputWithMembers(), {
+        host.householdDistributions!(inputWithMembers(), {
           ...scope,
           db: { query: changingQuery, exec: fixture.db.exec },
         }),
@@ -598,13 +598,13 @@ describe("stipend core calculation integration", () => {
       const off = createCalculationHost({
         public: { quoting: false, household: false, compat: false },
       });
-      await expect(off.slcsp!(inputWithMembers(), scope)).rejects.toThrow(
-        "QUOTING_DISABLED",
-      );
+      await expect(
+        off.householdDistributions!(inputWithMembers(), scope),
+      ).rejects.toThrow("QUOTING_DISABLED");
       const controller = new AbortController();
       controller.abort();
       await expect(
-        host.slcsp!(inputWithMembers(), {
+        host.householdDistributions!(inputWithMembers(), {
           ...scope,
           signal: controller.signal,
         }),
