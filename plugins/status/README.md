@@ -51,7 +51,13 @@ per client, 8 at once in total.
     date and a Medicare file's release month. `last_modified` is the `Last-Modified` header the
     publisher's server sent with the file, read as a UTC date. A stored release date wins over
     the header. A Medicare release whose stored date is only the day we retrieved it reads
-    `null`. `null` when `published_at` is `null`.
+    `null`. `latest_of_files` is for a snapshot that groups other files and has no date of its
+    own, such as one state's PUF import. Its date is the latest date of the file snapshots the
+    import recorded under it in `puf_import_file` or `state_community_rate`. The plugin gives
+    it only when every one of those files has a date. If any file has none, the row reads
+    `null`. A snapshot's own date always wins. `null` when `published_at` is `null`.
+  - `published_files`: how many files a `latest_of_files` date was taken from. Only those rows
+    have this field.
 - `worker.last_ingest`: for each source, how long ago its last successful import finished, in
   the same buckets, or `unknown` when none is recorded.
 - `cache.enabled`: whether the response cache is on.
@@ -68,8 +74,8 @@ by the part of the ID before the first colon, so `cms-exchange-puf:2026:TX:rate`
 `cms-exchange-puf`. Each group gets one line with its snapshot count and ages, and its
 snapshots sit inside a `<details>` element. Each snapshot row shows Retrieved and Published side by
 side, the summary line gives the family's range of publisher dates, and one sentence above the
-groups explains the difference. The page stays short however many snapshots are
-active, and it has no scripts. A link at the top goes to plans.openhra.com.
+groups explains the difference. A `latest_of_files` date reads "2026-10-30, latest of 6 files".
+The page stays short however many snapshots are active, and it has no scripts. A link at the top goes to plans.openhra.com.
 
 ## What the operator view adds
 

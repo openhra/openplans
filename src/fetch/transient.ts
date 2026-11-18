@@ -571,7 +571,7 @@ export async function fetchTransient(
           admission!.reserveRequest(url);
           const headers: Record<string, string> = {
             "accept-encoding": "identity",
-            "user-agent": `openplans/0.4.14 (public health-plan source discovery; +${projectUrl(options)})`,
+            "user-agent": `openplans/0.4.15 (public health-plan source discovery; +${projectUrl(options)})`,
           };
           if (!policy && options.expectedContent === "json")
             headers.accept = "application/json, */*;q=0.1";

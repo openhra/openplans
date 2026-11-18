@@ -1,6 +1,6 @@
 # Individual offer distribution
 
-`@openplans/plugin-compare` 0.1.6 shows gross monthly premiums across individual medical plans for one exact age or an explicitly aged household. The package is opt-in; library defaults do not load it. This preparation does not enable a public deployment.
+`@openplans/plugin-compare` 0.1.7 shows gross monthly premiums across individual medical plans for one exact age or an explicitly aged household. The package is opt-in; library defaults do not load it. This preparation does not enable a public deployment.
 
 ## Public configuration
 

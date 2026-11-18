@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@openplans/plugin-sdk": "0.1.1",
-    "@openplans/plugin-status": "0.1.7"
+    "@openplans/plugin-status": "0.1.9"
   },
   "peerDependencies": {
     "hono": "4.13.16",

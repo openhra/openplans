@@ -294,6 +294,290 @@ describe("size evidence rules", () => {
   });
 });
 
+// Synthetic SQL and sizes exercise pending-table state without writing a database.
+describe("pending table sizes", () => {
+  it.each([false, true])(
+    "carries new-table evidence across files: %s",
+    (separate) => {
+      const statements = [
+        'CREATE TABLE "synthetic New" (id integer)',
+        'CREATE INDEX synthetic_idx ON public."synthetic New"(id)',
+        'ALTER TABLE "synthetic New" ADD CONSTRAINT positive CHECK (id > 0)',
+        'ALTER TABLE "synthetic New" ADD COLUMN state text NOT NULL',
+        'ALTER TABLE "synthetic New" ALTER COLUMN id SET NOT NULL',
+        'ALTER TABLE "synthetic New" ADD COLUMN enabled boolean NOT NULL DEFAULT true',
+        "INSERT INTO \"synthetic New\"(id, state) VALUES (1, 'ready')",
+        'CREATE INDEX synthetic_state_idx ON "synthetic New"(state)',
+      ];
+      const results = classifyMigrationBatchWithRules(
+        separate ? statements : [statements.join("; ")],
+      );
+      expect(results.every((r) => r.classification === "additive-safe")).toBe(
+        true,
+      );
+      const uses = results.flatMap((r) => r.sizeRules);
+      expect(uses.map((u) => u.rule)).toEqual([
+        "small-index",
+        "small-constraint",
+        "empty-not-null",
+        "empty-not-null",
+        "small-insert",
+        "small-index",
+      ]);
+      expect(
+        uses
+          .flatMap((u) => u.tables)
+          .every((t) => t.source === "pending-batch"),
+      ).toBe(true);
+      expect(uses.at(-1)!.tables[0]).toMatchObject({
+        rows: 1,
+        source: "pending-batch",
+      });
+    },
+  );
+
+  it.each([
+    "INSERT INTO synthetic_registry(id) VALUES(1)",
+    "UPDATE synthetic_registry SET id=1",
+  ])(
+    "keeps unrelated pending tables after %s, but discards database evidence",
+    (write) => {
+      const results = classifyMigrationBatchWithRules(
+        [
+          "CREATE TABLE synthetic_new(id int); INSERT INTO synthetic_new(id) VALUES(1); UPDATE synthetic_new SET id=2",
+          write,
+          "CREATE INDEX synthetic_new_idx ON synthetic_new(id)",
+          "CREATE INDEX synthetic_existing_idx ON synthetic_existing(id)",
+        ],
+        { synthetic_existing: { rows: 1, bytes: 8192 } },
+      );
+      expect(results.map((r) => r.classification)).toEqual([
+        "additive-safe",
+        "risky",
+        "additive-safe",
+        "risky",
+      ]);
+      expect(results[2]!.sizeRules[0]!.tables[0]).toMatchObject({
+        rows: 1,
+        source: "pending-batch",
+      });
+    },
+  );
+
+  const staleCases = [
+    ["DROP TABLE synthetic_new", "synthetic_new"],
+    ["ALTER TABLE synthetic_new RENAME TO synthetic_old", "synthetic_new"],
+    ["ALTER TABLE synthetic_existing RENAME TO synthetic_new", "synthetic_new"],
+    ["SELECT synthetic_installer()", "synthetic_new"],
+    ["unknown SQL", "synthetic_new"],
+    [
+      "INSERT INTO synthetic_new(id) SELECT id FROM synthetic_existing",
+      "synthetic_new",
+    ],
+    ["UPDATE synthetic_new SET id=synthetic_growth(id)", "synthetic_new"],
+  ];
+  it.each(staleCases)(
+    "invalidates new-table evidence after %s",
+    (change, target) => {
+      const result = classifyMigrationBatchWithRules([
+        "CREATE TABLE synthetic_new(id int)",
+        change!,
+        `CREATE INDEX synthetic_idx ON ${target}(id)`,
+        `ALTER TABLE ${target} ALTER COLUMN id SET NOT NULL`,
+      ]);
+      expect(result.map((r) => r.classification)).toEqual([
+        "additive-safe",
+        "risky",
+        "risky",
+        "risky",
+      ]);
+    },
+  );
+
+  it.each(["", "IF NOT EXISTS "])(
+    "never replaces existing-table evidence with empty: %s",
+    (conditional) => {
+      for (const size of [null, { rows: 5_000_000, bytes: 2_000_000_000 }]) {
+        const result = classifyMigrationBatchWithRules(
+          [
+            `CREATE TABLE ${conditional}synthetic_existing(id int)`,
+            "CREATE INDEX synthetic_idx ON synthetic_existing(id)",
+            "ALTER TABLE synthetic_existing ALTER COLUMN id SET NOT NULL",
+          ],
+          { synthetic_existing: size },
+        );
+        expect(result.slice(1).map((r) => r.classification)).toEqual([
+          "risky",
+          "risky",
+        ]);
+      }
+    },
+  );
+
+  it("checks every source even when an insert targets a new empty table", () => {
+    for (const source of [null, { rows: 5_000_000, bytes: 2_000_000_000 }]) {
+      const result = classifyMigrationBatchWithRules(
+        [
+          "CREATE TABLE synthetic_new(id int)",
+          "INSERT INTO synthetic_new(id) SELECT id FROM synthetic_source",
+          "CREATE INDEX synthetic_idx ON synthetic_new(id)",
+        ],
+        { synthetic_source: source },
+      );
+      expect(result.map((r) => r.classification)).toEqual([
+        "additive-safe",
+        "risky",
+        "risky",
+      ]);
+    }
+  });
+
+  it("never treats a seeded table as empty or keeps an unbounded seed small", () => {
+    const result = classifyMigrationBatchWithRules([
+      "CREATE TABLE synthetic_new(id int); INSERT INTO synthetic_new(id) VALUES(1)",
+      "ALTER TABLE synthetic_new ALTER COLUMN id SET NOT NULL",
+    ]);
+    expect(result[0]!.classification).toBe("additive-safe");
+    expect(result[1]!.classification).toBe("risky");
+    const overBudget = classifyMigrationBatchWithRules([
+      "CREATE TABLE synthetic_new(id text)",
+      `INSERT INTO synthetic_new(id) VALUES ('${"x".repeat(smallTableBytes / 8)}')`,
+      "CREATE INDEX synthetic_idx ON synthetic_new(id)",
+    ]);
+    expect(overBudget.map((r) => r.classification)).toEqual([
+      "additive-safe",
+      "risky",
+      "risky",
+    ]);
+  });
+
+  it("replays the two county-evidence files without inventing missing creates", async () => {
+    const migrations = (await loadMigrations()).filter((m) =>
+      [
+        "20261117210614_lowest_county_evidence.sql",
+        "20261118000213_lowest_active_build_index.sql",
+      ].includes(m.name),
+    );
+    expect(migrations).toHaveLength(2);
+    const report = checkMigrationsWithEvidence(synthetic([]), migrations);
+    expect(report.pending.map((m) => m.classification)).toEqual([
+      "risky",
+      "risky",
+    ]);
+    expect(report.pending[0]!.reasons.map((r) => r.split(":")[0])).toEqual([
+      "Statement 1",
+      "Statement 2",
+      "Statement 4",
+      "Statement 5",
+      "Statement 8",
+    ]);
+    expect(report.pending[0]!.sizeRules).toMatchObject([
+      {
+        statement: "7",
+        rule: "small-insert",
+        tables: [{ source: "pending-batch", rows: 0 }],
+      },
+    ]);
+    expect(report.pending[1]!.reasons).toEqual([
+      'Statement 1: Non-concurrent index blocks writes: "public"."handy_lowest_active" size is unknown',
+    ]);
+    // If the create is pending, a later index can use it despite an unknown registry seed.
+    const creates = (await loadMigrations()).find(
+      (m) => m.name === "995_handy_lowest.sql",
+    )!;
+    const newTableReport = checkMigrationsWithEvidence(synthetic([]), [
+      creates,
+      migrations[1]!,
+    ]);
+    expect(newTableReport.pending[0]!.reasons).toEqual([
+      'Statement 3: Unbounded INSERT or source scan; "public"."row_provenance_rule" size is unknown',
+    ]);
+    expect(newTableReport.pending[1]).toMatchObject({
+      classification: "additive-safe",
+      reasons: [],
+      sizeRules: [
+        {
+          rule: "small-index",
+          tables: [
+            {
+              table: '"public"."handy_lowest_active"',
+              source: "pending-batch",
+              rows: 0,
+              bytes: 0,
+            },
+          ],
+        },
+      ],
+    });
+    // With all three files pending, the destructive deletes still invalidate those creates.
+    const fullReport = checkMigrationsWithEvidence(synthetic([]), [
+      creates,
+      ...migrations,
+    ]);
+    expect(fullReport.pending.map((m) => m.classification)).toEqual([
+      "risky",
+      "risky",
+      "risky",
+    ]);
+  });
+
+  it.each([
+    {
+      name: "existing table",
+      find: "!Object.hasOwn(tables, key)",
+      replace: "true",
+      sql: [
+        "CREATE TABLE synthetic_existing(id int)",
+        "CREATE INDEX synthetic_idx ON synthetic_existing(id)",
+      ],
+      sizes: { synthetic_existing: null },
+    },
+    {
+      name: "dropped table",
+      find: "} else invalidateAll();",
+      replace:
+        "} else if (!alter && !/^DROP TABLE /.test(text)) invalidateAll();",
+      sql: [
+        "CREATE TABLE synthetic_new(id int)",
+        "DROP TABLE synthetic_new",
+        "CREATE INDEX synthetic_idx ON synthetic_new(id)",
+      ],
+      sizes: undefined,
+    },
+    {
+      name: "renamed table",
+      find: "} else invalidateAll();",
+      replace:
+        "} else if (!alter && !/^DROP TABLE /.test(text)) invalidateAll();",
+      sql: [
+        "CREATE TABLE synthetic_new(id int)",
+        "ALTER TABLE synthetic_new RENAME TO synthetic_old",
+        "CREATE INDEX synthetic_idx ON synthetic_new(id)",
+      ],
+      sizes: undefined,
+    },
+  ])("rejects the $name known-empty mutant", async (mutant) => {
+    const planted = await plantMutant(
+      new URL("../src/db/migrate-safety.ts", import.meta.url),
+      mutant.find,
+      mutant.replace,
+    );
+    try {
+      const loaded = (await import(
+        pathToFileURL(planted.path).href
+      )) as typeof SafetyModule;
+      const check = (classifier: typeof classifyMigrationBatch) =>
+        expect(
+          classifier(mutant.sql, mutant.sizes).at(-1)!.classification,
+        ).toBe("risky");
+      check(classifyMigrationBatch);
+      expect(() => check(loaded.classifyMigrationBatch)).toThrow();
+    } finally {
+      await planted.cleanup();
+    }
+  });
+});
+
 describe("read-only size evidence collector", () => {
   it("is one SELECT that writes nothing", () => {
     expect(sizeEvidenceSql.startsWith("SELECT ")).toBe(true);

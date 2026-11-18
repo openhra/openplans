@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { eventPayloadSchemas } from "@openplans/plugin-sdk";
-import type { PassthroughRow, StatusData } from "./read.js";
+import type { PassthroughRow, SourceRow, StatusData } from "./read.js";
 
 /** Age buckets for the public view. `unknown` means there is no record to measure. */
 export const AGE_BUCKETS = ["<1d", "<7d", "<30d", "older", "unknown"] as const;
@@ -68,14 +68,27 @@ const publicData = z.strictObject({
 /**
  * `freshness` is how long ago OpenPlans retrieved the source, not whether the publisher has
  * released something newer. `published_at` is the publisher's own date for the copy, null when
- * the import recorded none; `published_from` says which record it came from.
+ * the import recorded none; `published_from` says which record it came from. A rollup snapshot
+ * with no date of its own (a state's PUF import) gives the latest date of its files when every
+ * file has one: `published_from` is then `latest_of_files` and `published_files` counts them.
+ * Only those rows carry `published_files`.
  */
 const publicSource = z.strictObject({
   id: z.string(),
   freshness: bucket,
   published_at: z.iso.date().nullable(),
-  published_from: z.enum(["release_date", "last_modified"]).nullable(),
+  published_from: z
+    .enum(["release_date", "last_modified", "latest_of_files"])
+    .nullable(),
+  published_files: z.number().int().positive().optional(),
 });
+
+/** `published_files` only where the date is the latest of a rollup's files. */
+const publishedFiles = (source: SourceRow) =>
+  source.publishedFrom === "latest_of_files" &&
+  source.publishedFiles !== undefined
+    ? { published_files: source.publishedFiles }
+    : {};
 const publicIngest = z.strictObject({
   source: z.string(),
   last_success: bucket,
@@ -250,6 +263,7 @@ export function publicView(status: StatusData): PublicStatus {
         freshness: ageBucket(source.retrieved, status.now),
         published_at: source.published,
         published_from: source.publishedFrom,
+        ...publishedFiles(source),
       })) ?? null,
     worker: {
       last_ingest:
@@ -302,6 +316,7 @@ export function operatorView(status: StatusData): OperatorStatus {
         freshness: ageBucket(source.retrieved, status.now),
         published_at: source.published,
         published_from: source.publishedFrom,
+        ...publishedFiles(source),
         retrieved_at: iso(source.retrieved),
         snapshot_id: source.snapshotId,
       })) ?? null,

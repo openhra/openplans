@@ -1,12 +1,8 @@
 import type { OpenPlansPlugin } from "@openplans/plugin-sdk";
 import { z } from "zod";
 import { marketInput, marketQuery } from "./input.js";
-import { marketCosts, marketOutput } from "./service.js";
-import { printMarket } from "./print.js";
-import { marketForm, visitorPage } from "./visitor.js";
-import { employerInput } from "./employer-input.js";
-import { employerCosts } from "./employer.js";
-import { printEmployer } from "./employer-print.js";
+import { marketOutput } from "./output.js";
+import { compareAnswers } from "./lazy.js";
 
 export const PLUGIN_NAME = "@openplans/plugin-compare";
 const PUBLIC_LIMITS = { perMinute: 30, activePerSource: 2, activeTotal: 4 };
@@ -14,7 +10,7 @@ const PUBLIC_LIMITS = { perMinute: 30, activePerSource: 2, activeTotal: 4 };
 const plugin: OpenPlansPlugin = {
   manifest: {
     name: PLUGIN_NAME,
-    version: "0.1.6",
+    version: "0.1.7",
     apiVersion: "0.1",
     kinds: ["routes", "mcpTools"],
     capabilities: { operatorRoutes: true },
@@ -33,7 +29,7 @@ const plugin: OpenPlansPlugin = {
         c.header("Cache-Control", "no-store");
         if (Object.keys(c.req.query()).length)
           return c.json({ error: { code: "INVALID_INPUT" } }, 400);
-        return c.html(visitorPage());
+        return c.html((await compareAnswers()).visitorPage());
       },
     });
     for (const mode of ["market", "print"] as const) {
@@ -46,6 +42,8 @@ const plugin: OpenPlansPlugin = {
         handler: async (c) => {
           c.header("Cache-Control", "no-store");
           try {
+            const { marketCosts, marketForm, printMarket } =
+              await compareAnswers();
             let input: z.output<typeof marketInput>;
             if (mode === "market") input = marketQuery(c.req.query());
             else if (
@@ -67,7 +65,12 @@ const plugin: OpenPlansPlugin = {
               error instanceof SyntaxError ||
               (error instanceof Error && error.message === "INVALID_INPUT")
             )
-              return c.json({ error: { code: "INVALID_INPUT" } }, 400);
+              return mode === "print"
+                ? c.html(
+                    (await compareAnswers()).visitorError("INVALID_INPUT"),
+                    400,
+                  )
+                : c.json({ error: { code: "INVALID_INPUT" } }, 400);
             const code =
               error instanceof Error &&
               [
@@ -77,7 +80,9 @@ const plugin: OpenPlansPlugin = {
               ].includes(error.message)
                 ? error.message
                 : "comparison_unavailable";
-            return c.json({ error: { code } }, 503);
+            return mode === "print"
+              ? c.html((await compareAnswers()).visitorError(code), 503)
+              : c.json({ error: { code } }, 503);
           }
         },
       });
@@ -93,6 +98,8 @@ const plugin: OpenPlansPlugin = {
           handler: async (c) => {
             c.header("Cache-Control", "no-store");
             try {
+              const { employerCosts, employerInput, printEmployer } =
+                await compareAnswers();
               const input = employerInput.parse(await c.req.json());
               const answer = await employerCosts(host, input, {
                 db: c.get("pluginDb"),
@@ -123,7 +130,8 @@ const plugin: OpenPlansPlugin = {
       inputSchema: marketInput,
       outputSchema: marketOutput,
       readOnly: true,
-      handler: (input, scope) => marketCosts(host, input, scope),
+      handler: async (input, scope) =>
+        (await compareAnswers()).marketCosts(host, input, scope),
     });
   },
 };

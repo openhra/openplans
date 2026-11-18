@@ -356,6 +356,15 @@ applied SQL and duplicate numbers are rejected. Previously unapplied lower-numbe
 migrations merged from another branch are applied in numeric order. Fix forward
 by adding a migration. PostGIS is enabled separately.
 
+`worker migrate --check` tracks tables created earlier in the pending batch, including
+earlier files. Supported indexes, constraints, NOT NULL changes and bounded inserts
+can use that evidence without a database size measurement. Literal inserts consume
+the small-table budget and end the empty-table allowance for NOT NULL changes.
+An insert from an existing table still needs small-table evidence for every source.
+Existing tables keep their usual checks. Drops, renames and unknown SQL discard
+pending-table evidence; a risky insert or update discards its target's size while
+preserving evidence for unrelated new tables.
+
 Every table row carries `created_at`, `updated_at`, `sourced_by`, `sourced_at` and
 `sourced_slug`, filled from the row's snapshot. See [row provenance](row-provenance.md).
 

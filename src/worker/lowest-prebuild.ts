@@ -22,7 +22,7 @@ import { acceptsLowestCell } from "../services/handy.js";
 import { buildLowestCounty } from "./handy-build.js";
 
 export const lowestPrebuildUsage =
-  "Usage: worker prebuild lowest-premiums [--years YYYY,YYYY] [--inventory FILE] [--max-cells N] [--dry-run]";
+  "Usage: worker prebuild lowest-premiums [--years YYYY,YYYY] [--inventory FILE] [--max-cells N] [--dry-run] | --renew [--max-groups N] [--max-seconds N]";
 
 /** Stream the cube; retain locations only, never every age/year cell. */
 export async function* lowestInventory(

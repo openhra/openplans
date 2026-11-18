@@ -1,3 +1,4 @@
+import { runLowestRenew } from "./lowest-renew.js";
 import { runLowestPrebuild, lowestPrebuildUsage } from "./lowest-prebuild.js";
 import { loadConfig } from "../config/index.js";
 import { runLowestBuild, rebuildLowestPremiums } from "./handy-build.js";
@@ -132,8 +133,12 @@ export const coreWorkerCommands: readonly CoreWorkerCommand[] = Object.freeze(
         argv: ["prebuild", "lowest-premiums"],
         usage: lowestPrebuildUsage,
         queryTimeoutMs: 300_000,
-        run: (args, { open, output }) =>
-          runLowestPrebuild(args, () => open(), output),
+        run: (args, { open, output, host }) =>
+          args[0] === "--renew"
+            ? runLowestRenew(args.slice(1), () => open(), output, {
+                signal: host.run?.signal,
+              })
+            : runLowestPrebuild(args, () => open(), output),
       },
       {
         argv: ["build", "lowest-premiums"],

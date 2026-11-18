@@ -212,7 +212,7 @@ rates of any other issuer it lists. Turning the switch on or off means preparing
 
 ## Public individual offer comparator
 
-The comparator is opt-in. Load `@openplans/plugin-compare` 0.1.4 with `public.quoting: true`
+The comparator is opt-in. Load `@openplans/plugin-compare` 0.1.7 with `public.quoting: true`
 and keep `tpa.enabled` and `tpa.privateIngress` false for public use. No library default
 changes when the package is installed. This exposes `GET /compare/v1` for browser forms,
 `GET /compare/v1/market` for JSON, `POST /compare/v1/print` for HTML, and one read-only MCP

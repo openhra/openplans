@@ -219,15 +219,19 @@ const corePackageRoot = resolve(
   fileURLToPath(new URL("../../", import.meta.url)),
 );
 
-async function pluginRoot(
+/** The package root holding a plugin module's file; undefined for a module without one. */
+async function modulePackageRoot(
   file: string | undefined,
 ): Promise<string | undefined> {
-  const root = file && (await packageRoot(file));
+  return (file && (await packageRoot(file))) || undefined;
+}
+
+/** A plugin's own migrations root: its package root, unless that is the core package. */
+function migrationsRoot(root: string | undefined): string | undefined {
   return root && resolve(root) !== corePackageRoot ? root : undefined;
 }
 
-async function pluginSha256(file: string | undefined): Promise<string | null> {
-  const root = file && (await packageRoot(file));
+async function rootSha256(root: string | undefined): Promise<string | null> {
   return (root && (await packageSha256(root))) || null;
 }
 
@@ -306,9 +310,14 @@ export async function loadPlugins(
   let passThrough: OperatorPassThrough | undefined;
   try {
     const candidates = await checkPlugins(config, options, env);
-    for (const candidate of candidates) {
-      hashes.set(candidate.manifest.name, await pluginSha256(candidate.file));
-      const root = await pluginRoot(candidate.file);
+    const roots = await Promise.all(
+      candidates.map((candidate) => modulePackageRoot(candidate.file)),
+    );
+    // Package hashes are file reads: they run while the plugins set up and are awaited before
+    // the status view can read them. packageSha256 never rejects.
+    const hashing = Promise.all(roots.map(rootSha256));
+    for (const [index, candidate] of candidates.entries()) {
+      const root = migrationsRoot(roots[index]);
       if (root)
         migrations.push(
           Object.freeze({
@@ -384,6 +393,8 @@ export async function loadPlugins(
     }
     const page = toolPageRefusal(pluginTools);
     if (page) refuse(page.plugin, page.code);
+    for (const [index, hash] of (await hashing).entries())
+      hashes.set(candidates[index]!.manifest.name, hash);
     // Design 5.7: a configured cache store or database provider must exist once every plugin ran.
     const [missing] = unknownProviders(config, providerTables(staging));
     if (missing) refuse(CORE_PLUGIN_NAME, "plugin_provider_unknown", missing);

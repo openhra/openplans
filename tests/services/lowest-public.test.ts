@@ -32,6 +32,10 @@ import { post } from "../mcp/transport-helpers.js";
 import { FIXED_TIME } from "../plugins/fixture.js";
 import { loadConfig } from "../../src/config/index.js";
 import { loadPlugins } from "../../src/plugins/index.js";
+import type * as OperatorHost from "../../src/plugins/operator-host.js";
+import { createOperatorHost } from "../../src/plugins/operator-host.js";
+import { withMutantFile, importMutant } from "../mutant-file.js";
+import { replaceSyntax } from "../source-mutation.js";
 import { toolPageRefusal } from "../../src/plugins/mcp-tools.js";
 import { setup } from "../compat/v1/helpers.js";
 
@@ -531,4 +535,63 @@ it("uses two fresh metadata reads for a warm minimum and detects a redundant-que
   reads = 0;
   expect(await lowestPremiums(mutant, input, { cache })).toEqual(expected);
   expect(() => expect(reads).toBe(2)).toThrow();
+});
+
+it("reads status plugin identities without locale setup and rejects a locale-sort mutant", async () => {
+  const plugins = ["status", "handy", "compare", "blob-s3"].map((name) => ({
+    name: `@openplans/${name}`,
+    version: "0.0.0",
+    apiVersion: "0.1",
+    enabled: true,
+    sha256: "synthetic",
+  }));
+  const config = loadConfig({}, { version: 1, plugins: [] });
+  const assertPlainRead = async (create: typeof createOperatorHost) => {
+    const host = create(config, "api", {}, () => ({
+      plugins,
+      registries: { cacheStores: {} },
+    }));
+    const locale = vi
+      .spyOn(String.prototype, "localeCompare")
+      .mockImplementation(() => {
+        throw new Error("Request initialized locale collation");
+      });
+    try {
+      const result = await host.configuration({
+        db: h.db,
+        signal: new AbortController().signal,
+      });
+      expect(result.state).toBe("available");
+      if (result.state !== "available")
+        throw new Error("Status configuration unavailable");
+      expect(result.value.plugins.map((plugin) => plugin.name)).toEqual([
+        "@openplans/blob-s3",
+        "@openplans/compare",
+        "@openplans/handy",
+        "@openplans/status",
+      ]);
+      expect(locale).not.toHaveBeenCalled();
+    } finally {
+      locale.mockRestore();
+    }
+  };
+  await assertPlainRead(createOperatorHost);
+  const source = new URL("../../src/plugins/operator-host.ts", import.meta.url);
+  await withMutantFile(
+    source,
+    replaceSyntax(
+      await readFile(source, "utf8"),
+      "if (left < right) return -1; if (left > right) return 1; return 0;",
+      "return left.localeCompare(right);",
+    ),
+    async (file) => {
+      const mutant = await importMutant<typeof OperatorHost>(
+        file,
+        "createOperatorHost",
+      );
+      await expect(
+        assertPlainRead(mutant.createOperatorHost),
+      ).rejects.toThrow();
+    },
+  );
 });

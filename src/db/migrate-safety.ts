@@ -321,6 +321,7 @@ export function classifyMigrationBatchWithRules(
     Object.keys(tables).filter((key) => tables[key]),
   );
   const empty = new Set<string>();
+  const pendingTables = new Set<string>();
   let inventoryReliable = sizes !== undefined;
   const withinBudget = (key: string) => {
     const size = tables[key];
@@ -362,11 +363,13 @@ export function classifyMigrationBatchWithRules(
   const invalidate = (name: string) => {
     const key = tableKey(name);
     empty.delete(key);
+    pendingTables.delete(key);
     tables[key] = null;
   };
   const invalidateAll = () => {
     inventoryReliable = false;
     empty.clear();
+    pendingTables.clear();
     for (const key of Object.keys(tables)) tables[key] = null;
   };
   return sqls.map((sql) => {
@@ -425,12 +428,11 @@ export function classifyMigrationBatchWithRules(
         const key = tableKey(table[2]!);
         // Conditional creation is not proof that an existing table is empty.
         if (
-          !table[1] ||
-          (inventoryReliable &&
-            key.startsWith('"public".') &&
-            !Object.hasOwn(tables, key))
+          !Object.hasOwn(tables, key) &&
+          (!table[1] || (inventoryReliable && key.startsWith('"public".')))
         ) {
           empty.add(key);
+          pendingTables.add(key);
           tables[key] = { rows: 0, bytes: 0 };
         }
       } else if (index) {
@@ -548,6 +550,7 @@ export function classifyMigrationBatchWithRules(
               ),
           );
         const previous = tables[tableKey(target)];
+        const wasPending = pendingTables.has(tableKey(target));
         invalidate(target);
         if (!reason && scalarSeeds && previous) {
           const count = additions(data).length;
@@ -558,6 +561,7 @@ export function classifyMigrationBatchWithRules(
               Buffer.byteLength(statement.sql, "utf8") * 8 +
               count * 1024,
           };
+          if (wasPending) pendingTables.add(tableKey(target));
         }
       } else if (update) {
         rule = "small-update";
@@ -570,6 +574,7 @@ export function classifyMigrationBatchWithRules(
         )
           reason = `UPDATE may rewrite rows or execute unknown expressions; ${sizeReason(update[1]!)}`;
         const previous = tables[tableKey(update[1]!)];
+        const wasPending = pendingTables.has(tableKey(update[1]!));
         invalidate(update[1]!);
         if (
           !reason &&
@@ -577,7 +582,7 @@ export function classifyMigrationBatchWithRules(
           additions(tokens.slice(tokens.indexOf("SET") + 1)).every(
             scalarAssignment,
           )
-        )
+        ) {
           tables[tableKey(update[1]!)] = {
             rows: previous.rows,
             bytes:
@@ -585,6 +590,8 @@ export function classifyMigrationBatchWithRules(
               (Buffer.byteLength(statement.sql, "utf8") * 8 + 1024) *
                 previous.rows,
           };
+          if (wasPending) pendingTables.add(tableKey(update[1]!));
+        }
       } else if (
         new RegExp(
           `^CREATE VIEW ${relation}(?: \\( ${identifier}(?: , ${identifier})* \\))? AS (?:SELECT|WITH) `,
@@ -679,7 +686,15 @@ export function classifyMigrationBatchWithRules(
             );
         }
         // Approval of an opaque operation must not let later statements reuse stale sizes.
-        if (!index) invalidateAll();
+        if (!index) {
+          if (insert || update) {
+            // A known write target loses its size above. Keep unrelated pending tables,
+            // but discard database evidence just as for any other risky statement.
+            inventoryReliable = false;
+            for (const key of Object.keys(tables))
+              if (!pendingTables.has(key)) invalidate(key);
+          } else invalidateAll();
+        }
       } else {
         if (statement.reviews.length)
           reasons.push(

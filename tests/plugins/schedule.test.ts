@@ -8,13 +8,8 @@ import * as Registries from "../../src/plugins/registries.js";
 import { plantMutant } from "../../src/plugins/testing/artifacts.js";
 import type { PluginWorkerCommand } from "../../src/plugins/worker.js";
 import { runWorker } from "../../src/worker/commands.js";
-import {
-  CORE_SCHEDULES,
-  CronError,
-  cronMatches,
-  parseCron,
-  runScheduleTick,
-} from "../../src/worker/schedule.js";
+import { CORE_SCHEDULES, runScheduleTick } from "../../src/worker/schedule.js";
+import { CronError, cronMatches, parseCron } from "../../src/plugins/cron.js";
 import type * as ScheduleModule from "../../src/worker/schedule.js";
 import type { Dispatch, ScheduledCommand } from "../../src/worker/schedule.js";
 import { coreMigrations, testDatabase } from "../pglite.js";
@@ -45,6 +40,8 @@ describe("cron parser", () => {
     ["* * * * *", "2026-11-11T12:34:56Z", true],
     ["34 12 * * *", "2026-11-11T12:34:00Z", true],
     ["34 12 * * *", "2026-11-11T12:35:00Z", false],
+    ["34 12 * * *", "2026-11-11T07:34:00-05:00", true],
+    ["34 12 * * *", "2026-11-11T12:34:00-05:00", false],
     ["*/15 * * * *", "2026-11-11T12:45:00Z", true],
     ["*/15 * * * *", "2026-11-11T12:46:00Z", false],
     ["5/20 * * * *", "2026-11-11T12:45:00Z", true],

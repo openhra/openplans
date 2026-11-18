@@ -20,6 +20,7 @@ import type {
   WorkerCommandSpec,
 } from "@openplans/plugin-sdk";
 import { toolNames } from "../mcp/schemas.js";
+import { parseCron } from "./cron.js";
 import { passThrough } from "./sources/passthrough.js";
 
 export type PluginHost = "api" | "worker" | "stdio";
@@ -300,7 +301,6 @@ const TOOL_NAME = /^[a-z][a-z0-9_]{2,63}$/;
 const PROVIDER_NAME = /^[a-z][a-z0-9-]{0,31}$/;
 const COMMAND_WORD = /^[a-z][a-z0-9-]{0,31}$/;
 const SCHEDULE_NAME = /^[a-z][a-z0-9-]{0,63}$/;
-const CRON_FIELDS = 5;
 
 function isCorePath(path: string, plugin: string): boolean {
   return (
@@ -549,7 +549,6 @@ export function stagingRegistrar(
           typeof spec.name === "string" &&
             SCHEDULE_NAME.test(spec.name) &&
             typeof spec.cron === "string" &&
-            spec.cron.trim().split(/\s+/).length === CRON_FIELDS &&
             Array.isArray(spec.command) &&
             spec.command.length > 0 &&
             spec.command.every((word) => typeof word === "string") &&
@@ -558,6 +557,11 @@ export function stagingRegistrar(
             Number.isSafeInteger(spec.maxRunMs) &&
             spec.maxRunMs > 0,
         );
+        try {
+          parseCron(spec.cron);
+        } catch {
+          refuse("plugin_registration_invalid");
+        }
         claim("schedules", spec.name, "plugin_registration_collision");
         if (keep) staging.schedules.push({ plugin, spec });
       },

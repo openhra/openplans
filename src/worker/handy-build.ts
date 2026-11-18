@@ -62,6 +62,7 @@ export async function buildLowestCounty(
   db: Database,
   values: LowestInput[],
   maxCells?: number,
+  renewBeforeMs = 0,
 ) {
   if (!values.length) throw new Error("Empty county publication");
   const inputs = values.map(countyLowestInput),
@@ -77,7 +78,13 @@ export async function buildLowestCounty(
     if (inputs.some((input) => lowestEvidenceKey(input, manifest) !== group))
       throw new Error("Publication must contain one county and year");
     const evidence = await readLowestEvidence(tx, group);
-    const existing = await readLowestGroup(tx, first, manifest, evidence);
+    const existing = await readLowestGroup(
+      tx,
+      first,
+      manifest,
+      evidence,
+      renewBeforeMs,
+    );
     const reads = countyBuildReads(tx);
     const sharedReads = requestReads(reads);
     const cells: {

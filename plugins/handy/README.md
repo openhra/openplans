@@ -1,6 +1,6 @@
 # Printable stipend range
 
-`@openplans/plugin-handy` 0.1.4 calculates four illustrative household profiles from the loaded public plan catalog. It stays off until a deployment loads it. Public quoting must also be enabled.
+`@openplans/plugin-handy` 0.1.5 calculates four illustrative household profiles from the loaded public plan catalog. It stays off until a deployment loads it. Public quoting must also be enabled.
 
 For a public installation, opt into preset-only registration:
 
