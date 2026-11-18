@@ -7,7 +7,6 @@ type Host = {
   householdDistributions: NonNullable<
     CalculationHost["householdDistributions"]
   >;
-  slcsp: NonNullable<CalculationHost["slcsp"]>;
 };
 
 export async function allowanceScenario(
@@ -52,49 +51,18 @@ export async function allowanceScenario(
   const completeProfiles =
     profiles.length === 4 &&
     expected.every((id, index) => object(profiles[index]).id === id);
-  const benchmarks = [];
-  const evidence = Array.isArray(object(raw.provenance).evidence)
-    ? [...(object(raw.provenance).evidence as unknown[])]
-    : [];
-  const snapshots = new Map(
-    rows(object(raw.provenance).snapshots).map((item) => [
-      item.snapshot_id,
-      item,
-    ]),
-  );
+  scope.signal.throwIfAborted();
+  const benchmarks = rows(raw.benchmarks);
   for (const entry of profiles) {
     scope.signal.throwIfAborted();
     const profile = object(entry);
-    const members = Array.isArray(profile.members)
-      ? profile.members.map((item) => {
-          const member = object(item);
-          return {
-            age: member.age as number,
-            relationship: member.relationship as
-              "subscriber" | "spouse" | "child",
-            tobacco: false as const,
-          };
-        })
-      : [];
-    const silver = await host.slcsp(
-      { zip: input.zip, county: input.county, year: input.year, members },
-      scope,
+    const benchmark = benchmarks.find(
+      (entry) => entry.profile_id === profile.id,
     );
+    if (!benchmark) throw new Error("BENCHMARK_MISSING");
+    const silver = object(benchmark.result);
     scope.signal.throwIfAborted();
     if (silver.data_generation !== generation) throw new Error("DATA_CHANGED");
-    const { source_refs, snapshots: pins, ...summary } = silver;
-    const start = evidence.length;
-    evidence.push(...rows(source_refs).map((ref) => ({ source_refs: [ref] })));
-    rows(pins).forEach((pin) => snapshots.set(pin.snapshot_id, pin));
-    benchmarks.push(
-      source_refs === undefined
-        ? { profile_id: profile.id, result: silver }
-        : {
-            profile_id: profile.id,
-            result: summary,
-            evidence_range: { start, count: evidence.length - start },
-          },
-    );
   }
   const targetKnown =
     completeProfiles &&
@@ -102,19 +70,7 @@ export async function allowanceScenario(
       const cents = object(object(item).lowest_silver).monthly_cents;
       return Number.isSafeInteger(cents) && Number(cents) >= 0;
     });
-  const projected = distributionPage(
-    {
-      ...raw,
-      provenance: {
-        ...object(raw.provenance),
-        evidence,
-        snapshots: [...snapshots.values()],
-      },
-    },
-    evidencePage,
-  );
-  // Older calculation hosts retain their small DTO contract. Both formats share the response cap.
-  const compact = raw.evidence_format === "source-references-v1";
+  const projected = distributionPage(raw, evidencePage);
   const answer: Record<string, unknown> = {
     schema_version: "1",
     status: raw.status ?? "unknown",
@@ -125,7 +81,7 @@ export async function allowanceScenario(
     reason: completeProfiles
       ? (raw.reason ?? null)
       : "required_profile_missing",
-    profiles: compact ? projected.profiles : profiles,
+    profiles: projected.profiles,
     slcsp: benchmarks,
     target: {
       basis: "full_gross_lowest_silver_premium",
@@ -141,10 +97,10 @@ export async function allowanceScenario(
       status: targetKnown ? "calculated" : "unknown",
     },
     data_generation: raw.data_generation ?? null,
-    provenance: compact ? projected.provenance : (raw.provenance ?? null),
+    provenance: projected.provenance,
   };
-  if (compact) answer.evidence_pagination = projected.evidence_pagination;
-  if (compact && !("members" in input)) {
+  answer.evidence_pagination = projected.evidence_pagination;
+  if (!("members" in input)) {
     const query = new URLSearchParams({
       zip: input.zip,
       ...(input.county ? { county: input.county } : {}),

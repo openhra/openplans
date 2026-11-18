@@ -73,14 +73,18 @@ describe("API", () => {
       const unavailableApp = createApp(unreachable);
       const response = await unavailableApp.request("/healthz");
       expect(response.status).toBe(503);
-      expect(await response.json()).toEqual({ status: "ok", db: "down" });
+      expect(await response.json()).toEqual({
+        status: "ok",
+        db: "down",
+        error: { code: "db_down" },
+      });
       const availability = await unavailableApp.request(
         "/v1/data-availability",
       );
       expect(availability.status).toBe(503);
       const body = await availability.text();
       expect(JSON.parse(body)).toEqual({
-        error: "data_availability_unavailable",
+        error: { code: "data_availability_unavailable" },
       });
       expect(body).not.toContain(socket);
     } finally {

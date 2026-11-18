@@ -1,3 +1,7 @@
+import {
+  CalculationWorker,
+  installCalculationExecutor,
+} from "../services/calculation-executor.js";
 import { stopCmsZipPreparation } from "../ingest/geo/cms.js";
 import { EnvironmentOnlyKeyError, loadConfig } from "../config/index.js";
 import { serve } from "@hono/node-server";
@@ -8,8 +12,14 @@ import { openHostDatabase, startHostStorage } from "../plugins/host-storage.js";
 import { startTelemetry } from "../telemetry/index.js";
 import type { StatusHostParts } from "../plugins/status-host.js";
 
+let calculationWorker: CalculationWorker | undefined;
 try {
   const config = loadConfig();
+  if (config.db.provider === "pg" && config.public.quoting) {
+    calculationWorker = new CalculationWorker();
+    await calculationWorker.start();
+    installCalculationExecutor(calculationWorker);
+  }
   const { port, host } = config.listen;
   // Plugins load first, so a plugin's database provider or blob store can be selected.
   const statusHost: StatusHostParts = {};
@@ -50,6 +60,7 @@ try {
   server.on("error", () => {
     console.error("API listener failed; check PORT availability");
     void Promise.resolve(telemetry?.stop())
+      .then(() => calculationWorker?.close())
       .then(() => plugins.teardown())
       .then(() => db.close())
       .catch(() => {
@@ -62,6 +73,7 @@ try {
     server.close(() => {
       // Plugins stop first, in reverse load order, then the database closes.
       void Promise.resolve(telemetry?.stop())
+        .then(() => calculationWorker?.close())
         .then(() => plugins.teardown())
         .then(() => db.close())
         .catch(() => {
@@ -73,6 +85,7 @@ try {
   process.once("SIGINT", shutdown);
   process.once("SIGTERM", shutdown);
 } catch (error) {
+  await calculationWorker?.close();
   if (
     error instanceof EnvironmentOnlyKeyError ||
     (error instanceof Error &&

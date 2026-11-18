@@ -124,7 +124,9 @@ it("matches full direct rating enumeration at exact age-cell endpoints, includin
   for (const age of [0, 14, 15, 20, 21, 40, 63, 64, 120]) {
     const request = lowestInput({ ...input, age });
     const expected = await slow(h.db, age);
-    expect((await buildLowestPremiums(h.db, request)).status).toBe("active");
+    expect(["active", "current"]).toContain(
+      (await buildLowestPremiums(h.db, request)).status,
+    );
     const fast = await lowestPremiums(h.db, request),
       fallback = await lowestPremiums(h.db, request, { slow: true });
     expect(JSON.stringify(fast)).toBe(JSON.stringify(fallback));
@@ -224,14 +226,14 @@ it("rejects stale sources and missing cheaper rates rather than certifying an ob
   });
 });
 
-it("rejects expired rows, partial builds, corrupt payloads and the wrong ZIP offer set", async () => {
+it("rejects expired rows, partial builds, corrupt payloads and the wrong county offer set", async () => {
   await buildLowestPremiums(h.db, input);
   for (const sql of [
     "UPDATE handy_lowest_build SET expires_at=now()-interval '1 second'",
     "UPDATE handy_lowest_build SET expired_at=now()-interval '1 second'",
     "UPDATE handy_lowest_build SET written_partitions=0,complete=false",
     "UPDATE handy_lowest_build SET payload=payload||' '",
-    "UPDATE handy_lowest_build SET request_json=replace(request_json,'77002','77003')",
+    "UPDATE handy_lowest_build SET request_json=replace(request_json,'48201','48203')",
   ])
     await rollback(async (tx) => {
       await tx.exec(sql);
@@ -263,6 +265,10 @@ it("catches a one-cent winner, dropped evidence and missing cheaper candidate mu
 });
 
 it("preserves legacy route bytes with the feature absent, off and on, and gates both added MCP definitions", async () => {
+  await buildLowestPremiums(
+    h.db,
+    lowestInput({ zip: "77002", year: 2026, age: 40 }),
+  );
   const path = "/v1/plans?zip=77002&year=2026";
   const absent = await h.app.request(path),
     bytes = await absent.text();

@@ -5,6 +5,22 @@ Release notes for OpenPlans. Earlier releases are on the
 
 ## Unreleased
 
+## v0.4.14
+
+- Compatibility provider searches that match more than 2,000 search keys return 422 and ask for a narrower filter instead of timing out.
+
+- Lowest-premium lookups answer `lowest_not_built` when a cell is missing or expired. Build cells with `worker prebuild lowest-premiums`.
+
+- Lowest premiums share county evidence across ages 0 to 64. ZIP-limited counties keep the amount unknown. Rebuild lowest-premium cells after migrating.
+
+- Stipend and comparison calculations run in a bounded worker queue. When it is full, pages and REST routes return 503 with Retry-After.
+
+- A newly started API answers its first lowest Silver lookups faster.
+
+- Household, age and stipend comparisons reuse one set of ratings, and comparison evidence uses the household source format.
+
+- Breaking: every REST error now returns `{"error":{"code":"..."}}`, including compatibility, plugin, admin and unknown-route errors.
+
 ## v0.4.13
 
 - Effective settings report whether telemetry is enabled.

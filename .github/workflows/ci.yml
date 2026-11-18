@@ -99,7 +99,6 @@
       "name": "OpenPlans / macOS shard ${{ matrix.shard }}",
       "runs-on": "macos-15-intel",
       "timeout-minutes": 45,
-      "continue-on-error": true,
       "needs": [
         "dedupe"
       ],
@@ -153,7 +152,6 @@
       "name": "OpenPlans / macOS",
       "runs-on": "ubuntu-24.04",
       "timeout-minutes": 5,
-      "continue-on-error": true,
       "if": "${{ always() && needs.dedupe.outputs.full == 'true' }}",
       "needs": [
         "dedupe",
@@ -173,7 +171,7 @@
           }
         },
         {
-          "name": "Require every macOS shard to succeed",
+          "name": "Classify macOS shard result",
           "env": {
             "NEEDS_RESULTS": "${{ toJSON(needs) }}"
           },
@@ -278,7 +276,8 @@
         "dedupe",
         "linux",
         "docker",
-        "postgis"
+        "postgis",
+        "macos"
       ],
       "steps": [
         {
@@ -294,7 +293,7 @@
           }
         },
         {
-          "name": "Require every job to succeed",
+          "name": "Check required and advisory job results",
           "env": {
             "NEEDS_RESULTS": "${{ toJSON(needs) }}"
           },

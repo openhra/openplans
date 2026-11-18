@@ -113,7 +113,7 @@ export function createAdminAuth(options: AuthOptions) {
       if (!origin || !session) return failure(c);
       const form = await readAdminForm(c, signals.get(c));
       if (signals.get(c)?.aborted)
-        return c.json({ error: "admin_unavailable" }, 503);
+        return c.json({ error: { code: "admin_unavailable" } }, 503);
       if (
         !form ||
         !validCsrf(c, origin, form.get("csrf") ?? undefined, session.csrfToken)
@@ -129,7 +129,7 @@ export function createAdminAuth(options: AuthOptions) {
         try {
           await next();
         } catch {
-          c.res = c.json({ error: "admin_unavailable" }, 503);
+          c.res = c.json({ error: { code: "admin_unavailable" } }, 503);
         }
         adminHeaders(c);
       };
@@ -165,13 +165,14 @@ export function createAdminAuth(options: AuthOptions) {
           path,
           bodyLimit({
             maxSize: 65_536,
-            onError: (c) => c.json({ error: "invalid_form" }, 400),
+            onError: (c) => c.json({ error: { code: "invalid_form" } }, 400),
           }),
         );
       }
       app.get("/admin/login", (c) => {
         const nonce = store.nonce();
-        if (!nonce) return c.json({ error: "admin_unavailable" }, 503);
+        if (!nonce)
+          return c.json({ error: { code: "admin_unavailable" } }, 503);
         cookie(c, LOGIN_COOKIE, nonce, NONCE_MS / 1000);
         return c.html(page("Sign in", "/admin/login", nonce));
       });
@@ -198,7 +199,7 @@ export function createAdminAuth(options: AuthOptions) {
             return c.json({ error: { code: "RATE_LIMITED" } }, 429);
           const form = await readAdminForm(c, signals.get(c));
           if (signals.get(c)?.aborted)
-            return c.json({ error: "admin_unavailable" }, 503);
+            return c.json({ error: { code: "admin_unavailable" } }, 503);
           const fields =
             path === "/admin/logout" ? ["csrf"] : ["csrf", "credential"];
           if (
@@ -235,7 +236,8 @@ export function createAdminAuth(options: AuthOptions) {
             path === "/admin/login"
               ? store.issue(previous)
               : store.renew(previous);
-          if (!next) return c.json({ error: "admin_unavailable" }, 503);
+          if (!next)
+            return c.json({ error: { code: "admin_unavailable" } }, 503);
           cookie(c, SESSION_COOKIE, next, ABSOLUTE_MS / 1000);
           return c.redirect("/admin", 303);
         });

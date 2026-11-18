@@ -103,7 +103,9 @@ it("freezes exact page/action registrations and leaves every unimplemented capab
     ) {
       expect(response.status).toBe(400);
       expect(response.headers.get("cache-control")).toBe("no-store");
-      expect(await response.json()).toEqual({ error: "invalid_proposal" });
+      expect(await response.json()).toEqual({
+        error: { code: "invalid_proposal" },
+      });
       continue;
     }
     if (spec.path === "/admin/releases") {

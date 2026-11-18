@@ -219,6 +219,7 @@ describe("core worker commands", () => {
         ]),
       ),
     ).toEqual({
+      "prebuild lowest-premiums": 300_000,
       "build lowest-premiums": 300_000,
       migrate: 3_600_000,
       status: null,

@@ -223,7 +223,9 @@ it("downloads only a validated inert proposal and rejects unknown keys and value
       headers: { "content-type": "application/x-www-form-urlencoded" },
     });
     expect(response.status).toBe(400);
-    expect(await response.json()).toEqual({ error: "invalid_proposal" });
+    expect(await response.json()).toEqual({
+      error: { code: "invalid_proposal" },
+    });
   }
 });
 

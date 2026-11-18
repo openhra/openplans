@@ -80,11 +80,6 @@ function recordingContext(
           "Calculations are unavailable while recording tool definitions",
         );
       },
-      slcsp: async () => {
-        throw new Error(
-          "Calculations are unavailable while recording tool definitions",
-        );
-      },
     },
     secrets: { get: () => undefined },
     log: () => {},

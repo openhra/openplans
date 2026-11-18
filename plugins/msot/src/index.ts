@@ -77,7 +77,8 @@ const plugin: OpenPlansPlugin = {
         const input = resolveInput.safeParse(
           await c.req.json().catch(() => undefined),
         );
-        if (!input.success) return c.json({ error: "MSOT_INVALID_INPUT" }, 400);
+        if (!input.success)
+          return c.json({ error: { code: "MSOT_INVALID_INPUT" } }, 400);
         c.header("Cache-Control", "no-store");
         try {
           return c.json(
@@ -91,7 +92,7 @@ const plugin: OpenPlansPlugin = {
             error instanceof Error && /^MSOT_[A-Z_]+$/.test(error.message)
               ? error.message
               : "MSOT_RESOLVE_FAILED";
-          return c.json({ error: code }, 400);
+          return c.json({ error: { code } }, 400);
         }
       },
     });

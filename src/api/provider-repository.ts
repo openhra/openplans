@@ -22,10 +22,17 @@ import type { SearchKeySlot } from "./provider-search-keys.js";
 const CANDIDATE_PROBES = 1000;
 /**
  * A keyed location page probes every matching identity in the radius. Above this many, the
- * radius scan reads fewer rows, and the page takes the original path. A bounded count of
- * matching key rows decides first: every identity has at least one row.
+ * location page is rejected before expanding addresses. A bounded count of matching
+ * key rows decides first: every identity has at least one row.
  */
 const KEYED_LOCATION_IDENTITIES = 2000;
+
+/** A compatibility location page exceeded its bounded search-key budget. */
+export class ProviderLocationLimitError extends Error {
+  constructor() {
+    super("Use a smaller radius or add a more specific search term.");
+  }
+}
 /** How long one search waits for a kept unlocated count before it answers a query timeout. */
 const COUNT_WAIT_MS = 4_500;
 
@@ -323,13 +330,13 @@ async function readProvidersFrom(
       AND ($5::text IS NULL OR k.search_name ILIKE '%'||$5||'%')
       AND ($6::text IS NULL OR CASE WHEN k.entity_type='1' THEN 'INDIVIDUAL' ELSE 'GROUP' END=$6)`;
   // A location page that would probe too many identities reads no more than this bounded count
-  // of key rows before it takes the original path, so it costs far less than a keyed attempt.
+  // of key rows before rejecting it, without expanding addresses or counting every match.
   if (
     keyTable &&
     locationPage &&
-    (await keyRowsOverLimit(db, q, keyTable, keyPredicate))
+    (await keyRowsOverLimit(db, q, keySlot!, keyPredicate))
   )
-    return undefined;
+    throw new ProviderLocationLimitError();
   // Identity names use the trigram index on NPPES names as a coarse, lossless filter: the
   // longest literal word lies inside one name field, so its trigrams are a subset of the
   // indexed trigrams. The ILIKE in identityPredicate still decides every match. Even one
@@ -914,8 +921,9 @@ async function readProvidersFrom(
   const row = result.rows[0]!.result;
   // An import committed after the slot was chosen: this snapshot's keys are stale.
   if (keySlot && !row.search_keys_current) return undefined;
-  // Too many identities in the radius for a keyed location page: nothing was probed.
-  if (keySlot && locationPage && !row.search_keys_probed) return undefined;
+  // Operator points can add hits beyond the public-key probe's budget.
+  if (keySlot && locationPage && !row.search_keys_probed)
+    throw new ProviderLocationLimitError();
   if (counted) row.unlocated = await counted;
   // An unknown count is not shared: the next search may have it, or current keys.
   if (row.unlocated === null) restrictCacheLevel("request");
@@ -1008,16 +1016,19 @@ async function readProvidersFrom(
 async function keyRowsOverLimit(
   db: SqlSession,
   q: ProviderSearch,
-  keyTable: string,
+  slot: SearchKeySlot,
   keyPredicate: string,
 ) {
-  const probe = `SELECT count(*)::int AS key_rows FROM (SELECT 1 FROM ${keyTable} k
+  const probe = `SELECT ${searchKeysCurrentSql(slot)} AS search_keys_current,
+    count(*)::int AS key_rows FROM (SELECT 1 FROM ${searchKeyTable(slot)} k
     WHERE ${cellCondition("k", cellRanges(q.origin!.latitude, q.origin!.longitude, q.radius!))}
       AND ST_DWithin(ST_SetSRID(ST_MakePoint(k.longitude,k.latitude),4326)::geography,
         ST_SetSRID(ST_MakePoint($8,$7),4326)::geography,$9*1609.344,false)
       AND ${keyPredicate}
     LIMIT ${KEYED_LOCATION_IDENTITIES + 1}) k`;
-  const { rows } = await db.query<{ result: { key_rows: number } }>(
+  const { rows } = await db.query<{
+    result: { key_rows: number; search_keys_current: boolean };
+  }>(
     `SELECT provider_search_query($provider_query$${probe}$provider_query$,
     $1::text,$2::integer,$3::text,$4::text,$5::text,$6::text,
     $7::double precision,$8::double precision,$9::numeric) AS result`,
@@ -1033,7 +1044,10 @@ async function keyRowsOverLimit(
       q.radius,
     ],
   );
-  return rows[0]!.result.key_rows > KEYED_LOCATION_IDENTITIES;
+  return (
+    rows[0]!.result.search_keys_current &&
+    rows[0]!.result.key_rows > KEYED_LOCATION_IDENTITIES
+  );
 }
 
 export async function providerDetail(

@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { compatRoutes } from "../../src/compat/v1/index.js";
 import { providerCompatRoutes } from "../../src/compat/v1/providers.js";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -249,7 +250,7 @@ describe.skipIf(!serverUrl)(
 );
 
 describe.skipIf(!serverUrl)(
-  "a location page with many matching identities takes the original path",
+  "a location page with many matching keys rejects an unbounded fallback",
   () => {
     let h: Awaited<ReturnType<typeof setup>>,
       fresh: Awaited<ReturnType<typeof freshDatabase>>;
@@ -283,53 +284,191 @@ describe.skipIf(!serverUrl)(
           npi: String(1000060000 + i),
           name: `ReviewCrowd${i}`,
           type: "1" as const,
-          codes: ["207Q00000X"],
+          codes: i < 2000 ? ["207Q00000X", "208D00000X"] : ["207Q00000X"],
           addresses: [[[40 + (i % 50) / 1e4, -100 + Math.floor(i / 50) / 1e4]]],
         })),
       );
+      await h.db
+        .exec(`INSERT INTO zcta_centroid(zcta,latitude,longitude,snapshot_id,source_row)
+        VALUES ('77030',40,-100,'catalog',2);
+        INSERT INTO geo_import(state,plan_year,relationship_snapshot_id,centroid_snapshot_id,rating_snapshot_id)
+        VALUES ('TX',2026,'catalog','catalog','catalog');
+        INSERT INTO provider_taxonomy(code,display_name,classification,version,snapshot_id)
+        VALUES ('207Q00000X','Synthetic family medicine','Synthetic','test','catalog')`);
     }, 300_000);
     afterAll(async () => {
       await h?.close();
       await fresh?.drop();
     });
 
-    it("answers identically from the keys at most 2,000 identities, and the original way above", async () => {
+    it("keeps exact pages below the limit and rejects broad filters before reading addresses", async () => {
       const original = await answers(h.db, repository, list);
       expect(
         original.map((b) => (JSON.parse(b) as { total: number }).total),
       ).toEqual([2100, 2100, 1111, 1111, 1111, 2100]);
       await buildProviderSearchKeys(h.db);
-      const counts: { keyed: number; original: number }[] = [];
-      const keyed: string[] = [];
-      for (const search of list) {
+      for (const search of list.slice(0, 2)) {
         const { seen, session } = recording(h.db);
-        keyed.push(...(await answers(session, repository, [search])));
-        counts.push({ ...seen });
+        await expect(answers(session, repository, [search])).rejects.toThrow(
+          repository.ProviderLocationLimitError,
+        );
+        expect(seen).toEqual({ keyed: 0, original: 0 });
       }
-      expect(keyed).toEqual(original);
-      // Too many: a bounded count of key rows sends the page to the original path before any
-      // keyed query runs. No filter: the original path alone.
-      expect(counts).toEqual([
-        { keyed: 0, original: 1 },
-        { keyed: 0, original: 1 },
-        { keyed: 1, original: 0 },
-        { keyed: 1, original: 0 },
-        { keyed: 1, original: 0 },
-        { keyed: 0, original: 1 },
-      ]);
+      const { seen, session } = recording(h.db);
+      expect(await answers(session, repository, list.slice(2))).toEqual(
+        original.slice(2),
+      );
+      expect(seen).toEqual({ keyed: 3, original: 1 });
+      // Exactly 2,000 key rows remains a supported, exact search.
+      expect(
+        (
+          await repository.searchProviderLocations(
+            h.db,
+            { ...at().q, taxonomy: "208D00000X" },
+            at().page,
+          )
+        ).total,
+      ).toBe(2000);
     }, 300_000);
 
-    it("fails when the bounded count never says over (planted mutant)", async () => {
+    async function bounded(api: Repository, slot: "a" | "b") {
+      const captured: { sql: string; args: unknown[] }[] = [];
+      const session: SqlSession = {
+        exec: (sql) => h.db.exec(sql),
+        query: (sql, args, options) => {
+          const match = /\$provider_query\$([\s\S]*)\$provider_query\$/.exec(
+            sql,
+          );
+          if (match) captured.push({ sql: match[1]!, args: args ?? [] });
+          return h.db.query(sql, args, options);
+        },
+      };
+      await expect(
+        api.searchProviderLocations(
+          session,
+          { ...at().q, taxonomy: "207Q00000X" },
+          at().page,
+        ),
+      ).rejects.toThrow(
+        "Use a smaller radius or add a more specific search term.",
+      );
+      expect(captured).toHaveLength(1);
+      const probe = captured[0]!;
+      expect(probe.sql).toContain("LIMIT 2001");
+      expect(probe.sql).not.toMatch(
+        /FROM npi_address|FROM address_point|wire_keys/,
+      );
+      const result = await h.db.transaction(async (tx) => {
+        await tx.exec("SET LOCAL enable_seqscan=off");
+        return tx.query<{ "QUERY PLAN": unknown }>(
+          "EXPLAIN (ANALYZE, FORMAT JSON) " + probe.sql,
+          probe.args,
+        );
+      });
+      const plan = JSON.stringify(result.rows[0]!["QUERY PLAN"]);
+      expect(plan).toContain(`provider_search_key_${slot}_cell`);
+      expect(plan).toContain('"Node Type":"Limit"');
+      expect(plan).toContain('"Actual Rows":2001');
+    }
+
+    it("bounds taxonomy probes to LIMIT+1 in both slots and never runs the fallback", async () => {
+      await bounded(repository, "a");
+      await buildProviderSearchKeys(h.db);
+      await bounded(repository, "b");
+    });
+
+    it("rejects a missing bound in a disposable mutant", async () => {
+      const probe = (await readFile(source, "utf8")).match(
+        /const probe = `SELECT [\s\S]*?LIMIT \$\{KEYED_LOCATION_IDENTITIES \+ 1\}\) k`;/,
+      )?.[0];
+      expect(probe).toBeDefined();
       await withMutant(
-        "return rows[0]!.result.key_rows > KEYED_LOCATION_IDENTITIES;",
-        "return rows[0]!.result.key_rows < 0;",
+        probe!,
+        probe!.replace("LIMIT ${KEYED_LOCATION_IDENTITIES + 1}", ""),
         async (mutant) => {
-          const { seen, session } = recording(h.db);
-          await answers(session, mutant, [list[0]!]);
-          // The keyed query runs, finds too many identities and hands over: two reads.
-          expect(seen).not.toEqual({ keyed: 0, original: 1 });
+          await expect(bounded(mutant, "b")).rejects.toThrow();
         },
       );
+    });
+
+    it("rejects a disabled cutoff in a disposable mutant", async () => {
+      await withMutant(
+        "rows[0]!.result.key_rows > KEYED_LOCATION_IDENTITIES",
+        "rows[0]!.result.key_rows < 0",
+        async (mutant) => {
+          await expect(bounded(mutant, "b")).rejects.toThrow();
+        },
+      );
+    });
+
+    it("returns an actionable HTTP 422 for taxonomy codes, specialty names and later pages", async () => {
+      const app = compatRoutes(h.db, { compatKey: "synthetic-taxonomy-token" });
+      for (const filter of [
+        { taxonomy: "207Q00000X" },
+        { specialty: "207Q00000X" },
+        { specialty: "family" },
+      ]) {
+        for (const page of [1, 20]) {
+          const response = await app.request("/compat/v1/providers/search", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-Api-Key": "synthetic-taxonomy-token",
+            },
+            body: JSON.stringify({
+              zip_code: "77030",
+              radius: 5,
+              per_page: 10,
+              page,
+              ...filter,
+            }),
+          });
+          expect(response.status).toBe(422);
+          expect(await response.json()).toEqual({
+            error: {
+              code: "provider_search_too_broad",
+              message:
+                "Use a smaller radius or add a more specific search term.",
+            },
+          });
+        }
+      }
+    });
+
+    it("does not reject from stale revisions or an emptied slot", async () => {
+      for (const change of [
+        "UPDATE npi_address SET city=city",
+        "TRUNCATE provider_search_key_b",
+      ]) {
+        let changed = false;
+        const rollback = new Error("rollback stale-key control");
+        await expect(
+          h.db.transaction(async (tx) => {
+            // Keep the source change and the query on this transaction's session.
+            const local: SqlSession = {
+              exec: (sql) => tx.exec(sql),
+              query: async (sql, args, options) => {
+                if (!changed && sql.includes("AS key_rows")) {
+                  changed = true;
+                  await tx.exec(change);
+                }
+                return tx.query(sql, args, options);
+              },
+            };
+            expect(
+              (
+                await repository.searchProviderLocations(
+                  local,
+                  { ...at().q, taxonomy: "207Q00000X" },
+                  at().page,
+                )
+              ).total,
+            ).toBe(2100);
+            expect(changed).toBe(true);
+            throw rollback;
+          }),
+        ).rejects.toBe(rollback);
+      }
     }, 300_000);
   },
 );

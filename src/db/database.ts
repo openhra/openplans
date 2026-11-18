@@ -5,6 +5,8 @@ import { databaseUrl } from "../config/access.js";
 export interface QueryOptions {
   /** Client read limit for this query, in place of the pool's 5 seconds. */
   timeoutMs?: number;
+  /** Leave JSON fields as text for decoding in a calculation worker. */
+  jsonAsText?: boolean;
 }
 
 export interface SqlSession {
@@ -12,7 +14,7 @@ export interface SqlSession {
     sql: string,
     parameters?: unknown[],
     options?: QueryOptions,
-  ): Promise<{ rows: Row[] }>;
+  ): Promise<{ rows: Row[]; jsonColumns?: string[] }>;
   /**
    * A session for a read that may outlive the request (an exact count kept per data revision).
    * On a pooled database it runs on its own connection outside the request pool, so such a
@@ -37,6 +39,10 @@ export interface Database extends SqlSession {
   poolWaiting?(): number;
 }
 
+const JSON_OID = 114;
+const JSONB_OID = 3802;
+const TEXT_OID = 25;
+
 function session(
   client: pg.Pool | pg.PoolClient,
   queryTimeout?: number,
@@ -46,16 +52,43 @@ function session(
     sql: string,
     parameters?: unknown[],
     options?: QueryOptions,
-  ): Promise<{ rows: Row[] }> => {
+  ): Promise<{ rows: Row[]; jsonColumns?: string[] }> => {
     const timeout = options?.timeoutMs ?? queryTimeout;
     try {
-      return timeout === undefined
-        ? await client.query<Row>(sql, parameters)
-        : await client.query<Row>({
-            text: sql,
-            values: parameters,
-            query_timeout: timeout,
-          } as pg.QueryConfig);
+      const jsonAsText = options?.jsonAsText;
+      const result =
+        timeout === undefined && !jsonAsText
+          ? await client.query<Row>(sql, parameters)
+          : await client.query<Row>({
+              text: sql,
+              values: parameters,
+              ...(timeout === undefined ? {} : { query_timeout: timeout }),
+              ...(jsonAsText
+                ? {
+                    types: {
+                      getTypeParser: (oid, format) =>
+                        pg.types.getTypeParser(
+                          oid === JSON_OID || oid === JSONB_OID
+                            ? TEXT_OID
+                            : oid,
+                          format,
+                        ) as (value: string) => unknown,
+                    } as pg.CustomTypesConfig,
+                  }
+                : {}),
+            } as pg.QueryConfig);
+      return jsonAsText
+        ? {
+            rows: result.rows,
+            jsonColumns: result.fields
+              .filter(
+                (field) =>
+                  field.dataTypeID === JSON_OID ||
+                  field.dataTypeID === JSONB_OID,
+              )
+              .map((field) => field.name),
+          }
+        : result;
     } catch (error) {
       if (onReadTimeout && readTimedOut(error)) await onReadTimeout();
       throw error;
@@ -190,9 +223,9 @@ export function createDatabase(
         // Let the server enforce 5s first; the client fallback only covers a broken connection.
         const scoped = session(client, 6_000);
         const value = await run({
-          query: (sql, parameters) => {
+          query: (sql, parameters, queryOptions) => {
             signal.throwIfAborted();
-            return scoped.query(sql, parameters);
+            return scoped.query(sql, parameters, queryOptions);
           },
           exec: (sql) => {
             signal.throwIfAborted();

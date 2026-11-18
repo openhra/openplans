@@ -1,3 +1,5 @@
+import { buildLowestPremiums } from "../../src/worker/handy-build.js";
+import { lowestInput } from "../../src/api/handy.js";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -129,6 +131,7 @@ beforeAll(async () => {
   await importSpuf(fixture.db, (await cachedSpuf(archive.kind, dataDir))[0]!);
   vi.stubEnv("OPENPLANS_MEDICARE_PART_D", "on");
   vi.stubEnv("OPENPLANS_MEDICARE_DRUG_COST", "on");
+  await buildLowestPremiums(fixture.db, lowestInput({ ...scope, age: 35 }));
   client = await connect({
     db: fixture.db,
     cursorSecret: CURSOR_SECRET,

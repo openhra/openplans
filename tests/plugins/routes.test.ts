@@ -205,7 +205,7 @@ describe("plugin route wrapper", () => {
     const response = await api.request("/synthetic/leak");
     expect(response.status).toBe(500);
     expect(await response.json()).toEqual({
-      error: "plugin_response_rejected",
+      error: { code: "plugin_response_rejected" },
     });
     expect(response.headers.get("x-cache")).toBe("bypass");
     expect(log.mock.calls).toEqual([
@@ -257,7 +257,9 @@ describe("plugin route wrapper", () => {
     routes.mount(api);
     const slow = await api.request("/synthetic/slow");
     expect(slow.status).toBe(503);
-    expect(await slow.json()).toEqual({ error: "plugin_deadline_exceeded" });
+    expect(await slow.json()).toEqual({
+      error: { code: "plugin_deadline_exceeded" },
+    });
   });
 
   it("refuses a route on a core path at load", async () => {
@@ -397,6 +399,28 @@ describe("reserved status paths and body caps", () => {
   });
   const statusPaths = ["/status", "/status.json", "/status/operator.json"];
 
+  it("sets Retry-After on busy public replies and preserves an explicit delay", async () => {
+    for (const delay of [undefined, "7"]) {
+      const plugins = {
+        routes: [
+          route("@synthetic/busy", "/synthetic/busy", (c) =>
+            c.json(
+              { error: "synthetic_busy" },
+              503,
+              delay ? { "Retry-After": delay } : {},
+            ),
+          ),
+        ],
+      };
+      const response = await harness(routesModule, plugins).request(
+        "/synthetic/busy",
+      );
+      expect(response.status).toBe(503);
+      expect(response.headers.get("Retry-After")).toBe(delay ?? "1");
+      expect(await response.json()).toEqual({ error: "synthetic_busy" });
+    }
+  });
+
   it("refuses /status* at load for any plugin but the status plugin", () => {
     const register = (name: string, path: string) => {
       const registrar = stagingRegistrar(
@@ -527,7 +551,9 @@ describe("reserved status paths and body caps", () => {
     const parse = vi.spyOn(JSON, "parse");
     const large = await app.request("/synthetic/large");
     expect(large.status).toBe(500);
-    expect(await large.json()).toEqual({ error: "plugin_response_rejected" });
+    expect(await large.json()).toEqual({
+      error: { code: "plugin_response_rejected" },
+    });
     // Only the client's read of the error body parsed anything.
     expect(parse).toHaveBeenCalledTimes(1);
     expect(lines).toEqual([

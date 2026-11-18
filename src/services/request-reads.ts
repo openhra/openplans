@@ -1,3 +1,5 @@
+import type { RateRow } from "../domain/rating/types.js";
+import { isMainThread } from "node:worker_threads";
 import type { SqlSession } from "../db/database.js";
 import type {
   CostSharingOptions,
@@ -85,10 +87,13 @@ interface Batch<Row> {
  * Reads a request would otherwise repeat for each plan it rates: the county catalog, the plans
  * offered from it, each plan's cost sharing, the lookups in REQUEST_LOOKUPS, and the rate and
  * plan-attribute rows of the plans the request says it will rate. Create one per request with
- * `requestReads(db)` and pass it down. Nothing keeps it after the request ends, so no request
- * sees another request's reads.
+ * `requestReads(db)` and pass it down. Discard it after the request or one repeatable-read
+ * county build. Independent requests never share its reads.
  */
-export function requestReads(db: SqlSession) {
+export function requestReads(
+  db: SqlSession,
+  rawBatchSize = isMainThread ? Infinity : 4,
+) {
   const lookups = sharedLookups(db);
   const rows = new Map<string, ReturnType<typeof plansForCounty>>();
   const offered = new Map<string, ReturnType<typeof countyPlans>>();
@@ -98,6 +103,7 @@ export function requestReads(db: SqlSession) {
   >();
   const planned = new Set<string>();
   const rates = new Map<string, Batch<Record<string, unknown>>[]>();
+  const parsedRates = new Map<string, Promise<RateRow[]>>();
   const attributes = new Map<
     string,
     Batch<{ raw: Record<string, string>; source_row: number }>[]
@@ -113,8 +119,7 @@ export function requestReads(db: SqlSession) {
     return value;
   }
   /**
-   * One base plan's rows, taken from one query over every planned plan. Plans named after that
-   * query ran share the next one. A plan never named is read alone through `single`.
+   * One base plan's rows from a bounded batch. A plan never named is read alone through `single`.
    */
   async function batched<Row extends Record<string, unknown>>(
     batches: Map<string, Batch<Row>[]>,
@@ -127,17 +132,21 @@ export function requestReads(db: SqlSession) {
     strip: boolean,
     // False for batch rows that the single read for `base` would not return.
     keep: (row: Row, base: string) => boolean = () => true,
+    batchSize = Infinity,
   ): Promise<{ rows: Row[] }> {
     if (!planned.has(base)) return single();
     let list = batches.get(key);
     if (!list) batches.set(key, (list = []));
     let batch = list.find((each) => each.bases.has(base));
     if (!batch) {
-      // Plans named after the earlier batches ran are read together in a new one.
-      const earlier = list;
-      const bases = [...planned]
-        .filter((id) => !earlier.some((each) => each.bases.has(id)))
-        .sort();
+      // Bound row decoding on the event loop, including when the catalog is large.
+      const assigned = new Set(list.flatMap((each) => [...each.bases]));
+      const bases = [base];
+      for (const id of planned) {
+        if (bases.length >= batchSize) break;
+        if (id !== base && !assigned.has(id)) bases.push(id);
+      }
+      bases.sort();
       batch = {
         bases: new Set(bases),
         rows: all(bases).then(({ rows }) => {
@@ -211,6 +220,21 @@ export function requestReads(db: SqlSession) {
     once(rows, `${county}|${year}`, () =>
       plansForCounty(lookups, county, year, "Individual"),
     );
+  const rateRows = (
+    snapshotId: string | undefined,
+    base: string,
+    area: string,
+  ) =>
+    batched(
+      rates,
+      `${part(snapshotId)}|${area}`,
+      base,
+      (bases) => premiumRateRowsForPlans(db, snapshotId, bases, area),
+      () => premiumRateRows(db, snapshotId, base, area),
+      false,
+      undefined,
+      rawBatchSize,
+    );
   return {
     /** The request's session: REQUEST_LOOKUPS run once, every other query as usual. */
     db: lookups,
@@ -248,7 +272,7 @@ export function requestReads(db: SqlSession) {
     },
     /**
      * Name the plans this request will rate, before it rates the first one. Their rate and
-     * attribute rows are then read in one query each, not one per plan.
+     * attribute rows share a read. Calculation workers bound their raw-row batches.
      */
     plan: (plans: Iterable<{ base_plan_id: string }>) => {
       for (const plan of plans) planned.add(plan.base_plan_id);
@@ -273,16 +297,23 @@ export function requestReads(db: SqlSession) {
             true,
           ) as ReturnType<typeof lineageAncestors>,
       ),
-    /** premiumRateRows(db, snapshot, base, area). */
-    rateRows: (snapshotId: string | undefined, base: string, area: string) =>
-      batched(
-        rates,
-        `${part(snapshotId)}|${area}`,
-        base,
-        (bases) => premiumRateRowsForPlans(db, snapshotId, bases, area),
-        () => premiumRateRows(db, snapshotId, base, area),
-        false,
-      ),
+    rateRows,
+    /** Decode each plan/area once for all household tiers in this request. */
+    parsedRateRows: (
+      snapshotId: string | undefined,
+      base: string,
+      area: string,
+      decode: (row: Record<string, unknown>) => RateRow,
+    ) => {
+      const key = JSON.stringify([snapshotId, base, area]);
+      return once(parsedRates, key, () => {
+        const answer = rateRows(snapshotId, base, area).then(({ rows }) =>
+          rows.map(decode),
+        );
+        answer.catch(() => parsedRates.delete(key));
+        return answer;
+      });
+    },
     /** exchangeAttributeRows(db, plan.snapshot_id, plan.base_plan_id). */
     exchangeAttributes: (plan: Pick<Plan, "snapshot_id" | "base_plan_id">) =>
       batched(
@@ -292,6 +323,8 @@ export function requestReads(db: SqlSession) {
         (bases) => exchangeAttributeRowsForPlans(db, plan.snapshot_id, bases),
         () => exchangeAttributeRows(db, plan.snapshot_id, plan.base_plan_id),
         true,
+        undefined,
+        rawBatchSize,
       ),
     /** childDentalBenefits(db, snapshot, base, names). */
     childDentalBenefits: (

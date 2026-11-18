@@ -248,6 +248,7 @@ const CORE_PROVIDERS = {
 /** Argv prefixes of the core worker commands (src/worker/commands.ts); a test keeps them in step. */
 export const CORE_WORKER_ARGV: readonly (readonly string[])[] = Object.freeze(
   [
+    ["prebuild", "lowest-premiums"],
     ["build", "lowest-premiums"],
     ["migrate"],
     ["status"],

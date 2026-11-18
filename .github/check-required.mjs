@@ -14,9 +14,8 @@ export const requiredJobs = {
   postgis: "OpenPlans / PostGIS",
 };
 
-// Advisory jobs run and report on every full run but never block it: the product ships as a
-// Linux image, and the macOS runners have failed or been cancelled for reasons unrelated to the
-// code. They carry continue-on-error and stay out of the aggregate and the same-commit proof.
+// macOS cancellation is advisory, but test failures still fail the required aggregate.
+// The summary job reports its result and stays in the same-commit proof.
 export const advisoryJobs = {
   macos: "OpenPlans / macOS",
 };
@@ -30,13 +29,13 @@ export const macosShardJobs = {
 };
 
 export const jobGroups = {
-  required: requiredJobs,
+  required: { ...requiredJobs, macos: advisoryJobs.macos },
   macos: macosShardJobs,
 };
 
 const runUrl = /^https:\/\/github\.com\/[\w.-]+\/[\w.-]+\/actions\/runs\/\d+$/;
 
-export function checkRequired(results, jobs = requiredJobs) {
+export function checkRequired(results, jobs = jobGroups.required) {
   const expected = [...Object.keys(sameCommitJob), ...Object.keys(jobs)];
   if (
     !results ||
@@ -51,10 +50,35 @@ export function checkRequired(results, jobs = requiredJobs) {
     throw new Error(`${sameCommitJob.dedupe} did not succeed`);
   const full = proof.outputs?.full;
   if (full === "true") {
-    for (const [id, name] of Object.entries(jobs)) {
-      if (results[id]?.result !== "success")
-        throw new Error(`${name} did not succeed`);
+    if (jobs === macosShardJobs) {
+      const shardResult = results["macos-shard"]?.result;
+      if (["cancelled", "skipped"].includes(shardResult)) {
+        const note = `macOS shards were ${shardResult}; advisory checks were unavailable.\n`;
+        if (process.env.GITHUB_STEP_SUMMARY)
+          appendFileSync(process.env.GITHUB_STEP_SUMMARY, note);
+        console.log(note.trim());
+        return "advisory-unavailable";
+      }
+      if (shardResult !== "success")
+        throw new Error(`${macosShardJobs["macos-shard"]} did not succeed`);
+      const note = "macOS shards passed.\n";
+      if (process.env.GITHUB_STEP_SUMMARY)
+        appendFileSync(process.env.GITHUB_STEP_SUMMARY, note);
+      console.log(note.trim());
+      return "macos";
     }
+    for (const [id, name] of Object.entries(jobs)) {
+      const result = results[id]?.result;
+      if (id === "macos" && ["cancelled", "skipped"].includes(result)) continue;
+      if (result !== "success") throw new Error(`${name} did not succeed`);
+    }
+    const macosResult = results.macos.result;
+    const macosNote = ["cancelled", "skipped"].includes(macosResult)
+      ? `macOS checks were ${macosResult}; advisory checks were unavailable.\n`
+      : "macOS checks passed.\n";
+    if (process.env.GITHUB_STEP_SUMMARY)
+      appendFileSync(process.env.GITHUB_STEP_SUMMARY, macosNote);
+    console.log(macosNote.trim());
     return "full";
   }
   if (full === "false") {
@@ -89,13 +113,17 @@ export function checkSourceRun(run, jobs, sha) {
     !runUrl.test(run.html_url ?? "")
   )
     throw new Error("The develop run is not a push run of this commit");
-  if (run.status !== "completed" || run.conclusion !== "success")
+  if (
+    run.status !== "completed" ||
+    !["success", "failure"].includes(run.conclusion)
+  )
     throw new Error(
-      `The develop run of this commit did not pass: ${run.html_url}`,
+      `The develop run of this commit did not finish: ${run.html_url}`,
     );
   for (const name of [
     sameCommitJob.dedupe,
     ...Object.values(requiredJobs),
+    advisoryJobs.macos,
     aggregateJob,
   ]) {
     const matching = (Array.isArray(jobs) ? jobs : []).filter(

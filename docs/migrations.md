@@ -188,3 +188,19 @@ Compatibility: Older images ignore them. The default-off route and tool use only
 Forward fix: Add a repair migration and rebuild cells. Removing an activation pointer restores full enumeration.
 
 Lock budget: New empty tables; the provenance seed needs small-table evidence. No source table is rewritten.
+
+### 20261117210614_lowest_county_evidence.sql
+
+Stage: contract
+Expand release: Not required. This is a one-shot replacement of derived publications.
+Compatibility: Older published cells are deleted. Rebuild county cells before enabling lowest premiums. Source datasets and household calculations retain their contracts.
+Forward fix: Apply an additive repair and rebuild the derived inventory. Keep the feature off when publication checks fail.
+Lock budget: Two seconds to acquire locks. The migration deletes only derived cells and creates empty evidence and accounting tables.
+
+### 20261118000213_lowest_active_build_index.sql
+
+Stage: expand
+Expand release: Index active publication pointers by build id so renewal checks do not scan every pointer.
+Compatibility: No response or source-data change.
+Forward fix: Add a repair index if lookup needs change.
+Lock budget: Two seconds to acquire the table lock; build the index before a large renewal.

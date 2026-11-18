@@ -43,9 +43,31 @@ async function rollback(run: (tx: SqlSession) => Promise<void>) {
     }),
   ).rejects.toBe(marker);
 }
+function expandedCandidate(
+  cell: OfferCohort,
+  row: Record<string, unknown>,
+): Record<string, unknown> {
+  const source = cell.evidence.sources[Number(row.evidence_ref)] as {
+    rating: {
+      members: { rate_row_refs: number[] }[];
+      rate_rows_used: unknown[];
+    };
+  };
+  const rating = source.rating;
+  return {
+    ...row,
+    ...rating,
+    members: rating.members.map(({ rate_row_refs, ...member }) => ({
+      ...member,
+      rate_rows: rate_row_refs.map((ref) => rating.rate_rows_used[ref]),
+    })),
+  };
+}
 async function allEvidence(db: SqlSession, age: number) {
   const first = await enumerateHouseholdOffers(db, { ...input, age });
-  const rows = [...first.evidence.candidates];
+  const rows = first.evidence.candidates.map((row) =>
+    expandedCandidate(first, row),
+  );
   let next = first.evidence.next_page;
   while (next) {
     const page = await enumerateHouseholdOffers(db, {
@@ -55,7 +77,9 @@ async function allEvidence(db: SqlSession, age: number) {
       data_generation: first.data_generation,
     });
     expect(page.statistics).toEqual(first.statistics);
-    rows.push(...page.evidence.candidates);
+    rows.push(
+      ...page.evidence.candidates.map((row) => expandedCandidate(page, row)),
+    );
     next = page.evidence.next_page;
   }
   return { first, rows };
@@ -74,6 +98,13 @@ it("rates every eligible real TX Silver offer at boundary ages and equals the ex
   for (const age of [0, 14, 15, 20, 21, 40, 64, 120]) {
     const { first, rows } = await allEvidence(h.db, age);
     requireComplete(first);
+    expect(
+      await enumerateHouseholdOffers(h.db, {
+        ...input,
+        age: undefined,
+        members: [{ age, relationship: "subscriber" }],
+      }),
+    ).toEqual(first);
     const location = await resolveLocation(h.db, input);
     const plans = (
       await countyPlans(h.db, input.county, input.year, input.zip)
@@ -140,12 +171,12 @@ it("counts ineligible and all unrated candidates and refuses an incomplete headl
     const cell = await enumerateHouseholdOffers(tx, input);
     expect(cell).toMatchObject({
       status: "unknown",
-      reason: "incomplete_offer_cohort",
+      reason: "premium_not_rated",
       statistics: null,
     });
     expect(cell.denominator.unknown_count).toBe(1);
     expect(cell.evidence.unknown).toMatchObject([
-      { plan_id: id, reason: "rate_rows_missing" },
+      { plan_id: id, reason: "premium_not_rated" },
     ]);
     expect(() => requireComplete(cell)).toThrow();
     // Omitting the unresolved candidate would falsely allow a complete headline.
@@ -243,9 +274,8 @@ async function mutatedCohort(
   );
   try {
     const shared =
-      before.startsWith("const offered") ||
-      before.startsWith("if (scan") ||
-      before.startsWith("group.counts");
+      before.startsWith("for (const plan") ||
+      before.startsWith("group.counts.unknown");
     let source = rebaseImports(await readFile(original, "utf8"), original);
     if (shared) {
       const handy = new URL("./handy.js", original);
@@ -274,10 +304,7 @@ it("kills page_one and operator_shortlist mutants with full-cohort equality", as
   const positive = await enumerateHouseholdOffers(h.db, input);
   for (const [before, after] of [
     ["offerStatistics(prices)", "offerStatistics(prices.slice(0, 1))"],
-    [
-      "const offered = all.filter(selectedMetal)",
-      "const offered = all.filter(selectedMetal).filter((plan) => plan.base_plan_id !== all.filter(selectedMetal)[0]?.base_plan_id)",
-    ],
+    ["for (const plan of all.sort", "for (const plan of all.slice(1).sort"],
   ])
     await mutatedCohort(before!, after!, async (consumer) => {
       const mutant = await consumer(h.db, input);
@@ -293,24 +320,10 @@ it("kills page_one and operator_shortlist mutants with full-cohort equality", as
     });
 });
 
-it("kills omit_unrated_candidate and unknown_into_zero mutants with completeness assertions", async () => {
-  const positive = await enumerateHouseholdOffers(h.db, input);
-  await rollback(async (tx) => {
-    await tx.query("DELETE FROM rate WHERE base_plan_id=$1", [
-      positive.evidence.candidates[0]!.plan_id,
-    ]);
-    await mutatedCohort(
-      "if (scan?.unknown.length)",
-      "if (false)",
-      async (consumer) => {
-        const mutant = await consumer(tx, input);
-        expect(() => expect(mutant.statistics).toBeNull()).toThrow();
-      },
-    );
-  });
+it("kills unknown_into_zero with completeness assertions", async () => {
   await mutatedCohort(
-    "candidate_count: counted ? cell.provenance.offered_plan_count : null",
-    "candidate_count: counted ? cell.provenance.offered_plan_count : 0",
+    "group.counts.catalog === null ? null : candidates.length + excluded.length",
+    "group.counts.catalog === null ? 0 : candidates.length + excluded.length",
     async (consumer) => {
       const mutant = await consumer(h.db, { ...input, year: 2040 });
       expect(() =>
@@ -332,61 +345,40 @@ it("kills duplicate_csr_variant before publishing a distribution", async () => {
   );
 });
 
-it("counts family exclusions identically for an age and a one-member household", async () => {
-  const household = {
-    ...input,
-    age: undefined,
-    members: [{ age: 40, relationship: "subscriber" }],
-  };
-  const first = await enumerateHouseholdOffers(h.db, input);
-  await rollback(async (tx) => {
-    await tx.query(
-      `UPDATE plan_attribute SET raw=raw || '{"ChildOnlyOffering":"Allows Child-Only"}'::jsonb WHERE base_plan_id=$1`,
-      [first.evidence.candidates[0]!.plan_id],
-    );
-    const single = await enumerateHouseholdOffers(tx, input);
-    const family = await enumerateHouseholdOffers(tx, household);
-    requireComplete(single);
-    requireComplete(family);
-    expect(family.denominator.excluded_count).toBeGreaterThan(0);
-    expect(family.denominator).toEqual(single.denominator);
-    expect({ ...family.statistics, evidence_refs: [] }).toEqual({
-      ...single.statistics,
-      evidence_refs: [],
+it.each([false, true])(
+  "kills an omitted unpriced offer for either input shape: household=%s",
+  async (explicit) => {
+    const household = {
+      ...input,
+      age: undefined,
+      members: [{ age: 40, relationship: "subscriber" }],
+    };
+    const request = explicit ? household : input;
+    const complete = await enumerateHouseholdOffers(h.db, request);
+    await rollback(async (tx) => {
+      await tx.query("DELETE FROM rate WHERE base_plan_id=$1", [
+        complete.evidence.candidates[0]!.plan_id,
+      ]);
+      const unknown = await enumerateHouseholdOffers(tx, request);
+      expect(unknown.statistics).toBeNull();
+      expect(unknown.denominator.unknown_count).toBe(1);
+      await mutatedCohort(
+        "group.counts.unknown = group.candidates.length - rated.length;",
+        "group.candidates = rated; group.counts.unknown = 0; group.reasons = [];",
+        async (consumer) => {
+          const mutant = await consumer(tx, request);
+          expect(mutant.status).toBe("calculated");
+          expect(() => expect(mutant.statistics).toBeNull()).toThrow();
+          expect(() =>
+            expect(mutant.denominator.candidate_count).toBe(
+              complete.denominator.candidate_count,
+            ),
+          ).toThrow();
+        },
+      );
     });
-  });
-});
-
-it("kills an omitted unpriced household offer instead of publishing partial statistics", async () => {
-  const household = {
-    ...input,
-    age: undefined,
-    members: [{ age: 40, relationship: "subscriber" }],
-  };
-  const complete = await enumerateHouseholdOffers(h.db, household);
-  await rollback(async (tx) => {
-    await tx.query("DELETE FROM rate WHERE base_plan_id=$1", [
-      complete.evidence.candidates[0]!.plan_id,
-    ]);
-    const unknown = await enumerateHouseholdOffers(tx, household);
-    expect(unknown.statistics).toBeNull();
-    expect(unknown.denominator.unknown_count).toBe(1);
-    await mutatedCohort(
-      "group.counts.unknown = group.candidates.length - rated.length;",
-      "group.candidates = rated; group.counts.unknown = 0; group.reasons = [];",
-      async (consumer) => {
-        const mutant = await consumer(tx, household);
-        expect(mutant.status).toBe("calculated");
-        expect(() => expect(mutant.statistics).toBeNull()).toThrow();
-        expect(() =>
-          expect(mutant.denominator.candidate_count).toBe(
-            complete.denominator.candidate_count,
-          ),
-        ).toThrow();
-      },
-    );
-  });
-});
+  },
+);
 
 it("retries the whole scan once and refuses repeated generation churn", async () => {
   for (const repeated of [false, true]) {

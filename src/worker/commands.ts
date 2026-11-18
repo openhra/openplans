@@ -1,3 +1,4 @@
+import { runLowestPrebuild, lowestPrebuildUsage } from "./lowest-prebuild.js";
 import { loadConfig } from "../config/index.js";
 import { runLowestBuild, rebuildLowestPremiums } from "./handy-build.js";
 import { runRecordPolicy } from "./record-policy.js";
@@ -128,9 +129,16 @@ export const coreWorkerCommands: readonly CoreWorkerCommand[] = Object.freeze(
   (
     [
       {
+        argv: ["prebuild", "lowest-premiums"],
+        usage: lowestPrebuildUsage,
+        queryTimeoutMs: 300_000,
+        run: (args, { open, output }) =>
+          runLowestPrebuild(args, () => open(), output),
+      },
+      {
         argv: ["build", "lowest-premiums"],
         usage:
-          "Usage: worker build lowest-premiums --year YYYY --age N (--zip ZIP | --county FIPS)",
+          "Usage: worker build lowest-premiums --year YYYY --age N (--zip ZIP | --county FIPS) [--metal METAL] [--tobacco true|false]",
         queryTimeoutMs: 300_000,
         run: (args, { open, output }) =>
           runLowestBuild(args, () => open(), output),
@@ -478,7 +486,7 @@ export async function runWorker(
         await rebuildLowestPremiums(db);
       } catch {
         output.error(
-          "Lowest premium rebuild deferred; requests use full enumeration",
+          "Lowest premium rebuild deferred; unpublished cells return lowest_not_built",
         );
       } finally {
         await db.close();

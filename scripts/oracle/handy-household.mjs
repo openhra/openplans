@@ -22,6 +22,7 @@ import {
   householdDistributions,
   HOUSEHOLD_METALS,
 } from "../../dist/services/handy.js";
+import { allowanceEvidence } from "../../dist/services/allowance-evidence.js";
 import { benchmarkSilver } from "../../dist/services/catalog.js";
 import { callBenchmarkTool } from "../../dist/mcp/handy.js";
 import { quotePlans } from "../../dist/services/quotes.js";
@@ -131,6 +132,32 @@ export async function checkHouseholdEnumeration(
   });
   const results = [];
   for (const profile of actual.profiles) {
+    // The sheet keeps source coordinates; inspect full household evidence as well.
+    const full = fourProfiles
+      ? await householdDistributions(
+          db,
+          {
+            county: input.county,
+            ...(input.zip ? { zip: input.zip } : {}),
+            year: input.year,
+            coverage_start: actual.coverage_start,
+            members: profile.members,
+          },
+          { enabled: true },
+        )
+      : actual;
+    const evidenceFor = (candidate, metal) => {
+      const detailed = full.profiles[0].metals
+        .find((group) => group.metal === metal)
+        .candidates.find((row) => row.plan_id === candidate.plan_id);
+      assert(detailed, "Missing full household candidate");
+      const evidence = full.provenance.evidence[detailed.evidence_ref];
+      assert.deepEqual(
+        actual.provenance.evidence[candidate.evidence_ref],
+        fourProfiles ? allowanceEvidence(evidence) : evidence,
+      );
+      return evidence;
+    };
     const quotes = [];
     let page = 1;
     do {
@@ -223,7 +250,7 @@ export async function checkHouseholdEnumeration(
       for (const candidate of group.candidates.filter(
         (c) => c.status === "unknown",
       )) {
-        const evidence = actual.provenance.evidence[candidate.evidence_ref];
+        const evidence = evidenceFor(candidate, metal);
         assert(evidence, "Missing unknown-candidate evidence");
         if (evidence.rating) {
           const quoted = quotes.find((q) => q.plan_id === candidate.plan_id);
@@ -293,7 +320,7 @@ export async function checkHouseholdEnumeration(
       )) {
         const quoted = expected.find((c) => c.id === candidate.plan_id)?.quote;
         assert(quoted, "Quoted candidate evidence");
-        const evidence = actual.provenance.evidence[candidate.evidence_ref];
+        const evidence = evidenceFor(candidate, metal);
         assert(evidence, "Missing evidence reference");
         assert.equal(candidate.monthly_cents, quoted.total_cents);
         assert.deepEqual(evidence.rating.provenance, quoted.provenance);

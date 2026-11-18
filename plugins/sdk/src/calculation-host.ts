@@ -155,18 +155,4 @@ export interface CalculationHost {
     scope: CalculationScope,
     options?: { fourProfiles?: boolean },
   ): Promise<Record<string, unknown>>;
-  /** Existing adjusted second-lowest silver benchmark for one explicitly aged household. */
-  slcsp?(
-    input: {
-      zip?: string;
-      county?: string;
-      year: number;
-      members: {
-        age: number;
-        relationship: "subscriber" | "spouse" | "child";
-        tobacco: false;
-      }[];
-    },
-    scope: CalculationScope,
-  ): Promise<Record<string, unknown>>;
 }

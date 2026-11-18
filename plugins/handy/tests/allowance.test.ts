@@ -25,6 +25,19 @@ const distribution = {
   data_generation: "generation-a",
   provenance: { manifest: "manifest-a" },
   location: { zip: "00501" },
+  benchmarks: [
+    "employee_only",
+    "employee_spouse",
+    "employee_spouse_child",
+    "employee_spouse_children",
+  ].map((profile_id) => ({
+    profile_id,
+    result: {
+      status: "calculated",
+      data_generation: "generation-a",
+      slcsp_monthly_cents: 8000,
+    },
+  })),
   profiles: [
     "employee_only",
     "employee_spouse",
@@ -145,11 +158,6 @@ describe("allowance adapters", () => {
   it("keeps unknown profiles in the denominator and keeps adjusted SLCSP separate", async () => {
     const host = {
       householdDistributions: async () => distribution,
-      slcsp: async () => ({
-        status: "calculated",
-        data_generation: "generation-a",
-        slcsp_monthly_cents: 8000,
-      }),
     } as never;
     const result = await allowanceScenario(
       host,
@@ -187,14 +195,6 @@ describe("allowance adapters", () => {
           })),
         };
       },
-      slcsp: async (input: unknown) => {
-        inputs.push(input);
-        return {
-          status: "calculated",
-          data_generation: "generation-a",
-          slcsp_monthly_cents: 9000,
-        };
-      },
     } as never;
     const result = await allowanceScenario(
       host,
@@ -205,9 +205,7 @@ describe("allowance adapters", () => {
       5000,
     );
     expect(inputs[0]).toMatchObject({ preset: "family-40-40-10-8-v1" });
-    expect((inputs[1] as { members: { age: number }[] }).members[0]?.age).toBe(
-      40,
-    );
+    expect(inputs).toHaveLength(1);
   });
 
   it("funds the exact all-profile target and rejects an allowance one cent short", async () => {
@@ -223,11 +221,6 @@ describe("allowance adapters", () => {
           })),
         };
       },
-      slcsp: async () => ({
-        status: "calculated",
-        data_generation: "generation-a",
-        slcsp_monthly_cents: 8000,
-      }),
     } as never;
     const explicit: AllowancePrivateInput = {
       zip: "00501",

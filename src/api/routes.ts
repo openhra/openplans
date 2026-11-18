@@ -1,4 +1,3 @@
-import { sharedResponseCache } from "./cache/index.js";
 import { lowestQuery, marketSummaryQuery, admitsHandyScope } from "./handy.js";
 import {
   householdHandy,
@@ -69,7 +68,7 @@ export function nativeRoutes(db: SqlSession, options: ApiOptions) {
         if (!admitsHandyScope(scope, input)) return v.fail("scope");
         const run = (session: SqlSession) =>
           lowestPremiums(boundedDatabase(session, deadline), input, {
-            cache: sharedResponseCache(db),
+            builtOnly: true,
             evidencePage: Number(c.req.query("evidence_page") ?? "1"),
           });
         return c.json(

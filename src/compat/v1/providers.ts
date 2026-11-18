@@ -263,18 +263,47 @@ export function providerCompatRoutes(db: SqlSession, native: Hono) {
     "/providers/search",
     bodyLimit({
       maxSize: 65_536,
-      onError: (c) => c.json({ error: "Request too large" }, 400),
+      onError: (c) =>
+        c.json(
+          {
+            error: {
+              code: "REQUEST_TOO_LARGE",
+              field: "body",
+              message: "Request too large",
+            },
+          },
+          400,
+        ),
     }),
     async (c) => {
       let body: Record<string, unknown>;
       try {
         body = await c.req.json();
       } catch {
-        return c.json({ error: "Invalid JSON body" }, 400);
+        return c.json(
+          {
+            error: {
+              code: "INVALID_JSON",
+              field: "body",
+              message: "Invalid JSON body",
+            },
+          },
+          400,
+        );
       }
       if (!body || typeof body !== "object" || Array.isArray(body))
         return v.fail("body");
-      if (!body.zip_code) return c.json({ error: "zip_code required" }, 400);
+      if (!body.zip_code)
+        return c.json(
+          {
+            error: {
+              code: "INVALID_INPUT",
+              field: "zip_code",
+              message: "zip_code required",
+            },
+          },
+          400,
+        );
       const zip = v.zip(body.zip_code),
         { start, size } = paging(body);
       const params = new URLSearchParams({ zip });

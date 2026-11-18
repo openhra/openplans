@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { allowanceEvidence } from "./allowance-evidence.js";
+import { benchmark } from "./subsidies.js";
+import { allowanceBenchmark, allowanceEvidence } from "./allowance-evidence.js";
 import { fail, premiumRequest } from "../api/validation.js";
 import { canonical } from "../api/cache/index.js";
 import type { ResponseCache } from "../api/cache/index.js";
@@ -18,7 +19,7 @@ import {
   locationZipCounties,
   snapshots as planSnapshots,
 } from "../api/repository.js";
-import { requestReads } from "./request-reads.js";
+import { requestReads, type RequestReads } from "./request-reads.js";
 import { familyOffer } from "./coverage-family.js";
 import { ratePremium } from "./premiums.js";
 import { dataGeneration } from "../api/cache/generation.js";
@@ -28,6 +29,7 @@ import {
   handySnapshots,
   handyScopeSnapshotIds,
   readLowestCell,
+  countyLowestInput,
   digest,
 } from "../db/handy-repository.js";
 import {
@@ -38,6 +40,8 @@ import {
 } from "../ingest/state/catalog.js";
 import { vtMetalCatalogComplete } from "../ingest/state/vt-metal.js";
 
+import { ReadError } from "./errors.js";
+
 export class HandyDataChanged extends Error {}
 
 /** Full enumeration; no quote-page limit and no EHB or dental benchmark adjustments. */
@@ -45,7 +49,7 @@ export async function enumerateLowest(
   db: SqlSession,
   input: LowestInput,
   manifest: string,
-  scan?: { unknown: Record<string, unknown>[]; consumeOffer(): void },
+  reads: RequestReads = requestReads(db),
 ) {
   const location = await resolveLocation(db, input, {
     allowCmsLive: false,
@@ -122,7 +126,6 @@ export async function enumerateLowest(
   base.completeness.catalog = "available";
   const scopeSnapshots = await handyScopeSnapshotIds(db, state, input.year);
   base.provenance.snapshots = await handySnapshots(db, scopeSnapshots, true);
-  const reads = requestReads(db);
   const all = await reads.countyPlans(
     location.county,
     input.year,
@@ -258,7 +261,6 @@ export async function enumerateLowest(
   const snapshots = new Set<string>(scopeSnapshots);
   reads.plan(offered);
   for (const plan of offered) {
-    scan?.consumeOffer();
     const entry = stateEntries?.find(
       (e) => e.row.plan_key === plan.base_plan_id,
     );
@@ -272,15 +274,6 @@ export async function enumerateLowest(
       base.provenance.excluded.push({
         plan_id: plan.base_plan_id,
         reason: "coverage_family_ineligible",
-        snapshot_id: plan.snapshot_id,
-        attribute_rows: attributes.map((a) => a.source_row),
-      });
-      continue;
-    }
-    if (eligible === null && scan) {
-      scan.unknown.push({
-        plan_id: plan.base_plan_id,
-        reason: "coverage_family_eligibility_unknown",
         snapshot_id: plan.snapshot_id,
         attribute_rows: attributes.map((a) => a.source_row),
       });
@@ -304,18 +297,6 @@ export async function enumerateLowest(
       estimate.total_cents === undefined
     ) {
       base.completeness.rates = "incomplete";
-      if (scan) {
-        scan.unknown.push({
-          plan_id: plan.base_plan_id,
-          reason:
-            estimate.status === "unsupported_rating_method"
-              ? "unsupported_rating_method"
-              : "rate_rows_missing",
-          status: estimate.status,
-          snapshot_id: plan.snapshot_id,
-        });
-        continue;
-      }
       return refuse(
         "unknown",
         estimate.status === "unsupported_rating_method"
@@ -352,7 +333,6 @@ export async function enumerateLowest(
         ? evidenceRef(estimate.rating_area_provenance)
         : null;
     base.provenance.candidates.push({
-      ...(scan ? { status: estimate.status, members: estimate.members } : {}),
       plan_id: plan.base_plan_id,
       monthly_cents: estimate.total_cents,
       catalog: { snapshot_id: plan.snapshot_id, source_row: plan.source_row },
@@ -370,10 +350,6 @@ export async function enumerateLowest(
     true,
   );
   base.candidate_count = rated.length;
-  if (scan?.unknown.length) {
-    base.completeness.rates = "incomplete";
-    return refuse("unknown", "incomplete_offer_cohort");
-  }
   base.completeness.rates = "complete";
   if (!rated.length) return refuse("no_plans", "no_matching_plans");
   const minimum = Math.min(...rated.map((r) => r.cents));
@@ -451,12 +427,33 @@ export function isLowestCell(value: unknown): value is LowestCell {
   );
 }
 
+export function acceptsLowestCell(
+  value: unknown,
+  input: LowestInput,
+  manifest: string,
+): value is LowestCell {
+  return (
+    isLowestCell(value) &&
+    value.provenance.input_manifest === manifest &&
+    value.year === input.year &&
+    value.location.zip === input.zip &&
+    (!input.county || value.location.county === input.county) &&
+    value.basis.age === input.age &&
+    value.basis.coverage_start === input.coverage_start &&
+    value.basis.metal === input.metal &&
+    value.basis.tobacco === input.tobacco &&
+    value.basis.premium_basis === input.premium_basis &&
+    value.basis.market_segment === input.market_segment
+  );
+}
+
 /** Generation verification covers autocommit adapters too. A publication retries once. */
 export async function lowestPremiums(
   db: SqlSession,
   value: unknown,
   options: {
     slow?: boolean;
+    builtOnly?: boolean;
     cache?: ResponseCache;
     evidencePage?: number;
   } = {},
@@ -465,27 +462,40 @@ export async function lowestPremiums(
   for (let attempt = 0; attempt < 2; attempt++) {
     const { generation, manifest } = await handyVersion(db);
     const accepts = (value: unknown): value is LowestCell =>
-      isLowestCell(value) &&
-      value.provenance.input_manifest === manifest &&
-      value.year === input.year &&
-      value.location.zip === input.zip &&
-      (!input.county || value.location.county === input.county) &&
-      value.basis.age === input.age &&
-      value.basis.coverage_start === input.coverage_start &&
-      value.basis.metal === input.metal &&
-      value.basis.tobacco === input.tobacco &&
-      value.basis.premium_basis === input.premium_basis &&
-      value.basis.market_segment === input.market_segment;
+      acceptsLowestCell(value, input, manifest);
     const load = async () => {
-      const cached = options.slow
+      const location = await resolveLocation(db, input, {
+        allowCmsLive: false,
+        year: input.year,
+      });
+      if (location.status !== "available" || !location.county)
+        return enumerateLowest(db, input, manifest);
+      const stored = options.slow
         ? undefined
-        : await readLowestCell(db, input, manifest);
-      return accepts(cached)
-        ? cached
-        : await enumerateLowest(db, input, manifest);
+        : await readLowestCell(
+            db,
+            countyLowestInput({ ...input, county: location.county }),
+            manifest,
+          );
+      const cached = isLowestCell(stored)
+        ? {
+            ...stored,
+            location,
+            basis: { ...stored.basis, age: input.age },
+          }
+        : undefined;
+      if (accepts(cached)) return cached;
+      if (options.builtOnly)
+        throw new ReadError({
+          code: "lowest_not_built",
+          message:
+            "This pricing cell is unpublished or expired. Coverage is unknown.",
+          year: input.year,
+        });
+      return enumerateLowest(db, input, manifest);
     };
     const cell =
-      options.cache && !options.slow
+      options.cache && !options.slow && !options.builtOnly
         ? await options.cache.lowest(
             { input, generation, manifest, accept: accepts },
             load,
@@ -965,6 +975,7 @@ async function enumerateHouseholds(
   input: HouseholdInput,
   fourProfiles: boolean,
   manifest: string,
+  options: { metals?: readonly HouseholdMetal[]; consumeOffer?: () => void },
 ) {
   const locationInput = {
     ...(input.zip ? { zip: input.zip } : {}),
@@ -984,11 +995,16 @@ async function enumerateHouseholds(
       : [{ id: "household", members: input.members }]
   ).map((profile) => ({
     ...profile,
-    metals: HOUSEHOLD_METALS.map(householdGroup),
+    metals: (options.metals ?? HOUSEHOLD_METALS).map(householdGroup),
     lowest_silver: null as HouseholdPoint | null,
     median_gold: null as HouseholdPoint | null,
   }));
   const evidence: unknown[] = [];
+  const premiums = new Map<
+    string,
+    Map<string, Awaited<ReturnType<typeof ratePremium>>>
+  >();
+  const benchmarks: Record<string, unknown>[] = [];
   const sourceIds = new Set<string>();
   function collectSources(value: unknown): void {
     if (!value || typeof value !== "object") return;
@@ -1042,6 +1058,7 @@ async function enumerateHouseholds(
       quantiles: "nearest_rank",
     },
     profiles,
+    ...(fourProfiles ? { benchmarks } : {}),
     provenance: {
       input_manifest: manifest,
       snapshots: [] as Record<string, unknown>[],
@@ -1055,7 +1072,12 @@ async function enumerateHouseholds(
     bindable_quote: false as const,
     subsidy_status: "not_evaluated" as const,
   };
-  const refuse = (reason: string) => ({ ...result, reason });
+  const reads = requestReads(db);
+  const finish = () => ({ result, reads, premiums });
+  const refuse = (reason: string) => {
+    result.reason = reason;
+    return finish();
+  };
   if (location.status !== "available" || !location.county)
     return refuse(
       location.status === "ambiguous"
@@ -1079,7 +1101,6 @@ async function enumerateHouseholds(
   for (const id of await handyScopeSnapshotIds(db, state, input.year))
     sourceIds.add(id);
   collectSources(location);
-  const reads = requestReads(db);
   const all = await reads.countyPlans(
     location.county,
     input.year,
@@ -1243,7 +1264,8 @@ async function enumerateHouseholds(
       continue;
     }
     for (const profile of profiles) {
-      const group = profile.metals.find((g) => g.metal === metal)!;
+      const group = profile.metals.find((g) => g.metal === metal);
+      if (!group) continue;
       if (group.counts.catalog !== null) group.counts.catalog++;
       const exclude = (reason: string) =>
         group.excluded.push({
@@ -1255,6 +1277,7 @@ async function enumerateHouseholds(
         exclude("off_exchange");
         continue;
       }
+      options.consumeOffer?.();
       const eligible = familyOffer(
         attrs,
         profile.members.some((m) => m.age >= 21),
@@ -1290,7 +1313,7 @@ async function enumerateHouseholds(
         ...identity,
         members: profile.members,
       });
-      const { estimate } = await ratePremium(
+      const rated = await ratePremium(
         db,
         plan,
         plan.base_plan_id,
@@ -1298,6 +1321,19 @@ async function enumerateHouseholds(
         location,
         reads,
       );
+      const { estimate } = rated;
+      if (fourProfiles && metal === "silver") {
+        let byPlan = premiums.get(profile.id);
+        if (!byPlan)
+          premiums.set(
+            profile.id,
+            (byPlan = new Map<
+              string,
+              Awaited<ReturnType<typeof ratePremium>>
+            >()),
+          );
+        byPlan.set(plan.base_plan_id, rated);
+      }
       if (
         estimate.status !== "rated" ||
         !("total_cents" in estimate) ||
@@ -1345,12 +1381,10 @@ async function enumerateHouseholds(
       )
         group.counts.eligible = null;
     }
-    profile.lowest_silver = profile.metals.find(
-      (g) => g.metal === "silver",
-    )!.points.minimum;
-    profile.median_gold = profile.metals.find(
-      (g) => g.metal === "gold",
-    )!.points.median;
+    profile.lowest_silver =
+      profile.metals.find((g) => g.metal === "silver")?.points.minimum ?? null;
+    profile.median_gold =
+      profile.metals.find((g) => g.metal === "gold")?.points.median ?? null;
   }
   result.provenance.snapshots = await handySnapshots(db, [...sourceIds].sort());
   const complete = groups.filter((g) => g.status !== "unknown").length;
@@ -1359,26 +1393,91 @@ async function enumerateHouseholds(
       ? "calculated"
       : "no_plans";
   else if (complete) result.status = "partial";
-  return result;
+  return finish();
 }
 
 /** Core only, default off. Explicit households remain request-scoped; no routes or derived writes. */
 export async function householdDistributions(
   db: SqlSession,
   value: unknown,
-  options: { enabled?: boolean; fourProfiles?: boolean } = {},
+  options: {
+    enabled?: boolean;
+    fourProfiles?: boolean;
+    metals?: readonly HouseholdMetal[];
+    consumeOffer?: () => void;
+    expectedGeneration?: string;
+  } = {},
 ) {
   if (!options.enabled) throw new Error("Household distributions disabled");
   const input = householdInput(value);
   for (let attempt = 0; attempt < 2; attempt++) {
     const generation = await dataGeneration(db),
       manifest = await handyManifest(db);
-    const result = await enumerateHouseholds(
+    if (
+      options.expectedGeneration &&
+      options.expectedGeneration !== `${generation}:${manifest}`
+    )
+      throw new HandyDataChanged("DATA_CHANGED");
+    const { result, reads, premiums } = await enumerateHouseholds(
       db,
       input,
       options.fourProfiles ?? false,
       manifest,
+      options,
     );
+    if (options.fourProfiles) {
+      const snapshots = new Map(
+        result.provenance.snapshots.map((row) => [row.snapshot_id, row]),
+      );
+      const missingSnapshots = new Set<string>();
+      const location = await resolveLocation(
+        db,
+        {
+          ...(input.zip ? { zip: input.zip } : {}),
+          ...(input.county ? { county: input.county } : {}),
+        },
+        { allowCmsLive: false, year: input.year },
+      );
+      for (const profile of result.profiles) {
+        const request = premiumRequest({
+          ...input,
+          members: profile.members.map((member) => ({
+            ...member,
+            tobacco: false,
+          })),
+          plan_ids: ["00000TX0000000"],
+        });
+        const value = allowanceBenchmark(
+          await benchmark(
+            db,
+            request,
+            location,
+            reads,
+            profile.members.some((member) => member.tobacco)
+              ? undefined
+              : premiums.get(profile.id),
+          ),
+        );
+        const { source_refs, ...summary } = value;
+        const start = result.provenance.evidence.length;
+        for (const ref of source_refs) {
+          result.provenance.evidence.push({ source_refs: [ref] });
+          const id = ref.snapshot_id ?? ref.publication_snapshot_id;
+          if (typeof id === "string" && !snapshots.has(id))
+            missingSnapshots.add(id);
+        }
+        result.benchmarks!.push({
+          profile_id: profile.id,
+          result: { ...summary, data_generation: generation },
+          evidence_range: { start, count: source_refs.length },
+        });
+      }
+      if (missingSnapshots.size) {
+        for (const pin of await handySnapshots(db, [...missingSnapshots]))
+          snapshots.set(pin.snapshot_id, pin);
+        result.provenance.snapshots = [...snapshots.values()];
+      }
+    }
     if (
       (await dataGeneration(db)) !== generation ||
       (await handyManifest(db)) !== manifest

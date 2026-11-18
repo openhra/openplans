@@ -11,12 +11,11 @@ import {
 } from "../../../scripts/oracle/negative-controls.mjs";
 import { migrate } from "../../../dist/db/migrate.js";
 import { lowestInput } from "../../../dist/api/handy.js";
+import { enumerateHouseholdOffers } from "../../../dist/services/offer-cohort.js";
 import {
-  enumerateSilverOffers,
-  enumerateHouseholdOffers,
-} from "../../../dist/services/offer-cohort.js";
-import { handyManifest } from "../../../dist/db/handy-repository.js";
-import { lowestPremiums } from "../../../dist/services/handy.js";
+  householdDistributions,
+  lowestPremiums,
+} from "../../../dist/services/handy.js";
 import { countyPlans, resolveLocation } from "../../../dist/api/repository.js";
 import { premiumRequest } from "../../../dist/api/validation.js";
 import { ratePremium } from "../../../dist/services/premiums.js";
@@ -59,13 +58,21 @@ try {
       year: 2026,
       age,
     });
-    const complete = await enumerateSilverOffers(
+    const complete = await householdDistributions(
       db,
-      input,
-      await handyManifest(db),
-      { unknown: [], consumeOffer() {} },
+      {
+        zip: input.zip,
+        county: input.county,
+        year: input.year,
+        members: [{ age, tobacco: false, relationship: "subscriber" }],
+      },
+      { enabled: true, metals: ["silver"] },
     );
-    assert.equal(complete.status, "calculated");
+    const group = complete.profiles[0].metals[0];
+    assert.equal(group.status, "calculated");
+    const candidates = group.candidates;
+    const rating = (offer) =>
+      complete.provenance.evidence[offer.evidence_ref].rating;
     const distribution = await enumerateHouseholdOffers(db, {
       zip: input.zip,
       county: input.county,
@@ -105,20 +112,17 @@ try {
         reads,
       );
       assert.equal(estimate.status, "rated");
-      const actual = complete.provenance.candidates.find(
+      const actual = candidates.find(
         (candidate) => candidate.plan_id === plan.base_plan_id,
       );
       assert(actual);
       assert.equal(actual.monthly_cents, estimate.total_cents);
-      assert.deepEqual(actual.members, estimate.members);
+      assert.deepEqual(rating(actual).members, estimate.members);
       assert.equal(actual.status, estimate.status);
-      assert.deepEqual(actual.rate_rows_used, estimate.rate_rows_used);
+      assert.deepEqual(rating(actual).rate_rows_used, estimate.rate_rows_used);
+      assert.deepEqual(rating(actual).provenance, estimate.provenance);
       assert.deepEqual(
-        complete.provenance.evidence[actual.evidence_ref],
-        estimate.provenance,
-      );
-      assert.deepEqual(
-        complete.provenance.evidence[actual.rating_area_ref],
+        rating(actual).rating_area_provenance,
         estimate.rating_area_provenance,
       );
       expected.push({
@@ -126,7 +130,7 @@ try {
         cents: estimate.total_cents,
       });
     }
-    assert.equal(expected.length, complete.provenance.candidates.length);
+    assert.equal(expected.length, candidates.length);
     assert(
       expected.length > QUOTE_PAGE_SIZE,
       "Full catalog must exercise offers beyond page one",
@@ -158,9 +162,8 @@ try {
       assert.equal(quote.status, "rated");
       assert.deepEqual(
         quote.members,
-        complete.provenance.candidates.find(
-          (row) => row.plan_id === expectedOffer.plan_id,
-        ).members,
+        rating(candidates.find((row) => row.plan_id === expectedOffer.plan_id))
+          .members,
       );
     }
     assert.deepEqual(distribution.denominator, {
@@ -204,15 +207,13 @@ try {
     assert.deepEqual(last.statistics, stats);
     assert.deepEqual(
       last.evidence.candidates.map((row) => row.plan_id),
-      complete.provenance.candidates
+      candidates
         .slice((lastPage - 1) * distribution.evidence.page_size)
         .map((row) => row.plan_id),
     );
-    const changed = structuredClone(complete.provenance.candidates);
+    const changed = structuredClone(candidates);
     changed[0].monthly_cents++;
-    assert.throws(() =>
-      assert.deepEqual(changed, complete.provenance.candidates),
-    );
+    assert.throws(() => assert.deepEqual(changed, candidates));
     report.cases.push({
       age,
       candidate_count: plans.length,

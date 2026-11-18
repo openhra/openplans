@@ -104,6 +104,7 @@ async function expectUnready({ app }: Fixture) {
   expect(await ready.json()).toEqual({
     status: "not_ready",
     reason: "schema_not_ready",
+    error: { code: "schema_not_ready" },
     pending: live.pending,
   });
   for (const [path, init] of DATA_ROUTES) {

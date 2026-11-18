@@ -61,10 +61,12 @@ export function registerInspection(
         } catch (error) {
           return c.json(
             {
-              error:
-                error instanceof Error && /^MSOT_[A-Z_]+$/.test(error.message)
-                  ? error.message
-                  : "MSOT_INVALID_INPUT",
+              error: {
+                code:
+                  error instanceof Error && /^MSOT_[A-Z_]+$/.test(error.message)
+                    ? error.message
+                    : "MSOT_INVALID_INPUT",
+              },
             },
             400,
           );
