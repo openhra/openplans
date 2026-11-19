@@ -1,3 +1,4 @@
+import packageJson from "../package.json" with { type: "json" };
 import type { OpenPlansPlugin } from "@openplans/plugin-sdk";
 import { CMS_API_HOST } from "./constants.js";
 import { createCmsMarketplaceSource } from "./source.js";
@@ -18,7 +19,7 @@ export type { CmsApiEvidence, CmsSourceHost } from "./source.js";
 const plugin: OpenPlansPlugin = {
   manifest: {
     name: "@openplans/source-cms-marketplace-api",
-    version: "0.1.1",
+    version: packageJson.version,
     apiVersion: "0.1",
     kinds: ["sources"],
     capabilities: { network: [CMS_API_HOST] },

@@ -105,6 +105,13 @@ describe("cache store contract (design 5.7)", () => {
   });
 });
 
+it("a loaded third-party store without the optional capability cannot claim bounded support", async () => {
+  const factory = await syntheticFactory();
+  const store = factory({ maxBytes: 8 * 1024 ** 2 });
+  expect(store.getBounded).toBeUndefined();
+  expect(store.setBounded).toBeUndefined();
+});
+
 describe("contract negative controls (planted store mutants)", () => {
   it("fails a store that ignores TTLs", async () => {
     const factory: CacheStoreFactory = ({ maxBytes }) => {

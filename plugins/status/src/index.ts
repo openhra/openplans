@@ -1,3 +1,4 @@
+import packageJson from "../package.json" with { type: "json" };
 import type {
   OpenPlansPlugin,
   PluginContext,
@@ -65,7 +66,7 @@ export {
 export type { OperatorStatus, PublicStatus } from "./views.js";
 
 export const PLUGIN_NAME = "@openplans/plugin-status";
-export const PLUGIN_VERSION = "0.1.9";
+export const PLUGIN_VERSION = packageJson.version;
 export const PUBLIC_TTL_SECONDS = 30;
 export const PROBE_ARGV = ["status-page", "health-probe"] as const;
 

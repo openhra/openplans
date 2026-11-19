@@ -1,3 +1,4 @@
+import packageJson from "../package.json" with { type: "json" };
 import type { OpenPlansPlugin } from "@openplans/plugin-sdk";
 import { z } from "zod";
 import { marketInput, marketQuery } from "./input.js";
@@ -10,7 +11,7 @@ const PUBLIC_LIMITS = { perMinute: 30, activePerSource: 2, activeTotal: 4 };
 const plugin: OpenPlansPlugin = {
   manifest: {
     name: PLUGIN_NAME,
-    version: "0.1.7",
+    version: packageJson.version,
     apiVersion: "0.1",
     kinds: ["routes", "mcpTools"],
     capabilities: { operatorRoutes: true },

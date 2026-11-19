@@ -1,9 +1,11 @@
 import { createServer } from "node:net";
+import { readFile } from "node:fs/promises";
 import type { Socket } from "node:net";
 import { afterEach, describe, expect, it } from "vitest";
 import { Hono } from "hono";
 import { createResponseCache } from "../../../src/api/cache/index.js";
 import { RespCache, MAX_ENTRY_BYTES } from "../../../src/api/cache/resp.js";
+import { plantMutant } from "../../../src/plugins/testing/index.js";
 import type { SqlSession } from "../../../src/db/database.js";
 
 const closers: (() => Promise<void>)[] = [];
@@ -31,6 +33,44 @@ async function server(reply: (socket: Socket, command: string) => void) {
 }
 
 describe("bounded RESP GET/SET EX without new runtime dependencies", () => {
+  it("defers the bounded program and rejects a planted eager initialization", async () => {
+    const target = new URL("../../../src/api/cache/resp.ts", import.meta.url);
+    const script = (await readFile(target, "utf8")).match(
+      /function boundedScript\(\)\s*\{\s*return (`[\s\S]+?`);/,
+    )?.[1];
+    if (!script) throw new Error("Missing bounded script");
+    const probe = await plantMutant(
+      target,
+      script,
+      '(() => { throw new Error("synthetic script evaluation"); })()',
+    );
+    const deferred = async (path: string) => {
+      const module = (await import(/* @vite-ignore */ path)) as {
+        RespCache: typeof RespCache;
+      };
+      const cache = new module.RespCache("redis://127.0.0.1:1");
+      await expect(
+        cache.getBounded("synthetic-startup", "key", 1),
+      ).rejects.toThrow("synthetic script evaluation");
+    };
+    try {
+      await deferred(probe.path);
+      const eager = await plantMutant(
+        probe.path,
+        "export const MAX_ENTRY_BYTES = 2 * 1024 * 1024;",
+        "export const MAX_ENTRY_BYTES = 2 * 1024 * 1024;\nboundedScript();",
+      );
+      try {
+        await expect(deferred(eager.path)).rejects.toThrow(
+          "synthetic script evaluation",
+        );
+      } finally {
+        await eager.cleanup();
+      }
+    } finally {
+      await probe.cleanup();
+    }
+  });
   it("frames UTF-8 arguments by bytes and handles fragmented replies, null and SET EX", async () => {
     const commands: string[] = [],
       sockets: Socket[] = [];
@@ -58,6 +98,50 @@ describe("bounded RESP GET/SET EX without new runtime dependencies", () => {
       start = Date.now();
     await expect(new RespCache(url, 30).get("key")).rejects.toThrow("deadline");
     expect(Date.now() - start).toBeLessThan(500);
+  });
+  it("bounded commands retain deadlines and reject script authorization failures", async () => {
+    const slow = await server(() => {});
+    const cache = new RespCache(slow, 30);
+    await expect(cache.getBounded("synthetic", "key", 1)).rejects.toThrow(
+      "deadline",
+    );
+    await expect(
+      cache.setBounded({
+        namespace: "synthetic",
+        key: "key",
+        value: "value",
+        ttlSeconds: 60,
+        maxEntries: 1,
+      }),
+    ).rejects.toThrow("deadline");
+    const denied = await server((socket) =>
+      socket.end("-NOPERM synthetic\r\n"),
+    );
+    await expect(
+      new RespCache(denied).getBounded("synthetic", "key", 1),
+    ).rejects.toThrow();
+  });
+  it("bounds atomic namespace sockets and contains script authorization failures", async () => {
+    const slow = await server(() => {});
+    const store = new RespCache(slow, 30);
+    await expect(store.getBounded("synthetic", "a", 1)).rejects.toThrow(
+      "deadline",
+    );
+    await expect(
+      store.setBounded({
+        namespace: "synthetic",
+        key: "a",
+        value: "synthetic",
+        maxEntries: 1,
+        ttlSeconds: 60,
+      }),
+    ).rejects.toThrow("deadline");
+    const denied = await server((socket) =>
+      socket.end("-NOPERM synthetic script denied\r\n"),
+    );
+    await expect(
+      new RespCache(denied, 100).getBounded("synthetic", "a", 1),
+    ).rejects.toThrow();
   });
   it("rejects errors, truncated/invalid framing, excessive lengths and credential URLs", async () => {
     for (const reply of [

@@ -246,10 +246,34 @@ export interface McpToolRegistry {
 export interface ProviderRegistry<F> {
   provide(name: string, factory: F): void;
 }
+/** An atomic write into a source namespace. */
+export interface BoundedCacheWrite {
+  namespace: string;
+  key: string;
+  value: string;
+  ttlSeconds: number;
+  maxEntries: number;
+}
 export interface CacheStore {
   get(key: string): Promise<string | null>;
   set(key: string, value: string, ttlSeconds: number): Promise<void>;
+  /** Resident key/value bytes for memory; cumulative payload transfer bytes for remote stores. */
   bytes(): number;
+  /**
+   * Optional capability, offered as a pair. Both operations atomically expire entries and
+   * enforce the current cap across every client of the backend. Counts distinct live keys;
+   * replacement refreshes write order and only that key's TTL. Overflow evicts oldest writes.
+   * Reads do not refresh order. Zero clears the namespace. Caps are nonnegative safe integers.
+   * Byte limits may evict more entries. Invalid or oversized writes leave prior values intact.
+   * Metadata must share the payload's eviction lifetime. A local counter cannot bound a
+   * remote backend. The host bypasses capped caching when either operation is absent.
+   */
+  getBounded?(
+    namespace: string,
+    key: string,
+    maxEntries: number,
+  ): Promise<string | null>;
+  setBounded?(input: BoundedCacheWrite): Promise<void>;
 }
 export type CacheStoreFactory = (settings: {
   maxBytes: number;

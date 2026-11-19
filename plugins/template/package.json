@@ -1,6 +1,6 @@
 {
   "name": "@openplans/plugin-template",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "type": "module",
   "main": "dist/index.js",
@@ -9,7 +9,7 @@
     "build": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@openplans/plugin-sdk": "0.1.1"
+    "@openplans/plugin-sdk": "0.1.2"
   },
   "peerDependencies": {
     "hono": "4.13.16",

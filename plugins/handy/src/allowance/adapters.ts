@@ -1,3 +1,4 @@
+import packageJson from "../../package.json" with { type: "json" };
 import type {
   CalculationHost,
   CalculationScope,
@@ -51,7 +52,7 @@ const answerForPreset = async (
 const plugin: OpenPlansPlugin = {
   manifest: {
     name: "@openplans/plugin-handy",
-    version: "0.1.5",
+    version: packageJson.version,
     apiVersion: "0.1",
     kinds: ["routes", "mcpTools"],
     capabilities: { operatorRoutes: true },

@@ -142,7 +142,7 @@ vi.mock("../../../src/fetch/limiter.js", () => ({
     fixture.clock = Math.max(fixture.clock, fixture.next.get(host) ?? 0);
     if (fixture.realPacing)
       await new Promise((resolve) =>
-        setTimeout(resolve, fixture.clock - start),
+        realSetTimeout(resolve, fixture.clock - start),
       );
     fixture.next.set(host, fixture.clock + Math.max(delay, floor));
     return async () => {};
@@ -378,6 +378,10 @@ describe("ZIP lookup policy cost", () => {
     );
   });
   it("reproduces the mandatory five-second cold cost without preparation", async () => {
+    // Measure policy pacing independently of the request's 250ms deadline. Real I/O under
+    // sibling workers can exhaust that deadline before the synthetic publisher responds.
+    vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
+    vi.setSystemTime(new Date(FIXED_TIME));
     await withCms(async (module) => {
       const cold = performance.now();
       expect(await module.cmsCountySnapshot(db, "00987")).toBeNull();

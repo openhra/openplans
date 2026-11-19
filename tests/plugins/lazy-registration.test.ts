@@ -16,12 +16,13 @@ const pluginsRoot = fileURLToPath(new URL("../../plugins/", import.meta.url));
 
 const REGISTRATION_MODULES = {
   handy: [
+    "../package.json",
     "allowance/adapters.ts",
     "allowance/contract.ts",
     "allowance/lazy.ts",
     "index.ts",
   ],
-  compare: ["index.ts", "input.ts", "lazy.ts", "output.ts"],
+  compare: ["../package.json", "index.ts", "input.ts", "lazy.ts", "output.ts"],
 } as const;
 
 type Read = (file: string) => string;
@@ -53,13 +54,17 @@ function staticSpecifiers(file: string, read: Read): string[] {
   });
 }
 
-/** Every plugin source file that importing `src/index.ts` evaluates, relative to `src/`. */
+/** Every file that importing `src/index.ts` loads, relative to `src/`. */
 function eagerModules(plugin: string, read: Read = readSource): string[] {
   const source = join(pluginsRoot, plugin, "src");
   const seen = new Set<string>();
   const visit = (file: string) => {
     if (seen.has(file)) return;
     seen.add(file);
+    if (file.endsWith(".json")) {
+      JSON.parse(read(file));
+      return;
+    }
     for (const specifier of staticSpecifiers(file, read))
       visit(join(dirname(file), specifier.replace(/\.js$/, ".ts")));
   };

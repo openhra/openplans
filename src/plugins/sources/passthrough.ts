@@ -215,6 +215,17 @@ export function createPassThrough(deps: PassThroughDeps): PassThroughApi {
     return wanted === undefined ? declared : Math.min(declared, wanted);
   };
 
+  function boundedNamespace(source: Source): string {
+    const cap = source.cache.maxEntries;
+    if (cap !== undefined && (!Number.isSafeInteger(cap) || cap < 0))
+      throw new Error("Invalid source cache entry cap");
+    return `openplans:passthrough:bounded:v1:${sha(source.id)}`;
+  }
+  const unsupported = new Set<string>();
+  const supportsBounded = () =>
+    typeof deps.cacheStore?.getBounded === "function" &&
+    typeof deps.cacheStore?.setBounded === "function";
+
   function admission(
     source: Source,
     scope: HostPassThroughScope,
@@ -528,12 +539,31 @@ export function createPassThrough(deps: PassThroughDeps): PassThroughApi {
           ...result,
         });
     } else if (levelUsed === "memory" && deps.cacheStore) {
-      for (const [key, result] of entries)
-        await deps.cacheStore.set(
-          `${MEMORY_NAMESPACE}${source.id}:${kind}:${key}`,
-          JSON.stringify(result),
-          memoryTtl(source, result.outcome),
-        );
+      const cap = source.cache.maxEntries;
+      const namespace = boundedNamespace(source);
+      if (cap !== undefined && !supportsBounded()) return;
+      for (const [key, result] of entries) {
+        const value = JSON.stringify(result);
+        const ttlSeconds = memoryTtl(source, result.outcome);
+        try {
+          if (cap === undefined)
+            await deps.cacheStore.set(
+              `${MEMORY_NAMESPACE}${source.id}:${kind}:${key}`,
+              value,
+              ttlSeconds,
+            );
+          else
+            await deps.cacheStore.setBounded!({
+              namespace,
+              key: JSON.stringify([kind, key]),
+              value,
+              ttlSeconds,
+              maxEntries: cap,
+            });
+        } catch {
+          // A cache write failure must not trip the publisher's breaker.
+        }
+      }
     }
   }
 
@@ -1092,10 +1122,44 @@ export function createPassThrough(deps: PassThroughDeps): PassThroughApi {
         );
       }
     } else if (levelUsed === "memory" && deps.cacheStore) {
+      const cap = source.cache.maxEntries;
+      const namespace = boundedNamespace(source);
+      if (
+        cap !== undefined &&
+        !supportsBounded() &&
+        !unsupported.has(source.id)
+      ) {
+        unsupported.add(source.id);
+        try {
+          await deps.events?.emit({
+            type: "readiness.failed",
+            idempotencyKey: `bounded-cache:${source.id}`,
+            payload: {
+              check: `passthrough-cache:${source.id}`,
+              reasonCode: "bounded_cache_unsupported",
+            },
+          });
+        } catch {
+          // Status delivery cannot prevent a live answer.
+        }
+      }
       for (const question of questions) {
-        const value = await deps.cacheStore.get(
-          `${MEMORY_NAMESPACE}${source.id}:${kind}:${keyOf(question)}`,
-        );
+        let value: string | null = null;
+        // Cache failures never hide a live optional-source answer.
+        try {
+          if (cap === undefined)
+            value = await deps.cacheStore.get(
+              `${MEMORY_NAMESPACE}${source.id}:${kind}:${keyOf(question)}`,
+            );
+          else if (supportsBounded())
+            value = await deps.cacheStore.getBounded!(
+              namespace,
+              JSON.stringify([kind, keyOf(question)]),
+              cap,
+            );
+        } catch {
+          // Continue through admission and the live call.
+        }
         if (value)
           results.set(keyOf(question), {
             ...(JSON.parse(value) as Result),

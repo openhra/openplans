@@ -334,6 +334,9 @@ export interface PassThroughSource<Q extends Question, A> {
     ttl?: string;
     staleWindow?: string;
     negativeTtl?: string;
+    /** Live entries across this source's kinds. Oldest writes leave first; zero retains none.
+     * Requires the configured store's atomic bounded capability. Omitted means no entry cap.
+     */
     maxEntries?: number;
     excludeFromBackups?: boolean;
     /**

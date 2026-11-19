@@ -1,3 +1,4 @@
+import packageJson from "../package.json" with { type: "json" };
 import type { OpenPlansPlugin } from "@openplans/plugin-sdk";
 import { z } from "zod";
 
@@ -10,7 +11,7 @@ const inputSchema = z.strictObject({
 const plugin: OpenPlansPlugin = {
   manifest: {
     name: "@openplans/plugin-tpa",
-    version: "0.1.0",
+    version: packageJson.version,
     apiVersion: "0.1",
     kinds: ["routes"],
     capabilities: { operatorRoutes: true },

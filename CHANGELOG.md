@@ -5,6 +5,16 @@ Release notes for OpenPlans. Earlier releases are on the
 
 ## Unreleased
 
+## v0.4.16
+
+- Enforce per-source entry caps in memory and remote caches, with separate expiry for each answer.
+
+- Bundled plugins now report the version in their own package.json on the operator status page.
+
+- Strengthen release image approval, migration rehearsals and startup checks.
+
+- Defer bounded-cache indexes and the external-cache program until first use to reduce startup allocations.
+
 ## v0.4.15
 
 - Blue/green releases accept approved risky migrations after a signed restore rehearsal checks lock safety and serving-version readiness.
