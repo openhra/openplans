@@ -1,3 +1,4 @@
+import packageJson from "../package.json" with { type: "json" };
 import type { OpenPlansPlugin } from "@openplans/plugin-sdk";
 import { nuccHost } from "./release.js";
 import { createTaxonomySource } from "./source.js";
@@ -31,7 +32,7 @@ export type { TaxonomySource } from "./source.js";
 const plugin: OpenPlansPlugin = {
   manifest: {
     name: "@openplans/source-nucc-taxonomy",
-    version: "0.1.1",
+    version: packageJson.version,
     apiVersion: "0.1",
     kinds: ["sources"],
     capabilities: { network: [nuccHost], writes: ["staging"] },

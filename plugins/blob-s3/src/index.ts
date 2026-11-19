@@ -1,3 +1,4 @@
+import packageJson from "../package.json" with { type: "json" };
 import { z } from "zod";
 import type { OpenPlansPlugin } from "@openplans/plugin-sdk";
 import { assertEndpointAdmitted } from "./admission.js";
@@ -65,7 +66,7 @@ type Options = z.infer<typeof options>;
 const plugin: OpenPlansPlugin = {
   manifest: {
     name: "@openplans/blob-s3",
-    version: "0.1.1",
+    version: packageJson.version,
     apiVersion: "0.1",
     kinds: ["blobStores"],
     capabilities: {

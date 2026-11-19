@@ -1,10 +1,14 @@
 // Pass-through core with a synthetic source on PGlite. Synthetic answers, injected transport,
 // no network.
 import { PGlite } from "@electric-sql/pglite";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { loadConfig } from "../../src/config/index.js";
+import { loadPlugins } from "../../src/plugins/index.js";
+import { providerTables } from "../../src/plugins/providers.js";
 import { Readable } from "node:stream";
 import {
   afterAll,
@@ -19,12 +23,14 @@ import {
 import { PASSTHROUGH_OPENING_REASONS } from "@openplans/plugin-sdk";
 import type {
   CacheLevel,
+  CacheStore,
   PassThroughApi,
   PassThroughScope,
   PassThroughSource,
   PluginManifest,
   Question,
 } from "@openplans/plugin-sdk";
+import { RespCache } from "../../src/api/cache/resp.js";
 import { MemoryCache } from "../../src/api/cache/store.js";
 import type { Database } from "../../src/db/database.js";
 import { migrate } from "../../src/db/migrate.js";
@@ -562,6 +568,280 @@ describe("memory level", () => {
     const [expired] = await core.apply("drug", [local("100")], scope());
     expect(expired!.passthrough).toMatchObject({ served_from: "live" });
     expect(requests).toHaveLength(2);
+  });
+});
+
+// Synthetic source definitions only. The remote URL belongs to a disposable lane cache.
+describe("bounded memory-level sources", () => {
+  const capped = (cap = 2) => {
+    const source = synthetic("memory", {
+      id: `synthetic-bounded-${randomUUID()}`,
+      kinds: ["drug", "provider"],
+    });
+    source.cache.maxEntries = cap;
+    return source;
+  };
+  const providers = [
+    "memory",
+    ...(process.env.OPENPLANS_TEST_BOUNDED_CACHE_URL ? ["remote"] : []),
+  ];
+  const makeStore = (provider: string): CacheStore =>
+    provider === "memory"
+      ? new MemoryCache(8 * 1024 ** 2)
+      : new RespCache(process.env.OPENPLANS_TEST_BOUNDED_CACHE_URL!, 2_000);
+  it.each(providers)(
+    "%s: source kinds share the cap and other sources survive",
+    async (provider) => {
+      const store = makeStore(provider),
+        source = capped();
+      const core = createPassThrough(deps([source], { cacheStore: store }));
+      const other = capped(1),
+        another = createPassThrough(deps([other], { cacheStore: store }));
+      await another.apply("drug", [local("100")], scope());
+      const before = await dbState();
+      await core.apply("drug", [local("100"), local("101")], scope());
+      await core.apply("provider", [local("102")], scope());
+      const read = createPassThrough(deps([source], { cacheStore: store }));
+      expect(
+        (await read.apply("drug", [local("100")], readOnly()))[0]!.status,
+      ).toBe("unknown");
+      expect(
+        (await read.apply("drug", [local("101")], readOnly()))[0]!.passthrough
+          ?.served_from,
+      ).toBe("memory");
+      expect(
+        (await read.apply("provider", [local("102")], readOnly()))[0]!
+          .passthrough?.served_from,
+      ).toBe("memory");
+      expect(
+        (await another.apply("drug", [local("100")], readOnly()))[0]!
+          .passthrough?.served_from,
+      ).toBe("memory");
+      expect(await dbState()).toEqual({
+        ...before,
+        attempts: before.attempts + 2,
+      });
+      expect(await rawEntries(source.id)).toEqual([]);
+    },
+  );
+  it.each(providers)(
+    "%s: independent cores concurrently publish into one bounded source",
+    async (provider) => {
+      const source = capped(),
+        store = makeStore(provider);
+      const cores = Array.from({ length: 8 }, () =>
+        createPassThrough(
+          deps([source], {
+            cacheStore: provider === "memory" ? store : makeStore(provider),
+          }),
+        ),
+      );
+      await Promise.all(
+        cores.map((core, i) =>
+          core.apply("drug", [local(String(100 + i))], scope()),
+        ),
+      );
+      const answers = await cores[0]!.apply(
+        "drug",
+        Array.from({ length: 8 }, (_, i) => local(String(100 + i))),
+        readOnly(),
+      );
+      expect(
+        answers.filter(
+          (answer) => answer.passthrough?.served_from === "memory",
+        ),
+      ).toHaveLength(2);
+    },
+  );
+  it("preserves positive, confirmed-negative and no-data TTLs with operator shortening", async () => {
+    let now = Date.now();
+    const store = new MemoryCache(8 * 1024 ** 2, () => now),
+      source = capped(3);
+    known.add("300");
+    const ttls: number[] = [],
+      set = store.setBounded.bind(store);
+    store.setBounded = async (input) => {
+      ttls.push(input.ttlSeconds);
+      await set(input);
+    };
+    const core = createPassThrough(
+      deps([source], {
+        cacheStore: store,
+        operatorTtls: { [source.id]: { ttl: 10, negativeTtl: 2 } },
+      }),
+    );
+    await core.apply(
+      "drug",
+      [local("100"), local("200"), local("300")],
+      scope(),
+    );
+    expect(ttls).toEqual([10, 2, 10]);
+    now += 3_000;
+    const answers = await core.apply(
+      "drug",
+      [local("100"), local("200"), local("300")],
+      readOnly(),
+    );
+    expect(answers[0]!.passthrough?.served_from).toBe("memory");
+    expect(answers[1]!.passthrough?.served_from).not.toBe("memory");
+    expect(answers[2]!.passthrough?.served_from).toBe("memory");
+    now += 8_000;
+    expect(
+      (await core.apply("drug", [local("100")], readOnly()))[0]!.passthrough,
+    ).toBeUndefined();
+    expect(await dbState()).toEqual({ answers: 0, snapshots: 0, attempts: 1 });
+  });
+  it("bypasses unsupported third-party stores, reports status and keeps live answers", async () => {
+    const source = capped();
+    const loaded = await loadPlugins(
+      loadConfig(
+        {},
+        {
+          version: 1,
+          cache: { provider: "synthetic" },
+          plugins: [{ package: "./synthetic-cache-store/index.mjs" }],
+        },
+      ),
+      "api",
+      {
+        env: {},
+        baseDirectory: fileURLToPath(
+          new URL("../fixtures/plugins/", import.meta.url),
+        ),
+        manifestPaths: [manifestPath],
+        writeLog: () => {},
+      },
+    );
+    const backing = providerTables(loaded.registries).cacheStores.synthetic!({
+      maxBytes: 8 * 1024 ** 2,
+    });
+    const get = vi.spyOn(backing, "get"),
+      set = vi.spyOn(backing, "set");
+    const core = createPassThrough(deps([source], { cacheStore: backing }));
+    for (let i = 0; i < 2; i++)
+      expect(
+        (await core.apply("drug", [local("100")], scope()))[0]!.passthrough
+          ?.served_from,
+      ).toBe("live");
+    expect(get).not.toHaveBeenCalled();
+    expect(set).not.toHaveBeenCalled();
+    expect(backing.bytes()).toBe(0);
+    expect(events.filter((event) => event.type === "readiness.failed")).toEqual(
+      [
+        expect.objectContaining({
+          payload: {
+            check: `passthrough-cache:${source.id}`,
+            reasonCode: "bounded_cache_unsupported",
+          },
+        }),
+      ],
+    );
+  });
+  it("a zero or newly configured cap never reads old unrestricted entries", async () => {
+    const source = capped(),
+      store = new MemoryCache(8 * 1024 ** 2);
+    delete source.cache.maxEntries;
+    await createPassThrough(deps([source], { cacheStore: store })).apply(
+      "drug",
+      [local("100")],
+      scope(),
+    );
+    source.cache.maxEntries = 1;
+    const core = createPassThrough(deps([source], { cacheStore: store }));
+    expect(
+      (await core.apply("drug", [local("100")], readOnly()))[0]!.passthrough,
+    ).toBeUndefined();
+    await core.apply("drug", [local("100")], scope());
+    source.cache.maxEntries = 0;
+    expect(
+      (await core.apply("drug", [local("100")], readOnly()))[0]!.passthrough,
+    ).toBeUndefined();
+    expect(
+      (await core.apply("drug", [local("100")], scope()))[0]!.passthrough
+        ?.served_from,
+    ).toBe("live");
+    source.cache.maxEntries = 1;
+    expect(
+      (await core.apply("drug", [local("100")], readOnly()))[0]!.passthrough,
+    ).toBeUndefined();
+  });
+  it("cache read/write failures preserve live and loaded answers", async () => {
+    const source = capped();
+    const store: CacheStore = {
+      get: async () => null,
+      set: async () => {},
+      bytes: () => 0,
+      getBounded: async () => {
+        throw new Error("synthetic read failure");
+      },
+      setBounded: async () => {
+        throw new Error("synthetic write failure");
+      },
+    };
+    const core = createPassThrough(deps([source], { cacheStore: store }));
+    const loaded = local("101", { status: "listed_covered", reason: null });
+    for (let i = 0; i < 3; i++) {
+      const answers = await core.apply("drug", [local("100"), loaded], scope());
+      expect(answers[0]!.status).toBe("listed_covered");
+      expect(answers[1]).toBe(loaded);
+    }
+    expect(requests).toHaveLength(3);
+  });
+  it("invalid caps stay inside optional-source failure containment", async () => {
+    const source = capped(-1),
+      other = synthetic("none", { id: "synthetic-other" });
+    const core = createPassThrough(
+      deps([source, other], { cacheStore: new MemoryCache(8 * 1024 ** 2) }),
+    );
+    expect((await core.apply("drug", [local("100")], scope()))[0]!.status).toBe(
+      "listed_covered",
+    );
+    expect(requests).toHaveLength(1);
+  });
+  it.each(["request", "none"] as const)(
+    "operator %s tightening does not write bounded entries",
+    async (level) => {
+      const source = capped(),
+        store = new MemoryCache(8 * 1024 ** 2);
+      const core = createPassThrough(
+        deps([source], {
+          cacheStore: store,
+          operatorLevels: { [source.id]: level },
+        }),
+      );
+      await runWithScope(() => core.apply("drug", [local("100")], scope()));
+      expect(store.keys()).toEqual([]);
+      expect(await dbState()).toEqual({
+        answers: 0,
+        snapshots: 0,
+        attempts: 1,
+      });
+      expect(await rawEntries(source.id)).toEqual([]);
+    },
+  );
+  it("a planted source mutant that omits the declaration fails the overflow assertion", async () => {
+    const mutant = await plantMutant(
+      passthroughFile,
+      "const cap = source.cache.maxEntries;\n      const namespace = boundedNamespace(source);\n      if (cap !== undefined && !supportsBounded()) return;",
+      "const cap = undefined;\n      const namespace = boundedNamespace(source);\n      if (cap !== undefined && !supportsBounded()) return;",
+    );
+    try {
+      const module = (await import(/* @vite-ignore */ mutant.path)) as {
+        createPassThrough: Create;
+      };
+      const source = capped(1),
+        store = new MemoryCache(8 * 1024 ** 2);
+      const core = module.createPassThrough(
+        deps([source], { cacheStore: store }),
+      );
+      await core.apply("drug", [local("100"), local("101")], scope());
+      // The real overflow invariant must reject the two unrestricted entries.
+      expect(() =>
+        expect(store.keys().length).toBeLessThanOrEqual(1),
+      ).toThrow();
+    } finally {
+      await mutant.cleanup();
+    }
   });
 });
 

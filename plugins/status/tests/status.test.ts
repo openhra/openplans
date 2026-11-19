@@ -1,3 +1,4 @@
+import packageJson from "../package.json" with { type: "json" };
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { PGlite } from "@electric-sql/pglite";
@@ -1024,14 +1025,16 @@ describe("host data from core", () => {
     expect(body.plugins).toEqual([
       {
         name: PLUGIN_NAME,
-        version: "0.1.9",
+        version: packageJson.version,
         apiVersion: "0.1",
         sha256: sha,
         enabled: true,
       },
     ]);
     expect(identities(body.plugins)).toEqual(
-      identities([{ name: PLUGIN_NAME, version: "0.1.9", sha256: sha! }]),
+      identities([
+        { name: PLUGIN_NAME, version: packageJson.version, sha256: sha! },
+      ]),
     );
     const pass = body.passthrough!.find(
       (row: { id: string }) => row.id === "synthetic-pass",
@@ -1131,7 +1134,7 @@ describe("host data from core", () => {
   it("planted mutant: a wrong plugin hash fails the approved-list comparison", async () => {
     const sha = (await packageSha256(statusRoot))!;
     const approved = identities([
-      { name: PLUGIN_NAME, version: "0.1.9", sha256: sha },
+      { name: PLUGIN_NAME, version: packageJson.version, sha256: sha },
     ]);
     const read = await plantMutant(
       readFile,

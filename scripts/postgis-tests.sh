@@ -59,6 +59,7 @@ databases=(
   # These two suites check their database names before they write.
   GEOCODE_CLEANUP_POSTGIS_URL:openplans_p3m_controls_1
   GEOCODE_MULTISTATE_POSTGIS_URL:openplans_p3l_controls
+  WORKER_CONCURRENCY_POSTGRES_URL:openplans_worker_concurrency
 )
 # The multistate suite opens one database per state beside the one its URL names.
 extra_databases=(openplans_p3l_controls_fl openplans_p3l_controls_nc)
@@ -76,6 +77,7 @@ files=(
   tests/ingest/geocode/cleanup.test.ts
   tests/ingest/geocode/multistate.test.ts
   tests/db/maintenance-locks.test.ts
+  tests/db/worker-concurrency-postgres.test.ts
 )
 
 focused_files=("${files[@]}")
@@ -85,6 +87,7 @@ if $all; then
 else
   name="${OPENPLANS_POSTGIS_CONTAINER:-openplans-postgis-tests-$$}"
 fi
+export OPENPLANS_POSTGIS_CONTAINER="$name"
 password="$(node -e 'process.stdout.write(require("node:crypto").randomBytes(18).toString("hex"))')"
 cleanup() {
   docker rm --force --volumes "$name" >/dev/null 2>&1 || true
@@ -135,6 +138,8 @@ trap 'cleanup; rm -rf "$report"' EXIT INT TERM
 # These suites share one database server and count server-wide advisory locks, so their files
 # run one at a time.
 # Preserve JSON on failure too, so the nightly report can name every divergence.
+# Child-process concurrency tests import the compiled worker modules from this checkout.
+npm run build
 status=0
 OPENPLANS_TEST_WORKERS=1 npx vitest run --reporter=default --reporter=json --outputFile.json="$report/results.json" ${files[@]+"${files[@]}"} || status=$?
 if [ -n "$results" ] && [ -f "$report/results.json" ]; then cp "$report/results.json" "$results"; fi

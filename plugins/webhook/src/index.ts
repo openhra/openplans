@@ -1,3 +1,4 @@
+import packageJson from "../package.json" with { type: "json" };
 import { eventPayloadSchemas } from "@openplans/plugin-sdk";
 import type {
   Event,
@@ -16,7 +17,7 @@ export {
 } from "./signature.js";
 
 export const PLUGIN_NAME = "@openplans/plugin-webhook";
-export const PLUGIN_VERSION = "0.1.2";
+export const PLUGIN_VERSION = packageJson.version;
 /** Declared secret: the receiver's full HTTPS URL. */
 export const URL_SECRET = "OPENPLANS_WEBHOOK_URL";
 /** Declared secret: the HMAC key shared with the receiver. */

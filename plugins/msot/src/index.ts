@@ -1,3 +1,4 @@
+import packageJson from "../package.json" with { type: "json" };
 import type {
   OpenPlansPlugin,
   CatalogPolicyInput,
@@ -19,7 +20,7 @@ export { applicationState } from "./schema.js";
 const plugin: OpenPlansPlugin = {
   manifest: {
     name: "@openplans/plugin-msot",
-    version: "0.3.0",
+    version: packageJson.version,
     apiVersion: "0.1",
     tablePrefix: "msot",
     kinds: [

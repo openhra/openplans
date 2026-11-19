@@ -214,3 +214,106 @@ export async function checkCacheStore(
   }
   return results;
 }
+
+/** Checks the optional atomic namespace capability, using two clients of the same backend. */
+export async function checkBoundedNamespace(subject: {
+  store: CacheStore;
+  peer: CacheStore;
+  advance(seconds: number): void | Promise<void>;
+  namespace: string;
+}): Promise<void> {
+  const { store, peer, namespace: ns } = subject;
+  if (
+    !store.getBounded ||
+    !store.setBounded ||
+    !peer.getBounded ||
+    !peer.setBounded
+  )
+    throw new Error("Bounded cache capability unsupported");
+  const put = (key: string, value = key, ttlSeconds = 60, maxEntries = 2) =>
+    peer.setBounded!({ namespace: ns, key, value, ttlSeconds, maxEntries });
+  const get = (key: string, cap = 2) => store.getBounded!(ns, key, cap);
+  await store.set("bounded-contract:unrelated", "unrelated", 60);
+  await store.setBounded({
+    namespace: `${ns}:other`,
+    key: "other",
+    value: "other",
+    ttlSeconds: 60,
+    maxEntries: 1,
+  });
+  await put("a");
+  await put("b");
+  await get("a");
+  await put("c");
+  expect(
+    (await get("a")) === null &&
+      (await get("b")) === "b" &&
+      (await get("c")) === "c",
+    "overflow or write order",
+  );
+  await put("b", "replaced");
+  expect(
+    (await get("b")) === "replaced" && (await get("c")) === "c",
+    "replacement spends one slot",
+  );
+  await put("d");
+  expect(
+    (await get("b")) === "replaced" &&
+      (await get("c")) === null &&
+      (await get("d")) === "d",
+    "replacement spends one slot and refreshes order",
+  );
+  expect(
+    (await store.getBounded(`${ns}:other`, "other", 1)) === "other" &&
+      (await store.get("bounded-contract:unrelated")) === "unrelated",
+    "namespace isolation",
+  );
+  await get("d", 0);
+  await put("long", "long", 60);
+  await put("short", "short", 0.1);
+  await subject.advance(0.2);
+  await put("next");
+  expect((await get("short")) === null, "independent expiry");
+  expect(
+    (await get("long")) === "long" && (await get("next")) === "next",
+    "expired entries free capacity",
+  );
+  await get("next", 0);
+  await put("short", "short", 0.1);
+  await put("long", "long", 60);
+  await put("long", "updated", 60);
+  await subject.advance(0.2);
+  expect(
+    (await get("short")) === null && (await get("long")) === "updated",
+    "replacement must not extend another TTL",
+  );
+  await put("reduced");
+  expect(
+    (await get("long", 1)) === null && (await get("reduced", 1)) === "reduced",
+    "read enforces reduced cap",
+  );
+  await Promise.all(
+    Array.from({ length: 24 }, (_, i) =>
+      (i % 2 ? store : peer).setBounded!({
+        namespace: ns,
+        key: `parallel-${i}`,
+        value: "value",
+        ttlSeconds: 60,
+        maxEntries: 3,
+      }),
+    ),
+  );
+  const live = await Promise.all(
+    Array.from({ length: 24 }, (_, i) => get(`parallel-${i}`, 3)),
+  );
+  expect(
+    live.filter((value) => value !== null).length === 3,
+    "concurrent admission",
+  );
+  await get("anything", 0);
+  await put("zero", "zero", 60, 0);
+  expect(
+    (await get("zero", 0)) === null && (await get("zero")) === null,
+    "zero clears the namespace",
+  );
+}

@@ -1,3 +1,4 @@
+import packageJson from "../package.json" with { type: "json" };
 import type {
   OpenPlansPlugin,
   PluginContext,
@@ -16,7 +17,7 @@ export type { EvidencePanel } from "./html.js";
 
 export const PLUGIN_NAME = "@openplans/plugin-admin";
 export const ADMIN_PATH = "/admin";
-export const PLUGIN_VERSION = "0.1.1";
+export const PLUGIN_VERSION = packageJson.version;
 export const applicationState = [
   {
     table: "plg_admin_telemetry",

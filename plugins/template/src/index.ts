@@ -1,3 +1,4 @@
+import packageJson from "../package.json" with { type: "json" };
 import type { OpenPlansPlugin } from "@openplans/plugin-sdk";
 import { z } from "zod";
 
@@ -34,7 +35,7 @@ export function greet(greeting: string, name = DEFAULT_NAME): HelloOutput {
 const plugin: OpenPlansPlugin = {
   manifest: {
     name: PLUGIN_NAME,
-    version: "0.1.1",
+    version: packageJson.version,
     apiVersion: "0.1",
     kinds: ["routes", "mcpTools", "workerCommands", "events"],
     options: optionsSchema,
