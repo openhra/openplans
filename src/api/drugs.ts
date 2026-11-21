@@ -12,13 +12,22 @@ import { cmsFallbackContext } from "../ingest/cms-api/fallback.js";
 import type { Context } from "hono";
 import { requestSource } from "./rate-limit.js";
 import { trustedProxies } from "../config/access.js";
+import { declineFromBody } from "../services/upstream-disclosure.js";
 
 /** The name the rate limiter gives the caller; bounds one client's share of fallback calls. */
 const client = (c: Context) => requestSource(c, trustedProxies());
 
 export function drugRoutes(db: SqlSession) {
   const app = new Hono();
-  app.get("/drugs", async (c) => c.json(await searchDrugs(db, c.req.query())));
+  app.get("/drugs", async (c) =>
+    c.json(
+      await searchDrugs(
+        db,
+        c.req.query(),
+        cmsFallbackContext(db, db, { client: client(c) }),
+      ),
+    ),
+  );
   app.get("/drugs/:rxcui", async (c) =>
     c.json(await getDrug(db, c.req.param("rxcui"))),
   );
@@ -47,6 +56,7 @@ export function drugRoutes(db: SqlSession) {
       } catch {
         return v.fail("body", "INVALID_JSON");
       }
+      declineFromBody(body);
       return c.json(
         await checkDrugCoverages(
           db,

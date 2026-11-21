@@ -48,6 +48,7 @@ function status(
     version: "0.0.0",
     db: "ok",
     poolWaiting: null,
+    usageReport: false,
     availability: rows(states),
     sources,
     ingests: [],

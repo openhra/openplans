@@ -124,8 +124,6 @@ export async function requireAnnualYear(
   domain: AnnualDomain = "individual",
 ) {
   const policy = await servingPolicy(db);
-  // Full history leaves actual source availability to the domain reader.
-  if (policy.history_years === "all") return;
   if (!policy.domains[domain].allowed_years.includes(year))
     throw new ReadError({
       code: "not_loaded",
@@ -143,7 +141,6 @@ export async function annualRows<T>(
   domain: AnnualDomain = "individual",
 ): Promise<T[]> {
   const policy = await servingPolicy(db);
-  if (policy.history_years === "all") return rows;
   return rows.filter(
     (row) =>
       getYear(row) === null ||

@@ -13,7 +13,15 @@ import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { PGlite } from "@electric-sql/pglite";
-import { afterAll, beforeAll, expect, it } from "vitest";
+import {
+  afterAll,
+  beforeAll,
+  expect,
+  it,
+  beforeEach,
+  afterEach,
+  vi,
+} from "vitest";
 import { migrate } from "../../src/db/migrate.js";
 import type { SqlSession } from "../../src/db/database.js";
 import { ingestStateRates } from "../../src/ingest/state/index.js";
@@ -54,6 +62,14 @@ async function rollback(test: (tx: SqlSession) => Promise<void>) {
     }),
   ).rejects.toBe(marker);
 }
+// Annual source fixtures use a fixed UTC calendar, independently of the machine date.
+function fixtureClock() {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-11-19T00:00:00Z"));
+}
+beforeAll(fixtureClock);
+beforeEach(fixtureClock);
+afterEach(() => vi.useRealTimers());
 beforeAll(async () => {
   directory = await mkdtemp(join(tmpdir(), "openplans-vt-lcsp-"));
   core = await coreMigrations();
@@ -359,7 +375,9 @@ it("household minimum projects the filed family tier and keeps ages out of ratin
 function ichraAffordability(
   ...args: Parameters<typeof guardedIchraAffordability>
 ) {
-  return withDataPolicy({ historyYears: "all" }, () =>
-    guardedIchraAffordability(...args),
+  return withDataPolicy(
+    { historyYears: 3 },
+    () => guardedIchraAffordability(...args),
+    new Date(`${args[1].planStart.slice(0, 4)}-11-19T00:00:00Z`),
   );
 }

@@ -365,6 +365,50 @@ it("requires the local RxNorm match and never translates med_id", async () => {
   expect(sent).toEqual([]);
 });
 
+it("reads rxcui as well as rx_cui_id in drug_packages; package ids alone stay local", async () => {
+  const byRxcui = await compat({
+    providers: [],
+    drug_packages: [{ id: "synthetic-package", rxcui: rx }],
+  });
+  const gaps = byRxcui.response.headers.get("x-openplans-gaps")!;
+  expect(gaps).toContain(
+    `coverage:${plan}:drug:synthetic-package:listed_covered`,
+  );
+  expect(gaps).not.toContain("drug_identity_requires_rxnorm");
+  expect(sent).toHaveLength(1);
+  sent = [];
+  const unknown = await compat({
+    providers: [],
+    drug_packages: [{ id: "synthetic-package", rxcui: "999999999999" }],
+  });
+  expect(unknown.response.headers.get("x-openplans-gaps")).toContain(
+    `coverage:${plan}:drug:synthetic-package:unknown:rxcui_not_in_rxnorm`,
+  );
+  const packageOnly = await compat({
+    providers: [],
+    drug_packages: [{ id: "synthetic-package" }],
+  });
+  expect(packageOnly.body.coverages[0]!.tier).toBeNull();
+  expect(packageOnly.response.headers.get("x-openplans-gaps")).toContain(
+    `coverage:${plan}:drug:synthetic-package:unknown:drug_identity_requires_rxnorm`,
+  );
+  expect(sent).toEqual([]);
+  const conflict = await app().request(`${BASE}/plans/medical/search`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(
+      searchBody({
+        ids: [plan],
+        drug_packages: [{ id: "synthetic-package", rxcui: rx, rx_cui_id: "1" }],
+      }),
+    ),
+  });
+  expect(conflict.status).toBe(400);
+  expect(await conflict.json()).toMatchObject({
+    error: { code: "CONFLICTING_RXCUI", field: "drug_packages.rx_cui_id" },
+  });
+});
+
 // Recorded stored-data responses include selected CMS catalog metadata.
 it("leaves native and compatibility response bytes unchanged with the quote switch off", async () => {
   await native();
@@ -835,3 +879,65 @@ it.each(
     }
   },
 );
+
+it("discloses the CMS source on native quotes, compat and MCP, and keeps passthrough=off local", async () => {
+  const quote = (extra = {}) =>
+    app().request("/v1/quotes", {
+      method: "POST",
+      headers,
+      body: JSON.stringify(quoteBody({ npis: [npi], rxcuis: [rx], ...extra })),
+    });
+  // Declined first, so no stored answer exists yet: nothing is asked and nothing is disclosed.
+  const declinedQuote = await quote({ passthrough: "off" });
+  expect(declinedQuote.status).toBe(200);
+  expect(declinedQuote.headers.get("x-openplans-upstream")).toBeNull();
+  const declinedCells = (
+    (await declinedQuote.json()) as Awaited<ReturnType<typeof quotePlans>>
+  ).quotes[0]!;
+  expect(declinedCells.drugs[0]).toMatchObject({
+    status: "unknown",
+    reason: "passthrough_declined",
+  });
+  const declinedCompat = await compat({ passthrough: "off" });
+  expect(
+    declinedCompat.response.headers.get("x-openplans-upstream"),
+  ).toBeNull();
+  expect(declinedCompat.response.headers.get("x-openplans-gaps")).toContain(
+    `coverage:${plan}:drug:synthetic-package:unknown:passthrough_declined`,
+  );
+  expect(sent).toEqual([]);
+  expect((await quote({ passthrough: "sometimes" })).status).toBe(400);
+
+  const { response } = await compat();
+  expect(sent.length).toBeGreaterThan(0);
+  expect(response.headers.get("x-openplans-upstream")).toBe(
+    "cms-marketplace-api",
+  );
+  expect(response.headers.get("access-control-expose-headers")).toContain(
+    "x-openplans-upstream",
+  );
+  const filled = await quote();
+  expect(filled.headers.get("x-openplans-upstream")).toBe(
+    "cms-marketplace-api",
+  );
+
+  // MCP scopes are read-only: they serve the stored answers and name the source in `_meta`.
+  const ask = (extra = {}) =>
+    callTool({ db: h.db }, "check_drug_coverage", {
+      plan_ids: [plan],
+      rxcuis: [rx],
+      year: 2026,
+      ...extra,
+    });
+  const served = await ask();
+  expect(served.structuredContent.status).not.toBe("error");
+  expect(served._meta).toEqual({
+    "openplans/upstream": ["cms-marketplace-api"],
+  });
+  const local = await ask({ passthrough: "off" });
+  expect(local.structuredContent.status).not.toBe("error");
+  expect(local._meta).toBeUndefined();
+  expect(JSON.stringify(local.structuredContent)).toContain(
+    "passthrough_declined",
+  );
+});

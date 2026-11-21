@@ -111,6 +111,7 @@ export const publicStatusSchema = z.strictObject({
   sources: z.array(publicSource).nullable(),
   worker: z.strictObject({ last_ingest: z.array(publicIngest).nullable() }),
   cache: z.strictObject({ enabled: z.boolean() }),
+  usage_report: z.enum(["off", "on"]),
   passthrough: z.array(publicPassthrough).nullable(),
   plugins: count,
   health_transitions: z.strictObject({ last_change: bucket }),
@@ -164,6 +165,7 @@ export const operatorStatusSchema = z.strictObject({
       )
       .nullable(),
   }),
+  usage_report: z.enum(["off", "on"]),
   cache: z.strictObject({
     enabled: z.boolean(),
     backend: z.string(),
@@ -275,6 +277,7 @@ export function publicView(status: StatusData): PublicStatus {
         })) ?? null,
     },
     cache: { enabled: status.cache.enabled },
+    usage_report: status.usageReport ? "on" : "off",
     passthrough:
       status.passthrough?.map((row) => ({
         id: row.id,
@@ -332,6 +335,7 @@ export function operatorView(status: StatusData): OperatorStatus {
           durations_ms: ingest.durationsMs,
         })) ?? null,
     },
+    usage_report: summary.usage_report,
     cache: {
       enabled: status.cache.enabled,
       backend: status.cache.backend,

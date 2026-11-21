@@ -96,7 +96,6 @@ export async function dataAvailability(
 ): Promise<Record<string, unknown>[]> {
   const policy = await servingPolicy(db);
   const inWindow = (year: number) =>
-    policy.history_years === "all" ||
     policy.domains.individual.allowed_years.includes(year);
   const inScope = (entry: Record<string, unknown>) =>
     inWindow(Number(entry.plan_year)) &&
@@ -150,6 +149,7 @@ export async function dataAvailability(
       "premium_status",
       "provider_status",
       "formulary_status",
+      "formulary_document_status",
     ] as const) {
       if (result[key] === "not_yet_verified") result[key] = "unknown";
     }
@@ -229,6 +229,7 @@ export async function dataAvailability(
       premium_status: "unknown",
       provider_status: "unknown",
       formulary_status: drug.status === "complete" ? "available" : "unknown",
+      formulary_document_status: "unknown",
       snapshot_id: drug.snapshot_id,
       drug_coverage: drug,
       drug_status: drug.status,
@@ -270,6 +271,7 @@ export async function dataAvailability(
         provider_status:
           provider.status === "complete" ? "available" : "unknown",
         formulary_status: "unknown",
+        formulary_document_status: "unknown",
         snapshot_id: provider.snapshot_id,
         drug_coverage: {
           status: "unknown",
@@ -309,6 +311,7 @@ export async function dataAvailability(
           .length,
         provider_status: "unknown",
         formulary_status: "unknown",
+        formulary_document_status: "unknown",
         drug_status: "unknown",
         snapshot_id: rates[0]!.import_id,
         rate_rows: rates.length,

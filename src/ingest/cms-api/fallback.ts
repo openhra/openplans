@@ -7,6 +7,7 @@ import type { SqlSession } from "../../db/database.js";
 import type { DrugCoverage } from "../../domain/drugs/index.js";
 import type { ProviderParticipation } from "../../domain/providers/index.js";
 import { cmsFallbackEnabled } from "../../fetch/index.js";
+import { consultPassThrough } from "../../services/upstream-disclosure.js";
 import {
   passThrough,
   passThroughSourceIds,
@@ -66,7 +67,7 @@ export async function applyCmsFallback<
   T extends DrugCoverage | ProviderParticipation,
 >(kind: CmsKind, answers: T[], context: CmsFallbackContext | undefined) {
   if (!context || !cmsFallbackEnabled()) return answers;
-  const filled = await passThrough.apply(kind, answers, context);
+  const filled = await consultPassThrough(passThrough, kind, answers, context);
   return cmsFallbackEnabled() ? filled : answers;
 }
 

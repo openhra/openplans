@@ -415,9 +415,9 @@ describe("process serving-policy cache", () => {
     try {
       await writeFile(
         file,
-        JSON.stringify({ version: 1, data: { historyYears: "all" } }),
+        JSON.stringify({ version: 1, data: { historyYears: 1 } }),
       );
-      expect((await policy.servingPolicy(db)).history_years).toBe("all");
+      expect((await policy.servingPolicy(db)).history_years).toBe(1);
       await writeFile(
         file,
         JSON.stringify({ version: 1, data: { historyYears: 3 } }),
@@ -460,15 +460,15 @@ describe("process serving-policy cache", () => {
     let get = () => app.request("/v1/plans");
     expect((await get()).headers.get("x-cache")).toBe("miss");
     expect((await get()).headers.get("x-cache")).toBe("hit");
-    const full = appFor(
+    const current = appFor(
       db,
-      loadConfig({}, { version: 1, data: { historyYears: "all" } }),
+      loadConfig({}, { version: 1, data: { historyYears: 1 } }),
       store,
     ).app;
-    get = () => full.request("/v1/plans");
+    get = () => current.request("/v1/plans");
     const changed = await get();
     expect(changed.headers.get("x-cache")).toBe("miss");
-    expect(await changed.json()).toMatchObject({ history_years: "all" });
+    expect(await changed.json()).toMatchObject({ history_years: 1 });
     expect((await get()).headers.get("x-cache")).toBe("hit");
     get = () => app.request("/v1/plans");
     vi.setSystemTime(new Date("2027-01-01T00:00:00Z"));
@@ -482,24 +482,27 @@ describe("process serving-policy cache", () => {
   it("refuses a cached explicit year after a config narrows the window", async () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(now());
-    const { db, state } = database();
-    state.loaded.push(2024);
+    const { db } = database();
     const store = new MemoryCache(64 * 1024);
     const { app, get } = appFor(
       db,
-      loadConfig({}, { version: 1, data: { historyYears: "all" } }),
+      loadConfig({}, { version: 1, data: { historyYears: 3 } }),
       store,
     );
-    await app.request("/v1/plans?year=2024");
+    await app.request("/v1/plans?year=2025");
     expect(
-      (await app.request("/v1/plans?year=2024")).headers.get("x-cache"),
+      (await app.request("/v1/plans?year=2025")).headers.get("x-cache"),
     ).toBe("hit");
     const reads = get.mock.calls.length;
-    const narrowed = appFor(db, loadConfig({}), store).app;
-    const refused = await narrowed.request("/v1/plans?year=2024");
+    const narrowed = appFor(
+      db,
+      loadConfig({}, { version: 1, data: { historyYears: 1 } }),
+      store,
+    ).app;
+    const refused = await narrowed.request("/v1/plans?year=2025");
     expect(refused.status).toBe(404);
     expect(await refused.json()).toMatchObject({
-      error: { code: "not_loaded", required_year: 2024 },
+      error: { code: "not_loaded", required_year: 2025 },
     });
     expect(get).toHaveBeenCalledTimes(reads);
   });

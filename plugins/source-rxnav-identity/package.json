@@ -1,0 +1,25 @@
+{
+  "name": "@openplans/source-rxnav-identity",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@openplans/plugin-sdk": "0.2.0"
+  },
+  "openplansPlugin": {
+    "apiVersion": "0.2",
+    "kinds": [
+      "sources"
+    ],
+    "capabilities": {
+      "network": [
+        "rxnav.nlm.nih.gov"
+      ]
+    }
+  }
+}

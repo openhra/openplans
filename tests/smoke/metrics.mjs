@@ -25,6 +25,7 @@ try {
     "qhp_provider_plan",
     "address_point",
     "geocode_attempt",
+    "geocode_match_archive",
   ];
   const counts = {};
   for (const table of tables)

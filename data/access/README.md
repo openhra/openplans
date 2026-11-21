@@ -16,6 +16,7 @@ manifest clears the host.
 | geocoding.geo.census.gov | allowed | Census batch geocoder (POST uploads) | 5 s | 10 requests, 32 MiB |
 | download.nlm.nih.gov | robots-disallowed | RxNorm Current Prescribable Content | none | none |
 | www.nlm.nih.gov | robots-disallowed | RxNorm files page (its files are on the host above) | none | none |
+| rxnav.nlm.nih.gov | allowed, used only with `OPENPLANS_RXNAV_IDENTITY=on` | RxNorm API identity lookups for single RxCUIs (properties, history status), drug names and the API version | 5 s | 5,000 requests, 32 MiB |
 | download.geonames.org | robots-disallowed | GeoNames postal codes | none | none |
 | tigerweb.geo.census.gov | bot-protected | Formerly county bounds for geocoding; now read from the www2.census.gov boundary file | none | none |
 | marketplace.api.healthcare.gov | allowed, keyed API (`cms-marketplace-api.json`, loaded only with `OPENPLANS_CMS_FALLBACK=on` and `CMS_API_KEY`) | per-question coverage lookups | 1 s | 600 requests, 64 MiB |
@@ -27,9 +28,10 @@ share the Exchange PUF disclaimer as the pinned terms document; their basis adds
 public-domain statement. The data.cms.gov entry rests on the 2023 Agreement for Use. Its 256 MiB
 cap is enough to check freshness but not to download the 2 GB Part D archives, so collecting those
 still takes an operator manifest. Each terms entry names its reviewer and quotes the
-publisher text it relies on. download.cms.gov and geocoding.geo.census.gov answer robots.txt with
-a direct 404, which means no robots rules; the manifest records the country that was observed
-from. Receipts record the collecting installation's `OPENPLANS_EGRESS_COUNTRY`, which does not
+publisher text it relies on. download.cms.gov, geocoding.geo.census.gov and rxnav.nlm.nih.gov
+answer robots.txt with a direct 404, which means no robots rules; the manifest records the country
+that was observed from. The rxnav.nlm.nih.gov terms page lives on www.lhncbc.nlm.nih.gov, whose
+robots file allows it. Receipts record the collecting installation's `OPENPLANS_EGRESS_COUNTRY`, which does not
 restrict collection.
 
 ## Review cadence

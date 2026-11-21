@@ -10,6 +10,9 @@ import type {
   EventType,
   FeedSource,
   McpToolSpec,
+  PassThroughAnswer,
+  PassThroughApi,
+  PassThroughScope,
   PassThroughSource,
   PluginContext,
   PluginKind,
@@ -19,9 +22,11 @@ import type {
   ScheduleSpec,
   WorkerCommandSpec,
 } from "@openplans/plugin-sdk";
+import type { SqlSession } from "../db/database.js";
 import { toolNames } from "../mcp/schemas.js";
 import { parseCron } from "./cron.js";
 import { passThrough } from "./sources/passthrough.js";
+import { consultPassThrough } from "../services/upstream-disclosure.js";
 
 export type PluginHost = "api" | "worker" | "stdio";
 
@@ -63,6 +68,16 @@ export { PluginRefusal, REFUSAL_CODES } from "./refusal.js";
 export type { RefusalCode } from "./refusal.js";
 import { PluginRefusal } from "./refusal.js";
 import type { RefusalCode } from "./refusal.js";
+
+const disclosedPassThrough: PassThroughApi = Object.freeze({
+  apply: <T extends PassThroughAnswer>(
+    kind: string,
+    answers: T[],
+    scope?: PassThroughScope,
+  ) => consultPassThrough(passThrough, kind, answers, scope),
+  availability: (id: string, db: SqlSession) =>
+    passThrough.availability(id, db),
+});
 
 export interface Registered<T> {
   readonly plugin: string;
@@ -235,8 +250,10 @@ export const CORE_WORKER_ARGV: readonly (readonly string[])[] = Object.freeze(
     ["compact"],
     ["status"],
     ["record-policy"],
+    ["usage-report"],
     ["backfill", "row-provenance"],
     ["backfill", "rate-plan-count"],
+    ["backfill", "geocode-archive"],
     ["backfill", "provider-search"],
     ["bootstrap"],
     ["ingest", "package", "puf"],
@@ -499,7 +516,8 @@ export function stagingRegistrar(
             network: Object.freeze([...(manifest.capabilities?.network ?? [])]),
           });
       },
-      passThrough,
+      // Plugins reach the core through the host's disclosure, like the core routes (D-PRX-5).
+      passThrough: disclosedPassThrough,
     },
     workerCommands: {
       add(spec) {

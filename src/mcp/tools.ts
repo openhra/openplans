@@ -11,6 +11,14 @@ import type { CoreConfig } from "../config/index.js";
 import { assertCatalogToolAdmission } from "../plugins/catalog-policy.js";
 import { applicationVersion } from "./version.js";
 import { cmsFallbackContext } from "../ingest/cms-api/fallback.js";
+import {
+  UPSTREAM_META_KEY,
+  declinedInScope,
+  passThroughDeclined,
+  recordUpstream,
+  upstreamSources,
+  withUpstreamDisclosure,
+} from "../services/upstream-disclosure.js";
 import { quoteFallbackEnabled } from "../services/quote-coverage.js";
 import { sharedResponseCache } from "../api/cache/index.js";
 import type { ResponseCache, CacheOutcome } from "../api/cache/index.js";
@@ -205,6 +213,8 @@ interface CatalogResult {
   output: Row;
   drugs: readonly Row[];
   snapshotIds: string[];
+  /** Pass-through sources that filled an answer, for the result's `_meta` (D-PRX-5). */
+  upstream: string[];
 }
 const honestyContext = (dto: CatalogResult): HonestyContext => ({
   drugs: dto.drugs,
@@ -1030,6 +1040,45 @@ async function dispatch(
       const input = parseToolInput(tool, value),
         page = await discoverDrugs(db, input, offset, input.limit),
         terminology = await drugs.drugTerminology(db);
+      // Without a loaded release, a name-search source's suggestions; MCP is read-only, so only
+      // ones a REST search already fetched are served.
+      const suggested =
+        terminology || input.query === undefined
+          ? null
+          : await drugs.drugNameSuggestions(
+              input.query,
+              cmsFallbackContext(db, undefined),
+            );
+      if (suggested) {
+        const p = await projector(db, []);
+        const items = suggested.candidates.slice(offset, offset + input.limit);
+        const evidence = suggested.evidence;
+        return {
+          data: {
+            candidates: items.map(({ rxcui, name, tty }) => ({
+              kind: "drug_suggestion",
+              rxcui,
+              name,
+              tty,
+            })),
+            exact_concept_required: true,
+            terminology_status: "passthrough",
+            terminology_evidence: {
+              source_id: evidence.source_id,
+              served_from: evidence.served_from,
+              retrieved_at: evidence.retrieved_at,
+              source: String(evidence.source),
+              terms_url: String(evidence.terms_url),
+            },
+          },
+          p,
+          list: "candidates",
+          total: suggested.candidates.length,
+          more: offset + items.length < suggested.candidates.length,
+          status: "unknown",
+          context: p.context,
+        };
+      }
       const p = await projector(db, page.items);
       return {
         data: {
@@ -1190,11 +1239,17 @@ async function dispatch(
   }
 }
 
-export function toolResult(output: ToolOutput<ToolName>) {
+export function toolResult(
+  output: ToolOutput<ToolName>,
+  upstream: readonly string[] = [],
+) {
   return {
     content: [{ type: "text" as const, text: JSON.stringify(output) }],
     structuredContent: output,
     ...(output.status === "error" ? { isError: true } : {}),
+    ...(upstream.length
+      ? { _meta: { [UPSTREAM_META_KEY]: [...upstream] } }
+      : {}),
   };
 }
 /** Include both representations, modern metadata, framing and a bounded request-id reserve. */
@@ -1322,6 +1377,8 @@ async function callScopedTool(
       throw new ToolError("QUOTING_DISABLED");
     const input = parseToolInput(tool, value),
       { cursor, ...filters } = input as Row;
+    const declined =
+      passThroughDeclined((input as Row).passthrough) || declinedInScope();
     await guardAnnualInput(
       deps.db,
       filters,
@@ -1348,7 +1405,9 @@ async function callScopedTool(
       };
     const offset = codec.read(cursor as string | undefined, binding);
     let context: HonestyContext = {};
-    const load = async (): Promise<CatalogResult> => {
+    const load = (): Promise<CatalogResult> =>
+      withUpstreamDisclosure(build, declined);
+    const build = async (): Promise<CatalogResult> => {
       const answer = await dispatch(deps, tool, input, offset);
       if ((await dataGeneration(deps.db)) !== generation)
         throw new ToolError("DATA_CHANGED");
@@ -1415,6 +1474,7 @@ async function callScopedTool(
           tty,
           suppress,
         })),
+        upstream: upstreamSources(),
       };
     };
     const cacheable = !QUOTING_TOOLS.has(tool);
@@ -1428,6 +1488,7 @@ async function callScopedTool(
               filters,
               offset,
               request_id_bytes: Buffer.byteLength(JSON.stringify(requestId)),
+              ...(declined ? { passthrough: "off" } : {}),
             },
             authorized: () => cacheable,
             ttlSeconds: tool === "lookup_geography" ? 300 : 60,
@@ -1436,6 +1497,7 @@ async function callScopedTool(
                 const dto = value as CatalogResult;
                 assertHonest(tool, dto.output, honestyContext(dto));
                 return (
+                  Array.isArray(dto.upstream) &&
                   dto.output.status !== "error" &&
                   dto.output.data_generation === generation &&
                   (!dto.output.page ||
@@ -1473,7 +1535,9 @@ async function callScopedTool(
       maxBytes: MAX_OUTPUT_BYTES,
       measure: (value) => messageBytes(value, requestId),
     });
-    return toolResult(output);
+    // A cache hit discloses the sources stored with it, to the result and the HTTP response.
+    recordUpstream(dto.upstream);
+    return toolResult(output, dto.upstream);
   } catch (error) {
     return errorResult(tool, error, generation, checkedAt);
   }

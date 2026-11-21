@@ -18,6 +18,7 @@ import { compatRoutes } from "../compat/v1/index.js";
 import { createResponseCache } from "./cache/index.js";
 import type { ResponseCacheOptions } from "./cache/index.js";
 import { publicQuoteAdmission } from "./quotes.js";
+import { upstreamDisclosure } from "./upstream.js";
 import { loadConfig } from "../config/index.js";
 import { apiToken } from "../config/access.js";
 import { createAdminAuth } from "../operator/auth-routes.js";
@@ -99,6 +100,7 @@ export function createApp(
   };
   app.use("*", catalogPolicyAdmission(config(), cacheOptions?.plugins));
   app.use("*", cacheAdmission);
+  app.use("*", upstreamDisclosure);
   adminAuth?.mount(app);
 
   // Liveness: the process and its database connection. A pending schema is reported, not failed,

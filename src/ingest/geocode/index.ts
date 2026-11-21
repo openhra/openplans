@@ -16,6 +16,7 @@ import {
   issue,
 } from "./repository.js";
 import type { Selection } from "./repository.js";
+import { refuseGeocodeArchivePending } from "../../db/geocode-archive.js";
 export interface GeocodeOptions extends Selection, CensusOptions {
   batchSize?: number;
   progress?: (message: string) => void;
@@ -34,6 +35,8 @@ export async function ingestGeocode(
   const batchSize = options.batchSize ?? 10_000;
   if (!Number.isInteger(batchSize) || batchSize < 1 || batchSize > 10_000)
     throw new TypeError("Batch size must be 1–10000");
+  await refuseGeocodeArchivePending(db);
+  await db.query("SELECT prepare_geocode_match_archive()");
   const started = Date.now(),
     report = {
       selected: 0,
@@ -134,7 +137,9 @@ export async function ingestGeocode(
     options.progress?.(JSON.stringify(report));
   }
   if (report.selected)
-    await db.exec("ANALYZE geocode_attempt; ANALYZE address_point");
+    await db.exec(
+      "ANALYZE geocode_attempt; ANALYZE geocode_match_archive; ANALYZE address_point",
+    );
   report.elapsedSeconds = (Date.now() - started) / 1000;
   return report;
 }

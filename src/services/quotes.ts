@@ -106,6 +106,7 @@ async function quotePlan(
   request: QuoteRequest,
   location: Location,
   reads: RequestReads,
+  cms?: CmsFallbackContext,
 ) {
   const { providers, drugs } = await readQuoteCoverage(
     db,
@@ -113,6 +114,7 @@ async function quotePlan(
     request.npis,
     request.rxcuis,
     request.premium.year,
+    cms,
   );
   return annotateCatalogPlan(
     {
@@ -190,7 +192,7 @@ export async function quotePlans(
   reads.plan(selection.plans.map(({ plan }) => plan));
   const quotes = [];
   for (const plan of selection.plans)
-    quotes.push(await quotePlan(db, plan, request, location, reads));
+    quotes.push(await quotePlan(db, plan, request, location, reads, cms));
   const pageSize = request.explicitPlans
     ? selection.plans.length
     : QUOTE_PAGE_SIZE;

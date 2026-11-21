@@ -75,6 +75,10 @@
           }
         },
         {
+          "name": "Install Poppler",
+          "run": "sudo apt-get update\nsudo apt-get install --yes --no-install-recommends poppler-utils\npdftotext -v"
+        },
+        {
           "name": "Pin npm",
           "run": "npm install --global \"npm@$(cat .github/npm-version)\" --no-audit --no-fund"
         },
@@ -93,7 +97,10 @@
             "npm_config_offline": "true"
           }
         }
-      ]
+      ],
+      "env": {
+        "OPENPLANS_REQUIRE_POPPLER": "1"
+      }
     },
     "macos-shard": {
       "name": "OpenPlans / macOS shard ${{ matrix.shard }}",
@@ -127,6 +134,14 @@
           }
         },
         {
+          "name": "Install Poppler",
+          "env": {
+            "HOMEBREW_NO_AUTO_UPDATE": "1",
+            "HOMEBREW_NO_INSTALL_CLEANUP": "1"
+          },
+          "run": "brew install poppler\npdftotext -v"
+        },
+        {
           "name": "Pin npm",
           "run": "npm install --global \"npm@$(cat .github/npm-version)\" --no-audit --no-fund"
         },
@@ -146,7 +161,10 @@
             "OPENPLANS_CI_SHARD": "${{ matrix.shard }}/${{ strategy.job-total }}"
           }
         }
-      ]
+      ],
+      "env": {
+        "OPENPLANS_REQUIRE_POPPLER": "1"
+      }
     },
     "macos": {
       "name": "OpenPlans / macOS",
@@ -201,6 +219,10 @@
         {
           "name": "Check compiled entry point",
           "run": "docker run --rm --network none openplans-ci:${{ github.sha }} node --check dist/api/server.js"
+        },
+        {
+          "name": "Show the usage report state with no network",
+          "run": "docker run --rm --network none -e OPENPLANS_PUBLIC_QUOTING=off -e OPENPLANS_PUBLIC_HOUSEHOLD=off -e OPENPLANS_PUBLIC_COMPAT=off openplans-ci:${{ github.sha }} worker usage-report show > usage-report-show.txt 2>&1\ngrep -qx 'state: off' usage-report-show.txt\nif grep -q 'usage_report.failed' usage-report-show.txt; then exit 1; fi\nrm -f usage-report-show.txt"
         },
         {
           "name": "Remove candidate image",

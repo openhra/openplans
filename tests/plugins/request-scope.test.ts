@@ -179,10 +179,13 @@ describe("scope establishment rules", () => {
     });
     // The event bus keeps its own SQL-session store (PLG-13), and migrate.ts keeps the worker's
     // enabled plugin migrations for bootstrap and ingest (5.13). No request scope lives there.
+    // Upstream disclosure (D-PRX-5, plugins/upstream-scope.ts) keeps only the sources named and the
+    // opt-out per request.
     expect(storage.sort()).toEqual([
       "src/db/migrate.ts",
       "src/plugins/events.ts",
       "src/plugins/request-scope.ts",
+      "src/plugins/upstream-scope.ts",
       "src/services/catalog-policy.ts",
       "src/services/data-window.ts",
     ]);

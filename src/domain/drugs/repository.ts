@@ -1,21 +1,155 @@
+import { DRUG_IDENTITY_KIND } from "@openplans/plugin-sdk";
+import type {
+  IdentityAnswer,
+  PassThroughApi,
+  PassThroughEvidence,
+  PassThroughScope,
+} from "@openplans/plugin-sdk";
 import type { SqlSession } from "../../db/database.js";
 import { parse_hios } from "../hios/index.js";
 import { createRxnormRepository } from "../../ingest/rxnorm/repository.js";
+import type { DrugConcept } from "../../ingest/rxnorm/repository.js";
 import { drugAvailability } from "./availability.js";
+import { withDocumentCoverage } from "./documents.js";
 import { classifyDrugEvidence } from "./index.js";
 import type { DrugCoverage, DrugEvidence } from "./index.js";
 
-export function createDrugRepository(db: SqlSession) {
+/**
+ * The request-time identity stage: the pass-through API and the inbound request's scope. It is
+ * asked only when no RxNorm release is ACTIVE; a loaded release always wins.
+ */
+export interface DrugIdentityStage {
+  api: Pick<PassThroughApi, "apply">;
+  scope: PassThroughScope;
+}
+type IdentityVerdict =
+  "confirmed" | "rxcui_not_in_rxnorm" | "rxnorm_terminology_unavailable";
+
+/** The pass-through evidence block on an identity answer: the object naming its `source_id`. */
+export function passThroughEvidence(
+  answer: object,
+): PassThroughEvidence | undefined {
+  for (const value of Object.values(answer)) {
+    if (!value || typeof value !== "object" || Array.isArray(value)) continue;
+    const block = value as Partial<PassThroughEvidence>;
+    if (
+      typeof block.source_id === "string" &&
+      typeof block.served_from === "string"
+    )
+      return block as PassThroughEvidence;
+  }
+  return undefined;
+}
+
+/**
+ * Asks the identity stage whether an RxCUI is a current RxNorm concept. Only `confirmed` lets the
+ * coverage check continue. A source that answered without confirming means the RxCUI is not a
+ * concept; a source that could not answer means the terminology is unavailable. With no identity
+ * source the answer is unchanged and the reason stays `rxcui_not_in_rxnorm`.
+ */
+async function confirmRxcui(
+  stage: DrugIdentityStage,
+  rxcui: string,
+  year: number,
+): Promise<{ verdict: IdentityVerdict; evidence?: PassThroughEvidence }> {
+  const asked: IdentityAnswer = {
+    status: "unknown",
+    reason: "rxnorm_terminology_unavailable",
+    identity: rxcui,
+    plan_year: year,
+  };
+  const [answer] = await stage.api.apply(
+    DRUG_IDENTITY_KIND,
+    [asked],
+    stage.scope,
+  );
+  if (answer?.status === "confirmed")
+    return { verdict: "confirmed", evidence: passThroughEvidence(answer) };
+  if (!answer || answer === asked) return { verdict: "rxcui_not_in_rxnorm" };
   return {
-    drugCoverage: (planId: string, rxcui: string, year: number) =>
-      drugCoverage(db, planId, rxcui, year),
+    verdict:
+      answer.reason === "passthrough_identity_not_confirmed"
+        ? "rxcui_not_in_rxnorm"
+        : "rxnorm_terminology_unavailable",
   };
 }
+
+/** Only without an ACTIVE release may the identity stage confirm an RxCUI. */
+async function askableStage(
+  rxnorm: ReturnType<typeof createRxnormRepository>,
+  identity: DrugIdentityStage | undefined,
+): Promise<DrugIdentityStage | undefined> {
+  if (!identity || (await rxnorm.activeRelease())) return undefined;
+  return identity;
+}
+
+/** How a requested RxCUI was identified, or why it was not. */
+export type DrugIdentity =
+  | { status: "release"; concepts: DrugConcept[] }
+  | { status: "confirmed"; evidence?: PassThroughEvidence }
+  | {
+      status: "rxcui_suppressed" | Exclude<IdentityVerdict, "confirmed">;
+    };
+
+/**
+ * The identity step of `drugCoverage` for routes that need only the drug. A loaded ACTIVE release
+ * decides; without one, only the identity stage's `confirmed` identifies the RxCUI.
+ */
+export async function drugIdentity(
+  db: SqlSession,
+  rxcui: string,
+  year: number,
+  identity?: DrugIdentityStage,
+): Promise<DrugIdentity> {
+  const rxnorm = createRxnormRepository(db);
+  const concepts = await rxnorm.conceptByRxcui(rxcui);
+  const current = concepts.filter((c) => c.suppress === "N");
+  if (current.length) return { status: "release", concepts: current };
+  if (concepts.length) return { status: "rxcui_suppressed" };
+  const stage = await askableStage(rxnorm, identity);
+  if (!stage) return { status: "rxcui_not_in_rxnorm" };
+  const { verdict, evidence } = await confirmRxcui(stage, rxcui, year);
+  if (verdict !== "confirmed") return { status: verdict };
+  return evidence ? { status: verdict, evidence } : { status: verdict };
+}
+
+export function createDrugRepository(db: SqlSession) {
+  return {
+    drugCoverage: (
+      planId: string,
+      rxcui: string,
+      year: number,
+      identity?: DrugIdentityStage,
+    ) => drugCoverage(db, planId, rxcui, year, identity),
+  };
+}
+/**
+ * One plan, RxCUI and year. The issuer's machine-readable files answer first; an `unknown` they
+ * leave for a missing or incomplete source set may then be answered from issuer-published
+ * documents (`withDocumentCoverage`). The request's pass-through sources run after this, on what
+ * is still `unknown`.
+ */
 export async function drugCoverage(
   db: SqlSession,
   planId: string,
   rxcui: string,
   year: number,
+  identity?: DrugIdentityStage,
+): Promise<DrugCoverage> {
+  return withDocumentCoverage(
+    db,
+    await issuerFileCoverage(db, planId, rxcui, year, identity),
+    identity?.scope.writer,
+  );
+}
+
+/** The answer from the issuer's machine-readable files alone. */
+async function issuerFileCoverage(
+  db: SqlSession,
+  planId: string,
+  rxcui: string,
+  year: number,
+  identity?: DrugIdentityStage,
 ): Promise<DrugCoverage> {
   const result: DrugCoverage = {
     status: "unknown",
@@ -46,9 +180,17 @@ export async function drugCoverage(
     return { ...result, reason: "invalid_year" };
   if (typeof rxcui !== "string" || !/^\d+$/.test(rxcui))
     return { ...result, reason: "rxcui_not_in_rxnorm" };
-  const concepts = await createRxnormRepository(db).conceptByRxcui(rxcui);
-  if (!concepts.length) return { ...result, reason: "rxcui_not_in_rxnorm" };
-  if (!concepts.some((c) => c.suppress === "N"))
+  const rxnorm = createRxnormRepository(db);
+  const concepts = await rxnorm.conceptByRxcui(rxcui);
+  if (!concepts.length) {
+    const stage = await askableStage(rxnorm, identity);
+    if (!stage) return { ...result, reason: "rxcui_not_in_rxnorm" };
+    const { verdict, evidence } = await confirmRxcui(stage, rxcui, year);
+    if (verdict !== "confirmed") return { ...result, reason: verdict };
+    // The answer rests on the source's confirmation, so it carries the source's attribution
+    // (for RxNav, NLM's acknowledgement statement) whatever the coverage step finds.
+    if (evidence) result.rxnorm_identity = evidence;
+  } else if (!concepts.some((c) => c.suppress === "N"))
     return { ...result, reason: "rxcui_suppressed" };
   const plan = (
     await db.query<{ issuer_id: string; state: string; snapshot_id: string }>(

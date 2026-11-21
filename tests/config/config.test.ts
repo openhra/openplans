@@ -49,12 +49,14 @@ const converted: Record<string, [string, unknown]> = {
   OPENPLANS_PUBLIC_COMPAT: ["off", false],
   OPENPLANS_CMS_FALLBACK: ["on", true],
   OPENPLANS_CMS_FALLBACK_QUOTES: ["on", true],
+  OPENPLANS_RXNAV_IDENTITY: ["on", true],
   OPENPLANS_COMPAT_CATASTROPHIC_AGE_RULE: ["on", true],
   OPENPLANS_MEDICARE_PART_D: ["on", true],
   OPENPLANS_MEDICARE_DRUG_COST: ["on", true],
   OPENPLANS_MEDICARE_DRUG_COST_PRICES: ["on", true],
   OPENPLANS_GA_QUOTE_RECOVERY: ["on", true],
   OPENPLANS_METRICS: ["on", true],
+  OPENPLANS_USAGE_REPORT: ["on", true],
   OPENPLANS_LOWEST_PREMIUMS: ["on", true],
   OPENPLANS_LOWEST_PREMIUMS_SCOPE: ["single_age_silver", "single_age_silver"],
   OPENPLANS_COMPAT_BENEFIT_TEXT: ["compact", true],
@@ -465,6 +467,10 @@ describe("configuration rejection controls", () => {
         .replace(
           'from "zod"',
           `from ${JSON.stringify(pathToFileURL(createRequire(import.meta.url).resolve("zod")).href)}`,
+        )
+        .replace(
+          'from "@openplans/plugin-sdk"',
+          `from ${JSON.stringify(pathToFileURL(createRequire(import.meta.url).resolve("@openplans/plugin-sdk")).href)}`,
         ),
     );
     const result = spawnSync(

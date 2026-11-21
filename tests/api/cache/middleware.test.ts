@@ -10,6 +10,7 @@ import {
 import { MemoryCache } from "../../../src/api/cache/store.js";
 import type { CacheStore } from "../../../src/api/cache/store.js";
 import type { SqlSession } from "../../../src/db/database.js";
+import { plantMutant } from "../../../src/plugins/testing/index.js";
 
 // Synthetic catalog values and credential sentinels; no publisher/household evidence.
 const fakeDb = {
@@ -409,5 +410,156 @@ describe("response middleware policy and canonical keys", () => {
     expect(cached.headers.get("X-Cache")).toBe("hit");
     expect(cached.headers.get("deprecation")).toBeNull();
     expect(ttls).toEqual([30, 30]);
+  });
+});
+
+describe("the RxNav identity switch keys its own entries", () => {
+  /**
+   * A drug route behind a cache built by `factory`; the body names the switch state it ran under.
+   * The switch is read once per process, so each state change builds a new cache (a restart) over
+   * one shared store, which outlives the process as a shared provider does.
+   */
+  function drugRoute(factory: typeof createResponseCache) {
+    const store = new MemoryCache(1024 * 1024);
+    const apps = new Map<string, Hono>();
+    const restart = () => {
+      const cache = factory(fakeDb, "synthetic-token", { store });
+      const app = new Hono();
+      app.use("*", cache.middleware);
+      app.get("/v1/drugs", (c) =>
+        c.json({
+          synthetic: true,
+          rxnav: process.env.OPENPLANS_RXNAV_IDENTITY ?? "off",
+        }),
+      );
+      return app;
+    };
+    return async (rxnav: "on" | "off") => {
+      vi.stubEnv("OPENPLANS_RXNAV_IDENTITY", rxnav);
+      const app = apps.get(rxnav) ?? restart();
+      apps.set(rxnav, app);
+      const response = await app.request("/v1/drugs?rxcui=999999903");
+      return {
+        cache: response.headers.get("X-Cache"),
+        body: (await response.json()) as { rxnav: string },
+      };
+    };
+  }
+  /** Contract: switching RxNav on or off never serves an answer cached under the other state. */
+  async function switchContract(factory: typeof createResponseCache) {
+    const read = drugRoute(factory);
+    expect(await read("off")).toEqual({
+      cache: "miss",
+      body: { synthetic: true, rxnav: "off" },
+    });
+    expect((await read("off")).cache).toBe("hit");
+    expect(await read("on")).toEqual({
+      cache: "miss",
+      body: { synthetic: true, rxnav: "on" },
+    });
+    expect(await read("on")).toEqual({
+      cache: "hit",
+      body: { synthetic: true, rxnav: "on" },
+    });
+    expect((await read("off")).body.rxnav).toBe("off");
+  }
+
+  it("a request under the other switch state misses, then hits its own entry", async () => {
+    await switchContract(createResponseCache);
+  });
+
+  it("kills: the switch left out of the key", async () => {
+    const mutant = await plantMutant(
+      new URL("../../../src/api/cache/index.ts", import.meta.url),
+      `config.rxnavIdentity ? ["rxnav_identity"] : []`,
+      "[]",
+    );
+    try {
+      const module = (await import(/* @vite-ignore */ mutant.path)) as {
+        createResponseCache: typeof createResponseCache;
+      };
+      // The mutant serves the answer cached with the switch off after it is turned on.
+      const read = drugRoute(module.createResponseCache);
+      await read("off");
+      expect(await read("on")).toMatchObject({
+        cache: "hit",
+        body: { rxnav: "off" },
+      });
+      await expect(
+        switchContract(module.createResponseCache),
+      ).rejects.toThrow();
+    } finally {
+      await mutant.cleanup();
+    }
+  });
+});
+
+describe("the CMS fallback switches key their own entries", () => {
+  /** Like the RxNav route: a restart per switch state, over one shared store. */
+  function route(factory: typeof createResponseCache) {
+    const store = new MemoryCache(1024 * 1024);
+    const apps = new Map<string, Hono>();
+    const restart = () => {
+      const cache = factory(fakeDb, "synthetic-token", { store });
+      const app = new Hono();
+      app.use("*", cache.middleware);
+      app.get("/v1/drugs", (c) =>
+        c.json({
+          synthetic: true,
+          fallback: process.env.OPENPLANS_CMS_FALLBACK ?? "off",
+          quotes: process.env.OPENPLANS_CMS_FALLBACK_QUOTES ?? "off",
+        }),
+      );
+      return app;
+    };
+    return async (fallback: "on" | "off", quotes: "on" | "off" = "off") => {
+      vi.stubEnv("OPENPLANS_CMS_FALLBACK", fallback);
+      vi.stubEnv("OPENPLANS_CMS_FALLBACK_QUOTES", quotes);
+      const state = `${fallback}/${quotes}`;
+      const app = apps.get(state) ?? restart();
+      apps.set(state, app);
+      const response = await app.request("/v1/drugs?rxcui=999999903");
+      return {
+        cache: response.headers.get("X-Cache"),
+        body: (await response.json()) as { fallback: string; quotes: string },
+      };
+    };
+  }
+  async function contract(factory: typeof createResponseCache) {
+    const read = route(factory);
+    expect((await read("off")).cache).toBe("miss");
+    expect((await read("off")).cache).toBe("hit");
+    const on = await read("on");
+    expect(on).toMatchObject({ cache: "miss", body: { fallback: "on" } });
+    expect((await read("on")).cache).toBe("hit");
+    const quotes = await read("on", "on");
+    expect(quotes).toMatchObject({ cache: "miss", body: { quotes: "on" } });
+    expect((await read("off")).body.fallback).toBe("off");
+  }
+
+  it("a request under another switch state misses, then hits its own entry", async () => {
+    await contract(createResponseCache);
+  });
+
+  it("kills: the fallback switch left out of the key", async () => {
+    const mutant = await plantMutant(
+      new URL("../../../src/api/cache/index.ts", import.meta.url),
+      `config.cmsFallback.enabled ? ["cms_fallback"] : []`,
+      "[]",
+    );
+    try {
+      const module = (await import(/* @vite-ignore */ mutant.path)) as {
+        createResponseCache: typeof createResponseCache;
+      };
+      const read = route(module.createResponseCache);
+      await read("off");
+      expect(await read("on")).toMatchObject({
+        cache: "hit",
+        body: { fallback: "off" },
+      });
+      await expect(contract(module.createResponseCache)).rejects.toThrow();
+    } finally {
+      await mutant.cleanup();
+    }
   });
 });

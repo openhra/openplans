@@ -126,8 +126,7 @@ describe.skipIf(!serverUrl)("full pg_restore on disposable PostGIS", () => {
       spawnSync(
         "docker",
         [
-          "--context",
-          "colima-openplans-lanes",
+          // Docker context comes from DOCKER_CONTEXT (the gate sets the lanes context; CI uses its default).
           "exec",
           "-i",
           container,

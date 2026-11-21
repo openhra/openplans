@@ -1,0 +1,33 @@
+{
+  "name": "@openplans/source-carrier-documents",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@openplans/plugin-sdk": "0.2.0"
+  },
+  "peerDependencies": {
+    "zod": "4.6.7"
+  },
+  "openplansPlugin": {
+    "apiVersion": "0.2",
+    "kinds": [
+      "sources",
+      "workerCommands"
+    ],
+    "capabilities": {
+      "network": [
+        "www.christushealthplan.org",
+        "chppayment.christushealth.org"
+      ],
+      "writes": [
+        "staging"
+      ]
+    }
+  }
+}

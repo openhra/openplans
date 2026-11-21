@@ -29,6 +29,13 @@ const state = z.string().regex(/^[A-Z]{2}$/),
 const limit = z.int().min(1).max(25).default(10),
   cursor = z.string().min(1).max(2048);
 const paging = { limit, cursor: cursor.optional() };
+/** `off` keeps coverage questions local (D-PRX-5); answers keep `passthrough_declined`. */
+const passthrough = z
+  .enum(["on", "off"])
+  .optional()
+  .describe(
+    "off answers from loaded files only; no pass-through source is asked",
+  );
 const location = z.strictObject({
   zip: zip.optional(),
   county: zip.optional(),
@@ -182,6 +189,7 @@ export const inputSchemas = {
     csr_variant: csr.optional(),
     npis: z.array(npi).max(v.PUBLIC_QUOTE_LIMITS.providers).optional(),
     rxcuis: z.array(rxcui).max(v.PUBLIC_QUOTE_LIMITS.drugs).optional(),
+    passthrough,
     cursor: cursor.optional(),
   }),
   search_providers: z.strictObject({
@@ -202,17 +210,20 @@ export const inputSchemas = {
   search_drugs: z.strictObject({
     query: text.optional(),
     ndc: z.string().min(11).max(13).optional(),
+    passthrough,
     ...paging,
   }),
   check_drug_coverage: z.strictObject({
     plan_ids: ids(hios),
     rxcuis: ids(rxcui),
     year,
+    passthrough,
   }),
   check_provider_network: z.strictObject({
     plan_ids: ids(hios),
     npis: ids(npi),
     year,
+    passthrough,
   }),
   lookup_geography: z.strictObject({ zip, county: zip.optional() }),
   search_medicare_plans: z.strictObject({
@@ -414,6 +425,26 @@ const cmsApiSchema = z
     limits: z.string().min(1).max(240),
   })
   .optional();
+/** The identity source that confirmed the RxCUI at request time, with its attribution. */
+/**
+ * A concept a name-search source suggested while no RxNorm release is loaded. It carries no
+ * snapshot: the result's `terminology_evidence` names the source.
+ */
+const drugSuggestionSchema = z.strictObject({
+  kind: z.literal("drug_suggestion"),
+  rxcui,
+  name: label,
+  tty: text,
+});
+const rxnormIdentitySchema = z
+  .strictObject({
+    source_id: label,
+    served_from: label,
+    retrieved_at: z.iso.datetime({ offset: true }),
+    source: label,
+    terms_url: label,
+  })
+  .optional();
 export const drugCoverageSchema = z.strictObject({
   kind: z.literal("drug_coverage"),
   plan_id: hios,
@@ -428,6 +459,7 @@ export const drugCoverageSchema = z.strictObject({
   patient_price: z.null(),
   source_completeness: sourceCompleteness,
   cms_api: cmsApiSchema,
+  rxnorm_identity: rxnormIdentitySchema,
   evidence: z.array(drugEvidenceSchema).max(100),
   ...evidenceFields,
 });
@@ -944,9 +976,14 @@ const payloadSchemas = {
       ),
   }),
   search_drugs: z.strictObject({
-    candidates: z.array(drugSchema).max(25),
+    candidates: z.array(z.union([drugSchema, drugSuggestionSchema])).max(25),
     exact_concept_required: z.literal(true),
-    terminology_status: z.enum(["available", "unknown"]),
+    terminology_status: z
+      .enum(["available", "unknown", "passthrough"])
+      .describe(
+        "available: from the loaded RxNorm release. unknown: no release is loaded, so an empty list says nothing. passthrough: no release is loaded and the candidates are suggestions from the source in terminology_evidence; pick an exact RxCUI, they are not coverage answers.",
+      ),
+    terminology_evidence: rxnormIdentitySchema,
   }),
   check_drug_coverage: z.strictObject({
     results: z.array(drugCoverageSchema).max(100),
@@ -1278,6 +1315,18 @@ export function assertHonest<T extends ToolName>(
     )
       reject("nonexistent snapshot");
   }
+  // Suggestions are served only with the passthrough label and the source's evidence block.
+  const data = object(result.data);
+  const suggestionsLabelled =
+    tool === "search_drugs" &&
+    data?.terminology_status === "passthrough" &&
+    object(data.terminology_evidence) !== null;
+  if (
+    tool === "search_drugs" &&
+    data?.terminology_status === "passthrough" &&
+    !suggestionsLabelled
+  )
+    reject("passthrough terminology without evidence");
   function walk(node: unknown): void {
     if (Array.isArray(node)) {
       node.forEach(walk);
@@ -1357,6 +1406,10 @@ export function assertHonest<T extends ToolName>(
       /^(not[ _]covered|out[ _]of[ _]network|denied)$/i.test(record.status)
     )
       reject("unsupported negative vocabulary");
+    if (record.kind === "drug_suggestion" && !suggestionsLabelled)
+      reject("unlabelled drug suggestion");
+    if (record.kind === "drug" && suggestionsLabelled)
+      reject("release concept among suggestions");
     if (record.kind === "drug") {
       const matched = context.drugs?.some((native) =>
         "rxcui" in record

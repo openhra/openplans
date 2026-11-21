@@ -5,6 +5,58 @@ Release notes for OpenPlans. Earlier releases are on the
 
 ## Unreleased
 
+## v0.4.18
+
+- Compatibility API: drug search accepts an RxCUI (`rxcui` or `rx_cui_id`) and returns that drug after the same RxNorm identity check as coverage requests. `drug_packages` entries in medical plan search also accept `rxcui`. Requests that send only package ids work as before.
+- Compatibility API: provider detail fills `hios_ids` with the plans whose complete, current issuer provider files list the NPI as participating, and reports `provider_plan_list_partial:<n>` when some issuer scopes have no such files.
+
+- Compatibility API: plan detail, drug, carrier and network `year`, and the search `enrollment_date`, default to the data window's current plan year instead of 2026. The gap label names the year used.
+
+- The response cache reads the RxNav identity and CMS fallback switches once, when the process builds the cache, instead of loading the configuration file three times for every cache key. Warm cache hits are back to their earlier latency. The switches still key their own entries and take effect on restart, as before.
+
+- The API does its one-time response-body read setup at start-up, so the first cacheable request after a restart no longer pays about a millisecond or two for it.
+
+- Keep matched geocode attempts in a build-only archive and omit it from serving generations. Data refreshes reuse resolved addresses. The migration only changes the catalog, so its locks last milliseconds; `worker backfill geocode-archive` then moves existing matches in small transactions that never block API reads, and validates the new checks. Geocoders and `worker compact` refuse to run until it finishes. Stop older geocoding workers before migrating.
+
+- `data.historyYears` now takes `1`, `2` or `3` (default `3`), and config loading refuses `"all"` and anything above 3. `1` serves the current year. `2` serves the previous and current years, then current and next once next year is admitted. `3` serves previous, current and an admitted next year. New tests run every setting through REST, the compatibility API, MCP and public status, across admission states, UTC rollover and missing evidence.
+
+- Add `@openplans/source-carrier-documents`, a feed source (`worker ingest carrier-formulary`) that reads issuer formulary PDFs with page-level provenance, refuses a run whose legend, tiers or printed year fail their checks, attaches a document only to plans its cover names unambiguously, and serves only high-confidence rows as text evidence. Data availability gains `formulary_document_status`.
+
+- Join formulary-PDF rows to RxCUIs through the drug identity stage. `worker ingest carrier-formulary-identity` is a paced, resumable ingest-time batch, off unless the carrier-documents option `identityJoin` is `on`. A row gets an RxCUI only when exactly one RxNorm candidate has its ingredients (or brand), strengths and dose form and the identity source confirms it. `formularyDrugCoverage` answers `covered` at the document's printed tier, with PA, ST and QL flags and page-level evidence, only for such rows. Everything else, including a drug the document does not list, stays `unknown`.
+
+- A feed's `validate` may refuse single files (`refused`); the core quarantines those snapshots and activates the others. The carrier-document feed now admits or refuses each formulary PDF on its own, so one refused document no longer blocks the rest of a multi-year run.
+
+- Add the `sbc-pdf` feed (`worker ingest carrier-sbc`) to `@openplans/source-carrier-documents`. It reads issuer Summary of Benefits and Coverage PDFs with page-level provenance, accepts a fixed set of carrier label spellings ("(Tier n)" suffixes and "Preferred/Non-preferred generic" sub-rows), and refuses a document whose printed coverage period is not the year its link names.
+- An SBC is mapped to plan variants by the HIOS id in its file name, which must be in the active catalog, or else by its printed plan name for the coverage year. A name shared by two base plans attaches nothing.
+- Each row is checked against the federal plan attributes and benefit tables. `sbcCostSharingEvidence` keeps the federal value where one exists, reports a disagreement as `conflicting` with both values, and serves an SBC value, labelled `source: "sbc_document"`, only for plans the federal tables hold no cost sharing for.
+
+- The carrier formulary source admits a tier its legend leaves out only when the document's own text states it, and keeps that line (page, line, raw text) on the document. Cover plan names that match no catalog name exactly are compared once more without trailing benefit add-ons ("+ Dental & Vision", "+ Fitness"), and attach only when exactly one plan matches.
+
+- Carrier formulary documents now answer drug coverage. With the carrier-documents option `identityJoin` on, a row joined to an RxCUI fills a drug answer the issuer's machine-readable files leave `unknown` (missing, incomplete or refused source set) in `/v1` drug coverage, quotes, the compatibility quote and MCP. The answer is `listed_covered` at the document's printed tier (`tier_status: "unresolved"`), with every row in `formulary_document`. Machine-readable files still win, and `passthrough_conflict` records whether a document agrees with them. The CMS fallback runs only on what stays `unknown`; a stored CMS answer is checked against it in `cms_api_conflict`. A drug the document does not list stays `unknown`.
+- Joined rows carry `confirmed_at` and answer only while the RxCUI was confirmed within 35 days. Each join run first confirms again rows older than 30 days, and drops an RxCUI the source no longer confirms. Otherwise the answer is `unknown` (`identity_confirmation_stale`).
+- With an ACTIVE RxNorm release, the join searches and confirms against the release instead of RxNav.
+- Feed sources may declare a `drugCoverage` hook (plugin SDK).
+
+- Response and catalog caches now key on the CMS fallback switches, so turning the fallback on or off never serves an answer cached under the other setting.
+- A ZIP lookup that consults the CMS county service is named in `x-openplans-upstream`; `passthrough=off` skips it.
+- Compatibility API: provider `year` defaults to the data window's current plan year and the gap label names it. Drug answers confirmed by the identity source carry its attribution statement.
+
+- With no RxNorm release loaded and `OPENPLANS_RXNAV_IDENTITY=on`, `/v1/drugs?q=` asks RxNav's name search. Its current concepts come back as suggestions with `terminology_status: "passthrough"` and `terminology_evidence` (NLM's acknowledgement statement and the terms URL). `exact_concept_required` stays `true`, and the suggestions never confirm an RxCUI or answer coverage. `passthrough=off` keeps the search local, and `x-openplans-upstream` names `rxnav` when it was asked.
+- The MCP `search_drugs` tool accepts `passthrough` and serves name suggestions a REST search already fetched, as `kind: "drug_suggestion"` candidates with the same label.
+- Plugin SDK: a new identity kind, `drug-name-search`, whose answers the core builds as labelled candidate lists.
+
+- Drug answers whose RxCUI the RxNav identity source confirmed carry `rxnorm_identity`, RxNav's evidence block with NLM's acknowledgement statement and terms URL, in REST, quote and MCP results.
+- An RxCUI that RxNav reports as no concept, with a 200 and `{}` or with a 404, stays `rxcui_not_in_rxnorm` instead of `rxnorm_terminology_unavailable`.
+- `x-openplans-upstream` also names a source whose live call failed or was refused by the upstream during the request.
+- The response cache keys entries by the `OPENPLANS_RXNAV_IDENTITY` switch, so turning it on or off never serves an answer cached under the other setting.
+
+- Add an optional RxNorm identity check through the public RxNav API (`OPENPLANS_RXNAV_IDENTITY=on`, off by default). With no RxNorm release loaded, drug questions about a current RxCUI can reach the coverage sources, and a CMS Marketplace API `NotCovered` for that RxCUI is served as `covered: false` with `cms_api.identity_source: "rxnav"`.
+
+- Answers filled by a pass-through source carry an `x-openplans-upstream` header with the source ids, and MCP tool results carry them in `_meta["openplans/upstream"]`.
+- `passthrough=off` as a query parameter, body field or MCP argument keeps a request local; questions a source could answer stay `unknown` with reason `passthrough_declined`.
+
+- Operator tools: `vm-trim` returns freed blocks from the build and lanes VMs to the host, `vm-gc plan` reports those VMs, and `disk-watch` gains host-wide budgets, an hourly light mode and a clear message when macOS blocks the job from the data volume.
+
 ## v0.4.17
 
 - Add an offline database generation builder with disk admission, window-scoped imports, compaction, physical and logical archives, and a build manifest.

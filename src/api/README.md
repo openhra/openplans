@@ -306,6 +306,17 @@ Name and NDC searches also return `terminology_status`. It is `available` when a
 release is ACTIVE, and then an empty list means nothing matched. Otherwise it is `unknown`
 with `reason: "rxnorm_terminology_unavailable"`, and the empty list says nothing about the drug.
 
+With no release ACTIVE and the RxNav source switched on (`OPENPLANS_RXNAV_IDENTITY=on`), a name
+search asks RxNav's `/REST/drugs.json?name=` instead. Its current, unsuppressed concepts come back
+with `terminology_status: "passthrough"` and `terminology_evidence`, RxNav's evidence block with
+NLM's acknowledgement statement and the terms URL. They are suggestions for picking an exact
+RxCUI. `exact_concept_required` stays `true`, they are never coverage answers, and a search never
+confirms an RxCUI. A name RxNav does not know comes back the same way with an empty list. When
+RxNav cannot be asked (budget, pacing, outage, `passthrough=off`), the answer stays `unknown`.
+`rxnav` is named in `x-openplans-upstream` whenever RxNav was asked. NDC searches never ask RxNav.
+The MCP `search_drugs` tool serves only suggestions a REST search already fetched, with each
+candidate as `kind: "drug_suggestion"`.
+
 NDC lookup returns every associated RxCUI. Bare NDCs must be exactly 11 digits;
 hyphenated 5-4-2, 4-4-2, 5-3-2 and 5-4-1 forms normalize to 5-4-2. A bare 10-digit
 code is ambiguous and rejected. Leading zeros are retained, never guessed after loss.
@@ -545,6 +556,33 @@ request. `DataNotProvided` stays unknown. `NotCovered` stays unknown with
 `cms_api_reports_not_covered` unless local NPPES or active RxNorm identifies the
 provider or drug. The original CMS statement remains in `cms_api.coverage`. CMS coverage flags do not supply tiers,
 restrictions or patient prices.
+
+### Upstream disclosure and `passthrough=off`
+
+A pass-through source answers at request time when the loaded files leave a coverage question
+`unknown`. The CMS coverage fallback is one. When a pass-through source filled any answer in a
+response, the response has an `x-openplans-upstream` header with the source ids, comma-separated,
+for example `x-openplans-upstream: cms-marketplace-api`. The header lists sources whether they
+answered during this request or from their stored answers. It also lists a source whose call
+failed or that the upstream refused, because the question still left the server. A ZIP
+lookup that consulted the CMS county service for a ZIP the loaded geography lacks is listed the
+same way, whether the answer was fetched now or read from a stored lookup. A call the
+server declined itself, for budget or pacing, sent nothing and is not listed.
+It never carries the plan ids or codes that were asked. A response built only from loaded files has no header. A cached response replays
+the header it was stored with. The compatibility API sends the same header and lists it in
+`Access-Control-Expose-Headers`. MCP tool results put the ids in `_meta["openplans/upstream"]`.
+
+Send `passthrough=off` to keep a request local. It works in three places:
+
+- as a query parameter on any route, such as `/v1/plans/{id}/drugs/{rxcui}?year=2026&passthrough=off`
+- as a body field on `POST /v1/drug-coverage`, `POST /v1/provider-participation`,
+  `POST /v1/quotes` and the compatibility plan searches, such as `{"passthrough":"off", ...}`
+- as the `passthrough` argument of the MCP tools `check_drug_coverage`, `check_provider_network`
+  and `quote_plans`
+
+With `off` the server asks no pass-through source and skips their stored answers. A question a
+source could have answered stays `unknown` with reason `passthrough_declined`. `on` or no value
+keeps the default. Any other value returns 400 `INVALID_INPUT` with `field: "passthrough"`.
 
 ## Error answers
 

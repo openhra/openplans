@@ -144,7 +144,7 @@
   },
   "availability": {
     "status": 200,
-    "body_sha256": "9d3282ccab7ec9c94f719fe52ff7e7c322d81c886f229520a8686bf041011864",
+    "body_sha256": "3473f6802f1a742f2ca582bb48a4fa881c316582fcd6a664636d328ec667b885",
     "headers": {
       "content-type": "application/json",
       "cache-control": null,
@@ -1222,7 +1222,7 @@
   },
   "availability-with-api-token": {
     "status": 200,
-    "body_sha256": "9d3282ccab7ec9c94f719fe52ff7e7c322d81c886f229520a8686bf041011864",
+    "body_sha256": "3473f6802f1a742f2ca582bb48a4fa881c316582fcd6a664636d328ec667b885",
     "headers": {
       "content-type": "application/json",
       "cache-control": null,

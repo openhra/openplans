@@ -227,7 +227,10 @@ switch (mode) {
         geocode.cache_replay.nonExact +
         geocode.cache_replay.centroidFallbacks,
     );
-    assert.equal(geoMetrics.geocode_attempt, geocode.selected);
+    assert.equal(
+      geoMetrics.geocode_attempt + geoMetrics.geocode_match_archive,
+      geocode.selected,
+    );
     assert.equal(geocode.reused, geocode.selected);
     const missing = await premium({});
     assert.equal(missing.status, 401);

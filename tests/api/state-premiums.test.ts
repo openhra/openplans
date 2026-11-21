@@ -4,7 +4,15 @@ import { assertHonest } from "../../src/mcp/schemas.js";
 import { getPlan, estimatePremiums } from "../../src/services/catalog.js";
 import assert from "node:assert/strict";
 import { PGlite } from "@electric-sql/pglite";
-import { afterAll, beforeAll, expect, it } from "vitest";
+import {
+  afterAll,
+  beforeAll,
+  expect,
+  it,
+  beforeEach,
+  afterEach,
+  vi,
+} from "vitest";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -75,6 +83,14 @@ async function rollback(run: (tx: SqlSession) => Promise<void>) {
     }),
   ).rejects.toBe(marker);
 }
+// Annual source fixtures use a fixed UTC calendar, independently of the machine date.
+function fixtureClock() {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-11-19T00:00:00Z"));
+}
+beforeAll(fixtureClock);
+beforeEach(fixtureClock);
+afterEach(() => vi.useRealTimers());
 beforeAll(async () => {
   directory = await mkdtemp(join(tmpdir(), "openplans-state-api-"));
   core = await coreMigrations();
@@ -328,7 +344,7 @@ async function checkMcpAvailability(
   year: number,
 ) {
   const result = await callTool(
-    { db: tx, data: { historyYears: "all" } },
+    { db: tx, data: { historyYears: 3 } },
     "get_data_status",
     {
       state,
@@ -356,6 +372,7 @@ it("NY and VT 2026 ICHRA availability explains their evidence gaps over HTTP and
 });
 
 it("NY and VT 2027 availability and look-back stay unknown over HTTP and MCP", async () => {
+  vi.setSystemTime(new Date("2027-11-19T00:00:00Z"));
   await rollback(async (tx) => {
     // SYNTHETIC manifest entries exercise disclosure without inventing a loaded catalog.
     await tx.exec(`INSERT INTO data_availability(state,plan_year,market,issuer_id,snapshot_id,catalog_status)
@@ -366,7 +383,7 @@ it("NY and VT 2027 availability and look-back stay unknown over HTTP and MCP", a
         tx,
         {},
         {
-          config: loadConfig({}, { version: 1, data: { historyYears: "all" } }),
+          config: loadConfig({}, { version: 1, data: { historyYears: 3 } }),
         },
       ).request(`/v1/data-availability?state=${state}&year=2027`);
       expect(response.status).toBe(200);

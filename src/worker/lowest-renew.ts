@@ -88,9 +88,7 @@ export async function renewLowestPremiums(
             manifest,
             LOWEST_RENEW_BEFORE_MS,
             maxGroups + 1,
-            policy.history_years === "all"
-              ? undefined
-              : policy.domains.individual.allowed_years,
+            policy.domains.individual.allowed_years,
           );
           for (const group of groups.slice(0, maxGroups)) {
             if (

@@ -14,11 +14,23 @@ import type { Context } from "hono";
 import type { BlankEnv } from "hono/types";
 import { bodyLimit } from "hono/body-limit";
 import { compatKeyHeader, credentialMatches } from "./auth.js";
-import { providerCompatRoutes } from "./providers.js";
+import {
+  defaultedYearGap,
+  defaultPlanYear,
+  providerCompatRoutes,
+} from "./providers.js";
 import { dentalHouseholdOffering, mapDentalPlan } from "./dental.js";
 import { countyDisplayNames, stateName } from "./geography.js";
 import { compatQuoteCoverage } from "./coverage.js";
+import { drugByRxcui, drugRow, optionalRxcui } from "./drug-identity.js";
+import type { CompatDrugPackage } from "./drug-identity.js";
+import { identityStage } from "../../services/drugs.js";
+import { cmsFallbackContext } from "../../ingest/cms-api/fallback.js";
 import { quoteFallbackContext } from "../../services/quote-coverage.js";
+import {
+  declineFromBody,
+  UPSTREAM_HEADER,
+} from "../../services/upstream-disclosure.js";
 import { requestSource } from "../../api/rate-limit.js";
 import { compatApiKey, trustedProxies } from "../../config/access.js";
 import { orderPlans, pageWindow } from "./search.js";
@@ -183,7 +195,10 @@ export function compatRoutes(db: SqlSession, options: ApiOptions = {}) {
     c.header("Access-Control-Allow-Origin", "*");
     c.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
     c.header("Access-Control-Allow-Headers", allowedHeaders.join(", "));
-    c.header("Access-Control-Expose-Headers", "x-openplans-gaps, Link");
+    c.header(
+      "Access-Control-Expose-Headers",
+      `x-openplans-gaps, ${UPSTREAM_HEADER}, Link`,
+    );
     c.header("Cache-Control", "no-store");
     if (c.req.method === "OPTIONS") return c.body(null, 204);
     // No key: open to everyone with per-source limits, unless OPENPLANS_PUBLIC_COMPAT=off.
@@ -339,8 +354,9 @@ export function compatRoutes(db: SqlSession, options: ApiOptions = {}) {
             400,
           );
         }
-        const body = object(json),
-          reasons = new Set(PLAN_GAPS),
+        const body = object(json);
+        declineFromBody(body);
+        const reasons = new Set(PLAN_GAPS),
           { start, size } = pagination(
             body,
             10,
@@ -374,12 +390,15 @@ export function compatRoutes(db: SqlSession, options: ApiOptions = {}) {
           zip = body.zip_code === undefined ? undefined : v.zip(body.zip_code);
         const market = body.market === undefined ? "individual" : body.market;
         if (typeof market !== "string") return v.fail("market");
+        const defaultCoverage = `${await defaultPlanYear(db)}-01-01`;
         const coverage =
           body.enrollment_date === undefined
-            ? "2026-01-01"
+            ? defaultCoverage
             : body.enrollment_date;
         if (body.enrollment_date === undefined)
-          reasons.add("coverage_date_defaulted_to_2026_01_01");
+          reasons.add(
+            `coverage_date_defaulted_to_${defaultCoverage.replaceAll("-", "_")}`,
+          );
         const applicants = body.applicants.map((a, index) => {
           const applicant = object(a);
           if (
@@ -727,7 +746,9 @@ export function compatRoutes(db: SqlSession, options: ApiOptions = {}) {
   for (const route of ["/plans/:id", "/plans/medical/:id", "/plans/dental/:id"])
     app.get(route, async (c) => {
       const year =
-        c.req.query("year") === undefined ? 2026 : v.year(c.req.query("year"));
+        c.req.query("year") === undefined
+          ? await defaultPlanYear(db)
+          : v.year(c.req.query("year"));
       const csrVariant = v.csrVariant(c.req.query("csr_variant"));
       const record = await detail(c.req.param("id")!, year, csrVariant);
       if (!c.req.param("id")!.includes(":")) {
@@ -747,7 +768,7 @@ export function compatRoutes(db: SqlSession, options: ApiOptions = {}) {
         reasons.splice(0, reasons.length, ...stateReasons);
       }
       if (c.req.query("year") === undefined)
-        reasons.push("plan_year_defaulted_to_2026");
+        reasons.push(defaultedYearGap(year));
       if (
         !record?.dental &&
         record &&
@@ -777,19 +798,24 @@ export function compatRoutes(db: SqlSession, options: ApiOptions = {}) {
     });
 
   app.get("/drugs", async (c) => {
-    const term = c.req.query("search_term");
-    if (!term || term.trim().length < 2 || term.length > 200)
+    const query = c.req.query(),
+      rxcui = optionalRxcui(query, ""),
+      term = query.search_term;
+    if (
+      rxcui === undefined &&
+      (!term || term.trim().length < 2 || term.length > 200)
+    )
       return c.json(
         {
           error: {
             code: "INVALID_INPUT",
             field: "search_term",
-            message: "search_term required (min 2 chars, max 200)",
+            message: "search_term or rxcui required (search_term 2-200 chars)",
           },
         },
         400,
       );
-    const { start, size } = pagination(c.req.query(), 25),
+    const { start, size } = pagination(query, 25),
       rx = createRxnormRepository(db);
     const reasons = [
       "drug_total_counts_rxnorm_concepts_not_ndc_products",
@@ -797,8 +823,37 @@ export function compatRoutes(db: SqlSession, options: ApiOptions = {}) {
       "ndc_package_descriptions_and_med_ids_unavailable",
       "drug_strength_not_separately_resolved",
     ];
-    if (!(await rx.activeRelease())) {
-      gaps(c, [...reasons, "rxnorm_terminology_unavailable"]);
+    const released = await rx.activeRelease();
+    if (!released) reasons.push("rxnorm_terminology_unavailable");
+    if (rxcui !== undefined) {
+      // The RxCUI is the identity; a search term sent with it does not filter.
+      if (term !== undefined) reasons.push("search_term_ignored_for_rxcui");
+      const year =
+        query.year === undefined
+          ? await defaultPlanYear(db)
+          : v.year(query.year);
+      if (query.year === undefined) reasons.push(defaultedYearGap(year));
+      const stage = identityStage(
+        cmsFallbackContext(db, db, {
+          client: requestSource(
+            c,
+            options.trustedProxies ?? trustedProxies(),
+            options.peerAddress,
+          ),
+        }),
+      );
+      const found = await drugByRxcui(db, rxcui, year, stage);
+      gaps(c, [...reasons, ...found.gaps]);
+      return c.json({
+        meta: { total: found.drugs.length },
+        drugs: found.drugs.slice(start, start + size),
+        drug_packages: start === 0 ? found.drug_packages : [],
+        // Present only when the identity source confirmed the RxCUI: its attribution statement.
+        ...(found.attribution ? { rxnorm_identity: found.attribution } : {}),
+      });
+    }
+    if (!released) {
+      gaps(c, reasons);
       return c.json({ meta: { total: 0 }, drugs: [], drug_packages: [] });
     }
     // The repository counts candidates by concept/name/TTY. Deduplicate RxCUIs,
@@ -808,42 +863,17 @@ export function compatRoutes(db: SqlSession, options: ApiOptions = {}) {
       Awaited<ReturnType<typeof rx.searchDrugs>>[number]
     >();
     for (let offset = 0; ; offset += 1000) {
-      const batch = await rx.searchDrugs(term, { limit: 1000, offset });
+      const batch = await rx.searchDrugs(term!, { limit: 1000, offset });
       for (const concept of batch)
         if (!concepts.has(concept.rxcui)) concepts.set(concept.rxcui, concept);
       if (batch.length < 1000) break;
     }
     const drugs = [],
-      packages: {
-        id: string;
-        description: null;
-        med_id: null;
-        rx_cui_id: string;
-      }[] = [];
+      packages: CompatDrugPackage[] = [];
     for (const concept of [...concepts.values()].slice(start, start + size)) {
-      const ndcs = await rx.ndcsForRxcui(concept.rxcui),
-        packageIds = ndcs.map(
-          (ndc) => `${ndc.slice(0, 5)}-${ndc.slice(5, 9)}-${ndc.slice(9)}`,
-        );
-      drugs.push({
-        id: `rxnorm:${concept.rxcui}`,
-        active_ingredient_strength: null,
-        proprietary_name: ["SBD", "BN", "BPCK"].includes(concept.tty)
-          ? concept.name
-          : null,
-        non_proprietary_name: ["SBD", "BN", "BPCK"].includes(concept.tty)
-          ? null
-          : concept.name,
-        drug_package_ids: packageIds,
-      });
-      packages.push(
-        ...packageIds.map((id) => ({
-          id,
-          description: null,
-          med_id: null,
-          rx_cui_id: concept.rxcui,
-        })),
-      );
+      const row = drugRow(concept, await rx.ndcsForRxcui(concept.rxcui));
+      drugs.push(row.drug);
+      packages.push(...row.packages);
     }
     gaps(c, reasons);
     return c.json({
@@ -857,8 +887,11 @@ export function compatRoutes(db: SqlSession, options: ApiOptions = {}) {
     app.get(`/${kind}`, async (c) => {
       const { start, size } = pagination(c.req.query(), 100),
         state = v.state((c.req.query("state") ?? "TX").toUpperCase());
-      const year = c.req.query("year") ?? "2026";
-      v.year(year);
+      const year = String(
+        c.req.query("year") === undefined
+          ? await defaultPlanYear(db)
+          : v.year(c.req.query("year")),
+      );
       const response = await native.request(
         `/${kind}?state=${state}&year=${year}`,
       );
@@ -869,6 +902,8 @@ export function compatRoutes(db: SqlSession, options: ApiOptions = {}) {
         "catalog_limited_to_loaded_public_sources",
         "carrier_ids_are_cms_issuer_ids",
       ];
+      if (c.req.query("year") === undefined)
+        reasons.push(defaultedYearGap(Number(year)));
       let records: Record<string, unknown>[];
       if (kind === "carriers") {
         // The native network census publishes both market and dental-only flags.

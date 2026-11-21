@@ -5,12 +5,17 @@ import { readFile, rm } from "node:fs/promises";
 import { dirname } from "node:path";
 import {
   CACHE_LEVEL_ORDER,
+  CANDIDATE_KINDS,
+  IDENTITY_KIND_OF,
+  IDENTITY_OPENING_REASONS,
+  MAX_CANDIDATES,
   PASSTHROUGH_OPENING_REASONS,
 } from "@openplans/plugin-sdk";
 import type {
   AbsorbedRow,
   CacheLevel,
   CacheStore,
+  DrugNameCandidate,
   EventRegistry,
   MappedOutcome,
   PassThroughAnswer,
@@ -37,6 +42,7 @@ import { implicitPassThroughSources } from "../core-plugin.js";
 import { currentRegistries } from "../registries.js";
 import { restrictCacheLevel, scopeRequestAnswers } from "../request-scope.js";
 import { coreWriter, sourceWriter } from "./scoped-writer.js";
+import { recordUpstream } from "../upstream-scope.js";
 import { operatorManifest } from "../../config/access.js";
 
 /**
@@ -186,6 +192,74 @@ function reasonOf(source: Source, code: PassThroughReason): string | null {
   return own === undefined ? code : own;
 }
 
+const isIdentityKind = (kind: string) =>
+  Object.hasOwn(IDENTITY_OPENING_REASONS, kind);
+/** An identity source serves identity kinds and nothing else. */
+const isIdentitySource = (source: Source) =>
+  source.kinds.length > 0 && source.kinds.every(isIdentityKind);
+/**
+ * The closed opening-reason list a source draws from: its identity kinds' lists for an identity
+ * source, otherwise the coverage list.
+ */
+function openingReasonsOf(source: Source): readonly string[] {
+  return isIdentitySource(source)
+    ? source.kinds.flatMap((kind) => IDENTITY_OPENING_REASONS[kind]!)
+    : PASSTHROUGH_OPENING_REASONS;
+}
+const RXCUI = /^\d{1,20}$/;
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+/**
+ * The candidates a result carries, rebuilt field by field: an RxCUI, a name and a term type, all
+ * strings, at most `MAX_CANDIDATES`, first occurrence of an RxCUI and term type kept. Anything
+ * else in the source's answer is dropped.
+ */
+function candidatesOf(result: Result): DrugNameCandidate[] {
+  if (result.outcome !== "answer" || result.negative) return [];
+  const listed = isRecord(result.answer) ? result.answer.candidates : undefined;
+  if (!Array.isArray(listed)) return [];
+  const seen = new Set<string>();
+  const out: DrugNameCandidate[] = [];
+  for (const item of listed) {
+    if (out.length >= MAX_CANDIDATES) break;
+    if (!isRecord(item)) continue;
+    const { rxcui, name, tty } = item;
+    if (typeof rxcui !== "string" || !RXCUI.test(rxcui)) continue;
+    if (typeof name !== "string" || !name || name.length > 1000) continue;
+    if (typeof tty !== "string" || !/^[A-Z_]{1,20}$/.test(tty)) continue;
+    if (seen.has(`${rxcui}|${tty}`)) continue;
+    seen.add(`${rxcui}|${tty}`);
+    out.push({ rxcui, name, tty });
+  }
+  return out;
+}
+/** A confirmation is an answer, not a negative, whose body says `confirmed: true`. */
+function confirms(result: Result): boolean {
+  return (
+    result.outcome === "answer" &&
+    !result.negative &&
+    (result.answer as { confirmed?: unknown } | null)?.confirmed === true
+  );
+}
+
+/** The call's URL on the source's host, refused outside its permitted paths. */
+function requestUrl(
+  source: Source,
+  request: { path: string; query: Record<string, string> },
+): URL {
+  const url = new URL(`https://${source.manifest.host}${request.path}`);
+  if (
+    url.hostname !== source.manifest.host ||
+    !source.manifest.permittedPaths.some((path) =>
+      url.pathname.startsWith(path),
+    )
+  )
+    throw new Error("Request outside the source's permitted paths");
+  for (const [name, value] of Object.entries(request.query))
+    url.searchParams.set(name, value);
+  return url;
+}
+
 function evidenceKey(source: Source): string {
   return source.evidence?.key ?? "passthrough";
 }
@@ -206,6 +280,39 @@ export function createPassThrough(deps: PassThroughDeps): PassThroughApi {
     string,
     { session: AdmissionSession; created: number }
   >();
+
+  // Identities confirmed during one inbound request, by identity kind, each with the id of the
+  // identity source that confirmed it. Held per scope object, so a confirmation never outlives
+  // the request that made it.
+  const confirmations = new WeakMap<
+    PassThroughScope,
+    Map<string, Map<string, string>>
+  >();
+  function confirmedIn(scope: PassThroughScope, identityKind: string) {
+    let byKind = confirmations.get(scope);
+    if (!byKind)
+      confirmations.set(
+        scope,
+        (byKind = new Map<string, Map<string, string>>()),
+      );
+    let ids = byKind.get(identityKind);
+    if (!ids) byKind.set(identityKind, (ids = new Map<string, string>()));
+    return ids;
+  }
+  /**
+   * What a coverage kind's `confirmIdentities` may accept: its identity kind's confirmations, by
+   * identity, with the confirming source's id.
+   */
+  function confirmedThisRequest(
+    scope: PassThroughScope,
+    kind: string,
+  ): ReadonlyMap<string, string> {
+    const identityKind = IDENTITY_KIND_OF[kind];
+    return identityKind
+      ? (confirmations.get(scope)?.get(identityKind) ??
+          new Map<string, string>())
+      : new Map<string, string>();
+  }
 
   const level = (source: Source) =>
     strictestLevel(source.cache.level, deps.operatorLevels?.[source.id]);
@@ -255,13 +362,19 @@ export function createPassThrough(deps: PassThroughDeps): PassThroughApi {
 
   function eligible(
     source: Source,
+    kind: string,
     answer: PassThroughAnswer,
     question: Question,
   ): boolean {
     const reason = answer.reason ?? "";
+    // An identity kind opens on its own list only, even in a source that serves two of them.
+    const kindReasons = isIdentityKind(kind)
+      ? IDENTITY_OPENING_REASONS[kind]!
+      : PASSTHROUGH_OPENING_REASONS;
     return (
       answer.status === "unknown" &&
-      PASSTHROUGH_OPENING_REASONS.includes(reason) &&
+      kindReasons.includes(reason) &&
+      openingReasonsOf(source).includes(reason) &&
       source.eligibility.openingReasons.includes(reason) &&
       source.eligibility.accepts(question)
     );
@@ -786,17 +899,7 @@ export function createPassThrough(deps: PassThroughDeps): PassThroughApi {
     callsLeft.get(scope)!.set(source.id, remaining(scope, source) - 1);
     if (client) client.state.counts.set(client.key, client.count + 1);
 
-    const request = source.buildRequest(batch.questions, kind);
-    const url = new URL(`https://${source.manifest.host}${request.path}`);
-    if (
-      url.hostname !== source.manifest.host ||
-      !source.manifest.permittedPaths.some((path) =>
-        url.pathname.startsWith(path),
-      )
-    )
-      throw new Error("Request outside the source's permitted paths");
-    for (const [name, value] of Object.entries(request.query))
-      url.searchParams.set(name, value);
+    const url = requestUrl(source, source.buildRequest(batch.questions, kind));
     const params = source.storage?.cacheKey
       ? source.storage.cacheKey(kind, batch.year, batch.questions)
       : sha(
@@ -813,6 +916,30 @@ export function createPassThrough(deps: PassThroughDeps): PassThroughApi {
       maxRedirects: 0,
       connectTimeoutMs: 3_000,
       readTimeoutMs: 3_000,
+    };
+    // Disclosed before the fetch (D-PRX-5): a call that fails, or that the upstream refuses, has
+    // still sent the question. Calls the core refuses itself above never leave the host.
+    recordUpstream([source.id]);
+    /**
+     * A transient lookup. A status the source lists in `absentStatuses` (such as a 404 for an
+     * identity that does not exist) is an answer, not a failure: the source maps a `null` body,
+     * and the admission session stays open for the follow-up.
+     */
+    const transient = async (target: URL) => {
+      const fetched = await fetchTransient(target, {
+        ...options,
+        deadlineMs: 10_000,
+        ...(source.absentStatuses
+          ? { absentStatuses: source.absentStatuses }
+          : {}),
+      });
+      return {
+        status: fetched.status,
+        text: source.absentStatuses?.includes(fetched.status)
+          ? "null"
+          : fetched.body.toString("utf8"),
+        sha256: fetched.sha256,
+      };
     };
     const started = Date.now();
     let status: number | null = null;
@@ -832,12 +959,9 @@ export function createPassThrough(deps: PassThroughDeps): PassThroughApi {
         text = await readFile(stored.path, "utf8");
         receipt = stored.metadata.sha256;
       } else {
-        const fetched = await fetchTransient(url, {
-          ...options,
-          deadlineMs: 10_000,
-        });
+        const fetched = await transient(url);
         status = fetched.status;
-        text = fetched.body.toString("utf8");
+        text = fetched.text;
         receipt = fetched.sha256;
       }
       const key = keyValue(source);
@@ -874,6 +998,28 @@ export function createPassThrough(deps: PassThroughDeps): PassThroughApi {
         batch.questions,
         kind,
       );
+      const unanswered = batch.questions.filter(
+        (question) =>
+          !entries.some((entry) => keyOf(entry.question) === keyOf(question)),
+      );
+      if (source.followUp && !persistent && unanswered.length) {
+        const followUrl = requestUrl(
+          source,
+          source.followUp.buildRequest(unanswered, kind),
+        );
+        const followed = await transient(followUrl);
+        status = followed.status;
+        const followText = followed.text;
+        if (key && followText.includes(key))
+          throw new Error("Follow-up body echoes the key");
+        entries.push(
+          ...source.followUp.mapResponse(
+            JSON.parse(followText),
+            unanswered,
+            kind,
+          ),
+        );
+      }
       // Entries for questions not asked are dropped; a repeated entry replaces the earlier one.
       for (const entry of entries) {
         const question = wanted.get(keyOf(entry.question));
@@ -998,6 +1144,7 @@ export function createPassThrough(deps: PassThroughDeps): PassThroughApi {
     answer: T,
     result: Result,
     confirmed: boolean,
+    identitySource?: string,
   ): T {
     if (source.serve)
       return source.serve(kind, answer, {
@@ -1010,28 +1157,18 @@ export function createPassThrough(deps: PassThroughDeps): PassThroughApi {
         servedFrom: result.servedFrom,
         level: levelUsed,
         confirmed,
+        ...(confirmed && identitySource ? { identitySource } : {}),
       });
     const negativeUnconfirmed =
       result.outcome === "negative_unconfirmed" ||
       (result.outcome === "answer" && result.negative && !confirmed);
-    const evidence: PassThroughEvidence = {
-      source_id: source.id,
-      level: levelUsed,
-      outcome: negativeUnconfirmed ? "negative_unconfirmed" : result.outcome,
-      served_from: result.servedFrom,
-      snapshot_id: levelUsed === "stored" ? result.snapshotId : null,
-      retrieved_at: result.sourcedAt,
-      statement: result.statement,
-      ...(source.evidence
-        ? {
-            source: source.evidence.source,
-            terms_url: source.evidence.termsUrl,
-            ...(source.evidence.limits
-              ? { limits: source.evidence.limits(kind) }
-              : {}),
-          }
-        : {}),
-    };
+    const evidence = evidenceOf(
+      source,
+      levelUsed,
+      kind,
+      result,
+      negativeUnconfirmed,
+    );
     const key = evidenceKey(source);
     // An unconfirmed negative stays unknown; the source's words go into provenance only.
     if (negativeUnconfirmed)
@@ -1059,6 +1196,74 @@ export function createPassThrough(deps: PassThroughDeps): PassThroughApi {
     return { ...folded, [key]: evidence };
   }
 
+  /**
+   * An identity answer is built by the core alone, never by a source's `serve` or `fold`, so
+   * nothing but a confirmation can make it `confirmed`. Anything else stays `unknown`.
+   */
+  function serveIdentity<T extends PassThroughAnswer>(
+    source: Source,
+    levelUsed: CacheLevel,
+    kind: string,
+    answer: T,
+    result: Result,
+  ): T {
+    const confirmed = confirms(result);
+    return {
+      ...answer,
+      status: confirmed ? "confirmed" : "unknown",
+      reason: confirmed ? null : "passthrough_identity_not_confirmed",
+      [evidenceKey(source)]: evidenceOf(source, levelUsed, kind, result, false),
+    };
+  }
+
+  /**
+   * A candidate answer is built by the core alone: whatever the source answered, the served
+   * answer is labelled `passthrough`, carries the source's evidence block and only well-formed
+   * candidates, and confirms nothing. A source that found no match serves an empty list.
+   */
+  function serveCandidates<T extends PassThroughAnswer>(
+    source: Source,
+    levelUsed: CacheLevel,
+    kind: string,
+    answer: T,
+    result: Result,
+  ): T {
+    return {
+      ...answer,
+      status: "passthrough",
+      reason: null,
+      candidates: candidatesOf(result),
+      [evidenceKey(source)]: evidenceOf(source, levelUsed, kind, result, false),
+    };
+  }
+
+  function evidenceOf(
+    source: Source,
+    levelUsed: CacheLevel,
+    kind: string,
+    result: Result,
+    negativeUnconfirmed: boolean,
+  ): PassThroughEvidence {
+    return {
+      source_id: source.id,
+      level: levelUsed,
+      outcome: negativeUnconfirmed ? "negative_unconfirmed" : result.outcome,
+      served_from: result.servedFrom,
+      snapshot_id: levelUsed === "stored" ? result.snapshotId : null,
+      retrieved_at: result.sourcedAt,
+      statement: result.statement,
+      ...(source.evidence
+        ? {
+            source: source.evidence.source,
+            terms_url: source.evidence.termsUrl,
+            ...(source.evidence.limits
+              ? { limits: source.evidence.limits(kind) }
+              : {}),
+          }
+        : {}),
+    };
+  }
+
   async function applySource<T extends PassThroughAnswer>(
     source: Source,
     kind: string,
@@ -1068,6 +1273,12 @@ export function createPassThrough(deps: PassThroughDeps): PassThroughApi {
     served: Set<number>,
   ): Promise<T[]> {
     const levelUsed = level(source);
+    const identity = isIdentityKind(kind);
+    // Identity is confirmed per request and never kept in the database (D-PRX-2): a `stored`
+    // identity source is not asked at all.
+    if (identity && levelUsed === "stored") return answers;
+    // A source that mixes identity and coverage kinds opens on the coverage list only.
+    if (identity && !isIdentitySource(source)) return answers;
     const pairs: Pair[] = [];
     const settled: Pair[] = [];
     const rejected = new Map<number, T>();
@@ -1083,14 +1294,14 @@ export function createPassThrough(deps: PassThroughDeps): PassThroughApi {
       }
       if (!question) return;
       if (window && !window.includes(question.year)) {
-        if (eligible(source, answer, question)) {
+        if (eligible(source, kind, answer, question)) {
           const reason = reasonOf(source, "passthrough_year_not_served");
           if (reason !== null) rejected.set(index, { ...answer, reason });
         }
         return;
       }
       const pair = { index, question, key: keyOf(question) };
-      if (eligible(source, answer, question)) pairs.push(pair);
+      if (eligible(source, kind, answer, question)) pairs.push(pair);
       else if (answer.status !== "unknown" && answer.status !== "conflicting")
         settled.push(pair);
     });
@@ -1305,9 +1516,12 @@ export function createPassThrough(deps: PassThroughDeps): PassThroughApi {
           .map((p) => p.question.identity),
       ),
     ];
+    const confirmedBy = confirmedThisRequest(scope, kind);
     const known =
       negatives.length && source.confirmIdentities
-        ? await source.confirmIdentities(scope.reader, kind, negatives)
+        ? await source.confirmIdentities(scope.reader, kind, negatives, {
+            confirmed: new Set(confirmedBy.keys()),
+          })
         : new Set<string>();
     const ttl =
       levelUsed === "memory" ? memoryTtl(source, "answer") : undefined;
@@ -1321,14 +1535,34 @@ export function createPassThrough(deps: PassThroughDeps): PassThroughApi {
         result = { ...stale.get(pair.key)!, servedFrom: "absorbed_stale" };
       if (result) {
         served.add(pair.index);
-        out[pair.index] = serve(
-          source,
-          levelUsed,
-          kind,
-          answers[pair.index]!,
-          result,
-          known.has(pair.question.identity),
-        );
+        if (CANDIDATE_KINDS.includes(kind))
+          out[pair.index] = serveCandidates(
+            source,
+            levelUsed,
+            kind,
+            answers[pair.index]!,
+            result,
+          );
+        else if (identity) {
+          out[pair.index] = serveIdentity(
+            source,
+            levelUsed,
+            kind,
+            answers[pair.index]!,
+            result,
+          );
+          if (out[pair.index]!.status === "confirmed")
+            confirmedIn(scope, kind).set(pair.question.identity, source.id);
+        } else
+          out[pair.index] = serve(
+            source,
+            levelUsed,
+            kind,
+            answers[pair.index]!,
+            result,
+            known.has(pair.question.identity),
+            confirmedBy.get(pair.question.identity),
+          );
         restrictCacheLevel(levelUsed, ttl);
       } else if (reasonFor.has(pair.index))
         out[pair.index] = {
@@ -1372,7 +1606,9 @@ export function createPassThrough(deps: PassThroughDeps): PassThroughApi {
               // Not a question this source can read.
             }
             const reason = reasonOf(source, "passthrough_unavailable");
-            return question && reason && eligible(source, answer, question)
+            return question &&
+              reason &&
+              eligible(source, kind, answer, question)
               ? { ...answer, reason }
               : answer;
           });

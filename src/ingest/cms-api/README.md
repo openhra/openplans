@@ -84,9 +84,21 @@ How it labels answers: a served answer gets a `cms_api` object with the source,
 step therapy, quantity limits and cost stay `null`. `DataNotProvided` stays `unknown` with
 reason `cms_api_data_not_provided`. `NotCovered` stays `unknown` with reason
 `cms_api_reports_not_covered` unless the NPI exists in local NPPES or the RxCUI resolves
-to an unsuppressed concept in the active local RxNorm release. Only known identities
-can receive `covered: false`; positive flags receive `covered: true`. The identity check
-runs when serving stored answers too. The original CMS statement stays in `cms_api.coverage`.
+to an unsuppressed concept in the active local RxNorm release. With no ACTIVE release, an RxCUI
+that the RxNav identity source confirmed during the same request also counts
+(`OPENPLANS_RXNAV_IDENTITY=on`, see the
+[source package](../../../plugins/source-rxnav-identity/README.md)); the answer then carries
+`cms_api.identity_source: "rxnav"` and RxNav's attribution in `rxnorm_identity`. Only known identities
+can receive `covered: false`, so an RxCUI that RxNav did not confirm in the same request never
+does; positive flags receive `covered: true`. The identity check runs when
+serving stored answers too. The original CMS statement stays in `cms_api.coverage`.
+
+When a local RxNorm release becomes ACTIVE later, it wins and RxNav is no longer asked. An RxCUI
+the release does not hold stays `rxcui_not_in_rxnorm`, and its stored CMS answer is not served.
+Where the loaded formulary answers a question that has a stored CMS answer, the loaded answer is
+served and `cms_api_conflict` records whether the two agree. An answer from an issuer-published formulary
+document (the carrier-documents plugin) counts as loaded here: it comes before the fallback, and a
+stored CMS answer for the same question is only checked against it.
 
 The key reaches the API only through fetch admission (`accessMode: "api-key"`, see
 `src/fetch/README.md`). Admission refuses the host when the key is unset. A response that

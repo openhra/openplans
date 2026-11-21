@@ -71,6 +71,8 @@ export interface FeedRunSummary {
   source: string;
   snapshot_ids: string[];
   rows: number;
+  /** Files the plugin refused one by one; the rest were activated. Left out when none. */
+  refused?: { snapshot_id: string; reason: string }[];
 }
 
 /** A failure the core reports by code. Messages from plugin code are never printed. */
@@ -521,7 +523,11 @@ export async function runFeedSource(
     }
 
     // 3. One transaction: stage, validate, core readiness, beforeActivate, activation.
+    let refusedFiles: { snapshot_id: string; reason: string }[] = [];
+    let admittedIds: string[] = snapshotIds;
     const rows = await db.transaction(async (tx) => {
+      refusedFiles = [];
+      admittedIds = snapshotIds;
       const staged = await hook("stage_failed", () =>
         source.stage(
           context,
@@ -549,25 +555,71 @@ export async function runFeedSource(
             "validate_failed",
           ),
         );
-      await readiness(tx, plan, tables, snapshotIds);
+      // A plugin may refuse single files; those are quarantined here, in this transaction, and the
+      // rest are activated. Only an all-refused run fails.
+      const refused = new Map<string, string>();
+      for (const entry of (verdict as { refused?: unknown[] }).refused ?? []) {
+        const { snapshotId, reasonCode } = (entry ?? {}) as Record<
+          string,
+          unknown
+        >;
+        if (
+          typeof snapshotId !== "string" ||
+          !snapshotIds.includes(snapshotId) ||
+          typeof reasonCode !== "string" ||
+          !FEED_REASON_CODE.test(reasonCode)
+        )
+          throw new FeedFailure("validate_failed");
+        if (!refused.has(snapshotId)) refused.set(snapshotId, reasonCode);
+      }
+      const admitted = snapshotIds.filter((id) => !refused.has(id));
+      if (!admitted.length) throw new FeedFailure([...refused.values()][0]!);
+      await readiness(tx, plan, tables, admitted);
       if (source.beforeActivate)
         await hook("before_activate_failed", () =>
-          source.beforeActivate!(context, tx, [...snapshotIds]),
+          source.beforeActivate!(context, tx, [...admitted]),
         );
+      for (const [snapshotId, code] of refused) {
+        await tx.query(
+          `INSERT INTO quality_issue(source_id,snapshot_id,severity,issue_code,explanation)
+           VALUES ($1,$2,'error',$3,'File refused; the other files of the run were activated')`,
+          [source.id, snapshotId, code],
+        );
+        await tx.query(
+          `UPDATE snapshot SET validation_state='QUARANTINED'
+           WHERE snapshot_id = $1 AND source_id = $2 AND validation_state = 'PARSED'`,
+          [snapshotId, source.id],
+        );
+      }
       const activated = await tx.query<{ snapshot_id: string }>(
         `UPDATE snapshot SET validation_state='ACTIVE', activated_at=now()
          WHERE snapshot_id = ANY($1::text[]) AND source_id = $2 AND validation_state = 'PARSED'
          RETURNING snapshot_id`,
-        [snapshotIds, source.id],
+        [admitted, source.id],
       );
-      if (activated.rows.length !== snapshotIds.length)
+      if (activated.rows.length !== admitted.length)
         throw new FeedFailure("activation_incomplete");
+      refusedFiles = [...refused].map(([snapshot_id, reason]) => ({
+        snapshot_id,
+        reason,
+      }));
+      admittedIds = admitted;
       return staged.rows;
     });
+    for (const file of refusedFiles)
+      output.error(
+        JSON.stringify({
+          source: id,
+          code: "feed_file_refused",
+          snapshot_id: file.snapshot_id,
+          reason: file.reason,
+        }),
+      );
     const summary: FeedRunSummary = {
       source: source.id,
-      snapshot_ids: snapshotIds,
+      snapshot_ids: admittedIds,
       rows,
+      ...(refusedFiles.length ? { refused: refusedFiles } : {}),
     };
     output.out(JSON.stringify(summary));
     return 0;

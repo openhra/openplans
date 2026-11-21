@@ -1,5 +1,14 @@
 import { withDataPolicy } from "../../src/services/data-window.js";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import {
+  afterAll,
+  beforeAll,
+  describe,
+  expect,
+  it,
+  beforeEach,
+  afterEach,
+  vi,
+} from "vitest";
 import type { SqlSession } from "../../src/db/database.js";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -21,6 +30,14 @@ import { rebaseImports, replaceSyntax } from "../source-mutation.js";
 // the LCSP here is the lowest of those 20, not of the whole county. Whole-county values are
 // checked against the full PUFs by scripts/oracle/ichra.mjs.
 let h: Awaited<ReturnType<typeof setup>>;
+// Annual source fixtures use a fixed UTC calendar, independently of the machine date.
+function fixtureClock() {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-11-19T00:00:00Z"));
+}
+beforeAll(fixtureClock);
+beforeEach(fixtureClock);
+afterEach(() => vi.useRealTimers());
 beforeAll(async () => {
   h = await setup();
 });
@@ -92,8 +109,10 @@ interface Result {
   rules: readonly Rule[];
 }
 async function run(extra: Partial<IchraRequest> = {}, db: SqlSession = h.db) {
-  return (await withDataPolicy({ historyYears: "all" }, () =>
-    ichraAffordability(db, request(extra)),
+  return (await withDataPolicy(
+    { historyYears: 3 },
+    () => ichraAffordability(db, request(extra)),
+    new Date(`${request(extra).planStart.slice(0, 4)}-11-19T00:00:00Z`),
   )) as Result;
 }
 async function rollback(

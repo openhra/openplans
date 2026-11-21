@@ -133,6 +133,8 @@ export interface StatusData {
   version: string | null;
   db: "ok" | "down";
   poolWaiting: number | null;
+  /** Whether the opt-in usage report is on; the address is never read. */
+  usageReport: boolean;
   dataPolicy?: DataPolicy | null;
   availability: AvailabilityRow[] | null;
   sources: SourceRow[] | null;
@@ -571,6 +573,7 @@ export async function readStatus(
     version: host.version?.() ?? null,
     db: up ? "ok" : "down",
     poolWaiting: count(host.poolWaiting?.()),
+    usageReport: config.usageReport?.enabled === true,
     availability,
     dataPolicy: host.dataPolicy ? await read(() => host.dataPolicy!(db)) : null,
     sources,

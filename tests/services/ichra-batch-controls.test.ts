@@ -1,5 +1,13 @@
 import { withDataPolicy } from "../../src/services/data-window.js";
-import { afterAll, beforeAll, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  beforeAll,
+  expect,
+  it,
+  vi,
+  beforeEach,
+  afterEach,
+} from "vitest";
 import type * as Batch from "../../src/services/ichra-batch.js";
 import type { SqlSession } from "../../src/db/database.js";
 import type * as Validation from "../../src/api/validation.js";
@@ -26,6 +34,14 @@ const census = new URL("../../plugins/sdk/src/census-rows.ts", import.meta.url);
 const service = new URL("../../src/services/ichra-batch.ts", import.meta.url);
 const validation = new URL("../../src/api/validation.ts", import.meta.url);
 let h: Awaited<ReturnType<typeof setup>>;
+// Annual source fixtures use a fixed UTC calendar, independently of the machine date.
+function fixtureClock() {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-11-19T00:00:00Z"));
+}
+beforeAll(fixtureClock);
+beforeEach(fixtureClock);
+afterEach(() => vi.useRealTimers());
 beforeAll(async () => {
   h = await setup();
 });
@@ -224,7 +240,9 @@ it("employee equality test kills missing evidence and an invented verdict for un
 function ichraAffordability(
   ...args: Parameters<typeof guardedIchraAffordability>
 ) {
-  return withDataPolicy({ historyYears: "all" }, () =>
-    guardedIchraAffordability(...args),
+  return withDataPolicy(
+    { historyYears: 3 },
+    () => guardedIchraAffordability(...args),
+    new Date(`${args[1].planStart.slice(0, 4)}-11-19T00:00:00Z`),
   );
 }

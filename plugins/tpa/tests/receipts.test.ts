@@ -1,6 +1,15 @@
+import { admitSyntheticNextYear } from "../../../tests/services/data-window-fixture.js";
 import { withDataPolicy } from "../../../src/services/data-window.js";
 import type * as Crypto from "node:crypto";
-import { afterAll, beforeAll, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  beforeAll,
+  expect,
+  it,
+  vi,
+  beforeEach,
+  afterEach,
+} from "vitest";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -57,6 +66,14 @@ const resultLine = (value: string) => JSON.parse(value) as { reason: string };
 let h: Awaited<ReturnType<typeof setup>>;
 let restored: Awaited<ReturnType<typeof setup>>;
 let directory: string;
+// Annual source fixtures use a fixed UTC calendar, independently of the machine date.
+function fixtureClock() {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-11-19T00:00:00Z"));
+}
+beforeAll(fixtureClock);
+beforeEach(fixtureClock);
+afterEach(() => vi.useRealTimers());
 beforeAll(async () => {
   vi.stubEnv("OPENPLANS_CMS_FALLBACK", "off");
   directory = await mkdtemp(join(tmpdir(), "openplans-answer-receipts-"));
@@ -64,6 +81,8 @@ beforeAll(async () => {
   h = await setup();
   importIds.next = 0;
   restored = await setup();
+  await admitSyntheticNextYear(h.db, directory);
+  await admitSyntheticNextYear(restored.db, directory);
   // Restore the original cache-generation record as a logical backup would. New databases
   // intentionally have a distinct identity even when their public files are identical.
   const { rows: generations } = await h.db.query<{
@@ -161,7 +180,7 @@ it("reproduces 100 synthetic row answers in four capped exports on independently
         restored.db,
         { premiumToken: TOKEN },
         {
-          config: loadConfig({}, { version: 1, data: { historyYears: "all" } }),
+          config: loadConfig({}, { version: 1, data: { historyYears: 3 } }),
         },
       ).request("/v1/ichra/affordability", {
         method: "POST",
@@ -470,19 +489,19 @@ it("rejects a missing aggregate member and refuses a different restored generati
 function prepareIchraReceipt(
   ...args: Parameters<typeof guardedPrepareIchraReceipt>
 ) {
-  return withDataPolicy({ historyYears: "all" }, () =>
+  return withDataPolicy({ historyYears: 3 }, () =>
     guardedPrepareIchraReceipt(...args),
   );
 }
 function ichraAffordabilityBatch(
   ...args: Parameters<typeof guardedIchraAffordabilityBatch>
 ) {
-  return withDataPolicy({ historyYears: "all" }, () =>
+  return withDataPolicy({ historyYears: 3 }, () =>
     guardedIchraAffordabilityBatch(...args),
   );
 }
 function replayExport(...args: Parameters<typeof guardedReplayExport>) {
-  return withDataPolicy({ historyYears: "all" }, () =>
+  return withDataPolicy({ historyYears: 3 }, () =>
     guardedReplayExport(...args),
   );
 }
@@ -491,11 +510,11 @@ it("returns an explicit dependency error for an excluded receipt year", async ()
   try {
     const response = await send(app, {
       operation: "prepare_from_batch",
-      batch_request: request([employee({ plan_start: "2027-01-01" })]),
+      batch_request: request([employee({ plan_start: "2028-01-01" })]),
     });
     expect(response.status).toBe(404);
     expect(await response.json()).toMatchObject({
-      error: { code: "not_loaded", required_year: 2027 },
+      error: { code: "not_loaded", required_year: 2028 },
     });
   } finally {
     await loaded.teardown();

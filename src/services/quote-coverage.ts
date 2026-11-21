@@ -7,6 +7,8 @@ import type { ProviderParticipation } from "../domain/providers/index.js";
 import type { DrugCoverage } from "../domain/drugs/index.js";
 import { cmsFallbackContext } from "../ingest/cms-api/fallback.js";
 import { passThrough } from "../plugins/sources/passthrough.js";
+import { consultPassThrough } from "./upstream-disclosure.js";
+import { identityStage } from "./drugs.js";
 import type { CmsFallbackContext } from "../ingest/cms-api/fallback.js";
 import { loadConfig } from "../config/index.js";
 
@@ -35,12 +37,17 @@ export interface QuoteCoverage {
   drugs: DrugCoverage[];
 }
 
+/**
+ * `cms` is the quote's pass-through scope. When present, drug identity goes through the identity
+ * stage with that same scope, which `applyQuoteFallback` later passes to `apply("drug")`.
+ */
 export async function readQuoteCoverage(
   db: SqlSession,
   requestedId: string,
   npis: string[],
   rxcuis: string[],
   year: number,
+  cms?: CmsFallbackContext,
 ): Promise<QuoteCoverage> {
   await guardCatalogPlans([requestedId], year);
   const providers = [],
@@ -48,7 +55,9 @@ export async function readQuoteCoverage(
   for (const code of npis)
     providers.push(await providerParticipation(db, requestedId, code, year));
   for (const code of rxcuis)
-    drugs.push(await drugCoverage(db, requestedId, code, year));
+    drugs.push(
+      await drugCoverage(db, requestedId, code, year, identityStage(cms)),
+    );
   return { providers, drugs };
 }
 
@@ -59,13 +68,15 @@ export async function applyQuoteFallback<T extends QuoteCoverage>(
 ): Promise<T[]> {
   if (!quoteFallbackEnabled() || !cms) return quotes;
   // The pass-through core runs the CMS source registered while OPENPLANS_CMS_FALLBACK=on.
-  const providers = await passThrough.apply(
+  const providers = await consultPassThrough(
+    passThrough,
     "provider",
     quotes.flatMap((q) => q.providers),
     cms,
   );
   if (!quoteFallbackEnabled()) return quotes;
-  const drugs = await passThrough.apply(
+  const drugs = await consultPassThrough(
+    passThrough,
     "drug",
     quotes.flatMap((q) => q.drugs),
     cms,

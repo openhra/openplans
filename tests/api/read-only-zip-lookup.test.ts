@@ -1,4 +1,13 @@
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  beforeAll,
+  describe,
+  expect,
+  it,
+  vi,
+  beforeEach,
+  afterEach,
+} from "vitest";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -23,6 +32,14 @@ import { rebaseImports, replaceSyntax } from "../source-mutation.js";
 // like a deployment that serves only federal-platform states.
 let h: Awaited<ReturnType<typeof setup>>;
 let readOnly: Database;
+// Annual source fixtures use a fixed UTC calendar, independently of the machine date.
+function fixtureClock() {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-11-19T00:00:00Z"));
+}
+beforeAll(fixtureClock);
+beforeEach(fixtureClock);
+afterEach(() => vi.useRealTimers());
 beforeAll(async () => {
   h = await setup();
   for (const year of [2025, 2026, 2027])
@@ -62,10 +79,11 @@ describe("ZIP lookups in read-only request scopes", () => {
     const app = createApp(
       readOnly,
       { premiumToken: TOKEN },
-      { config: loadConfig({}, { version: 1, data: { historyYears: "all" } }) },
+      { config: loadConfig({}, { version: 1, data: { historyYears: 3 } }) },
     );
     for (const zip of UNLOADED_ZIPS) {
       for (const year of [2025, 2026, 2027]) {
+        vi.setSystemTime(new Date(`${year}-11-19T00:00:00Z`));
         const response = await app.request(
           `/v1/benchmark?zip=${zip}&year=${year}&ages=40`,
           { headers: auth },
@@ -78,6 +96,7 @@ describe("ZIP lookups in read-only request scopes", () => {
           lowest_silver_plans: [],
         });
       }
+      fixtureClock();
       const premium = await app.request("/v1/premium-quotes", {
         method: "POST",
         headers: json,

@@ -273,12 +273,13 @@ describe("provider facade native integration", () => {
     expect(response.status).toBe(200);
     const body: unknown = await response.json();
     // A record/plan edge does not crosswalk external networks or their offices.
+    // hios_ids lists the plan the complete synthetic source set names this NPI under.
     assertShape(
-      { provider: { networks: [], network_ids: [], hios_ids: [] } },
+      { provider: { networks: [], network_ids: [], hios_ids: [plan] } },
       body,
     );
     expect(body).toMatchObject({
-      provider: { networks: [], network_ids: [], hios_ids: [] },
+      provider: { networks: [], network_ids: [], hios_ids: [plan] },
     });
     expect(response.headers.get("x-openplans-gaps")).toContain(
       "provider_network_crosswalk_unavailable",

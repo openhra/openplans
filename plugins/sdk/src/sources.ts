@@ -70,18 +70,68 @@ export interface FeedSource {
     acquired: AcquiredFile[],
     tx: SqlSession,
   ): Promise<{ rows: number; tables: string[] }>;
-  /** Plugin-level checks. The core adds its own readiness checks after these. */
+  /**
+   * Plugin-level checks. The core adds its own readiness checks after these. A multi-file feed may
+   * refuse single files with `refused` (snapshot id and reason code): the core quarantines those
+   * snapshots and activates the rest, and fails the run only when every file is refused. The
+   * plugin writes nothing for a refused file.
+   */
   validate(
     ctx: FeedContext,
     tx: SqlSession,
-  ): Promise<{ ok: true } | { ok: false; reasonCode: string }>;
+  ): Promise<
+    | { ok: true; refused?: { snapshotId: string; reasonCode: string }[] }
+    | { ok: false; reasonCode: string }
+  >;
   /** Runs just before the core marks this run's snapshots ACTIVE, in the same transaction. */
   beforeActivate?(
     ctx: FeedContext,
     tx: SqlSession,
     snapshotIds: string[],
   ): Promise<void>;
+  /**
+   * Drug coverage from this feed's staged documents, read-only. The core asks only for an RxCUI it
+   * has already identified (a current concept in the ACTIVE RxNorm release, or one the identity
+   * stage confirmed during the request), on a plan in the active catalog, and serves a `covered`
+   * answer only where the issuer's machine-readable files leave the question `unknown`. Where those
+   * files answer, they win and the core only records whether the two agree. A drug the documents do
+   * not list must be `unknown`, never "not covered".
+   */
+  drugCoverage?(
+    db: SqlSession,
+    question: DocumentDrugQuestion,
+  ): Promise<DocumentDrugAnswer>;
 }
+
+/** One drug coverage question a feed source's documents may answer. */
+export interface DocumentDrugQuestion {
+  /** The requested plan id, base or variant. */
+  planId: string;
+  planYear: number;
+  rxcui: string;
+}
+/** One document row behind a document answer. `snapshot_id` names the document's snapshot. */
+export interface DocumentDrugEvidence extends Record<string, unknown> {
+  kind: string;
+  snapshot_id: string;
+}
+export type DocumentDrugAnswer =
+  | {
+      status: "covered";
+      /** The tier number and label exactly as the document prints them, never mapped. */
+      tier: number;
+      tier_label: string | null;
+      prior_authorization: boolean;
+      step_therapy: boolean;
+      quantity_limit: boolean;
+      quantity_limit_text: string | null;
+      evidence: DocumentDrugEvidence[];
+    }
+  | {
+      status: "unknown";
+      reason: string;
+      evidence?: DocumentDrugEvidence[];
+    };
 
 /** Feed source ids double as fetch cache directory names and snapshot id prefixes. */
 export const FEED_SOURCE_ID = /^[a-z0-9][a-z0-9._-]{0,63}$/;
@@ -121,6 +171,95 @@ export const PASSTHROUGH_OPENING_REASONS: readonly string[] = Object.freeze([
   "source_set_not_validated",
   "source_set_not_active",
 ]);
+
+/**
+ * The identity kind for drugs. A source of this kind confirms that an RxCUI is a current,
+ * unsuppressed RxNorm concept; it never answers coverage. The core asks it only when no local
+ * RxNorm release is ACTIVE, because a loaded release always wins.
+ */
+export const DRUG_IDENTITY_KIND = "drug-identity";
+/**
+ * The name-search kind for drugs. A source of this kind suggests RxNorm concepts for a drug name
+ * so a caller can pick an exact RxCUI. Its candidates are suggestions, never identity
+ * confirmations or coverage answers. The core asks it only when no local RxNorm release is
+ * ACTIVE. It is an identity kind: never `stored`, never mixed with coverage kinds.
+ */
+export const DRUG_NAME_SEARCH_KIND = "drug-name-search";
+/**
+ * Identity kinds have their own closed opening-reason lists, separate from the coverage list
+ * above: a coverage source can never be opened by an identity reason, nor the other way round.
+ */
+export const IDENTITY_OPENING_REASONS: Readonly<
+  Record<string, readonly string[]>
+> = Object.freeze({
+  [DRUG_IDENTITY_KIND]: Object.freeze([
+    "rxcui_not_in_rxnorm",
+    "rxnorm_terminology_unavailable",
+  ]),
+  [DRUG_NAME_SEARCH_KIND]: Object.freeze(["rxnorm_terminology_unavailable"]),
+});
+/**
+ * Identity kinds whose answers are candidate lists. The core builds those answers itself and
+ * labels them `status: "passthrough"`; they never confirm an identity.
+ */
+export const CANDIDATE_KINDS: readonly string[] = Object.freeze([
+  DRUG_NAME_SEARCH_KIND,
+]);
+/** Most candidates the core serves for one name. */
+export const MAX_CANDIDATES = 100;
+/** One suggested concept. Only a current, unsuppressed concept is suggested. */
+export interface DrugNameCandidate {
+  rxcui: string;
+  name: string;
+  tty: string;
+}
+/** What a name-search source's `mapResponse` answers. */
+export interface CandidateList {
+  candidates: DrugNameCandidate[];
+}
+/**
+ * The question a candidate kind is asked (`identity` is the normalized name), and the answer the
+ * core returns: `passthrough` with `candidates` and the source's evidence block when the source
+ * answered, `unknown` with a reason otherwise.
+ */
+export interface CandidateAnswer extends PassThroughAnswer {
+  status: "unknown" | "passthrough";
+  reason: string | null;
+  identity: string;
+  plan_year: number;
+  candidates?: DrugNameCandidate[];
+}
+/** The identity kind whose confirmations a coverage kind's `confirmIdentities` may accept. */
+export const IDENTITY_KIND_OF: Readonly<Record<string, string>> = Object.freeze(
+  { drug: DRUG_IDENTITY_KIND },
+);
+/**
+ * What an identity source's `mapResponse` answers for a confirmed identity. Anything else,
+ * including a negative or `no_data`, leaves the identity unconfirmed.
+ */
+export interface IdentityConfirmation {
+  confirmed: true;
+}
+/**
+ * The question an identity kind is asked, and the answer the core returns. `status` becomes
+ * `confirmed` only when a source at a level other than `stored` confirmed the identity in this
+ * request; otherwise it stays `unknown` with a reason.
+ */
+export interface IdentityAnswer extends PassThroughAnswer {
+  status: "unknown" | "confirmed";
+  reason: string | null;
+  identity: string;
+  plan_year: number;
+}
+/** What the core hands `confirmIdentities` besides the identities. */
+export interface IdentityRequest {
+  /**
+   * Identities an identity source confirmed during this inbound request, for the identity kind
+   * paired with the asked kind (`IDENTITY_KIND_OF`). A source accepts them only by returning
+   * them; the core never adds them on its own.
+   */
+  confirmed: ReadonlySet<string>;
+}
 
 /** The fields the core reads from an answer computed from loaded files. */
 export interface PassThroughAnswer {
@@ -297,6 +436,11 @@ export interface PassThroughResult<A> {
   level: CacheLevel;
   /** True when `confirmIdentities` knows the identity. */
   confirmed: boolean;
+  /**
+   * The id of the identity source that confirmed this identity during the inbound request, when
+   * `confirmed` and the identity is among `request.confirmed`; absent otherwise.
+   */
+  identitySource?: string;
 }
 /** Where a served answer came from, as the evidence block reports it. */
 export type PassThroughServedFrom =
@@ -327,7 +471,11 @@ export interface PassThroughSource<Q extends Question, A> {
   /** `source.source_id` and the `sourced_by` value of stored answers. */
   id: string;
   publisher?: string;
-  /** The answer kinds this source can fill, the first argument of `apply`. */
+  /**
+   * The answer kinds this source can fill, the first argument of `apply`. A source with an
+   * identity kind (`DRUG_IDENTITY_KIND`) lists identity kinds only and is served at `memory`,
+   * `request` or `none`; the core never asks a mixed or `stored` identity source.
+   */
   kinds: readonly string[];
   manifest: {
     host: string;
@@ -356,6 +504,7 @@ export interface PassThroughSource<Q extends Question, A> {
     recordPolicy?: { name: string; noDataName?: string };
   };
   eligibility: {
+    /** A subset of the kind's list: `PASSTHROUGH_OPENING_REASONS`, or `IDENTITY_OPENING_REASONS`. */
     openingReasons: readonly string[];
     years?: number[];
     accepts(question: Q): boolean;
@@ -367,11 +516,15 @@ export interface PassThroughSource<Q extends Question, A> {
   };
   /** The question an answer from loaded files asks, or null when this source cannot answer it. */
   question(kind: string, answer: PassThroughAnswer): Q | null;
-  /** Identities known locally, for answers marked `negative`. */
+  /**
+   * Identities known locally, for answers marked `negative`. `request.confirmed` lists the
+   * identities an identity source confirmed during this request; a source may accept them.
+   */
   confirmIdentities?(
     db: SqlSession,
     kind: string,
     identities: string[],
+    request?: IdentityRequest,
   ): Promise<Set<string>>;
   batch: {
     maxQuestionsPerCall: number;
@@ -390,6 +543,24 @@ export interface PassThroughSource<Q extends Question, A> {
     kind: string,
   ): { path: string; query: Record<string, string> };
   mapResponse(body: unknown, questions: Q[], kind: string): Mapped<Q, A>[];
+  /**
+   * A second lookup for the questions the first response left without an entry, made in the same
+   * call: no second reservation, the host's own pacing applies, and its entries are cached with
+   * the first ones. A failed second lookup fails the whole call. Not used at `stored`.
+   */
+  followUp?: {
+    buildRequest(
+      questions: Q[],
+      kind: string,
+    ): { path: string; query: Record<string, string> };
+    mapResponse(body: unknown, questions: Q[], kind: string): Mapped<Q, A>[];
+  };
+  /**
+   * HTTP statuses that mean the asked record does not exist, such as a 404 on a per-identity path.
+   * The core hands `mapResponse` (and the follow-up's) a `null` body for them instead of failing
+   * the call. Not used at `stored`, where every non-2xx status fails the call.
+   */
+  absentStatuses?: readonly number[];
   /** Folds a served answer into the loaded-files answer. Default: copy the answer's fields. */
   fold?<T extends PassThroughAnswer>(
     kind: string,

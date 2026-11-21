@@ -266,6 +266,7 @@ export function renderStatusHtml(
 <dt>API</dt><dd>${state(view.api)}</dd>
 <dt>Database</dt><dd>${state(view.db)}</dd>
 <dt>Response cache</dt><dd>${view.cache.enabled ? "on" : "off"}</dd>
+<dt>Usage report</dt><dd>${view.usage_report}</dd>
 <dt>Plugins</dt><dd>${operator ? view.plugins.length : view.plugins}</dd>
 <dt>Last health change</dt><dd>${age(view.health_transitions.last_change)}</dd>
 ${operator ? `<dt>Waiting for a database connection</dt><dd>${escapeHtml(view.pool.waiting ?? "unknown")}</dd>` : ""}

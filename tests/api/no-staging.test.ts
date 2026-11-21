@@ -4,7 +4,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import ts from "typescript";
 import { describe, expect, it } from "vitest";
-import { stagingTables } from "../../src/db/table-classes.js";
+import { stagingTables, buildOnlyTables } from "../../src/db/table-classes.js";
 
 const root = fileURLToPath(new URL("../../src/", import.meta.url));
 const entries = ["api/app.ts", "services/calculation-worker.ts"].map((p) =>
@@ -16,7 +16,10 @@ async function stagingReads(overrides = new Map<string, string>()) {
   const pending = [...entries];
   const visited = new Set<string>();
   const offenders: string[] = [];
-  const names = new RegExp(`\\b(${stagingTables.join("|")})\\b`, "i");
+  const names = new RegExp(
+    `\\b(${[...stagingTables, ...buildOnlyTables].join("|")})\\b`,
+    "i",
+  );
   while (pending.length) {
     const path = pending.pop()!;
     if (visited.has(path)) continue;
@@ -65,7 +68,7 @@ describe("API staging boundary", () => {
   it("negative control: a staging read planted in a shared repository is detected", async () => {
     const path = resolve(root, "api/provider-repository.ts");
     const source = await readFile(path, "utf8");
-    for (const table of stagingTables) {
+    for (const table of [...stagingTables, ...buildOnlyTables]) {
       const result = await stagingReads(
         new Map([
           [path, `${source}\nconst syntheticRead = "SELECT * FROM ${table}";`],

@@ -7,11 +7,15 @@ export const checkRowProvenance = schemaViolations;
 
 export const NON_CATALOG_TABLES: Readonly<Record<string, string>> = {
   api_data_generation: "tracks catalog revisions",
+  geocode_match_archive:
+    "build-only matched observations; serving generations omit this table",
   schema_migrations: "records applied migrations",
   spatial_ref_sys: "PostGIS reference systems",
   plugin_event_outbox: "application event log",
   plugin_event_delivery: "application delivery state",
   plugin_state: "application plugin state",
+  usage_report_state:
+    "usage report install state; never feeds catalog responses",
   passthrough_budget: "pass-through request budget state",
   passthrough_attempt: "pass-through call log",
   passthrough_conflict: "stored answers checked against loaded files",
@@ -87,6 +91,8 @@ const forbidden =
 export const EVENT_PAYLOAD_ALLOWED_NAMES: ReadonlySet<string> = new Set([
   "untilAt",
   "imageId",
+  // The status page flag; the value is only "off" or "on".
+  "usage_report",
 ]);
 
 /** Scan schema property names, including nested arrays, unions and definitions. */

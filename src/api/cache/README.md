@@ -43,7 +43,12 @@ application cache. Only selected content/CORS/evidence headers are stored. Do no
 add request/body access logging, including at a reverse proxy.
 
 The key is SHA-256 over method, endpoint, sorted query parameters, canonical JSON
-body, and the current data generation. Object key order is ignored; array order
+body, the current data generation, and the pass-through state that can change an
+answer: the CMS fallback's hold, its two switches (`OPENPLANS_CMS_FALLBACK`,
+`OPENPLANS_CMS_FALLBACK_QUOTES`) and the `OPENPLANS_RXNAV_IDENTITY` switch. Turning
+any of them on or off therefore never serves an answer cached under the other setting. The
+switches are read once, when the process builds the cache, so they take effect on restart and a
+warm hit never reloads the configuration. Object key order is ignored; array order
 and repeated query value order are retained. API keys do not partition entries.
 
 Migration 920 installs `api_data_changed` statement triggers on every current
@@ -69,6 +74,11 @@ triggers disabled requires stopping the API and clearing the cache, or changing
 the ledger seed/revision before restarting. Normal imports need no cache flush.
 A ZIP request that invokes optional live geography resolution can write new evidence;
 that transaction invalidates the earlier generation and the next request misses.
+
+A miss reads the handler's response body to store it. The API server reads one throwaway
+response the same way before it listens (`warmResponseBodyReads`), so the process's first
+web-stream reader release, about a millisecond of one-time setup in Node, happens at start-up
+rather than on the first cacheable request.
 
 Every response has `X-Cache: hit|miss|bypass`. `/v1/cache-stats` includes process-local
 `hits`, `misses`, `bypasses`, `bytes`, `backend`, and `bytes_scope`. Misses count

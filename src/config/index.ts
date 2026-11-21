@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { isAbsolute } from "node:path";
 import { inspect } from "node:util";
 import { z } from "zod";
+import { historyYearsSchema } from "@openplans/plugin-sdk";
 import type { SettingOrigin } from "@openplans/plugin-sdk";
 import { recordConfigOrigins } from "./diagnostics.js";
 import { registryDefinitionsSchema } from "./registry.js";
@@ -51,6 +52,23 @@ const section = <T extends z.ZodRawShape>(shape: T) => {
   const schema = z.object(shape).strict();
   return schema.prefault({} as z.input<typeof schema>);
 };
+export const DEFAULT_USAGE_REPORT_URL =
+  "https://openplans.openhra.com/v1/usage-reports";
+function usageReportUrlOk(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return (
+      url.protocol === "https:" &&
+      !url.username &&
+      !url.password &&
+      !url.search &&
+      !value.includes("?") &&
+      !url.hash
+    );
+  } catch {
+    return false;
+  }
+}
 const portMessage = "PORT must be an integer between 1 and 65535";
 const cacheMessage = "OPENPLANS_API_CACHE_MB must be an integer from 0 to 4096";
 const locals = ["127.0.0.1", "localhost", "[::1]"];
@@ -102,7 +120,7 @@ export const coreConfigSchema = z
       url: secret,
     }),
     data: section({
-      historyYears: z.union([z.literal(3), z.literal("all")]).default(3),
+      historyYears: historyYearsSchema.default(3),
     }),
     blobs: section({ provider: z.string().default("local"), root: text }),
     access: section({
@@ -142,6 +160,17 @@ export const coreConfigSchema = z
       allowPersonalized: text,
     }),
     telemetry: section({ enabled: z.boolean().default(false) }),
+    // Off unless the exact value `on` (or `true` in the file) says otherwise.
+    usageReport: section({
+      enabled: z.boolean().default(false),
+      url: z
+        .string()
+        .default(DEFAULT_USAGE_REPORT_URL)
+        .refine(
+          (value) => usageReportUrlOk(value),
+          "usageReport.url must be an https URL without user info or a query",
+        ),
+    }),
     trustProxy: z.array(z.string()).default([]),
     admin: section({
       origin: z
@@ -168,6 +197,8 @@ export const coreConfigSchema = z
       quotes: z.boolean().default(false),
       apiKey: secret,
     }),
+    // Request-time RxNorm identity checks through RxNav; off by default.
+    rxnavIdentity: z.boolean().default(false),
     compat: section({
       catastrophicAgeRule: z.boolean().default(false),
       benefitText: z.boolean().default(false),
@@ -274,8 +305,16 @@ export type CoreConfig = Frozen<
 >;
 export type CoreConfigView = Omit<
   CoreConfig,
-  "tokens" | "db" | "cmsFallback" | "cache" | "compose" | "geocoder" | "runners"
+  | "tokens"
+  | "db"
+  | "cmsFallback"
+  | "cache"
+  | "compose"
+  | "geocoder"
+  | "runners"
+  | "usageReport"
 > & {
+  usageReport: Omit<CoreConfig["usageReport"], "url">;
   db: Omit<CoreConfig["db"], "connectionString">;
   cmsFallback: Omit<CoreConfig["cmsFallback"], "apiKey">;
   cache: Omit<CoreConfig["cache"], "url">;
@@ -299,6 +338,7 @@ export function coreConfigView(config: CoreConfig): CoreConfigView {
     compose,
     geocoder,
     runners,
+    usageReport,
     ...rest
   } = config;
   const { connectionString: _connection, ...publicDb } = db;
@@ -312,6 +352,7 @@ export function coreConfigView(config: CoreConfig): CoreConfigView {
     db: publicDb,
     cmsFallback: publicCms,
     cache: publicCache,
+    usageReport: { enabled: usageReport.enabled },
     compose: publicCompose,
     geocoder: publicGeocoder,
     runners: publicRunners,
@@ -360,6 +401,7 @@ export const environmentPaths = {
   OPENPLANS_CMS_FALLBACK: "cmsFallback.enabled",
   OPENPLANS_CMS_FALLBACK_QUOTES: "cmsFallback.quotes",
   CMS_API_KEY: "cmsFallback.apiKey",
+  OPENPLANS_RXNAV_IDENTITY: "rxnavIdentity",
   OPENPLANS_COMPAT_CATASTROPHIC_AGE_RULE: "compat.catastrophicAgeRule",
   OPENPLANS_COMPAT_BENEFIT_TEXT: "compat.benefitText",
   OPENPLANS_MEDICARE_PART_D: "medicarePartD",
@@ -410,6 +452,7 @@ export const environmentPaths = {
   OPENPLANS_COMPOSE_PROJECT: "runners.composeProject",
   OPENPLANS_SMOKE_TMPDIR: "runners.smokeTmpdir",
   OPENPLANS_METRICS: "telemetry.enabled",
+  OPENPLANS_USAGE_REPORT: "usageReport.enabled",
 } as const;
 /**
  * Keys the environment fills but the config file may not set, because their readers take the
@@ -463,11 +506,13 @@ const unlessOff = new Set([
 ]);
 const onlyOn = new Set([
   "OPENPLANS_METRICS",
+  "OPENPLANS_USAGE_REPORT",
   "OPENPLANS_PLUGINS_REQUIRE_APPROVAL",
   "OPENPLANS_TPA",
   "OPENPLANS_TPA_PRIVATE_INGRESS",
   "OPENPLANS_CMS_FALLBACK",
   "OPENPLANS_CMS_FALLBACK_QUOTES",
+  "OPENPLANS_RXNAV_IDENTITY",
   "OPENPLANS_COMPAT_CATASTROPHIC_AGE_RULE",
   "OPENPLANS_MEDICARE_PART_D",
   "OPENPLANS_MEDICARE_DRUG_COST",
@@ -590,6 +635,8 @@ export function loadConfig(
       throw new Error(issue.message);
     if (issue?.path.join(".") === "listen.port") throw new Error(portMessage);
     if (issue?.path.join(".") === "cache.maxMb") throw new Error(cacheMessage);
+    if (issue?.path.join(".") === "data.historyYears")
+      throw new Error("data.historyYears must be an integer from 1 to 3");
     if (issue?.path.join(".") === "tokens.compatKeyHeader")
       throw new Error(
         "OPENPLANS_COMPAT_KEY_HEADER must be a single RFC 7230 token",

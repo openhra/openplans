@@ -19,6 +19,8 @@ export interface CoverageEntry extends Record<string, unknown> {
   premium_status: CoverageStatus;
   provider_status: CoverageStatus;
   formulary_status: CoverageStatus;
+  /** Issuer formulary documents (PDF) read by the carrier-document feed source. */
+  formulary_document_status: CoverageStatus;
   snapshot_id: string;
 }
 
@@ -36,7 +38,7 @@ export async function coverageManifest(
 ): Promise<CoverageEntry[]> {
   const { rows } = await db.query<CoverageEntry>(`
     SELECT state, plan_year, market, issuer_id, catalog_status, premium_status,
-           provider_status, formulary_status, snapshot_id
+           provider_status, formulary_status, formulary_document_status, snapshot_id
     FROM data_availability
     ORDER BY state, plan_year, market, issuer_id NULLS FIRST
   `);

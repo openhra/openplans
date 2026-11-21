@@ -31,8 +31,7 @@ function dumpCommand(command: string, args: string[], input?: string): string {
   const result = spawnSync(
     "docker",
     [
-      "--context",
-      "colima-openplans-lanes",
+      // Docker context comes from DOCKER_CONTEXT (the gate sets the lanes context; CI uses its default).
       "exec",
       "-i",
       process.env.OPENPLANS_POSTGIS_CONTAINER!,

@@ -311,6 +311,8 @@ const PUBLIC_QUOTE_FIELDS = new Set([
   "page",
   "npis",
   "rxcuis",
+  // Upstream disclosure (D-PRX-5): `off` keeps coverage questions local.
+  "passthrough",
 ]);
 const PUBLIC_MEMBER_FIELDS = new Set(["age", "relationship", "tobacco"]);
 const INCOME_FIELDS = new Set([

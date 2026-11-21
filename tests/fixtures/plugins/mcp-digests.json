@@ -12,7 +12,7 @@
   },
   "tools-list-anonymous": {
     "status": 200,
-    "body_sha256": "290834a5df41936a3d0b3788cc0f416c842e6e96309750d67b54f3463396c893",
+    "body_sha256": "184964faff73fd2f1cdeced27032b90260b1d7488dc59ee249a23323243e0fcc",
     "headers": {
       "content-type": "application/json",
       "cache-control": "no-store",
@@ -34,7 +34,7 @@
   },
   "tools-list-granted": {
     "status": 200,
-    "body_sha256": "cf832400050de0eefcbe8198235728c60041f8545d099a14d73485deb1d31020",
+    "body_sha256": "57b15d2ae9c42bc255daa90e83aa75b18ecb7ec6d3857a6c6f05aa0e4957c03d",
     "headers": {
       "content-type": "application/json",
       "cache-control": "no-store",

@@ -315,6 +315,31 @@ describe("fifteen closed MCP tool contracts (no transport)", () => {
       ...evidence,
     };
     assertHonest("check_drug_coverage", envelope({ results: [drug] }));
+    // An RxCUI a request-time identity source confirmed carries that source's attribution.
+    const confirmed = {
+      ...drug,
+      rxnorm_identity: {
+        source_id: "rxnav",
+        served_from: "live",
+        retrieved_at: "2026-11-20T00:00:00.000Z",
+        source: "Synthetic attribution statement",
+        terms_url: "https://synthetic.invalid/terms",
+      },
+    };
+    assertHonest("check_drug_coverage", envelope({ results: [confirmed] }));
+    expect(() =>
+      assertHonest(
+        "check_drug_coverage",
+        envelope({
+          results: [
+            {
+              ...confirmed,
+              rxnorm_identity: { ...confirmed.rxnorm_identity, extra: true },
+            },
+          ],
+        }),
+      ),
+    ).toThrow();
     for (const status of [
       "not covered",
       "not_covered",

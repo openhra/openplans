@@ -89,6 +89,54 @@ async function harness() {
   return { ...h, counties, acquire, requests };
 }
 describe("statewide TX queue", () => {
+  it("reuses archived matches after staging compaction and a serving-artifact restore", async () => {
+    const h = await harness();
+    try {
+      await stageStatewide(h.db, { runId: "before-artifact" });
+      await geocodeStatewide(h.db, h.counties, {
+        runId: "before-artifact",
+        acquire: h.acquire,
+      });
+      // Keep only the resolved fixture addresses; unresolved refresh policy is separate.
+      await h.db
+        .exec(`DELETE FROM npi_address a WHERE NOT EXISTS(SELECT 1 FROM address_point p
+        WHERE p.source_row=a.npi||':practice:'||a.ordinal AND p.match_status='Match');
+        TRUNCATE geocode_tx_input,geocode_tx_address,geocode_tx_batch,geocode_tx_result;
+        UPDATE npi_address SET snapshot_id='new-input';`);
+      const forbidden = async () => {
+        throw new Error("known address re-geocoded");
+      };
+      for (const runId of ["archive-refresh", "artifact-refresh"]) {
+        if (runId === "artifact-refresh")
+          await h.db.exec(
+            `TRUNCATE geocode_tx_input,geocode_tx_address,geocode_tx_batch,geocode_tx_result; DROP TABLE geocode_match_archive RESTRICT`,
+          );
+        await stageStatewide(h.db, { runId });
+        expect(
+          await geocodeStatewide(h.db, h.counties, {
+            runId,
+            acquire: forbidden,
+          }),
+        ).toMatchObject({ requests: 0, addressesSent: 0 });
+        expect(
+          (
+            await h.db.query(
+              "SELECT count(*)::int n FROM geocode_match_archive",
+            )
+          ).rows[0]!.n,
+        ).toBe(3);
+        expect(
+          (
+            await h.db.query(
+              "SELECT DISTINCT source_snapshot_id FROM address_point WHERE match_status='Match'",
+            )
+          ).rows,
+        ).toEqual([{ source_snapshot_id: "new-input" }]);
+      }
+    } finally {
+      await h.cleanup();
+    }
+  });
   it("preserves the same recorded Census coordinates and statuses in location and geography response formats", async () => {
     const locations = await parseBatch(
       await readFile(
@@ -329,8 +377,11 @@ describe("statewide TX queue", () => {
         }),
       ).toMatchObject({ batches: 0, addressesSent: 0 });
       expect(
-        (await h.db.query("SELECT count(*)::int n FROM geocode_attempt"))
-          .rows[0]!.n,
+        (
+          await h.db.query(
+            "SELECT (SELECT count(*) FROM geocode_attempt)::int+(SELECT count(*) FROM geocode_match_archive)::int n",
+          )
+        ).rows[0]!.n,
       ).toBe(7);
       expect(
         (await h.db.query("SELECT count(*)::int n FROM address_point")).rows[0]!
@@ -400,8 +451,11 @@ describe("statewide TX queue", () => {
           .rows[0]!.n,
       ).toBe(0);
       expect(
-        (await h.db.query("SELECT count(*)::int n FROM geocode_attempt"))
-          .rows[0]!.n,
+        (
+          await h.db.query(
+            "SELECT (SELECT count(*) FROM geocode_attempt)::int+(SELECT count(*) FROM geocode_match_archive)::int n",
+          )
+        ).rows[0]!.n,
       ).toBe(0);
       expect(
         (await h.db.query("SELECT completed FROM geocode_tx_batch")).rows,
@@ -423,8 +477,11 @@ describe("statewide TX queue", () => {
         sleep: async () => {},
       });
       expect(
-        (await h.db.query("SELECT count(*)::int n FROM geocode_attempt"))
-          .rows[0]!.n,
+        (
+          await h.db.query(
+            "SELECT (SELECT count(*) FROM geocode_attempt)::int+(SELECT count(*) FROM geocode_match_archive)::int n",
+          )
+        ).rows[0]!.n,
       ).toBe(6);
       expect(
         (await h.db.query("SELECT count(*)::int n FROM geocode_tx_result"))
@@ -810,6 +867,8 @@ describe("statewide TX queue", () => {
               p["Index Cond"]?.includes("address_hash"),
           ),
         ).toBe(true);
+        // An empty unresolved target can bound DELETE even with a broad join.
+        if (statement.sql.includes("DELETE FROM")) continue;
         // Mutate a disposable statement, never the source: the old join scans unrelated results.
         const mutant = statement.sql.replace(
           /JOIN LATERAL \(SELECT \* FROM geocode_tx_result r\s+WHERE r.address_hash=i.address_hash OFFSET 0\) r ON true/,
@@ -826,6 +885,7 @@ describe("statewide TX queue", () => {
           scans(bad[0]!.Plan).some(
             (p) => p["Node Type"] === "Seq Scan" || !p["Index Cond"],
           ),
+          statement.sql,
         ).toBe(true);
       }
     } finally {

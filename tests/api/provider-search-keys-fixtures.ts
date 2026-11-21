@@ -91,7 +91,7 @@ export async function load(db: SqlSession, seeds: Seed[]) {
     points.map((p) => p.lon),
   ];
   await db.query(
-    `INSERT INTO geocode_attempt(address_hash,source_table,source_row,normalized_address,source_snapshot_id,
+    `INSERT INTO geocode_match_archive(address_hash,source_table,source_row,normalized_address,source_snapshot_id,
       snapshot_id,match_status,match_quality,outcome)
     SELECT encode(sha256(convert_to(h,'UTF8')),'hex'),'npi_address',r,'synthetic review','catalog','catalog','Match','Exact','point'
     FROM unnest($1::text[],$2::text[]) u(h,r)`,

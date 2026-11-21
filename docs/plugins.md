@@ -336,6 +336,17 @@ second between calls, and a breaker that pauses for 15 minutes after 3 failures 
 Read the [fallback guide](../src/ingest/cms-api/README.md) before you switch it on. Details:
 [source package](../plugins/source-cms-marketplace-api/README.md).
 
+### RxNav drug identity source
+
+`@openplans/source-rxnav-identity` is the pass-through source `rxnav`, of kind `drug-identity`.
+When no RxNorm release is ACTIVE, it asks the public RxNorm API whether an RxCUI is a current,
+unsuppressed concept. The core registers it while `OPENPLANS_RXNAV_IDENTITY=on`, so it needs no
+entry under `plugins`. It declares the `memory` level (24 hours, 1 hour for anything not
+confirmed, 100,000 entries), one call every 5 seconds and 5,000 calls a day. With no release
+ACTIVE it also answers drug name searches (kind `drug-name-search`) with suggested concepts,
+labelled `terminology_status: "passthrough"`. Details:
+[source package](../plugins/source-rxnav-identity/README.md).
+
 ### NUCC taxonomy source
 
 `@openplans/source-nucc-taxonomy` is the feed source behind `worker ingest taxonomy`. The core
@@ -349,6 +360,31 @@ worker ingest taxonomy --accept-nucc-terms
 ```
 
 Details: [taxonomy guide](../plugins/source-nucc-taxonomy/README.md).
+
+### Carrier formulary documents source
+
+`@openplans/source-carrier-documents` is the feed source behind `worker ingest carrier-formulary`,
+of kind `formulary-pdf`. It reads the formulary PDFs an issuer links from its own website, keeps
+every drug row with page, line, raw text, confidence and the document's SHA-256, and matches the
+plans printed on each cover to the catalog (exact name first, then the name without benefit
+add-ons such as "+ Dental & Vision", attached only when one plan matches). A tier the legend
+leaves out is admitted only when the document's own text states it, and that line is kept as
+evidence. A document that fails its legend, tier or year checks is refused on its own; the run's other documents are still admitted. Only `high` confidence rows are served, as text evidence with the
+document's own tier label; everything else stays `unknown`. With its `identityJoin` option on,
+rows joined to RxCUIs also answer drug coverage in `/v1` drug answers, quotes, the
+compatibility quote and MCP, below the issuer's machine-readable files and above the CMS
+fallback (see feed sources below). List it under `plugins`, clear its
+hosts in your admission manifest, and run it where Python and Poppler's `pdftotext` are
+installed. Details: [source package](../plugins/source-carrier-documents/README.md).
+
+The same package runs `worker ingest carrier-sbc`, of kind `sbc-pdf`, for the Summary of Benefits
+and Coverage PDFs. It rebuilds each SBC's cost-sharing chart from word coordinates and refuses a
+document whose printed coverage period is not the year its link names. It maps a document to plan
+variants by the HIOS id in its file name (which must be in the active catalog), or else by the
+printed plan name for the coverage year, and checks every row against the federal plan
+attributes and benefit tables, and reports a disagreement as `conflicting` with both values. It
+serves SBC values only for plans the federal tables hold no cost sharing for, labelled
+`source: "sbc_document"`.
 
 ## Sources
 
@@ -366,7 +402,10 @@ through these steps:
 3. `stage` parses the files and writes rows inside one transaction.
 4. `validate` runs the plugin's checks, then the core runs its own readiness checks: each
    touched table needs its change trigger, and each table in `requireRows` needs rows.
-5. `beforeActivate` runs, and the core marks the run's snapshots `ACTIVE`.
+5. `beforeActivate` runs, and the core marks the run's snapshots `ACTIVE`. A multi-file feed can
+   return `refused` from `validate` (snapshot id and reason code per file): those snapshots are
+   quarantined with the code and the rest are activated. The run fails only when every file is
+   refused.
 
 Any failure quarantines this run's snapshots with a reason code. The previous active release
 keeps serving. A plan file with `cache: "content"` is stored under its SHA-256 and reused
@@ -381,6 +420,22 @@ or downloads. A mixed plan containing an excluded year is refused as a whole.
 `runFeedSource` with `dryRun: true` returns the same dataset/year/reason skip manifest
 without calling the plugin's planning hook. Feed commands also accept the host's
 `--dry-run` flag. Missing scope declarations are refused.
+
+A feed source may also answer drug coverage from its staged documents with an optional
+`drugCoverage(db, { planId, planYear, rxcui })` hook. The core asks it only for an RxCUI it has
+already identified, on a plan in the active catalog. The precedence is:
+
+1. Loaded issuer machine-readable files win. Where they settle the question, the document answer
+   is only checked against theirs, and `passthrough_conflict` records whether the two agree.
+2. Where the files leave it `unknown` because the source set is missing, incomplete or refused,
+   a `covered` document answer is served as `listed_covered` with the rows in
+   `formulary_document`. The tier is the one the document prints, `tier_status: "unresolved"`.
+3. Everything else stays as the files gave it, so pass-through sources such as the CMS fallback
+   see the same `unknown`. A stored CMS answer for a question a document settled is only
+   checked against it, in `cms_api_conflict`.
+
+A document answer calls nothing upstream and is never named in `x-openplans-upstream`; only an
+identity source called during the request is. A drug a document does not list stays `unknown`.
 
 A feed plugin must declare `capabilities.writes` with `"staging"`. Every host in `hosts` must
 also be in the plugin's `capabilities.network` and be allowed in a loaded manifest, or the run
@@ -409,6 +464,17 @@ Each source declares a budget:
 
 When the day's allowance is spent, the API emits `passthrough.budget_exhausted` once per source
 and day. When the breaker opens, it emits `passthrough.breaker_open`.
+
+The API discloses every pass-through answer. A response with an answer from a source has the
+`x-openplans-upstream` header listing the source ids, and an MCP tool result has the same list
+in `_meta["openplans/upstream"]`. The host reads the id from the answer's evidence block: the
+core's block names it `source_id`, and a source with its own `serve` must put `source_id` or
+`sourced_by` next to `served_from`. The core also lists a source for every live call it starts,
+including calls that fail or that the upstream refuses, so a lookup that left no evidence block
+is still disclosed. A caller can send `passthrough=off` as a query parameter, a
+body field or an MCP argument. Then the host asks no source, and eligible answers stay `unknown`
+with reason `passthrough_declined`. Plugin routes get both through `ctx.sources.passThrough.apply`.
+The [API README](../src/api/README.md#upstream-disclosure-and-passthroughoff) has the details.
 
 ### Cache levels
 
