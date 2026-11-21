@@ -406,7 +406,12 @@ describe("the API server loads configured plugins at startup", () => {
     } finally {
       await api.stop();
     }
-    expect(api.stdout()).toBe(`OpenPlans API listening on port ${api.port}\n`);
+    expect(api.stdout()).toBe(
+      `OpenPlans API listening on port ${api.port}\n%s\n`.replace(
+        "%s",
+        "usage report: off (see docs/usage-report.md)",
+      ),
+    );
     // Only the MCP request log lines: no plugin or event line.
     for (const line of api.stderr().trim().split("\n"))
       expect(Object.keys(JSON.parse(line) as object)).toEqual([

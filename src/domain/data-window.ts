@@ -1,6 +1,10 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
-import type { AnnualDomain, DataPolicy } from "@openplans/plugin-sdk";
+import type {
+  AnnualDomain,
+  DataPolicy,
+  HistoryYears,
+} from "@openplans/plugin-sdk";
 
 export const admissionSchema = z
   .strictObject({
@@ -52,9 +56,9 @@ export type AnnualAdmission = z.infer<typeof admissionSchema>;
 export type LoadedYears = Record<AnnualDomain, number[]>;
 const ordered = (years: number[]) => [...new Set(years)].sort((a, b) => a - b);
 
-/** Each domain retains the prior/current years and adds only its admitted next year. */
+/** Serving advances only on a domain admission; builds may prepare next year's sources. */
 export function resolveAnnualPolicy(
-  historyYears: 3 | "all",
+  historyYears: HistoryYears,
   admissions: readonly AnnualAdmission[],
   loaded: LoadedYears,
   now: Date = new Date(),
@@ -69,17 +73,15 @@ export function resolveAnnualPolicy(
         .map((row) => row.coverage_year),
     );
     const loaded_years = ordered(loaded[domain]);
-    const allowed_years =
-      historyYears === "all"
-        ? ordered([...loaded_years, ...admitted_years])
-        : [
-            calendar_year - 1,
-            calendar_year,
-            ...(purpose === "build" ||
-            admitted_years.includes(calendar_year + 1)
-              ? [calendar_year + 1]
-              : []),
-          ];
+    const nextEligible =
+      purpose === "build" || admitted_years.includes(calendar_year + 1);
+    const allowed_years = [
+      ...(historyYears > 1 && (historyYears === 3 || !nextEligible)
+        ? [calendar_year - 1]
+        : []),
+      calendar_year,
+      ...(historyYears > 1 && nextEligible ? [calendar_year + 1] : []),
+    ];
     return {
       allowed_years,
       admitted_years,

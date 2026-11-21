@@ -16,7 +16,7 @@ All paths below are under `/compat/v1`.
 | `GET /zip_counties`                        | `zip_prefix`, 3–5 digits; resolves only loaded Census ZCTAs                                                                                                                                                     |
 | `POST /plans/medical/search`               | `fips_code`, nonempty `applicants` (`age`, optional `smoker`, `child`); optional `zip_code`, `market`, `enrollment_date`, `ids`, `sort`, `page`, `per_page`, `household_income`, `household_size`, `tax_filing` |
 | `GET /plans/:id`, `GET /plans/medical/:id` | Base/published variant HIOS identifier, or URL-encoded native VT `plan_key`; optional `year`                                                                                                                    |
-| `GET /drugs`                               | `search_term`, optional `page`, `per_page`                                                                                                                                                                      |
+| `GET /drugs`                               | `search_term` or an RxCUI (`rxcui` or `rx_cui_id`), optional `year`, `page`, `per_page`                                                                                                                        |
 | `GET /carriers`                            | Optional `state`, `year`, `market`, `line_of_coverage`, `page`, `per_page`                                                                                                                                      |
 | `GET /networks`                            | Optional `state`, `year`, `page`, `per_page`                                                                                                                                                                    |
 
@@ -150,8 +150,11 @@ routes.
 
 ## Defaults and evidence gaps
 
-Search requests may omit a year. The facade defaults omitted `enrollment_date`
-to **2026-01-01**, and detail/list `year` to **2026**; lists default to **TX**.
+Search requests may omit a year. The facade defaults an omitted `enrollment_date`
+to January 1 of the data window's current plan year, and an omitted `year` on plan
+detail, drug (by RxCUI), carrier, network and provider routes to that same year.
+The gap label names the year used: `plan_year_defaulted_to_<year>` or
+`coverage_date_defaulted_to_<year>_01_01`. Lists default to **TX**.
 Explicit dates determine the quote year. Native rating, tobacco, child-charging,
 ZIP/county mismatch and service-area rules remain authoritative. ZIP lookup uses
 the native Census / optional CMS / loaded GeoNames source precedence. An unresolved
@@ -286,6 +289,21 @@ names populate `proprietary_name`; other concept names populate
 package quantities or patient prices are invented. The response header lists
 these identity/count/metadata gaps.
 
+Send `rxcui` (or `rx_cui_id`) to look up one drug by RxNorm id instead of by
+name. The RxCUI is the identity, so a `search_term` sent with it does not filter
+and the gaps header reports `search_term_ignored_for_rxcui`. A current concept of
+the ACTIVE release returns its row and packages. Without an ACTIVE release, the
+RxCUI goes through the same identity check as coverage requests: when the
+optional RxNav identity source confirms it, the row carries only the id, with
+null names, no packages and `rxcui_identity_confirmed_upstream`. The body then also
+carries `rxnorm_identity` with the source's attribution statement and terms link (for RxNav,
+the National Library of Medicine's acknowledgement); coverage entries in plan search carry the
+same block when the source confirmed their RxCUI. Anything else
+returns empty with the reason in the gaps header (`rxcui_not_in_rxnorm`,
+`rxcui_suppressed` or `rxnorm_terminology_unavailable`). An RxCUI is never
+assumed to be a drug. `passthrough=off` keeps the check local. Two names with
+different values return 400 `CONFLICTING_RXCUI`.
+
 An empty catalog import does not include terminology. Load RxNorm into the same
 database as the API using the [terminology bootstrap steps](../../ingest/rxnorm/README.md#bootstrap-a-shopping-database).
 With no ACTIVE terminology release, drug search returns an empty 200 response with
@@ -347,7 +365,7 @@ ZIP. Each must fail the checks used for valid responses. Original evidence is in
 | `POST /plans/vision/search` | Required `fips_code`, nonempty `applicants`; explicit unsupported result                                                                                                         |
 
 Provider search also accepts native `plan_id` with optional `year`
-(default 2026, flagged), and `taxonomy` or `specialty`. Taxonomy codes returned by
+(default the current plan year of the data window, flagged), and `taxonomy` or `specialty`. Taxonomy codes returned by
 `/specialties` work as the specialty filter. Searches delegate to the native
 `/v1/providers` logic, including its plan participation and geographic checks.
 A ZIP-only request defaults to a 25-mile radius, flagged in gaps, to prevent
@@ -373,8 +391,17 @@ Specialty names and IDs come only from NPPES and NUCC.
 
 Detail wraps one location in `provider` and adds `locations`, native
 `plan_participations` and `provider_coverage`. All source locations and provenance
-are retained. `networks`, `network_ids` and `hios_ids` are empty until a public
+are retained. `networks` and `network_ids` are empty until a public
 network crosswalk is available, flagged by `provider_network_crosswalk_unavailable`.
+`hios_ids` lists the 14-character plan ids for the request `year` (default the current plan year of the data window,
+flagged as `plan_year_defaulted_to_<year>` with the year actually used) under which the issuer's own provider files list the NPI as
+participating. Only a source set that is complete, current and ACTIVE counts, and
+only its positive rows: an NPI missing from a set, a non-participation row, an
+incomplete or superseded set and stored CMS Marketplace API answers never add a
+plan. When any issuer/state scope of the year's catalog has no such set,
+`provider_plan_list_partial:<n>` counts those scopes, so an empty or short list
+does not mean the provider is out of network. With no catalog and no
+provider set for the year, the list is empty with `hios_ids_unavailable`.
 Native plan evidence remains in `plan_participations`; it does not populate an
 external network or assign offices to one.
 Coordinates are null because the native detail response does not
@@ -430,7 +457,8 @@ It spends the shared daily budget faster. Only the returned page is checked.
 All its plans and both coverage kinds share the existing two-call cap.
 
 Send `providers` as objects with an exact ten-digit `npi`. Send `drug_packages`
-with a package `id` and an explicit numeric-string `rx_cui_id` from local RxNorm.
+with a package `id` and an explicit RxCUI as `rx_cui_id` or `rxcui` (a numeric
+string or integer). Each RxCUI goes through the drug identity check.
 `med_id` can identify a response row but cannot identify a drug for a coverage
 check. No package-to-drug translation runs. A missing, unknown or suppressed
 RxCUI cannot open a call. Each list accepts at most five entries, with at most

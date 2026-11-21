@@ -1,7 +1,15 @@
 import { loadConfig } from "../../../src/config/index.js";
 import { replaceSyntax } from "../../source-mutation.js";
 import { readFile } from "node:fs/promises";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  afterEach,
+  describe,
+  expect,
+  it,
+  vi,
+  beforeAll,
+  beforeEach,
+} from "vitest";
 import { createResponseCache } from "../../../src/api/cache/index.js";
 import type { CacheOutcome } from "../../../src/api/cache/index.js";
 import { MemoryCache } from "../../../src/api/cache/store.js";
@@ -48,7 +56,7 @@ function harness(factory = createResponseCache) {
   };
   const cache = factory(db, undefined, {
     store,
-    config: loadConfig({}, { version: 1, data: { historyYears: "all" } }),
+    config: loadConfig({}, { version: 1, data: { historyYears: 3 } }),
   });
   return {
     cache,
@@ -69,6 +77,14 @@ function harness(factory = createResponseCache) {
       ),
   };
 }
+// Annual source fixtures use a fixed UTC calendar, independently of the machine date.
+function fixtureClock() {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-11-19T00:00:00Z"));
+}
+beforeAll(fixtureClock);
+beforeEach(fixtureClock);
+afterEach(() => vi.useRealTimers());
 afterEach(() => vi.unstubAllEnvs());
 
 describe("shared public DTO boundary", () => {
@@ -80,7 +96,7 @@ describe("shared public DTO boundary", () => {
     await h.read({ generation: "synthetic-generation-2" });
     await h.read({ version: "synthetic-app-v2" });
     await h.read({ namespace: "synthetic-other-adapter" });
-    await h.read({ query: { year: 2027, county: "48201" } });
+    await h.read({ query: { year: 2025, county: "48201" } });
     expect(new Set(h.stored.map(([key]) => key)).size).toBe(5);
   });
   it("checks authorization before a populated hit and never retains credentials or household fields", async () => {
@@ -170,8 +186,8 @@ describe("shared public DTO boundary", () => {
 it.each([
   [
     "generation",
-    "[request.namespace, request.version, request.generation, policy.generation, request.query, ...(cmsUnavailable ? ['cms_fallback_unavailable'] : [])]",
-    "[request.namespace, request.version, policy.generation, request.query, ...(cmsUnavailable ? ['cms_fallback_unavailable'] : [])]",
+    "[request.namespace, request.version, request.generation, policy.generation, request.query, ...passThroughKeyParts(cmsUnavailable)]",
+    "[request.namespace, request.version, policy.generation, request.query, ...passThroughKeyParts(cmsUnavailable)]",
   ],
   [
     "household",

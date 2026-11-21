@@ -5,6 +5,8 @@ import {
 } from "../../src/domain/data-window.js";
 import type { AnnualAdmission } from "../../src/domain/data-window.js";
 import { loadConfig } from "../../src/config/index.js";
+import type { HistoryYears } from "@openplans/plugin-sdk";
+import { dataPolicySchema } from "@openplans/plugin-sdk";
 
 // Synthetic admission identities; no rates or coverage are invented.
 const admission = (
@@ -28,21 +30,61 @@ const loaded = { individual: [2024, 2025, 2026, 2027], medicare: [2025, 2026] };
 const at = (
   date: string,
   admissions: AnnualAdmission[] = [],
-  history: 3 | "all" = 3,
+  history: HistoryYears = 3,
 ) => resolveAnnualPolicy(history, admissions, loaded, new Date(date));
 
 describe("annual window", () => {
-  it("defaults to a ceiling of three years and permits explicit self-hosted history", () => {
+  it("defaults to three and accepts only integer settings from one to three", () => {
     expect(loadConfig({}).data.historyYears).toBe(3);
-    expect(
-      loadConfig({}, { version: 1, data: { historyYears: "all" } }).data
-        .historyYears,
-    ).toBe("all");
-    for (const historyYears of [0, 1, 2, 4, "3", "ALL", null])
+    for (const historyYears of [1, 2, 3])
+      expect(
+        loadConfig({}, { version: 1, data: { historyYears } }).data
+          .historyYears,
+      ).toBe(historyYears);
+    for (const historyYears of [0, 4, 100, 1.5, "3", "all", "ALL", null, true])
       expect(() =>
         loadConfig({}, { version: 1, data: { historyYears } }),
-      ).toThrow();
+      ).toThrow("data.historyYears must be an integer from 1 to 3");
   });
+  it.each([
+    [1, [2026], [2026]],
+    [2, [2025, 2026], [2026, 2027]],
+    [3, [2025, 2026], [2025, 2026, 2027]],
+  ] as const)(
+    "resolves setting %i before and after domain admission",
+    (history, before, after) => {
+      expect(
+        at("2026-10-01Z", [], history).domains.individual.allowed_years,
+      ).toEqual(before);
+      const admitted = at(
+        "2026-10-01Z",
+        [admission("individual", 2027)],
+        history,
+      );
+      expect(admitted.domains.individual.allowed_years).toEqual(after);
+      expect(admitted.domains.medicare.allowed_years).toEqual(before);
+      expect(dataPolicySchema.safeParse(admitted).success).toBe(true);
+    },
+  );
+  it.each([
+    [1, [2026]],
+    [2, [2026, 2027]],
+    [3, [2025, 2026, 2027]],
+  ] as const)(
+    "bounds build setting %i while allowing preparation before serving admission",
+    (history, expected) => {
+      const policy = resolveAnnualPolicy(
+        history,
+        [],
+        loaded,
+        new Date("2026-10-01Z"),
+        "build",
+      );
+      expect(policy.domains.individual.allowed_years).toEqual(expected);
+      expect(policy.domains.medicare.allowed_years).toEqual(expected);
+      expect(policy.domains.individual.admitted_years).toEqual([]);
+    },
+  );
   it("requires admission rather than downloaded or published next-year rows", () => {
     const policy = at("2026-10-01T00:00:00Z");
     expect(policy.domains.individual.allowed_years).toEqual([2025, 2026]);
@@ -86,20 +128,34 @@ describe("annual window", () => {
     expect(policy.domains.medicare.allowed_years).toEqual([2025, 2026, 2027]);
     expect(policy.domains.medicare.missing_allowed_years).toEqual([2027]);
   });
-  it("keeps PY2025 by default while self-hosted full history also permits PY2024", () => {
+  it("binds policy generation to the bounded setting and UTC year", () => {
     const admissions = [admission("individual", 2027)];
     const bounded = at("2026-11-19Z", admissions);
-    const full = at("2026-11-19Z", admissions, "all");
+    const current = at("2026-11-19Z", admissions, 1);
     expect(bounded.domains.individual.allowed_years).toEqual([
       2025, 2026, 2027,
     ]);
-    expect(full.domains.individual.allowed_years).toEqual([
-      2024, 2025, 2026, 2027,
-    ]);
-    expect(full.generation).not.toBe(bounded.generation);
+    expect(current.domains.individual.allowed_years).toEqual([2026]);
+    expect(current.generation).not.toBe(bounded.generation);
     expect(at("2027-01-01Z", admissions).generation).not.toBe(
       bounded.generation,
     );
+  });
+  it("negative control: policy responses cannot advertise a fourth allowed year", () => {
+    const policy = at("2026-11-19Z", [admission("individual", 2027)]);
+    expect(dataPolicySchema.safeParse(policy).success).toBe(true);
+    expect(
+      dataPolicySchema.safeParse({
+        ...policy,
+        domains: {
+          ...policy.domains,
+          individual: {
+            ...policy.domains.individual,
+            allowed_years: [2024, 2025, 2026, 2027],
+          },
+        },
+      }).success,
+    ).toBe(false);
   });
   it("never permits a fourth year and excludes PY2025 when PY2028 is admitted in 2027", () => {
     const today = at("2026-11-19Z", [admission("individual", 2027)]);

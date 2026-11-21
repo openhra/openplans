@@ -667,8 +667,8 @@ describe("optional CMS policy readiness", () => {
       original,
       replaceSyntax(
         await readFile(original, "utf8"),
-        "if (!loadConfig().cmsFallback.enabled) return [];",
-        "if (!loadConfig().cmsFallback.enabled || cmsFallbackUnavailable()) return [];",
+        "if (config.cmsFallback.enabled) sources.push(cmsPassThroughSource());",
+        "if (config.cmsFallback.enabled && !cmsFallbackUnavailable()) sources.push(cmsPassThroughSource());",
       ),
     );
     const old = await importMutant<typeof corePlugin>(

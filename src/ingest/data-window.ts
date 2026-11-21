@@ -24,7 +24,7 @@ export function planAnnualWork(
   years: readonly number[],
   domain: AnnualDomain = "individual",
   now?: Date,
-): { years: number[]; skipped: AnnualSkip[]; allowed_years: number[] | null } {
+): { years: number[]; skipped: AnnualSkip[]; allowed_years: number[] } {
   const context = currentDataPolicy();
   const requested = [...new Set(years)];
   if (
@@ -42,7 +42,7 @@ export function planAnnualWork(
   );
   const allowed = policy.domains[domain].allowed_years;
   return {
-    allowed_years: policy.history_years === "all" ? null : allowed,
+    allowed_years: allowed,
     years: requested.filter((year) => allowed.includes(year)),
     skipped: requested
       .filter((year) => !allowed.includes(year))

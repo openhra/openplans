@@ -241,8 +241,10 @@ describe("core worker commands", () => {
       compact: 3_600_000,
       status: null,
       "record-policy": 3_600_000,
+      "usage-report": null,
       "backfill row-provenance": 3_600_000,
       "backfill rate-plan-count": 3_600_000,
+      "backfill geocode-archive": 3_600_000,
       "backfill provider-search": 3_600_000,
       bootstrap: null,
       "ingest package puf": 300_000,
@@ -285,7 +287,7 @@ describe("core worker commands", () => {
       const result = await run(args, []);
       expect(result.code).toBe(1);
       expect(result.err).toEqual([
-        "Usage: worker plugin pack <dir> --out <dir> | plugin install [--data] <dir|file.tgz|name@version --registry URL [--pin-sha256 HEX]> | plugin search <q> [--registry URL] | plugin list [--json] | plugin update <name> [--to VERSION] [--registry URL] | plugin remove <name> | plugin bundle <name>@<version> --out DIR [--registry URL] | plugin lock | plugin verify [--json|--local <dir|file.tgz>] | migrate [--check|--size-evidence] | status | compact [--dry-run] | data-admission --manifest FILE | record-policy list|set|expire | backup-args [--tar|--manifest] | backup-restored --manifest FILE | backfill row-provenance [--table NAME] [--blocks N] | backfill rate-plan-count | backfill provider-search (--disk PATH | --free-gb N) | ingest puf|qhp|nppes|rxnorm|taxonomy|geo|medicare|package",
+        "Usage: worker plugin pack <dir> --out <dir> | plugin install [--data] <dir|file.tgz|name@version --registry URL [--pin-sha256 HEX]> | plugin search <q> [--registry URL] | plugin list [--json] | plugin update <name> [--to VERSION] [--registry URL] | plugin remove <name> | plugin bundle <name>@<version> --out DIR [--registry URL] | plugin lock | plugin verify [--json|--local <dir|file.tgz>] | migrate [--check|--size-evidence] | status | compact [--dry-run] | data-admission --manifest FILE | record-policy list|set|expire | usage-report show|send --dry-run|reset | backup-args [--tar|--manifest] | backup-restored --manifest FILE | backfill row-provenance [--table NAME] [--blocks N] | backfill rate-plan-count | backfill geocode-archive [--batch-rows N] [--pause-ms N] | backfill provider-search (--disk PATH | --free-gb N) | ingest puf|qhp|nppes|rxnorm|taxonomy|geo|medicare|package",
       ]);
       expect(result.opened).toEqual([]);
     }

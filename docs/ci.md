@@ -33,6 +33,11 @@ The optional neutrality audit skips when no external
 policy is supplied. That skip does not approve publication. Public CI does not
 run real-data checks or deploy anything.
 
+The Linux and macOS jobs install Poppler (`poppler-utils` with apt, `poppler` with Homebrew) so the
+carrier-document PDF tests run. Both jobs set `OPENPLANS_REQUIRE_POPPLER=1`: with that variable set, a
+missing `pdftotext` fails `test_poppler_required.py` and `extract.test.ts` instead of letting the PDF tests
+skip. Without the variable the tests still skip with a reason, for contributors who have no Poppler.
+
 Require these exact check names when activating branch protection and release
 validation:
 

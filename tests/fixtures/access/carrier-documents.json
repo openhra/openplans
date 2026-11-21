@@ -1,0 +1,377 @@
+{
+  "version": 1,
+  "publishers": [
+    {
+      "host": "www.christushealthplan.org",
+      "state": "allowed",
+      "evidence": [
+        {
+          "url": "https://www.christushealthplan.org/robots.txt",
+          "observedAt": "2026-11-20T23:49:30.000Z",
+          "status": 200,
+          "country": "CO"
+        },
+        {
+          "url": "https://www.christushealthplan.org/privacy-and-patient-rights/terms-of-use",
+          "observedAt": "2026-11-20T23:50:07.000Z",
+          "status": 200,
+          "country": "CO"
+        },
+        {
+          "url": "https://www.christushealthplan.org/sitemap.xml",
+          "observedAt": "2026-11-20T23:50:13.000Z",
+          "status": 200,
+          "country": "CO"
+        },
+        {
+          "url": "https://www.christushealthplan.org/member-resources/individual-families/pharmacy",
+          "observedAt": "2026-11-20T23:50:52.000Z",
+          "status": 200,
+          "country": "CO"
+        },
+        {
+          "url": "https://www.christushealthplan.org/member-resources/individual-families/forms-documents",
+          "observedAt": "2026-11-20T23:50:57.000Z",
+          "status": 200,
+          "country": "CO"
+        }
+      ],
+      "scope": {
+        "products": [
+          "Sitemap and member document pages that link the formulary and SBC PDFs on chppayment.christushealth.org"
+        ],
+        "states": [
+          "TX",
+          "LA"
+        ],
+        "years": [
+          2026,
+          2027
+        ]
+      },
+      "discoveryUrls": [
+        "https://www.christushealthplan.org/sitemap.xml",
+        "https://www.christushealthplan.org/member-resources/individual-families/pharmacy",
+        "https://www.christushealthplan.org/member-resources/individual-families/forms-documents"
+      ],
+      "permittedPaths": [
+        "/sitemap.xml",
+        "/member-resources/individual-families/pharmacy",
+        "/member-resources/individual-families/forms-documents"
+      ],
+      "delegates": [],
+      "attribution": "CHRISTUS Health Plan public website pages. Original bytes and source metadata retained.",
+      "updatePolicy": "Plan documents: formulary refresh at most monthly and SBC check twice a year, with conditional requests. Robots and the pinned terms hash are read again before any transfer; a changed terms document stops collection.",
+      "delayMs": 5000,
+      "jobCaps": {
+        "maxRequests": 20,
+        "maxTransferBytes": 16777216
+      },
+      "robots": {
+        "url": "https://www.christushealthplan.org/robots.txt",
+        "status": 200,
+        "sha256": "8baf136397acc480f147ad4224d53c733707307061294c1f2973c214daa5f667",
+        "checkedAt": "2026-11-20T23:49:30.000Z",
+        "country": "CO"
+      },
+      "terms": {
+        "url": "https://www.christushealthplan.org/privacy-and-patient-rights/terms-of-use",
+        "disposition": "allowed",
+        "sha256": "1c9d325436c130229e363cff001fa568d5a752af1ed95eec823440523a829a03",
+        "reviewedAt": "2026-11-20T23:50:07.000Z",
+        "expiresAt": "2027-02-18T23:50:07.000Z"
+      }
+    },
+    {
+      "host": "chppayment.christushealth.org",
+      "state": "allowed",
+      "evidence": [
+        {
+          "url": "https://chppayment.christushealth.org/robots.txt",
+          "observedAt": "2026-11-20T23:51:29.000Z",
+          "status": 404,
+          "country": "CO"
+        },
+        {
+          "url": "https://www.christushealthplan.org/privacy-and-patient-rights/terms-of-use",
+          "observedAt": "2026-11-20T23:50:07.000Z",
+          "status": 200,
+          "country": "CO"
+        },
+        {
+          "url": "https://chppayment.christushealth.org/documents/HIX/formulary/TXHIXFormulary2026.pdf",
+          "observedAt": "2026-11-20T23:52:04.000Z",
+          "status": 200,
+          "country": "CO"
+        },
+        {
+          "url": "https://chppayment.christushealth.org/documents/2026/HIX/TX_SBC/66252_SBC_CHRISTUS_Bronze_2026.pdf",
+          "observedAt": "2026-11-20T23:52:07.000Z",
+          "status": 200,
+          "country": "CO"
+        },
+        {
+          "url": "https://chppayment.christushealth.org/documents/HIX/formulary/TXHIXFormulary2027.pdf",
+          "observedAt": "2026-11-20T23:52:13.000Z",
+          "status": 200,
+          "country": "CO"
+        }
+      ],
+      "scope": {
+        "products": [
+          "Marketplace formulary PDFs",
+          "Marketplace Summary of Benefits and Coverage PDFs"
+        ],
+        "states": [
+          "TX",
+          "LA"
+        ],
+        "years": [
+          2026,
+          2027
+        ]
+      },
+      "discoveryUrls": [
+        "https://www.christushealthplan.org/member-resources/individual-families/pharmacy",
+        "https://www.christushealthplan.org/member-resources/individual-families/forms-documents"
+      ],
+      "permittedPaths": [
+        "/documents/HIX/formulary/",
+        "/documents/2026/HIX/TX_SBC/",
+        "/documents/2026/HIX/LA_SBC/"
+      ],
+      "delegates": [],
+      "attribution": "CHRISTUS Health Plan public plan documents (formulary and Summary of Benefits and Coverage PDFs). Original bytes and source metadata retained.",
+      "updatePolicy": "Plan documents: formulary refresh at most monthly and SBC check twice a year, with conditional requests. Robots and the pinned terms hash are read again before any transfer; a changed terms document stops collection. Robots answers a direct 404 (no rules, RFC 9309 2.3.1.3); the country it was observed from is recorded.",
+      "delayMs": 5000,
+      "jobCaps": {
+        "maxRequests": 200,
+        "maxTransferBytes": 536870912
+      },
+      "robots": {
+        "url": "https://chppayment.christushealth.org/robots.txt",
+        "status": 404,
+        "sha256": null,
+        "checkedAt": "2026-11-20T23:51:29.000Z",
+        "country": "CO"
+      },
+      "terms": {
+        "url": "https://www.christushealthplan.org/privacy-and-patient-rights/terms-of-use",
+        "disposition": "allowed",
+        "sha256": "1c9d325436c130229e363cff001fa568d5a752af1ed95eec823440523a829a03",
+        "reviewedAt": "2026-11-20T23:50:07.000Z",
+        "expiresAt": "2027-02-18T23:50:07.000Z"
+      }
+    },
+    {
+      "host": "senderohealth.com",
+      "state": "allowed",
+      "evidence": [
+        {
+          "url": "https://senderohealth.com/robots.txt",
+          "observedAt": "2026-11-20T23:49:31.000Z",
+          "status": 200,
+          "country": "CO"
+        },
+        {
+          "url": "https://senderohealth.com/files/WebPrivacyStatement.pdf",
+          "observedAt": "2026-11-20T23:50:08.000Z",
+          "status": 200,
+          "country": "CO"
+        },
+        {
+          "url": "https://senderohealth.com/sitemap_index.xml",
+          "observedAt": "2026-11-20T23:50:13.000Z",
+          "status": 200,
+          "country": "CO"
+        },
+        {
+          "url": "https://senderohealth.com/page-sitemap.xml",
+          "observedAt": "2026-11-20T23:50:53.000Z",
+          "status": 200,
+          "country": "CO"
+        },
+        {
+          "url": "https://senderohealth.com/2026-plans-and-benefits/",
+          "observedAt": "2026-11-20T23:51:30.000Z",
+          "status": 200,
+          "country": "CO"
+        },
+        {
+          "url": "https://senderohealth.com/files/2025/71837TX001000100.pdf",
+          "observedAt": "2026-11-20T23:53:41.000Z",
+          "status": 200,
+          "country": "CO"
+        }
+      ],
+      "scope": {
+        "products": [
+          "Summary of Benefits and Coverage and schedule of coverage PDFs"
+        ],
+        "states": [
+          "TX"
+        ],
+        "years": [
+          2025,
+          2026
+        ]
+      },
+      "discoveryUrls": [
+        "https://senderohealth.com/sitemap_index.xml",
+        "https://senderohealth.com/page-sitemap.xml",
+        "https://senderohealth.com/2026-plans-and-benefits/"
+      ],
+      "permittedPaths": [
+        "/files/2025/",
+        "/sitemap_index.xml",
+        "/page-sitemap.xml",
+        "/2026-plans-and-benefits/"
+      ],
+      "delegates": [],
+      "attribution": "Sendero Health Plans public plan documents. Original bytes and source metadata retained.",
+      "updatePolicy": "Plan documents: formulary refresh at most monthly and SBC check twice a year, with conditional requests. Robots and the pinned terms hash are read again before any transfer; a changed terms document stops collection.",
+      "delayMs": 5000,
+      "jobCaps": {
+        "maxRequests": 100,
+        "maxTransferBytes": 268435456
+      },
+      "robots": {
+        "url": "https://senderohealth.com/robots.txt",
+        "status": 200,
+        "sha256": "557da2f4c2154cdf57f704cb649ad9bfc23f6f3de98c941b096c83624662756a",
+        "checkedAt": "2026-11-20T23:49:31.000Z",
+        "country": "CO"
+      },
+      "terms": {
+        "url": "https://senderohealth.com/files/WebPrivacyStatement.pdf",
+        "disposition": "allowed",
+        "sha256": "f98156c102a9e27ae553dfde89eac6b1babf177ce53079687a484fda775c0dd9",
+        "reviewedAt": "2026-11-20T23:50:08.000Z",
+        "expiresAt": "2027-02-18T23:50:08.000Z"
+      }
+    },
+    {
+      "host": "capitalhealth.com",
+      "state": "allowed",
+      "evidence": [
+        {
+          "url": "https://capitalhealth.com/robots.txt",
+          "observedAt": "2026-11-20T23:49:32.000Z",
+          "status": 200,
+          "country": "CO"
+        },
+        {
+          "url": "https://capitalhealth.com/legal/",
+          "observedAt": "2026-11-20T23:50:09.000Z",
+          "status": 200,
+          "country": "CO"
+        },
+        {
+          "url": "https://capitalhealth.com/sitemap_index.xml",
+          "observedAt": "2026-11-20T23:50:19.000Z",
+          "status": 200,
+          "country": "CO"
+        },
+        {
+          "url": "https://capitalhealth.com/chp-document-sitemap.xml",
+          "observedAt": "2026-11-20T23:50:54.000Z",
+          "status": 200,
+          "country": "CO"
+        },
+        {
+          "url": "https://capitalhealth.com/chp-document/capital-health-plan-netresults-formulary/",
+          "observedAt": "2026-11-20T23:52:16.000Z",
+          "status": 200,
+          "country": "CO"
+        }
+      ],
+      "scope": {
+        "products": [
+          "Formulary PDFs (document pages under /chp-document/ redirect to the PDF under /wp-content/uploads/)"
+        ],
+        "states": [
+          "FL"
+        ],
+        "years": [
+          2026
+        ]
+      },
+      "discoveryUrls": [
+        "https://capitalhealth.com/sitemap_index.xml",
+        "https://capitalhealth.com/chp-document-sitemap.xml"
+      ],
+      "permittedPaths": [
+        "/chp-document/",
+        "/wp-content/uploads/",
+        "/sitemap_index.xml",
+        "/chp-document-sitemap.xml"
+      ],
+      "delegates": [],
+      "attribution": "Capital Health Plan public plan documents. Original bytes and source metadata retained.",
+      "updatePolicy": "Plan documents: formulary refresh at most monthly and SBC check twice a year, with conditional requests. Robots and the pinned terms hash are read again before any transfer; a changed terms document stops collection. robots.txt sets Crawl-delay: 10, so requests are at least 10 s apart.",
+      "delayMs": 10000,
+      "jobCaps": {
+        "maxRequests": 100,
+        "maxTransferBytes": 268435456
+      },
+      "robots": {
+        "url": "https://capitalhealth.com/robots.txt",
+        "status": 200,
+        "sha256": "442d0677c1acbe6412a7973d952ccb5cd8cd854e9711c8948516a258952ed85a",
+        "checkedAt": "2026-11-20T23:49:32.000Z",
+        "country": "CO"
+      },
+      "terms": {
+        "url": "https://capitalhealth.com/legal/",
+        "disposition": "allowed",
+        "sha256": "04a355875a6de4ad5da94b47702500a063086fe1ae5bbf71b2940a92f9b8eb72",
+        "reviewedAt": "2026-11-20T23:50:09.000Z",
+        "expiresAt": "2027-02-18T23:50:09.000Z"
+      }
+    },
+    {
+      "host": "alliantplans.com",
+      "state": "robots-disallowed",
+      "evidence": [
+        {
+          "url": "https://alliantplans.com/robots.txt",
+          "observedAt": "2026-11-20T23:49:34.000Z",
+          "status": 200,
+          "country": "CO"
+        }
+      ],
+      "scope": {
+        "products": [
+          "Plan document PDFs"
+        ],
+        "states": [
+          "GA"
+        ],
+        "years": [
+          2026
+        ]
+      },
+      "discoveryUrls": [
+        "https://alliantplans.com/sitemap_index.xml"
+      ],
+      "permittedPaths": [
+        "/sitemap_index.xml"
+      ],
+      "delegates": [],
+      "attribution": "Alliant Health Plans public website.",
+      "updatePolicy": "Held: robots.txt reads \"User-agent: *\" / \"Disallow: *.pdf\", so its plan document PDFs are not collected. Terms not reviewed.",
+      "delayMs": 5000,
+      "jobCaps": {
+        "maxRequests": 1,
+        "maxTransferBytes": 1
+      },
+      "robots": {
+        "url": "https://alliantplans.com/robots.txt",
+        "status": 200,
+        "sha256": "a24a0bd538228651c8019b5ed252d924a35b4af9b7140f25050bc823bbcf8aa5",
+        "checkedAt": "2026-11-20T23:49:34.000Z",
+        "country": "CO"
+      }
+    }
+  ]
+}

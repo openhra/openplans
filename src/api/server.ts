@@ -6,9 +6,11 @@ import { stopCmsZipPreparation } from "../ingest/geo/cms.js";
 import { EnvironmentOnlyKeyError, loadConfig } from "../config/index.js";
 import { serve } from "@hono/node-server";
 import { createApp } from "./app.js";
+import { warmResponseBodyReads } from "./cache/index.js";
 import { schemaGate } from "./schema-gate.js";
 import { emitApiPluginLoaded, loadApiPlugins } from "../plugins/api.js";
 import { openHostDatabase, startHostStorage } from "../plugins/host-storage.js";
+import { startUsageReport } from "../usage-report/startup.js";
 import { startTelemetry } from "../telemetry/index.js";
 import type { StatusHostParts } from "../plugins/status-host.js";
 import { servingPolicy, withDataPolicy } from "../services/data-window.js";
@@ -53,8 +55,11 @@ try {
     // The API never migrates. Until `worker migrate` finishes, /readyz and data routes answer 503.
     schemaGate(db, { plugins: plugins.migrations }),
   );
+  // One-time body-read setup before listening, so the first cacheable request does not pay it.
+  await warmResponseBodyReads();
   const server = serve({ fetch: app.fetch, port, hostname: host }, () => {
     console.log(`OpenPlans API listening on port ${port}`);
+    startUsageReport(config);
     // Never awaited by a request, and it cannot throw.
     void emitApiPluginLoaded(
       plugins.plugins,

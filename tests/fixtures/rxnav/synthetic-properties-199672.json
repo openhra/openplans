@@ -1,0 +1,7 @@
+{
+  "label": "synthetic",
+  "note": "Synthetic RxNav properties.json body for RxCUI 199672, written for tests from the concept fields of the recorded name search drugs-albendazole.json (name, term type, suppress flag). Not recorded from NLM.",
+  "rxcui": "199672",
+  "status": 200,
+  "body": "{\"properties\":{\"rxcui\":\"199672\",\"name\":\"albendazole 200 MG Oral Tablet\",\"synonym\":\"\",\"tty\":\"SCD\",\"language\":\"ENG\",\"suppress\":\"N\",\"umlscui\":\"\"}}"
+}

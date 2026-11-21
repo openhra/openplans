@@ -189,6 +189,8 @@ it("backfills an already-provenanced fallback and is idempotent", async () => {
   const sql = await readFile(path, "utf8");
   await writeFile(path, "SELECT 1;");
   // This pre-policy schema cannot include tables whose rules require policy_name.
+  await rm(join(directory, "20261120123130_geocode_match_archive.sql"));
+  await rm(join(directory, "20261121120000_usage_report_state.sql"));
   await rm(join(directory, "1000_plugin_events.sql"));
   await rm(join(directory, "1001_passthrough.sql"));
   await rm(join(directory, "1002_ingest_run_snapshot.sql"));

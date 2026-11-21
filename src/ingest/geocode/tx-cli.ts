@@ -1,5 +1,9 @@
 #!/usr/bin/env node
 import pg from "pg";
+import {
+  ARCHIVE_PENDING,
+  geocodeArchiveReady,
+} from "../../db/geocode-archive.js";
 import { readFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { join } from "node:path";
@@ -115,7 +119,8 @@ try {
     ).rows[0]!.locked
   )
     throw new Error("Another statewide geocoder owns the lock");
-  // Apply only this lane's migration; concurrent lanes can already have newer independent migrations.
+  // Preserve the standalone geocoder's targeted migration journal checks.
+  if (!(await geocodeArchiveReady(db))) throw new Error(ARCHIVE_PENDING);
   await db.transaction(async (tx) => {
     await tx.query("SELECT pg_advisory_xact_lock(1869636974)");
     for (const name of [
@@ -216,7 +221,7 @@ try {
     console.error(`Failure code: ${code}`);
   console.error(
     error instanceof Error &&
-      /^(County bounds|Point has|Incomplete Census|Census snapshot|Census request profile|Statewide migration|Statewide run state|Missing statewide run|Another statewide)/.test(
+      /^(County bounds|Point has|Incomplete Census|Census snapshot|Census request profile|Statewide migration|Statewide run state|Geocode archive migration|Geocode archive backfill|Missing statewide run|Another statewide)/.test(
         error.message,
       )
       ? error.message

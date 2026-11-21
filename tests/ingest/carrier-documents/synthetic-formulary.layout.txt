@@ -1,0 +1,53 @@
+SYNTHETIC TEST DOCUMENT - NOT A REAL PLAN
+Synthetic Drug List 2026
+
+
+Drug Name                                                                  Drug Tier   Requirements/Limits
+
+CARDIOVASCULAR AGENTS
+atorvastatin calcium tab 10 mg                                               1
+lisinopril tab 20 mg                                                         1         QL (30 per 30 days)
+sacubitril-valsartan tab 24-26 mg                                            3         PA; ST
+     film coated
+ENDOCRINE AND METABOLIC AGENTS
+insulin glargine-yfgn inj 100 unit/ml                                        2         QL (15 ml per
+      solution pen-injector 3 ml                                                       30 days)
+metformin hcl er tab 500 mg                                                  1         AGE
+semaglutide inj 2 mg/3 ml pen                                                4         PA; LD
+sps                                                                          2
+
+
+
+
+Tier 1 - Preferred generic Tier 2 - Generic Tier 3 - Preferred brand
+Tier 4 - Non-preferred brand Tier 5 - Specialty
+PA - Prior authorization ST - Step therapy QL - Quantity limit AGE - Age limit
+
+
+Page 1
+SYNTHETIC TEST DOCUMENT - NOT A REAL PLAN
+Synthetic Drug List 2026
+
+
+Drug Name                                                                  Drug Tier   Requirements/Limits
+
+ANTI-INFECTIVE AGENTS
+amoxicillin cap 500 mg                                                       1
+valganciclovir tab 450 mg                                                    5         PA; QL (120 per 30 days)
+oseltamivir cap 75 mg                                                        2         Covered for members under 19 at no cost
+nitrofurantoin cap 100 mg                                                    7
+adalimumab-adaz inj 40 mg/0.4 ml                                             5         PA
+     prefilled syringe kit
+     two-pack
+     starter dose
+
+
+
+
+Tier 1 - Preferred generic Tier 2 - Generic Tier 3 - Preferred brand
+Tier 4 - Non-preferred brand Tier 5 - Specialty
+PA - Prior authorization ST - Step therapy QL - Quantity limit AGE - Age limit
+
+
+Page 2
+

@@ -1,6 +1,6 @@
-/** Retention classes for core tables. Staging is the only class compact may empty. */
+/** Retention classes for core tables. Compact empties staging; generation exports omit build-only tables. */
 export type TableClass =
-  "served" | "evidence" | "staging" | "derived" | "ledger";
+  "served" | "evidence" | "staging" | "derived" | "ledger" | "build-only";
 export interface TableRetention {
   name: string;
   class: TableClass;
@@ -26,8 +26,9 @@ export const tableClasses: readonly TableRetention[] = [
   { name: "formulary_shard", class: "served", yearBound: true },
   { name: "formulary_source_set", class: "served", yearBound: true },
   { name: "geo_import", class: "served", yearBound: false },
-  { name: "geocode_attempt", class: "evidence", yearBound: false },
+  { name: "geocode_attempt", class: "served", yearBound: false },
   { name: "geocode_cleanup_address", class: "staging", yearBound: false },
+  { name: "geocode_match_archive", class: "build-only", yearBound: false },
   { name: "geocode_open_result", class: "staging", yearBound: false },
   { name: "geocode_open_run", class: "staging", yearBound: false },
   { name: "geocode_tx_address", class: "staging", yearBound: false },
@@ -133,6 +134,7 @@ export const tableClasses: readonly TableRetention[] = [
   { name: "state_rate_import", class: "served", yearBound: true },
   { name: "state_rating_rule", class: "served", yearBound: true },
   { name: "state_vt_hios_match", class: "served", yearBound: true },
+  { name: "usage_report_state", class: "ledger", yearBound: false },
   { name: "zcta_centroid", class: "served", yearBound: false },
   { name: "zcta_county", class: "served", yearBound: false },
   { name: "zip_county_fallback", class: "served", yearBound: false },
@@ -154,3 +156,7 @@ export function assertStagingTables(names: readonly string[]): void {
   )
     throw new Error("compact target is not a classified staging table");
 }
+
+export const buildOnlyTables = tableClasses
+  .filter((table) => table.class === "build-only")
+  .map((table) => table.name);

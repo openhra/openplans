@@ -225,3 +225,40 @@ checks and the provider expression index can resolve their functions with an emp
 Forward fix: Add a repair migration for the function definitions and take a new verified backup.
 Lock budget: Two seconds to acquire locks. Only function definitions and settings change; no
 table scan or rewrite is needed.
+
+### 20261120123130_geocode_match_archive.sql
+
+Stage: contract
+Expand release: v0.4.18 or later adds the build-only matched-attempt archive.
+Compatibility: Every API version reads only unresolved attempts and address points, so answers
+are the same before the migration, after it, while `worker backfill geocode-archive` moves the
+matches and after it validates the checks. Older workers write matches to geocode_attempt, so
+stop them before this migration; the NOT VALID check refuses their matched writes. New geocoders
+and compact refuse until the backfill has validated both checks. Serving artifacts omit the
+archive; the next build recreates it and reuses matched address points.
+Forward fix: Add a migration that repairs the archive or the served checks. Keep the matched
+points and snapshot receipts. A stopped backfill resumes when run again.
+Lock budget: Two seconds to acquire locks. The file changes the catalog only: dropping the
+address_point foreign key takes ACCESS EXCLUSIVE on address_point and geocode_attempt, and both
+checks are added NOT VALID, so the locks are held for milliseconds whatever the table sizes. The
+backfill runs after the migration, outside its transaction. Each batch takes ROW EXCLUSIVE and
+SHARE ROW EXCLUSIVE; VALIDATE CONSTRAINT takes SHARE UPDATE EXCLUSIVE. None of these conflicts
+with a reader. Leave free space for the archive heap, its indexes and about twice the moved bytes
+of WAL. DELETE does not shrink geocode_attempt; compact rewrites it before export. Measure the
+migration's lock hold on a live-shaped clone with `ops/openplans/bin/migration-lock-probe`.
+
+### 20261121033244_formulary_document_status.sql
+
+Stage: expand
+Expand release: Add `data_availability.formulary_document_status`, written by the carrier formulary feed source.
+Compatibility: The column has a constant default, so existing rows read `not_yet_verified` and older readers ignore it. The availability endpoint reports it as `unknown` until a feed run sets it.
+Forward fix: Add a migration that repairs the column or its check. Do not drop it while readers select it.
+Lock budget: Two seconds to acquire locks. Adding a column with a constant default and a check on the small availability ledger needs no table rewrite.
+
+### 20261121120000_usage_report_state.sql
+
+Stage: expand
+Expand release: Add the small `usage_report_state` table and its metadata rule for the optional usage report.
+Compatibility: A new empty table that no existing reader selects. Nothing is written to it while the usage report is off.
+Forward fix: Add a migration that repairs the table or its rule. Do not drop it while the usage report reads it.
+Lock budget: Two seconds to acquire locks. The migration creates one empty table and inserts one metadata rule row.

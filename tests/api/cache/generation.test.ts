@@ -40,10 +40,14 @@ import { fixtureFiles } from "../../ingest/geo/helpers.js";
 import { coreMigrations, testDatabase } from "../../pglite.js";
 
 const NON_CATALOG_TABLES: Record<string, string> = {
+  geocode_match_archive:
+    "build-only matched observations; serving generations omit this table",
   plugin_event_outbox: "application event log; never feeds catalog responses",
   plugin_event_delivery:
     "subscriber delivery state; never feeds catalog responses",
   plugin_state: "durable plugin state; never feeds catalog responses",
+  usage_report_state:
+    "usage report install state; never feeds catalog responses",
   passthrough_budget:
     "pass-through request budget; never feeds catalog responses",
   passthrough_attempt: "pass-through call log; never feeds catalog responses",

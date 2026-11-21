@@ -1,4 +1,13 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import {
+  afterAll,
+  beforeAll,
+  describe,
+  expect,
+  it,
+  beforeEach,
+  afterEach,
+  vi,
+} from "vitest";
 import { ichraRequest } from "../../src/api/validation.js";
 import { assertHonest, outputSchemas } from "../../src/mcp/schemas.js";
 import { MAX_OUTPUT_BYTES, callTool } from "../../src/mcp/tools.js";
@@ -37,6 +46,14 @@ interface NativeIchra extends Record<string, unknown> {
   verdicts: readonly unknown[];
 }
 let h: Awaited<ReturnType<typeof setup>>;
+// Annual source fixtures use a fixed UTC calendar, independently of the machine date.
+function fixtureClock() {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-11-19T00:00:00Z"));
+}
+beforeAll(fixtureClock);
+beforeEach(fixtureClock);
+afterEach(() => vi.useRealTimers());
 beforeAll(async () => {
   h = await setup();
 });
@@ -129,10 +146,11 @@ describe("MCP check_ichra_affordability", () => {
       await client.close();
     }
   });
-  it("a full-history source gap projects no LCSP and no verdict", async () => {
+  it("an in-window source gap projects no LCSP and no verdict", async () => {
     const client = await connect({
       ...granted(),
-      data: { historyYears: "all" },
+      data: { historyYears: 3 },
+      now: () => Date.parse("2027-11-19T00:00:00Z"),
     });
     try {
       const output = (await client.call("check_ichra_affordability", {

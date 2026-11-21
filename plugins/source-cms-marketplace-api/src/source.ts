@@ -39,6 +39,11 @@ export interface CmsApiEvidence {
   source: string;
   terms_url: string;
   limits: string;
+  /**
+   * The identity source that confirmed the RxCUI or NPI during this request, when a negative
+   * rests on that confirmation, such as `rxnav`.
+   */
+  identity_source?: string;
 }
 
 /** What the host knows that the plugin cannot read itself. */
@@ -109,6 +114,9 @@ function serve<T extends PassThroughAnswer>(
     source: CMS_API_ATTRIBUTION,
     terms_url: CMS_API_TERMS_URL,
     limits: limitsOf(kind),
+    ...(result.identitySource
+      ? { identity_source: result.identitySource }
+      : {}),
   };
   return withEvidence(kind, answer, evidence, result.confirmed);
 }
@@ -186,11 +194,16 @@ export function createCmsMarketplaceSource(
         year: loaded.plan_year,
       };
     },
-    async confirmIdentities(db, kind, identities) {
-      if (kind === "drug")
-        return host.knownRxcuis
-          ? host.knownRxcuis(db, identities)
+    async confirmIdentities(db, kind, identities, request) {
+      if (kind === "drug") {
+        const known = host.knownRxcuis
+          ? await host.knownRxcuis(db, identities)
           : new Set<string>();
+        // RxCUIs an identity source confirmed during this request count as known (D-PRX-2).
+        for (const id of identities)
+          if (request?.confirmed.has(id)) known.add(id);
+        return known;
+      }
       const rows = await db.query<{ npi: string }>(
         "SELECT npi FROM npi_provider WHERE npi=ANY($1::text[])",
         [identities],

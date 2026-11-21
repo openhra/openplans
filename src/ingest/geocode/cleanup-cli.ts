@@ -1,5 +1,9 @@
 #!/usr/bin/env node
 import { currentEnvironment } from "../../config/index.js";
+import {
+  ARCHIVE_PENDING,
+  geocodeArchiveReady,
+} from "../../db/geocode-archive.js";
 import pg from "pg";
 import { readFile, mkdir, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
@@ -86,6 +90,7 @@ try {
       ?.locked
   )
     throw new Error("Another statewide geocoder owns the lock");
+  if (!(await geocodeArchiveReady(db))) throw new Error(ARCHIVE_PENDING);
   await db.transaction(async (tx) => {
     await tx.query("SELECT pg_advisory_xact_lock(1869636974)");
     for (const name of [
@@ -151,6 +156,7 @@ try {
       "Incomplete Census batch; pending manifest retained",
       "Another statewide geocoder owns the lock",
       "Cleanup migration changed after application",
+      ARCHIVE_PENDING,
     ].includes(error.message)
   )
     console.error(error.message);

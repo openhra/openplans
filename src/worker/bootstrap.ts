@@ -442,9 +442,8 @@ export async function bootstrapPlan(
     ? await readQhpProfile(options.qhpProfile)
     : undefined;
   if (profile)
-    profile.scopes = profile.scopes.filter(
-      (scope) =>
-        work.allowed_years === null || work.allowed_years.includes(scope.year),
+    profile.scopes = profile.scopes.filter((scope) =>
+      work.allowed_years.includes(scope.year),
     );
   if (
     profile &&

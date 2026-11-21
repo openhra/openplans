@@ -3,10 +3,13 @@ import { guardCatalogPlans, catalogPolicyActive } from "./catalog-policy.js";
 import type { SqlSession } from "../db/database.js";
 import { createRxnormRepository } from "../ingest/rxnorm/repository.js";
 import { drugCoverage } from "../domain/drugs/repository.js";
+import type { DrugIdentityStage } from "../domain/drugs/repository.js";
 import { drugConcept, normalizeNdc } from "../domain/drugs/concepts.js";
 import * as v from "../api/validation.js";
 import { ReadError } from "./errors.js";
 import { passThrough } from "../plugins/sources/passthrough.js";
+import { consultPassThrough } from "./upstream-disclosure.js";
+import { suggestDrugNames } from "./drug-name-search.js";
 import type { CmsFallbackContext } from "../ingest/cms-api/fallback.js";
 
 function rxcui(value: unknown): string {
@@ -48,9 +51,14 @@ function coverageRequest(value: unknown) {
   return { plans, codes, year: drugYear(String(body.year)) };
 }
 
+/**
+ * Name and NDC search. `scope` is the request's pass-through scope: with it and no ACTIVE RxNorm
+ * release, a name search asks the name-search source (`suggestDrugNames`).
+ */
 export async function searchDrugs(
   db: SqlSession,
   params: Record<string, string>,
+  scope?: CmsFallbackContext,
 ) {
   const rx = createRxnormRepository(db);
   const q = params.q,
@@ -71,11 +79,21 @@ export async function searchDrugs(
   const limit = params.limit ?? "50";
   if (!/^\d{1,3}$/.test(limit) || Number(limit) < 1 || Number(limit) > 100)
     return v.fail("limit");
-  return {
-    candidates: await rx.searchDrugs(q, { limit: Number(limit) }),
-    exact_concept_required: true,
-    ...(await terminology(rx)),
-  };
+  const candidates = await rx.searchDrugs(q, { limit: Number(limit) });
+  const status = await terminology(rx);
+  // Only without an ACTIVE release: then RxNav's suggestions, labelled as such, replace the empty
+  // list. They help pick an exact RxCUI and say nothing about coverage.
+  if (status.terminology_status === "unknown") {
+    const suggested = await drugNameSuggestions(q, scope);
+    if (suggested)
+      return {
+        candidates: suggested.candidates.slice(0, Number(limit)),
+        exact_concept_required: true,
+        terminology_status: "passthrough" as const,
+        terminology_evidence: suggested.evidence,
+      };
+  }
+  return { candidates, exact_concept_required: true, ...status };
 }
 /**
  * Whether an RxNorm release is ACTIVE. With none, an empty search says so; with one, an empty
@@ -94,7 +112,30 @@ export async function getDrug(db: SqlSession, value: unknown) {
   if (!concept) throw new ReadError({ code: "DRUG_NOT_FOUND" });
   return concept;
 }
-/** `cms` is the per-request CMS API fallback context; absent unless the operator enabled it. */
+/**
+ * The request's identity stage: the same scope as the later `apply("drug")` call, so the coverage
+ * source can accept identities confirmed during this request. It goes through the host's
+ * disclosure like every pass-through call: `passthrough=off` asks nothing upstream (the RxCUI then
+ * stays `rxcui_not_in_rxnorm`), and an identity source that answered is named in
+ * `x-openplans-upstream`.
+ */
+export const identityStage = (
+  scope: CmsFallbackContext | undefined,
+): DrugIdentityStage | undefined =>
+  scope
+    ? {
+        api: {
+          apply: (kind, answers, inner) =>
+            consultPassThrough(passThrough, kind, answers, inner),
+        },
+        scope,
+      }
+    : undefined;
+
+/**
+ * `cms` is the request's pass-through scope; absent unless the operator enabled a pass-through
+ * source (the CMS API fallback or the RxNav identity source).
+ */
 export async function checkDrugCoverage(
   db: SqlSession,
   plan: unknown,
@@ -110,8 +151,11 @@ export async function checkDrugCoverage(
     v.planId(plan).full,
     rxcui(code),
     drugYear(year),
+    identityStage(cms),
   );
-  return cms ? (await passThrough.apply("drug", [answer], cms))[0]! : answer;
+  return cms
+    ? (await consultPassThrough(passThrough, "drug", [answer], cms))[0]!
+    : answer;
 }
 export async function checkDrugCoverages(
   db: SqlSession,
@@ -124,11 +168,23 @@ export async function checkDrugCoverages(
   await guardCatalogPlans(request.plans, request.year);
   for (const plan of request.plans)
     for (const code of request.codes)
-      results.push(await drugCoverage(db, plan, code, request.year));
+      results.push(
+        await drugCoverage(db, plan, code, request.year, identityStage(cms)),
+      );
   return {
-    results: cms ? await passThrough.apply("drug", results, cms) : results,
+    results: cms
+      ? await consultPassThrough(passThrough, "drug", results, cms)
+      : results,
   };
 }
+/**
+ * A name-search source's suggestions for a name, through the request's pass-through scope; null
+ * without a scope or when no source served the name. Callers ask only without an ACTIVE release.
+ */
+export const drugNameSuggestions = async (
+  name: string,
+  scope: CmsFallbackContext | undefined,
+) => (scope ? suggestDrugNames(passThrough, name, scope) : null);
 /** Terminology availability is separate from a successful empty candidate search. */
 export const drugTerminology = (db: SqlSession) =>
   createRxnormRepository(db).activeRelease();

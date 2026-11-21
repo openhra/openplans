@@ -13,6 +13,7 @@ import { runLowestPrebuild, lowestPrebuildUsage } from "./lowest-prebuild.js";
 import { loadConfig } from "../config/index.js";
 import { runLowestBuild, rebuildLowestPremiums } from "./handy-build.js";
 import { runRecordPolicy } from "./record-policy.js";
+import { runUsageReport, USAGE_REPORT_USAGE } from "../usage-report/cli.js";
 import { databaseErrorDiagnostic } from "./database-error.js";
 import { runSbe } from "../ingest/sbe/command.js";
 import { runState } from "../ingest/state/command.js";
@@ -39,6 +40,10 @@ import {
 } from "../db/migrate.js";
 import type { PluginMigration, PluginMigrationSource } from "../db/migrate.js";
 import { backfillRowProvenance } from "../db/row-provenance.js";
+import {
+  backfillGeocodeArchive,
+  GeocodeArchivePending,
+} from "../db/geocode-archive.js";
 import { backfillRatePlanCounts } from "../ingest/puf/import-repository.js";
 import { buildProviderSearchKeys } from "../api/provider-search-keys.js";
 import {
@@ -78,7 +83,14 @@ import { runBackupRestored } from "./backup-restored.js";
 import { databaseUrl } from "../config/access.js";
 
 const usage =
-  "Usage: worker plugin pack <dir> --out <dir> | plugin install [--data] <dir|file.tgz|name@version --registry URL [--pin-sha256 HEX]> | plugin search <q> [--registry URL] | plugin list [--json] | plugin update <name> [--to VERSION] [--registry URL] | plugin remove <name> | plugin bundle <name>@<version> --out DIR [--registry URL] | plugin lock | plugin verify [--json|--local <dir|file.tgz>] | migrate [--check|--size-evidence] | status | compact [--dry-run] | data-admission --manifest FILE | record-policy list|set|expire | backup-args [--tar|--manifest] | backup-restored --manifest FILE | backfill row-provenance [--table NAME] [--blocks N] | backfill rate-plan-count | backfill provider-search (--disk PATH | --free-gb N) | ingest puf|qhp|nppes|rxnorm|taxonomy|geo|medicare|package";
+  "Usage: worker plugin pack <dir> --out <dir> | plugin install [--data] <dir|file.tgz|name@version --registry URL [--pin-sha256 HEX]> | plugin search <q> [--registry URL] | plugin list [--json] | plugin update <name> [--to VERSION] [--registry URL] | plugin remove <name> | plugin bundle <name>@<version> --out DIR [--registry URL] | plugin lock | plugin verify [--json|--local <dir|file.tgz>] | migrate [--check|--size-evidence] | status | compact [--dry-run] | data-admission --manifest FILE | record-policy list|set|expire | usage-report show|send --dry-run|reset | backup-args [--tar|--manifest] | backup-restored --manifest FILE | backfill row-provenance [--table NAME] [--blocks N] | backfill rate-plan-count | backfill geocode-archive [--batch-rows N] [--pause-ms N] | backfill provider-search (--disk PATH | --free-gb N) | ingest puf|qhp|nppes|rxnorm|taxonomy|geo|medicare|package";
+
+const GEOCODE_ARCHIVE_USAGE =
+  "Usage: worker backfill geocode-archive [--batch-rows N] [--pause-ms N]";
+const GEOCODE_ARCHIVE_FLAGS: Record<string, "batchRows" | "pauseMs"> = {
+  "--batch-rows": "batchRows",
+  "--pause-ms": "pauseMs",
+};
 
 /** Free disk the provider-search backfill needs on the database's filesystem. */
 export const BACKFILL_MIN_FREE_BYTES = 8 * 1024 ** 3;
@@ -229,6 +241,12 @@ export const coreWorkerCommands: readonly CoreWorkerCommand[] = Object.freeze(
           runRecordPolicy(args, () => open(), output, host.events),
       },
       {
+        argv: ["usage-report"],
+        usage: USAGE_REPORT_USAGE,
+        run: (args, { open, output }) =>
+          runUsageReport(args, loadConfig(), () => open(), output),
+      },
+      {
         argv: ["backfill", "row-provenance"],
         usage:
           "Usage: worker backfill row-provenance [--table NAME] [--blocks N]",
@@ -242,6 +260,14 @@ export const coreWorkerCommands: readonly CoreWorkerCommand[] = Object.freeze(
         queryTimeoutMs: 3_600_000,
         run: (args, { open, output }) =>
           runRatePlanCountBackfill(args, () => open(), output),
+      },
+      {
+        argv: ["backfill", "geocode-archive"],
+        usage: GEOCODE_ARCHIVE_USAGE,
+        // Small transactions; minutes on a nationwide database.
+        queryTimeoutMs: 3_600_000,
+        run: (args, { open, output }) =>
+          runGeocodeArchiveBackfill(args, () => open(), output),
       },
       {
         argv: ["backfill", "provider-search"],
@@ -727,6 +753,55 @@ async function runMaintenance(
     }
   }
   return exitCode;
+}
+
+async function runGeocodeArchiveBackfill(
+  args: string[],
+  open: () => Database,
+  output: WorkerOutput,
+): Promise<number> {
+  const options: { batchRows?: number; pauseMs?: number } = {};
+  for (let i = 0; i < args.length; i += 2) {
+    const value = args[i + 1];
+    const key = Object.hasOwn(GEOCODE_ARCHIVE_FLAGS, args[i]!)
+      ? GEOCODE_ARCHIVE_FLAGS[args[i]!]
+      : undefined;
+    if (
+      !key ||
+      value === undefined ||
+      !/^\d{1,7}$/.test(value) ||
+      key in options
+    ) {
+      output.error(GEOCODE_ARCHIVE_USAGE);
+      return 1;
+    }
+    options[key] = Number(value);
+  }
+  if (options.batchRows === 0) {
+    output.error(GEOCODE_ARCHIVE_USAGE);
+    return 1;
+  }
+  let db: Database | undefined,
+    code = 0;
+  try {
+    db = open();
+    output.out(JSON.stringify(await backfillGeocodeArchive(db, options)));
+  } catch (error) {
+    output.error(
+      error instanceof GeocodeArchivePending
+        ? `worker backfill geocode-archive refused: ${error.message}`
+        : `worker backfill geocode-archive failed${databaseErrorDiagnostic(error)}; moved batches stay committed, run it again to resume`,
+    );
+    code = 1;
+  } finally {
+    try {
+      await db?.close();
+    } catch {
+      output.error("worker database shutdown failed");
+      code = 1;
+    }
+  }
+  return code;
 }
 
 async function runRatePlanCountBackfill(

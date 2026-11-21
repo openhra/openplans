@@ -73,6 +73,12 @@ export interface TransientFetchOptions extends Pick<
    * Not allowed with `requestBody`.
    */
   headOnly?: boolean;
+  /**
+   * Statuses that mean "no such record" for this data request, such as a 404 on a per-identity
+   * path. They come back as a result with an empty body instead of an error, so the collection
+   * is not stopped. Robots and terms reads ignore them.
+   */
+  absentStatuses?: readonly number[];
 }
 /** Validators from a `headOnly` response, as the publisher sent them. */
 export interface TransientValidators {
@@ -571,7 +577,7 @@ export async function fetchTransient(
           admission!.reserveRequest(url);
           const headers: Record<string, string> = {
             "accept-encoding": "identity",
-            "user-agent": `openplans/0.4.17 (public health-plan source discovery; +${projectUrl(options)})`,
+            "user-agent": `openplans/0.4.18 (public health-plan source discovery; +${projectUrl(options)})`,
           };
           if (!policy && options.expectedContent === "json")
             headers.accept = "application/json, */*;q=0.1";
@@ -654,7 +660,9 @@ export async function fetchTransient(
           url = next;
           destinations.push(next);
         }
-        if (response.status < 200 || response.status >= 300) {
+        const absent =
+          !policy && options.absentStatuses?.includes(response.status) === true;
+        if ((response.status < 200 || response.status >= 300) && !absent) {
           if (transientStatuses.has(response.status))
             await readBody(response, url, cap, cap, true);
           throw new FetchError(
@@ -665,16 +673,17 @@ export async function fetchTransient(
         }
         const headOnly = !policy && options.headOnly === true;
         // A HEAD answer has no body to read; its Content-Length names the file, not this reply.
-        const body = headOnly
-          ? Buffer.alloc(0)
-          : await readBody(
-              response,
-              url,
-              cap,
-              policy ? cap : decodedLimit,
-              false,
-              policy,
-            );
+        const body =
+          headOnly || absent
+            ? Buffer.alloc(0)
+            : await readBody(
+                response,
+                url,
+                cap,
+                policy ? cap : decodedLimit,
+                false,
+                policy,
+              );
         if (!policy && !delivery)
           for (const destination of destinations)
             await wait(

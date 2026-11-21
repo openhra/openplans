@@ -528,7 +528,7 @@ async function operatorFeatures(db: SqlSession) {
       );
       const hash = (
         await db.query<{ hash: string }>(
-          `INSERT INTO geocode_attempt(address_hash,source_table,source_row,normalized_address,source_snapshot_id,
+          `INSERT INTO ${a.status === "Match" ? "geocode_match_archive" : "geocode_attempt"}(address_hash,source_table,source_row,normalized_address,source_snapshot_id,
             snapshot_id,match_status,match_quality,outcome)
           VALUES (encode(sha256(convert_to($1,'UTF8')),'hex'),'npi_address',$1,'synthetic operator','catalog','catalog',
             $2,NULL,$3) RETURNING address_hash AS hash`,

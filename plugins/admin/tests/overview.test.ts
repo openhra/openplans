@@ -14,6 +14,7 @@ const sample = {
   api: "ok",
   db: "ok",
   pool: { waiting: null },
+  usage_report: "off" as const,
   data: {
     policy: null,
     states: null,

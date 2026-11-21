@@ -95,6 +95,46 @@ The SDK package does not export the kit.
 from the OpenPlans root to build the SDK, then the other workspace packages, then core. `npm test` includes
 this package's tests. The SDK builds to `dist/`.
 
+## Identity sources
+
+A pass-through source with the kind `DRUG_IDENTITY_KIND` (`drug-identity`) confirms that an
+RxCUI is a current RxNorm concept. It never answers coverage. Its opening reasons are its own
+closed list, `IDENTITY_OPENING_REASONS["drug-identity"]`: `rxcui_not_in_rxnorm` and
+`rxnorm_terminology_unavailable`. A coverage reason never opens an identity call, and an identity
+reason never opens a coverage call.
+
+The core asks the identity kind only when no RxNorm release is ACTIVE. A loaded release always
+wins. To confirm an RxCUI, `mapResponse` answers `{ confirmed: true }` (`IdentityConfirmation`).
+Any other answer, a negative or `no_data` leaves it unconfirmed. The core builds the identity
+answer itself, without the source's `serve` or `fold`. It is `confirmed` or `unknown`, never
+anything else. An identity source lists identity kinds only. The core never asks one whose
+level is `stored`, or one that also lists a coverage kind.
+
+`confirmIdentities` receives a fourth argument, `request.confirmed`: the identities an identity
+source confirmed during this inbound request, for the identity kind paired with the asked kind
+(`IDENTITY_KIND_OF`). A coverage source accepts them only by returning them. The core adds
+nothing on its own, and a confirmation never carries over to another request. When an accepted
+identity was confirmed this way, the result handed to the source's `serve` names the confirming
+source in `identitySource`.
+
+A source may declare `followUp`, a second `buildRequest` and `mapResponse` for the questions the
+first response left without an entry. The core makes that lookup in the same call, with no second
+reservation, and caches its entries with the first ones. A failed second lookup fails the call.
+`followUp` is not used at the `stored` level.
+
+A source may declare `absentStatuses`, the HTTP statuses that mean the asked record does not
+exist, such as `[404]` for a per-identity path. For those the core hands both `mapResponse`
+functions a `null` body instead of failing the call. Like `followUp`, it is not used at the
+`stored` level.
+
+`DRUG_NAME_SEARCH_KIND` (`drug-name-search`) is an identity kind whose answers are candidate
+lists (`CANDIDATE_KINDS`). It opens only on `rxnorm_terminology_unavailable`, and the question's
+`identity` is the drug name. `mapResponse` answers `{ candidates: [{ rxcui, name, tty }] }`
+(`CandidateList`) or `no_data` when nothing matched. The core builds the answer itself
+(`CandidateAnswer`): `status: "passthrough"`, at most `MAX_CANDIDATES` well-formed candidates and
+the source's evidence block. Candidates never confirm an identity. Each identity kind opens on its
+own reason list, also in a source that lists two of them.
+
 ## Host status
 
 A plugin that declares `capabilities.hostStatus: true` must also export a factory,

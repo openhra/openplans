@@ -15,6 +15,8 @@ import {
   geocodeStates,
 } from "./counties.js";
 import type { County } from "./counties.js";
+import { reuseStatewideMatches } from "./reuse.js";
+import { refuseGeocodeArchivePending } from "../../db/geocode-archive.js";
 
 interface Run extends Record<string, unknown> {
   state: string;
@@ -52,6 +54,8 @@ export async function createRun(
   geographies = false,
   state = "TX",
 ): Promise<void> {
+  await refuseGeocodeArchivePending(db);
+  await db.query("SELECT prepare_geocode_match_archive()");
   geocodeState(state);
   if (!/^[a-zA-Z0-9_-]{1,80}$/.test(runId))
     throw new TypeError("Invalid geocode run ID");
@@ -308,15 +312,22 @@ export async function publishStatewide(
     JOIN LATERAL (SELECT * FROM geocode_tx_input i WHERE i.run_id=$1 AND i.address_hash=keys.address_hash OFFSET 0) i ON true
   ) `
     : "";
-  await db.query(
-    `${batchInput}INSERT INTO geocode_attempt(address_hash,source_table,source_row,normalized_address,source_snapshot_id,
+  for (const attemptTable of ["geocode_attempt", "geocode_match_archive"])
+    await db.query(
+      `${batchInput}INSERT INTO ${attemptTable}(address_hash,source_table,source_row,normalized_address,source_snapshot_id,
     snapshot_id,match_status,match_quality,outcome,geocoded_at)
     SELECT i.address_hash,i.source_table,i.source_row,i.normalized_address,i.source_snapshot_id,r.snapshot_id,r.match_status,r.match_quality,
     CASE WHEN r.method IS NULL THEN 'no_point' ELSE 'point' END,r.geocoded_at FROM ${inputs}
+    WHERE ${attemptTable === "geocode_match_archive" ? "r.match_status='Match'" : "r.match_status<>'Match'"}
     ON CONFLICT(address_hash,source_table,source_row) DO UPDATE SET source_snapshot_id=excluded.source_snapshot_id,
     snapshot_id=excluded.snapshot_id,match_status=excluded.match_status,match_quality=excluded.match_quality,outcome=excluded.outcome,geocoded_at=excluded.geocoded_at
-    WHERE (geocode_attempt.source_snapshot_id,geocode_attempt.snapshot_id,geocode_attempt.match_status,geocode_attempt.match_quality,geocode_attempt.outcome,geocode_attempt.geocoded_at)
+    WHERE (${attemptTable}.source_snapshot_id,${attemptTable}.snapshot_id,${attemptTable}.match_status,${attemptTable}.match_quality,${attemptTable}.outcome,${attemptTable}.geocoded_at)
       IS DISTINCT FROM (excluded.source_snapshot_id,excluded.snapshot_id,excluded.match_status,excluded.match_quality,excluded.outcome,excluded.geocoded_at)`,
+      params,
+    );
+  await db.query(
+    `${batchInput}DELETE FROM geocode_attempt a USING ${inputs}
+    WHERE r.match_status='Match' AND a.address_hash=i.address_hash AND a.source_table=i.source_table AND a.source_row=i.source_row`,
     params,
   );
   // Keep each source's nearby batch points together while maintaining the live spatial indexes.
@@ -436,6 +447,7 @@ export async function geocodeStatewide(
     throw new Error(
       `${state} geography import required before statewide geocoding`,
     );
+  await reuseStatewideMatches(db, options.runId, counties, options.deadline);
   const byZip = new Map(centroids.map((c) => [c.zcta, c]));
   const schedule: Schedule = {
     index: 0,
@@ -620,7 +632,7 @@ export async function geocodeStatewide(
   }
   if (report.batches)
     await db.exec(
-      "ANALYZE geocode_attempt; ANALYZE address_point; ANALYZE geocode_tx_result",
+      "ANALYZE geocode_attempt; ANALYZE geocode_match_archive; ANALYZE address_point; ANALYZE geocode_tx_result",
     );
   return report;
 }

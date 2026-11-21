@@ -42,6 +42,20 @@
       "status": 200,
       "sha256": "0dc4f6e54b3ec70381f772d7562338a3ea89de32479f17af36b1d50ddbf7035c",
       "bytes": 4041
+    },
+    "christushealthplan.txt": {
+      "url": "https://www.christushealthplan.org/robots.txt",
+      "observedAt": "2026-11-20T23:49:30Z",
+      "status": 200,
+      "sha256": "8baf136397acc480f147ad4224d53c733707307061294c1f2973c214daa5f667",
+      "bytes": 368
+    },
+    "senderohealth.txt": {
+      "url": "https://senderohealth.com/robots.txt",
+      "observedAt": "2026-11-20T23:49:31Z",
+      "status": 200,
+      "sha256": "557da2f4c2154cdf57f704cb649ad9bfc23f6f3de98c941b096c83624662756a",
+      "bytes": 175
     }
   }
 }

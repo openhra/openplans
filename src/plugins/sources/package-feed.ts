@@ -109,7 +109,6 @@ async function checkYears(
     now,
   );
   if (
-    policy.history_years !== "all" &&
     years.some((year) => !policy.domains[domain].allowed_years.includes(year))
   )
     throw new Error("package_year_outside_window");

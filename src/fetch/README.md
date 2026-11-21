@@ -276,6 +276,10 @@ empty and `validators` holds the publisher's `Last-Modified`, `ETag`, `Content-L
 `Content-Type`. Robots and terms reads stay GET and keep the usual admission rules.
 `headOnly` cannot be combined with `requestBody` or a delivery.
 
+`absentStatuses` lists statuses that mean "no such record" for the data request, such as `[404]`
+on a per-identity path. Such a response returns with its status and an empty body instead of
+failing, and the admission session stays open. Robots and terms reads ignore it.
+
 A transport may honour `context.signal`; `httpsTransport` closes the connection when it aborts
 and fails with `aborted`. Plugin worker commands wrap their transport with
 `abortableTransport` (`src/plugins/fetch.ts`), so `ctx.signal` stops a request even when the

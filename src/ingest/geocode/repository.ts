@@ -49,31 +49,51 @@ export async function addresses(
 export async function reused(db: SqlSession, a: Address): Promise<boolean> {
   const key = addressIdentity(a),
     table = a.source_table ?? "npi_address";
+  // Serving artifacts omit the archive; the matched point still carries the observation.
+  await db.query(
+    `INSERT INTO geocode_match_archive(address_hash,source_table,source_row,normalized_address,
+    source_snapshot_id,snapshot_id,match_status,match_quality,outcome,geocoded_at)
+    SELECT address_hash,source_table,source_row,$2,source_snapshot_id,snapshot_id,match_status,match_quality,'point',geocoded_at
+    FROM address_point WHERE address_hash=$1 AND match_status='Match' AND method='census_geocoder'
+    AND NOT EXISTS(SELECT 1 FROM geocode_match_archive a WHERE a.address_hash=$1)
+    ON CONFLICT DO NOTHING`,
+    [key.hash, key.normalized],
+  );
   const found = (
     await db.query<{
       source_table: string;
       source_row: string;
       source_snapshot_id: string;
+      match_status: string;
     }>(
-      `SELECT source_table,source_row,source_snapshot_id
-    FROM geocode_attempt WHERE address_hash=$1 AND outcome<>'issue'
+      `SELECT source_table,source_row,source_snapshot_id,match_status
+    FROM (SELECT * FROM geocode_attempt UNION ALL SELECT * FROM geocode_match_archive) attempts WHERE address_hash=$1 AND outcome<>'issue'
     ORDER BY (match_status='Match') DESC,(source_table=$2 AND source_row=$3) DESC,geocoded_at DESC LIMIT 1`,
       [key.hash, table, key.row],
     )
   ).rows[0];
   if (!found) return false;
+  if (found.match_status === "Match")
+    await db.query(
+      `DELETE FROM geocode_attempt WHERE address_hash=$1 AND source_table=$2 AND source_row=$3`,
+      [key.hash, table, key.row],
+    );
   if (
     found.source_table === table &&
     found.source_row === key.row &&
     found.source_snapshot_id === a.snapshot_id
   )
     return true;
+  const attemptTable =
+    found.match_status === "Match"
+      ? "geocode_match_archive"
+      : "geocode_attempt";
   // Reuse the point (or terminal no-point) across rows and publishers without changing geocode provenance.
   await db.query(
-    `INSERT INTO geocode_attempt(address_hash,source_table,source_row,normalized_address,source_snapshot_id,
+    `INSERT INTO ${attemptTable}(address_hash,source_table,source_row,normalized_address,source_snapshot_id,
     snapshot_id,match_status,match_quality,outcome,geocoded_at)
     SELECT address_hash,$2,$3,normalized_address,$4,snapshot_id,match_status,match_quality,outcome,geocoded_at
-    FROM geocode_attempt WHERE address_hash=$1 AND source_table=$5 AND source_row=$6
+    FROM ${attemptTable} WHERE address_hash=$1 AND source_table=$5 AND source_row=$6
     ON CONFLICT(address_hash,source_table,source_row) DO UPDATE SET source_snapshot_id=excluded.source_snapshot_id,
       snapshot_id=excluded.snapshot_id,match_status=excluded.match_status,match_quality=excluded.match_quality,
       outcome=excluded.outcome,geocoded_at=excluded.geocoded_at`,
@@ -185,8 +205,10 @@ export async function saveResult(
       return "point";
     }
   }
+  const attemptTable =
+    row?.status === "Match" ? "geocode_match_archive" : "geocode_attempt";
   await db.query(
-    `INSERT INTO geocode_attempt(address_hash,source_table,source_row,normalized_address,source_snapshot_id,
+    `INSERT INTO ${attemptTable}(address_hash,source_table,source_row,normalized_address,source_snapshot_id,
     snapshot_id,match_status,match_quality,outcome) VALUES($1,$9,$2,$3,$4,$5,$6,$7,$8)
     ON CONFLICT(address_hash,source_table,source_row) DO UPDATE SET source_snapshot_id=EXCLUDED.source_snapshot_id,
     snapshot_id=EXCLUDED.snapshot_id,match_status=EXCLUDED.match_status,match_quality=EXCLUDED.match_quality,
@@ -203,6 +225,11 @@ export async function saveResult(
       a.source_table ?? "npi_address",
     ],
   );
+  if (row?.status === "Match")
+    await db.query(
+      `DELETE FROM geocode_attempt WHERE address_hash=$1 AND source_table=$2 AND source_row=$3`,
+      [key.hash, a.source_table ?? "npi_address", key.row],
+    );
   if (method === "no_point" || method === "issue") return method;
   await db.query(
     `INSERT INTO address_point(address_hash,source_table,source_row,source_snapshot_id,latitude,longitude,

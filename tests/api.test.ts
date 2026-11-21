@@ -46,6 +46,7 @@ describe("API", () => {
         premium_status: "unknown",
         provider_status: "unknown",
         formulary_status: "unknown",
+        formulary_document_status: "unknown",
         snapshot_id: "synthetic-partial",
         drug_status: "unknown",
         drug_coverage: {

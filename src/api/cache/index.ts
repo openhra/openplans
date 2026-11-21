@@ -28,6 +28,23 @@ import {
   setScopeResponseGeneration,
 } from "../../plugins/request-scope.js";
 
+/**
+ * Key parts for the pass-through switches that can change an answer without a data generation:
+ * the RxNav identity switch and the CMS fallback's two switches. Each state keys its own entries,
+ * so an answer cached under one state (in a store that outlives the process) cannot serve another.
+ * They are read from the cache's configuration, loaded once when the process builds the cache:
+ * the switches take effect on restart, and a warm hit never re-parses the configuration.
+ */
+export function passThroughSwitchParts(
+  config: Pick<CoreConfig, "rxnavIdentity" | "cmsFallback">,
+): string[] {
+  return [
+    ...(config.rxnavIdentity ? ["rxnav_identity"] : []),
+    ...(config.cmsFallback.enabled ? ["cms_fallback"] : []),
+    ...(config.cmsFallback.quotes ? ["cms_fallback_quotes"] : []),
+  ];
+}
+
 export type CacheOutcome = "hit" | "miss" | "bypass";
 export type ResponseCache = ReturnType<typeof createResponseCache>;
 const caches = new WeakMap<SqlSession, ResponseCache>();
@@ -66,6 +83,8 @@ const responseHeaders = [
   "content-type",
   "cache-control",
   "x-openplans-gaps",
+  // Upstream disclosure travels with the cached body it describes.
+  "x-openplans-upstream",
   "access-control-allow-origin",
   "access-control-allow-methods",
   "access-control-allow-headers",
@@ -185,6 +204,17 @@ async function boundedText(response: Response): Promise<string | undefined> {
   }
 }
 
+/**
+ * Start-up work for the miss path's body read, run once before the API listens. A process's
+ * first web-stream reader release makes Node build its released-reader error, which creates an
+ * internal script context (about a millisecond), and the clone, read and release code runs for
+ * the first time. Reading a throwaway response here moves that to start-up, so it does not land
+ * on the first cacheable request. It touches no store, statistic or response.
+ */
+export async function warmResponseBodyReads(): Promise<void> {
+  await boundedText(new Response("{}").clone());
+}
+
 export function createResponseCache(
   db: SqlSession,
   premiumToken?: string,
@@ -192,6 +222,12 @@ export function createResponseCache(
 ) {
   const config = options.config ?? loadConfig();
   const disabled = !config.cache.enabled;
+  const switchParts = passThroughSwitchParts(config);
+  /** The CMS fallback's process-local hold changes at run time, so it is read per key. */
+  const passThroughKeyParts = (cmsUnavailable: boolean) => [
+    ...(cmsUnavailable ? ["cms_fallback_unavailable"] : []),
+    ...switchParts,
+  ];
   // Design 5.7: off is a zero-byte memory store; otherwise the registry's configured provider.
   const store = disabled
     ? new MemoryCache(0)
@@ -199,7 +235,8 @@ export function createResponseCache(
       selectCacheStore(config, providerTables(options.plugins)));
   const ttls = ttlTable(options.plugins?.routes);
   const stats: Omit<CacheStats, "bytes"> = { hits: 0, misses: 0, bypasses: 0 };
-  const extraHeader = compatKeyHeader(config.tokens.compatKeyHeader);
+  // "" when unset: undefined would make compatKeyHeader load the configuration a second time.
+  const extraHeader = compatKeyHeader(config.tokens.compatKeyHeader ?? "");
   const bypass: MiddlewareHandler = async (c, next) => {
     stats.bypasses++;
     recordCache("bypass");
@@ -245,6 +282,7 @@ export function createResponseCache(
     );
     // Recheck before hits; the routers retain their own authentication and error responses.
     if (compat) {
+      // Read per compat request: callers may set the key after building the app (follow-up).
       const token = (options.config ?? loadConfig()).tokens.compatKey?.reveal();
       if (
         !token ||
@@ -335,7 +373,7 @@ export function createResponseCache(
         body,
         generation,
         policy.generation,
-        ...(cmsUnavailable ? ["cms_fallback_unavailable"] : []),
+        ...passThroughKeyParts(cmsUnavailable),
       ]);
       key = `openplans:response:v1:${createHash("sha256").update(request).digest("hex")}`;
       const cached = await store.get(key);
@@ -485,7 +523,7 @@ export function createResponseCache(
       request.generation,
       policy.generation,
       request.query,
-      ...(cmsUnavailable ? ["cms_fallback_unavailable"] : []),
+      ...passThroughKeyParts(cmsUnavailable),
     ]);
     const key = `openplans:catalog:v1:${createHash("sha256").update(identity).digest("hex")}`;
     try {

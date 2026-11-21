@@ -74,3 +74,6 @@
 20261118000213_lowest_active_build_index.sql
 20261119194358_annual_data_admission.sql
 20261120020048_restore_function_search_path.sql
+20261120123130_geocode_match_archive.sql
+20261121033244_formulary_document_status.sql
+20261121120000_usage_report_state.sql

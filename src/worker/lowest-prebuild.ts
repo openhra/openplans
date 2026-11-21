@@ -33,17 +33,14 @@ export async function* lowestInventory(
 ): AsyncGenerator<LowestInput> {
   if (options.inventory) {
     const entries = new Map<string, LowestInput>();
-    let allowed: Set<number> | null | undefined;
+    let allowed: Set<number> | undefined;
     for (const value of options.inventory) {
       let input = lowestInput(value);
       if (allowed === undefined) {
         const policy = await servingPolicy(db);
-        allowed =
-          policy.history_years === "all"
-            ? null
-            : new Set(policy.domains.individual.allowed_years);
+        allowed = new Set(policy.domains.individual.allowed_years);
       }
-      if (allowed && !allowed.has(input.year)) continue;
+      if (!allowed.has(input.year)) continue;
       const location = await resolveLocation(db, input, {
         allowCmsLive: false,
         year: input.year,

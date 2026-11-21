@@ -1,5 +1,6 @@
 import type { Database, SqlSession } from "./database.js";
 import { COMPACT_LOCK } from "./compact-lock.js";
+import { geocodeArchiveReady } from "./geocode-archive.js";
 import {
   MaintenanceConflict,
   MIGRATION_LOCK,
@@ -67,6 +68,17 @@ export function assertClassifiedTables(names: readonly string[]): void {
 }
 
 async function refuseUnfinished(session: SqlSession): Promise<void> {
+  // Matched attempts still in geocode_attempt would ship in the served table.
+  if (!(await geocodeArchiveReady(session)))
+    throw new MaintenanceConflict(
+      "matched geocode attempts not yet archived; run worker backfill geocode-archive before compacting",
+    );
+  const archive = (
+    await session.query<{ present: boolean }>(
+      "SELECT to_regclass('public.geocode_match_archive') IS NOT NULL AS present",
+    )
+  ).rows[0]!.present;
+  const matchedEvidence = archive ? "geocode_match_archive" : "address_point";
   const checks = [
     `SELECT 1 FROM snapshot WHERE validation_state IN ('FETCHING','PARSED','VALIDATED','RECONCILED') LIMIT 1`,
     `SELECT 1 FROM geocode_tx_run WHERE NOT npi_staged OR NOT issuer_staged LIMIT 1`,
@@ -78,7 +90,8 @@ async function refuseUnfinished(session: SqlSession): Promise<void> {
       (SELECT 1 FROM geocode_tx_result r WHERE r.address_hash=c.retry_hash) LIMIT 1`,
     `SELECT 1 FROM geocode_tx_input i LEFT JOIN geocode_tx_result r USING(address_hash)
       WHERE r.address_hash IS NULL OR NOT EXISTS
-      (SELECT 1 FROM geocode_attempt a WHERE a.address_hash=i.address_hash
+      (SELECT 1 FROM (SELECT address_hash,source_table,source_row,geocoded_at FROM geocode_attempt
+        UNION ALL SELECT address_hash,source_table,source_row,geocoded_at FROM ${matchedEvidence} WHERE match_status='Match') a WHERE a.address_hash=i.address_hash
         AND a.source_table=i.source_table AND a.source_row=i.source_row AND a.geocoded_at>=r.geocoded_at)
       OR (r.method IS NOT NULL AND NOT EXISTS
       (SELECT 1 FROM address_point p WHERE p.address_hash=i.address_hash

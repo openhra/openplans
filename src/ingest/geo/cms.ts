@@ -20,6 +20,11 @@ import { dataDirectory } from "./sources.js";
 import { cmsApiKey, cmsApiKeyConfigured } from "../../config/access.js";
 import { saveFallbackSnapshot } from "./fallback-snapshot.js";
 import { STATE_FIPS } from "./states.js";
+import { CMS_API_SOURCE } from "@openplans/source-cms-marketplace-api";
+import {
+  declinedInScope,
+  recordUpstream,
+} from "../../plugins/upstream-scope.js";
 
 const base = "https://marketplace.api.healthcare.gov/api/v1/counties/by/zip/";
 const terms = "https://developer.cms.gov/marketplace-api/";
@@ -200,6 +205,8 @@ export async function cmsCountySnapshot(
 ): Promise<string | null> {
   const key = cmsApiKey();
   if (!key || cmsFallbackUnavailable()) return null;
+  // A caller that declined pass-through asks nothing upstream and reads no stored CMS answer.
+  if (declinedInScope()) return null;
   const year = options.year ?? new Date().getUTCFullYear();
   if (
     !/^\d{5}$/.test(zip) ||
@@ -216,8 +223,12 @@ export async function cmsCountySnapshot(
     )
   ).rows[0];
   if (cmsFallbackUnavailable()) return null;
-  if (cached?.fresh)
-    return cached.outcome === "available" ? cached.snapshot_id : null;
+  if (cached?.fresh) {
+    if (cached.outcome !== "available") return null;
+    // The county list comes from the CMS API, live or stored: disclosed like every pass-through source.
+    recordUpstream([CMS_API_SOURCE]);
+    return cached.snapshot_id;
+  }
   if (options.allowCmsLive === false) return null;
   // Read-only request scopes cannot reserve budget or record the attempt. Serve cached rows only.
   const mode = (
@@ -239,6 +250,8 @@ export async function cmsCountySnapshot(
     WHERE singleton AND next_request_at<=now() AND blocked_until<=now()
       AND (day_start<(now() AT TIME ZONE 'UTC')::date OR daily_requests<max_daily_requests) RETURNING singleton`);
   if (!reserved.rows.length) return null;
+  // Disclosed before the fetch: a call that fails or is refused upstream was still made.
+  recordUpstream([CMS_API_SOURCE]);
   const safeUrl = `${base}${zip}?year=${year}`;
   const url = new URL(safeUrl);
   url.searchParams.set("apikey", key);

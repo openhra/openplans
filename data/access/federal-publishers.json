@@ -466,6 +466,70 @@
       }
     },
     {
+      "host": "rxnav.nlm.nih.gov",
+      "state": "allowed",
+      "accessMode": "public",
+      "evidence": [
+        {
+          "url": "https://rxnav.nlm.nih.gov/robots.txt",
+          "observedAt": "2026-11-21T00:09:56.000Z",
+          "status": 404,
+          "country": "CO"
+        },
+        {
+          "url": "https://www.lhncbc.nlm.nih.gov/robots.txt",
+          "observedAt": "2026-11-21T00:10:16.000Z",
+          "status": 200,
+          "country": "CO"
+        },
+        {
+          "url": "https://www.lhncbc.nlm.nih.gov/RxNav/TermsofService.html",
+          "observedAt": "2026-11-21T00:10:24.000Z",
+          "status": 200,
+          "country": "CO"
+        }
+      ],
+      "scope": {
+        "products": [
+          "RxNorm API per-RxCUI identity lookups (properties and history status), drug name lookups and the API version"
+        ],
+        "states": ["US"],
+        "years": [2025, 2026, 2027]
+      },
+      "discoveryUrls": [
+        "https://www.lhncbc.nlm.nih.gov/RxNav/APIs/RxNormAPIs.html"
+      ],
+      "permittedPaths": [
+        "/REST/rxcui/",
+        "/REST/drugs.json",
+        "/REST/version.json"
+      ],
+      "delegates": [],
+      "attribution": "U.S. National Library of Medicine, RxNav (RxNorm API). This product uses publicly available data from the U.S. National Library of Medicine (NLM), National Institutes of Health, Department of Health and Human Services; NLM is not responsible for the product and does not endorse or recommend this or any other product.",
+      "updatePolicy": "Used by the RxNav drug identity source, which runs only when OPENPLANS_RXNAV_IDENTITY=on. One lookup per drug question whose RxCUI is not in an ACTIVE local RxNorm release: properties first, then history status for an RxCUI without current properties. No enumeration or pre-warming. Answers stay in memory for 24 hours (1 hour when not confirmed) and are never stored. Robots answers a direct 404 (no rules); the egress country is recorded without restricting use. The terms page on www.lhncbc.nlm.nih.gov is read and its hash checked before the first call and daily after that, and a changed page stops calls. Paced at 5 s, far under the published 20 requests per second.",
+      "delayMs": 5000,
+      "jobCaps": {
+        "maxRequests": 5000,
+        "maxTransferBytes": 33554432
+      },
+      "robots": {
+        "url": "https://rxnav.nlm.nih.gov/robots.txt",
+        "status": 404,
+        "sha256": null,
+        "checkedAt": "2026-11-21T00:09:56.000Z",
+        "country": "CO"
+      },
+      "terms": {
+        "url": "https://www.lhncbc.nlm.nih.gov/RxNav/TermsofService.html",
+        "disposition": "allowed",
+        "sha256": "714e9a17c3cc4305f1a2aa497867bc871329f253db40a39996088b27c105e90f",
+        "reviewedAt": "2026-11-21T00:15:00.000Z",
+        "expiresAt": "2027-05-20T00:15:00.000Z",
+        "reviewer": "OpenPlans maintainers",
+        "basis": "RxNav Terms of Service: \"The APIs (RxNorm, RxTerms, Prescribable RxNorm, and RxClass) may be used free-of-charge.\" \"NLM requires that users of the APIs ... send no more than 20 requests per second per IP address.\" \"NLM recommends caching results for a 12-24 hour period.\" \"RxNav and the RxNorm API provide non-proprietary content from RxNorm\". Applications that use NLM data include NLM's statement, which the evidence block carries."
+      }
+    },
+    {
       "host": "download.geonames.org",
       "state": "robots-disallowed",
       "evidence": [

@@ -14,6 +14,7 @@ import taxonomyPlugin, {
 } from "@openplans/source-nucc-taxonomy";
 import type { AcquiredRelease } from "@openplans/source-nucc-taxonomy";
 import { createCmsMarketplaceSource } from "@openplans/source-cms-marketplace-api";
+import { createRxnavIdentitySource } from "@openplans/source-rxnav-identity";
 import type { PassThroughSource, Question } from "@openplans/plugin-sdk";
 import { parse_hios } from "../domain/hios/index.js";
 import { createRxnormRepository } from "../ingest/rxnorm/repository.js";
@@ -28,7 +29,8 @@ import { dataDirectory } from "../config/access.js";
 /**
  * First-party source packages the core plugin loads itself (design 5.14). The NUCC taxonomy
  * feed is always loaded, so `worker ingest taxonomy` needs no plugin configuration. The CMS
- * Marketplace API pass-through source is loaded only while `OPENPLANS_CMS_FALLBACK=on`.
+ * Marketplace API pass-through source is loaded only while `OPENPLANS_CMS_FALLBACK=on`, and the
+ * RxNav drug identity source only while `OPENPLANS_RXNAV_IDENTITY=on`.
  */
 export { discoverRelease, importTaxonomy };
 export type { Release } from "@openplans/source-nucc-taxonomy";
@@ -134,15 +136,28 @@ export async function acquireRelease(
 
 type PassThrough = PassThroughSource<Question, unknown>;
 let cmsSource: PassThrough | undefined;
+let rxnavSource: PassThrough | undefined;
 
 /**
- * Pass-through sources the core registers without plugin configuration. The CMS Marketplace API
- * source is the implicit entry for `OPENPLANS_CMS_FALLBACK=on`; it is read on every call, so
- * turning the switch off removes the source at once. A drug `NotCovered` is served only for an
- * RxCUI that resolves to an unsuppressed concept in the active local RxNorm release.
+ * Pass-through sources the core registers without plugin configuration, each behind its own
+ * switch, read on every call so turning a switch off removes its source at once: the RxNav drug
+ * identity source for `OPENPLANS_RXNAV_IDENTITY=on`, and the CMS Marketplace API source for
+ * `OPENPLANS_CMS_FALLBACK=on`. A drug `NotCovered` is served only for an RxCUI that resolves to an
+ * unsuppressed concept in the active local RxNorm release, or that the identity source confirmed
+ * during the same request.
  */
 export function implicitPassThroughSources(): readonly PassThrough[] {
-  if (!loadConfig().cmsFallback.enabled) return [];
+  const config = loadConfig();
+  const sources: PassThrough[] = [];
+  if (config.rxnavIdentity)
+    sources.push(
+      (rxnavSource ??= createRxnavIdentitySource() as unknown as PassThrough),
+    );
+  if (config.cmsFallback.enabled) sources.push(cmsPassThroughSource());
+  return sources;
+}
+
+function cmsPassThroughSource(): PassThrough {
   cmsSource ??= createCmsMarketplaceSource({
     planBase: (id) => parse_hios(id).base,
     async knownRxcuis(db, rxcuis) {
@@ -155,14 +170,12 @@ export function implicitPassThroughSources(): readonly PassThrough[] {
     },
   }) as unknown as PassThrough;
   const source = cmsSource;
-  return [
-    {
-      ...source,
-      eligibility: {
-        ...source.eligibility,
-        accepts: (question) =>
-          !cmsFallbackUnavailable() && source.eligibility.accepts(question),
-      },
+  return {
+    ...source,
+    eligibility: {
+      ...source.eligibility,
+      accepts: (question) =>
+        !cmsFallbackUnavailable() && source.eligibility.accepts(question),
     },
-  ];
+  };
 }

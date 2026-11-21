@@ -142,16 +142,26 @@ issuer shard captured when the run is created. It includes null-NPI issuer recor
 ZIP+4 to ZIP5. Staging is paged, streaming and resumable. It scans one indexed issuer shard at a
 time, avoiding repeated sorts over nationwide addresses. The five-field normalized address hash
 is shared across sources; each distinct address is submitted once, then attributed to every
-source row in the normal `geocode_attempt` and `address_point` tables. The API uses those tables
-without a separate statewide route or database.
+source row in `address_point` and either `geocode_attempt` for unresolved observations or
+`geocode_match_archive` for matches. The archive is build-only. Serving generations omit it;
+the API reads points and unresolved attempts. A later build recreates the archive and reuses
+matched points without a new geocoder request.
+
+On a database that already holds matched attempts, migration 20261120123130 only changes the
+catalog. Then run `worker backfill geocode-archive` once. It moves the matches into the archive
+in transactions of 5,000 rows (`--batch-rows`), sleeping 50 ms between them (`--pause-ms`), and
+then validates the archive checks and vacuums `geocode_attempt`. None of its locks blocks an
+API read. If it stops, run it
+again; it resumes with the rows that are left. Until it finishes, the geocoders and
+`worker compact` refuse to start. The generation builder runs it in its `prepare-build-evidence`
+step.
 
 The run ID freezes the issuer shard selection. A newly activated issuer set requires a new run
 ID, which reuses completed entries in the statewide result ledger and publishes their evidence
 onto the new source rows. NPPES text is frozen as each staging page commits. Do not refresh NPPES
 while a staging pass is in progress. Once both staging flags are true, its input census is fixed.
-An advisory lock permits one statewide CLI writer per database. The bulk CLI applies only the
-hash-checked migrations 520–521, 600, 870–872 and 900, so concurrent lanes' independent migration journals need not yet be
-available in its checkout. Its staging tables deliberately avoid new foreign-key locks on live
+An advisory lock permits one statewide CLI writer per database. Run the current core migrations
+before starting the geocoder. Its staging tables deliberately avoid new foreign-key locks on live
 ingest tables; the ordinary published attempt/point tables continue enforcing snapshot provenance.
 
 The writer connection stays open while Census is processing a batch, so its lock cannot expire

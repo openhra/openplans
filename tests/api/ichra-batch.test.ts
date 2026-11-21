@@ -1,3 +1,4 @@
+import { admitSyntheticNextYear } from "../services/data-window-fixture.js";
 import {
   servingPolicy,
   withDataPolicy,
@@ -10,6 +11,7 @@ import {
   expect,
   it,
   vi,
+  beforeEach,
 } from "vitest";
 import { Hono } from "hono";
 import { createResponseCache } from "../../src/api/cache/index.js";
@@ -53,8 +55,17 @@ interface TestBatch {
 }
 const path = "/v1/ichra/affordability/batch";
 let h: Awaited<ReturnType<typeof setup>>;
+// Annual source fixtures use a fixed UTC calendar, independently of the machine date.
+function fixtureClock() {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-11-19T00:00:00Z"));
+}
+beforeAll(fixtureClock);
+beforeEach(fixtureClock);
+afterEach(() => vi.useRealTimers());
 beforeAll(async () => {
   h = await setup();
+  await admitSyntheticNextYear(h.db);
 });
 afterAll(async () => {
   await h?.close();
@@ -71,7 +82,7 @@ const appFor = (db = h.db, options = {}) =>
       tpa: { enabled: true, privateIngress: true },
       ...options,
     },
-    { config: loadConfig({}, { version: 1, data: { historyYears: "all" } }) },
+    { config: loadConfig({}, { version: 1, data: { historyYears: 3 } }) },
   );
 async function send(
   app: ReturnType<typeof createApp>,

@@ -1,0 +1,15 @@
+{
+  "label": "synthetic",
+  "note": "Synthetic RxNav responses for an RxCUI that is not an RxNorm concept, written by hand for tests. Not recorded from NLM. Two shapes are handled the same way: a 200 with an empty JSON object, and a 404 with no body.",
+  "rxcui": "999999903",
+  "cases": {
+    "empty-200": {
+      "properties.json": { "status": 200, "body": "{}" },
+      "historystatus.json": { "status": 200, "body": "{}" }
+    },
+    "not-found-404": {
+      "properties.json": { "status": 404, "body": "" },
+      "historystatus.json": { "status": 404, "body": "" }
+    }
+  }
+}

@@ -7,6 +7,7 @@ import { boundedDatabase, DEADLINE_MS } from "../db/bounded.js";
 import { estimatePremiums } from "../services/catalog.js";
 import { quotePlans } from "../services/quotes.js";
 import { quoteFallbackContext } from "../services/quote-coverage.js";
+import { declineFromBody } from "../services/upstream-disclosure.js";
 import { requestSource, sourceAdmission } from "./rate-limit.js";
 import { publicAccess, trustedProxies } from "../config/access.js";
 import type { PeerAddress, SourceLimits } from "./rate-limit.js";
@@ -131,6 +132,7 @@ export function quoteRoutes(
     c.header("Cache-Control", "no-store");
     c.header("X-Quote-Tier", "public");
     const body = await jsonBody(c);
+    declineFromBody(body);
     const deadline = AbortSignal.any([
       c.req.raw.signal,
       AbortSignal.timeout(DEADLINE_MS),

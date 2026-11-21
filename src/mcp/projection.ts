@@ -298,6 +298,20 @@ export async function projector(db: SqlSession, native: unknown) {
       },
     };
   }
+  /** Names the identity source that confirmed a drug answer's RxCUI, with its attribution. */
+  function rxnormIdentity(r: Record<string, unknown>) {
+    const i = r.rxnorm_identity as Record<string, unknown> | undefined;
+    if (!i || typeof i.source_id !== "string") return {};
+    return {
+      rxnorm_identity: {
+        source_id: i.source_id,
+        served_from: String(i.served_from),
+        retrieved_at: String(i.retrieved_at),
+        source: String(i.source),
+        terms_url: String(i.terms_url),
+      },
+    };
+  }
   /** An unknown coverage or participation answer keeps its native reason among its gaps. */
   function coverageEvidence(value: unknown) {
     const r = row(value);
@@ -327,17 +341,39 @@ export async function projector(db: SqlSession, native: unknown) {
       patient_price: null,
       source_completeness: completeness ?? "unknown",
       ...cmsApi(r),
-      evidence: rows(r.evidence).map((e) => ({
-        status: e.evidence_status,
-        tier: nullable(e.drug_tier),
-        tier_status: nullable(e.tier_status),
-        prior_authorization: nullable(e.prior_authorization),
-        step_therapy: nullable(e.step_therapy),
-        quantity_limit: nullable(e.quantity_limit),
-        ...evidence(e),
-      })),
+      ...rxnormIdentity(r),
+      evidence: [
+        ...rows(r.evidence).map((e) => ({
+          status: e.evidence_status,
+          tier: nullable(e.drug_tier),
+          tier_status: nullable(e.tier_status),
+          prior_authorization: nullable(e.prior_authorization),
+          step_therapy: nullable(e.step_therapy),
+          quantity_limit: nullable(e.quantity_limit),
+          ...evidence(e),
+        })),
+        ...documentEvidence(r),
+      ],
       ...coverageEvidence(value),
     };
+  }
+  /**
+   * The issuer-published document rows behind a `listed_covered` answer the machine-readable files
+   * left unknown: one evidence row per document row, citing the document's snapshot. The tier is
+   * the document's printed tier, never resolved against the plan's tiers.
+   */
+  function documentEvidence(r: Row) {
+    const document = row(r.formulary_document);
+    if (r.status !== "listed_covered" || !document.source_id) return [];
+    return rows(document.evidence).map((e) => ({
+      status: "listed_covered",
+      tier: nullable(r.drug_tier),
+      tier_status: "unresolved",
+      prior_authorization: nullable(r.prior_authorization),
+      step_therapy: nullable(r.step_therapy),
+      quantity_limit: nullable(r.quantity_limit),
+      ...evidence({ snapshot_id: e.snapshot_id }),
+    }));
   }
   function participation(value: unknown, completeness: unknown) {
     const r = row(value);

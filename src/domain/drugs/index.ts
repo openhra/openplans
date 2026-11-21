@@ -1,3 +1,7 @@
+import type {
+  DocumentDrugEvidence,
+  PassThroughEvidence,
+} from "@openplans/plugin-sdk";
 import type { CmsApiEvidence } from "../../ingest/cms-api/fallback.js";
 export type DrugStatus =
   | "listed_covered"
@@ -22,6 +26,19 @@ export interface DrugEvidence extends Record<string, unknown> {
   source_url: string | null;
   source_updated_at: string | null;
 }
+/**
+ * An answer served from an issuer-published document (a carrier formulary PDF) because the
+ * machine-readable files left it unknown: the document's printed tier, never mapped onto the plan's
+ * tiers, and the rows that say so, each with its document snapshot, page and line and how its
+ * printed name was identified.
+ */
+export interface FormularyDocumentCoverage {
+  source_id: string;
+  tier: number;
+  tier_label: string | null;
+  quantity_limit_text: string | null;
+  evidence: DocumentDrugEvidence[];
+}
 export interface DrugCoverage {
   status: DrugStatus;
   reason: string | null;
@@ -42,6 +59,13 @@ export interface DrugCoverage {
   /** Present only when the answer came from the CMS Marketplace API fallback. */
   covered?: boolean;
   cms_api?: CmsApiEvidence;
+  /**
+   * Present only when a request-time identity source (RxNav) confirmed the RxCUI because no local
+   * RxNorm release is ACTIVE: that source's evidence block, with its attribution in `source`.
+   */
+  rxnorm_identity?: PassThroughEvidence;
+  /** Present only when an issuer-published document answered (`listed_covered`). */
+  formulary_document?: FormularyDocumentCoverage;
 }
 /** Compare published facts, retaining every source rather than choosing a shard by order. */
 export function classifyDrugEvidence(

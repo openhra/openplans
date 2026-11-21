@@ -197,6 +197,14 @@ describe("compatibility location paging preserves the complete native mapping", 
               )
             ).rows,
           ).toEqual([]);
+          // Negative control: the operator overlay requires its unresolved source evidence.
+          await tx.query(
+            "DELETE FROM geocode_attempt WHERE source_row='1000040063:practice:0'",
+          );
+          expect(
+            (await searchProviderLocations(tx, q, { offset: 0, size: 100 }))
+              .total,
+          ).toBe(63);
           process.env.OPENPLANS_API_CACHE = "on";
           expect(
             (await searchProviderLocations(tx, q, { offset: 0, size: 100 }))

@@ -912,7 +912,7 @@ describe("quote fallback request contracts", () => {
           ? await coreMutant("if (remaining(scope, source) <= 0)", "if (false)")
           : // Treat settled pairs as eligible, so batches cross officially answered cells.
             await coreMutant(
-              "if (eligible(source, answer, question)) pairs.push(pair);",
+              "if (eligible(source, kind, answer, question)) pairs.push(pair);",
               "if (true) pairs.push(pair);",
             );
       try {

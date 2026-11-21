@@ -98,7 +98,7 @@ async function checks(db: Database) {
   expect(JSON.parse(commandOutput[0]!)).toMatchObject({ dryRun: true });
   const before = await served(db);
   let evidence = await db.query(
-    "SELECT * FROM geocode_attempt ORDER BY address_hash",
+    "SELECT * FROM geocode_match_archive ORDER BY address_hash",
   );
   const points = await db.query(
     "SELECT * FROM address_point ORDER BY address_hash",
@@ -127,8 +127,8 @@ async function checks(db: Database) {
       "UPDATE snapshot SET validation_state='DISCOVERED'",
     ],
     [
-      "UPDATE geocode_attempt SET geocoded_at='2020-01-01'",
-      "UPDATE geocode_attempt SET geocoded_at=now()",
+      "UPDATE geocode_match_archive SET geocoded_at='2020-01-01'",
+      "UPDATE geocode_match_archive SET geocoded_at=now()",
     ],
   ] as const) {
     await db.exec(plant);
@@ -142,11 +142,11 @@ async function checks(db: Database) {
     await db.exec(repair);
   }
   // Restore timestamps to prove the successful compact preserves evidence exactly.
-  await db.query("UPDATE geocode_attempt SET geocoded_at=$1", [
+  await db.query("UPDATE geocode_match_archive SET geocoded_at=$1", [
     evidence.rows[0]!.geocoded_at,
   ]);
   evidence = await db.query(
-    "SELECT * FROM geocode_attempt ORDER BY address_hash",
+    "SELECT * FROM geocode_match_archive ORDER BY address_hash",
   );
   const generation = await db.query(
     "SELECT * FROM api_data_generation WHERE NOT (table_name=ANY($1::text[])) ORDER BY table_name",
@@ -162,8 +162,11 @@ async function checks(db: Database) {
       .digest("hex"),
   ).toBe(createHash("sha256").update(before.join("")).digest("hex"));
   expect(
-    (await db.query("SELECT * FROM geocode_attempt ORDER BY address_hash"))
-      .rows,
+    (
+      await db.query(
+        "SELECT * FROM geocode_match_archive ORDER BY address_hash",
+      )
+    ).rows,
   ).toEqual(evidence.rows);
   expect(
     (await db.query("SELECT * FROM address_point ORDER BY address_hash")).rows,

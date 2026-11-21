@@ -36,6 +36,8 @@ async function migrations(
   const path = join(core.directory, MIGRATION);
   if (omit) {
     await rm(path);
+    await rm(join(core.directory, "20261120123130_geocode_match_archive.sql"));
+    await rm(join(core.directory, "20261121120000_usage_report_state.sql"));
     await rm(join(core.directory, "992_record_policy.sql"));
     await rm(join(core.directory, "994_cms_api_attempt_provenance.sql"));
     await rm(join(core.directory, "1000_plugin_events.sql"));
@@ -330,6 +332,8 @@ describe("row provenance values", () => {
       "20261117210614_lowest_county_evidence.sql",
       "20261118000213_lowest_active_build_index.sql",
       "20261119194358_annual_data_admission.sql",
+      "20261120123130_geocode_match_archive.sql",
+      "20261121120000_usage_report_state.sql",
     ]);
     expect(await receiptViolations(db)).toEqual([]);
     const { rows } = await db.query(

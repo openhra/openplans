@@ -374,10 +374,10 @@ describe("pass-through `none` level (design 5.10.5)", () => {
     [
       "fetchTransient replaced by fetchToCache",
       "sources/passthrough.ts",
-      "await fetchTransient(url, {",
+      "await fetchTransient(target, {",
       // The same result shape, read back from the cache file fetchToCache wrote.
       `await (async (o: Parameters<typeof fetchToCache>[1]) => {
-        const r = await fetchToCache(url.href, { ...o, source: source.id });
+        const r = await fetchToCache(target.href, { ...o, source: source.id });
         if (r.outcome === "not_modified") throw new Error("no body");
         return { status: r.metadata.status, body: await readFile(r.path), sha256: r.metadata.sha256 };
       })({`,

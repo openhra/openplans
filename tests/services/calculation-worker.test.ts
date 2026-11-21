@@ -1,6 +1,14 @@
 import { withDataPolicy } from "../../src/services/data-window.js";
 import { ReadError } from "../../src/services/errors.js";
-import { afterAll, beforeAll, expect, it } from "vitest";
+import {
+  afterAll,
+  beforeAll,
+  expect,
+  it,
+  beforeEach,
+  afterEach,
+  vi,
+} from "vitest";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { offerCohortInputSchema } from "@openplans/plugin-sdk";
 import type { SqlSession } from "../../src/db/database.js";
@@ -19,6 +27,14 @@ const input = offerCohortInputSchema.parse({
   age: 40,
   metal: "silver",
 });
+// Annual source fixtures use a fixed UTC calendar, independently of the machine date.
+function fixtureClock() {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-11-19T00:00:00Z"));
+}
+beforeAll(fixtureClock);
+beforeEach(fixtureClock);
+afterEach(() => vi.useRealTimers());
 beforeAll(async () => {
   h = await setup();
   await worker.start();
@@ -211,10 +227,10 @@ it("carries the annual mode, frozen clock and not-loaded dependency through the 
       clock,
     ),
   ).rejects.toBeInstanceOf(ReadError);
-  const full = await withDataPolicy(
-    { historyYears: "all" },
+  const currentOnly = await withDataPolicy(
+    { historyYears: 1 },
     () => worker.call("enumerateHouseholdOffers", old, scope),
-    clock,
+    new Date("2025-11-19T00:00:00Z"),
   );
-  expect(full).toMatchObject({ year: 2025, status: "unknown" });
+  expect(currentOnly).toMatchObject({ year: 2025, status: "unknown" });
 });

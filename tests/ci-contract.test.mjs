@@ -191,16 +191,26 @@ function commandContract(value) {
   }
   for (const id of ["linux", "macos-shard"]) {
     const steps = value.jobs[id].steps;
-    expect(steps).toHaveLength(6);
+    // Poppler's pdftotext runs the carrier-document PDF tests. The job declares it required, so
+    // those tests fail instead of skipping when the install step goes missing.
+    expect(value.jobs[id].env).toEqual({ OPENPLANS_REQUIRE_POPPLER: "1" });
+    expect(steps).toHaveLength(7);
+    expect(steps[2].name).toBe("Install Poppler");
+    expect(steps[2].run).toBe(
+      id === "linux"
+        ? "sudo apt-get update\nsudo apt-get install --yes --no-install-recommends poppler-utils\npdftotext -v"
+        : "brew install poppler\npdftotext -v",
+    );
     expect(steps[1].uses).toMatch(/^actions\/setup-node@[a-f0-9]{40}$/);
     expect(steps[1].with).toEqual({ "node-version-file": ".node-version" });
     expect(steps.filter((step) => step.run).map((step) => step.run)).toEqual([
+      steps[2].run,
       installNpm,
       verifyVersions,
       "npm ci --no-audit --no-fund",
       "scripts/ci.sh",
     ]);
-    expect(steps[5].env).toEqual(
+    expect(steps[6].env).toEqual(
       id === "linux"
         ? { npm_config_offline: "true" }
         : {
@@ -211,15 +221,20 @@ function commandContract(value) {
     for (const step of steps) expect(step.if).toBeUndefined();
   }
   const docker = value.jobs.docker.steps;
-  expect(docker).toHaveLength(4);
+  expect(docker).toHaveLength(5);
   expect(docker[1].run).toBe(
     "docker build --pull --tag openplans-ci:${{ github.sha }} .",
   );
   expect(docker[2].run).toBe(
     "docker run --rm --network none openplans-ci:${{ github.sha }} node --check dist/api/server.js",
   );
-  for (const step of docker.slice(0, 3)) expect(step.if).toBeUndefined();
-  expect(docker[3].if).toBe("${{ always() }}");
+  // The report is off by default: with no network the image prints its state and exits 0.
+  expect(docker[3].run).toContain(
+    "--network none -e OPENPLANS_PUBLIC_QUOTING=off -e OPENPLANS_PUBLIC_HOUSEHOLD=off -e OPENPLANS_PUBLIC_COMPAT=off openplans-ci:${{ github.sha }} worker usage-report show",
+  );
+  expect(docker[3].run).toContain("grep -qx 'state: off'");
+  for (const step of docker.slice(0, 4)) expect(step.if).toBeUndefined();
+  expect(docker[4].if).toBe("${{ always() }}");
   // The PostGIS job builds Dockerfile.db and runs the suites that need PostGIS in a disposable
   // container from it; scripts/postgis-tests.sh fails when any of their tests is skipped.
   const postgis = value.jobs.postgis;
@@ -566,19 +581,19 @@ it.each([
   [
     "skipped project command",
     (copy) => {
-      copy.jobs["macos-shard"].steps[5].if = "${{ false }}";
+      copy.jobs["macos-shard"].steps[6].if = "${{ false }}";
     },
   ],
   [
     "macOS shards that skip the project checks",
     (copy) => {
-      delete copy.jobs["macos-shard"].steps[5].env.OPENPLANS_CI_SHARD;
+      delete copy.jobs["macos-shard"].steps[6].env.OPENPLANS_CI_SHARD;
     },
   ],
   [
     "a fixed shard count that can drift from the matrix",
     (copy) => {
-      copy.jobs["macos-shard"].steps[5].env.OPENPLANS_CI_SHARD =
+      copy.jobs["macos-shard"].steps[6].env.OPENPLANS_CI_SHARD =
         "${{ matrix.shard }}/3";
     },
   ],
@@ -637,9 +652,21 @@ it.each([
     },
   ],
   [
+    "a Linux job without the Poppler install",
+    (copy) => {
+      copy.jobs.linux.steps.splice(2, 1);
+    },
+  ],
+  [
+    "a macOS shard that does not require Poppler",
+    (copy) => {
+      delete copy.jobs["macos-shard"].env;
+    },
+  ],
+  [
     "unlocked install",
     (copy) => {
-      copy.jobs.linux.steps[4].run = "npm install";
+      copy.jobs.linux.steps[5].run = "npm install";
     },
   ],
   [
@@ -657,7 +684,7 @@ it.each([
   [
     "parent working directory",
     (copy) => {
-      copy.jobs.linux.steps[5]["working-directory"] = "source-package";
+      copy.jobs.linux.steps[6]["working-directory"] = "source-package";
     },
   ],
   [

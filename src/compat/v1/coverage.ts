@@ -5,6 +5,7 @@ import {
   readQuoteCoverage,
 } from "../../services/quote-coverage.js";
 import * as v from "../../api/validation.js";
+import { identityAttribution, optionalRxcui } from "./drug-identity.js";
 
 function entries(value: unknown, field: string): Record<string, unknown>[] {
   if (value === undefined) return [];
@@ -16,7 +17,10 @@ function entries(value: unknown, field: string): Record<string, unknown>[] {
   });
 }
 
-/** Uses explicit RxCUIs only. Package IDs are echoed, never translated into drug identities. */
+/**
+ * Uses explicit RxCUIs only (`rxcui` or `rx_cui_id`), each through the drug identity stage in
+ * `readQuoteCoverage`. Package IDs are echoed, never translated into drug identities.
+ */
 export async function compatQuoteCoverage(
   db: SqlSession,
   plans: Record<string, unknown>[],
@@ -37,12 +41,7 @@ export async function compatQuoteCoverage(
       !/^[A-Za-z0-9_-]{1,64}$/.test(String(id))
     )
       return v.fail("drug_packages.id");
-    if (
-      p.rx_cui_id !== undefined &&
-      (typeof p.rx_cui_id !== "string" || !/^\d+$/.test(p.rx_cui_id))
-    )
-      return v.fail("drug_packages.rx_cui_id");
-    return { id, rxcui: p.rx_cui_id as string | undefined };
+    return { id, rxcui: optionalRxcui(p, "drug_packages.") };
   });
   if (
     plans.length * (npis.length + packages.length) >
@@ -55,7 +54,7 @@ export async function compatQuoteCoverage(
   const local = [];
   for (const plan of plans)
     local.push(
-      await readQuoteCoverage(db, String(plan.id), npis, rxcuis, year),
+      await readQuoteCoverage(db, String(plan.id), npis, rxcuis, year, cms),
     );
   const coverage = await applyQuoteFallback(local, cms);
   const coverages = [];
@@ -67,8 +66,10 @@ export async function compatQuoteCoverage(
       answer: (typeof cells.providers)[number] | (typeof cells.drugs)[number],
     ) => {
       const source = answer.cms_api;
+      const document =
+        "formulary_document" in answer ? answer.formulary_document : undefined;
       reasons.add(
-        `coverage:${String(plan.id)}:${kind}:${id}:${answer.status}${answer.reason ? `:${answer.reason}` : ""}${source ? `:sourced_by=${source.sourced_by}:freshness=${source.freshness}` : ""}`,
+        `coverage:${String(plan.id)}:${kind}:${id}:${answer.status}${answer.reason ? `:${answer.reason}` : ""}${source ? `:sourced_by=${source.sourced_by}:freshness=${source.freshness}` : ""}${document ? `:sourced_by=${document.source_id}` : ""}`,
       );
     };
     plan.providers = cells.providers.map((answer) => {
@@ -99,6 +100,9 @@ export async function compatQuoteCoverage(
         prior_authorization: answer?.prior_authorization ?? null,
         step_therapy: answer?.step_therapy ?? null,
         quantity_limit: answer?.quantity_limit ?? null,
+        ...(identityAttribution(answer?.rxnorm_identity)
+          ? { rxnorm_identity: identityAttribution(answer?.rxnorm_identity) }
+          : {}),
       });
     }
   }

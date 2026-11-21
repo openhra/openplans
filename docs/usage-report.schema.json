@@ -1,0 +1,264 @@
+{
+  "title": "openplans.usage-report.v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "schema": {
+      "type": "string",
+      "const": "openplans.usage-report.v1"
+    },
+    "install_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "sent_day": {
+      "type": "string",
+      "format": "date",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d{1,4}\\.\\d{1,4}\\.\\d{1,4}$"
+    },
+    "previous_version": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^\\d{1,4}\\.\\d{1,4}\\.\\d{1,4}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "arch": {
+      "type": "string",
+      "enum": [
+        "arm",
+        "arm64",
+        "ia32",
+        "loong64",
+        "mips",
+        "mipsel",
+        "ppc64",
+        "riscv64",
+        "s390x",
+        "x64",
+        "other"
+      ]
+    },
+    "node_major": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 999
+    },
+    "uptime_bucket": {
+      "type": "string",
+      "enum": ["<1h", "1h-1d", "1d-7d", "7d-30d", "30d+"]
+    },
+    "data": {
+      "type": "object",
+      "properties": {
+        "years": {
+          "anyOf": [
+            {
+              "maxItems": 10,
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "minimum": 2014,
+                "maximum": 2100
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "states_bucket": {
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": ["0", "1", "2-5", "6-20", "21+"]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "coverage": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "catalog": {
+                  "type": "boolean"
+                },
+                "premiums": {
+                  "type": "boolean"
+                },
+                "providers": {
+                  "type": "boolean"
+                },
+                "formulary": {
+                  "type": "boolean"
+                }
+              },
+              "required": ["catalog", "premiums", "providers", "formulary"],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": ["years", "states_bucket", "coverage"],
+      "additionalProperties": false
+    },
+    "features": {
+      "type": "object",
+      "properties": {
+        "mcp": {
+          "type": "boolean"
+        },
+        "public_quoting": {
+          "type": "boolean"
+        },
+        "public_household": {
+          "type": "boolean"
+        },
+        "compat": {
+          "type": "boolean"
+        },
+        "cache_backend": {
+          "type": "string",
+          "enum": ["off", "memory", "valkey", "other"]
+        },
+        "scheduler_seen": {
+          "type": "boolean"
+        },
+        "metrics": {
+          "type": "boolean"
+        },
+        "cms_fallback": {
+          "type": "boolean"
+        },
+        "medicare_part_d": {
+          "type": "boolean"
+        },
+        "first_party_plugins": {
+          "maxItems": 12,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "@openplans/blob-s3",
+              "@openplans/plugin-admin",
+              "@openplans/plugin-compare",
+              "@openplans/plugin-handy",
+              "@openplans/plugin-msot",
+              "@openplans/plugin-status",
+              "@openplans/plugin-tpa",
+              "@openplans/plugin-webhook",
+              "@openplans/source-carrier-documents",
+              "@openplans/source-cms-marketplace-api",
+              "@openplans/source-nucc-taxonomy",
+              "@openplans/source-rxnav-identity"
+            ]
+          }
+        },
+        "other_plugins_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 999
+        }
+      },
+      "required": [
+        "mcp",
+        "public_quoting",
+        "public_household",
+        "compat",
+        "cache_backend",
+        "scheduler_seen",
+        "metrics",
+        "cms_fallback",
+        "medicare_part_d",
+        "first_party_plugins",
+        "other_plugins_count"
+      ],
+      "additionalProperties": false
+    },
+    "last_migration": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "from": {
+              "type": "string",
+              "pattern": "^\\d{1,4}\\.\\d{1,4}\\.\\d{1,4}$"
+            },
+            "to": {
+              "type": "string",
+              "pattern": "^\\d{1,4}\\.\\d{1,4}\\.\\d{1,4}$"
+            },
+            "outcome": {
+              "type": "string",
+              "enum": ["ok", "failed", "unknown"]
+            }
+          },
+          "required": ["from", "to", "outcome"],
+          "additionalProperties": false
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "requests_bucket": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "rest": {
+              "type": "string",
+              "enum": ["0", "1-100", "101-1k", "1k-10k", "10k+"]
+            },
+            "mcp": {
+              "type": "string",
+              "enum": ["0", "1-100", "101-1k", "1k-10k", "10k+"]
+            }
+          },
+          "required": ["rest", "mcp"],
+          "additionalProperties": false
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "schema",
+    "install_id",
+    "sent_day",
+    "version",
+    "previous_version",
+    "arch",
+    "node_major",
+    "uptime_bucket",
+    "data",
+    "features",
+    "last_migration",
+    "requests_bucket"
+  ],
+  "additionalProperties": false
+}

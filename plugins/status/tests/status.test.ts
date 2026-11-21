@@ -142,6 +142,7 @@ const PUBLIC_FIELDS = [
   "worker.last_ingest.*.last_success",
   "cache",
   "cache.enabled",
+  "usage_report",
   "passthrough",
   "passthrough.*.id",
   "passthrough.*.enabled",
@@ -809,6 +810,7 @@ function sample(overrides: Partial<StatusData> = {}): StatusData {
     version: "0.0.0",
     db: "ok",
     poolWaiting: null,
+    usageReport: false,
     availability: [],
     sources: [
       {
@@ -1225,6 +1227,12 @@ describe("host data from core", () => {
     } finally {
       await loaded.close();
     }
+  });
+
+  it("shows the usage report as on or off only", () => {
+    expect(publicView(sample()).usage_report).toBe("off");
+    expect(publicView(sample({ usageReport: true })).usage_report).toBe("on");
+    expect(operatorView(sample({ usageReport: true })).usage_report).toBe("on");
   });
 
   it("planted mutant: pool waits copied into the public serialiser fail the public-fields test", async () => {

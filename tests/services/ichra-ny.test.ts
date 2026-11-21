@@ -12,7 +12,15 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { PGlite } from "@electric-sql/pglite";
-import { afterAll, beforeAll, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  beforeAll,
+  expect,
+  it,
+  vi,
+  beforeEach,
+  afterEach,
+} from "vitest";
 import { migrate } from "../../src/db/migrate.js";
 import type { SqlSession } from "../../src/db/database.js";
 import { ingestStateRates } from "../../src/ingest/state/index.js";
@@ -99,8 +107,12 @@ const request: IchraRequest = {
   lcspPremiumBasis: null,
 };
 const run = async (tx: SqlSession = db, extra: Partial<IchraRequest> = {}) =>
-  (await withDataPolicy({ historyYears: "all" }, () =>
-    ichraAffordability(tx, { ...request, ...extra }),
+  (await withDataPolicy(
+    { historyYears: 3 },
+    () => ichraAffordability(tx, { ...request, ...extra }),
+    new Date(
+      `${(extra.planStart ?? request.planStart).slice(0, 4)}-11-19T00:00:00Z`,
+    ),
   )) as NyResult;
 async function rollback(test: (tx: SqlSession) => Promise<void>) {
   const marker = new Error("synthetic NY rollback");
@@ -111,6 +123,14 @@ async function rollback(test: (tx: SqlSession) => Promise<void>) {
     }),
   ).rejects.toBe(marker);
 }
+// Annual source fixtures use a fixed UTC calendar, independently of the machine date.
+function fixtureClock() {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-11-19T00:00:00Z"));
+}
+beforeAll(fixtureClock);
+beforeEach(fixtureClock);
+afterEach(() => vi.useRealTimers());
 beforeAll(async () => {
   directory = await mkdtemp(join(tmpdir(), "openplans-ny-lcsp-"));
   core = await coreMigrations();

@@ -268,7 +268,7 @@ export async function statewideReport(
           OR p.match_quality IS NOT NULL OR p.centroid_snapshot_id IS NULL))
         OR (p.latitude=0 AND p.longitude=0)))))::int errors
     FROM geocode_tx_input i LEFT JOIN geocode_tx_result r USING(address_hash)
-    LEFT JOIN geocode_attempt g ON g.address_hash=i.address_hash AND g.source_table=i.source_table AND g.source_row=i.source_row
+    LEFT JOIN (SELECT * FROM geocode_attempt UNION ALL SELECT * FROM geocode_match_archive) g ON g.address_hash=i.address_hash AND g.source_table=i.source_table AND g.source_row=i.source_row
     LEFT JOIN address_point p ON p.address_hash=i.address_hash AND p.source_table=i.source_table AND p.source_row=i.source_row
       AND p.source_snapshot_id=i.source_snapshot_id
     LEFT JOIN geocode_tx_county c ON c.county_fips=r.county_fips WHERE i.run_id=$1`,

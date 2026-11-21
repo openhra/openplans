@@ -192,7 +192,9 @@ try {
     "Killed transaction leaked distinct results",
   );
   assert(
-    (await count("geocode_attempt")) === 0,
+    (await count("geocode_attempt")) +
+      (await count("geocode_match_archive")) ===
+      0,
     "Killed transaction leaked attempts",
   );
   assert(
@@ -220,7 +222,8 @@ try {
     requests[0] === pending[0].request_csv,
     "Resume changed the pending batch",
   );
-  const attempts = await count("geocode_attempt"),
+  const attempts =
+      (await count("geocode_attempt")) + (await count("geocode_match_archive")),
     distinct = await count("geocode_tx_result"),
     points = await count("address_point");
   assert(

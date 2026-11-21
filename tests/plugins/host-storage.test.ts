@@ -329,7 +329,9 @@ describe("entry points select storage providers from config (design 5.7)", () =>
 
   it("without a config file, the API output is unchanged and pg stays selected", async () => {
     const result = await run("api", {});
-    expect(result.stdout).toMatch(/^OpenPlans API listening on port \d+\n$/);
+    expect(result.stdout).toMatch(
+      /^OpenPlans API listening on port \d+\nusage report: off \(see docs\/usage-report\.md\)\n$/,
+    );
     expect(result.stderr).toBe(
       `${JSON.stringify({ plugin: "openplans", code: "plugin_approval_unconfigured" })}\n`,
     );

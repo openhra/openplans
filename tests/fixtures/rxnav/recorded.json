@@ -1,0 +1,47 @@
+{
+  "label": "recorded",
+  "note": "Public RxNorm API responses for the public example RxCUI 860975 and the generic names metformin and albendazole, saved byte for byte. They hold no key and no personal data; the only query value is the public drug name. Regenerate with record.mjs.",
+  "terms_url": "https://www.lhncbc.nlm.nih.gov/RxNav/TermsofService.html",
+  "files": [
+    {
+      "file": "version.json",
+      "label": "recorded",
+      "url": "https://rxnav.nlm.nih.gov/REST/version.json",
+      "status": 200,
+      "retrieved_at": "2026-11-21T00:10:02Z",
+      "sha256": "92c0ec3e3b5c4b447bfd949c89de218d0bdc2463d6592718bde678a24d838bd2"
+    },
+    {
+      "file": "properties-860975.json",
+      "label": "recorded",
+      "url": "https://rxnav.nlm.nih.gov/REST/rxcui/860975/properties.json",
+      "status": 200,
+      "retrieved_at": "2026-11-21T00:10:05Z",
+      "sha256": "e578222530989052aa54872c5a3b52a904233d48721b4bfa5a1a0b1c9aeeae12"
+    },
+    {
+      "file": "historystatus-860975.json",
+      "label": "recorded",
+      "url": "https://rxnav.nlm.nih.gov/REST/rxcui/860975/historystatus.json",
+      "status": 200,
+      "retrieved_at": "2026-11-21T00:10:08Z",
+      "sha256": "e9d7c5cc768093b22287660405bf44787b7362cebff46349073d21d5cdd3d84c"
+    },
+    {
+      "file": "drugs-metformin.json",
+      "label": "recorded",
+      "url": "https://rxnav.nlm.nih.gov/REST/drugs.json?name=metformin",
+      "status": 200,
+      "retrieved_at": "2026-11-21T05:40:02Z",
+      "sha256": "7995f10c293d2302adc4f0895c8a8000f175cf0a9890d30c9f49511c1cb603fe"
+    },
+    {
+      "file": "drugs-albendazole.json",
+      "label": "recorded",
+      "url": "https://rxnav.nlm.nih.gov/REST/drugs.json?name=albendazole",
+      "status": 200,
+      "retrieved_at": "2026-11-21T06:31:10Z",
+      "sha256": "8a4f98cbff4598d9205507c39af49dc89931f954de5e49f3d120884b6ac8faf6"
+    }
+  ]
+}

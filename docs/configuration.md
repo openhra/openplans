@@ -87,6 +87,10 @@ values belong to the process that launches those tools.
 `OPENPLANS_METRICS` maps to `telemetry.enabled`. It defaults to `false`; set it to
 `on` to enable telemetry when the admin plugin is loaded.
 
+`OPENPLANS_USAGE_REPORT` maps to `usageReport.enabled`. It defaults to `false`, and only the
+exact value `on` turns it on. `usageReport.url` is the address a report would go to; it must be
+`https://` with no user info and no query. See [usage-report.md](usage-report.md).
+
 ### Database and blob providers
 
 The API server, the worker and the MCP stdio server pick their database and blob
@@ -164,6 +168,7 @@ while the transport checks are incomplete. Leave this section unset.
 | `OPENPLANS_CMS_FALLBACK`                 | Off. `on` admits keyed CMS requests and enables coverage fallback with a key.                                                                                                            |
 | `OPENPLANS_CMS_FALLBACK_QUOTES`          | Off. `on` also allows coverage calls for public REST quotes and compatibility medical search; requires the main fallback switch and key.                                                 |
 | `CMS_API_KEY`                            | Unset. Enables eligible live ZIP-county lookups; coverage also needs its opt-in switches. No key is needed for bulk imports.                                                             |
+| `OPENPLANS_RXNAV_IDENTITY`               | Off. `on` checks an RxCUI against RxNav when no RxNorm release is ACTIVE; see the [RxNav source](../plugins/source-rxnav-identity/README.md).                                            |
 | `OPENPLANS_MEDICARE_PART_D`              | Off. `on` serves loaded Part D drug and pharmacy data after the operator reviews its agreement.                                                                                          |
 | `OPENPLANS_MEDICARE_DRUG_COST`           | Off. `on` turns on Part D drug-cost estimates. Also needs `OPENPLANS_MEDICARE_PART_D=on` and a Bearer token; see [Medicare](medicare.md).                                                |
 | `OPENPLANS_MEDICARE_DRUG_COST_PRICES`    | Off. `on` accepts the `cms_plan_average` price basis in drug-cost estimates. Counts only while the estimator is on, and needs loaded prices and fee ranges; see [Medicare](medicare.md). |
@@ -183,7 +188,7 @@ enables the feature by itself; `lowestPremiums` still defaults to false.
 OpenPlans reads the switches in this table when a request or import runs. Each one except
 `CMS_API_KEY` can also be set in the config file: `compat.catastrophicAgeRule`,
 `compat.benefitText` (`true` for compact), `cmsFallback.enabled`, `cmsFallback.quotes`,
-`medicarePartD`, `medicareDrugCost`, `medicareDrugCostPrices`, `lowestPremiums` and `gaQuoteRecovery`, all `true`
+`rxnavIdentity`, `medicarePartD`, `medicareDrugCost`, `medicareDrugCostPrices`, `lowestPremiums` and `gaQuoteRecovery`, all `true`
 or `false`. A variable that is set wins over the file, so `OPENPLANS_MEDICARE_PART_D=off` turns
 Part D serving off even when the file has `"medicarePartD": true`. With neither set, every
 switch stays off. `compose.yml` forwards none of the Medicare or Georgia variables. Add the Medicare switches to the API
@@ -475,8 +480,17 @@ for inputs, print links, limits and recovery. This documentation does not enable
 
 ## Annual serving window
 
-`data.historyYears` accepts `3` or `"all"` in the version 1 config file. The default is `3`.
+`data.historyYears` accepts the integers `1`, `2` and `3` in the version 1 config file. The default is `3`.
 API, worker and scheduler read the same file. There is no separate environment switch.
+
+| Setting | Before next-year admission | After next-year admission        |
+| ------- | -------------------------- | -------------------------------- |
+| `1`     | Current year               | Current year                     |
+| `2`     | Previous and current years | Current and next years           |
+| `3`     | Previous and current years | Previous, current and next years |
+
+No instance serves more than three plan years. Other values fail config loading with
+`data.historyYears must be an integer from 1 to 3`.
 
 The default keeps the previous and current UTC coverage years. An explicit, validated
 next-year admission adds that year to the domain, for at most three years. Individual-market
@@ -517,17 +531,16 @@ excluded. At UTC rollover into 2027 the window starts at 2026; admitting 2028 th
 An excluded-year request returns `not_loaded` with `required_year`, `domain`, `allowed_years`
 and `policy_generation`. It does not evaluate coverage or borrow rates from another year.
 ICHRA checks the offer year and its derived look-back year before reading rate evidence.
-The public instance uses the same default and rejects settings that widen its window.
-Self-hosters can explicitly choose `"all"` to serve older published data where sources exist.
-That option does not enable a dataset or extend a cache TTL.
+The public instance requires the default `3`.
 
 `GET /v1/data-policy`, MCP `get_data_status` and status JSON expose the resolved policy, its hash,
 admitted years and loaded-year inventory. Missing states and source families still appear in
 data availability. A year in the window does not prove that its sources are loaded.
 The policy is checked before cache lookup, and its hash is part of cache and cursor identity.
 
-Acquisition and import use the same resolver with a build purpose. They can prepare the
-previous, current and next UTC years. Preparing next year does not admit it for serving;
+Acquisition and import use the same resolver with a build purpose. Setting `1` prepares
+current year only, `2` prepares current and next, and `3` prepares previous, current and next.
+Preparing next year does not admit it for serving;
 the admission ledger still requires validated releases. Bootstrap filters its requested
 years before opening source payloads. Direct importers also check their scope, including
 prepared QHP feeds, state rates, rating rules, Medicare and Part D. No importer fetches an

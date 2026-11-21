@@ -33,3 +33,10 @@ and concurrent activity, so use the relation totals when measuring reclaimed tab
 
 The inventory records whether a table is bound to a plan year. Compact does not retire plan years
 or remove `geocode_attempt` evidence. Those are separate retention operations.
+
+Matched geocode attempts live in `geocode_match_archive`, a `build-only` table. Compact keeps
+that archive for importer reuse. The generation builder removes it and its provenance registry
+entry before either export, then checks that no build-only table remains. Serving generations
+keep `address_point` and unresolved `geocode_attempt` rows. A later build recreates the archive
+and reuses matched points without sending those addresses to the geocoder again. Compact refuses
+until `worker backfill geocode-archive` has moved existing matches out of `geocode_attempt`.

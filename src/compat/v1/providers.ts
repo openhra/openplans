@@ -1,4 +1,7 @@
-import { requireAnnualYear } from "../../services/data-window.js";
+import {
+  requireAnnualYear,
+  servingPolicy,
+} from "../../services/data-window.js";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import type { SqlSession } from "../../db/database.js";
@@ -15,7 +18,8 @@ import type {
 } from "../../api/provider-repository.js";
 import * as v from "../../api/validation.js";
 import { zipCentroid } from "../../domain/geo/index.js";
-import { registryLoaded } from "../../services/providers.js";
+import { npi, registryLoaded } from "../../services/providers.js";
+import { planListGaps, providerPlanList } from "./provider-plans.js";
 import { zipToCounties } from "../../ingest/geo/repository.js";
 import { STATE_FIPS } from "../../ingest/geo/states.js";
 
@@ -228,6 +232,14 @@ function providerLocation(
 }
 
 /** Dedupe the wire location, retaining every contributing record and edge separately. */
+/** The plan year a request without `year` uses: the data window's current plan year. */
+export async function defaultPlanYear(db: SqlSession): Promise<number> {
+  return (await servingPolicy(db)).calendar_year;
+}
+/** Gap label naming the year a defaulted request actually used. */
+export const defaultedYearGap = (year: number) =>
+  `plan_year_defaulted_to_${year}`;
+
 export function mapProviders(records: ProviderRecord[]) {
   const merged = new Map<string, ProviderLocation>();
   for (const record of records)
@@ -244,14 +256,17 @@ export function mapProviders(records: ProviderRecord[]) {
   return [...merged.values()];
 }
 
-export function providerDetailResponse(provider: Record<string, unknown>) {
+export function providerDetailResponse(
+  provider: Record<string, unknown>,
+  hiosIds: string[] = [],
+) {
   return {
     ...provider,
     // Record-level participation does not crosswalk external networks or
     // establish address-level membership. The native trace remains available.
     networks: [],
     network_ids: [],
-    hios_ids: [],
+    hios_ids: hiosIds,
   };
 }
 
@@ -326,8 +341,9 @@ export function providerCompatRoutes(db: SqlSession, native: Hono) {
       const name = params.get("name") ?? undefined;
       if (body.plan_id !== undefined) {
         params.set("plan_id", v.planId(body.plan_id).full);
-        params.set("year", String(v.year(String(body.year ?? 2026))));
-        if (body.year === undefined) reasons.add("plan_year_defaulted_to_2026");
+        const year = v.year(String(body.year ?? (await defaultPlanYear(db))));
+        params.set("year", String(year));
+        if (body.year === undefined) reasons.add(defaultedYearGap(year));
       } else if (body.year !== undefined) {
         const year = v.year(String(body.year));
         await requireAnnualYear(db, year);
@@ -553,19 +569,29 @@ export function providerCompatRoutes(db: SqlSession, native: Hono) {
         type: identity.entity_type === "1" ? "INDIVIDUAL" : "GROUP",
       });
     const locations = mapProviders(rows);
+    const year =
+      c.req.query("year") === undefined
+        ? await defaultPlanYear(db)
+        : v.year(c.req.query("year"));
+    const plans = await providerPlanList(db, npi(c.req.param("npi")), year);
     header(c, [
       ...PROVIDER_GAPS,
       ...taxonomyGaps(rows),
       "provider_detail_coordinates_unavailable",
       "provider_network_crosswalk_unavailable",
+      ...(c.req.query("year") === undefined ? [defaultedYearGap(year)] : []),
+      ...planListGaps(plans),
     ]);
     return c.json({
-      provider: providerDetailResponse({
-        ...locations[0],
-        locations,
-        plan_participations: result.plan_participations,
-        provider_coverage: result.provider_coverage,
-      }),
+      provider: providerDetailResponse(
+        {
+          ...locations[0],
+          locations,
+          plan_participations: result.plan_participations,
+          provider_coverage: result.provider_coverage,
+        },
+        plans.planIds,
+      ),
     });
   });
   app.get("/specialties", async (c) => {

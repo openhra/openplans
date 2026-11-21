@@ -1,4 +1,4 @@
-import type { DataPolicy } from "./data-policy.js";
+import type { DataPolicy, HistoryYears } from "./data-policy.js";
 import type {
   OperatorCommandClient,
   OperatorCommandRegistry,
@@ -44,7 +44,7 @@ export interface PluginDatabase {
 
 /** Non-secret settings visible to plugins. */
 export interface CoreConfigView {
-  data?: { historyYears: 3 | "all" };
+  data?: { historyYears: HistoryYears };
   db: { provider: string };
   listen: { port: number; host: string };
   cache: {
@@ -71,6 +71,8 @@ export interface CoreConfigView {
   };
   trustProxy: string[];
   cmsFallback: { enabled: boolean; quotes: boolean };
+  /** Whether the opt-in usage report is on. The address it would use is not shown. */
+  usageReport?: { enabled: boolean };
   plugins: {
     approvedList?: string;
     lockfile?: string;
