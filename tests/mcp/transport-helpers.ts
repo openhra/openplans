@@ -1,3 +1,4 @@
+import { approvedTestEnvironment } from "../plugins/approval-helpers.js";
 import { spawn } from "node:child_process";
 export const metadata = {
   "io.modelcontextprotocol/protocolVersion": "2026-07-28",
@@ -59,16 +60,16 @@ export async function runStdio(
   grant = false,
   signal?: NodeJS.Signals,
 ) {
+  const reviewed = await approvedTestEnvironment({
+    PATH: process.env.PATH,
+    DATABASE_URL: "postgresql://synthetic:synthetic@127.0.0.1:1/synthetic",
+    OPENPLANS_MCP_ALLOW_PERSONALIZED: grant ? "1" : "0",
+  });
   return new Promise<{ output: string; code: number | null }>(
     (resolve, reject) => {
       // Synthetic unreachable DB address: discovery and limits must not need a live DB.
       const child = spawn(process.execPath, [file], {
-        env: {
-          PATH: process.env.PATH,
-          DATABASE_URL:
-            "postgresql://synthetic:synthetic@127.0.0.1:1/synthetic",
-          OPENPLANS_MCP_ALLOW_PERSONALIZED: grant ? "1" : "0",
-        },
+        env: reviewed,
         stdio: ["pipe", "pipe", "pipe"],
       });
       let output = "";

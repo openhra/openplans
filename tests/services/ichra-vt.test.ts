@@ -1,3 +1,4 @@
+import { withDataPolicy } from "../../src/services/data-window.js";
 import {
   lowestPremiums,
   householdDistributions,
@@ -18,7 +19,7 @@ import type { SqlSession } from "../../src/db/database.js";
 import { ingestStateRates } from "../../src/ingest/state/index.js";
 import { IMPORT_KINDS } from "../../src/ingest/puf/import-source.js";
 import {
-  ichraAffordability,
+  ichraAffordability as guardedIchraAffordability,
   vtLcspAvailability,
 } from "../../src/services/ichra.js";
 import type { IchraRequest } from "../../src/services/ichra.js";
@@ -354,3 +355,11 @@ it("household minimum projects the filed family tier and keeps ages out of ratin
     family_tier: "family",
   });
 });
+
+function ichraAffordability(
+  ...args: Parameters<typeof guardedIchraAffordability>
+) {
+  return withDataPolicy({ historyYears: "all" }, () =>
+    guardedIchraAffordability(...args),
+  );
+}

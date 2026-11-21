@@ -1,4 +1,4 @@
-import type { SqlSession } from "../../db/database.js";
+import type { SqlSession } from "./database.js";
 
 /** Read on every lookup: publication commits and the generation become visible together. */
 export async function dataGeneration(db: SqlSession): Promise<string> {

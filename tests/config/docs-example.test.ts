@@ -7,7 +7,7 @@ import { loadConfig } from "../../src/config/index.js";
 // The config files in the operator docs must load through the real loader.
 const docs = resolve(dirname(fileURLToPath(import.meta.url)), "../../docs");
 
-/** Every `json` block that is a config file, not an access manifest or an approved list. */
+/** Every `json` block that is a config file, not an access manifest, registry trust file or approved list. */
 function configBlocks(name: string): unknown[] {
   const markdown = readFileSync(join(docs, name), "utf8");
   return [...markdown.matchAll(/^\s*```json\n([\s\S]*?)^\s*```$/gm)]
@@ -18,7 +18,8 @@ function configBlocks(name: string): unknown[] {
         block !== null &&
         !Array.isArray(block) &&
         "version" in block &&
-        !("publishers" in block),
+        !("publishers" in block) &&
+        !("registries" in block),
     );
 }
 
@@ -39,13 +40,13 @@ describe("config examples in the docs", () => {
   it("the full example enables the status and webhook plugins and tightens one source", () => {
     const [full] = configBlocks("plugins-operations.md");
     const config = loadConfig({}, full);
-    expect(config.plugins.map((plugin) => plugin.package)).toEqual([
+    expect(config.plugins.entries.map((plugin) => plugin.package)).toEqual([
       "@openplans/plugin-status",
       "@openplans/plugin-webhook",
     ]);
-    expect(config.plugins[0]?.sources["cms-marketplace-api"]?.cacheLevel).toBe(
-      "memory",
-    );
+    expect(
+      config.plugins.entries[0]?.sources["cms-marketplace-api"]?.cacheLevel,
+    ).toBe("memory");
   });
 
   it("rejects an example with a core section the schema does not know", () => {

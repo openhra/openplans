@@ -1,3 +1,5 @@
+import { dataPolicyActive, withDataPolicy } from "../services/data-window.js";
+import { loadConfig } from "../config/index.js";
 import { calculationExecutor } from "../services/calculation-executor.js";
 import { CalculationQueue } from "../services/calculation-queue.js";
 import type {
@@ -15,7 +17,7 @@ export const MAX_CALCULATION_OFFERS = 10_000;
 const calculations = new CalculationQueue();
 
 export function createCalculationHost(
-  config: Readonly<Pick<CoreConfigView, "public">>,
+  config: Readonly<Pick<CoreConfigView, "public" | "data">>,
 ): CalculationHost {
   function run<T>(
     scope: CalculationScope,
@@ -37,7 +39,13 @@ export function createCalculationHost(
       if (budget.remainingOffers <= 0) throw new Error("work_budget_exceeded");
       budget.remainingOffers--;
     };
-    return calculations.run(scope.signal, () => calculate(db, consumeOffer));
+    return calculations.run(scope.signal, () =>
+      dataPolicyActive()
+        ? calculate(db, consumeOffer)
+        : withDataPolicy(config.data ?? loadConfig().data, () =>
+            calculate(db, consumeOffer),
+          ),
+    );
   }
   return Object.freeze<CalculationHost>({
     async enumerateHouseholdOffers(input, scope) {

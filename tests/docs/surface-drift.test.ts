@@ -204,7 +204,11 @@ function undocumentedFileKeys(keys: readonly string[], doc: string): string[] {
 }
 
 const configFileDocumentation = () =>
-  [read("docs/configuration.md"), read("docs/admin-access.md")].join("\n");
+  [
+    read("docs/configuration.md"),
+    read("docs/admin-access.md"),
+    read("docs/plugins.md"),
+  ].join("\n");
 
 // Public docs the export ships, excluding the private files export-public.exclude drops.
 const SHIPPED_DOCS = [

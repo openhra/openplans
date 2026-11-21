@@ -1,3 +1,4 @@
+import { skipAnnualCommand } from "../data-window.js";
 import type { Database } from "../../db/database.js";
 import { migrate, migrationsDirectory } from "../../db/migrate.js";
 import { importPufs } from "./import.js";
@@ -43,6 +44,7 @@ export async function runPufImport(
     );
     return 1;
   }
+  if (skipAnnualCommand("puf", year, output)) return 0;
   let db: Database | undefined,
     code = 0;
   try {
@@ -87,6 +89,7 @@ export async function runPufLineage(
     output.error("Usage: worker ingest puf lineage --year 2026|2027");
     return 1;
   }
+  if (skipAnnualCommand("puf-lineage", Number(args[1]), output)) return 0;
   let db: Database | undefined,
     code = 0;
   try {

@@ -1,3 +1,9 @@
+import {
+  requireImportYear,
+  skipAnnualCommand,
+  reportImportSkip,
+  planAnnualWork,
+} from "../data-window.js";
 import type { Database } from "../../db/database.js";
 import { migrate, migrationsDirectory } from "../../db/migrate.js";
 import { ensureCachedPayload } from "../../fetch/index.js";
@@ -38,6 +44,12 @@ export async function runPartD(
   output: { out(message: string): void; error(message: string): void },
   directory: string,
 ): Promise<number> {
+  const dryRun = args.includes("--dry-run");
+  if (args.filter((arg) => arg === "--dry-run").length > 1) {
+    output.error(usage);
+    return 1;
+  }
+  args = args.filter((arg) => arg !== "--dry-run");
   const [action, flag, value, tablesFlag, tablesValue] = args;
   const tables = (
     tablesFlag === "--tables" ? (tablesValue ?? "").split(",") : [...coreTables]
@@ -45,10 +57,29 @@ export async function runPartD(
   const known = new Set<string>([...coreTables, ...largeTables]);
   if (
     action === "acquire" &&
+    args.length === 3 &&
     flag === "--url" &&
     value &&
     parseSpufUrl(value)
   ) {
+    const archive = parseSpufUrl(value)!;
+    const work = planAnnualWork(
+      `partd-${archive.kind}`,
+      [archive.year],
+      "medicare",
+    );
+    if (work.skipped.length || dryRun) {
+      output.out(
+        JSON.stringify({
+          planned: work.years.map((year) => ({
+            dataset: `partd-${archive.kind}`,
+            year,
+          })),
+          skipped: work.skipped,
+        }),
+      );
+      return 0;
+    }
     const admission = medicareSession();
     if (!admission) {
       output.error(
@@ -69,6 +100,7 @@ export async function runPartD(
   }
   if (
     action !== "import" ||
+    !(args.length === 3 || (args.length === 5 && tablesFlag === "--tables")) ||
     flag !== "--kind" ||
     (value !== "quarterly" && value !== "monthly") ||
     tables.some((t) => !known.has(t))
@@ -82,6 +114,23 @@ export async function runPartD(
     const dataDir = dataDirectory();
     const cached = (await cachedSpuf(value as SpufKind, dataDir))[0];
     if (!cached) throw new Error(`No cached ${value} Part D archive`);
+    const work = planAnnualWork(
+      `partd-${cached.archive.kind}`,
+      [cached.archive.year],
+      "medicare",
+    );
+    if (work.skipped.length || dryRun) {
+      output.out(
+        JSON.stringify({
+          planned: work.years.map((year) => ({
+            dataset: `partd-${cached.archive.kind}`,
+            year,
+          })),
+          skipped: work.skipped,
+        }),
+      );
+      return 0;
+    }
     db = openDatabase();
     await migrate(db, directory);
     output.out(
@@ -140,6 +189,7 @@ export async function acquireMedicare(
   options: Options,
   context: AcquireContext = {},
 ): Promise<CachedArchive[]> {
+  requireImportYear("medicare", options.year, "medicare");
   const out: CachedArchive[] = [];
   const wanted = options.family ? [options.family] : families;
   for (const family of wanted) {
@@ -164,27 +214,46 @@ export async function acquireMedicare(
   return out;
 }
 
+/**
+ * CMS publishes contract service-area files monthly, so a contract year can start before any file
+ * dated in that year exists. Use the same year's newest release when cached, otherwise the newest
+ * earlier one. A release dated after the contract year is never used. With nothing eligible,
+ * nothing is chosen, and the Landscape import refuses for lack of a county map.
+ */
+export function serviceAreaFor(
+  cached: readonly CachedArchive[],
+  kind: "pdp" | "ma",
+  contractYear: number,
+): CachedArchive | undefined {
+  // cachedArchives sorts by label, newest first, and labels are `<kind>-YYYY-MM`.
+  return cached.find(
+    (entry) =>
+      entry.archive.label.startsWith(`${kind}-`) &&
+      entry.archive.year <= contractYear,
+  );
+}
+
 /** Offline step: the newest cached archive per family; service areas first (county map). */
 export async function importMedicare(
   db: Database,
   options: Pick<Options, "year" | "family">,
   dataDir = dataDirectory(),
 ): Promise<ReleaseReport[]> {
+  requireImportYear("medicare", options.year, "medicare");
   const reports: ReleaseReport[] = [];
   const wanted = options.family ? [options.family] : families;
   if (wanted.includes("service_area")) {
     const cached = await cachedArchives("service_area", dataDir);
-    for (const kind of ["pdp", "ma"]) {
-      const newest = cached.find((entry) =>
-        entry.archive.label.startsWith(`${kind}-`),
-      );
-      if (newest)
-        reports.push(
-          await importServiceArea(
+    for (const kind of ["pdp", "ma"] as const) {
+      const chosen = serviceAreaFor(cached, kind, options.year);
+      if (chosen)
+        reports.push({
+          ...(await importServiceArea(
             db,
-            await ensureCachedPayload(dataDir, newest),
-          ),
-        );
+            await ensureCachedPayload(dataDir, chosen),
+          )),
+          serves_contract_year: options.year,
+        });
     }
   }
   const importers: Partial<
@@ -224,6 +293,7 @@ export async function runMedicare(
     output.error(usage);
     return 1;
   }
+  if (skipAnnualCommand("medicare", options.year, output, "medicare")) return 0;
   if (options.action === "acquire") {
     try {
       const admission = medicareSession();
@@ -245,7 +315,8 @@ export async function runMedicare(
         ),
       );
       return 0;
-    } catch {
+    } catch (error) {
+      if (reportImportSkip(error, output)) return 0;
       output.error(
         "worker ingest medicare acquire failed; check the access manifest, robots and terms review, and cache",
       );

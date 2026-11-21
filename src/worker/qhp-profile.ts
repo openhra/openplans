@@ -1,3 +1,4 @@
+import { requireImportYear } from "../ingest/data-window.js";
 import { readFile } from "node:fs/promises";
 import { isAbsolute } from "node:path";
 import { z } from "zod";
@@ -72,6 +73,10 @@ export function preparedQhpFetcher(profile: QhpProfile): typeof fetchToCache {
         "cache_error",
         "not_cached: prepared QHP snapshot is not listed",
       );
+    const annual = /^qhp-(?:provider-|formulary-)?\d{5}-(20\d{2})-/.exec(
+      options.source,
+    );
+    if (annual) requireImportYear("qhp-prepared", Number(annual[1]));
     const deny = async (): Promise<never> => {
       throw new FetchError(
         "cache_error",

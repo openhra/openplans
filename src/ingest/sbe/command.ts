@@ -1,3 +1,4 @@
+import { skipAnnualCommand } from "../data-window.js";
 import type { Database } from "../../db/database.js";
 import { migrate, migrationsDirectory } from "../../db/migrate.js";
 import { importSbe } from "./import.js";
@@ -44,6 +45,7 @@ export async function runSbe(
     output.error("Invalid SBE command/scope");
     return 1;
   }
+  if (skipAnnualCommand("sbe", year, output)) return 0;
   let db: Database | undefined;
   try {
     const dataDir = importDataDirectory();

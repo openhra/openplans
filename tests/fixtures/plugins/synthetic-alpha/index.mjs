@@ -10,7 +10,7 @@ export default {
   manifest: {
     name: "@synthetic/alpha",
     version: "0.0.1",
-    apiVersion: "0.1",
+    apiVersion: "0.2",
     kinds: ["routes", "workerCommands", "cacheStores", "events"],
     capabilities: { secrets: ["SYNTHETIC_ALPHA_SECRET"] },
     options: z

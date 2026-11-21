@@ -1,3 +1,4 @@
+import { requireAnnualYear, annualRows } from "./data-window.js";
 import type { SqlSession } from "../db/database.js";
 import {
   formatPlanKey,
@@ -68,7 +69,7 @@ export async function activeRelease(
   family: string,
   year: number,
 ): Promise<Release | null> {
-  return (
+  const release =
     (
       await db.query<Release & Record<string, unknown>>(
         `SELECT r.snapshot_id, r.as_of::text AS as_of, r.as_of_label, r.contract_year
@@ -77,8 +78,15 @@ export async function activeRelease(
          ORDER BY r.as_of DESC, r.imported_at DESC LIMIT 1`,
         [family, year],
       )
-    ).rows[0] ?? null
-  );
+    ).rows[0] ?? null;
+  if (release && release.contract_year !== year)
+    throw new ReadError({
+      code: "not_loaded",
+      required_year: year,
+      domain: "medicare",
+      reason: "contract_year_mismatch",
+    });
+  return release;
 }
 
 function money(cell: MoneyCell) {
@@ -274,6 +282,7 @@ export async function searchMedicarePlans(
   params: Record<string, string>,
 ) {
   const year = medicareYear(params.year);
+  await requireAnnualYear(db, year, "medicare");
   const type = params.type;
   if (type !== undefined && !Object.hasOwn(types, type)) v.fail("type");
   const snpType = params.snp_type;
@@ -456,6 +465,7 @@ export async function getMedicarePlan(
   params: Record<string, string>,
 ) {
   const year = medicareYear(params.year);
+  await requireAnnualYear(db, year, "medicare");
   const key = planKey(id);
   const { row, landscape } = await planRow(db, key, year);
   const stars = await activeRelease(db, "stars", year);
@@ -514,6 +524,7 @@ export async function getMedicareBenefits(
   params: Record<string, string>,
 ) {
   const year = medicareYear(params.year);
+  await requireAnnualYear(db, year, "medicare");
   const key = planKey(id);
   if (params.table !== undefined && !benefitTable.test(params.table))
     v.fail("table");
@@ -594,6 +605,7 @@ export async function getMedicareServiceArea(
   params: Record<string, string>,
 ) {
   const year = medicareYear(params.year);
+  await requireAnnualYear(db, year, "medicare");
   const key = planKey(id);
   const { landscape, pbp } = await planRow(db, key, year);
   const args = [key.contractId, key.planId, key.segmentId];
@@ -672,6 +684,7 @@ export async function getMedicareLineage(
   params: Record<string, string>,
 ) {
   const year = medicareYear(params.year);
+  await requireAnnualYear(db, year, "medicare");
   const key = planKey(id);
   const lookup = async (releaseYear: number, side: "current" | "previous") => {
     const release = await activeRelease(db, "crosswalk", releaseYear);
@@ -724,9 +737,15 @@ export async function medicareAvailability(db: SqlSession) {
        ORDER BY r.family,r.contract_year,CASE WHEN r.family='service_area' THEN split_part(r.as_of_label,'-',1) ELSE '' END,r.as_of DESC`,
     )
   ).rows;
+  const visible = await annualRows(
+    db,
+    releases,
+    (row) => row.contract_year,
+    "medicare",
+  );
   const years = [
     ...new Set(
-      releases
+      visible
         .filter((r) => r.family === "landscape")
         .map((r) => r.contract_year),
     ),
@@ -791,6 +810,7 @@ export async function getMedicareDrug(
   params: Record<string, string>,
 ) {
   const year = medicareYear(params.year);
+  await requireAnnualYear(db, year, "medicare");
   const key = planKey(id);
   if (typeof params.rxcui !== "string" || !/^\d{1,20}$/.test(params.rxcui))
     return v.fail("rxcui");
@@ -809,6 +829,7 @@ export async function getMedicarePharmacies(
   params: Record<string, string>,
 ) {
   const year = medicareYear(params.year);
+  await requireAnnualYear(db, year, "medicare");
   const key = planKey(id);
   const zip = v.zip(params.zip);
   await planRow(db, key, year);
@@ -832,6 +853,7 @@ export async function estimateMedicareDrugCost(
   deps: DrugCostDeps = drugCostDeps,
 ) {
   const year = medicareYear(params.year);
+  await requireAnnualYear(db, year, "medicare");
   const key = planKey(id);
   const input = deps.parse(body);
   await planRow(db, key, year);

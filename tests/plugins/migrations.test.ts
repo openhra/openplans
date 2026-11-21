@@ -15,7 +15,7 @@ import type * as MigrateModule from "../../src/db/migrate.js";
 import type { PluginMigrationSource } from "../../src/db/migrate.js";
 import { pluginMigrationScope } from "../../src/db/plugin-migration-scope.js";
 import { schemaViolations } from "../../src/db/row-provenance-check.js";
-import { loadPlugins } from "../../src/plugins/index.js";
+import { loadPlugins } from "./approval-helpers.js";
 import { plantMutant } from "../../src/plugins/testing/index.js";
 import { runWorker } from "../../src/worker/commands.js";
 import { coreMigrations, testDatabase } from "../pglite.js";
@@ -455,7 +455,10 @@ describe("the loader reports each plugin's migrations directory", () => {
     loadPlugins(
       loadConfig(
         {},
-        { version: 1, plugins: packages.map((p) => ({ package: p })) },
+        {
+          version: 1,
+          plugins: { entries: packages.map((p) => ({ package: p })) },
+        },
       ),
       "worker",
       {

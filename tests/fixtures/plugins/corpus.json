@@ -1938,6 +1938,21 @@
       "warm": true,
       "token": true,
       "auth": "granted"
+    },
+    {
+      "id": "data-policy",
+      "method": "GET",
+      "path": "/v1/data-policy",
+      "status": 200,
+      "source": "tests/services/data-window.test.ts"
+    },
+    {
+      "id": "data-policy-with-api-token",
+      "method": "GET",
+      "path": "/v1/data-policy",
+      "status": 200,
+      "source": "tests/services/data-window.test.ts",
+      "token": true
     }
   ],
   "mcp": [

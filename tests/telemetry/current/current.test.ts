@@ -25,8 +25,14 @@ import { createMcpHttp } from "../../../src/mcp/http.js";
 
 // Synthetic database, no sockets or public service access.
 const db: SqlSession = {
-  async query() {
-    return { rows: [{ ok: 1, generation: "1" }], rowCount: 1 };
+  async query(sql: string) {
+    return {
+      rows:
+        sql.includes("FROM annual_data_admission") || sql.includes("AS domain")
+          ? []
+          : [{ ok: 1, generation: "1" }],
+      rowCount: 1,
+    };
   },
 } as unknown as SqlSession;
 afterEach(() => {

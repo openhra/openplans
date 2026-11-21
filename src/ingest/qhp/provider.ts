@@ -1,3 +1,4 @@
+import { requireImportYear } from "../data-window.js";
 import type { RunBudget } from "./formulary-acquire.js";
 import {
   checkRunBudget,
@@ -105,6 +106,7 @@ export async function importProviders(
   scope: ProviderScope,
   options: ProviderOptions = {},
 ): Promise<ProviderReport> {
+  requireImportYear("qhp-providers", scope.year);
   if (
     !/^\d{5}$/.test(scope.issuer) ||
     !/^[A-Z]{2}$/.test(scope.state) ||

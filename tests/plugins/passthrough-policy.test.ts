@@ -26,7 +26,8 @@ import { loadConfig } from "../../src/config/index.js";
 import type { Database } from "../../src/db/database.js";
 import { migrate } from "../../src/db/migrate.js";
 import { AdmissionSession } from "../../src/fetch/index.js";
-import { currentRegistries, loadPlugins } from "../../src/plugins/index.js";
+import { currentRegistries } from "../../src/plugins/index.js";
+import { loadPlugins } from "./approval-helpers.js";
 import {
   activateRegistries,
   emptyRegistries,
@@ -333,13 +334,15 @@ describe("loosening a declared level", () => {
       {},
       {
         version: 1,
-        plugins: [
-          {
-            package: "./synthetic-passthrough/index.mjs",
-            options: { level: "none" },
-            sources: { "synthetic-none": { cacheLevel: "memory" } },
-          },
-        ],
+        plugins: {
+          entries: [
+            {
+              package: "./synthetic-passthrough/index.mjs",
+              options: { level: "none" },
+              sources: { "synthetic-none": { cacheLevel: "memory" } },
+            },
+          ],
+        },
       },
     );
     // The loader reads the setting and refuses the load; nothing is activated.

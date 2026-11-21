@@ -72,3 +72,5 @@
 1009_provider_search_key_b_cell.sql
 20261117210614_lowest_county_evidence.sql
 20261118000213_lowest_active_build_index.sql
+20261119194358_annual_data_admission.sql
+20261120020048_restore_function_search_path.sql

@@ -1,3 +1,4 @@
+import { requireImportYear } from "../data-window.js";
 import { randomUUID } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
@@ -173,6 +174,7 @@ export async function cachedLineageFile(
   dataDir: string,
   year: number,
 ): Promise<{ file: LineageFile; manifestPath: string }> {
+  requireImportYear("puf-lineage", year);
   const { manifest, manifestPath, directory } =
     await newestPufManifest(dataDir);
   return {
@@ -189,6 +191,7 @@ export async function importPlanLineage(
   db: Database,
   options: LineageImportOptions,
 ): Promise<LineageImportReport> {
+  requireImportYear("puf-lineage", options.year);
   const started = Date.now(),
     { year } = options;
   const dataDir = options.dataDir ?? importDataDirectory();

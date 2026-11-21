@@ -1,3 +1,6 @@
+import { withCurrentDataPolicy } from "./data-window.js";
+import { scopeResponseGeneration } from "../plugins/request-scope.js";
+import { requireAnnualYear, annualRows } from "./data-window.js";
 import {
   selectCatalogPlans,
   guardCatalogPlans,
@@ -39,8 +42,10 @@ export function parsePlanRef(value: unknown) {
   }
   return v.planId(value);
 }
-export const lookupZip = (db: SqlSession, value: unknown) =>
-  zipToCounties(db, v.zip(value));
+export function lookupZip(db: SqlSession, value: unknown) {
+  const zip = v.zip(value);
+  return zipToCounties(db, zip, { generation: scopeResponseGeneration() });
+}
 export const lookupGeography = (
   db: SqlSession,
   input: Record<string, unknown>,
@@ -50,73 +55,76 @@ export async function searchPlans(
   db: SqlSession,
   params: Record<string, string>,
 ) {
-  const year = v.year(params.year),
-    market = v.market(params.market);
-  const csrVariant = v.csrVariant(params.csr_variant);
-  const metal = v.metal(params.metal),
-    page = v.page(params.page);
-  const location = await resolveLocation(db, v.location(params));
-  const scoped = planPageScope(db);
-  // Every read below, the page's plan views included, goes through the page scope.
-  const reads = requestReads(scoped);
-  const issues = await locationIssues(db, location, year, "medical", reads);
-  if (location.status !== "available" || !location.county) {
-    return {
-      status: location.status,
+  return withCurrentDataPolicy(async () => {
+    const year = v.year(params.year),
+      market = v.market(params.market);
+    const csrVariant = v.csrVariant(params.csr_variant);
+    const metal = v.metal(params.metal),
+      page = v.page(params.page);
+    await requireAnnualYear(db, year);
+    const location = await resolveLocation(db, v.location(params));
+    const scoped = planPageScope(db);
+    // Every read below, the page's plan views included, goes through the page scope.
+    const reads = requestReads(scoped);
+    const issues = await locationIssues(db, location, year, "medical", reads);
+    if (location.status !== "available" || !location.county) {
+      return {
+        status: location.status,
+        year,
+        market: market.toLowerCase(),
+        location,
+        issues,
+        plans: [],
+        page,
+        page_size: 50,
+        total: 0,
+        next_page: null,
+      };
+    }
+    const plans = await selectCatalogPlans(
+      (await reads.countyPlans(location.county, year, location.zip)).filter(
+        (p) => metal === undefined || p.metal.toLowerCase() === metal,
+      ),
+      year,
+      (p) => p.base_plan_id,
+    );
+    const active = await activeCatalog(db, year, countyState(location.county));
+    const start = (page - 1) * 50;
+    const shown = plans.slice(start, start + 50);
+    reads.plan(shown);
+    const options = { csrVariant };
+    return withCatalogPolicyContext({
+      status: active.rows.length ? "available" : "unknown",
       year,
       market: market.toLowerCase(),
       location,
       issues,
-      plans: [],
-      page,
-      page_size: 50,
-      total: 0,
-      next_page: null,
-    };
-  }
-  const plans = await selectCatalogPlans(
-    (await reads.countyPlans(location.county, year, location.zip)).filter(
-      (p) => metal === undefined || p.metal.toLowerCase() === metal,
-    ),
-    year,
-    (p) => p.base_plan_id,
-  );
-  const active = await activeCatalog(db, year, countyState(location.county));
-  const start = (page - 1) * 50;
-  const shown = plans.slice(start, start + 50);
-  reads.plan(shown);
-  const options = { csrVariant };
-  return withCatalogPolicyContext({
-    status: active.rows.length ? "available" : "unknown",
-    year,
-    market: market.toLowerCase(),
-    location,
-    issues,
-    plans: await Promise.all(
-      shown.map(async (plan) =>
-        annotateCatalogPlan(
-          {
-            ...(await planView(
-              reads.db,
-              plan,
-              options,
-              reads.costSharing(plan, options),
-              reads.lineage,
-            )),
-            availability: {
-              zip_restricted: plan.zip_restricted,
-              zip_codes: plan.zip_codes,
+      plans: await Promise.all(
+        shown.map(async (plan) =>
+          annotateCatalogPlan(
+            {
+              ...(await planView(
+                reads.db,
+                plan,
+                options,
+                reads.costSharing(plan, options),
+                reads.lineage,
+              )),
+              availability: {
+                zip_restricted: plan.zip_restricted,
+                zip_codes: plan.zip_codes,
+              },
             },
-          },
-          plan.base_plan_id,
-          year,
+            plan.base_plan_id,
+            year,
+          ),
         ),
       ),
-    ),
-    page,
-    page_size: 50,
-    total: plans.length,
-    next_page: start + 50 < plans.length ? page + 1 : null,
+      page,
+      page_size: 50,
+      total: plans.length,
+      next_page: start + 50 < plans.length ? page + 1 : null,
+    });
   });
 }
 
@@ -127,6 +135,7 @@ export async function getPlan(
 ) {
   const id = parsePlanRef(ref),
     year = v.year(params.year);
+  await requireAnnualYear(db, year);
   const plan = await findPlan(db, id.base, year);
   if (
     !plan ||
@@ -159,6 +168,7 @@ export async function getPlan(
 export async function estimatePremiums(db: SqlSession, body: unknown) {
   const request = v.premiumRequest(body),
     plans = [];
+  await requireAnnualYear(db, request.year);
   const found = await findPlans(
     db,
     request.ids.map((id) => id.base),
@@ -207,6 +217,7 @@ export async function benchmarkSilver(
   params: Record<string, string>,
 ) {
   const request = v.benchmarkRequest(params);
+  await requireAnnualYear(db, request.year);
   return benchmark(db, request, await resolveLocation(db, request.location));
 }
 
@@ -219,6 +230,11 @@ export async function listCarriersNetworks(
     throw new ReadError({ code: "MSOT_OPERATION_UNSUPPORTED" });
   const state = v.state(params.state),
     year = params.year === undefined ? null : v.year(params.year);
-  const rows = await directoryRows(db, kind, state, year);
+  if (year !== null) await requireAnnualYear(db, year);
+  const rows = await annualRows(
+    db,
+    await directoryRows(db, kind, state, year),
+    (row) => Number(row.plan_year),
+  );
   return { status: rows.length ? "available" : "unknown", [kind]: rows };
 }

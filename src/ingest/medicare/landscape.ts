@@ -1,3 +1,4 @@
+import { requireImportYear } from "../data-window.js";
 import type { Database } from "../../db/database.js";
 import { inspectZip } from "../../fetch/index.js";
 import { readCsv } from "../csv/index.js";
@@ -157,13 +158,18 @@ export async function importLandscape(
   db: Database,
   cached: CachedArchive,
 ): Promise<ReleaseReport> {
+  requireImportYear(
+    `medicare-${cached.archive.family}`,
+    cached.archive.year,
+    "medicare",
+  );
   const limits = archiveLimits.landscape;
   const member = (await inspectZip(cached.path, limits)).members.find((entry) =>
     /CY\d{4}_Landscape_\d{6}\.csv$/i.test(entry.name),
   )?.name;
   if (!member) throw new Error("Landscape archive has no CSV");
   return importRelease(db, cached, member, async (tx, snapshotId) => {
-    const map = await countyMap(tx);
+    const map = await countyMap(tx, cached.archive.year);
     if (!map.pairs.length)
       throw new Error("Import the CMS contract service-area files first");
     const names = new Map<string, Set<string>>();
@@ -188,6 +194,10 @@ export async function importLandscape(
       employer_group_rows_skipped: 0,
       county_map_conflicted_ssa_codes: map.conflicted.length,
       county_map_ma_alternate_ssa_codes: map.maAlternates.length,
+      // Which monthly service-area files built the county map (YYYYMM). A contract year can use
+      // an earlier year's file when its own is not yet published.
+      ...(map.releases.pdp ? { county_map_pdp_release: map.releases.pdp } : {}),
+      ...(map.releases.ma ? { county_map_ma_release: map.releases.ma } : {}),
     };
     let checked = false;
     for await (const row of readCsv(

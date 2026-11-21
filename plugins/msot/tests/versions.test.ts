@@ -34,7 +34,7 @@ import {
 import { checkCatalogTriggers } from "../../../src/plugins/testing/checks.js";
 import { createEventBus } from "../../../src/plugins/events.js";
 import { loadConfig } from "../../../src/config/index.js";
-import { loadPlugins } from "../../../src/plugins/loader.js";
+import { loadPlugins } from "../../../tests/plugins/approval-helpers.js";
 import { createApp } from "../../../src/api/app.js";
 import { loadForTest } from "../../../src/plugins/testing/load.js";
 import { backupExcludedTables } from "../../../src/worker/backup-args.js";
@@ -588,12 +588,14 @@ it("protects inspection and read-only preview with the operator token and readab
     {},
     {
       version: 1,
-      plugins: [
-        {
-          package: "@openplans/plugin-msot",
-          options: { readableSources: [source.source_id] },
-        },
-      ],
+      plugins: {
+        entries: [
+          {
+            package: "@openplans/plugin-msot",
+            options: { readableSources: [source.source_id] },
+          },
+        ],
+      },
     },
   );
   const loaded = await loadPlugins(config, "api", {
@@ -803,12 +805,14 @@ it("pins production public facts across receipt writes and resolves only an acti
         {},
         {
           version: 1,
-          plugins: [
-            {
-              package: "@openplans/plugin-msot",
-              options: { readableSources: [source.source_id] },
-            },
-          ],
+          plugins: {
+            entries: [
+              {
+                package: "@openplans/plugin-msot",
+                options: { readableSources: [source.source_id] },
+              },
+            ],
+          },
         },
       ),
       "api",

@@ -187,7 +187,7 @@ it("rejects inputs outside the supported minimum contract and requires both year
 
 it("refuses unresolved geography and unloaded years identically on both paths", async () => {
   for (const request of [
-    lowestInput({ ...input, year: 2099, coverage_start: undefined }),
+    lowestInput({ ...input, year: 2025, coverage_start: undefined }),
     lowestInput({ ...input, zip: "00000", county: undefined }),
   ]) {
     const fast = await lowestPremiums(h.db, request),
@@ -389,7 +389,7 @@ it("keeps an unloaded market unknown instead of returning zero counts", async ()
   const result = await getMarketSummary(db, {
     zip: "77002",
     county: "48201",
-    year: 2027,
+    year: 2025,
   });
   expect(result).toMatchObject({
     status: "unknown",

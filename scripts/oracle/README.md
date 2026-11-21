@@ -16,6 +16,12 @@ state/year has a resumable developer database and reports under `reports/` in
 the external cache. Production migrations are unchanged; only PostGIS is omitted
 in disposable PGlite migration copies.
 
+The API serves next year only after an annual admission. Six checks read next year from their
+own database: `csr.mjs`, `medicare.mjs`, `medicare-part-d.mjs`, `medicare-cost.mjs`, `handy.mjs`
+and `handy-household.mjs`. Each first admits the catalogs it imported. `admission.mjs` calls the
+same function as `worker data-admission`, so the product still checks each release receipt.
+Prior and current years need no admission.
+
 The dental check compares filed family and age-based premiums against raw CMS CSVs
 for every publication-listed state and year. Run `dental.mjs --all-states --year 2026`, or
 pass `--state XX` for one state. Each state must catch three planted defects, and TX PY2026

@@ -1,3 +1,4 @@
+import { requireImportYear, requireAnnualDocument } from "../data-window.js";
 import { createHash } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { readFile, stat } from "node:fs/promises";
@@ -314,10 +315,12 @@ export async function ingestStateRates(
     rateSourceOverrides?: RateSourceOverrides;
   } = {},
 ) {
+  await requireAnnualDocument(path, "state-rates");
   if (!isAbsolute(path) || (await stat(path)).size > 25 * 1024 ** 2)
     throw new Error("Absolute, bounded state artifact required");
   const bytes = await readFile(path),
     document = parseStateArtifact(bytes.toString("utf8"));
+  requireImportYear("state-rates", document.plan_year);
   if (document.state !== state)
     throw new Error("State scope differs from artifact");
   const rulesBytes = await readFile(

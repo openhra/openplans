@@ -1,3 +1,4 @@
+import { requireImportYear } from "../data-window.js";
 import { createHash } from "node:crypto";
 import { createReadStream } from "node:fs";
 import type { Database, SqlSession } from "../../db/database.js";
@@ -18,6 +19,8 @@ export interface ReleaseReport {
   outcome: "imported" | "noop";
   counts: Record<string, number>;
   elapsed_ms: number;
+  /** Service-area imports only: the contract year whose county map this release builds. */
+  serves_contract_year?: number;
 }
 
 async function verify(path: string, sha256: string, bytes: number) {
@@ -45,6 +48,11 @@ export async function importRelease(
   member: string,
   load: (tx: SqlSession, snapshotId: string) => Promise<Record<string, number>>,
 ): Promise<ReleaseReport> {
+  requireImportYear(
+    `medicare-${cached.archive.family}`,
+    cached.archive.year,
+    "medicare",
+  );
   const started = Date.now();
   const { archive, metadata } = cached;
   if (

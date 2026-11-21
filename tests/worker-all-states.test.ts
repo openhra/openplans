@@ -137,7 +137,7 @@ it.each([
   ["--state", "XX"],
   ["--state"],
   ["extra"],
-  ["--year", "2028"],
+  ["--year", "not-a-year"],
   ["--all-states", "--all-states"],
 ])("rejects invalid geo arguments before connecting: %j", async (...flags) => {
   const open = vi.fn(),
@@ -174,6 +174,7 @@ it("dispatches all-state PUF import, returning failure when any state failed", a
   vi.mocked(importAllStates).mockResolvedValue({
     year: 2026,
     passed: false,
+    skipped: [],
     results: [{ year: 2026, state: "AK", status: "FAILED" }],
   });
   expect(
@@ -209,6 +210,7 @@ it.each([undefined, "12000", "0"])(
     vi.mocked(importAllStates).mockResolvedValue({
       year: 2026,
       passed: true,
+      skipped: [],
       results: [],
     });
     expect(

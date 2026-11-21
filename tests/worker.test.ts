@@ -21,7 +21,13 @@ describe("worker CLI", () => {
         {
           cwd: root,
           encoding: "utf8",
-          env: { ...process.env, DATABASE_URL: "" },
+          env: {
+            ...process.env,
+            DATABASE_URL: "",
+            OPENPLANS_PUBLIC_QUOTING: "off",
+            OPENPLANS_PUBLIC_HOUSEHOLD: "off",
+            OPENPLANS_PUBLIC_COMPAT: "off",
+          },
         },
       );
       expect(result.status).toBe(1);
@@ -39,7 +45,13 @@ describe("worker CLI", () => {
         {
           cwd: root,
           encoding: "utf8",
-          env: { ...process.env, DATABASE_URL: "" },
+          env: {
+            ...process.env,
+            DATABASE_URL: "",
+            OPENPLANS_PUBLIC_QUOTING: "off",
+            OPENPLANS_PUBLIC_HOUSEHOLD: "off",
+            OPENPLANS_PUBLIC_COMPAT: "off",
+          },
         },
       );
       expect(result.status).toBe(1);
@@ -54,7 +66,13 @@ describe("worker CLI", () => {
       {
         cwd: root,
         encoding: "utf8",
-        env: { ...process.env, DATABASE_URL: "" },
+        env: {
+          ...process.env,
+          DATABASE_URL: "",
+          OPENPLANS_PUBLIC_QUOTING: "off",
+          OPENPLANS_PUBLIC_HOUSEHOLD: "off",
+          OPENPLANS_PUBLIC_COMPAT: "off",
+        },
       },
     );
     expect(result.status).toBe(1);

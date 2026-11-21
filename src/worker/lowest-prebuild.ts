@@ -1,3 +1,5 @@
+import { planAnnualWork } from "../ingest/data-window.js";
+import { annualRows, servingPolicy } from "../services/data-window.js";
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { lowestInput } from "../api/handy.js";
@@ -31,8 +33,17 @@ export async function* lowestInventory(
 ): AsyncGenerator<LowestInput> {
   if (options.inventory) {
     const entries = new Map<string, LowestInput>();
+    let allowed: Set<number> | null | undefined;
     for (const value of options.inventory) {
       let input = lowestInput(value);
+      if (allowed === undefined) {
+        const policy = await servingPolicy(db);
+        allowed =
+          policy.history_years === "all"
+            ? null
+            : new Set(policy.domains.individual.allowed_years);
+      }
+      if (allowed && !allowed.has(input.year)) continue;
       const location = await resolveLocation(db, input, {
         allowCmsLive: false,
         year: input.year,
@@ -62,7 +73,11 @@ export async function* lowestInventory(
   const counties = [
     ...new Set([...loaded, ...(await relationshipInventoryCounties(db))]),
   ].sort();
-  const years = options.years ?? [...new Set(scopes.map((s) => s.year))];
+  const years = await annualRows(
+    db,
+    options.years ?? [...new Set(scopes.map((s) => s.year))],
+    (year) => year,
+  );
   if (
     !years.length ||
     years.some((year) => !scopes.some((s) => s.year === year))
@@ -228,7 +243,7 @@ export async function runLowestPrebuild(
     const yearsText = params.get("--years");
     if (yearsText && !/^\d{4}(,\d{4})*$/.test(yearsText))
       throw new Error("Invalid years");
-    const years = yearsText?.split(",").map(Number);
+    let years = yearsText?.split(",").map(Number);
     if (
       years?.some((year) => year < 2014) ||
       (years && new Set(years).size !== years.length)
@@ -240,6 +255,14 @@ export async function runLowestPrebuild(
       (!/^[1-9]\d*$/.test(maxText) || !Number.isSafeInteger(Number(maxText)))
     )
       throw new Error("Invalid cell limit");
+    if (years) {
+      const work = planAnnualWork("lowest-premiums", years);
+      if (work.skipped.length) {
+        output.out(JSON.stringify({ skipped: work.skipped }));
+        years = work.years;
+        if (!years.length) return 0;
+      }
+    }
     let inventory: unknown[] | undefined;
     if (params.has("--inventory")) {
       const value: unknown = JSON.parse(

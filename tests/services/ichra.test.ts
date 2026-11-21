@@ -1,3 +1,4 @@
+import { withDataPolicy } from "../../src/services/data-window.js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { SqlSession } from "../../src/db/database.js";
 import { execFileSync } from "node:child_process";
@@ -91,7 +92,9 @@ interface Result {
   rules: readonly Rule[];
 }
 async function run(extra: Partial<IchraRequest> = {}, db: SqlSession = h.db) {
-  return (await ichraAffordability(db, request(extra))) as Result;
+  return (await withDataPolicy({ historyYears: "all" }, () =>
+    ichraAffordability(db, request(extra)),
+  )) as Result;
 }
 async function rollback(
   change: (tx: SqlSession) => Promise<void>,

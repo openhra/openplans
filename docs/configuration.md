@@ -16,13 +16,21 @@ for publisher reviews, cache mounts, backups and proxy configuration.
 
 ## Config file and plugins
 
-| Variable                   | Default and effect                                                                                                                                                                                                                                                           |
-| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `OPENPLANS_CONFIG`         | Optional. Absolute path to a JSON file with `"version": 1` and `"plugins": []`. Core sections use the names in `src/config/index.ts`, such as `listen.port` and `cache.maxMb`. Compose mounts the file read-only at the same path in the API, worker and scheduler services. |
-| `OPENPLANS_PLUGINS`        | Optional. Comma-separated package names. Overrides the file's plugin list, with default options. Empty keeps the file's list.                                                                                                                                                |
-| `OPENPLANS_OPERATOR_TOKEN` | Unset. Bearer token for the status plugin's `/status/operator` routes, which answer 404 without one. Use at least 32 random characters.                                                                                                                                      |
+| Variable                             | Default and effect                                                                                                                                                                                                                                                                        |
+| ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OPENPLANS_CONFIG`                   | Optional. Absolute path to a JSON file with `"version": 1` and `"plugins": {"entries": []}`. Core sections use the names in `src/config/index.ts`, such as `listen.port` and `cache.maxMb`. Compose mounts the file read-only at the same path in the API, worker and scheduler services. |
+| `OPENPLANS_PLUGINS_APPROVED_LIST`    | Path to the operator approval JSON array. Required in public mode.                                                                                                                                                                                                                        |
+| `OPENPLANS_PLUGINS_LOCKFILE`         | Path to the package lockfile, default `plugins.lock.json` beside the configuration.                                                                                                                                                                                                       |
+| `OPENPLANS_PLUGINS_REQUIRE_APPROVAL` | `on` requires approval even with every public switch off.                                                                                                                                                                                                                                 |
+| `OPENPLANS_PLUGINS`                  | Optional. Comma-separated package names. Overrides the file's plugin list, with default options. Empty keeps the file's list.                                                                                                                                                             |
+| `OPENPLANS_OPERATOR_TOKEN`           | Unset. Bearer token for the status plugin's `/status/operator` routes, which answer 404 without one. Use at least 32 random characters.                                                                                                                                                   |
 
-The [plugin guide](plugins.md) explains the config file's `plugins` entries, the first-party
+`plugins.entries` holds package names and options. `plugins.approvedList` names the operator's
+approval file; `plugins.lockfile` names the disk inventory. `plugins.requireApproval` requires
+approval even when every public switch is off. Empty approval environment variables keep the
+file's settings, including under Compose.
+
+The [plugin guide](plugins.md) explains the config file's `plugins.entries`, the first-party
 plugins, event delivery and how to write a plugin. [Running plugins](plugins-operations.md)
 is the operator checklist: a full config file, the Compose override, the scheduler, the signed
 webhook, cache levels, backups and the approved-plugin list.
@@ -58,8 +66,14 @@ This file sets the listener and leaves plugins disabled:
 ```json
 {
   "version": 1,
-  "listen": { "port": 3000 },
-  "plugins": []
+  "listen": {
+    "port": 3000
+  },
+  "plugins": {
+    "entries": [],
+    "approvedList": "./plugins.approved.json",
+    "lockfile": "./plugins.lock.json"
+  }
 }
 ```
 
@@ -83,9 +97,17 @@ variables for these names. With no config file, `pg` opens the Postgres pool at
 ```json
 {
   "version": 1,
-  "db": { "provider": "pg" },
-  "blobs": { "provider": "local" },
-  "plugins": []
+  "db": {
+    "provider": "pg"
+  },
+  "blobs": {
+    "provider": "local"
+  },
+  "plugins": {
+    "entries": [],
+    "approvedList": "./plugins.approved.json",
+    "lockfile": "./plugins.lock.json"
+  }
 }
 ```
 
@@ -380,6 +402,7 @@ required cache inputs and source-access limits.
 | `backfill rate-plan-count`                                                                                                                                                                                                                                                 | [Reading availability](self-host.md#reading-availability).                                                                                                                                                                                                    |
 | `backfill provider-search`                                                                                                                                                                                                                                                 | [Refresh and yearly updates](self-host.md#refresh-and-yearly-updates).                                                                                                                                                                                        |
 | `record-policy list`, `record-policy set NAME --ttl INTERVAL [--stale INTERVAL]`, `record-policy expire NAME [--before TIMESTAMP]`                                                                                                                                         | [Record policies](record-policy.md).                                                                                                                                                                                                                          |
+| `plugin lock`, `plugin verify [--json]`                                                                                                                                                                                                                                    | Write a package lock candidate or verify the files on disk without importing plugin code. [Package approval](plugins.md#package-approval-and-disk-verification).                                                                                              |
 | `schedule run [--loop]`                                                                                                                                                                                                                                                    | [Scheduler](plugins-operations.md#the-scheduler). One tick, or a tick every minute. Compose runs the loop in the `scheduler` profile.                                                                                                                         |
 | `deliver-events`, `emit TYPE --payload JSON [--idempotency-key KEY]`                                                                                                                                                                                                       | [Events and delivery](plugins.md#events-and-delivery). `deliver-events` runs from the scheduler every minute.                                                                                                                                                 |
 | `backup-args [--tar \| --manifest]`, `backup-restored --manifest FILE\|-`                                                                                                                                                                                                  | [Backups and restores](plugins-operations.md#backups-and-restores), [back up and restore](self-host.md#back-up-and-restore).                                                                                                                                  |
@@ -449,3 +472,90 @@ public quoting enabled. That option registers the preset calculation, printable
 sheet, source manifest and one MCP tool. It omits the private scenario route even
 when an operator token is configured. See the [stipend plugin](../plugins/handy/README.md)
 for inputs, print links, limits and recovery. This documentation does not enable a deployment.
+
+## Annual serving window
+
+`data.historyYears` accepts `3` or `"all"` in the version 1 config file. The default is `3`.
+API, worker and scheduler read the same file. There is no separate environment switch.
+
+The default keeps the previous and current UTC coverage years. An explicit, validated
+next-year admission adds that year to the domain, for at most three years. Individual-market
+data uses one window across federal and state catalogs. Medicare and Part D share another
+window. Downloaded files and imported rows alone do not admit next year. New databases start
+with no admissions. An operator publishes a reviewed JSON array with
+`worker data-admission --manifest /absolute/admissions.json`:
+
+```json
+[
+  {
+    "domain": "individual",
+    "coverage_year": 2027,
+    "manifest": {
+      "schema_version": 1,
+      "releases": [
+        {
+          "kind": "puf",
+          "snapshot_id": "YOUR_ACTIVE_IMPORT_ID",
+          "contract_year": 2027
+        }
+      ]
+    }
+  }
+]
+```
+
+Use the actual published import ID. Each dependency must have an ACTIVE receipt for the same
+year and domain. Federal imports must still be active and their file receipts must be ACTIVE.
+Medicare admissions require a landscape catalog. A failed batch writes no admissions.
+Repeating an unchanged admission leaves its data generation unchanged.
+
+For example, in 2026 the window is 2025 and 2026, plus 2027 once admitted. The 2025 ICHRA
+look-back remains available where its source evidence is loaded. A fourth year, 2024, is
+excluded. At UTC rollover into 2027 the window starts at 2026; admitting 2028 then permits
+2026, 2027 and 2028. The resolver never shifts backward to fill a missing source year.
+
+An excluded-year request returns `not_loaded` with `required_year`, `domain`, `allowed_years`
+and `policy_generation`. It does not evaluate coverage or borrow rates from another year.
+ICHRA checks the offer year and its derived look-back year before reading rate evidence.
+The public instance uses the same default and rejects settings that widen its window.
+Self-hosters can explicitly choose `"all"` to serve older published data where sources exist.
+That option does not enable a dataset or extend a cache TTL.
+
+`GET /v1/data-policy`, MCP `get_data_status` and status JSON expose the resolved policy, its hash,
+admitted years and loaded-year inventory. Missing states and source families still appear in
+data availability. A year in the window does not prove that its sources are loaded.
+The policy is checked before cache lookup, and its hash is part of cache and cursor identity.
+
+Acquisition and import use the same resolver with a build purpose. They can prepare the
+previous, current and next UTC years. Preparing next year does not admit it for serving;
+the admission ledger still requires validated releases. Bootstrap filters its requested
+years before opening source payloads. Direct importers also check their scope, including
+prepared QHP feeds, state rates, rating rules, Medicare and Part D. No importer fetches an
+older year to fill a gap or substitutes one year for another.
+
+An excluded job prints a `skipped` array with `dataset`, `year` and
+`reason: "outside_data_window"`. Append `--dry-run` to an annual
+ingest command to print its year plan without requests or writes. Part D and prepared
+state or rating-rule commands read only the metadata needed to identify the year. Bootstrap's `--dry-run` includes the same
+skip manifest as execution. A direct importer rejects excluded work with
+`AnnualImportSkipped` before reading the payload. A shared PUF archive can still contain
+retained rows; excluded-year rows are skipped before insertion and appear in its report.
+A changed embedded Part D contract year remains an error, rather than a year substitution.
+
+NPPES identities and addresses, taxonomy, RxNorm, Census ZIP and county geography, and
+geocode points are current-generation datasets. Their publication dates are not plan
+years, so the annual window does not reject an older Census vintage needed by current
+plans. Keep one current generation, with older raw bundles in the archive. Preserve any
+geography vintage cited by retained rating evidence. NPPES uses the current monthly full
+bundle and subsequent weekly and deactivation updates. CMS rating areas remain annual
+because they authorize a particular plan year. Import receipts remain provenance; they
+are not additional served generations. Removing old stored generations is a separate
+compaction step.
+
+Annual freshness jobs recalculate their year plans at each run. Lowest-premium cache
+renewal and rebuilds select only serving years, so a leaving year cannot consume a
+renewal batch after UTC rollover. The explicit self-hosted `"all"` setting also applies
+to admission planning; it does not trigger an automatic historical download.
+
+At UTC year rollover the resolver uses the new calendar year on the next request. No rows are
+ingested, pruned or deleted by the serving policy.

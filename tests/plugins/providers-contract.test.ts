@@ -3,7 +3,7 @@ import type { CacheStoreFactory } from "@openplans/plugin-sdk";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryCache } from "../../src/api/cache/store.js";
 import { loadConfig } from "../../src/config/index.js";
-import { loadPlugins } from "../../src/plugins/index.js";
+import { loadPlugins } from "./approval-helpers.js";
 import { providerTables } from "../../src/plugins/providers.js";
 import { checkCacheStore } from "../../src/plugins/testing/index.js";
 import type { CacheStoreSubject } from "../../src/plugins/testing/index.js";
@@ -47,7 +47,9 @@ async function syntheticFactory(): Promise<CacheStoreFactory> {
       {
         version: 1,
         cache: { provider: "synthetic" },
-        plugins: [{ package: "./synthetic-cache-store/index.mjs" }],
+        plugins: {
+          entries: [{ package: "./synthetic-cache-store/index.mjs" }],
+        },
       },
     ),
     "api",

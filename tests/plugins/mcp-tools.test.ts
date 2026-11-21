@@ -16,10 +16,10 @@ import {
   assertPluginHonest,
   callPluginTool,
   isToolName,
-  loadPlugins,
   toolListBytes,
   toolPageRefusal,
 } from "../../src/plugins/index.js";
+import { loadPlugins } from "./approval-helpers.js";
 import type { PluginHost, PluginTool } from "../../src/plugins/index.js";
 import type * as McpTools from "../../src/plugins/mcp-tools.js";
 import { plantMutant } from "../../src/plugins/testing/index.js";
@@ -53,7 +53,9 @@ const configWith = (options: Record<string, unknown>) =>
     {},
     {
       version: 1,
-      plugins: [{ package: "./synthetic-mcp-tools/index.mjs", options }],
+      plugins: {
+        entries: [{ package: "./synthetic-mcp-tools/index.mjs", options }],
+      },
     },
   );
 async function load(
@@ -78,7 +80,10 @@ async function load(
   }
 }
 afterEach(async () => {
-  await loadPlugins(loadConfig({}, { version: 1, plugins: [] }), "api");
+  await loadPlugins(
+    loadConfig({}, { version: 1, plugins: { entries: [] } }),
+    "api",
+  );
 });
 
 const handlerWith = (pluginTools?: readonly PluginTool[]) =>

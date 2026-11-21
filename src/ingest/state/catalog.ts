@@ -255,7 +255,7 @@ export function stateDetailColumns(raw: Record<string, string>) {
   const names =
     `BusinessYear StateCode StandardComponentId PlanId PlanType IsHSAEligible
     PlanEffectiveDate PlanExpirationDate FormularyURL IsReferralRequiredForSpecialist
-    PlanVariantMarketingName IssuerActuarialValue MedicalDrugDeductiblesIntegrated
+    PlanVariantMarketingName IssuerActuarialValue AVCalculatorOutputNumber MedicalDrugDeductiblesIntegrated
     MedicalDrugMaximumOutofPocketIntegrated IsCovered QuantLimitOnSvc LimitQty LimitUnit
     Exclusions Explanation EHBVarReason IsExclFromInnMOOP IsExclFromOonMOOP
     MinimumStay IsSubjectedToDedTier1 IsSubjectedToDedTier2

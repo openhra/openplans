@@ -36,6 +36,7 @@ const raw = (value: unknown) =>
 
 // Synthetic values exercise the documented environment contract, not downloaded data.
 const converted: Record<string, [string, unknown]> = {
+  OPENPLANS_PLUGINS_REQUIRE_APPROVAL: ["on", true],
   OPENPLANS_TPA: ["on", true],
   OPENPLANS_TPA_PRIVATE_INGRESS: ["on", true],
   PORT: ["4321", 4321],
@@ -106,6 +107,38 @@ describe("typed configuration", () => {
     }
   });
 
+  it("preserves file approval settings when Compose passes empty environment values", () => {
+    const config = loadConfig(
+      {
+        OPENPLANS_PLUGINS_APPROVED_LIST: "",
+        OPENPLANS_PLUGINS_LOCKFILE: "",
+        OPENPLANS_PLUGINS_REQUIRE_APPROVAL: "",
+        OPENPLANS_PLUGINS: "@synthetic/override",
+      },
+      {
+        version: 1,
+        plugins: {
+          entries: [],
+          approvedList: "./review.json",
+          lockfile: "./review.lock.json",
+          requireApproval: true,
+        },
+      },
+    );
+    expect(config.plugins).toMatchObject({
+      approvedList: "./review.json",
+      lockfile: "./review.lock.json",
+      requireApproval: true,
+      entries: [{ package: "@synthetic/override" }],
+    });
+    expect(
+      loadConfig(
+        { OPENPLANS_PLUGINS_REQUIRE_APPROVAL: "off" },
+        { version: 1, plugins: { requireApproval: true } },
+      ).plugins.requireApproval,
+    ).toBe(false);
+  });
+
   it.each(Object.entries(environmentPaths))(
     "round-trips %s to %s",
     (name, path) => {
@@ -153,7 +186,7 @@ describe("typed configuration", () => {
       ],
     });
     expect(config.trustProxy).toEqual([]);
-    expect(config.plugins).toEqual([]);
+    expect(config.plugins.entries).toEqual([]);
     expect(config.runners.pgliteDir).toBeUndefined();
     expect(coreConfigSchema.parse({}).listen.port).toBe(3000);
     expect(loadConfig({}, undefined, { port: 3001 }).listen.port).toBe(3001);
@@ -257,19 +290,21 @@ describe("typed configuration", () => {
         listen: { port: 4200, host: "localhost" },
         cache: { maxMb: 5 },
         tokens: { api: synthetic },
-        plugins: [
-          {
-            package: "@openplans/synthetic",
-            options: { state: "TX" },
-            sources: { synthetic: { cacheLevel: "memory", ttl: "1h" } },
-          },
-        ],
+        plugins: {
+          entries: [
+            {
+              package: "@openplans/synthetic",
+              options: { state: "TX" },
+              sources: { synthetic: { cacheLevel: "memory", ttl: "1h" } },
+            },
+          ],
+        },
       }),
     );
     const config = loadConfig({ OPENPLANS_CONFIG: file, PORT: "4300" });
     expect(config.listen).toEqual({ port: 4300, host: "localhost" });
     expect(config.cache.maxMb).toBe(5);
-    expect(config.plugins[0]).toMatchObject({
+    expect(config.plugins.entries[0]).toMatchObject({
       package: "@openplans/synthetic",
       enabled: true,
       options: { state: "TX" },
@@ -290,19 +325,21 @@ describe("typed configuration", () => {
       loadConfig({
         OPENPLANS_CONFIG: file,
         OPENPLANS_PLUGINS: " @openplans/a, @openplans/b ,",
-      }).plugins.map((plugin) => plugin.package),
+      }).plugins.entries.map((plugin) => plugin.package),
     ).toEqual(["@openplans/a", "@openplans/b"]);
     // Compose passes an empty OPENPLANS_PLUGINS; the file's list and options must survive it.
     for (const empty of ["", " , "])
       expect(
-        loadConfig({ OPENPLANS_CONFIG: file, OPENPLANS_PLUGINS: empty })
-          .plugins,
-      ).toEqual(config.plugins);
-    expect(loadConfig({ OPENPLANS_PLUGINS: "" }).plugins).toEqual([]);
+        loadConfig({ OPENPLANS_CONFIG: file, OPENPLANS_PLUGINS: empty }).plugins
+          .entries,
+      ).toEqual(config.plugins.entries);
+    expect(loadConfig({ OPENPLANS_PLUGINS: "" }).plugins.entries).toEqual([]);
     expect(loadConfig({}, file).listen.port).toBe(4200);
-    expect(loadConfig({}, { version: 1, plugins: [] }).plugins).toEqual([]);
+    expect(
+      loadConfig({}, { version: 1, plugins: { entries: [] } }).plugins.entries,
+    ).toEqual([]);
     expect(Object.isFrozen(config)).toBe(true);
-    expect(Object.isFrozen(config.plugins[0]?.options)).toBe(true);
+    expect(Object.isFrozen(config.plugins.entries[0]?.options)).toBe(true);
     expect(() => {
       (config.listen as { port: number }).port = 10;
     }).toThrow();
@@ -319,7 +356,10 @@ describe("typed configuration", () => {
     expect(() =>
       loadConfig(
         {},
-        { version: 1, plugins: [{ package: "x", enabled: "yes" }] },
+        {
+          version: 1,
+          plugins: { entries: [{ package: "x", enabled: "yes" }] },
+        },
       ),
     ).toThrow("Invalid OpenPlans configuration");
     const file = join(directory, "invalid.json");
@@ -419,6 +459,10 @@ describe("configuration rejection controls", () => {
           `from ${JSON.stringify(new URL("../../dist/config/diagnostics.js", import.meta.url).href)}`,
         )
         .replace(
+          'from "./registry.js"',
+          `from ${JSON.stringify(new URL("../../dist/config/registry.js", import.meta.url).href)}`,
+        )
+        .replace(
           'from "zod"',
           `from ${JSON.stringify(pathToFileURL(createRequire(import.meta.url).resolve("zod")).href)}`,
         ),
@@ -470,13 +514,28 @@ describe("configuration rejection controls", () => {
           ...process.env,
           OPENPLANS_CONFIG: "",
           OPENPLANS_PLUGINS: "",
+          OPENPLANS_PUBLIC_QUOTING: "off",
+          OPENPLANS_PUBLIC_HOUSEHOLD: "off",
+          OPENPLANS_PUBLIC_COMPAT: "off",
           ...overrides,
         },
         encoding: "utf8",
         timeout: 10000,
       });
       expect(result.status).toBe(1);
-      expect(result.stderr).toBe(`${message}\n`);
+      expect(
+        result.stderr
+          .split("\n")
+          .filter(
+            (line) =>
+              line !==
+              JSON.stringify({
+                plugin: "openplans",
+                code: "plugin_approval_unconfigured",
+              }),
+          )
+          .join("\n"),
+      ).toBe(`${message}\n`);
       expect(result.stdout).toBe("");
     },
   );

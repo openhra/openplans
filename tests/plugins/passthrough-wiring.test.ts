@@ -1,3 +1,4 @@
+import { privateEnvironment } from "./approval-helpers.js";
 // Pass-through host wiring (design 5.10.3 and 5.10.4): each source has its own switch, the core's
 // default evidence block passes the response-column guard, and the API and worker hosts apply the
 // operator's `plugins[].sources` settings, which can only tighten. Synthetic plans, answers and
@@ -101,12 +102,17 @@ async function configFile(
     JSON.stringify({
       version: 1,
       access: { operatorManifest: manifestPath },
-      plugins: [
-        { package: "./synthetic-passthrough/index.mjs", options, sources },
-      ],
+      plugins: {
+        entries: [
+          { package: "./synthetic-passthrough/index.mjs", options, sources },
+        ],
+      },
     }),
   );
-  return { OPENPLANS_CONFIG: path };
+  return { ...privateEnvironment(), OPENPLANS_CONFIG: path } as Record<
+    string,
+    string
+  >;
 }
 
 interface Served {

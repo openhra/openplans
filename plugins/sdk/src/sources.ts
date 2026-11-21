@@ -41,11 +41,21 @@ export interface FeedPlan {
    */
   requireRows?: string[];
 }
+export type FeedDataScope =
+  | { kind: "current" }
+  | {
+      kind: "annual";
+      domain: "individual" | "medicare";
+      years(args: unknown): readonly number[];
+    };
+
 export interface FeedSource {
   kind: "feed";
   /** The `source.source_id` and the `sourced_by` value of every staged row. */
   id: string;
   publisher: string;
+  /** Classify the data before planning can fetch a discovery page. */
+  dataScope: FeedDataScope;
   /**
    * Exact hosts; every plan URL must be on one. Each must also be among the plugin's
    * `capabilities.network` hosts and be allowed in a loaded manifest, or the run stops before

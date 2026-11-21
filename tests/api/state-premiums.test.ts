@@ -1,3 +1,4 @@
+import { loadConfig } from "../../src/config/index.js";
 import { canonicalEstimateOutput } from "../mcp/canonical-estimate.js";
 import { assertHonest } from "../../src/mcp/schemas.js";
 import { getPlan, estimatePremiums } from "../../src/services/catalog.js";
@@ -326,11 +327,15 @@ async function checkMcpAvailability(
   state: string,
   year: number,
 ) {
-  const result = await callTool({ db: tx }, "get_data_status", {
-    state,
-    year,
-    limit: 25,
-  });
+  const result = await callTool(
+    { db: tx, data: { historyYears: "all" } },
+    "get_data_status",
+    {
+      state,
+      year,
+      limit: 25,
+    },
+  );
   const output = outputSchemas.get_data_status.parse(result.structuredContent);
   expect(output.data!.datasets.length).toBeGreaterThan(0);
   for (const row of output.data!.datasets)
@@ -357,9 +362,13 @@ it("NY and VT 2027 availability and look-back stay unknown over HTTP and MCP", a
       VALUES('NY',2027,'Individual','synthetic-ny-2027','state-api-census-cut','unknown'),
       ('VT',2027,'Individual','synthetic-vt-2027','state-api-census-cut','unknown')`);
     for (const state of ["NY", "VT"]) {
-      const response = await createApp(tx).request(
-        `/v1/data-availability?state=${state}&year=2027`,
-      );
+      const response = await createApp(
+        tx,
+        {},
+        {
+          config: loadConfig({}, { version: 1, data: { historyYears: "all" } }),
+        },
+      ).request(`/v1/data-availability?state=${state}&year=2027`);
       expect(response.status).toBe(200);
       const rows = (await response.json()) as Record<string, unknown>[];
       expect(rows).toHaveLength(1);

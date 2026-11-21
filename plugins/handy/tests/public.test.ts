@@ -116,7 +116,7 @@ function setup(
     tools: McpToolSpec<unknown, unknown>[] = [];
   const config = loadConfig(
     {},
-    { version: 1, public: { quoting }, plugins: [] },
+    { version: 1, public: { quoting }, plugins: { entries: [] } },
   );
   plugin.setup({
     options,
@@ -157,7 +157,7 @@ afterEach(() => vi.useRealTimers());
 
 describe("public stipend preparation", () => {
   it("keeps plugin loading off by default and registers only three preset routes and one tool in public mode", () => {
-    expect(loadConfig({}).plugins).toEqual([]);
+    expect(loadConfig({}).plugins.entries).toEqual([]);
     const { routes, tools } = setup();
     expect(routes.map((route) => `${route.method} ${route.path}`)).toEqual([
       "GET /handy/allowance/print",

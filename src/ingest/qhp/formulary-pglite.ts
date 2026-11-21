@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { requireImportRows, requireImportYear } from "../data-window.js";
 import { copyMigrations } from "../../db/copy-migrations.js";
 import { runnerSettings } from "../../config/access.js";
 /** Real-data developer runner; isolated PGlite DB and report stay in the data cache. */
@@ -13,6 +14,7 @@ import { readJsonArray } from "../json/index.js";
 import { createDrugRepository } from "../../domain/drugs/repository.js";
 import { dataDirectory } from "../../config/access.js";
 
+requireImportYear("qhp", 2026);
 const cache = dataDirectory();
 const path =
   runnerSettings().formularyDb ?? join(cache, "formulary-pglite-p2c");
@@ -21,6 +23,7 @@ const directory = await mkdtemp(
 );
 let pg: PGlite | undefined;
 async function insert(table: string, rows: Record<string, unknown>[]) {
+  requireImportRows("qhp", rows);
   for (const row of rows) {
     const keys = Object.keys(row);
     await pg!.query(

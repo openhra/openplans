@@ -469,7 +469,7 @@ describe("provider API: record scope, distance and source evidence", () => {
     expect(
       (
         await get<Participation>(
-          `/v1/plans/${plan}/providers/${nearNpi}?year=2027`,
+          `/v1/plans/${plan}/providers/${nearNpi}?year=2025`,
         )
       ).body.status,
     ).toBe("unknown");

@@ -5,6 +5,54 @@ Release notes for OpenPlans. Earlier releases are on the
 
 ## Unreleased
 
+## v0.4.17
+
+- Add an offline database generation builder with disk admission, window-scoped imports, compaction, physical and logical archives, and a build manifest.
+
+Registry installs verify CI provenance when supplied and retain it in the plugin lock. `worker plugin list` shows the installed packages and their provenance.
+
+- Plan views and premium estimates publish selected CMS catalog attributes with source provenance. The compatibility API also serves the selected variant's calculator actuarial value as a percentage; missing evidence stays null.
+
+- Add `worker compact [--dry-run]` to reclaim completed staging data, vacuum the database and report before/after sizes as JSON. Unfinished imports and geocode runs block compaction.
+
+- Apply the three-year data window before annual downloads and imports, report skipped years in dry runs, and leave excluded years out of renewal jobs.
+
+- Instances serve the prior and current coverage years plus an admitted next year, at most three years. The public instance uses this default. Excluded-year requests report `not_loaded`, and status reports the serving policy separately from loaded data.
+
+- Operator backup and release tools now share a three-dump local retention limit, configurable with OPENPLANS_KEEP_DUMPS, while protecting the newest nightly backup and live release dump.
+
+- Medicare imports for a contract year now use the newest cached contract service-area file from that year or an earlier one, never a later one. The Landscape release records which monthly files built its county map (`county_map_pdp_release`, `county_map_ma_release`), so CY2027 can load before CMS posts a 2027 service-area file.
+
+- Admit next year's imported catalogs in the cache-only checks that read next year from their own database, so the PY2027 checks run under the data window.
+
+- Fix full database restores with geocode rows and verify nightly and pre-release backups by restoring the schema and data samples in a disposable database.
+
+- Operators can deploy a verified database generation with hard-release and roll back to the previous volume if deployment checks fail.
+
+- Reduce repeated serving-window queries on cached requests while refreshing the policy after data publication, configuration changes and UTC year rollover.
+
+- Reuse verified package bytes and warm the serving policy during startup.
+- Reduce database reads for public status pages and simultaneous ZIP lookups.
+- Reuse rendered public status HTML when its full view is unchanged.
+
+- Reduce repeated policy work on cached responses while keeping live data-generation checks. Health and readiness checks skip an unused policy scope.
+
+- Registry installs verify publisher signatures and publication-time key authorization. Yanks require an exact version and archive digest pin; deleted packages return a signed refusal.
+
+- Plugin API 0.2 checks exact package approvals before import, adds disk-only `worker plugin lock` and `worker plugin verify`, and requires approval in public mode.
+
+- Search signed plugin catalogs and install exact versions from trusted HTTPS or file registries, with freshness checks and local approval kept separate.
+
+- Install original-file data packages without activation, then ingest them explicitly through an approved feed source with upstream and redistribution reviews, year checks and snapshot audit records.
+
+- Add plugin inventory, registry-bound updates, guarded removal, ordered registry trust and verified offline bundles with explicit mirror support.
+
+- Add deterministic API 0.2 plugin packages, local verification and lockfile installation without approval, and original-file data descriptors with chunk hashes and source evidence.
+
+- Keep reviewed annual admissions when compacting and add receipt-checked admission publication so loaded next-year catalogs can remain available during upgrades.
+
+- Verify built database generations against a validated API image and recorded responses, then copy verified artifacts to a host shipping directory with checksum receipts.
+
 ## v0.4.16
 
 - Enforce per-source entry caps in memory and remote caches, with separate expiry for each answer.

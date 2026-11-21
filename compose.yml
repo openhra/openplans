@@ -92,6 +92,9 @@ services:
       OPENPLANS_CACHE_URL: ${OPENPLANS_CACHE_URL:-}
       # Comma-separated plugin packages, e.g. @openplans/plugin-status. Empty keeps the config file's list.
       OPENPLANS_PLUGINS: ${OPENPLANS_PLUGINS:-}
+      OPENPLANS_PLUGINS_APPROVED_LIST: ${OPENPLANS_PLUGINS_APPROVED_LIST:-}
+      OPENPLANS_PLUGINS_LOCKFILE: ${OPENPLANS_PLUGINS_LOCKFILE:-}
+      OPENPLANS_PLUGINS_REQUIRE_APPROVAL: ${OPENPLANS_PLUGINS_REQUIRE_APPROVAL:-}
       # Absolute path to a JSON config file, mounted read-only at the same path. Empty reads none.
       OPENPLANS_CONFIG: ${OPENPLANS_CONFIG:-}
       # Bearer token for /status/operator*. Unset keeps those routes at 404.
@@ -155,6 +158,9 @@ services:
       OPENPLANS_EGRESS_COUNTRY: ${OPENPLANS_EGRESS_COUNTRY:-}
       # Comma-separated plugin packages, e.g. @openplans/plugin-status. Empty keeps the config file's list.
       OPENPLANS_PLUGINS: ${OPENPLANS_PLUGINS:-}
+      OPENPLANS_PLUGINS_APPROVED_LIST: ${OPENPLANS_PLUGINS_APPROVED_LIST:-}
+      OPENPLANS_PLUGINS_LOCKFILE: ${OPENPLANS_PLUGINS_LOCKFILE:-}
+      OPENPLANS_PLUGINS_REQUIRE_APPROVAL: ${OPENPLANS_PLUGINS_REQUIRE_APPROVAL:-}
       # Absolute path to a JSON config file, mounted read-only at the same path. Empty reads none.
       OPENPLANS_CONFIG: ${OPENPLANS_CONFIG:-}
     configs:
@@ -195,6 +201,9 @@ services:
       OPENPLANS_EGRESS_COUNTRY: ${OPENPLANS_EGRESS_COUNTRY:-}
       # Comma-separated plugin packages, e.g. @openplans/plugin-status. Empty keeps the config file's list.
       OPENPLANS_PLUGINS: ${OPENPLANS_PLUGINS:-}
+      OPENPLANS_PLUGINS_APPROVED_LIST: ${OPENPLANS_PLUGINS_APPROVED_LIST:-}
+      OPENPLANS_PLUGINS_LOCKFILE: ${OPENPLANS_PLUGINS_LOCKFILE:-}
+      OPENPLANS_PLUGINS_REQUIRE_APPROVAL: ${OPENPLANS_PLUGINS_REQUIRE_APPROVAL:-}
       # Absolute path to a JSON config file, mounted read-only at the same path. Empty reads none.
       OPENPLANS_CONFIG: ${OPENPLANS_CONFIG:-}
     configs:

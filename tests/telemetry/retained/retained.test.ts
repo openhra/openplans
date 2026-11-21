@@ -12,7 +12,7 @@ import { readFile } from "node:fs/promises";
 import type { Database } from "../../../src/db/database.js";
 import { coreMigrations, migratedTemplate } from "../../pglite.js";
 import { loadPluginMigrations, migrate } from "../../../src/db/migrate.js";
-import { dataGeneration } from "../../../src/api/cache/generation.js";
+import { dataGeneration } from "../../../src/db/generation.js";
 import { checkCatalogTriggers } from "../../../src/plugins/testing/checks.js";
 import {
   schemaViolations,

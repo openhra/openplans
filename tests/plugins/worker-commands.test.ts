@@ -1,3 +1,4 @@
+import { privateEnvironment } from "./approval-helpers.js";
 import { PGlite } from "@electric-sql/pglite";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -19,7 +20,7 @@ import {
 } from "../../src/plugins/worker.js";
 import type { PluginWorkerCommand } from "../../src/plugins/worker.js";
 import { loadConfig } from "../../src/config/index.js";
-import { loadPlugins } from "../../src/plugins/loader.js";
+import { loadPlugins } from "./approval-helpers.js";
 import * as Registries from "../../src/plugins/registries.js";
 import type { PluginHost } from "../../src/plugins/registries.js";
 import { coreWorkerCommands, runWorker } from "../../src/worker/commands.js";
@@ -49,7 +50,7 @@ const manifest = (name: string, writes?: string[]) =>
   JSON.stringify({
     name: `@synthetic/${name}`,
     version: "0.0.1",
-    apiVersion: "0.1",
+    apiVersion: "0.2",
     kinds: ["workerCommands"],
     ...(writes ? { capabilities: { writes } } : {}),
   });
@@ -138,8 +139,14 @@ class Exit extends Error {
 const load = async (...files: string[]) => {
   const lines: string[] = [];
   const loaded = await loadWorkerPlugins({
-    env: { OPENPLANS_PLUGINS: files.join(",") },
-    writeLog: (line) => lines.push(line),
+    env: privateEnvironment({ OPENPLANS_PLUGINS: files.join(",") }),
+    writeLog: (line) => {
+      if (
+        (JSON.parse(line) as { code?: string }).code !==
+        "plugin_approval_unconfigured"
+      )
+        lines.push(line);
+    },
     exit: (code) => {
       throw new Exit(code);
     },
@@ -219,15 +226,26 @@ describe("core worker commands", () => {
         ]),
       ),
     ).toEqual({
+      "plugin pack": null,
+      "plugin search": null,
+      "plugin install": null,
+      "plugin list": null,
+      "plugin update": null,
+      "plugin remove": null,
+      "plugin bundle": null,
+      "plugin lock": null,
+      "plugin verify": null,
       "prebuild lowest-premiums": 300_000,
       "build lowest-premiums": 300_000,
       migrate: 3_600_000,
+      compact: 3_600_000,
       status: null,
       "record-policy": 3_600_000,
       "backfill row-provenance": 3_600_000,
       "backfill rate-plan-count": 3_600_000,
       "backfill provider-search": 3_600_000,
       bootstrap: null,
+      "ingest package puf": 300_000,
       "ingest sbe": 300_000,
       "ingest state": null,
       "ingest qhp": null,
@@ -248,6 +266,7 @@ describe("core worker commands", () => {
       "deliver-events": 60_000,
       schedule: 60_000,
       "backup-args": null,
+      "data-admission": null,
       "backup-restored": 3_600_000,
       emit: null,
     });
@@ -266,7 +285,7 @@ describe("core worker commands", () => {
       const result = await run(args, []);
       expect(result.code).toBe(1);
       expect(result.err).toEqual([
-        "Usage: worker migrate [--check|--size-evidence] | status | record-policy list|set|expire | backup-args [--tar|--manifest] | backup-restored --manifest FILE | backfill row-provenance [--table NAME] [--blocks N] | backfill rate-plan-count | backfill provider-search (--disk PATH | --free-gb N) | ingest puf|qhp|nppes|rxnorm|taxonomy|geo|medicare",
+        "Usage: worker plugin pack <dir> --out <dir> | plugin install [--data] <dir|file.tgz|name@version --registry URL [--pin-sha256 HEX]> | plugin search <q> [--registry URL] | plugin list [--json] | plugin update <name> [--to VERSION] [--registry URL] | plugin remove <name> | plugin bundle <name>@<version> --out DIR [--registry URL] | plugin lock | plugin verify [--json|--local <dir|file.tgz>] | migrate [--check|--size-evidence] | status | compact [--dry-run] | data-admission --manifest FILE | record-policy list|set|expire | backup-args [--tar|--manifest] | backup-restored --manifest FILE | backfill row-provenance [--table NAME] [--blocks N] | backfill rate-plan-count | backfill provider-search (--disk PATH | --free-gb N) | ingest puf|qhp|nppes|rxnorm|taxonomy|geo|medicare|package",
       ]);
       expect(result.opened).toEqual([]);
     }
@@ -390,7 +409,7 @@ describe("plugin worker commands", () => {
     const result = await run(["ingest", "puf"], loaded.commands);
     expect(result.err).toEqual(["ingest puf: not implemented"]);
     const none = await run(["plugin"], loaded.commands);
-    expect(none.err[0]).toMatch(/^Usage: worker migrate /);
+    expect(none.err[0]).toMatch(/^Usage: worker plugin pack /);
   });
 
   it.each([
@@ -414,6 +433,14 @@ describe("plugin worker commands", () => {
       await expect(load(file)).rejects.toMatchObject({ code: 1 });
     },
   );
+
+  it.each([
+    ["plugin", "lock"],
+    ["plugin", "verify"],
+  ])("refuses an inventory argv claimed by a plugin: %j", async (...argv) => {
+    const file = await shadow("inventory-" + argv.join("-"), argv);
+    await expect(load(file)).rejects.toMatchObject({ code: 1 });
+  });
 
   it("still refuses a core argv at dispatch for a hand-built command list", async () => {
     const command: PluginWorkerCommand = {
@@ -440,7 +467,7 @@ describe("plugin worker commands", () => {
         {
           name: "@synthetic/shadow",
           version: "0.0.1",
-          apiVersion: "0.1",
+          apiVersion: "0.2",
           kinds: ["workerCommands"],
         },
         "worker",
@@ -473,7 +500,7 @@ describe("plugin worker commands", () => {
 
   it("loads nothing without plugins or with a configuration that does not parse", async () => {
     for (const env of [{}, { OPENPLANS_CONFIG: "relative.json" }]) {
-      const loaded = await loadWorkerPlugins({ env });
+      const loaded = await loadWorkerPlugins({ env: privateEnvironment(env) });
       expect(loaded.commands).toEqual([]);
       await loaded.teardown();
     }

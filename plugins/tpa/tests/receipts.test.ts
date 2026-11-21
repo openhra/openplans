@@ -1,3 +1,4 @@
+import { withDataPolicy } from "../../../src/services/data-window.js";
 import type * as Crypto from "node:crypto";
 import { afterAll, beforeAll, expect, it, vi } from "vitest";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -13,17 +14,17 @@ import {
 import type { Receipt } from "../../../src/receipts/evidence.js";
 import {
   receiptDependencies,
-  prepareIchraReceipt,
+  prepareIchraReceipt as guardedPrepareIchraReceipt,
 } from "../../../src/receipts/ichra.js";
-import { replayExport } from "../../../src/receipts/replay.js";
+import { replayExport as guardedReplayExport } from "../../../src/receipts/replay.js";
 import { receiptCli, localReplayUrl } from "../../../src/receipts/cli.js";
 import {
   censusRows,
-  ichraAffordabilityBatch,
+  ichraAffordabilityBatch as guardedIchraAffordabilityBatch,
 } from "../../../src/services/ichra-batch.js";
 import { setup, TOKEN } from "../../../tests/compat/v1/helpers.js";
 import { loadConfig } from "../../../src/config/index.js";
-import { loadPlugins } from "../../../src/plugins/loader.js";
+import { loadPlugins } from "../../../tests/plugins/approval-helpers.js";
 import { createApp } from "../../../src/api/app.js";
 import { PREPARE_PATH } from "../src/index.js";
 
@@ -156,7 +157,13 @@ it("reproduces 100 synthetic row answers in four capped exports on independently
     );
     expect(sha256(JSON.stringify(answer))).toBe(sha256(receipt.answer_json));
     for (let i = 0; i < body.rows.length; i++) {
-      const single = await restored.app.request("/v1/ichra/affordability", {
+      const single = await createApp(
+        restored.db,
+        { premiumToken: TOKEN },
+        {
+          config: loadConfig({}, { version: 1, data: { historyYears: "all" } }),
+        },
+      ).request("/v1/ichra/affordability", {
         method: "POST",
         headers: {
           "content-type": "application/json",
@@ -323,9 +330,11 @@ async function pluginApp(
   const config = loadConfig(env, {
     version: 1,
     tpa,
-    plugins: [
-      { package: fileURLToPath(new URL("../src/index.ts", import.meta.url)) },
-    ],
+    plugins: {
+      entries: [
+        { package: fileURLToPath(new URL("../src/index.ts", import.meta.url)) },
+      ],
+    },
   });
   const loaded = await loadPlugins(config, "api", {
     env,
@@ -456,4 +465,39 @@ it("rejects a missing aggregate member and refuses a different restored generati
   expect((await verifyReceipt(broken, options)).reason).toBe(
     "snapshot_manifest_member_missing",
   );
+});
+
+function prepareIchraReceipt(
+  ...args: Parameters<typeof guardedPrepareIchraReceipt>
+) {
+  return withDataPolicy({ historyYears: "all" }, () =>
+    guardedPrepareIchraReceipt(...args),
+  );
+}
+function ichraAffordabilityBatch(
+  ...args: Parameters<typeof guardedIchraAffordabilityBatch>
+) {
+  return withDataPolicy({ historyYears: "all" }, () =>
+    guardedIchraAffordabilityBatch(...args),
+  );
+}
+function replayExport(...args: Parameters<typeof guardedReplayExport>) {
+  return withDataPolicy({ historyYears: "all" }, () =>
+    guardedReplayExport(...args),
+  );
+}
+it("returns an explicit dependency error for an excluded receipt year", async () => {
+  const { app, loaded } = await pluginApp();
+  try {
+    const response = await send(app, {
+      operation: "prepare_from_batch",
+      batch_request: request([employee({ plan_start: "2027-01-01" })]),
+    });
+    expect(response.status).toBe(404);
+    expect(await response.json()).toMatchObject({
+      error: { code: "not_loaded", required_year: 2027 },
+    });
+  } finally {
+    await loaded.teardown();
+  }
 });

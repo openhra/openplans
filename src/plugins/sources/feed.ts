@@ -1,3 +1,4 @@
+import { planAnnualWork } from "../../ingest/data-window.js";
 import { randomBytes } from "node:crypto";
 import {
   FEED_REASON_CODE,
@@ -39,6 +40,12 @@ import { dataDirectory, operatorManifest } from "../../config/access.js";
  * `FeedContext`. Tests inject a transport, a lookup and a manifest here.
  */
 export interface FeedRunOptions {
+  /** Core package inputs use an isolated cache namespace, with normal fetch admission. */
+  cacheSource?: (url: string) => string;
+  /** Core-only package input evidence, recorded before staging so quarantine retains it. */
+  packageReceipt?: string;
+  /** Core prepares local package cache files only after every plan URL passes admission. */
+  prepareFiles?: (plan: FeedPlan) => Promise<void>;
   /**
    * The plugin's `capabilities.network` hosts. Every host the source lists must be one of them;
    * left out, the run is refused.
@@ -56,6 +63,7 @@ export interface FeedRunOptions {
   events?: EventRegistry;
   output?: { out(message: string): void; error(message: string): void };
   now?: () => Date;
+  dryRun?: boolean;
 }
 
 /** One line on stdout after an activation. Ids and counts only. */
@@ -301,6 +309,39 @@ export async function runFeedSource(
     return 1;
   }
 
+  const scope = source.dataScope;
+  if (!scope || !["current", "annual"].includes(scope.kind))
+    return fail("feed_data_scope_required");
+  if (scope.kind === "annual") {
+    try {
+      if (
+        !["individual", "medicare"].includes(scope.domain) ||
+        typeof scope.years !== "function"
+      )
+        return fail("feed_data_scope_invalid");
+      const requested = scope.years(parsed.data);
+      if (!Array.isArray(requested) || !requested.length)
+        return fail("feed_data_scope_invalid");
+      const work = planAnnualWork(id, requested, scope.domain, options.now?.());
+      // A feed is atomic. Refuse the whole plan if it mixes retained and excluded years.
+      if (work.skipped.length || options.dryRun) {
+        output.out(
+          JSON.stringify({
+            planned: work.years.map((year) => ({ dataset: id, year })),
+            skipped: work.skipped,
+          }),
+        );
+        return work.skipped.length && !options.dryRun
+          ? fail("outside_data_window")
+          : 0;
+      }
+    } catch {
+      return fail("feed_data_scope_invalid");
+    }
+  } else if (options.dryRun) {
+    output.out(JSON.stringify({ current_generation: id, skipped: [] }));
+    return 0;
+  }
   const dataDir = options.dataDir ?? dataDirectory();
   const manifests = options.manifestPaths ?? defaultManifests();
   if (!manifests.length) return fail("admission_required");
@@ -390,6 +431,7 @@ export async function runFeedSource(
         throw new FeedFailure(fetchReason(error, "plan_url_refused"));
       }
     }
+    await options.prepareFiles?.(plan);
   } catch (error) {
     return fail(reason((error as FeedFailure).reasonCode, "plan_failed"));
   } finally {
@@ -415,12 +457,19 @@ export async function runFeedSource(
   try {
     await db.transaction(async (tx) => {
       await insertSource(tx, source);
-      for (const [index, file] of plan.files.entries())
+      for (const [index, file] of plan.files.entries()) {
         await tx.query(
           `INSERT INTO snapshot(snapshot_id,source_id,requested_url,validation_state,expected_children)
            VALUES ($1,$2,$3,'FETCHING',1)`,
           [snapshotIds[index], source.id, checkedUrl(file.url, hosts).href],
         );
+        if (options.packageReceipt)
+          await tx.query(
+            `INSERT INTO quality_issue(source_id,snapshot_id,severity,issue_code,explanation)
+             VALUES ($1,$2,'info','data_package_input',$3)`,
+            [source.id, snapshotIds[index], options.packageReceipt],
+          );
+      }
     });
   } catch {
     return fail("snapshot_record_failed");
@@ -429,6 +478,7 @@ export async function runFeedSource(
   try {
     for (const [index, file] of plan.files.entries()) {
       const snapshotId = snapshotIds[index]!;
+      const cacheSource = options.cacheSource?.(file.url) ?? source.id;
       // A content-addressed file is stored under its hash, and an earlier copy of the same URL is
       // reused. The plan's own hash comes first: an earlier copy with other content is not used.
       const content = file.cache === "content";
@@ -437,7 +487,7 @@ export async function runFeedSource(
         (content
           ? await earlierCopy(
               dataDir,
-              source.id,
+              cacheSource,
               provenanceUrl(checkedUrl(file.url, hosts)),
             )
           : undefined);
@@ -445,7 +495,7 @@ export async function runFeedSource(
       try {
         result = await fetchToCache(file.url, {
           ...transport,
-          source: source.id,
+          source: cacheSource,
           ...(content ? {} : { snapshotId }),
           allowHosts: hosts,
           expectedContent: fetchContent(file.expectedContent),

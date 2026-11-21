@@ -76,6 +76,8 @@ files=(
   tests/domain/geo/postgis.test.ts
   tests/ingest/geocode/cleanup.test.ts
   tests/ingest/geocode/multistate.test.ts
+  tests/db/compact.test.ts
+  tests/db/restore-search-path.test.ts
   tests/db/maintenance-locks.test.ts
   tests/db/worker-concurrency-postgres.test.ts
 )

@@ -5,7 +5,7 @@ import type {
   PluginFactory,
   SqlSession,
 } from "@openplans/plugin-sdk";
-import { renderStatusHtml } from "./html.js";
+import { publicHtmlMemo, renderStatusHtml } from "./html.js";
 import { runHealthProbe } from "./probe.js";
 import { readStatus, sourceDateMemo } from "./read.js";
 import type { StatusHost } from "./read.js";
@@ -89,7 +89,7 @@ export function createStatusPlugin(
     manifest: {
       name: PLUGIN_NAME,
       version: PLUGIN_VERSION,
-      apiVersion: "0.1",
+      apiVersion: "0.2",
       kinds: ["routes", "mcpTools", "workerCommands", "schedules"],
       capabilities: {
         operatorRoutes: true,
@@ -99,7 +99,11 @@ export function createStatusPlugin(
     },
     setup(ctx: PluginContext) {
       const sourceRead = sourceDateMemo();
-      const read = (db: SqlSession) =>
+      const renderPublic = publicHtmlMemo();
+      const read = (
+        db: SqlSession,
+        audience: "public" | "operator" = "operator",
+      ) =>
         readStatus(
           db,
           {
@@ -107,6 +111,7 @@ export function createStatusPlugin(
             host,
             plugin: ctx.plugin.name,
             now: now(),
+            audience,
           },
           sourceRead,
         );
@@ -117,10 +122,8 @@ export function createStatusPlugin(
         cache: { ttlSeconds: PUBLIC_TTL_SECONDS },
         contentType: "text/html",
         handler: async (c) => {
-          const status = await read(c.get("pluginDb"));
-          return c.html(
-            renderStatusHtml(publicView(status), stateCodes(status)),
-          );
+          const status = await read(c.get("pluginDb"), "public");
+          return c.html(renderPublic(publicView(status), stateCodes(status)));
         },
       });
       ctx.routes.add({
@@ -129,7 +132,8 @@ export function createStatusPlugin(
         exposure: "public",
         cache: { ttlSeconds: PUBLIC_TTL_SECONDS },
         contentType: "application/json",
-        handler: async (c) => c.json(publicView(await read(c.get("pluginDb")))),
+        handler: async (c) =>
+          c.json(publicView(await read(c.get("pluginDb"), "public"))),
       });
       // Operator detail: the host checks the token, answers 404 when none is set and never caches.
       ctx.routes.add({
@@ -169,7 +173,7 @@ export function createStatusPlugin(
         outputSchema: getStatusSchema,
         readOnly: true,
         handler: async (input, tool) =>
-          getStatusView(await read(tool.db), input),
+          getStatusView(await read(tool.db, "public"), input),
       });
       ctx.workerCommands.add({
         argv: PROBE_ARGV,

@@ -1,3 +1,10 @@
+import { dataGeneration } from "../db/generation.js";
+import {
+  dataPolicyActive,
+  servingPolicy,
+  servingGeneration,
+  withDataPolicy,
+} from "../services/data-window.js";
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import type {
@@ -7,7 +14,6 @@ import type {
   StatusHost,
 } from "@openplans/plugin-sdk";
 import { responseCacheFor } from "../api/cache/index.js";
-import { dataGeneration } from "../api/cache/generation.js";
 import type { CoreConfig } from "../config/index.js";
 import type { SqlSession } from "../db/database.js";
 import { dataAvailability } from "../services/availability.js";
@@ -148,9 +154,15 @@ export function createStatusHost(
   loaded: () => LoadedStatus | undefined,
 ): StatusHost {
   let store: CacheStore | undefined;
+  const inPolicy = <T>(read: () => T) =>
+    dataPolicyActive() ? read() : withDataPolicy(config.data, read);
   // With the cache off every status read derives availability again, as the API does.
   const dataAvailability = config.cache.enabled
-    ? availabilityMemo()
+    ? availabilityMemo(
+        hostAvailability,
+        async (db) =>
+          `${await servingGeneration(db)}:${(await servingPolicy(db)).generation}`,
+      )
     : hostAvailability;
   const host: StatusHost = {
     version: coreApplicationVersion,
@@ -165,7 +177,8 @@ export function createStatusHost(
     passthroughEnabled: (id) =>
       loaded() ? passThroughSourceIds().includes(id) : undefined,
     passthroughHitRate: passThroughHitRate,
-    dataAvailability,
+    dataPolicy: (db) => inPolicy(() => servingPolicy(db)),
+    dataAvailability: (db) => inPolicy(() => dataAvailability(db)),
   };
   if (config.cache.enabled)
     host.cacheProbe = async () => {

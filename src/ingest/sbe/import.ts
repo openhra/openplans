@@ -1,3 +1,4 @@
+import { requireImportYear } from "../data-window.js";
 import type { Database } from "../../db/database.js";
 import { importPufs } from "../puf/import.js";
 import type { PufImportOptions } from "../puf/import.js";
@@ -19,6 +20,7 @@ export async function importSbe(
   db: Database,
   options: PufImportOptions & { acquire?: boolean },
 ) {
+  requireImportYear("sbe", options.year);
   const dataDir = options.dataDir ?? importDataDirectory();
   const links = options.files
     ? []

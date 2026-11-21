@@ -1,3 +1,4 @@
+import type { SqlSession } from "../../src/db/database.js";
 import type * as CatalogPolicyModule from "../../src/plugins/catalog-policy.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { pathToFileURL } from "node:url";
@@ -245,9 +246,20 @@ it("refuses configured missing providers, unauthorized public mode, and serving 
   expect(() => requireCatalogServingReady()).toThrow("MSOT_SERVING_DISABLED");
 });
 it("requires explicit public permission before dispatch and keeps unknown operations closed", async () => {
+  const db: SqlSession = {
+    ...scope.db,
+    query: async <Row extends Record<string, unknown>>(sql: string) =>
+      sql.includes("api_data_generation")
+        ? {
+            rows: [
+              { generation: "synthetic-policy-generation" },
+            ] as unknown as Row[],
+          }
+        : scope.db.query(),
+  };
   const p = provider();
   const app = createApp(
-    scope.db,
+    db,
     {},
     {
       plugins: {

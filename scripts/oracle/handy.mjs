@@ -26,6 +26,7 @@ import { familyOffer } from "../../dist/services/coverage-family.js";
 import { countyPlans, resolveLocation } from "../../dist/api/repository.js";
 import { premiumRequest } from "../../dist/api/validation.js";
 import { importDataDirectory } from "../../dist/ingest/puf/import-source.js";
+import { admitNextYear } from "./admission.mjs";
 
 const root = importDataDirectory();
 const args = process.argv.slice(2);
@@ -127,6 +128,8 @@ try {
       db = database(new PGlite(path));
       await migrate(db, directory);
       const [year, state] = source.match(/(202[567])-([A-Z]{2})$/).slice(1);
+      // The API serves next year only once admitted. Admit it here, as a release does after loading.
+      await admitNextYear(db, "individual", Number(year));
       const counties = (
         await db.query(
           `SELECT DISTINCT county_fips FROM service_area_county

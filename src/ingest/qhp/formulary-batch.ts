@@ -1,3 +1,4 @@
+import { requireImportYear } from "../data-window.js";
 import type { ProviderOptions } from "./provider.js";
 import { randomUUID } from "node:crypto";
 import type { Database } from "../../db/database.js";
@@ -20,6 +21,7 @@ export async function ingestQhpBatch(
   kind: "formulary" | "providers",
   options: QhpBatchOptions,
 ) {
+  requireImportYear(`qhp-${kind}`, options.year);
   const issuers = options.issuer
     ? [options.issuer]
     : (

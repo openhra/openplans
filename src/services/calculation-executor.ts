@@ -1,3 +1,5 @@
+import { currentDataPolicy } from "./data-window.js";
+import { ReadError } from "./errors.js";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { Worker } from "node:worker_threads";
 import type { CalculationHost, CalculationScope } from "@openplans/plugin-sdk";
@@ -27,13 +29,22 @@ export function installCalculationExecutor(
   installed = executor;
 }
 
-export type WireError = { name: string; message: string; code?: string };
+export type WireError = {
+  name: string;
+  message: string;
+  code?: string;
+  readError?: ReadError["error"];
+};
 export function calculationError(error: unknown): WireError {
   const code =
     error instanceof Error
       ? (error as Error & { code?: unknown }).code
       : undefined;
   return {
+    ...(error instanceof ReadError &&
+    ["not_loaded", "data_policy_unavailable"].includes(error.error.code)
+      ? { readError: error.error }
+      : {}),
     name: error instanceof Error ? error.name : "Error",
     message: error instanceof Error ? error.message : "calculation_failed",
     ...(typeof code === "string" ? { code } : {}),
@@ -59,6 +70,7 @@ export type WorkerReply =
 export type WorkerRequest =
   | {
       type: "calculate";
+      dataPolicy: ReturnType<typeof currentDataPolicy>;
       id: number;
       method: CalculationMethod;
       input: unknown;
@@ -110,12 +122,14 @@ export class CalculationWorker implements CalculationExecutor {
       thread.on("message", (message: WorkerReply) => {
         if (message.type === "ready") resolve();
         else if (message.type === "result" && this.current?.id === message.id) {
-          const error = message.error
-            ? Object.assign(new Error(message.error.message), {
-                name: message.error.name,
-                code: message.error.code,
-              })
-            : undefined;
+          let error: Error | undefined;
+          if (message.error?.readError)
+            error = new ReadError(message.error.readError);
+          else if (message.error)
+            error = Object.assign(new Error(message.error.message), {
+              name: message.error.name,
+              code: message.error.code,
+            });
           this.current.finish(error, message.result, message.remaining);
         } else if (
           message.type === "query" &&
@@ -216,6 +230,7 @@ export class CalculationWorker implements CalculationExecutor {
       try {
         thread.postMessage({
           type: "calculate",
+          dataPolicy: currentDataPolicy(),
           id,
           method,
           input,

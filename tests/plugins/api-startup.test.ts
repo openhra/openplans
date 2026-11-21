@@ -1,3 +1,4 @@
+import { approvedTestEnvironment } from "./approval-helpers.js";
 import { spawn } from "node:child_process";
 import { request as httpRequest } from "node:http";
 import type { ChildProcess } from "node:child_process";
@@ -52,7 +53,11 @@ async function startApi(
 ): Promise<Started> {
   const port = await freePort();
   const child = spawn(process.execPath, [file], {
-    env: { ...baseEnv, PORT: String(port), ...env },
+    env: await approvedTestEnvironment({
+      ...baseEnv,
+      PORT: String(port),
+      ...env,
+    }),
     stdio: ["ignore", "pipe", "pipe"],
   });
   children.add(child);
@@ -182,7 +187,7 @@ const toolNames = async (port: number): Promise<string[]> =>
     (tool: { name: string }) => tool.name,
   );
 
-function stdioCall(
+async function stdioCall(
   env: Record<string, string>,
   method: string,
   params: object,
@@ -191,9 +196,17 @@ function stdioCall(
   stderr: string;
   code: number | null;
 }> {
+  const startupEnv = {
+    ...baseEnv,
+    OPENPLANS_MCP_ALLOW_PERSONALIZED: "0",
+    ...env,
+  };
+  const reviewed = env.OPENPLANS_PLUGINS?.includes("does-not-exist")
+    ? startupEnv
+    : await approvedTestEnvironment(startupEnv);
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, [stdio], {
-      env: { ...baseEnv, OPENPLANS_MCP_ALLOW_PERSONALIZED: "0", ...env },
+      env: reviewed,
       stdio: ["pipe", "pipe", "pipe"],
     });
     children.add(child);
@@ -429,8 +442,9 @@ describe("the API server loads configured plugins at startup", () => {
     const lines = err.trim().split("\n");
     expect(lines).toHaveLength(1);
     expect(JSON.parse(lines[0]!)).toEqual({
-      plugin: "@openplans/plugin-does-not-exist-synthetic",
-      code: "plugin_import_failed",
+      plugin: "openplans",
+      code: "plugin_approval_refused",
+      reason: "approved_list_required",
     });
   });
 
@@ -440,7 +454,10 @@ describe("the API server loads configured plugins at startup", () => {
     expect(original).toContain(call);
     const mutant = await plantMutantFile(
       server,
-      original.replace(call, "await loadApiPlugins({ env: {} })"),
+      original.replace(
+        call,
+        'await loadApiPlugins({ env: { OPENPLANS_PUBLIC_QUOTING: "off", OPENPLANS_PUBLIC_HOUSEHOLD: "off", OPENPLANS_PUBLIC_COMPAT: "off" } })',
+      ),
     );
     try {
       // startApi waits for the copy's "listening" line, so it loaded and ran.
@@ -575,8 +592,9 @@ describe("MCP stdio loads configured plugins at startup", () => {
         .map((line) => JSON.parse(line) as unknown),
     ).toEqual([
       {
-        plugin: "@openplans/plugin-does-not-exist-synthetic",
-        code: "plugin_import_failed",
+        plugin: "openplans",
+        code: "plugin_approval_refused",
+        reason: "approved_list_required",
       },
     ]);
   });

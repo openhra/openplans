@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { requireImportRows, requireImportYear } from "../data-window.js";
 import { copyMigrations } from "../../db/copy-migrations.js";
 import { runnerSettings } from "../../config/access.js";
 /** Real-data runner; all DB/download/report bytes stay in the external cache. */
@@ -15,6 +16,7 @@ import { sourceSet } from "./provider-repository.js";
 import { createProviderRepository } from "../../domain/providers/index.js";
 import { dataDirectory } from "../../config/access.js";
 
+requireImportYear("qhp", 2026);
 const cache = dataDirectory();
 const path = runnerSettings().providerDb ?? join(cache, "provider-pglite-p3b");
 const directory = await mkdtemp(
@@ -22,6 +24,7 @@ const directory = await mkdtemp(
 );
 let pg: PGlite | undefined;
 async function insert(table: string, rows: Record<string, unknown>[]) {
+  requireImportRows("qhp", rows);
   for (let at = 0; at < rows.length; at += 500)
     await pg!.query(
       `INSERT INTO ${table} OVERRIDING SYSTEM VALUE

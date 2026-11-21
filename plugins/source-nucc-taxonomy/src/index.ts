@@ -33,7 +33,7 @@ const plugin: OpenPlansPlugin = {
   manifest: {
     name: "@openplans/source-nucc-taxonomy",
     version: packageJson.version,
-    apiVersion: "0.1",
+    apiVersion: "0.2",
     kinds: ["sources"],
     capabilities: { network: [nuccHost], writes: ["staging"] },
   },

@@ -1,3 +1,4 @@
+import { dataPolicySchema, annualDomainSchema } from "@openplans/plugin-sdk";
 import { z } from "zod";
 import type { JsonSchemaType } from "@modelcontextprotocol/server";
 import { normalizeNdc } from "../domain/drugs/concepts.js";
@@ -277,6 +278,11 @@ export const errorSchema = z.strictObject({
   code: z.string().min(1).max(80),
   field: z.string().max(80).nullable(),
   retryable: z.boolean(),
+  required_year: z.int().optional(),
+  domain: annualDomainSchema.optional(),
+  reason: z.string().optional(),
+  allowed_years: z.array(z.int()).optional(),
+  policy_generation: z.string().optional(),
 });
 const sourceCompleteness = z.enum([
   "complete",
@@ -967,6 +973,7 @@ const payloadSchemas = {
       ),
   }),
   get_data_status: z.strictObject({
+    data_policy: dataPolicySchema,
     datasets: z.array(datasetSchema).max(25),
     personalized_access: z.enum([
       "authorized",

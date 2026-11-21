@@ -18,6 +18,10 @@ import type { SqlSession } from "../../src/db/database.js";
 import { migrate } from "../../src/db/migrate.js";
 import { readCsv } from "../../src/ingest/csv/index.js";
 import { importPufs } from "../../src/ingest/puf/import.js";
+import { ingestGeo } from "../../src/ingest/geo/index.js";
+import { ingestRatingRules } from "../../src/ingest/rating-rules/index.js";
+import { fixtureFiles as geoFiles } from "../ingest/geo/helpers.js";
+import { publishAnnualData } from "../../src/db/data-window.js";
 import type { ImportFile } from "../../src/ingest/puf/import.js";
 import { IMPORT_KINDS } from "../../src/ingest/puf/import-source.js";
 import { coreMigrations, testDatabase } from "../pglite.js";
@@ -29,6 +33,14 @@ const sourceRows = new Map<
   string,
   { raw: Record<string, string>; line: number }
 >();
+type CatalogPlan = Record<string, unknown> & {
+  id?: string;
+  base_plan_id?: string;
+};
+type CatalogResponse = CatalogPlan & {
+  plan?: CatalogPlan;
+  plans?: CatalogPlan[];
+};
 let core: Awaited<ReturnType<typeof coreMigrations>>,
   directory: string,
   plan: Plan;
@@ -36,6 +48,8 @@ beforeAll(async () => {
   directory = await mkdtemp(join(tmpdir(), "openplans-plan-columns-"));
   core = await coreMigrations();
   await migrate(db, core.directory);
+  await ingestGeo(db, { files: await geoFiles() });
+  await ingestRatingRules(db);
   const root = new URL("../fixtures/puf/csr/", import.meta.url);
   const provenance = JSON.parse(
     await readFile(new URL("provenance.json", root), "utf8"),
@@ -128,6 +142,18 @@ it("projects exactly the selected federal columns with snapshot and row provenan
       snapshot_id: plan.snapshot_id,
       source_row: source.line,
     });
+    expect(view.catalog_metadata).toEqual({
+      status: "available",
+      variant_plan_id: `${BASE}-${variant}`,
+      attributes: Object.fromEntries(
+        PLAN_COLUMN_KEYS.map((key) => [
+          key,
+          source.raw[key]?.trim() ? source.raw[key] : null,
+        ]),
+      ),
+      provenance: { snapshot_id: plan.snapshot_id, source_row: source.line },
+    });
+    expect(mapPlan(view, BASE).catalog_metadata).toEqual(view.catalog_metadata);
     expect(view.provenance.snapshot_ids).toHaveProperty(
       "plan-attributes",
       plan.snapshot_id,
@@ -162,6 +188,12 @@ it("negative control: rejects wrong-year columns and rows even inside the same s
     await replaceRaw(tx, "01", { BusinessYear: "2027" });
     const mapped = mapPlan(await planView(tx, plan), BASE);
     unknown(mapped);
+    expect(mapped.catalog_metadata).toMatchObject({
+      status: "unknown",
+      attributes: null,
+      provenance: null,
+    });
+    expect(mapped.estimated_actuarial_value).toBeNull();
     expect(() =>
       unknown({ ...mapped, effective_date: "2027-01-01T00:00:00.000Z" }),
     ).toThrow("requires the selected public row");
@@ -174,6 +206,11 @@ it("negative control: rejects wrong-year columns and rows even inside the same s
     const view = await planView(tx, plan);
     expect(view.cost_sharing.status).toBe("unknown");
     expect(view.cost_sharing[FEDERAL_PLAN_ATTRIBUTES]).toBeUndefined();
+    expect(view.catalog_metadata).toMatchObject({
+      status: "unknown",
+      attributes: null,
+      provenance: null,
+    });
     unknown(mapPlan(view, BASE));
   });
 });
@@ -193,6 +230,11 @@ it("negative control: never substitutes another variant's columns", async () => 
     await replaceRaw(tx, "01", { PlanId: `${BASE}-05` });
     const mapped = mapPlan(await planView(tx, plan), BASE);
     unknown(mapped);
+    expect(mapped.catalog_metadata).toMatchObject({
+      status: "unknown",
+      attributes: null,
+      provenance: null,
+    });
     expect(() =>
       unknown({
         ...mapped,
@@ -279,8 +321,211 @@ it("projects CA spaced plan headers from the selected state row", async () => {
       gated: true,
       sbc_name: "Bronze 60 HMO",
       actuarial_value: 63.7,
+      estimated_actuarial_value: 63.4676422,
       effective_date: "2026-01-01T00:00:00.000Z",
       drug_formulary_url: null,
     });
+    expect(view.catalog_metadata).toMatchObject({
+      status: "available",
+      variant_plan_id: variant,
+      attributes: {
+        AVCalculatorOutputNumber: row.values["AV CALCULATOR OUTPUT NUMBER"],
+        IssuerActuarialValue: row.values["ISSUER ACTUARIAL VALUE"],
+      },
+      provenance: { snapshot_id: plan.snapshot_id, source_row: row.source_row },
+    });
   });
+});
+
+it("serves the raw CMS year/plan/county/ZIP oracle and stable replays through both APIs", async () => {
+  const root = new URL("../fixtures/puf/csr/", import.meta.url);
+  const serviceRows = [];
+  for await (const row of readCsv(
+    Readable.from([await readFile(new URL("service-area.csv", root))]),
+  ))
+    serviceRows.push(row.values);
+  // These source rows name the plan's service area and cover the whole county.
+  expect(serviceRows).toContainEqual(
+    expect.objectContaining({
+      BusinessYear: "2026",
+      StateCode: "TX",
+      ServiceAreaId: sourceRows.get(`${BASE}-01`)!.raw.ServiceAreaId,
+      County: "48201",
+      PartialCounty: "No",
+    }),
+  );
+  const app = createApp(db);
+  const headers = { "X-Api-Key": TOKEN, "content-type": "application/json" };
+  const paths = [
+    `/v1/plans/${BASE}-05?year=2026`,
+    `/v1/plans?year=2026&county=48201&zip=77002&csr_variant=05`,
+    `/compat/v1/plans/${BASE}-05?year=2026`,
+  ];
+  for (const path of paths) {
+    const first = await app.request(path, { headers });
+    expect(first.status, path).toBe(200);
+    const text = await first.text();
+    const again = await app.request(path, { headers });
+    expect(again.status).toBe(first.status);
+    expect(await again.text()).toBe(text);
+    const body = JSON.parse(text) as CatalogResponse;
+    const served =
+      body.plan ?? body.plans?.find((p) => p.base_plan_id === BASE) ?? body;
+    const source = sourceRows.get(`${BASE}-05`)!;
+    expect(served.catalog_metadata).toMatchObject({
+      status: "available",
+      variant_plan_id: `${BASE}-05`,
+      attributes: {
+        BusinessYear: "2026",
+        StateCode: "TX",
+        StandardComponentId: BASE,
+        PlanId: `${BASE}-05`,
+        AVCalculatorOutputNumber: source.raw.AVCalculatorOutputNumber,
+        IssuerActuarialValue: null,
+      },
+      provenance: { snapshot_id: plan.snapshot_id, source_row: source.line },
+    });
+    if (body.plan) {
+      expect(served.estimated_actuarial_value).toBe(87.09755432424809);
+      expect(served.actuarial_value).toBeNull();
+    }
+  }
+  const search = {
+    fips_code: "48201",
+    zip_code: "77002",
+    year: "2026",
+    csr_variant: "05",
+    market: "individual",
+    applicants: [{ age: 35, smoker: false, child: false }],
+    enrollment_date: "2026-01-01",
+    per_page: 100,
+  };
+  const request = { method: "POST", headers, body: JSON.stringify(search) };
+  const first = await app.request("/compat/v1/plans/medical/search", request);
+  expect(first.status).toBe(200);
+  const text = await first.text();
+  expect(
+    await (
+      await app.request("/compat/v1/plans/medical/search", request)
+    ).text(),
+  ).toBe(text);
+  expect(
+    (JSON.parse(text) as CatalogResponse).plans?.find((p) => p.id === BASE),
+  ).toMatchObject({
+    estimated_actuarial_value: 87.09755432424809,
+    catalog_metadata: { variant_plan_id: `${BASE}-05` },
+  });
+  const wrongCounty = await app.request(
+    "/v1/plans?year=2026&county=48085&zip=75024&csr_variant=05",
+  );
+  expect(wrongCounty.status).toBe(200);
+  expect(await wrongCounty.json()).toMatchObject({ plans: [] });
+});
+
+it("keeps calculator and issuer evidence separate, without rounding or borrowing another variant", async () => {
+  for (const [variant, expected] of [
+    ["01", 70.1239428],
+    ["02", 100],
+    ["05", 87.09755432424809],
+    ["06", 94.8309887],
+  ] as const) {
+    const mapped = mapPlan(
+      await planView(db, plan, { requestedVariant: variant }),
+      `${BASE}-${variant}`,
+    );
+    expect(mapped.estimated_actuarial_value).toBe(expected);
+    expect(mapped.actuarial_value).toBeNull();
+  }
+  await rollback(async (tx) => {
+    for (const value of [
+      "",
+      "   ",
+      "Not Applicable",
+      "1.01",
+      "1.000000000000000001",
+      "-0.1",
+      "70%",
+      "NaN",
+    ]) {
+      await replaceRaw(tx, "01", { AVCalculatorOutputNumber: value });
+      const view = await planView(tx, plan);
+      const mapped = mapPlan(view, BASE);
+      expect(mapped.estimated_actuarial_value).toBeNull();
+      expect(view.catalog_metadata.attributes?.AVCalculatorOutputNumber).toBe(
+        value.trim() ? value : null,
+      );
+      expect(() =>
+        assert.equal(
+          { ...mapped, estimated_actuarial_value: 70.1239428 }
+            .estimated_actuarial_value,
+          null,
+          "missing calculator evidence",
+        ),
+      ).toThrow("missing calculator evidence");
+    }
+    await replaceRaw(tx, "01", { AVCalculatorOutputNumber: "0" });
+    expect(
+      mapPlan(await planView(tx, plan), BASE).estimated_actuarial_value,
+    ).toBe(0);
+  });
+});
+
+it("applies the annual serving window and explicit next-year admission to catalog metadata", async () => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  try {
+    const path = `/v1/plans/${BASE}-01?year=2026`;
+    for (const date of ["2026-06-01", "2027-06-01"]) {
+      vi.setSystemTime(new Date(date));
+      const response = await createApp(db).request(path);
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({
+        catalog_metadata: { status: "available" },
+      });
+    }
+    for (const date of ["2025-06-01", "2028-06-01"]) {
+      vi.setSystemTime(new Date(date));
+      for (const route of [path, `/compat/v1/plans/${BASE}-01?year=2026`]) {
+        const response = await createApp(db).request(route, {
+          headers: { "X-Api-Key": TOKEN },
+        });
+        expect(response.status).toBe(404);
+        const body: unknown = await response.json();
+        expect(body).toMatchObject({
+          error: { reason: "outside_serving_window" },
+        });
+        expect(body).not.toHaveProperty("catalog_metadata");
+      }
+    }
+    vi.setSystemTime(new Date("2025-06-01"));
+    await rollback(async (tx) => {
+      const active = (
+        await tx.query<{ import_id: string }>(
+          "SELECT import_id FROM puf_active_catalog WHERE plan_year=2026 AND state='TX'",
+        )
+      ).rows[0]!;
+      await publishAnnualData(tx, [
+        {
+          domain: "individual",
+          coverage_year: 2026,
+          manifest: {
+            schema_version: 1,
+            releases: [
+              {
+                kind: "puf",
+                snapshot_id: active.import_id,
+                contract_year: 2026,
+              },
+            ],
+          },
+        },
+      ]);
+      const response = await createApp(tx).request(path);
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({
+        catalog_metadata: { status: "available" },
+      });
+    });
+  } finally {
+    vi.useRealTimers();
+  }
 });

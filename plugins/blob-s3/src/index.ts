@@ -67,7 +67,7 @@ const plugin: OpenPlansPlugin = {
   manifest: {
     name: "@openplans/blob-s3",
     version: packageJson.version,
-    apiVersion: "0.1",
+    apiVersion: "0.2",
     kinds: ["blobStores"],
     capabilities: {
       secrets: Object.values(SECRETS),

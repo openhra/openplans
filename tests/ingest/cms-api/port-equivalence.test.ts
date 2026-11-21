@@ -1,3 +1,4 @@
+import { withDataPolicy } from "../../../src/services/data-window.js";
 // CMS Marketplace API fallback: every answer, row and request, recorded before the plugin port
 // and compared after it. Synthetic responses, synthetic key, no network.
 import { createHash } from "node:crypto";
@@ -579,3 +580,26 @@ for (const [name, run] of scenarios)
       ]),
     ).not.toContain(plantedKey);
   });
+
+it("refuses an excluded-year pair before storage or source requests", async () => {
+  const fail = vi.fn(async () => {
+    throw new Error("Synthetic excluded pair used storage");
+  });
+  const broken = { query: fail, exec: fail };
+  const result = await withDataPolicy(
+    { historyYears: 3 },
+    () =>
+      applyCmsFallback(
+        "drug",
+        [drug({ plan_year: 2024 })],
+        context({ reader: broken, writer: broken }),
+      ),
+    new Date("2026-11-19Z"),
+  );
+  expect(result[0]).toMatchObject({
+    status: "unknown",
+    reason: "cms_api_year_not_served",
+  });
+  expect(fail).not.toHaveBeenCalled();
+  expect(sent).toEqual([]);
+});

@@ -16,9 +16,11 @@ const config = loadConfig(
     version: 1,
     listen: { port: 1234, host: marker },
     cache: { enabled: false, maxMb: 0 },
-    plugins: [
-      { package: "@openplans/plugin-msot", options: { private: marker } },
-    ],
+    plugins: {
+      entries: [
+        { package: "@openplans/plugin-msot", options: { private: marker } },
+      ],
+    },
   },
 );
 

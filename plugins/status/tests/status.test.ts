@@ -1,3 +1,5 @@
+import { servingPolicy } from "../../../src/services/data-window.js";
+import { approvedTestEnvironment } from "../../../tests/plugins/approval-helpers.js";
 import packageJson from "../package.json" with { type: "json" };
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -16,7 +18,7 @@ import type { Database, SqlSession } from "../../../src/db/database.js";
 import { migrate } from "../../../src/db/migrate.js";
 import { rowProvenanceLeaks } from "../../../src/db/row-provenance.js";
 import { MAX_OUTPUT_BYTES, messageBytes } from "../../../src/mcp/tools.js";
-import { loadPlugins } from "../../../src/plugins/index.js";
+import { loadPlugins } from "../../../tests/plugins/approval-helpers.js";
 import {
   callPluginTool,
   pluginToolDefinition,
@@ -66,8 +68,10 @@ import type {
   PublicStatus,
   StatusData,
 } from "../src/index.js";
+import type * as htmlModule from "../src/html.js";
 import type * as mcpModule from "../src/mcp.js";
 import type * as readModule from "../src/read.js";
+import { publicHtmlMemo } from "../src/html.js";
 import { sourceDateMemo } from "../src/read.js";
 import type * as viewsModule from "../src/views.js";
 
@@ -110,6 +114,7 @@ const PUBLIC_FIELDS = [
   "api",
   "db",
   "data",
+  "data.policy",
   "data.states",
   "data.years",
   "data.status_counts",
@@ -147,7 +152,12 @@ const PUBLIC_FIELDS = [
   "health_transitions.last_change",
 ].sort();
 const hasExactlyPublicFields = (body: unknown) =>
-  JSON.stringify(keyPaths(body).sort()) === JSON.stringify(PUBLIC_FIELDS);
+  publicStatusSchema.safeParse(body).success &&
+  JSON.stringify(
+    keyPaths(body)
+      .filter((path) => !path.startsWith("data.policy."))
+      .sort(),
+  ) === JSON.stringify(PUBLIC_FIELDS);
 
 const OPERATOR_ONLY = [
   "pool",
@@ -256,7 +266,7 @@ async function registries(
 ) {
   const lines: string[] = [];
   const loaded = await loadPlugins(
-    loadConfig({}, { version: 1, plugins: [{ package: file }] }),
+    loadConfig({}, { version: 1, plugins: { entries: [{ package: file }] } }),
     "api",
     {
       env: {},
@@ -303,6 +313,44 @@ const bearer = (token: string) => ({
 });
 
 describe("@openplans/plugin-status", () => {
+  it("public status omits the operator event read while operator history remains available", async () => {
+    let events = 0;
+    const target: SqlSession = {
+      query: (sql, values) => {
+        if (sql.includes("SELECT event_type, emitted_at, payload FROM"))
+          events++;
+        return db.query(sql, values);
+      },
+      exec: db.exec,
+    };
+    const api = createApp(
+      target,
+      {},
+      {
+        config: config(OPERATOR),
+        plugins: await registries(),
+        store: new MemoryCache(1024 * 1024),
+      },
+    );
+    expect((await api.request("/status")).status).toBe(200);
+    const publicBody = publicStatusSchema.parse(
+      await (await api.request("/status.json")).json(),
+    );
+    expect(hasExactlyPublicFields(publicBody)).toBe(true);
+    expect(
+      events,
+      "public status should not query recent operator events",
+    ).toBe(0);
+    const detail = operatorStatusSchema.parse(
+      await (
+        await api.request("/status/operator.json", bearer(OPERATOR))
+      ).json(),
+    );
+    expect(
+      detail.events.recent?.some((event) => event.type === "ingest.completed"),
+    ).toBe(true);
+    expect(events).toBe(1);
+  });
   it("has a valid manifest and loads on the api and worker hosts", async () => {
     expect(pluginManifestSchema.parse(plugin.manifest).name).toBe(PLUGIN_NAME);
     const loaded = await registries();
@@ -323,7 +371,7 @@ describe("@openplans/plugin-status", () => {
       ["operator", undefined],
     ]);
     const worker = await loadWorkerPlugins({
-      env: { OPENPLANS_PLUGINS: indexFile },
+      env: await approvedTestEnvironment({ OPENPLANS_PLUGINS: indexFile }),
       exit: (code) => {
         throw new Error(`exit ${code}`);
       },
@@ -485,6 +533,70 @@ describe("@openplans/plugin-status", () => {
     expect(checkEventPayloads()).toEqual([]);
   });
 
+  it("memoizes HTML by the complete public view, including hidden policy and places", async () => {
+    const check = (factory: typeof publicHtmlMemo) => {
+      let calls = 0;
+      const render = factory((view, places) => {
+        calls++;
+        return renderStatusHtml(view, places);
+      });
+      const base = publicView(sample());
+      const window = {
+        allowed_years: [2025, 2026, 2027],
+        admitted_years: [2027],
+        loaded_years: [2025, 2026, 2027],
+        excluded_loaded_years: [],
+        missing_allowed_years: [],
+      };
+      const views: PublicStatus[] = [
+        base,
+        { ...base, api: "down" },
+        { ...base, health_transitions: { last_change: "<1d" } },
+        { ...base, sources: [] },
+        { ...base, worker: { last_ingest: [] } },
+        { ...base, cache: { enabled: false } },
+        { ...base, plugins: 99 },
+        {
+          ...base,
+          data: {
+            ...base.data,
+            policy: {
+              schema_version: 1,
+              history_years: 3,
+              calendar_year: 2026,
+              generation: "a".repeat(64),
+              domains: { individual: window, medicare: window },
+            },
+          },
+        },
+      ];
+      for (const [index, view] of views.entries()) {
+        expect(render(view, ["TX"])).toBe(renderStatusHtml(view, ["TX"]));
+        expect(render(structuredClone(view), ["TX"])).toBe(
+          renderStatusHtml(view, ["TX"]),
+        );
+        expect(calls).toBe(index + 1);
+      }
+      render(views.at(-1)!, ["CA"]);
+      expect(calls).toBe(views.length + 1);
+      // Only one entry is retained.
+      render(base, ["TX"]);
+      expect(calls).toBe(views.length + 2);
+    };
+    check(publicHtmlMemo);
+    const mutant = await plantMutant(
+      new URL("../src/html.ts", import.meta.url).pathname,
+      "const key = JSON.stringify([view, places]);",
+      'const key = "fixed";',
+    );
+    try {
+      const changed = (await import(mutant.path)) as typeof htmlModule;
+      expect(() => check(changed.publicHtmlMemo)).toThrow();
+    } finally {
+      await mutant.cleanup();
+    }
+  });
+
   it("renders the HTML page in light and dark with no scripts or external files", async () => {
     const api = await app({ operator: OPERATOR });
     const response = await api.request("/status");
@@ -542,7 +654,7 @@ describe("@openplans/plugin-status", () => {
     const loaded = await loadForTest(
       createStatusPlugin({
         now: () => NOW,
-        host: { dataAvailability: hostAvailability },
+        host: { dataAvailability: hostAvailability, dataPolicy: servingPolicy },
       }),
       { db },
     );
@@ -615,6 +727,7 @@ describe("@openplans/plugin-status", () => {
         { db, signal: AbortSignal.timeout(5000) },
       )) as { data: unknown };
       expect(output.data).toEqual({
+        policy: null,
         states: null,
         years: null,
         status_counts: null,
@@ -653,6 +766,7 @@ describe("@openplans/plugin-status", () => {
       expect(body.db).toBe("down");
       expect(body.sources).toBeNull();
       expect(body.data).toEqual({
+        policy: null,
         states: null,
         years: null,
         status_counts: null,
@@ -877,7 +991,7 @@ describe("health-probe", () => {
     try {
       await migrate(target, core.directory);
       const plugins = await loadWorkerPlugins({
-        env: { OPENPLANS_PLUGINS: indexFile },
+        env: await approvedTestEnvironment({ OPENPLANS_PLUGINS: indexFile }),
         exit: (code) => {
           throw new Error(`exit ${code}`);
         },
@@ -1026,7 +1140,7 @@ describe("host data from core", () => {
       {
         name: PLUGIN_NAME,
         version: packageJson.version,
-        apiVersion: "0.1",
+        apiVersion: "0.2",
         sha256: sha,
         enabled: true,
       },
@@ -1073,7 +1187,7 @@ describe("host data from core", () => {
             {
               name: "/srv/synthetic/plugin",
               version: "1.0.0 /srv",
-              apiVersion: "0.1",
+              apiVersion: "0.2",
               sha256: "not-a-hash",
               enabled: true,
             },
@@ -1100,7 +1214,7 @@ describe("host data from core", () => {
         {
           name: "local plugin",
           version: null,
-          apiVersion: "0.1",
+          apiVersion: "0.2",
           sha256: null,
           enabled: true,
         },
@@ -1168,11 +1282,57 @@ describe("host data from core", () => {
 });
 
 describe("planted mutants", () => {
+  it("rejects a public reader that still fetches recent operator events", async () => {
+    const loaded = await loadForTest(createStatusPlugin(), { db });
+    const settings: readModule.ReadSettings = {
+      config: loaded.context.config,
+      host: {},
+      plugin: PLUGIN_NAME,
+      now: NOW,
+      audience: "public",
+    };
+    const contract = async (read: typeof readStatus) => {
+      let events = 0;
+      const reader: SqlSession = {
+        query: (sql, values) => {
+          if (sql.includes("SELECT event_type, emitted_at, payload FROM"))
+            events++;
+          return db.query(sql, values);
+        },
+        exec: db.exec,
+      };
+      const detail = await readStatus(db, {
+        ...settings,
+        audience: "operator",
+      });
+      const status = await read(reader, settings);
+      expect(publicView(status)).toEqual(publicView(detail));
+      expect(
+        events,
+        "public status should not query recent operator events",
+      ).toBe(0);
+    };
+    const mutant = await plantMutant(
+      readFile,
+      'settings.audience === "public"',
+      "false",
+    );
+    try {
+      await contract(readStatus);
+      const planted = (await import(mutant.path)) as typeof readModule;
+      await expect(contract(planted.readStatus)).rejects.toThrow(
+        "public status should not query recent operator events",
+      );
+    } finally {
+      await mutant.cleanup();
+      await loaded.close();
+    }
+  });
   it("the operator serialiser on the public route fails the public-fields test", async () => {
     const mutant = await plantMutant(
       indexFile,
-      'c.json(publicView(await read(c.get("pluginDb"))))',
-      'c.json(operatorView(await read(c.get("pluginDb"))))',
+      'c.json(publicView(await read(c.get("pluginDb"), "public")))',
+      'c.json(operatorView(await read(c.get("pluginDb"), "public")))',
     );
     try {
       const api = createApp(
@@ -1373,7 +1533,13 @@ describe("publisher dates", () => {
     const body = await (await api.request("/status.json")).json<PublicStatus>();
     const paths = keyPaths(body);
     expect(
-      paths.filter((p) => !PUBLIC_FIELDS_0_1_3_BEFORE_DATES.includes(p)).sort(),
+      paths
+        .filter(
+          (p) =>
+            !p.startsWith("data.policy") &&
+            !PUBLIC_FIELDS_0_1_3_BEFORE_DATES.includes(p),
+        )
+        .sort(),
     ).toEqual(PUBLISHED_FIELDS);
     for (const field of PUBLIC_FIELDS_0_1_3_BEFORE_DATES)
       expect(paths).toContain(field);
@@ -2049,9 +2215,13 @@ describe("publisher dates for rollup snapshots", () => {
       ).json<OperatorStatus>(),
     ]);
     const paths = keyPaths(body);
-    expect(paths.filter((p) => !PUBLIC_FIELDS.includes(p)).sort()).toEqual([
-      "sources.*.published_files",
-    ]);
+    expect(
+      paths
+        .filter(
+          (p) => !p.startsWith("data.policy.") && !PUBLIC_FIELDS.includes(p),
+        )
+        .sort(),
+    ).toEqual(["sources.*.published_files"]);
     for (const field of PUBLIC_FIELDS) expect(paths).toContain(field);
     expect(leaks(body)).toEqual([]);
     expect(leaks(operator)).toEqual([]);

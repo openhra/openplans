@@ -55,6 +55,7 @@ export function mapDentalPlan(
     identifiers: [{ type: "hios_id", value: id }],
     plan_type: null,
     source: "cms_puf",
+    catalog_metadata: view.catalog_metadata,
     plan_documents: [],
     networks: view.network.records.map((n) => ({
       id: null,

@@ -138,7 +138,7 @@ describe("/v1/medicare (CY2026 fixtures cut from real CMS files)", () => {
 
   it("serves unknown, never an empty catalog, for a year that is not loaded", async () => {
     const { status, body } = await get(
-      "/v1/medicare/plans?county_fips=48201&year=2027",
+      "/v1/medicare/plans?county_fips=48201&year=2025",
     );
     expect(status).toBe(200);
     expect(body).toMatchObject({
@@ -146,7 +146,7 @@ describe("/v1/medicare (CY2026 fixtures cut from real CMS files)", () => {
       reason: "catalog_not_loaded",
       total: 0,
     });
-    expect((await get("/v1/medicare/plans/H0028-042-0?year=2027")).status).toBe(
+    expect((await get("/v1/medicare/plans/H0028-042-0?year=2025")).status).toBe(
       404,
     );
   });

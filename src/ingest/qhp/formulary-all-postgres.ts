@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { requireImportRows, requireImportYear } from "../data-window.js";
 import { runnerSettings } from "../../config/access.js";
 /** Isolated native Postgres developer run; the caller owns the openplans-<lane> container. */
 import pg from "pg";
@@ -20,6 +21,7 @@ const cache = dataDirectory();
 const url = runnerSettings().qhpDatabaseUrl?.reveal();
 const state = runnerSettings().qhpState ?? "TX";
 const year = Number(runnerSettings().qhpYear ?? 2026);
+requireImportYear("qhp", year);
 if (
   !/^[A-Z]{2}$/.test(state) ||
   !Number.isInteger(year) ||
@@ -76,6 +78,7 @@ async function copy(from: PGlite, table: string) {
   const rows = (
     await from.query<Record<string, unknown>>(`SELECT * FROM ${table}`)
   ).rows;
+  requireImportRows("qhp", rows);
   for (let at = 0; at < rows.length; at += 200)
     await db.query(
       `INSERT INTO ${table} OVERRIDING SYSTEM VALUE

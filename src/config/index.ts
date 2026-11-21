@@ -4,6 +4,7 @@ import { inspect } from "node:util";
 import { z } from "zod";
 import type { SettingOrigin } from "@openplans/plugin-sdk";
 import { recordConfigOrigins } from "./diagnostics.js";
+import { registryDefinitionsSchema } from "./registry.js";
 
 export type Environment = Record<string, string | undefined>;
 
@@ -99,6 +100,9 @@ export const coreConfigSchema = z
         )
         .default(64),
       url: secret,
+    }),
+    data: section({
+      historyYears: z.union([z.literal(3), z.literal("all")]).default(3),
     }),
     blobs: section({ provider: z.string().default("local"), root: text }),
     access: section({
@@ -243,7 +247,19 @@ export const coreConfigSchema = z
         asOf: z.iso.date().optional(),
       })
       .optional(),
-    plugins: z.array(pluginSchema).default([]),
+    plugins: section({
+      entries: z.array(pluginSchema).default([]),
+      registries: registryDefinitionsSchema.default([]),
+      approvedList: z.preprocess(
+        (value) => (value === "" ? undefined : value),
+        z.string().min(1).optional(),
+      ),
+      lockfile: z.preprocess(
+        (value) => (value === "" ? undefined : value),
+        z.string().min(1).optional(),
+      ),
+      requireApproval: z.boolean().default(false),
+    }),
   })
   .strict();
 
@@ -324,6 +340,9 @@ export const environmentPaths = {
   OPENPLANS_EGRESS_SHA256: "access.egressSha256",
   OPENPLANS_TPA: "tpa.enabled",
   OPENPLANS_TPA_PRIVATE_INGRESS: "tpa.privateIngress",
+  OPENPLANS_PLUGINS_APPROVED_LIST: "plugins.approvedList",
+  OPENPLANS_PLUGINS_LOCKFILE: "plugins.lockfile",
+  OPENPLANS_PLUGINS_REQUIRE_APPROVAL: "plugins.requireApproval",
   OPENPLANS_PUBLIC_QUOTING: "public.quoting",
   OPENPLANS_PUBLIC_HOUSEHOLD: "public.household",
   OPENPLANS_PUBLIC_COMPAT: "public.compat",
@@ -444,6 +463,7 @@ const unlessOff = new Set([
 ]);
 const onlyOn = new Set([
   "OPENPLANS_METRICS",
+  "OPENPLANS_PLUGINS_REQUIRE_APPROVAL",
   "OPENPLANS_TPA",
   "OPENPLANS_TPA_PRIVATE_INGRESS",
   "OPENPLANS_CMS_FALLBACK",
@@ -523,7 +543,16 @@ export function loadConfig(
     settings.listen = { port: defaults.port, ...Object(settings.listen) };
   for (const [name, path] of Object.entries(environmentPaths)) {
     const value = env[name];
-    if (value === undefined) continue;
+    if (
+      value === undefined ||
+      (value === "" &&
+        [
+          "OPENPLANS_PLUGINS_APPROVED_LIST",
+          "OPENPLANS_PLUGINS_LOCKFILE",
+          "OPENPLANS_PLUGINS_REQUIRE_APPROVAL",
+        ].includes(name))
+    )
+      continue;
     sources[path] = "environment";
     const [group, field] = path.split(".");
     if (field === undefined) settings[group!] = envValue(name, value);
@@ -541,11 +570,24 @@ export function loadConfig(
   // Empty counts as unset, because Compose passes the variable even when .env leaves it out.
   const plugins = list(env.OPENPLANS_PLUGINS ?? "");
   if (plugins.length)
-    settings.plugins = plugins.map((name) => ({ package: name }));
+    settings.plugins = {
+      ...Object(settings.plugins),
+      entries: plugins.map((name) => ({ package: name })),
+    };
   const result = coreConfigSchema.safeParse(settings);
   if (!result.success) {
     // Never include values from a file or environment in a startup diagnostic.
     const issue = result.error.issues[0];
+    if (
+      issue?.path[0] === "plugins" &&
+      issue.path[1] === "registries" &&
+      [
+        "registry_namespace_conflict",
+        "registry_duplicate_trust",
+        "registry_url_refused",
+      ].includes(issue.message)
+    )
+      throw new Error(issue.message);
     if (issue?.path.join(".") === "listen.port") throw new Error(portMessage);
     if (issue?.path.join(".") === "cache.maxMb") throw new Error(cacheMessage);
     if (issue?.path.join(".") === "tokens.compatKeyHeader")

@@ -1,3 +1,4 @@
+import { approvalRequired, warnUnconfiguredApproval } from "./lock.js";
 import { currentEnvironment } from "../config/index.js";
 import { dirname } from "node:path";
 import { loadConfig } from "../config/index.js";
@@ -73,7 +74,17 @@ export async function loadApiPlugins(
   } catch {
     return NO_PLUGINS;
   }
-  if (!config.plugins.some((entry) => entry.enabled)) return NO_PLUGINS;
+
+  if (
+    !config.plugins.entries.some((entry) => entry.enabled) &&
+    !approvalRequired(config) &&
+    !config.plugins.approvedList
+  ) {
+    warnUnconfiguredApproval(
+      options.writeLog ?? ((line) => process.stderr.write(`${line}\n`)),
+    );
+    return NO_PLUGINS;
+  }
   const { loadPlugins } = await import("./loader.js");
   const loaded = await loadPlugins(config, options.host ?? "api", {
     env,

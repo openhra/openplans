@@ -1,3 +1,7 @@
+import {
+  servingPolicy,
+  withDataPolicy,
+} from "../../src/services/data-window.js";
 import { mkdtemp, readFile, writeFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -200,7 +204,7 @@ it("counts ineligible and all unrated candidates and refuses an incomplete headl
 });
 
 it("keeps missing evidence counts unknown, complete empty counts zero, and requires a pinned next page", async () => {
-  const absent = await enumerateHouseholdOffers(h.db, { ...input, year: 2040 });
+  const absent = await enumerateHouseholdOffers(h.db, { ...input, year: 2025 });
   expect(absent.denominator.candidate_count).toBeNull();
   expect(absent.statistics).toBeNull();
   expect(() => expect(absent.denominator.candidate_count).toBe(0)).toThrow();
@@ -325,7 +329,7 @@ it("kills unknown_into_zero with completeness assertions", async () => {
     "group.counts.catalog === null ? null : candidates.length + excluded.length",
     "group.counts.catalog === null ? 0 : candidates.length + excluded.length",
     async (consumer) => {
-      const mutant = await consumer(h.db, { ...input, year: 2040 });
+      const mutant = await consumer(h.db, { ...input, year: 2025 });
       expect(() =>
         expect(mutant.denominator.candidate_count).toBeNull(),
       ).toThrow();
@@ -400,12 +404,17 @@ it("retries the whole scan once and refuses repeated generation churn", async ()
         return result;
       },
     };
-    if (repeated)
-      await expect(enumerateHouseholdOffers(db, input)).rejects.toThrow(
-        "generation_changed",
-      );
-    else requireComplete(await enumerateHouseholdOffers(db, input));
-    expect(generations).toBe(4);
+    await withDataPolicy({ historyYears: 3 }, async () => {
+      // Keep the scan's publication checks separate from policy revalidation.
+      await servingPolicy(db);
+      generations = 0;
+      if (repeated)
+        await expect(enumerateHouseholdOffers(db, input)).rejects.toThrow(
+          "generation_changed",
+        );
+      else requireComplete(await enumerateHouseholdOffers(db, input));
+      expect(generations).toBe(4);
+    });
   }
 });
 

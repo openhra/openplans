@@ -1,3 +1,4 @@
+import { dataNotLoaded } from "@openplans/plugin-sdk";
 import packageJson from "../package.json" with { type: "json" };
 import type { OpenPlansPlugin } from "@openplans/plugin-sdk";
 import { z } from "zod";
@@ -12,7 +13,7 @@ const plugin: OpenPlansPlugin = {
   manifest: {
     name: "@openplans/plugin-tpa",
     version: packageJson.version,
-    apiVersion: "0.1",
+    apiVersion: "0.2",
     kinds: ["routes"],
     capabilities: { operatorRoutes: true },
   },
@@ -63,7 +64,9 @@ const plugin: OpenPlansPlugin = {
             'attachment; filename="answer-receipt.json"',
           );
           return c.json(receipt);
-        } catch {
+        } catch (error) {
+          const missing = dataNotLoaded(error);
+          if (missing) return c.json({ error: missing }, 404);
           return c.json({ error: { code: "RECEIPT_PREPARATION_FAILED" } }, 503);
         }
       },

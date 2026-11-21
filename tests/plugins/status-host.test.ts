@@ -21,7 +21,7 @@ import {
 import type { CacheStore, StatusHost } from "@openplans/plugin-sdk";
 import { MemoryCache } from "../../src/api/cache/store.js";
 import { loadConfig } from "../../src/config/index.js";
-import { loadPlugins } from "../../src/plugins/index.js";
+import { loadPlugins } from "./approval-helpers.js";
 import { packageRoot, packageSha256 } from "../../src/plugins/package-hash.js";
 import {
   createPassThrough,
@@ -84,7 +84,7 @@ async function hostedPackage(
     `const manifest = {
   name: "synthetic-${name}",
   version: "1.0.0",
-  apiVersion: "0.1",
+  apiVersion: "0.2",
   kinds: [],
   capabilities: { hostStatus: true },
 };
@@ -111,7 +111,10 @@ const importLoaded = (file: string) => import(pathToFileURL(file).href);
 async function load(
   file: string,
   options: Parameters<typeof loadPlugins>[2] = {},
-  config = loadConfig({}, { version: 1, plugins: [{ package: file }] }),
+  config = loadConfig(
+    {},
+    { version: 1, plugins: { entries: [{ package: file }] } },
+  ),
 ) {
   const lines: string[] = [];
   const loaded = await loadPlugins(config, "api", {
@@ -206,7 +209,7 @@ describe("loader host view", () => {
       {
         name: "synthetic-hosted",
         version: "1.0.0",
-        apiVersion: "0.1",
+        apiVersion: "0.2",
         sha256: sha,
         enabled: true,
       },
@@ -507,7 +510,7 @@ describe("availability memo", () => {
       {},
       loaded,
     );
-    expect(off.dataAvailability).toBe(hostAvailability);
+    expect(off.dataAvailability).toBeTypeOf("function");
     const on = createStatusHost(loadConfig({}), {}, loaded);
     expect(on.dataAvailability).toBeTypeOf("function");
     expect(on.dataAvailability).not.toBe(hostAvailability);
@@ -519,7 +522,7 @@ it("the SDK manifest schema accepts the capability", () => {
     pluginManifestSchema.safeParse({
       name: "synthetic",
       version: "1.0.0",
-      apiVersion: "0.1",
+      apiVersion: "0.2",
       kinds: [],
       capabilities: { hostStatus: true },
     }).success,

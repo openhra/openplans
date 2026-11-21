@@ -7,6 +7,10 @@ import type {
 import type { Database } from "../../db/database.js";
 import type { RegisteredSource } from "../registries.js";
 import type { PluginWorkerCommand } from "../worker.js";
+import {
+  packageIngestUsage,
+  runPackageIngest,
+} from "../../worker/commands/package-ingest.js";
 import { runFeedSource } from "./feed.js";
 import type { FeedRunOptions } from "./feed.js";
 
@@ -29,7 +33,7 @@ export function feedWorkerCommands(
       (entry): entry is RegisteredSource & { spec: FeedSource } =>
         entry.spec.kind === "feed",
     )
-    .map(({ plugin, spec: source, network }) => {
+    .flatMap(({ plugin, spec: source, network }) => {
       const spec: WorkerCommandSpec = Object.freeze({
         argv: Object.freeze([...source.command.argv]),
         usage: source.command.usage,
@@ -43,17 +47,45 @@ export function feedWorkerCommands(
             );
             return 1;
           }
-          return runFeedSource(source, args, writer, {
+          const dryRun = args.includes("--dry-run");
+          if (args.filter((arg) => arg === "--dry-run").length > 1) return 1;
+          return runFeedSource(
+            source,
+            args.filter((arg) => arg !== "--dry-run"),
+            writer,
+            {
+              ...options,
+              dryRun: options.dryRun || dryRun,
+              declaredHosts: network,
+            },
+          );
+        },
+      });
+      const packageSpec: WorkerCommandSpec = Object.freeze({
+        argv: Object.freeze(["ingest", "package", source.id]),
+        usage: packageIngestUsage,
+        source: source.id,
+        async run(args: string[], ctx: WorkerContext) {
+          const writer = (ctx.db as unknown as { writer?: Database }).writer;
+          if (!writer) {
+            (options.output ?? console).error(
+              JSON.stringify({ plugin, code: "feed_source_requires_staging" }),
+            );
+            return 1;
+          }
+          return runPackageIngest(source, args, writer, {
             ...options,
             declaredHosts: network,
           });
         },
       });
-      return Object.freeze({
-        plugin,
-        spec,
-        writer: writers.has(plugin),
-        config,
-      });
+      return [spec, packageSpec].map((command) =>
+        Object.freeze({
+          plugin,
+          spec: command,
+          writer: writers.has(plugin),
+          config,
+        }),
+      );
     });
 }

@@ -1,3 +1,4 @@
+import { requireImportYear } from "../data-window.js";
 import type { Database, SqlSession } from "../../db/database.js";
 import { inspectZip } from "../../fetch/index.js";
 import { readCsv } from "../csv/index.js";
@@ -21,6 +22,11 @@ export async function importServiceArea(
   db: Database,
   cached: CachedArchive,
 ): Promise<ReleaseReport> {
+  requireImportYear(
+    `medicare-${cached.archive.family}`,
+    cached.archive.year,
+    "medicare",
+  );
   const limits = archiveLimits.service_area;
   const member = (await inspectZip(cached.path, limits)).members.find((entry) =>
     /_Cnty_SA_\d{4}_\d{2}\.csv$/i.test(entry.name),
@@ -87,6 +93,8 @@ export interface CountyMap {
   /** SSA codes where the MA file adds FIPS codes the PDP file does not list (kept from PDP only). */
   maAlternates: string[];
   snapshots: string[];
+  /** Release month of the PDP and MA files used, as YYYYMM; absent when that file is not loaded. */
+  releases: { pdp?: number; ma?: number };
 }
 
 /**
@@ -95,17 +103,29 @@ export interface CountyMap {
  * 12025 next to 12086), so extra MA codes for a PDP-mapped SSA code are reported, not used. Only
  * disjoint mappings are conflicts, and those SSA codes stay unmapped.
  */
-export async function countyMap(db: SqlSession): Promise<CountyMap> {
+export async function countyMap(
+  db: SqlSession,
+  contractYear?: number,
+): Promise<CountyMap> {
+  // With a contract year, files dated after it are skipped, as importMedicare skips them.
   const releases = (
-    await db.query<{ snapshot_id: string; kind: string }>(
-      `SELECT DISTINCT ON (split_part(r.as_of_label,'-',1)) r.snapshot_id, split_part(r.as_of_label,'-',1) AS kind
+    await db.query<{ snapshot_id: string; kind: string; as_of_label: string }>(
+      `SELECT DISTINCT ON (split_part(r.as_of_label,'-',1)) r.snapshot_id, split_part(r.as_of_label,'-',1) AS kind, r.as_of_label
        FROM medicare_release r JOIN snapshot s USING(snapshot_id)
        WHERE r.family='service_area' AND s.validation_state='ACTIVE'
+         AND ($1::integer IS NULL OR r.contract_year <= $1::integer)
        ORDER BY split_part(r.as_of_label,'-',1), r.as_of DESC, r.imported_at DESC`,
+      [contractYear ?? null],
     )
   ).rows;
   const by = (kind: string) =>
     releases.find((r) => r.kind === kind)?.snapshot_id;
+  const month = (kind: string) => {
+    const m = /-(\d{4})-(\d{2})$/.exec(
+      releases.find((r) => r.kind === kind)?.as_of_label ?? "",
+    );
+    return m ? Number(m[1]) * 100 + Number(m[2]) : undefined;
+  };
   const load = async (snapshot: string | undefined) =>
     snapshot
       ? (
@@ -155,5 +175,6 @@ export async function countyMap(db: SqlSession): Promise<CountyMap> {
     conflicted,
     maAlternates,
     snapshots: [by("pdp"), by("ma")].filter((id): id is string => !!id),
+    releases: { pdp: month("pdp"), ma: month("ma") },
   };
 }

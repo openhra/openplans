@@ -233,7 +233,15 @@ describe("every config file key is read or refused", () => {
   const sources = productSources();
 
   it("walks the whole schema", () => {
-    expect(paths).toEqual(expect.arrayContaining(["listen.host", "plugins"]));
+    expect(paths).toEqual(
+      expect.arrayContaining([
+        "listen.host",
+        "plugins.entries",
+        "plugins.approvedList",
+        "plugins.lockfile",
+        "plugins.requireApproval",
+      ]),
+    );
     expect(paths).toEqual(
       expect.arrayContaining([
         "medicarePartD",

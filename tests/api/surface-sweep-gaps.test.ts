@@ -61,7 +61,7 @@ describe("a county whose state or plan year has no active catalog", () => {
   // Los Angeles County (no CA catalog) and Harris County in a year the fixture does not load.
   const cases = [
     { county: "06037", year: 2026 },
-    { county: "48201", year: 2027 },
+    { county: "48201", year: 2025 },
   ];
 
   it("native plan search and public quotes name state_catalog_not_loaded", async () => {
@@ -107,7 +107,7 @@ describe("a county whose state or plan year has no active catalog", () => {
       "state_catalog_not_loaded",
     );
     expect(
-      await compatGaps({ fips_code: "48201", enrollment_date: "2027-01-01" }),
+      await compatGaps({ fips_code: "48201", enrollment_date: "2025-01-01" }),
     ).toContain("state_catalog_not_loaded");
   });
 });

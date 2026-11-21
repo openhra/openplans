@@ -1,3 +1,4 @@
+import { servingPolicy } from "../services/data-window.js";
 import { loadavg } from "node:os";
 import type { Database } from "../db/database.js";
 import { handyManifest, lowestRenewalGroups } from "../db/handy-repository.js";
@@ -80,12 +81,16 @@ export async function renewLowestPremiums(
           state.status = "deferred";
         } else {
           const manifest = await handyManifest(db);
+          const policy = await servingPolicy(db);
           const groups = await lowestRenewalGroups(
             db,
             state.after,
             manifest,
             LOWEST_RENEW_BEFORE_MS,
             maxGroups + 1,
+            policy.history_years === "all"
+              ? undefined
+              : policy.domains.individual.allowed_years,
           );
           for (const group of groups.slice(0, maxGroups)) {
             if (

@@ -21,7 +21,7 @@ const plugin: OpenPlansPlugin = {
   manifest: {
     name: "@openplans/plugin-msot",
     version: packageJson.version,
-    apiVersion: "0.1",
+    apiVersion: "0.2",
     tablePrefix: "msot",
     kinds: [
       "routes",

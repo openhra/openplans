@@ -1,3 +1,4 @@
+import { loadConfig } from "../../../src/config/index.js";
 import { replaceSyntax } from "../../source-mutation.js";
 import { readFile } from "node:fs/promises";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -10,7 +11,11 @@ import type { SqlSession } from "../../../src/db/database.js";
 import { importMutant, withMutantFile } from "../../mutant-file.js";
 
 const db = {
-  query: async () => {
+  query: async (sql: string) => {
+    if (sql.includes("api_data_generation"))
+      return { rows: [{ generation: "synthetic-policy-generation" }] };
+    if (sql.includes("FROM annual_data_admission") || sql.includes("AS domain"))
+      return { rows: [] };
     throw Error("Unexpected SQL");
   },
 } as unknown as SqlSession;
@@ -41,7 +46,10 @@ function harness(factory = createResponseCache) {
       await memory.set(key, value, ttl);
     },
   };
-  const cache = factory(db, undefined, { store });
+  const cache = factory(db, undefined, {
+    store,
+    config: loadConfig({}, { version: 1, data: { historyYears: "all" } }),
+  });
   return {
     cache,
     stored,
@@ -162,8 +170,8 @@ describe("shared public DTO boundary", () => {
 it.each([
   [
     "generation",
-    "[request.namespace, request.version, request.generation, request.query, ...(cmsUnavailable ? ['cms_fallback_unavailable'] : [])]",
-    "[request.namespace, request.version, request.query, ...(cmsUnavailable ? ['cms_fallback_unavailable'] : [])]",
+    "[request.namespace, request.version, request.generation, policy.generation, request.query, ...(cmsUnavailable ? ['cms_fallback_unavailable'] : [])]",
+    "[request.namespace, request.version, policy.generation, request.query, ...(cmsUnavailable ? ['cms_fallback_unavailable'] : [])]",
   ],
   [
     "household",

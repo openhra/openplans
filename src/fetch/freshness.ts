@@ -1,3 +1,7 @@
+import { planAnnualWork } from "../ingest/data-window.js";
+import type { AnnualSkip } from "../ingest/data-window.js";
+import { parseArchiveUrl } from "../ingest/medicare/sources.js";
+import { parseSpufUrl } from "../ingest/medicare/spuf.js";
 import { readFileSync } from "node:fs";
 import {
   AdmissionSession,
@@ -20,6 +24,7 @@ import type { TransientFetchOptions } from "./transient.js";
 export interface FreshnessTarget {
   /** Source family, for example `cms-exchange-puf:2026` or `cms-nppes`. */
   family: string;
+  annual?: { domain: "individual" | "medicare"; year: number };
   url: string;
   /** `head` for an archive, `index` for a small listing page. */
   mode: "head" | "index";
@@ -43,7 +48,13 @@ export type FreshnessDecision =
   | { action: "check"; host: string }
   | {
       action: "skip";
-      reason: "held" | "not_admitted" | "over_session_cap" | "invalid_target";
+      reason:
+        | "held"
+        | "not_admitted"
+        | "over_session_cap"
+        | "invalid_target"
+        | "outside_data_window";
+      skipped?: AnnualSkip[];
       detail: string;
     };
 
@@ -94,6 +105,22 @@ export function planFreshness(
 ): FreshnessDecision[] {
   const planned = new Map<string, number>();
   return targets.map((target): FreshnessDecision => {
+    const annual = annualTarget(target);
+    if (annual) {
+      const work = planAnnualWork(
+        target.family,
+        [annual.year],
+        annual.domain,
+        new Date(now),
+      );
+      if (work.skipped.length)
+        return {
+          action: "skip",
+          reason: "outside_data_window",
+          detail: "annual source is outside the data window",
+          skipped: work.skipped,
+        };
+    }
     let url: URL;
     try {
       url = new URL(target.url);
@@ -165,23 +192,55 @@ export function planFreshness(
   });
 }
 
+function annualTarget(target: FreshnessTarget) {
+  if (target.annual) return target.annual;
+  const puf = /^cms-exchange-puf:(20\d{2})$/.exec(target.family);
+  if (puf) return { domain: "individual" as const, year: Number(puf[1]) };
+  if (target.family.startsWith("cms-medicare")) {
+    const archive = parseArchiveUrl(target.url);
+    if (archive) return { domain: "medicare" as const, year: archive.year };
+  }
+  if (target.family.startsWith("cms-partd")) {
+    const archive = parseSpufUrl(target.url);
+    if (archive) return { domain: "medicare" as const, year: archive.year };
+  }
+  return undefined;
+}
+
 /** Four-digit years in a file name; `202609` or `110226` are dates, not years. */
 const yearPattern = /(?<![0-9])(?:19|20)[0-9]{2}(?![0-9])/g;
 
 /** Whether a listed name falls inside the years and scope the instance serves. */
-export function servedName(target: FreshnessTarget, name: string): boolean {
+export function servedName(
+  target: FreshnessTarget,
+  name: string,
+  now?: number,
+): boolean {
   const served = target.served;
   if (!served) return true;
   if (served.exclude && new RegExp(served.exclude).test(name)) return false;
   const years = name.match(yearPattern)?.map(Number) ?? [];
-  if (served.years && years.length)
-    return years.some((year) => served.years!.includes(year));
+  if (served.years && years.length) {
+    const retained =
+      /^(cms-exchange-puf|cms_sbe_puf|cms-medicare|cms-partd)/.test(
+        target.family,
+      )
+        ? planAnnualWork(
+            target.family,
+            served.years,
+            "individual",
+            now === undefined ? undefined : new Date(now),
+          ).years
+        : served.years;
+    return years.some((year) => retained.includes(year));
+  }
   return true;
 }
 
 function behind(
   target: FreshnessTarget,
   result: Pick<FreshnessResult, "lastModified" | "names">,
+  now?: number,
 ): FreshnessResult["behind"] {
   if (target.mode === "head") {
     const loaded = Date.parse(target.loaded?.lastModified ?? "");
@@ -191,7 +250,7 @@ function behind(
   }
   if (!target.loaded?.names || !result.names?.length) return "unknown";
   const loaded = new Set(target.loaded.names);
-  const compared = result.names.filter((name) => servedName(target, name));
+  const compared = result.names.filter((name) => servedName(target, name, now));
   // A page that lists nothing the instance serves has changed shape; say so instead of "no".
   if (!compared.length) return "unknown";
   return compared.some((name) => !loaded.has(name)) ? "yes" : "no";
@@ -276,7 +335,7 @@ export async function checkFreshness(
             ].sort()
           : undefined;
       const outOfScope = found?.filter(
-        (name) => !servedName(target, name),
+        (name) => !servedName(target, name, options.now),
       ).length;
       const checked = {
         ...fetched.validators,
@@ -287,7 +346,7 @@ export async function checkFreshness(
         ...base,
         status: "checked",
         ...checked,
-        behind: behind(target, checked),
+        behind: behind(target, checked, options.now),
       });
     } catch (error) {
       results.push({

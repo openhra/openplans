@@ -48,7 +48,7 @@ export const getStatusSchema = publicStatusSchema
   .extend({
     version: z.string().max(MAX_VERSION_LENGTH),
     data: publicStatusSchema.shape.data
-      .pick({ states: true, status_counts: true })
+      .pick({ policy: true, states: true, status_counts: true })
       .extend({
         years: z.array(z.number().int()).max(MAX_YEARS).nullable(),
       }),
@@ -120,6 +120,7 @@ export function getStatusView(
     health_transitions: summary.health_transitions,
     version: summary.version.slice(0, MAX_VERSION_LENGTH),
     data: {
+      policy: summary.data.policy,
       states: summary.data.states,
       status_counts: summary.data.status_counts,
       years: years?.slice(0, MAX_YEARS) ?? null,

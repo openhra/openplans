@@ -36,7 +36,7 @@ const plugin: OpenPlansPlugin = {
   manifest: {
     name: PLUGIN_NAME,
     version: packageJson.version,
-    apiVersion: "0.1",
+    apiVersion: "0.2",
     kinds: ["routes", "mcpTools", "workerCommands", "events"],
     options: optionsSchema,
   },

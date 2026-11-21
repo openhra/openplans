@@ -14,10 +14,11 @@ describe("prepared QHP profile", () => {
   it("reuses pinned bytes across issuer/year cache names and rejects missing or quarantined inputs", async () => {
     const directory = await mkdtemp(join(tmpdir(), "openplans-prepared-qhp-"));
     try {
+      // The same yearless bytes may already be cached under an excluded source name.
       const url = "https://prepared.example/index.json";
       const cached = await fetchToCache(url, {
         dataDir: directory,
-        source: "qhp-11111-2026-index",
+        source: "qhp-11111-2024-index",
         allowHosts: ["prepared.example"],
         expectedContent: "json",
         lookup: async () => [{ address: "93.184.216.34", family: 4 }],
@@ -37,11 +38,11 @@ describe("prepared QHP profile", () => {
         taxonomy_names: false,
         scopes: [{ state: "TX", year: 2027 }],
         provider_feeds: [
-          { issuer: "22222", state: "TX", set: "qhp-11111-2026-index" },
+          { issuer: "22222", state: "TX", set: "qhp-11111-2024-index" },
         ],
         feed_raw: [
           {
-            source: "qhp-11111-2026-index",
+            source: "qhp-11111-2024-index",
             sha256: cached.metadata.sha256,
             bytes: cached.metadata.bytes,
             url,

@@ -1,3 +1,4 @@
+import { dataNotLoaded } from "@openplans/plugin-sdk";
 import packageJson from "../package.json" with { type: "json" };
 import type { OpenPlansPlugin } from "@openplans/plugin-sdk";
 import { z } from "zod";
@@ -12,7 +13,7 @@ const plugin: OpenPlansPlugin = {
   manifest: {
     name: PLUGIN_NAME,
     version: packageJson.version,
-    apiVersion: "0.1",
+    apiVersion: "0.2",
     kinds: ["routes", "mcpTools"],
     capabilities: { operatorRoutes: true },
   },
@@ -61,6 +62,8 @@ const plugin: OpenPlansPlugin = {
               ? c.json(answer)
               : c.html(printMarket(answer));
           } catch (error) {
+            const missing = dataNotLoaded(error);
+            if (missing) return c.json({ error: missing }, 404);
             if (
               error instanceof z.ZodError ||
               error instanceof SyntaxError ||
@@ -110,6 +113,8 @@ const plugin: OpenPlansPlugin = {
                 ? c.json(answer)
                 : c.html(printEmployer(answer));
             } catch (error) {
+              const missing = dataNotLoaded(error);
+              if (missing) return c.json({ error: missing }, 404);
               if (
                 error instanceof z.ZodError ||
                 error instanceof SyntaxError ||

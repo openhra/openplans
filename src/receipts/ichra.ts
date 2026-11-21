@@ -3,7 +3,7 @@ import { readdir, readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { join, relative } from "node:path";
 import type { SqlSession } from "../db/database.js";
-import { dataGeneration } from "../api/cache/generation.js";
+import { dataGeneration } from "../db/generation.js";
 import { boundedDatabase } from "../db/bounded.js";
 import {
   CensusError,

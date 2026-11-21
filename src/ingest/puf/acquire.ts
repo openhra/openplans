@@ -1,3 +1,5 @@
+import { AnnualImportSkipped, planAnnualWork } from "../data-window.js";
+import type { AnnualSkip } from "../data-window.js";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { join, isAbsolute } from "node:path";
 import { randomUUID } from "node:crypto";
@@ -64,6 +66,7 @@ export interface PufManifest {
   dry_run: boolean;
   landing_page: SnapshotMetadata;
   files: PufRecord[];
+  skipped?: AnnualSkip[];
 }
 export interface AcquireOptions {
   year?: number;
@@ -249,6 +252,14 @@ async function cachedFetch(
 export async function acquirePufs(
   options: AcquireOptions = {},
 ): Promise<{ manifest: PufManifest; manifestPath: string | null }> {
+  const work = planAnnualWork(
+    "puf",
+    options.year === undefined ? PUF_YEARS : [options.year],
+    "individual",
+    options.now?.(),
+  );
+  if (!work.years.length)
+    throw new AnnualImportSkipped(work.skipped[0]!, work.skipped);
   if (
     options.year !== undefined &&
     !(SUPPORTED_PUF_YEARS as readonly number[]).includes(options.year)
@@ -278,10 +289,7 @@ export async function acquirePufs(
   );
   if (landing.metadata.bytes > 4 * 1024 ** 2)
     throw new FetchError("too_large", "Landing page exceeds byte limit");
-  const links = discoverPufs(
-    await readFile(landing.path, "utf8"),
-    options.year === undefined ? PUF_YEARS : [options.year],
-  );
+  const links = discoverPufs(await readFile(landing.path, "utf8"), work.years);
   const manifest: PufManifest = {
     schema_version: 1,
     publisher: "Centers for Medicare & Medicaid Services",
@@ -289,6 +297,7 @@ export async function acquirePufs(
     dry_run: options.dryRun ?? false,
     landing_page: landing.metadata,
     files: [],
+    ...(work.skipped.length ? { skipped: work.skipped } : {}),
   };
   for (const link of links) {
     const record = emptyRecord(link);
@@ -358,14 +367,31 @@ export async function runPufAcquire(
     }
   }
   try {
+    const work = planAnnualWork(
+      "puf",
+      options.year === undefined ? PUF_YEARS : [options.year],
+    );
+    if (options.dryRun || !work.years.length) {
+      output.out(
+        JSON.stringify({
+          planned: work.years.map((year) => ({ dataset: "puf", year })),
+          skipped: work.skipped,
+        }),
+      );
+      return 0;
+    }
     const result = await acquirePufs(options);
-    output.out(JSON.stringify(result));
+    output.out(JSON.stringify({ ...result, skipped: work.skipped }));
     return result.manifest.files.some(
       (file) => !["ok", "not_published"].includes(file.status),
     )
       ? 1
       : 0;
   } catch (error) {
+    if (error instanceof AnnualImportSkipped) {
+      output.out(JSON.stringify({ skipped: error.skipped }));
+      return 0;
+    }
     output.error(
       `worker ingest puf acquire failed: ${error instanceof FetchError ? error.code : "acquisition_error"}`,
     );

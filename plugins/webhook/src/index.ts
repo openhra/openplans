@@ -149,7 +149,7 @@ export function createWebhookPlugin(
     manifest: {
       name: PLUGIN_NAME,
       version: PLUGIN_VERSION,
-      apiVersion: "0.1",
+      apiVersion: "0.2",
       kinds: ["events"],
       capabilities: { network, secrets: [URL_SECRET, HMAC_SECRET] },
       options: webhookOptions,

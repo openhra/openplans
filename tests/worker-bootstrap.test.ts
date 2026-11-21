@@ -105,7 +105,7 @@ describe("one-command bootstrap", () => {
     ["--years", "2026"],
     ["--states", "tx", "--years", "2026"],
     ["--states", "XX", "--years", "2026"],
-    ["--states", "TX", "--years", "2028"],
+    ["--states", "TX", "--years", "not-a-year"],
     ["--states", "TX,", "--years", "2026"],
     ["--states", "TX", "--years", "2026", "--years", "2027"],
     ["--states", "TX", "--years", "2026", "--with-drugs", "--with-drugs"],

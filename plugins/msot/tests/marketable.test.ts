@@ -1,3 +1,4 @@
+import { loadPlugins } from "../../../tests/plugins/approval-helpers.js";
 import { expect, it } from "vitest";
 import { compileSource } from "../src/resolver.js";
 import { sourceSchema } from "../src/schema.js";
@@ -91,7 +92,6 @@ it("retains hashes for payment-only sources and supplies an unknown built-in dec
 
 it("returns both ordinary fields and their provenance through REST and MCP preview", async () => {
   const { loadConfig } = await import("../../../src/config/index.js");
-  const { loadPlugins } = await import("../../../src/plugins/loader.js");
   const { createApp } = await import("../../../src/api/app.js");
   const { createMcpHttp } = await import("../../../src/mcp/http.js");
   const { post } = await import("../../../tests/mcp/transport-helpers.js");
@@ -101,12 +101,14 @@ it("returns both ordinary fields and their provenance through REST and MCP previ
       {},
       {
         version: 1,
-        plugins: [
-          {
-            package: "@openplans/plugin-msot",
-            options: { source: marketSource() },
-          },
-        ],
+        plugins: {
+          entries: [
+            {
+              package: "@openplans/plugin-msot",
+              options: { source: marketSource() },
+            },
+          ],
+        },
       },
     ),
     "api",

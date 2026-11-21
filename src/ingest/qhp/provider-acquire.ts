@@ -1,3 +1,4 @@
+import { requireImportYear } from "../data-window.js";
 import type { Database } from "../../db/database.js";
 import { readCachedText, sidecarNames } from "../../fetch/index.js";
 import type { SnapshotReadOptions } from "../../fetch/index.js";
@@ -44,6 +45,7 @@ export async function ingestProviders(
   scope: ProviderScope,
   options: AcquisitionOptions & Pick<ProviderOptions, "onShard"> = {},
 ) {
+  requireImportYear("qhp-providers", scope.year);
   const set = await sourceSet(db, scope);
   await acquireQhpChildren(db, scope, "provider_urls", {
     ...options,

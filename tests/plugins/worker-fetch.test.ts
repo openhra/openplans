@@ -1,3 +1,4 @@
+import { privateEnvironment } from "./approval-helpers.js";
 import { createHash } from "node:crypto";
 import {
   mkdir,
@@ -143,7 +144,7 @@ function publisher(host: string): PublisherPolicy {
 const manifest = (name: string, writes?: string[]): PluginManifest => ({
   name: `@synthetic/${name}`,
   version: "0.0.1",
-  apiVersion: "0.1",
+  apiVersion: "0.2",
   kinds: ["workerCommands"],
   capabilities: {
     network: [HOST],
@@ -494,6 +495,7 @@ export default {
     );
     const loaded = await loadWorkerPlugins({
       env: {
+        ...privateEnvironment(),
         OPENPLANS_PLUGINS: file,
         OPENPLANS_ACCESS_MANIFEST: manifestPath,
         OPENPLANS_DATA_DIR: dataDir,

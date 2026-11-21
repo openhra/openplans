@@ -18,6 +18,8 @@ import { migrate } from "../../dist/db/migrate.js";
 import { parsePlanKey } from "../../dist/domain/medicare/index.js";
 import { dataDirectory } from "../../dist/ingest/medicare/acquire.js";
 import { cachedSpuf, importSpuf } from "../../dist/ingest/medicare/spuf.js";
+import { importMedicare } from "../../dist/ingest/medicare/command.js";
+import { admitNextYear } from "./admission.mjs";
 import { partDDrug } from "../../dist/services/medicare-part-d.js";
 import {
   compare,
@@ -68,7 +70,16 @@ const db = {
 };
 const started = Date.now();
 await migrate(db, migrations);
+// The next-year admission below loads a Landscape file; its county map needs the service-area files.
+if (year > new Date().getUTCFullYear())
+  await importMedicare(db, { year, family: "service_area" }, dataDir);
 const imported = await importSpuf(db, cached);
+// The API serves next year only once admitted. Admit it here, as a release does after loading.
+// A Medicare admission names that year's landscape catalog, so load the cached landscape first.
+if (year > new Date().getUTCFullYear()) {
+  await importMedicare(db, { year, family: "landscape" }, dataDir);
+  await admitNextYear(db, "medicare", year);
+}
 let drugNameChecks = 0;
 const drug = async (planKey, rxcui) => {
   const body = await partDDrug(db, parsePlanKey(planKey), year, rxcui);

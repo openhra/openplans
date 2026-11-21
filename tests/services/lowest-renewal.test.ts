@@ -1,3 +1,5 @@
+import { lowestInventory } from "../../src/worker/lowest-prebuild.js";
+import { withDataPolicy } from "../../src/services/data-window.js";
 import { afterAll, beforeAll, beforeEach, expect, it, vi } from "vitest";
 import { readFile } from "node:fs/promises";
 import { setup } from "../compat/v1/helpers.js";
@@ -201,6 +203,33 @@ it("keeps the command disabled without opening a database and rejects malformed 
   expect(await runLowestRenew(["--max-groups", "1001"], open, output)).toBe(1);
 });
 
+it("drops a leaving cache year from renewal at rollover without writing replacements", async () => {
+  await buildLowestCounty(h.db, [input]);
+  await due();
+  const before = (
+    await h.db.query(
+      "SELECT build_id FROM handy_lowest_build ORDER BY build_id",
+    )
+  ).rows;
+  const result = await withDataPolicy(
+    { historyYears: 3 },
+    () => renewLowestPremiums(h.db, { admitted }),
+    new Date("2028-01-01Z"),
+  );
+  expect(result).toMatchObject({
+    status: "complete",
+    groups: 0,
+    built_cells: 0,
+  });
+  expect(
+    (
+      await h.db.query(
+        "SELECT build_id FROM handy_lowest_build ORDER BY build_id",
+      )
+    ).rows,
+  ).toEqual(before);
+});
+
 it("a planted expiry-check bypass fails the persisted-cell refusal assertion", async () => {
   await buildLowestCounty(h.db, [input]);
   await due(-1);
@@ -251,4 +280,25 @@ it("returns a failing command exit and closes its database when renewal fails", 
   } finally {
     vi.unstubAllEnvs();
   }
+});
+
+it("resolves one annual policy for an explicit cache inventory", async () => {
+  let policyReads = 0;
+  const observed: Database = {
+    ...h.db,
+    async query(sql, values, options) {
+      if (sql.includes("FROM annual_data_admission")) policyReads++;
+      return h.db.query(sql, values, options);
+    },
+  };
+  const inventory = Array.from({ length: 20 }, (_, age) => ({
+    county: "48201",
+    year: 2026,
+    age,
+  }));
+  const cells = [];
+  for await (const cell of lowestInventory(observed, { inventory }))
+    cells.push(cell);
+  expect(cells).toHaveLength(inventory.length);
+  expect(policyReads).toBe(1);
 });

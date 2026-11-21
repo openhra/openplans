@@ -13,7 +13,12 @@ import type { SqlSession } from "../../../src/db/database.js";
 
 // Synthetic catalog values and credential sentinels; no publisher/household evidence.
 const fakeDb = {
-  query: async () => ({ rows: [{ generation: "synthetic-generation" }] }),
+  query: async (sql: string) => ({
+    rows:
+      sql.includes("FROM annual_data_admission") || sql.includes("AS domain")
+        ? []
+        : [{ generation: "synthetic-generation" }],
+  }),
 } as unknown as SqlSession;
 function harness(
   store: CacheStore = new MemoryCache(1024 * 1024),

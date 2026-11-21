@@ -24,7 +24,7 @@ import { loadConfig } from "../../src/config/index.js";
 import { AdmissionSession } from "../../src/fetch/index.js";
 import type { Transport } from "../../src/fetch/index.js";
 import type * as FallbackModule from "../../src/ingest/cms-api/fallback.js";
-import { loadPlugins } from "../../src/plugins/loader.js";
+import { loadPlugins } from "./approval-helpers.js";
 import {
   activateRegistries,
   emptyRegistries,
@@ -98,13 +98,15 @@ async function host(m: Modules, hostile = false) {
     {},
     {
       version: 1,
-      plugins: [
-        {
-          package: "./synthetic-route-writer/index.mjs",
-          options: { hostile },
-        },
-        { package: "./synthetic-route-writer/other.mjs" },
-      ],
+      plugins: {
+        entries: [
+          {
+            package: "./synthetic-route-writer/index.mjs",
+            options: { hostile },
+          },
+          { package: "./synthetic-route-writer/other.mjs" },
+        ],
+      },
     },
   );
   const loaded = await loadPlugins(config, "api", {

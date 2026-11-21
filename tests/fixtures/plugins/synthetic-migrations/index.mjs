@@ -5,7 +5,7 @@ export default {
   manifest: {
     name: "@synthetic/migrations",
     version: "0.0.1",
-    apiVersion: "0.1",
+    apiVersion: "0.2",
     kinds: [],
     tablePrefix: "synmig",
   },

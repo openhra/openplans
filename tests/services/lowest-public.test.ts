@@ -31,7 +31,7 @@ import {
 import { post } from "../mcp/transport-helpers.js";
 import { FIXED_TIME } from "../plugins/fixture.js";
 import { loadConfig } from "../../src/config/index.js";
-import { loadPlugins } from "../../src/plugins/index.js";
+import { loadPlugins } from "../plugins/approval-helpers.js";
 import type * as OperatorHost from "../../src/plugins/operator-host.js";
 import { createOperatorHost } from "../../src/plugins/operator-host.js";
 import { withMutantFile, importMutant } from "../mutant-file.js";
@@ -265,7 +265,7 @@ it("fits the proposed public status plugin and eighteen core tools within the di
             version: 1,
             lowestPremiums: true,
             lowestPremiumsScope: scope,
-            plugins: [{ package: "@openplans/plugin-status" }],
+            plugins: { entries: [{ package: "@openplans/plugin-status" }] },
           },
         ),
         "api",
@@ -296,7 +296,10 @@ it("fits the proposed public status plugin and eighteen core tools within the di
   } finally {
     vi.stubEnv("OPENPLANS_LOWEST_PREMIUMS", "off");
     vi.stubEnv("OPENPLANS_LOWEST_PREMIUMS_SCOPE", "full");
-    await loadPlugins(loadConfig({}, { version: 1, plugins: [] }), "api");
+    await loadPlugins(
+      loadConfig({}, { version: 1, plugins: { entries: [] } }),
+      "api",
+    );
   }
 });
 
@@ -501,7 +504,7 @@ it("rejects an older minimum cell with missing retrieval dates", async () => {
   expect(isLowestCell(legacy)).toBe(false);
 });
 
-it("uses two fresh metadata reads for a warm minimum and detects a redundant-query mutant", async () => {
+it("uses three fresh metadata reads for policy and a warm minimum and detects a redundant-query mutant", async () => {
   let reads = 0;
   const db: SqlSession = {
     ...h.db,
@@ -521,7 +524,7 @@ it("uses two fresh metadata reads for a warm minimum and detects a redundant-que
   reads = 0;
   expect(await lowestPremiums(db, input, { cache })).toEqual(expected);
   expect(cache.stats().hits).toBeGreaterThan(0);
-  expect(reads).toBe(2);
+  expect(reads).toBe(3);
   const mutant: SqlSession = {
     ...db,
     async query<Row extends Record<string, unknown>>(
@@ -534,18 +537,18 @@ it("uses two fresh metadata reads for a warm minimum and detects a redundant-que
   };
   reads = 0;
   expect(await lowestPremiums(mutant, input, { cache })).toEqual(expected);
-  expect(() => expect(reads).toBe(2)).toThrow();
+  expect(() => expect(reads).toBe(3)).toThrow();
 });
 
 it("reads status plugin identities without locale setup and rejects a locale-sort mutant", async () => {
   const plugins = ["status", "handy", "compare", "blob-s3"].map((name) => ({
     name: `@openplans/${name}`,
     version: "0.0.0",
-    apiVersion: "0.1",
+    apiVersion: "0.2",
     enabled: true,
     sha256: "synthetic",
   }));
-  const config = loadConfig({}, { version: 1, plugins: [] });
+  const config = loadConfig({}, { version: 1, plugins: { entries: [] } });
   const assertPlainRead = async (create: typeof createOperatorHost) => {
     const host = create(config, "api", {}, () => ({
       plugins,

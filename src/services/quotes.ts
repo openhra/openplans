@@ -1,3 +1,4 @@
+import { requireAnnualYear } from "./data-window.js";
 import {
   selectCatalogPlans,
   guardCatalogPlans,
@@ -181,6 +182,7 @@ export async function quotePlans(
 ) {
   const request = v.publicQuoteRequest(body);
   const { premium } = request;
+  await requireAnnualYear(db, premium.year);
   const location = await resolveLocation(db, premium.location);
   // Every quote below shares this request's county catalog and plan reads.
   const reads = requestReads(db);

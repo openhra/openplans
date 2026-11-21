@@ -5,7 +5,7 @@ import { pathToFileURL } from "node:url";
 import { describe, expect, it } from "vitest";
 import type { PluginManifest, ScheduleSpec } from "@openplans/plugin-sdk";
 import { loadConfig } from "../../src/config/index.js";
-import { loadPlugins } from "../../src/plugins/loader.js";
+import { loadPlugins } from "./approval-helpers.js";
 import * as Registries from "../../src/plugins/registries.js";
 import type { PluginHost } from "../../src/plugins/registries.js";
 import { plantMutant } from "../../src/plugins/testing/artifacts.js";
@@ -14,7 +14,7 @@ import { plantMutant } from "../../src/plugins/testing/artifacts.js";
 const manifest: PluginManifest = {
   name: "@synthetic/cron-registration",
   version: "0.0.1",
-  apiVersion: "0.1",
+  apiVersion: "0.2",
   kinds: ["schedules"],
 };
 const schedule = (cron: string): ScheduleSpec => ({
@@ -125,7 +125,7 @@ describe.each(hosts)("schedule registration on %s", (host) => {
         {},
         {
           version: 1,
-          plugins: [{ package: "./plugin.mjs" }],
+          plugins: { entries: [{ package: "./plugin.mjs" }] },
         },
       );
       const active = Registries.currentRegistries();

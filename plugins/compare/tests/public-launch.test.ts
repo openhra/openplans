@@ -4,7 +4,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { afterAll, afterEach, beforeAll, expect, it, vi } from "vitest";
 import { createApp } from "../../../src/api/app.js";
 import { loadConfig } from "../../../src/config/index.js";
-import { loadPlugins } from "../../../src/plugins/loader.js";
+import { loadPlugins } from "../../../tests/plugins/approval-helpers.js";
 import { createMcpHttp } from "../../../src/mcp/http.js";
 import { toolNames } from "../../../src/mcp/schemas.js";
 import { post } from "../../../tests/mcp/transport-helpers.js";
@@ -54,7 +54,7 @@ const settings = (enabled = true, privateIngress = false, tpaEnabled = false) =>
       version: 1,
       public: { quoting: true },
       tpa: { enabled: tpaEnabled, privateIngress },
-      plugins: [{ package: "@openplans/plugin-compare", enabled }],
+      plugins: { entries: [{ package: "@openplans/plugin-compare", enabled }] },
     },
   );
 const query = (input: Record<string, unknown>) =>
@@ -112,9 +112,13 @@ beforeAll(async () => {
   fixture = await setup({ fixedTime: FIXED_TIME });
 });
 afterEach(async () => {
-  await loadPlugins(loadConfig({}, { version: 1, plugins: [] }), "api", {
-    env: {},
-  });
+  await loadPlugins(
+    loadConfig({}, { version: 1, plugins: { entries: [] } }),
+    "api",
+    {
+      env: {},
+    },
+  );
 });
 afterAll(async () => {
   await fixture?.close();
@@ -182,7 +186,7 @@ it("registers exactly three public routes and one tool, with either TPA gate off
     expect(body.result.nextCursor).toBeUndefined();
   }
   const defaults = loadConfig({}, { version: 1 });
-  expect(defaults.plugins).toEqual([]);
+  expect(defaults.plugins.entries).toEqual([]);
   expect(defaults.tpa).toEqual({ enabled: false, privateIngress: false });
   const off = await loadPlugins(settings(false), "api", { env: {} });
   const server = createApp(fixture.db, undefined, {

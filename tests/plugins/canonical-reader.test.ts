@@ -112,7 +112,7 @@ it("requires a declared kind and refuses policy-provider collisions on every hos
     const base = {
       name: "@synthetic/policy",
       version: "0.1.0",
-      apiVersion: "0.1" as const,
+      apiVersion: "0.2" as const,
     };
     const absent = stagingRegistrar(
       staging,

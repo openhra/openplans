@@ -18,7 +18,12 @@ import { importMutant, withMutantFile } from "../../mutant-file.js";
 // Synthetic route and DTO values only. A route stands in for a pass-through answer by calling
 // restrictCacheLevel the way the pass-through core will (design 5.10.5).
 const fakeDb = {
-  query: async () => ({ rows: [{ generation: "synthetic-generation" }] }),
+  query: async (sql: string) => ({
+    rows:
+      sql.includes("FROM annual_data_admission") || sql.includes("AS domain")
+        ? []
+        : [{ generation: "synthetic-generation" }],
+  }),
 } as unknown as SqlSession;
 type Restriction = { level: CacheLevel; ttl?: number } | null;
 

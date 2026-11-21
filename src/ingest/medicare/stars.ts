@@ -1,3 +1,4 @@
+import { requireImportYear } from "../data-window.js";
 import { createWriteStream } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -53,6 +54,11 @@ export async function importStars(
   db: Database,
   cached: CachedArchive,
 ): Promise<ReleaseReport> {
+  requireImportYear(
+    `medicare-${cached.archive.family}`,
+    cached.archive.year,
+    "medicare",
+  );
   const year = cached.archive.year;
   const member = (await inspectZip(cached.path, archiveLimits.stars)).members
     .map((entry) => entry.name)

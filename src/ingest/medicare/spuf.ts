@@ -1,3 +1,4 @@
+import { requireImportYear } from "../data-window.js";
 import { createHash } from "node:crypto";
 import { createWriteStream } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
@@ -86,6 +87,7 @@ export async function acquireSpuf(
   archive: SpufArchive,
   context: AcquireContext = {},
 ) {
+  requireImportYear(`partd-${archive.kind}`, archive.year, "medicare");
   const dataDir = context.dataDir ?? dataDirectory();
   const cached = (await cachedSpuf(archive.kind, dataDir)).find(
     (entry) => entry.metadata.url === archive.url,
@@ -821,6 +823,11 @@ export async function importSpuf(
   cached: { archive: SpufArchive; path: string; metadata: SnapshotMetadata },
   tables: readonly SpufTable[] = coreTables,
 ) {
+  requireImportYear(
+    `partd-${cached.archive.kind}`,
+    cached.archive.year,
+    "medicare",
+  );
   const started = Date.now();
   const { archive, metadata } = cached;
   const source = spufSources[archive.kind];
@@ -1037,6 +1044,11 @@ export async function stageLargeTable(
   table: StagedTable,
   options: { batchRows?: number; onBatch?: (pass: StagedPass) => void } = {},
 ): Promise<StagedPass> {
+  requireImportYear(
+    `partd-${cached.archive.kind}`,
+    cached.archive.year,
+    "medicare",
+  );
   const started = Date.now();
   const batchRows = options.batchRows ?? 5000;
   if (!(stagedTables as readonly string[]).includes(table))

@@ -40,7 +40,7 @@ the same list. Each one keeps only the kinds it hosts:
 | Worker           | catalog policies, cache stores, database providers, blob stores, sources, worker commands, schedules, events |
 | MCP stdio server | MCP tools, catalog policies, cache stores, database providers, sources                                       |
 
-With no plugins enabled, the worker never imports the loader.
+Public mode requires an approval list even when no plugins are enabled.
 
 ### `OPENPLANS_PLUGINS`
 
@@ -64,20 +64,35 @@ core settings. Plugin options go only in the file.
 ```json
 {
   "version": 1,
-  "db": { "provider": "pg" },
-  "blobs": { "provider": "local" },
-  "plugins": [
-    { "package": "@openplans/plugin-status" },
-    {
-      "package": "@openplans/plugin-webhook",
-      "options": { "events": ["ingest.failed", "readiness.failed"] }
-    },
-    { "package": "./local-plugins/hello/dist/index.js", "enabled": false }
-  ]
+  "db": {
+    "provider": "pg"
+  },
+  "blobs": {
+    "provider": "local"
+  },
+  "plugins": {
+    "entries": [
+      {
+        "package": "@openplans/plugin-status"
+      },
+      {
+        "package": "@openplans/plugin-webhook",
+        "options": {
+          "events": ["ingest.failed", "readiness.failed"]
+        }
+      },
+      {
+        "package": "./local-plugins/hello/dist/index.js",
+        "enabled": false
+      }
+    ],
+    "approvedList": "./plugins.approved.json",
+    "lockfile": "./plugins.lock.json"
+  }
 }
 ```
 
-Each entry under `plugins` takes these fields:
+Each entry under `plugins.entries` takes these fields:
 
 | Field             | Default | Meaning                                                                                                                                                                  |
 | ----------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -93,8 +108,7 @@ their names resolve after `npm ci` and in the Docker image.
 ### Compose
 
 `compose.yml` passes `OPENPLANS_PLUGINS` and `OPENPLANS_CONFIG` from `.env` to the `api`,
-`worker` and `scheduler` services, so all three load the same plugins. Both are empty by default,
-which loads no plugins and reads no config file.
+`worker` and `scheduler` services, so all three load the same plugins. Both are empty by default. Public hosts require an approval list and lockfile even for an empty list.
 
 Set `OPENPLANS_CONFIG` to the absolute path of the file on the Docker host. Compose mounts that
 file read-only at the same path in each service, so the value works inside the containers too.
@@ -107,13 +121,53 @@ Compose override can do that, or you can install the plugin into the image.
 a variable in `.env` alone does not reach a container. See the
 [configuration reference](configuration.md).
 
+### Package approval and disk verification
+
+API 0.2 uses a `plugins` object. Its `entries` array holds the packages and options.
+`approvedList` names the operator's JSON approval file. `lockfile` defaults to
+`plugins.lock.json` beside the configuration file. Relative paths use that directory.
+`OPENPLANS_PLUGINS` replaces only `entries`, preserving the approval settings.
+
+Before startup, run `worker plugin lock` against the built files. Review the lock candidate,
+then write the approved list as described in [Running plugins](plugins-operations.md#the-approved-plugin-list).
+`worker plugin verify --json` recomputes every digest from disk. Neither command imports plugin
+code or opens a database. Locking never grants approval.
+
+Any enabled `public.quoting`, `public.household` or `public.compat` switch requires approval.
+These switches default on. `plugins.requireApproval: true` requires it in private mode too.
+A configured list always enforces approval. With all public switches off and no list, the
+loader emits `plugin_approval_unconfigured` and continues for local development.
+
+Each package declares `openplansPlugin` in its `package.json`, with `apiVersion: "0.2"`,
+`kinds` and optional `capabilities`. The loader compares that declaration with the runtime
+manifest after approval and before setup. The webhook package also declares `networkFromEnv`
+to resolve its receiver host without executing code. This field accepts only the non-secret
+`OPENPLANS_WEBHOOK_HOST` setting; package metadata cannot request other environment variables.
+Lock and runtime must use the same host.
+
+The strict digest is SHA-256 of a UTF-8 JSON array sorted by path in JavaScript code-unit order.
+Each directory contributes `[path, "directory", mode]`; each regular file contributes
+`[path, "file", mode, byteLength, fileSha256]`. The root path is `"."`; other paths use `/`.
+Modes are `stat.mode & 0o7777`. Hidden files, empty directories and `node_modules` count.
+Links and special files refuse inspection. The bounds are 10,000 records and 200 MiB of file
+bytes. Ownership and timestamps do not count. The implementation is `packageContentDigest` in
+`src/plugins/package-hash.ts`.
+
+The lock records package specifier, name, version, origin, strict `digest`, `legacySha256`,
+API version, kinds and capabilities. Origin is `bundled`, `local` or `registry:<url>` and grants
+no permission. Status and retained release receipts still use the unchanged legacy hash recipe.
+Locks and approvals must live outside package roots so their bytes do not hash themselves.
+
 ### Load order and refusals
 
 The loader checks every enabled plugin before any `setup` runs, in configuration order. Each
 plugin's registrations go to a staging area, and they become active only when every plugin has
 finished setup. The order, from `src/plugins/loader.ts`, is:
 
-1. For each enabled entry: import the package, check the default export, compare `apiVersion`,
+1. Before importing any enabled package, read `plugins.approvedList` and `plugins.lockfile`,
+   resolve every package and recompute its strict content digest. Require matching names,
+   versions and both hashes, including bundled packages. A missing or invalid approval refuses
+   startup. Then import each checked file, check the default export, compare `apiVersion`,
    parse the manifest, then check the name and `tablePrefix` for duplicates, the declared
    secrets, the declared network hosts and the options.
 2. For each plugin, in the same order: run `setup` and check every registration as it is made.
@@ -137,9 +191,10 @@ The codes are:
 
 | Code                              | Cause                                                                                 |
 | --------------------------------- | ------------------------------------------------------------------------------------- |
+| `plugin_approval_refused`         | Approval is missing, invalid or differs from the locked package on disk.              |
 | `plugin_import_failed`            | The package could not be imported.                                                    |
 | `plugin_export_invalid`           | The default export is not a plugin, or its manifest fails the schema.                 |
-| `plugin_api_version_mismatch`     | `apiVersion` is not `0.1`.                                                            |
+| `plugin_api_version_mismatch`     | `apiVersion` is not `0.2`.                                                            |
 | `plugin_name_duplicate`           | Two entries load the same manifest name.                                              |
 | `plugin_table_prefix_duplicate`   | Two plugins declare the same `tablePrefix`.                                           |
 | `plugin_secret_missing`           | A declared secret is unset and not listed in `optionalSecrets`.                       |
@@ -211,7 +266,8 @@ Without a configured token the operator routes answer 404; a wrong token gets 40
 never cached. Expose only `/status` and `/status.json` on a public edge.
 
 After you review a plugin, copy its name, version and `sha256` from `/status/operator.json`
-into your own list of approved plugins. The hash covers every file under the package root except
+into status comparisons. Runtime approval also requires the strict digest from `worker plugin lock`.
+The status hash covers every file under the package root except
 `node_modules` and dot files; the [SDK README](../plugins/sdk/README.md#host-status) gives the
 recipe.
 
@@ -244,14 +300,22 @@ an S3-compatible object store, with SHA-256 checks on every write and read. It n
 ```json
 {
   "version": 1,
-  "blobs": { "provider": "s3" },
-  "plugins": [
-    {
-      "package": "@openplans/blob-s3",
-      "options": { "prefix": "openplans" },
-      "optionalSecrets": ["OPENPLANS_BLOB_S3_SESSION_TOKEN"]
-    }
-  ]
+  "blobs": {
+    "provider": "s3"
+  },
+  "plugins": {
+    "entries": [
+      {
+        "package": "@openplans/blob-s3",
+        "options": {
+          "prefix": "openplans"
+        },
+        "optionalSecrets": ["OPENPLANS_BLOB_S3_SESSION_TOKEN"]
+      }
+    ],
+    "approvedList": "./plugins.approved.json",
+    "lockfile": "./plugins.lock.json"
+  }
 }
 ```
 
@@ -308,6 +372,16 @@ Any failure quarantines this run's snapshots with a reason code. The previous ac
 keeps serving. A plan file with `cache: "content"` is stored under its SHA-256 and reused
 without a request; use it only for a URL that names one fixed release.
 
+Every feed declares `dataScope` before the core calls `plan`. Use `{ kind: "current" }`
+for a current-generation dataset such as taxonomy. Annual feeds declare
+`{ kind: "annual", domain: "individual" | "medicare", years(args) }`; `years` returns
+all plan or contract years the run will write, using the parsed command arguments.
+The core checks those years with the data-window resolver before discovery, storage
+or downloads. A mixed plan containing an excluded year is refused as a whole.
+`runFeedSource` with `dryRun: true` returns the same dataset/year/reason skip manifest
+without calling the plugin's planning hook. Feed commands also accept the host's
+`--dry-run` flag. Missing scope declarations are refused.
+
 A feed plugin must declare `capabilities.writes` with `"staging"`. Every host in `hosts` must
 also be in the plugin's `capabilities.network` and be allowed in a loaded manifest, or the run
 stops before `plan`.
@@ -361,14 +435,21 @@ The strictest level wins, in three places:
 ```json
 {
   "version": 1,
-  "plugins": [
-    {
-      "package": "@example/source-answers",
-      "sources": {
-        "example-answers": { "cacheLevel": "memory", "ttl": "5 minutes" }
+  "plugins": {
+    "entries": [
+      {
+        "package": "@example/source-answers",
+        "sources": {
+          "example-answers": {
+            "cacheLevel": "memory",
+            "ttl": "5 minutes"
+          }
+        }
       }
-    }
-  ]
+    ],
+    "approvedList": "./plugins.approved.json",
+    "lockfile": "./plugins.lock.json"
+  }
 }
 ```
 
@@ -516,7 +597,7 @@ Types and schemas come from `@openplans/plugin-sdk` in `plugins/sdk/`.
 
 The manifest declares:
 
-- `name`, `version` (semantic version) and `apiVersion: "0.1"`;
+- `name`, `version` (semantic version) and `apiVersion: "0.2"`;
 - `kinds`, every registry the plugin uses: `routes`, `mcpTools`, `cacheStores`, `dbProviders`,
   `blobStores`, `sources`, `workerCommands`, `schedules`, `events`;
 - `capabilities`: `network` hosts, `secrets` it reads, `writes` (`staging`, `cache`, `blobs`,
@@ -570,7 +651,7 @@ hands setup a working database, so a test will not catch a setup that queries it
 one MCP tool, one worker command and one non-durable event handler, plus tests that use the kit
 and plant a mutant. It is a workspace package, so CI builds it and runs its tests.
 
-From a fresh checkout, with Node 22 or later:
+From a fresh checkout, with a supported Node version:
 
 ```sh
 cd openplans
@@ -629,7 +710,7 @@ const plugin: OpenPlansPlugin = {
   manifest: {
     name: "@example/plugin-hello",
     version: "0.1.0",
-    apiVersion: "0.1",
+    apiVersion: "0.2",
     kinds: ["routes", "events"],
     options,
   },
@@ -787,14 +868,15 @@ you add a plugin to your [approved list](plugins-operations.md#the-approved-plug
 7. **Pass-through sources.** The declared cache level, the budget and the attribution.
 8. **Its tests.** Run them, including any planted mutants, against the exact build you will
    install.
-9. **The identity.** Install the plugin, then copy its name, version and `sha256` from
-   `/status/operator.json` into the approved list.
+9. **The identity.** Inspect the lock entry written by `worker plugin install` or
+   `worker plugin lock`. Review its name, version, strict `digest` and `legacySha256`. The
+   approved list records that legacy hash as `sha256`. Approval must exist before the first load.
 
 ## Versions
 
 ### The API version
 
-The SDK exports `PLUGIN_API_VERSION`, now `0.1`. A manifest's `apiVersion` must equal it exactly.
+The SDK exports `PLUGIN_API_VERSION`, now `0.2`. A manifest's `apiVersion` must equal it exactly.
 The loader compares it before it parses the rest of the manifest and refuses any other value with
 `plugin_api_version_mismatch`. The manifest schema accepts only that value too, so
 `pluginManifestSchema.parse` and the test kit's `loadForTest` reject a mismatch, and a plugin's
@@ -838,7 +920,231 @@ That includes `package.json` and the built `dist/`. The same files give the same
 change gives a new one, even when the version stays the same. A rebuild that changes the output
 changes the hash too.
 
-An approved-list entry pins all three values: name, version and `sha256`. Keep one hash per
-version. If the hash changes and the version does not, the installed files changed without a
-release. Treat that as a mismatch and review the plugin again. A new version always needs a new
-review and a new entry.
+An approved-list entry pins the name, version, legacy `sha256` and strict `digest`. The strict
+digest also covers directories, modes and hidden files, and refuses links. Keep one reviewed pair
+of hashes per version. Changed bytes or permissions need another review. A new version needs a
+new lock entry and approval.
+
+## Package a plugin for another installation
+
+Build and test your plugin before packing it. Add `openplans-package.json` at the package root.
+The [template manifest](../plugins/template/openplans-package.json) is a starting point. Replace
+its example build timestamp and zero source revision with your build's actual provenance before
+publishing. The SDK ships the [JSON Schema](../plugins/sdk/openplans-package.schema.json) and the
+`@openplans/plugin-sdk/dist/package-manifest.js` validator.
+
+The descriptor uses one schema for `plugin`, `ui-addon` and `data` packages. Code packages declare
+the built JavaScript entrypoint, runtime API version, kinds, capabilities, licence, attribution,
+build provenance, exact host peers and bundled dependency inventory. `ui-addon` accepts only
+`routes` in this version. Copy the exact `hono`, `zod` and `@openplans/plugin-sdk` versions from
+the core's `package.json` into both `hostPeers` and `package.json`'s `peerDependencies`.
+
+Bundle other pure JavaScript dependencies into `dist/`. List each bundle's dependency name,
+version, licence, payload path and SHA-256 in `bundledDependencies`. Runtime `dependencies`,
+optional dependencies, npm bundles, lifecycle scripts and native `.node` add-ons are refused.
+Packing accepts the author's `build`, `test`, `lint`, `typecheck` and `format` scripts, then removes
+all scripts and development dependencies from the emitted `package.json`.
+
+From the core source root, after `npm run build`:
+
+```sh
+node dist/worker/cli.js plugin pack plugins/template --out /tmp/plugin-release
+node dist/worker/cli.js plugin verify --local /tmp/plugin-release/openplans-plugin-template-0.2.0.tgz
+OPENPLANS_PLUGIN_DIR=/tmp/local-plugins node dist/worker/cli.js plugin install /tmp/plugin-release/openplans-plugin-template-0.2.0.tgz
+```
+
+Use a fresh output directory for each build. Packing refuses to replace an existing archive.
+It includes `dist/`, `migrations/`, `assets/`, `attestations/`, top-level README, licence and notice files, a runtime
+`package.json` and the descriptor. Source files, tests, empty directories and `node_modules/` stay out. Hidden payload
+files, links, unsafe paths, secret markers and native add-ons fail the checks. A root `.env` file
+also stops packing. The code package limits are 20 MiB compressed, 100 MiB expanded and 5,000
+regular files. Archive entries have sorted paths, zero timestamps and owner IDs, and mode `0644`.
+The gzip compression level is fixed. Identical build bytes and descriptor produce identical archives.
+
+Pack imports the built module and runs its setup through `loadForTest`. It compares the module's
+name, version, API version, kinds and capabilities with the descriptor. This command runs code,
+so use it only on a plugin you are authoring or have reviewed. It does not run the plugin's build
+or install scripts.
+
+The emitted descriptor contains a SHA-256 inventory of every payload file except itself.
+`package.json.openplansPlugin` must declare the same API version, kinds and capabilities as the
+descriptor and built module. API 0.2 uses SDK and workspace version 0.2.0. A separate
+`<archive>.json` receipt records the archive digest, descriptor digest, strict content digest and
+legacy status hash. Keeping this receipt outside the archive avoids a hash that would have to include itself.
+Local verification checks the internal inventory. An unsigned local archive and its receipt do
+not establish a publisher's identity.
+
+`plugin verify --local <directory|file.tgz>` and `plugin install <directory|file.tgz>` never import
+the payload or run setup. They do not load configured plugins. Directory input must already contain
+the packed descriptor and its file inventory. Private verification and install copies use mode
+`0755` for directories and `0644` for files; the returned strict digest describes those bytes and
+modes. Install verifies a private copy, then places the
+package under `<pluginDir>/<namespace>/<name>/<version>/`. Set `OPENPLANS_PLUGIN_DIR`, or set
+`OPENPLANS_DATA_DIR` to use its `plugins/` subdirectory. Otherwise install uses the configured
+data directory, which defaults to `~/.local/share/openplans`. Existing versions are never replaced.
+Install binds the core's three exact host peers under `<pluginDir>/node_modules/`, outside the
+immutable package. Run install in the core runtime that will load the package. It refuses
+conflicting bindings or parent directories that shadow those peers.
+
+Installation grants no approval and loads nothing. It atomically adds or updates the local
+package's entry in `plugins.lockfile`, using the core inspector and lockfile writer. Other package
+entries stay in the lockfile. The default lockfile is `plugins.lock.json` beside the config file,
+or in the working directory when no config file is set. The output includes both the strict
+content digest and the legacy status hash, plus a disabled config entry.
+
+Install never changes `plugins.approvedList`. An installed package absent from that list is
+refused before import. Review the exact installed bytes and record the name, version, `sha256`
+and `digest` in the approved list before enabling the config entry. The lockfile and approved list
+must be different files. There is no install or approval HTTP endpoint.
+
+### Original-file data descriptors
+
+Data packages contain original public-file bytes as content-addressed `chunks/<sha256>` files,
+plus the source evidence named in the descriptor. Each original file declares its upstream HTTPS
+URL, whole-file SHA-256, retrieval timestamp, admission receipt and redistribution evidence with
+hashed evidence files. Chunks are 64 MiB, except the last chunk of each file. The descriptor orders
+them so verification can hash the reassembled original without writing another copy. A release
+has at most 4,096 chunks, 20 GiB of original compressed bytes and 100 GiB of declared expanded
+bytes. The importer must still enforce its actual expansion and parsing limits.
+
+An absent upstream hash keeps verification at `unknown` and returns exit code 1. Missing
+redistribution evidence is refused. A successful local byte check does not validate a publisher's
+rights claim or grant source admission. Data activation still needs the existing admission,
+provenance and importer checks. `plugin pack` and `plugin install` accept code packages only;
+local directory verification also checks original-file data packages. They never activate data.
+
+## Install from a signed registry
+
+Registry search and install use `tuf-js` 6.0.2. Use Node 22.22.2 or later in the 22 series,
+Node 24.15.0 or later in the 24 series, or Node 26 or later. The Docker image already meets
+this requirement.
+
+Obtain the registry's initial TUF root through a channel you trust. Review its key IDs and
+threshold before adding it to your installation. The client never downloads its initial trust
+root from a registry or reads trust from a plugin lockfile.
+
+Create `<dataDir>/registries/trust.json`, where `<dataDir>` is the configured data directory.
+Paths in this file are relative to its directory. Absolute root paths also work.
+
+```json
+{
+  "version": 1,
+  "registries": [
+    {
+      "url": "file:///srv/openplans-catalog/",
+      "root": "./reviewed-root.json"
+    }
+  ]
+}
+```
+
+`OPENPLANS_REGISTRY_TRUST` selects a different trust file. Registry URLs have no credentials,
+query string or fragment. HTTPS uses the existing fetch admission rules, including publisher
+terms, robots checks and pacing. Add the host to the operator access manifest before using it.
+Plain HTTP is accepted only for an explicitly trusted `127.0.0.1` fixture server.
+
+After building the core:
+
+```sh
+node dist/worker/cli.js plugin search taxonomy
+node dist/worker/cli.js plugin search taxonomy --registry file:///srv/openplans-catalog/
+node dist/worker/cli.js plugin install @openplans/source-nucc-taxonomy@0.2.0 --registry file:///srv/openplans-catalog/
+```
+
+These commands require a catalog containing the requested package. Search without `--registry`
+searches every declared registry in order. Failure in any registry fails the command. Install
+requires an exact name and version. With `--registry`, it uses only that trusted registry or
+mirror. Without the flag, a new name uses the first registry with the exact version; an
+installed name stays bound to its recorded origin. It never resolves a version range.
+
+The static layout is `metadata/` and `targets/`. Metadata uses TUF root, timestamp, snapshot and
+targets roles, with numbered roots such as `2.root.json`. Consistent snapshots use numbered
+snapshot and targets metadata, plus hash-prefixed target filenames. Each top-level target has a
+signed `custom.openplans` object containing `name`, `version` and `summary`. These fields identify
+the archive, and installation checks its manifest against them. The client currently refuses
+delegations. Catalog limits are 1 MiB for a root or timestamp, 4 MiB for snapshot or targets
+metadata, 1,000 targets and 32 root rotations per refresh. Code archives have the same 20 MiB
+compressed limit as local installation.
+
+The timestamp includes a signed ISO `issued_at` field and expires exactly two days later. Search
+and install refresh metadata before accepting a result. Expired timestamps, timestamps issued
+more than a minute in the future and local clocks more than a minute behind the previous check
+are refused. Installation and update check freshness again after downloading. An expired
+catalog blocks new installs, updates and bundle exports. `plugin list` still reports installed
+packages with a warning, using cached notices when a refresh fails.
+
+Verified metadata and clock state live in `<dataDir>/registries/<sha256-of-registry-url>/`.
+Accepted root, timestamp and snapshot versions survive a failed download and a process restart.
+Keep this state when backing up the installation. Deleting it discards rollback protection.
+Root rotation follows every intermediate root and verifies both the previous and new root's
+signature thresholds. Replacing the configured initial root after first use is refused.
+
+The client downloads into a private quarantine, checks the target's length and hashes, then
+uses the local package installer. The lock records `registry:<normalized-url>` as the origin.
+Installation never imports the payload, changes the approved list or enables a config entry.
+Configure `plugins.approvedList` and `plugins.requireApproval: true`, review the installed bytes,
+and record their hashes before enabling the package. An unapproved package then fails before
+import, even when its catalog signatures pass.
+
+A running deployment reads its installed package and local approval. It does not refresh a
+registry at startup or during requests, so a stale or unreachable catalog does not stop it.
+A `file://` repository uses the same checks with networking disabled. `plugin bundle` copies
+the requested archive, signed metadata and intermediate roots for a disconnected install. Its
+timestamp must still be fresh. No signing keys or publisher service ship with the client.
+
+Each registry permits one writer to its trust state at a time. If a process crashes and leaves
+its `lock/` directory behind, confirm that process has stopped before removing that directory.
+Keep `metadata/` and `state.json` intact. A corrupted trust state needs operator review; the client
+has no skip-verification or automatic trust-reset option.
+
+### Registry ownership and mirrors
+
+You can put the ordered registry list in `plugins.registries` in your config file. Each entry
+has `url` and `root`, as in the trust file above. Paths to roots in the config file resolve
+against that file's directory. `OPENPLANS_REGISTRY_TRUST`, when set, selects the trust file
+instead of the config list. With neither, the default trust file still applies.
+
+An entry may add `namespaces`, such as `["@example"]`, to restrict which names it can supply.
+Two entries cannot claim the same namespace. URLs and mirror aliases must also be unique.
+Registries without a namespace restriction are searched in list order for a new name.
+After installation, the lock pins the name to its origin. Installing the same name from
+another registry, or replacing a registry package with a local package, is refused. Remove it
+first if you intend to change its origin.
+
+Use `mirrors` on a registry entry for copies of the same signed catalog. Every mirror uses
+that entry's independently reviewed root, trust state and origin. A mirror cannot reset the
+accepted metadata versions. There is no automatic fallback after a failed verification.
+See [offline installs](plugins-operations.md#offline-installs) for the bundle workflow.
+
+### Inspect, update and remove
+
+```sh
+node dist/worker/cli.js plugin list
+node dist/worker/cli.js plugin list --json
+node dist/worker/cli.js plugin update @example/plugin --to 2.0.0
+node dist/worker/cli.js plugin update @example/plugin
+node dist/worker/cli.js plugin remove @example/plugin
+```
+
+`list` reads the candidate lock and checks its bytes against local approvals. It shows each
+package's origin, digest, approval, integrity, catalog freshness and upstream yank, revocation
+or removal notices. When present, verified publishing provenance appears as a source repository,
+commit and workflow; `--json` includes the full statement. A failed refresh prints a warning and uses the last fully verified catalog
+if one is cached. Cached notices can be out of date. Listing never loads plugin code.
+
+`update` uses the installed package's registry only. Add `--registry <mirror-URL>` to read a
+configured mirror of that origin. Without `--to`, it selects the highest
+stable, non-yanked version from that catalog. With `--to`, it resolves that exact version,
+including a prerelease. Yanked, revoked and removed versions are refused. Both paths quarantine
+and verify the archive before installation. An already installed version is refused.
+
+The new version goes beside the old one. The candidate lock changes; config and approvals do
+not. Review the new bytes, record their exact name, version and hashes in `plugins.approvedList`,
+and change the config entry to the returned entrypoint before restarting. A config entry for
+the new version fails before import until its approval matches. A running process keeps its
+loaded version; restarting against the old config after changing the lock fails the lock check.
+
+`remove` refuses any enabled config entry pointing at that package, including an old installed
+version or an alias. Disable those entries first. It removes all versions of the named package
+from the managed plugin store and removes its lock entry. Other packages, approvals, database
+migrations already applied and ingested data stay in place. Unmanaged packages are refused.

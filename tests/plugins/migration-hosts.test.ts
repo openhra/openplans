@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -264,10 +264,11 @@ describe("bootstrap and ingest commands run enabled plugins' migrations", () => 
   it("an ingest command migrates the plugin too, and refuses an out-of-scope plugin file first", async () => {
     const db = testDatabase(new PGlite());
     try {
-      const missing = join(dataDir, "absent-rules.json");
-      const args = ["ingest", "rating-rules", "--file", missing];
+      const invalid = join(dataDir, "synthetic-invalid-rules.json");
+      await writeFile(invalid, JSON.stringify({ plan_year: 2026 }));
+      const args = ["ingest", "rating-rules", "--file", invalid];
       const run = await worker(runWorker, db, args, [fixtureSource]);
-      // The import fails on the missing file after migrate has committed.
+      // Admission reads the year first; invalid rule content fails after migrations commit.
       expect(run.code).toBe(1);
       expect(await pluginJournal(db)).toEqual(FIXTURE_NAMES);
       const plain = testDatabase(new PGlite());

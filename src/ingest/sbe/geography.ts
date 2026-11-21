@@ -1,3 +1,4 @@
+import { requireImportYear } from "../data-window.js";
 import { createHash } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { readFile } from "node:fs/promises";
@@ -24,6 +25,7 @@ export async function ingestSbeGeography(
   db: Database,
   options: GeoImportOptions,
 ) {
+  requireImportYear("rating-areas", options.planYear ?? 2026);
   const state = options.state!;
   // The existing geography importer owns this explicit, mutable spelling registry.
   for (const [published, census] of Object.entries(spellings[state] ?? {})) {

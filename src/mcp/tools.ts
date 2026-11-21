@@ -1,3 +1,10 @@
+import {
+  guardAnnualInput,
+  servingPolicy,
+  servingGeneration,
+  withDataPolicy,
+} from "../services/data-window.js";
+import { loadConfig } from "../config/index.js";
 import { cachedToolDefinition } from "./definition-cache.js";
 import { assertOutputFits, boundOutput, serializedBytes } from "./bounded.js";
 import type { CoreConfig } from "../config/index.js";
@@ -8,7 +15,7 @@ import { quoteFallbackEnabled } from "../services/quote-coverage.js";
 import { sharedResponseCache } from "../api/cache/index.js";
 import type { ResponseCache, CacheOutcome } from "../api/cache/index.js";
 import type { SqlSession } from "../db/database.js";
-import { dataGeneration } from "../api/cache/generation.js";
+import { dataGeneration } from "../db/generation.js";
 import { countyState } from "../api/repository.js";
 import { InputError } from "../api/validation.js";
 import * as v from "../api/validation.js";
@@ -66,6 +73,7 @@ export interface McpPolicy {
   canEstimate(principal: McpPrincipal | undefined): boolean;
 }
 export interface McpDependencies {
+  data?: CoreConfig["data"];
   catalogPolicy?: CoreConfig["catalogPolicy"];
   lowestPremiums?: boolean;
   lowestPremiumsScope?: CoreConfig["lowestPremiumsScope"];
@@ -1146,6 +1154,7 @@ async function dispatch(
         found = await datasets(db, input, offset);
       return {
         data: {
+          data_policy: found.native.data_policy,
           datasets: found.records,
           personalized_access: mayEstimate(deps)
             ? "authorized"
@@ -1270,6 +1279,19 @@ export function errorResult(
     error: {
       code,
       field,
+      ...(error instanceof ReadError && error.error.code === "not_loaded"
+        ? {
+            required_year: error.error.required_year,
+            domain: error.error.domain,
+            reason: error.error.reason,
+            ...(error.error.allowed_years
+              ? { allowed_years: error.error.allowed_years }
+              : {}),
+            ...(error.error.policy_generation
+              ? { policy_generation: error.error.policy_generation }
+              : {}),
+          }
+        : {}),
       retryable: [
         "DATA_UNAVAILABLE",
         QUERY_TIMEOUT,
@@ -1282,7 +1304,7 @@ export function errorResult(
   return toolResult(output);
 }
 
-export async function callTool(
+async function callScopedTool(
   deps: McpDependencies,
   tool: ToolName,
   value: unknown,
@@ -1300,12 +1322,28 @@ export async function callTool(
       throw new ToolError("QUOTING_DISABLED");
     const input = parseToolInput(tool, value),
       { cursor, ...filters } = input as Row;
-    generation = await dataGeneration(deps.db);
+    await guardAnnualInput(
+      deps.db,
+      filters,
+      tool === "search_medicare_plans" ? "medicare" : "individual",
+    );
+    if (tool === "fetch") {
+      const { kind, parts } = parseEntityId(String(filters.id));
+      let embeddedYear: string | undefined;
+      if (kind === "plan" || (kind === "provider" && parts.length === 4))
+        embeddedYear = parts[0];
+      else if (["carrier", "network", "dataset"].includes(kind))
+        embeddedYear = parts[1];
+      if (embeddedYear && embeddedYear !== "_")
+        await guardAnnualInput(deps.db, { year: embeddedYear });
+    }
+    const policy = await servingPolicy(deps.db);
+    generation = await servingGeneration(deps.db);
     const codec = cursorCodec(deps.cursorSecret, now),
       binding: CursorBinding = {
         tool,
         filters,
-        generation,
+        generation: `${generation}:${policy.generation}`,
         scope: deps.principal?.id ?? "anonymous",
       };
     const offset = codec.read(cursor as string | undefined, binding);
@@ -1384,7 +1422,7 @@ export async function callTool(
       ? await (deps.cache ?? sharedResponseCache(deps.db)).catalog(
           {
             namespace: `mcp:${tool}`,
-            version: `${applicationVersion}:mcp-dto-v1`,
+            version: `${applicationVersion}:mcp-dto-v1:${policy.generation}`,
             generation,
             query: {
               filters,
@@ -1439,4 +1477,17 @@ export async function callTool(
   } catch (error) {
     return errorResult(tool, error, generation, checkedAt);
   }
+}
+
+export function callTool(
+  deps: McpDependencies,
+  tool: ToolName,
+  value: unknown,
+  requestId: string | number = 0,
+) {
+  return withDataPolicy(
+    deps.data ?? loadConfig().data,
+    () => callScopedTool(deps, tool, value, requestId),
+    new Date((deps.now ?? Date.now)()),
+  );
 }

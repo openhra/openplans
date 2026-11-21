@@ -1,3 +1,4 @@
+import { withDataPolicy } from "../services/data-window.js";
 import { cachedToolDefinition } from "../mcp/definition-cache.js";
 import { assertOutputFits, serializedBytes } from "../mcp/bounded.js";
 import { assertCatalogToolAdmission } from "./catalog-policy.js";
@@ -232,7 +233,7 @@ export function assertPluginHonest(value: unknown): void {
  * bounded database, the output parsed, checked for honesty when it has a `status`, and bounded by
  * `MAX_OUTPUT_BYTES`. Failures answer with the core error envelope.
  */
-export async function callPluginTool(
+async function callScopedPluginTool(
   deps: McpDependencies,
   spec: McpToolSpec<unknown, unknown>,
   args: unknown,
@@ -264,4 +265,15 @@ export async function callPluginTool(
     // The error envelope is the same for every tool, so any core name builds it.
     return errorResult("fetch", error, "unknown", checkedAt);
   }
+}
+
+export function callPluginTool(
+  ...args: Parameters<typeof callScopedPluginTool>
+) {
+  const deps = args[0];
+  return withDataPolicy(
+    deps.data ?? loadConfig().data,
+    () => callScopedPluginTool(...args),
+    new Date((deps.now ?? Date.now)()),
+  );
 }

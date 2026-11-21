@@ -1,3 +1,4 @@
+import { requireImportYear } from "../data-window.js";
 import { readFile, mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -31,6 +32,7 @@ export async function sbeRulesFile(
   dataDir: string,
   year: number,
 ): Promise<string> {
+  requireImportYear("rating-rules", year);
   const original = fileURLToPath(
     new URL(`../../../data/rating-rules/${year}.json`, import.meta.url),
   );

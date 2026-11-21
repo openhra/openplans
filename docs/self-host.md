@@ -319,6 +319,23 @@ down -v destroys it. The host raw cache/reports are separate bind mounts.
 Keep a logical DB dump and its immutable cache together: a DB-only backup cannot
 supply original raw evidence. Do not copy a live Postgres volume's files.
 
+The optional operator tools `public-backup` and `hard-release` share a local
+retention limit of three dumps across nightly backups and release pre-switch
+dumps. After a verified backup or a release with passing postchecks and drain,
+they keep the newest dumps by creation time, reserving space for the newest
+verified nightly backup and the currently live release's dump. Failed runs prune
+nothing. Cleanup skips busy backup or release locks and pending dump directories,
+so the total can temporarily exceed the limit until a successful run retries it.
+
+Set `OPENPLANS_KEEP_DUMPS` in the protected
+`work/openplans-public/runtime.env` under the operator's data root to change the
+limit for both tools. The default is `3`; the minimum is `1`. Protected dumps
+survive even if they exceed a smaller limit. Old nightly directories are removed
+whole. Old release runs keep their receipts, events, image IDs and inputs; only
+`public-db.dump` is replaced with a `public-db.dump.pruned.txt` record containing
+its sha256 and the UTC deletion time. Off-device copies are the operator's job.
+The manual commands below do not apply retention.
+
 Stop ingestion jobs and the API, leaving db running. Store configuration/secrets
 in your normal secret-management system; these commands do not include .env.
 
@@ -586,3 +603,11 @@ The stop command retains its state database for reuse.
 only on a private installation with a configured API bearer credential and
 reviewed ingress settings. Ordinary anonymous household access does not grant
 batch access. Public installations must keep census processing disabled.
+
+## Start from a data package
+
+`worker plugin install --data PATH` stores verified original files in the data
+cache. Installation does not activate data. To ingest them, select an approved
+feed source and provide a separate local review of the upstream acquisition and
+redistribution evidence. See [data package inputs](registry.md) for the review
+fields, explicit ingest command and current importer limits.

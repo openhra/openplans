@@ -1,3 +1,13 @@
+import { compactImportGuard } from "../db/compact-lock.js";
+import { runCompact } from "./compact.js";
+import {
+  packageIngestUsage,
+  runCorePackageIngest,
+} from "./commands/package-ingest.js";
+import { runDataAdmission, dataAdmissionUsage } from "./data-admission.js";
+import { planAnnualWork } from "../ingest/data-window.js";
+import { runPackageCommand } from "./commands/plugin-package-cli.js";
+import { runPluginInventory } from "../plugins/lock-cli.js";
 import { runLowestRenew } from "./lowest-renew.js";
 import { runLowestPrebuild, lowestPrebuildUsage } from "./lowest-prebuild.js";
 import { loadConfig } from "../config/index.js";
@@ -6,7 +16,7 @@ import { runRecordPolicy } from "./record-policy.js";
 import { databaseErrorDiagnostic } from "./database-error.js";
 import { runSbe } from "../ingest/sbe/command.js";
 import { runState } from "../ingest/state/command.js";
-import { runBootstrap } from "./bootstrap.js";
+import { runBootstrap, parseBootstrapOptions } from "./bootstrap.js";
 import { runQhpProviders } from "../ingest/qhp/provider-command.js";
 import { runGeocode } from "../ingest/geocode/command.js";
 import { runQhpFormulary } from "../ingest/qhp/formulary-command.js";
@@ -68,7 +78,7 @@ import { runBackupRestored } from "./backup-restored.js";
 import { databaseUrl } from "../config/access.js";
 
 const usage =
-  "Usage: worker migrate [--check|--size-evidence] | status | record-policy list|set|expire | backup-args [--tar|--manifest] | backup-restored --manifest FILE | backfill row-provenance [--table NAME] [--blocks N] | backfill rate-plan-count | backfill provider-search (--disk PATH | --free-gb N) | ingest puf|qhp|nppes|rxnorm|taxonomy|geo|medicare";
+  "Usage: worker plugin pack <dir> --out <dir> | plugin install [--data] <dir|file.tgz|name@version --registry URL [--pin-sha256 HEX]> | plugin search <q> [--registry URL] | plugin list [--json] | plugin update <name> [--to VERSION] [--registry URL] | plugin remove <name> | plugin bundle <name>@<version> --out DIR [--registry URL] | plugin lock | plugin verify [--json|--local <dir|file.tgz>] | migrate [--check|--size-evidence] | status | compact [--dry-run] | data-admission --manifest FILE | record-policy list|set|expire | backup-args [--tar|--manifest] | backup-restored --manifest FILE | backfill row-provenance [--table NAME] [--blocks N] | backfill rate-plan-count | backfill provider-search (--disk PATH | --free-gb N) | ingest puf|qhp|nppes|rxnorm|taxonomy|geo|medicare|package";
 
 /** Free disk the provider-search backfill needs on the database's filesystem. */
 export const BACKFILL_MIN_FREE_BYTES = 8 * 1024 ** 3;
@@ -130,6 +140,50 @@ export const coreWorkerCommands: readonly CoreWorkerCommand[] = Object.freeze(
   (
     [
       {
+        argv: ["plugin", "pack"],
+        usage: "Usage: worker plugin pack <dir> --out <dir>",
+        run: (args, { output }) =>
+          runPackageCommand(["plugin", "pack", ...args], output),
+      },
+      {
+        argv: ["plugin", "search"],
+        usage: "Usage: worker plugin search <q> [--registry URL]",
+        run: (args, { output }) =>
+          runPackageCommand(["plugin", "search", ...args], output),
+      },
+      {
+        argv: ["plugin", "install"],
+        usage:
+          "Usage: worker plugin install [--data] <dir|file.tgz|name@version --registry URL [--pin-sha256 HEX]>",
+        run: (args, { output }) =>
+          runPackageCommand(["plugin", "install", ...args], output),
+      },
+      ...Object.entries({
+        list: "[--json]",
+        update: "<name> [--to VERSION] [--registry URL]",
+        remove: "<name>",
+        bundle: "<name>@<version> --out DIR [--registry URL]",
+      }).map(([command, argumentsText]): CoreWorkerCommand => ({
+        argv: ["plugin", command],
+        usage: `Usage: worker plugin ${command} ${argumentsText}`,
+        run: (args, { output }) =>
+          runPackageCommand(["plugin", command, ...args], output),
+      })),
+      {
+        argv: ["plugin", "lock"],
+        usage: "Usage: worker plugin lock",
+        run: (args, { output }) =>
+          runPluginInventory(["lock", ...args], undefined, output),
+      },
+      {
+        argv: ["plugin", "verify"],
+        usage: "Usage: worker plugin verify [--json|--local <dir|file.tgz>]",
+        run: (args, { output }) =>
+          args[0] === "--local"
+            ? runPackageCommand(["plugin", "verify", ...args], output)
+            : runPluginInventory(["verify", ...args], undefined, output),
+      },
+      {
         argv: ["prebuild", "lowest-premiums"],
         usage: lowestPrebuildUsage,
         queryTimeoutMs: 300_000,
@@ -154,6 +208,12 @@ export const coreWorkerCommands: readonly CoreWorkerCommand[] = Object.freeze(
         // Index builds on a populated database take minutes (740 on TX: 6m28s).
         queryTimeoutMs: 3_600_000,
         run: (args, io) => runMaintenance("migrate", args, io),
+      },
+      {
+        argv: ["compact"],
+        usage: "Usage: worker compact [--dry-run]",
+        queryTimeoutMs: 3_600_000,
+        run: (args, { open, output }) => runCompact(args, () => open(), output),
       },
       {
         argv: ["status"],
@@ -197,6 +257,28 @@ export const coreWorkerCommands: readonly CoreWorkerCommand[] = Object.freeze(
           "Usage: worker bootstrap --states TX,FL --years 2026,2027 [--with-drugs] [--with-providers] [--with-nucc-taxonomy] [--with-geocode] [--qhp-cache-only] [--qhp-profile PATH] [--dry-run]",
         run: (args, { open, output, directory, host }) =>
           runBootstrap(args, open, output, directory, host.events),
+      },
+      {
+        argv: ["ingest", "package", "puf"],
+        source: "cms-exchange-puf-package",
+        usage: packageIngestUsage,
+        queryTimeoutMs: 300_000,
+        async run(args, { open, output, directory }) {
+          let db: Database | undefined;
+          try {
+            return await runCorePackageIngest(
+              args,
+              async () => {
+                db = open();
+                await migrate(db, directory);
+                return db;
+              },
+              { output },
+            );
+          } finally {
+            await db?.close();
+          }
+        },
       },
       {
         argv: ["ingest", "sbe"],
@@ -376,6 +458,12 @@ export const coreWorkerCommands: readonly CoreWorkerCommand[] = Object.freeze(
         run: async (args, { output }) => runBackupArgs(args, output),
       },
       {
+        argv: ["data-admission"],
+        usage: dataAdmissionUsage,
+        run: (args, { open, output }) =>
+          runDataAdmission(args, () => open(), output),
+      },
+      {
         // After a restore: quarantines receipts whose stored answers the backup left out.
         argv: ["backup-restored"],
         usage: "Usage: worker backup-restored --manifest FILE|-",
@@ -411,6 +499,11 @@ export async function runWorker(
   pluginCommands: readonly PluginWorkerCommand[] = [],
   host: WorkerHost = {},
 ): Promise<number> {
+  if (args[0] === "ingest" || args[0] === "bootstrap") {
+    const unguarded = openDatabase;
+    openDatabase = (...connection) =>
+      compactImportGuard(unguarded(...connection));
+  }
   for (const command of pluginCommands)
     if (coreArgvConflict(command.spec.argv, coreWorkerCommands)) {
       output.error(
@@ -436,6 +529,47 @@ export async function runWorker(
   }
   const rest = args.slice(matched.argv.length);
   const plugin = pluginCommands.find(({ spec }) => spec === matched);
+  const annualCore =
+    !plugin && ["puf", "sbe", "qhp", "medicare", "geo"].includes(args[1] ?? "");
+  if (args[0] === "ingest" && annualCore) {
+    const index = args.indexOf("--year");
+    const year = index >= 0 ? args[index + 1] : undefined;
+    if (year && /^\d{4}$/.test(year)) {
+      const dataset = matched.argv
+        .filter((word) => !["ingest", "import", "acquire"].includes(word))
+        .join("-");
+      const work = planAnnualWork(
+        dataset,
+        [Number(year)],
+        args[1] === "medicare" ? "medicare" : "individual",
+      );
+      if (work.skipped.length || rest.includes("--dry-run")) {
+        output.out(
+          JSON.stringify({
+            planned: work.years.map((year) => ({
+              dataset,
+              year,
+            })),
+            skipped: work.skipped,
+          }),
+        );
+        return 0;
+      }
+    }
+  }
+
+  if (args[0] === "bootstrap" && rest.includes("--years")) {
+    try {
+      const options = parseBootstrapOptions(rest);
+      const work = planAnnualWork("bootstrap", options.years);
+      if (!work.years.length) {
+        output.out(JSON.stringify({ skipped: work.skipped }));
+        return 0;
+      }
+    } catch {
+      // The command reports malformed arguments through its normal usage path.
+    }
+  }
   if (plugin)
     return withIngestEvents(
       {
@@ -471,11 +605,18 @@ export async function runWorker(
       ? openDatabase
       : opener(core.queryTimeoutMs);
   const runCore = async () => {
+    let opened = false;
     const code = await withIngestEvents(core, rest, output, host.events, (io) =>
       core.run(rest, {
         // Spread keeps the opener's arity: callers that pass nothing still pass nothing.
-        open: (...connection) => io.opened(coreOpen(...connection)),
-        openDatabase: (...connection) => io.opened(openDatabase(...connection)),
+        open: (...connection) => {
+          opened = true;
+          return io.opened(coreOpen(...connection));
+        },
+        openDatabase: (...connection) => {
+          opened = true;
+          return io.opened(openDatabase(...connection));
+        },
         output: io.output,
         directory,
         host: { ...host, dispatch },
@@ -483,6 +624,8 @@ export async function runWorker(
     );
     if (
       code === 0 &&
+      opened &&
+      !args.includes("--dry-run") &&
       loadConfig().lowestPremiums &&
       (core.argv[0] === "ingest" || core.argv[0] === "bootstrap")
     ) {

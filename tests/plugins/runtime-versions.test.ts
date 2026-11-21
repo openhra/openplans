@@ -38,6 +38,16 @@ const check = `
       assert.equal(typeof plugin.setup, "function");
       assert.equal(plugin.manifest.name, pkg.name);
       assert.equal(plugin.manifest.version, pkg.version, pkg.name + " runtime version differs from package.json");
+      const declared = pkg.openplansPlugin;
+      assert.equal(plugin.manifest.apiVersion, declared.apiVersion);
+      assert.deepEqual(plugin.manifest.kinds, declared.kinds);
+      let capabilities = declared.capabilities ?? {};
+      if (declared.networkFromEnv) {
+        assert.equal(declared.networkFromEnv, "OPENPLANS_WEBHOOK_HOST");
+        const host = process.env[declared.networkFromEnv]?.trim().toLowerCase();
+        capabilities = {...capabilities, network: host && /^[a-z0-9.-]{1,253}$/.test(host) ? [host] : []};
+      }
+      assert.deepEqual(plugin.manifest.capabilities ?? {}, capabilities);
     };
     assertVersion(loaded.default);
     if (loaded.createPlugin) assertVersion(await loaded.createPlugin({ host: {} }));

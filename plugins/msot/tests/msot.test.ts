@@ -4,7 +4,7 @@ import { compileSource } from "../src/resolver.js";
 import { resolveOutput, sourceSchema } from "../src/schema.js";
 import type { Resolution } from "../src/schema.js";
 import { loadConfig } from "../../../src/config/index.js";
-import { loadPlugins } from "../../../src/plugins/loader.js";
+import { loadPlugins } from "../../../tests/plugins/approval-helpers.js";
 import { createApp } from "../../../src/api/app.js";
 import { createMcpHttp } from "../../../src/mcp/http.js";
 import { post, listedToolNames } from "../../../tests/mcp/transport-helpers.js";
@@ -17,7 +17,9 @@ const config = (options?: unknown, enabled = true) =>
     {},
     {
       version: 1,
-      plugins: [{ package: "@openplans/plugin-msot", enabled, options }],
+      plugins: {
+        entries: [{ package: "@openplans/plugin-msot", enabled, options }],
+      },
     },
   );
 afterEach(async () => {
@@ -308,7 +310,10 @@ describe("named negative controls in temporary source copies", () => {
     );
     try {
       const loaded = await loadPlugins(
-        loadConfig({}, { version: 1, plugins: [{ package: mutant.path }] }),
+        loadConfig(
+          {},
+          { version: 1, plugins: { entries: [{ package: mutant.path }] } },
+        ),
         "api",
         { env: {} },
       );

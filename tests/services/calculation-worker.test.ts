@@ -1,3 +1,5 @@
+import { withDataPolicy } from "../../src/services/data-window.js";
+import { ReadError } from "../../src/services/errors.js";
 import { afterAll, beforeAll, expect, it } from "vitest";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { offerCohortInputSchema } from "@openplans/plugin-sdk";
@@ -183,3 +185,36 @@ it.each(["household", "four profiles"])(
     expect(budget.remainingOffers).toBe(0);
   },
 );
+
+it("carries the annual mode, frozen clock and not-loaded dependency through the worker", async () => {
+  const scope = { db: h.db, signal: new AbortController().signal };
+  const old = { ...input, year: 2025 };
+  const clock = new Date("2027-01-01T00:00:00Z");
+  await expect(
+    withDataPolicy(
+      { historyYears: 3 },
+      () => worker.call("enumerateHouseholdOffers", old, scope),
+      clock,
+    ),
+  ).rejects.toMatchObject({
+    error: {
+      code: "not_loaded",
+      required_year: 2025,
+      domain: "individual",
+      allowed_years: [2026, 2027],
+    },
+  });
+  await expect(
+    withDataPolicy(
+      { historyYears: 3 },
+      () => worker.call("enumerateHouseholdOffers", old, scope),
+      clock,
+    ),
+  ).rejects.toBeInstanceOf(ReadError);
+  const full = await withDataPolicy(
+    { historyYears: "all" },
+    () => worker.call("enumerateHouseholdOffers", old, scope),
+    clock,
+  );
+  expect(full).toMatchObject({ year: 2025, status: "unknown" });
+});

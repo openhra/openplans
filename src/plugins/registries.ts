@@ -59,39 +59,10 @@ export const HOSTED_KINDS: Readonly<Record<PluginHost, readonly PluginKind[]>> =
     ] as const),
   });
 
-export const REFUSAL_CODES = [
-  "plugin_import_failed",
-  "plugin_export_invalid",
-  "plugin_api_version_mismatch",
-  "plugin_name_duplicate",
-  "plugin_table_prefix_duplicate",
-  "plugin_secret_missing",
-  "plugin_network_host_not_allowed",
-  "plugin_options_invalid",
-  "plugin_kind_undeclared",
-  "plugin_registration_invalid",
-  "plugin_route_collision",
-  "plugin_mcp_tool_collision",
-  "plugin_registration_collision",
-  "mcp_tool_page_overflow",
-  "plugin_provider_collision",
-  "plugin_provider_unknown",
-  "plugin_setup_failed",
-  "passthrough_level_loosened",
-] as const;
-export type RefusalCode = (typeof REFUSAL_CODES)[number];
-
-/** Carries only fixed codes and reasons, so the startup log line never holds a configured value. */
-export class PluginRefusal extends Error {
-  constructor(
-    readonly plugin: string,
-    readonly code: RefusalCode,
-    readonly reason?: string,
-  ) {
-    super(code);
-    this.name = "PluginRefusal";
-  }
-}
+export { PluginRefusal, REFUSAL_CODES } from "./refusal.js";
+export type { RefusalCode } from "./refusal.js";
+import { PluginRefusal } from "./refusal.js";
+import type { RefusalCode } from "./refusal.js";
 
 export interface Registered<T> {
   readonly plugin: string;
@@ -249,15 +220,26 @@ const CORE_PROVIDERS = {
 /** Argv prefixes of the core worker commands (src/worker/commands.ts); a test keeps them in step. */
 export const CORE_WORKER_ARGV: readonly (readonly string[])[] = Object.freeze(
   [
+    ["plugin", "pack"],
+    ["plugin", "search"],
+    ["plugin", "install"],
+    ["plugin", "list"],
+    ["plugin", "update"],
+    ["plugin", "remove"],
+    ["plugin", "bundle"],
+    ["plugin", "lock"],
+    ["plugin", "verify"],
     ["prebuild", "lowest-premiums"],
     ["build", "lowest-premiums"],
     ["migrate"],
+    ["compact"],
     ["status"],
     ["record-policy"],
     ["backfill", "row-provenance"],
     ["backfill", "rate-plan-count"],
     ["backfill", "provider-search"],
     ["bootstrap"],
+    ["ingest", "package", "puf"],
     ["ingest", "sbe"],
     ["ingest", "state"],
     ["ingest", "qhp"],
@@ -278,6 +260,7 @@ export const CORE_WORKER_ARGV: readonly (readonly string[])[] = Object.freeze(
     ["deliver-events"],
     ["schedule"],
     ["backup-args"],
+    ["data-admission"],
     ["backup-restored"],
     ["emit"],
   ].map((argv) => Object.freeze(argv)),

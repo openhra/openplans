@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { loadConfig } from "../../../src/config/index.js";
-import { loadPlugins } from "../../../src/plugins/loader.js";
+import { loadPlugins } from "../../../tests/plugins/approval-helpers.js";
 
 const name = "@openplans/plugin-handy";
 const temporary: string[] = [];
@@ -23,7 +23,7 @@ async function load(options?: unknown, specifier = name) {
       {
         version: 1,
         public: { household: false },
-        plugins: [{ package: specifier, options }],
+        plugins: { entries: [{ package: specifier, options }] },
       },
     ),
     "api",

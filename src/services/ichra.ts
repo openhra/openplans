@@ -1,3 +1,4 @@
+import { requireAnnualYear } from "./data-window.js";
 import {
   countyState,
   federalCatalog,
@@ -839,6 +840,13 @@ export async function ichraAffordability(
   options: { reads?: RequestReads; allowCmsLive?: boolean } = {},
 ) {
   const year = dateParts(request.planStart).year;
+  const lookBack = request.safeHarbors.lookBack
+    ? lookBackMonth(request.planStart)
+    : request.planStart;
+  await requireAnnualYear(db, year);
+  // Resolve the dependency before any catalog, cache or external lookup.
+  if (request.safeHarbors.lookBack)
+    await requireAnnualYear(db, dateParts(lookBack).year);
   const lookup = ichraParameters(year);
   const empty = {
     ...QUOTE,
@@ -879,9 +887,7 @@ export async function ichraAffordability(
   const employerQuestion: LcspQuestion = {
     source,
     location: source === "worksite" ? request.worksite! : request.residence,
-    month: harbors.lookBack
-      ? lookBackMonth(request.planStart)
-      : request.planStart,
+    month: lookBack,
     age,
     identificationAge: parameters.lowestAgeBandRatingAge,
     lookBack: harbors.lookBack,

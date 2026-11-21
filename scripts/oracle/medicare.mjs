@@ -19,6 +19,7 @@ import {
   dataDirectory,
 } from "../../dist/ingest/medicare/acquire.js";
 import { importMedicare } from "../../dist/ingest/medicare/command.js";
+import { admitNextYear } from "./admission.mjs";
 
 const args = process.argv.slice(2);
 const year = args[0] === "--year" ? Number(args[1]) : 2026;
@@ -72,6 +73,8 @@ const db = {
 const started = Date.now();
 await migrate(db, migrations);
 const imports = await importMedicare(db, { year }, dataDir);
+// The API serves next year only once admitted. Admit it here, as a release does after loading.
+await admitNextYear(db, "medicare", year);
 const app = createApp(db, { premiumToken: undefined });
 const get = async (path) => {
   const response = await app.request(path);
@@ -280,6 +283,7 @@ const report = {
     family: r.family,
     as_of_label: r.as_of_label,
     snapshot_id: r.snapshot_id,
+    serves_contract_year: r.serves_contract_year,
     counts: r.counts,
   })),
   raw_rows: expected.rows,

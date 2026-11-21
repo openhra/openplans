@@ -4,7 +4,7 @@ export default {
   manifest: {
     name: "@synthetic/secret-missing",
     version: "0.0.1",
-    apiVersion: "0.1",
+    apiVersion: "0.2",
     kinds: [],
     capabilities: { secrets: ["SYNTHETIC_MISSING_SECRET"] },
   },
