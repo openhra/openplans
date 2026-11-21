@@ -1,3 +1,5 @@
+import { withCurrentDataPolicy } from "./data-window.js";
+import { requireAnnualYear } from "./data-window.js";
 import { z } from "zod";
 import { benchmark } from "./subsidies.js";
 import { allowanceBenchmark, allowanceEvidence } from "./allowance-evidence.js";
@@ -22,7 +24,7 @@ import {
 import { requestReads, type RequestReads } from "./request-reads.js";
 import { familyOffer } from "./coverage-family.js";
 import { ratePremium } from "./premiums.js";
-import { dataGeneration } from "../api/cache/generation.js";
+import { dataGeneration } from "../db/generation.js";
 import {
   handyManifest,
   handyVersion,
@@ -51,6 +53,7 @@ export async function enumerateLowest(
   manifest: string,
   reads: RequestReads = requestReads(db),
 ) {
+  await requireAnnualYear(db, input.year);
   const location = await resolveLocation(db, input, {
     allowCmsLive: false,
     year: input.year,
@@ -458,113 +461,116 @@ export async function lowestPremiums(
     evidencePage?: number;
   } = {},
 ) {
-  const input = lowestInput(value);
-  for (let attempt = 0; attempt < 2; attempt++) {
-    const { generation, manifest } = await handyVersion(db);
-    const accepts = (value: unknown): value is LowestCell =>
-      acceptsLowestCell(value, input, manifest);
-    const load = async () => {
-      const location = await resolveLocation(db, input, {
-        allowCmsLive: false,
-        year: input.year,
-      });
-      if (location.status !== "available" || !location.county)
-        return enumerateLowest(db, input, manifest);
-      const stored = options.slow
-        ? undefined
-        : await readLowestCell(
-            db,
-            countyLowestInput({ ...input, county: location.county }),
-            manifest,
-          );
-      const cached = isLowestCell(stored)
-        ? {
-            ...stored,
-            location,
-            basis: { ...stored.basis, age: input.age },
-          }
-        : undefined;
-      if (accepts(cached)) return cached;
-      if (options.builtOnly)
-        throw new ReadError({
-          code: "lowest_not_built",
-          message:
-            "This pricing cell is unpublished or expired. Coverage is unknown.",
+  return withCurrentDataPolicy(async () => {
+    const input = lowestInput(value);
+    await requireAnnualYear(db, input.year);
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const { generation, manifest } = await handyVersion(db);
+      const accepts = (value: unknown): value is LowestCell =>
+        acceptsLowestCell(value, input, manifest);
+      const load = async () => {
+        const location = await resolveLocation(db, input, {
+          allowCmsLive: false,
           year: input.year,
         });
-      return enumerateLowest(db, input, manifest);
-    };
-    const cell =
-      options.cache && !options.slow && !options.builtOnly
-        ? await options.cache.lowest(
-            { input, generation, manifest, accept: accepts },
-            load,
-          )
-        : await load();
-    const after = await handyVersion(db);
-    if (after.generation !== generation || after.manifest !== manifest)
-      continue;
-    const start = (input.page - 1) * 50;
-    const evidencePage = options.evidencePage ?? 1;
-    const evidenceSize = 10;
-    const evidenceStart = (evidencePage - 1) * evidenceSize;
-    const candidates = cell.provenance.candidates.slice(
-      evidenceStart,
-      evidenceStart + evidenceSize,
-    );
-    const refs = [
-      ...new Set(
-        candidates
-          .flatMap((candidate) => [
-            candidate.evidence_ref,
-            candidate.rating_area_ref,
-          ])
-          .filter((ref): ref is number => Number.isInteger(ref)),
-      ),
-    ].sort((a, b) => a - b);
-    const evidence = refs.map((ref) => cell.provenance.evidence[ref]);
-    const remap = new Map(refs.map((ref, index) => [ref, index]));
-    return {
-      ...cell,
-      ties: cell.ties.slice(start, start + 50),
-      provenance: {
-        ...cell.provenance,
-        candidates: candidates.map((candidate) => ({
-          ...candidate,
-          evidence_ref:
-            typeof candidate.evidence_ref === "number"
-              ? (remap.get(candidate.evidence_ref) ?? null)
-              : null,
-          rating_area_ref:
-            typeof candidate.rating_area_ref === "number"
-              ? (remap.get(candidate.rating_area_ref) ?? null)
-              : null,
-        })),
-        excluded: cell.provenance.excluded.slice(
-          evidenceStart,
-          evidenceStart + evidenceSize,
+        if (location.status !== "available" || !location.county)
+          return enumerateLowest(db, input, manifest);
+        const stored = options.slow
+          ? undefined
+          : await readLowestCell(
+              db,
+              countyLowestInput({ ...input, county: location.county }),
+              manifest,
+            );
+        const cached = isLowestCell(stored)
+          ? {
+              ...stored,
+              location,
+              basis: { ...stored.basis, age: input.age },
+            }
+          : undefined;
+        if (accepts(cached)) return cached;
+        if (options.builtOnly)
+          throw new ReadError({
+            code: "lowest_not_built",
+            message:
+              "This pricing cell is unpublished or expired. Coverage is unknown.",
+            year: input.year,
+          });
+        return enumerateLowest(db, input, manifest);
+      };
+      const cell =
+        options.cache && !options.slow && !options.builtOnly
+          ? await options.cache.lowest(
+              { input, generation, manifest, accept: accepts },
+              load,
+            )
+          : await load();
+      const after = await handyVersion(db);
+      if (after.generation !== generation || after.manifest !== manifest)
+        continue;
+      const start = (input.page - 1) * 50;
+      const evidencePage = options.evidencePage ?? 1;
+      const evidenceSize = 10;
+      const evidenceStart = (evidencePage - 1) * evidenceSize;
+      const candidates = cell.provenance.candidates.slice(
+        evidenceStart,
+        evidenceStart + evidenceSize,
+      );
+      const refs = [
+        ...new Set(
+          candidates
+            .flatMap((candidate) => [
+              candidate.evidence_ref,
+              candidate.rating_area_ref,
+            ])
+            .filter((ref): ref is number => Number.isInteger(ref)),
         ),
-        evidence,
-      },
-      page: input.page,
-      page_size: 50,
-      next_page: start + 50 < cell.ties.length ? input.page + 1 : null,
-      evidence_page: evidencePage,
-      evidence_page_size: evidenceSize,
-      next_evidence_page:
-        evidenceStart + evidenceSize <
-        Math.max(
-          cell.provenance.candidates.length,
-          cell.provenance.excluded.length,
-        )
-          ? evidencePage + 1
-          : null,
-      evidence_total: cell.provenance.evidence.length,
-      candidates_total: cell.provenance.candidates.length,
-      data_generation: generation,
-    };
-  }
-  throw new HandyDataChanged("DATA_CHANGED");
+      ].sort((a, b) => a - b);
+      const evidence = refs.map((ref) => cell.provenance.evidence[ref]);
+      const remap = new Map(refs.map((ref, index) => [ref, index]));
+      return {
+        ...cell,
+        ties: cell.ties.slice(start, start + 50),
+        provenance: {
+          ...cell.provenance,
+          candidates: candidates.map((candidate) => ({
+            ...candidate,
+            evidence_ref:
+              typeof candidate.evidence_ref === "number"
+                ? (remap.get(candidate.evidence_ref) ?? null)
+                : null,
+            rating_area_ref:
+              typeof candidate.rating_area_ref === "number"
+                ? (remap.get(candidate.rating_area_ref) ?? null)
+                : null,
+          })),
+          excluded: cell.provenance.excluded.slice(
+            evidenceStart,
+            evidenceStart + evidenceSize,
+          ),
+          evidence,
+        },
+        page: input.page,
+        page_size: 50,
+        next_page: start + 50 < cell.ties.length ? input.page + 1 : null,
+        evidence_page: evidencePage,
+        evidence_page_size: evidenceSize,
+        next_evidence_page:
+          evidenceStart + evidenceSize <
+          Math.max(
+            cell.provenance.candidates.length,
+            cell.provenance.excluded.length,
+          )
+            ? evidencePage + 1
+            : null,
+        evidence_total: cell.provenance.evidence.length,
+        candidates_total: cell.provenance.candidates.length,
+        data_generation: generation,
+      };
+    }
+    throw new HandyDataChanged("DATA_CHANGED");
+  });
 }
 
 const MARKET_METALS = [
@@ -579,6 +585,7 @@ const MARKET_METALS = [
 /** Complete base-plan counts, with optional gross ranges from the full rating enumerator. */
 export async function getMarketSummary(db: SqlSession, value: unknown) {
   const input = marketSummaryInput(value);
+  await requireAnnualYear(db, input.year);
   const generation = await dataGeneration(db);
   const location = await resolveLocation(db, input, {
     allowCmsLive: false,
@@ -1410,6 +1417,7 @@ export async function householdDistributions(
 ) {
   if (!options.enabled) throw new Error("Household distributions disabled");
   const input = householdInput(value);
+  await requireAnnualYear(db, input.year);
   for (let attempt = 0; attempt < 2; attempt++) {
     const generation = await dataGeneration(db),
       manifest = await handyManifest(db);
@@ -1570,6 +1578,7 @@ export async function householdHandy(
   summary = false,
 ) {
   const input = householdHandyInput(value, summary);
+  await requireAnnualYear(db, input.year);
   for (let attempt = 0; attempt < 2; attempt++) {
     const distribution = await householdDistributions(
       db,

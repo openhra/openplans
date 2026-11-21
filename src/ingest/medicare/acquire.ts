@@ -1,3 +1,4 @@
+import { requireImportYear } from "../data-window.js";
 import { readFile } from "node:fs/promises";
 import {
   AdmissionSession,
@@ -100,6 +101,7 @@ export async function discover(
   year: number,
   context: AcquireContext = {},
 ): Promise<Archive> {
+  requireImportYear(`medicare-${family}`, year, "medicare");
   const page = await fetchToCache(discoveryPage(family, year), {
     ...context.dependencies,
     admission: context.admission,
@@ -118,6 +120,7 @@ export async function acquireArchive(
   archive: Archive,
   context: AcquireContext = {},
 ): Promise<CachedArchive> {
+  requireImportYear(`medicare-${archive.family}`, archive.year, "medicare");
   const dataDir = context.dataDir ?? dataDirectory();
   const cached = (await cachedArchives(archive.family, dataDir)).find(
     (entry) => entry.metadata.url === archive.url,

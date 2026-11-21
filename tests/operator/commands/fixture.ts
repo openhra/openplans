@@ -24,7 +24,7 @@ export const tables = [
 export const manifest: PluginManifest = {
   name: "@openplans/plugin-msot",
   version: "0.2.0",
-  apiVersion: "0.1",
+  apiVersion: "0.2",
   tablePrefix: "msot",
   kinds: ["operatorCommands"],
   capabilities: { writes: ["events"] },

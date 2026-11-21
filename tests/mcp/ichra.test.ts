@@ -129,8 +129,11 @@ describe("MCP check_ichra_affordability", () => {
       await client.close();
     }
   });
-  it("a refusal projects no LCSP and no verdict", async () => {
-    const client = await connect(granted());
+  it("a full-history source gap projects no LCSP and no verdict", async () => {
+    const client = await connect({
+      ...granted(),
+      data: { historyYears: "all" },
+    });
     try {
       const output = (await client.call("check_ichra_affordability", {
         ...input,

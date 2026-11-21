@@ -57,7 +57,7 @@ const testConfig: CoreConfigView = {
   mcp: { enabled: false, allowedHosts: [], allowedOrigins: [] },
   trustProxy: [],
   cmsFallback: { enabled: false, quotes: false },
-  plugins: [],
+  plugins: { entries: [], requireApproval: false },
 };
 
 function fixtureDatabase(): Database {

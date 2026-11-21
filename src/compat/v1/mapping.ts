@@ -61,10 +61,12 @@ const percent = (value: string | undefined) => {
   return match ? Number(match[1]) : null;
 };
 
-/** EHBPercentTotalPremium is a fraction ("0.9609"); shift the decimal point without float error. */
+/** Published fractions become percentages by shifting the decimal point. */
 const fractionAsPercent = (value: string | undefined) => {
   const match = /^(\d+)(?:\.(\d+))?$/.exec(value?.trim() ?? "");
   if (!match) return null;
+  const whole = BigInt(match[1]!);
+  if (whole > 1n || (whole === 1n && /[1-9]/.test(match[2] ?? ""))) return null;
   const fraction = (match[2] ?? "").padEnd(2, "0");
   const result = Number(
     `${match[1]}${fraction.slice(0, 2)}.${fraction.slice(2) || "0"}`,
@@ -127,6 +129,7 @@ export function mapPlanColumns(
     gated: yesNo(raw.IsReferralRequiredForSpecialist),
     sbc_name: raw.PlanVariantMarketingName?.trim() || null,
     actuarial_value: percent(raw.IssuerActuarialValue),
+    estimated_actuarial_value: fractionAsPercent(raw.AVCalculatorOutputNumber),
     effective_date: date(raw.PlanEffectiveDate),
     expiration_date: date(raw.PlanExpirationDate),
     drug_formulary_url: url(raw.FormularyURL),
@@ -218,6 +221,7 @@ export function mapPlan(
       unknownPlanFields.split(/\s+/).map((key) => [key, null]),
     ),
     ...columns,
+    catalog_metadata: view.catalog_metadata,
     id: requestedId,
     name: view.plan_name,
     display_name: view.plan_name,

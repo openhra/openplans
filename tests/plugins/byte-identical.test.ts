@@ -12,7 +12,7 @@ import {
 } from "vitest";
 import { startTelemetry, activeRecorder } from "../../src/telemetry/index.js";
 import { loadConfig } from "../../src/config/index.js";
-import { loadPlugins } from "../../src/plugins/loader.js";
+import { loadPlugins } from "./approval-helpers.js";
 import { currentRegistries } from "../../src/plugins/registries.js";
 import { createApp } from "../../src/api/app.js";
 import { MemoryCache } from "../../src/api/cache/store.js";
@@ -205,7 +205,7 @@ async function offMode(pluginMode: (typeof pluginModes)[number]) {
     });
   }
   const loaded = await loadPlugins(
-    loadConfig({}, { version: 1, plugins }),
+    loadConfig({}, { version: 1, plugins: { entries: plugins } }),
     "api",
     {
       env: {},

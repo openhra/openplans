@@ -24,6 +24,7 @@ import { importPufs } from "../../dist/ingest/puf/import.js";
 import { createApp } from "../../dist/api/app.js";
 import { premiumRequest } from "../../dist/api/validation.js";
 import { selectedVariant } from "../../dist/domain/csr/index.js";
+import { admitNextYear } from "./admission.mjs";
 
 const cache =
   process.env.OPENPLANS_DATA_DIR ||
@@ -265,6 +266,10 @@ try {
     active = { import_id: result.import_id };
   }
   report.import_id = active.import_id;
+  // The API serves next year only once admitted. Admit it here, as a release does after loading.
+  report.admitted = (await admitNextYear(db, "individual", year)).map(
+    ({ domain, coverage_year }) => ({ domain, coverage_year }),
+  );
   const app = createApp(db),
     fields = [
       "deductibles",

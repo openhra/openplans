@@ -1,3 +1,4 @@
+import type { DataPolicy } from "@openplans/plugin-sdk";
 import { eventPayloadSchemas } from "@openplans/plugin-sdk";
 import type {
   CacheLevel,
@@ -132,6 +133,7 @@ export interface StatusData {
   version: string | null;
   db: "ok" | "down";
   poolWaiting: number | null;
+  dataPolicy?: DataPolicy | null;
   availability: AvailabilityRow[] | null;
   sources: SourceRow[] | null;
   ingests:
@@ -164,6 +166,7 @@ export interface ReadSettings {
   /** The plugin_state owner, the plugin's manifest name. */
   plugin: string;
   now: Date;
+  audience?: "public" | "operator";
 }
 
 /** The core's CMS fallback; it keeps one budget row in `cms_api_budget`. */
@@ -257,7 +260,7 @@ function eventPayload(type: string, payload: unknown): unknown {
 }
 
 function configuredPlugins(config: Readonly<CoreConfigView>): PluginEntry[] {
-  return config.plugins
+  return config.plugins.entries
     .filter((entry) => entry.enabled)
     .map((entry) => ({
       // A local plugin is named by its path; the page shows only that it is local.
@@ -514,7 +517,7 @@ export async function readStatus(
   // Pass-through sources get a budget row on their first call. The level is the one their
   // last call used; the configured override stands in when no call is recorded.
   const overrides = new Map<string, CacheLevel>();
-  for (const entry of config.plugins)
+  for (const entry of config.plugins.entries)
     for (const [id, source] of Object.entries(entry.sources))
       if (source.cacheLevel) overrides.set(id, source.cacheLevel);
   const plugged = await read(async () => {
@@ -536,17 +539,20 @@ export async function readStatus(
   const passthrough =
     cms || plugged ? [...(cms ?? []), ...(plugged ?? [])] : null;
 
-  const events = await read(async () => {
-    const { rows } = await db.query(
-      `SELECT event_type, emitted_at, payload FROM plugin_event_outbox
+  const events =
+    settings.audience === "public"
+      ? null
+      : await read(async () => {
+          const { rows } = await db.query(
+            `SELECT event_type, emitted_at, payload FROM plugin_event_outbox
        ORDER BY emitted_at DESC, event_id LIMIT ${RECENT_EVENTS}`,
-    );
-    return rows.map((row) => ({
-      type: String(row.event_type),
-      time: date(row.emitted_at) ?? new Date(0),
-      payload: eventPayload(String(row.event_type), row.payload),
-    }));
-  });
+          );
+          return rows.map((row) => ({
+            type: String(row.event_type),
+            time: date(row.emitted_at) ?? new Date(0),
+            payload: eventPayload(String(row.event_type), row.payload),
+          }));
+        });
 
   const health = await read(async () => {
     const { rows } = await db.query(
@@ -566,6 +572,7 @@ export async function readStatus(
     db: up ? "ok" : "down",
     poolWaiting: count(host.poolWaiting?.()),
     availability,
+    dataPolicy: host.dataPolicy ? await read(() => host.dataPolicy!(db)) : null,
     sources,
     ingests,
     cache: {

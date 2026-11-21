@@ -1,3 +1,4 @@
+import { requireImportYear } from "../data-window.js";
 import type { Database } from "../../db/database.js";
 import { inspectZip } from "../../fetch/index.js";
 import type { CachedArchive } from "./acquire.js";
@@ -52,6 +53,11 @@ export async function importCrosswalk(
   db: Database,
   cached: CachedArchive,
 ): Promise<ReleaseReport> {
+  requireImportYear(
+    `medicare-${cached.archive.family}`,
+    cached.archive.year,
+    "medicare",
+  );
   const limits = archiveLimits.crosswalk;
   const member = (await inspectZip(cached.path, limits)).members.find((entry) =>
     /^PlanCrosswalk\d{4}_\d{8}\.txt$/i.test(entry.name),

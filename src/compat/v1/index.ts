@@ -1,3 +1,4 @@
+import { requireAnnualYear } from "../../services/data-window.js";
 import {
   selectCatalogPlans,
   guardCatalogPlans,
@@ -165,7 +166,14 @@ export function compatRoutes(db: SqlSession, options: ApiOptions = {}) {
         },
         422,
       );
-    if (error instanceof ReadError) return c.json({ error: error.error }, 403);
+    if (error instanceof ReadError) {
+      if (error.error.code === "data_policy_unavailable")
+        return c.json({ error: error.error }, 503);
+      return c.json(
+        { error: error.error },
+        error.error.code === "not_loaded" ? 404 : 403,
+      );
+    }
     if (isQueryTimeout(error)) return queryTimeoutResponse(c);
     logInternalError(error);
     return c.json({ error: { code: "INTERNAL_ERROR" } }, 500);
@@ -408,6 +416,7 @@ export function compatRoutes(db: SqlSession, options: ApiOptions = {}) {
           household_size: body.household_size,
           tax_filing: body.tax_filing,
         });
+        await requireAnnualYear(db, request.year);
         const nativeQuery = new URLSearchParams({
           county,
           year: String(request.year),
@@ -459,6 +468,7 @@ export function compatRoutes(db: SqlSession, options: ApiOptions = {}) {
           reasons.add("catastrophic_requires_exemption");
           return true;
         };
+        await requireAnnualYear(db, request.year);
         const location = await resolveLocation(db, request.location);
         // Every catalog and cost-sharing read in this search goes through these reads.
         const reads = requestReads(db);
@@ -673,6 +683,7 @@ export function compatRoutes(db: SqlSession, options: ApiOptions = {}) {
     );
 
   const detail = async (id: string, year: number, csrVariant?: string) => {
+    await requireAnnualYear(db, year);
     let parsed: ReturnType<typeof facadeId>;
     try {
       parsed = facadeId(id);

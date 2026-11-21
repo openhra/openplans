@@ -14,7 +14,13 @@ const sample = {
   api: "ok",
   db: "ok",
   pool: { waiting: null },
-  data: { states: null, years: null, status_counts: null, issuers: null },
+  data: {
+    policy: null,
+    states: null,
+    years: null,
+    status_counts: null,
+    issuers: null,
+  },
   sources: null,
   worker: { last_ingest: null },
   cache: {
@@ -124,7 +130,7 @@ describe("admin overview", () => {
     };
     const config = {
       cache: { enabled: false, provider: "memory" },
-      plugins: [],
+      plugins: { entries: [], requireApproval: false },
       cmsFallback: { enabled: false },
     };
     createAdminPlugin({

@@ -20,28 +20,45 @@ This file turns on the status page and the webhook, and tightens one cache level
 ```json
 {
   "version": 1,
-  "listen": { "port": 3000 },
-  "cache": { "enabled": true, "maxMb": 64 },
-  "db": { "provider": "pg" },
-  "blobs": { "provider": "local" },
-  "plugins": [
-    {
-      "package": "@openplans/plugin-status",
-      "sources": {
-        "cms-marketplace-api": { "cacheLevel": "memory" }
+  "listen": {
+    "port": 3000
+  },
+  "cache": {
+    "enabled": true,
+    "maxMb": 64
+  },
+  "db": {
+    "provider": "pg"
+  },
+  "blobs": {
+    "provider": "local"
+  },
+  "plugins": {
+    "entries": [
+      {
+        "package": "@openplans/plugin-status",
+        "sources": {
+          "cms-marketplace-api": {
+            "cacheLevel": "memory"
+          }
+        }
+      },
+      {
+        "package": "@openplans/plugin-webhook",
+        "options": {
+          "events": ["ingest.failed", "readiness.failed"]
+        }
       }
-    },
-    {
-      "package": "@openplans/plugin-webhook",
-      "options": { "events": ["ingest.failed", "readiness.failed"] }
-    }
-  ]
+    ],
+    "approvedList": "./plugins.approved.json",
+    "lockfile": "./plugins.lock.json"
+  }
 }
 ```
 
 Rules that trip people up:
 
-- `OPENPLANS_PLUGINS` replaces the whole `plugins` list, including each entry's `options` and
+- `OPENPLANS_PLUGINS` replaces the whole `plugins.entries` list, including each entry's `options` and
   `sources`. Leave it unset when the file holds your plugin settings.
 - Set `"enabled": false` on an entry to keep it in the file and skip it.
 - A plugin that has no options schema refuses any `options`.
@@ -273,32 +290,36 @@ reset a day's count.
 
 ## The approved-plugin list
 
-Plugins can change what runs inside your processes, so keep a short file of the plugins you have
-reviewed and compare it with what is loaded. Each entry is the name, version and package hash that
-the operator status view reports:
+The loader reads this file before importing any enabled package. Configure its path with
+`plugins.approvedList` or `OPENPLANS_PLUGINS_APPROVED_LIST`, and set the lock path with
+`plugins.lockfile` or `OPENPLANS_PLUGINS_LOCKFILE`. Public mode requires both files. With no packages enabled, use an empty approval array and
+a lockfile with an empty `packages` array.
+
+Build the packages, then run `worker plugin lock` against the exact tree that will run,
+including its file modes. A checkout and a container image can contain different package files,
+so create the candidate inside the intended runtime filesystem. Review the candidate and the
+validation evidence before writing approval. For each reviewed lock entry, copy `name`, `version`,
+`digest` and `legacySha256` into the approval file, renaming `legacySha256` to `sha256`:
 
 ```json
 [
   {
     "name": "@openplans/plugin-status",
-    "version": "<version from /status/operator.json>",
-    "sha256": "<hash from /status/operator.json>"
+    "version": "<reviewed lock version>",
+    "sha256": "<reviewed legacySha256, 64 lowercase hex characters>",
+    "digest": "<reviewed digest, 64 lowercase hex characters>"
   }
 ]
 ```
 
-Write the entry after you review a plugin, by copying the three values from
-`/status/operator.json`. The SDK README explains how the hash is computed, so you can recompute it
-from a checkout. After any upgrade or plugin change, compare the file with the live list. This
-prints nothing when they match:
+Run `worker plugin verify --json` before startup. A missing entry, changed version or digest,
+invalid hash, or unreadable package refuses startup with one JSON line and exit 1. Bundled
+packages need the same approval as local packages. Locking and installation do not write the
+approval file. Mount both files read-only and keep the package tree unchanged while it runs.
 
-```sh
-curl -s -H "Authorization: Bearer $OPENPLANS_OPERATOR_TOKEN" http://127.0.0.1:3000/status/operator.json \
-  | jq -S '[.plugins[] | {name, version, sha256}] | sort_by(.name)' > loaded.json
-jq -S 'sort_by(.name)' plugins.approved.json | diff - loaded.json
-```
-
-A `null` hash means the host could not compute it. Treat that as a mismatch.
+The operator status list still reports `name`, `version` and the legacy `sha256`. Release image
+validation and its authenticated bindings keep using that identity. A `null` or empty approval
+hash is invalid. Rebuild and review a new lock after every package change.
 
 ## Release preflight
 
@@ -307,8 +328,9 @@ read-only except the optional test event:
 
 1. `OPENPLANS_OPERATOR_TOKEN` is set in `.env` and has at least 32 characters. Check the length
    without printing the token.
-2. The approved list matches the new build's plugins. Build the image first, start it on the
-   side, and run the comparison above against it.
+2. Build the image, create its lock candidate without loading plugins, review the validation
+   evidence and write exact approvals. Run `worker plugin verify --json` in that image before
+   starting any host. The public profile mounts both files from its isolated work directory.
 3. Your plugin settings load with the new image:
 
    ```sh
@@ -326,3 +348,80 @@ read-only except the optional test event:
 7. For the webhook, send the test event from the signed webhook section and confirm it arrived.
 
 If a step fails, fix it before the update.
+
+## Package changes
+
+Use the same config file, data directory and plugin directory for every package command and
+for the services that load the packages. Run `plugin list --json` to compare the candidate lock
+with the approved list before a restart. A successful registry signature check grants no local
+approval. Publishing provenance identifies the build's repository, commit and workflow; inspect
+the full statement in the JSON inventory when reviewing a package.
+
+For an update, stop services before changing the candidate lock if you need restarts to keep
+working during review. Run `plugin update <name> --to <version>`, review the returned digest,
+then approve those exact bytes and update the config entrypoint. The old version remains on
+disk. `plugin remove <name>` removes every managed version of that name, so disable every config
+entry for it first. Removal does not undo SQL migrations or erase imported data.
+
+Back up the config, lock, approved list, plugin bytes and `<dataDir>/registries/` together.
+The registry directory holds the reviewed trust file, accepted version counters, clock state
+and cached catalog notices. Preserve independently reviewed root files too. Restoring only
+package archives loses the local approval and rollback state needed to review a restart.
+
+## Offline installs
+
+On the connected machine, export an exact version from a trusted catalog:
+
+```sh
+node dist/worker/cli.js plugin bundle @example/plugin@2.0.0 --out /tmp/plugin-bundle
+```
+
+Add `--registry <URL>` to select a particular trusted origin or configured mirror. Otherwise an
+installed name uses its locked origin, and a new name uses the first matching registry.
+The output directory must not exist. The command copies the selected archive, the original
+signed target index, timestamp and snapshot, and the root chain. It verifies the result with a
+fresh client before finishing. Signed metadata stays intact because a client cannot re-sign a
+smaller target index. Only the selected archive is included; other catalog entries may be
+visible in search but cannot be installed from this bundle.
+
+Transfer that directory to the disconnected machine. Obtain the initial root independently
+and check it through your usual trusted channel. The included `bootstrap-root.json` is a copy
+for inspection, not permission to trust the bundle. The disconnected config can name the
+bundle as a mirror of the original registry:
+
+```json
+{
+  "version": 1,
+  "plugins": {
+    "registries": [
+      {
+        "url": "https://packages.example.org/",
+        "root": "/srv/trust/reviewed-root.json",
+        "namespaces": ["@example"],
+        "mirrors": ["file:///srv/plugin-bundle/"]
+      }
+    ],
+    "lockfile": "/srv/openplans/plugins.lock.json",
+    "approvedList": "/srv/openplans/plugins.approved.json",
+    "requireApproval": true
+  }
+}
+```
+
+Then install using the mirror explicitly:
+
+```sh
+node dist/worker/cli.js plugin install @example/plugin@2.0.0 --registry file:///srv/plugin-bundle/
+```
+
+This command performs no network reads. It applies the normal root, signature, rollback,
+expiry, archive and package checks, and records the original registry as the origin. Review
+and approve the installed digest locally before enabling it. No approval file, credentials or
+signing keys travel in the bundle. Code packages already bundle their runtime dependencies and
+bind exact host peers from the destination core; the destination needs a compatible core build.
+Data activation is outside this command.
+
+Bundles retain the origin's two-day timestamp. An expired bundle cannot install or update a
+package. Export a fresh bundle on the connected machine and transfer it again. There is no
+stale-catalog override. An unchanged approved local deployment keeps running and can restart
+without contacting a registry. `plugin list` warns when the catalog is stale or unavailable.

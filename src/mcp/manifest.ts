@@ -67,7 +67,7 @@ function recordingContext(
     plugin: { name: plugin.manifest.name ?? pkg, version: "" },
     options: undefined,
     config: coreConfigView(
-      loadConfig({}, { version: 1, plugins: [] }),
+      loadConfig({}, { version: 1, plugins: { entries: [] } }),
     ) as unknown as PluginContext["config"],
     calculationHost: {
       enumerateHouseholdOffers: async () => {

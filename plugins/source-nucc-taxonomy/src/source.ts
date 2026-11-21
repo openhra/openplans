@@ -35,6 +35,7 @@ export function createTaxonomySource(): TaxonomySource {
   let imported: TaxonomyImport | undefined;
   return {
     kind: "feed",
+    dataScope: { kind: "current" },
     id: sourceId,
     publisher,
     hosts: [nuccHost],

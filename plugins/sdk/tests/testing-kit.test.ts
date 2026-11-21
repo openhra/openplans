@@ -22,7 +22,7 @@ const plugin: OpenPlansPlugin = {
   manifest: {
     name: "@openplans/plugin-synthetic",
     version: "0.1.0",
-    apiVersion: "0.1",
+    apiVersion: "0.2",
     kinds: ["routes", "events", "workerCommands", "schedules"],
     capabilities: {
       writes: ["staging", "events"],

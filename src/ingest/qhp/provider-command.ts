@@ -1,3 +1,4 @@
+import { skipAnnualCommand } from "../data-window.js";
 import type { Database } from "../../db/database.js";
 import { migrate, migrationsDirectory } from "../../db/migrate.js";
 import { ingestQhpBatch } from "./formulary-batch.js";
@@ -40,6 +41,7 @@ export async function runQhpProviders(
     output.error(usage);
     return 1;
   }
+  if (skipAnnualCommand("qhp-providers", Number(year), output)) return 0;
   let db: Database | undefined,
     code = 0;
   try {

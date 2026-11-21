@@ -365,13 +365,13 @@ it("requires the local RxNorm match and never translates med_id", async () => {
   expect(sent).toEqual([]);
 });
 
-// Response byte hashes recorded from the develop fixture responses before this wiring.
+// Recorded stored-data responses include selected CMS catalog metadata.
 it("leaves native and compatibility response bytes unchanged with the quote switch off", async () => {
   await native();
   sent = [];
   const expected = {
-    native: "f0be5a7d7bc6295b91b5a11f5f6af6232a282772d6a36e0f3c1d017d9486d2e4",
-    compat: "903988b143c112191de7020fd685f79e63c1a50c45a1dbf5536c020cc868a1ce",
+    native: "18a476348c5ed39cd2034f700b9a9a637f39301cbd1b05e72405eb1a9e60bf14",
+    compat: "cd4a4d0b97f7d92dbb6f4f3b5932dbe172a4ec8d3154daad980dc0c53349d3c3",
   };
   for (const value of [undefined, "off"]) {
     vi.stubEnv("OPENPLANS_CMS_FALLBACK_QUOTES", value);

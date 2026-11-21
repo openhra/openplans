@@ -1,3 +1,4 @@
+import { requireImportYear } from "../data-window.js";
 import type { Database, SqlSession } from "../../db/database.js";
 import { inspectZip } from "../../fetch/index.js";
 import type { ZipMember } from "../../fetch/index.js";
@@ -273,6 +274,11 @@ export async function importPbp(
   db: Database,
   cached: CachedArchive,
 ): Promise<ReleaseReport> {
+  requireImportYear(
+    `medicare-${cached.archive.family}`,
+    cached.archive.year,
+    "medicare",
+  );
   const limits = archiveLimits.pbp;
   const members = (await inspectZip(cached.path, limits)).members;
   const dictionary = await readDictionary(cached.path, limits);

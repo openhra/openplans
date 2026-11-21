@@ -12,6 +12,7 @@ import type { CacheLevel } from "@openplans/plugin-sdk";
  */
 interface Scope {
   level: CacheLevel | null;
+  responseGeneration?: string;
   /** The shortest source TTL seen at `memory` level, in seconds. */
   memoryTtlSeconds: number | null;
   readonly requestAnswers: Map<string, unknown>;
@@ -63,6 +64,14 @@ export function restrictCacheLevel(level: CacheLevel, ttlSeconds?: number) {
 /** The strictest level seen in the current scope, or null when none was set or no scope runs. */
 export const scopeCacheLevel = (): CacheLevel | null =>
   scope.getStore()?.level ?? null;
+
+/** Set only after a response-cache lookup passes its guards and computes its key. */
+export function setScopeResponseGeneration(generation: string): void {
+  const current = scope.getStore();
+  if (current) current.responseGeneration = generation;
+}
+export const scopeResponseGeneration = (): string | undefined =>
+  scope.getStore()?.responseGeneration;
 
 /** Answers kept for the life of one request (`request` level de-duplication). */
 export const scopeRequestAnswers = (): Map<string, unknown> | undefined =>

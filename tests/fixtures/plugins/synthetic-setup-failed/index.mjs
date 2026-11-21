@@ -4,7 +4,7 @@ export default {
   manifest: {
     name: "@synthetic/setup-failed",
     version: "0.0.1",
-    apiVersion: "0.1",
+    apiVersion: "0.2",
     kinds: [],
     capabilities: { secrets: ["SYNTHETIC_ALPHA_SECRET"] },
   },

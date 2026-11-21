@@ -1,4 +1,4 @@
-import { cp, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -46,14 +46,16 @@ export async function plantMutantPackage(root: string | URL, folder: string) {
   const original = typeof root === "string" ? pathToFileURL(`${root}/`) : root;
   const { directory, cleanup } = await mutantFolder();
   try {
+    const packageDirectory = join(directory, "package");
+    await mkdir(packageDirectory);
     await cp(
       new URL("package.json", original),
-      join(directory, "package.json"),
+      join(packageDirectory, "package.json"),
     );
-    await cp(new URL(`${folder}/`, original), join(directory, folder), {
+    await cp(new URL(`${folder}/`, original), join(packageDirectory, folder), {
       recursive: true,
     });
-    return { path: join(directory, folder), cleanup };
+    return { path: join(packageDirectory, folder), cleanup };
   } catch (error) {
     await cleanup();
     throw error;

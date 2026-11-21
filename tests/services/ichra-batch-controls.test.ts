@@ -1,3 +1,4 @@
+import { withDataPolicy } from "../../src/services/data-window.js";
 import { afterAll, beforeAll, expect, it, vi } from "vitest";
 import type * as Batch from "../../src/services/ichra-batch.js";
 import type { SqlSession } from "../../src/db/database.js";
@@ -7,7 +8,7 @@ import {
   ichraAffordabilityBatch,
 } from "../../src/services/ichra-batch.js";
 import { ichraRequest } from "../../src/api/validation.js";
-import { ichraAffordability } from "../../src/services/ichra.js";
+import { ichraAffordability as guardedIchraAffordability } from "../../src/services/ichra.js";
 import { plantMutant } from "../../src/plugins/testing/index.js";
 import { setup } from "../compat/v1/helpers.js";
 
@@ -219,3 +220,11 @@ it("employee equality test kills missing evidence and an invented verdict for un
     ),
   ).toThrow("employee equality test");
 });
+
+function ichraAffordability(
+  ...args: Parameters<typeof guardedIchraAffordability>
+) {
+  return withDataPolicy({ historyYears: "all" }, () =>
+    guardedIchraAffordability(...args),
+  );
+}

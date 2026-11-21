@@ -1,3 +1,4 @@
+import { resolveAnnualPolicy } from "../../src/domain/data-window.js";
 import { describe, expect, it } from "vitest";
 import { AjvJsonSchemaValidator } from "@modelcontextprotocol/server/validators/ajv";
 import {
@@ -73,6 +74,12 @@ const payloads: Record<ToolName, unknown> = {
   check_provider_network: { results: [] },
   lookup_geography: { zip: "77001", resolution: "unknown", counties: [] },
   get_data_status: {
+    data_policy: resolveAnnualPolicy(
+      3,
+      [],
+      { individual: [], medicare: [] },
+      new Date("2026-11-19T00:00:00Z"),
+    ),
     datasets: [],
     personalized_access: "authentication_required",
     public_quoting: "enabled",

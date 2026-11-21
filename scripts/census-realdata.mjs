@@ -23,7 +23,7 @@ import { ichraAffordability } from "../dist/services/ichra.js";
 import { ingestRatingRules } from "../dist/ingest/rating-rules/index.js";
 import { ichraRequest } from "../dist/api/validation.js";
 import { dataDirectory } from "../dist/config/access.js";
-import { dataGeneration } from "../dist/api/cache/generation.js";
+import { dataGeneration } from "../dist/db/generation.js";
 import { createRecorder, useRecorder } from "../dist/telemetry/observer.js";
 import { quotePlans } from "../dist/services/quotes.js";
 import { createCalculationHost } from "../dist/plugins/calculation-host.js";

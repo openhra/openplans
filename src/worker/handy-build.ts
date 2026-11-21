@@ -1,3 +1,4 @@
+import { requireAnnualYear, annualRows } from "../services/data-window.js";
 import type { Database, SqlSession, QueryOptions } from "../db/database.js";
 import type { LowestInput } from "../api/handy.js";
 import { lowestInput, lowestQuery } from "../api/handy.js";
@@ -67,6 +68,7 @@ export async function buildLowestCounty(
   if (!values.length) throw new Error("Empty county publication");
   const inputs = values.map(countyLowestInput),
     first = inputs[0]!;
+  await requireAnnualYear(db, first.year);
   return db.transaction(async (tx) => {
     await tx.exec("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ");
     await tx.query("SELECT pg_advisory_xact_lock(1869636991)");
@@ -162,6 +164,7 @@ export async function buildLowestCounty(
 
 export async function buildLowestPremiums(db: Database, value: LowestInput) {
   const input = lowestInput({ ...value, page: 1 });
+  await requireAnnualYear(db, input.year);
   const location = await resolveLocation(db, input, {
     allowCmsLive: false,
     year: input.year,
@@ -176,8 +179,10 @@ export async function buildLowestPremiums(db: Database, value: LowestInput) {
 /** Post-load hook rebuilds registered cells; unregistered cells remain unpublished. */
 export async function rebuildLowestPremiums(db: Database) {
   if (!loadConfig().lowestPremiums) return;
-  for await (const inputs of lowestBuildGroups(db))
-    await buildLowestCounty(db, inputs);
+  for await (const inputs of lowestBuildGroups(db)) {
+    const retained = await annualRows(db, inputs, (input) => input.year);
+    if (retained.length) await buildLowestCounty(db, retained);
+  }
 }
 export async function runLowestBuild(
   args: string[],

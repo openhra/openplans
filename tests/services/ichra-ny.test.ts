@@ -1,3 +1,4 @@
+import { withDataPolicy } from "../../src/services/data-window.js";
 import {
   lowestPremiums,
   householdDistributions,
@@ -98,7 +99,9 @@ const request: IchraRequest = {
   lcspPremiumBasis: null,
 };
 const run = async (tx: SqlSession = db, extra: Partial<IchraRequest> = {}) =>
-  (await ichraAffordability(tx, { ...request, ...extra })) as NyResult;
+  (await withDataPolicy({ historyYears: "all" }, () =>
+    ichraAffordability(tx, { ...request, ...extra }),
+  )) as NyResult;
 async function rollback(test: (tx: SqlSession) => Promise<void>) {
   const marker = new Error("synthetic NY rollback");
   await expect(

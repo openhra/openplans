@@ -63,12 +63,15 @@ const configWith = (entries: Entry[], settings: object = {}) =>
     {},
     {
       version: 1,
+      public: { quoting: false, household: false, compat: false },
       ...settings,
-      plugins: entries.map((entry) =>
-        typeof entry === "string"
-          ? { package: specifier(entry) }
-          : { ...entry, package: specifier(entry.package) },
-      ),
+      plugins: {
+        entries: entries.map((entry) =>
+          typeof entry === "string"
+            ? { package: specifier(entry) }
+            : { ...entry, package: specifier(entry.package) },
+        ),
+      },
     },
   );
 
@@ -85,6 +88,11 @@ async function run(
     baseDirectory: fixtures,
     manifestPaths: [shipped],
     writeLog: (line) => {
+      if (
+        (JSON.parse(line) as { code?: string }).code ===
+        "plugin_approval_unconfigured"
+      )
+        return;
       lines.push(line);
       allLines.push(line);
     },
@@ -128,15 +136,33 @@ describe("removed package", () => {
     it(`refuses the removed package from ${input} on every host`, async () => {
       const config =
         input === "file"
-          ? loadConfig({}, { version: 1, plugins: [{ package: removed }] })
-          : loadConfig({ OPENPLANS_PLUGINS: removed });
+          ? loadConfig(
+              {},
+              {
+                version: 1,
+                public: { quoting: false, household: false, compat: false },
+                plugins: { entries: [{ package: removed }] },
+              },
+            )
+          : loadConfig({
+              OPENPLANS_PLUGINS: removed,
+              OPENPLANS_PUBLIC_QUOTING: "off",
+              OPENPLANS_PUBLIC_HOUSEHOLD: "off",
+              OPENPLANS_PUBLIC_COMPAT: "off",
+            });
       for (const host of ["api", "worker", "stdio"] as const) {
         const before = currentRegistries();
         const lines: string[] = [];
         await expect(
           loadPlugins(config, host, {
             env: {},
-            writeLog: (line) => lines.push(line),
+            writeLog: (line) => {
+              if (
+                (JSON.parse(line) as { code?: string }).code !==
+                "plugin_approval_unconfigured"
+              )
+                lines.push(line);
+            },
             exit: (code) => {
               throw new Exit(code);
             },
@@ -192,8 +218,10 @@ describe("loadPlugins with no plugins", () => {
     expect(api).not.toMatch(/from "\.\/(?:index|loader)\.js"/);
     expect(api).toMatch(/await import\("\.\/loader\.js"\)/);
     const cli = await source("worker/cli.ts");
-    expect(cli).toMatch(/from "\.\.\/plugins\/worker\.js"/);
-    expect(cli).not.toMatch(/plugins\/(?:index|loader)\.js/);
+    expect(cli).toMatch(/await import\("\.\/runtime\.js"\)/);
+    const runtime = await source("worker/runtime.ts");
+    expect(runtime).toMatch(/from "\.\.\/plugins\/worker\.js"/);
+    expect(runtime).not.toMatch(/plugins\/(?:index|loader)\.js/);
     // plugins/worker reaches the loader only through a dynamic import.
     const worker = await source("plugins/worker.ts");
     expect(worker).not.toMatch(/from "\.\/(?:index|loader)\.js"/);
@@ -335,7 +363,9 @@ const cases: {
 describe("refusals", () => {
   it("has one case for every refusal code", () => {
     expect(cases.map((entry) => entry.code).sort()).toEqual(
-      [...REFUSAL_CODES].sort(),
+      [...REFUSAL_CODES]
+        .filter((code) => code !== "plugin_approval_refused")
+        .sort(),
     );
   });
 

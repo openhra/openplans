@@ -28,6 +28,7 @@ export function configurationSettings(
   const safe: Record<string, string | number | boolean | null> = {
     "listen.port": config.listen.port,
     "db.provider": enumValue(config.db.provider, ["pg", "pglite"]),
+    "data.historyYears": config.data.historyYears,
     "cache.enabled": config.cache.enabled,
     "cache.provider": enumValue(config.cache.provider, ["memory", "valkey"]),
     "cache.maxMb": config.cache.maxMb,

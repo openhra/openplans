@@ -7,7 +7,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadConfig } from "../../src/config/index.js";
-import { loadPlugins } from "../../src/plugins/index.js";
+import { loadPlugins } from "./approval-helpers.js";
 import { providerTables } from "../../src/plugins/providers.js";
 import { Readable } from "node:stream";
 import {
@@ -699,7 +699,9 @@ describe("bounded memory-level sources", () => {
         {
           version: 1,
           cache: { provider: "synthetic" },
-          plugins: [{ package: "./synthetic-cache-store/index.mjs" }],
+          plugins: {
+            entries: [{ package: "./synthetic-cache-store/index.mjs" }],
+          },
         },
       ),
       "api",
@@ -1216,7 +1218,7 @@ describe("ctx.sources.passThrough", () => {
     const manifest: PluginManifest = {
       name: "@synthetic/passthrough",
       version: "0.1.0",
-      apiVersion: "0.1",
+      apiVersion: "0.2",
       kinds: ["sources"],
     };
     const staging = emptyRegistries();

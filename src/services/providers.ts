@@ -1,3 +1,5 @@
+import { withCurrentDataPolicy } from "./data-window.js";
+import { requireAnnualYear, annualRows } from "./data-window.js";
 import { guardCatalogPlans, catalogPolicyActive } from "./catalog-policy.js";
 import type { SqlSession } from "../db/database.js";
 import { providerParticipation } from "../domain/providers/repository.js";
@@ -42,6 +44,8 @@ export async function findProviders(
   db: SqlSession,
   params: Record<string, string>,
 ) {
+  if (params.year !== undefined)
+    await requireAnnualYear(db, providerYear(params.year));
   const q: ProviderSearch = { page: v.page(params.page) };
   if (q.page > Math.floor(Number.MAX_SAFE_INTEGER / 50)) return v.fail("page");
   if (params.plan_id !== undefined) {
@@ -205,13 +209,29 @@ export async function getProvider(
   value: unknown,
   year?: string,
 ) {
-  const result = await providerDetail(
-    db,
-    npi(value),
-    year === undefined ? undefined : providerYear(year),
-  );
-  if (!result) throw new ReadError({ code: "PROVIDER_NOT_FOUND" });
-  return result;
+  return withCurrentDataPolicy(async () => {
+    if (year !== undefined) await requireAnnualYear(db, providerYear(year));
+    const result = await providerDetail(
+      db,
+      npi(value),
+      year === undefined ? undefined : providerYear(year),
+    );
+    if (!result) throw new ReadError({ code: "PROVIDER_NOT_FOUND" });
+    return {
+      ...result,
+      issuer_records: await annualRows(db, result.issuer_records, (row) =>
+        Number(row.plan_year),
+      ),
+      plan_participations: await annualRows(
+        db,
+        result.plan_participations,
+        (row) => Number(row.plan_year),
+      ),
+      provider_coverage: await annualRows(db, result.provider_coverage, (row) =>
+        Number(row.plan_year),
+      ),
+    };
+  });
 }
 /** `cms` is the per-request CMS API fallback context; absent unless the operator enabled it. */
 export async function checkProviderNetwork(
@@ -221,6 +241,7 @@ export async function checkProviderNetwork(
   year: unknown,
   cms?: CmsFallbackContext,
 ) {
+  await requireAnnualYear(db, providerYear(year));
   if (catalogPolicyActive())
     await guardCatalogPlans([v.planId(plan).full], providerYear(year));
   const answer = await providerParticipation(
@@ -266,6 +287,7 @@ export async function checkProviderNetworks(
     return v.fail("year");
   const year = providerYear(String(body.year)),
     results = [];
+  await requireAnnualYear(db, year);
   await guardCatalogPlans(plans, year);
   for (const plan of plans)
     for (const code of npis)

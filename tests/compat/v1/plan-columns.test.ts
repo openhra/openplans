@@ -57,6 +57,7 @@ function publicContract(m: Mapper) {
     gated: true,
     sbc_name: "Bronze 60 HMO",
     actuarial_value: 63.7,
+    estimated_actuarial_value: 63.4676422,
     effective_date: "2026-01-01T00:00:00.000Z",
     expiration_date: "2026-12-31T00:00:00.000Z",
     // The CA state file leaves FORMULARY URL and both document URL cells blank.

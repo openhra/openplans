@@ -419,11 +419,13 @@ describe("PUF acquisition manifests", () => {
     expect(output.error).not.toHaveBeenCalled();
   });
 
-  it("rejects unsupported years before any request", async () => {
+  it("skips excluded years before any request", async () => {
     const fetcher = await fakeFetcher();
     await expect(
       acquirePufs({ dataDir: directory, fetcher, year: 2024 }),
-    ).rejects.toMatchObject({ code: "invalid_options" });
+    ).rejects.toMatchObject({
+      skip: { dataset: "puf", year: 2024, reason: "outside_data_window" },
+    });
     expect(fetcher).not.toHaveBeenCalled();
   });
 
@@ -496,7 +498,7 @@ describe("PUF acquisition manifests", () => {
 });
 
 describe("puf acquire worker branch", () => {
-  it("dispatches valid dry-run flags without a database and downloads only the provenance page", async () => {
+  it("plans a dry run without a database or source requests", async () => {
     vi.stubEnv("OPENPLANS_DATA_DIR", directory);
     const fetcher = await fakeFetcher();
     vi.spyOn(fetchModule, "fetchToCache").mockImplementation(fetcher);
@@ -512,17 +514,14 @@ describe("puf acquire worker branch", () => {
       ),
     ).toBe(0);
     expect(openDatabase).not.toHaveBeenCalled();
-    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(fetcher).not.toHaveBeenCalled();
     expect(output.error).not.toHaveBeenCalled();
-    const result = JSON.parse(output.out.mock.calls[0]![0] as string) as {
-      manifest: { files: { year: number }[] };
-    };
-    expect(result.manifest.files).toHaveLength(8);
     expect(
-      result.manifest.files.every(
-        (file: { year: number }) => file.year === 2027,
-      ),
-    ).toBe(true);
+      JSON.parse(output.out.mock.calls[0]![0] as string) as unknown,
+    ).toEqual({
+      planned: [{ dataset: "puf", year: 2027 }],
+      skipped: [],
+    });
   });
 
   it("returns a failing CLI exit code but still writes the manifest when one download fails", async () => {
@@ -554,7 +553,7 @@ describe("puf acquire worker branch", () => {
 
   it.each([
     ["--year"],
-    ["--year", "2024"],
+    ["--year", "not-a-year"],
     ["--unknown"],
     ["--dry-run", "--dry-run"],
     ["--year", "2026", "--year", "2027"],
@@ -582,7 +581,7 @@ describe("puf acquire worker branch", () => {
     vi.stubEnv("OPENPLANS_DATA_DIR", "relative-invalid");
     const errors: string[] = [];
     expect(
-      await runPufAcquire(["--year", "2027", "--dry-run"], {
+      await runPufAcquire(["--year", "2027"], {
         out: vi.fn(),
         error: (message) => errors.push(message),
       }),

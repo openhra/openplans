@@ -1,3 +1,4 @@
+import { requireImportYear } from "../data-window.js";
 import { createHash } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { readFile } from "node:fs/promises";
@@ -110,6 +111,7 @@ export async function ingestGeo(
   db: Database,
   options: GeoImportOptions = {},
 ): Promise<GeoImportReport> {
+  requireImportYear("rating-areas", options.planYear ?? 2026);
   const state = options.state ?? "TX",
     planYear = options.planYear ?? 2026;
   const fips = STATE_FIPS[state];

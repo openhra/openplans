@@ -27,7 +27,7 @@ import {
   canonical,
   createResponseCache,
 } from "../../../src/api/cache/index.js";
-import { dataGeneration } from "../../../src/api/cache/generation.js";
+import { dataGeneration } from "../../../src/db/generation.js";
 import { MemoryCache } from "../../../src/api/cache/store.js";
 import {
   checkCatalogTriggers,
@@ -336,7 +336,7 @@ it.runIf(process.env.OPENPLANS_TEST_DB === "postgres")(
   "negative control: locale-dependent ordering changes generation and manifest identities",
   async () => {
     for (const path of [
-      "../../../src/api/cache/generation.ts",
+      "../../../src/db/generation.ts",
       "../../../src/db/handy-repository.ts",
     ]) {
       const original = new URL(path, import.meta.url);

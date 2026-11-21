@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "name": "@openplans/plugin-template",
+  "version": "0.2.0",
+  "kind": "plugin",
+  "summary": "Example routes, tools, commands and event handlers.",
+  "licence": "Apache-2.0",
+  "attribution": "OpenPlans contributors",
+  "apiVersion": "0.2",
+  "kinds": ["routes", "mcpTools", "workerCommands", "events"],
+  "capabilities": {},
+  "hostPeers": {
+    "hono": "4.13.16",
+    "zod": "4.6.7",
+    "@openplans/plugin-sdk": "0.2.0"
+  },
+  "bundledDependencies": [],
+  "planYears": [],
+  "entrypoint": "dist/index.js",
+  "provenance": {
+    "builtAt": "2026-11-19T00:00:00Z",
+    "builder": "local",
+    "sourceCommit": "0000000000000000000000000000000000000000"
+  }
+}

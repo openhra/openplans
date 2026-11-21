@@ -11,7 +11,7 @@ const manifest = {
 
 describe("plugin manifest", () => {
   it("accepts a minimal manifest and the experimental API version", () => {
-    expect(PLUGIN_API_VERSION).toBe("0.1");
+    expect(PLUGIN_API_VERSION).toBe("0.2");
     expect(pluginManifestSchema.parse(manifest)).toEqual(manifest);
   });
 
@@ -53,7 +53,7 @@ describe("plugin manifest", () => {
     { version: "1.2" },
     { version: "01.2.3" },
     { version: "1.2.3-01" },
-    { apiVersion: "0.2" },
+    { apiVersion: "0.1" },
     { kinds: ["unknown"] },
     { capabilities: { writes: ["database"] } },
     { capabilities: { operatorRoutes: "true" } },

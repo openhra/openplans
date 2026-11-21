@@ -467,7 +467,7 @@ it("rejects merging_CSR_variants, merging_bronze_categories, one_cent, and missi
 it("refuses unloaded years, ambiguous ZIPs, unsupported rules and unknown classification", async () => {
   const unloaded = await householdDistributions(
     h.db,
-    { ...preset, year: 2099 },
+    { ...preset, year: 2025 },
     enabled,
   );
   expect(unloaded.reason).toBe("catalog_not_loaded");

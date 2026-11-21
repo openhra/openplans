@@ -4,7 +4,7 @@ import { createMcpHandler } from "@modelcontextprotocol/server";
 import { afterEach, expect, it } from "vitest";
 import { loadConfig } from "../../src/config/index.js";
 import type { SqlSession } from "../../src/db/database.js";
-import { loadPlugins } from "../../src/plugins/index.js";
+import { loadPlugins } from "../plugins/approval-helpers.js";
 import type { PluginTool } from "../../src/plugins/index.js";
 import { createMcpHttp } from "../../src/mcp/http.js";
 import type { buildServer } from "../../src/mcp/server.js";
@@ -72,7 +72,9 @@ async function loadTools(options: Record<string, unknown>) {
     {},
     {
       version: 1,
-      plugins: [{ package: "./synthetic-mcp-tools/index.mjs", options }],
+      plugins: {
+        entries: [{ package: "./synthetic-mcp-tools/index.mjs", options }],
+      },
     },
   );
   try {
@@ -93,7 +95,10 @@ async function loadTools(options: Record<string, unknown>) {
 }
 // Loading replaces the process registry; put the empty one back after each test.
 afterEach(async () => {
-  await loadPlugins(loadConfig({}, { version: 1, plugins: [] }), "api");
+  await loadPlugins(
+    loadConfig({}, { version: 1, plugins: { entries: [] } }),
+    "api",
+  );
 });
 const handlerWith = (
   pluginTools: readonly PluginTool[],

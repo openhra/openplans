@@ -19,7 +19,7 @@ import type { CacheOutcome } from "../../src/api/cache/index.js";
 import type { CacheStore } from "../../src/api/cache/store.js";
 import { MemoryCache } from "../../src/api/cache/store.js";
 import { RespCache } from "../../src/api/cache/resp.js";
-import { dataGeneration } from "../../src/api/cache/generation.js";
+import { dataGeneration } from "../../src/db/generation.js";
 import { migrate } from "../../src/db/migrate.js";
 import { ingestGeo } from "../../src/ingest/geo/index.js";
 import { importPufs } from "../../src/ingest/puf/import.js";

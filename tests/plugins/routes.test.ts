@@ -7,7 +7,7 @@ import { createResponseCache, ttlTable } from "../../src/api/cache/index.js";
 import { MemoryCache } from "../../src/api/cache/store.js";
 import { loadConfig } from "../../src/config/index.js";
 import type { SqlSession } from "../../src/db/database.js";
-import { loadPlugins } from "../../src/plugins/index.js";
+import { loadPlugins } from "./approval-helpers.js";
 import type { PluginRegistries } from "../../src/plugins/index.js";
 import {
   emptyRegistries,
@@ -32,6 +32,8 @@ const routesFile = new URL("../../src/plugins/routes.ts", import.meta.url);
 const queries: string[] = [];
 const fakeDb = {
   query: async (sql: string) => {
+    if (sql.includes("FROM annual_data_admission") || sql.includes("AS domain"))
+      return { rows: [] };
     queries.push(sql);
     return { rows: [{ generation: "synthetic-generation" }] };
   },
@@ -45,7 +47,10 @@ async function load(name: string) {
   const loaded = await loadPlugins(
     loadConfig(
       {},
-      { version: 1, plugins: [{ package: `./synthetic-${name}/index.mjs` }] },
+      {
+        version: 1,
+        plugins: { entries: [{ package: `./synthetic-${name}/index.mjs` }] },
+      },
     ),
     "api",
     {
@@ -428,7 +433,7 @@ describe("reserved status paths and body caps", () => {
         {
           name,
           version: "0.0.1",
-          apiVersion: "0.1",
+          apiVersion: "0.2",
           kinds: ["routes"],
         },
         "api",

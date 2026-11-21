@@ -1,3 +1,4 @@
+import { skipAnnualCommand } from "../data-window.js";
 import type { Database } from "../../db/database.js";
 import { migrate, migrationsDirectory } from "../../db/migrate.js";
 import { discoverQhp } from "./discover.js";
@@ -38,6 +39,7 @@ export async function runQhpDiscover(
     output.error("Usage: worker ingest qhp discover --year YYYY --state ST");
     return 1;
   }
+  if (skipAnnualCommand("qhp-discover", year, output)) return 0;
   let db: Database | undefined,
     code = 0;
   try {

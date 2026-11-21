@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { requireImportRows, requireImportYear } from "../data-window.js";
 import { copyMigrations } from "../../db/copy-migrations.js";
 import { runnerSettings } from "../../config/access.js";
 /** Isolated real-data batch runner. Uses existing discovery/catalog databases; no fixture data. */
@@ -15,6 +16,7 @@ import { dataDirectory } from "../../config/access.js";
 /** The report this script rewrites. A resume keeps the earlier issuer rows. */
 type SavedReport = { database?: unknown; issuers: Record<string, unknown>[] };
 
+requireImportYear("qhp", 2026);
 const cache = dataDirectory();
 const path = runnerSettings().qhpDb ?? join(cache, "qhp-pglite-p6a");
 const directory = await mkdtemp(join(tmpdir(), "openplans-p6a-"));
@@ -42,6 +44,7 @@ async function copy(from: PGlite, table: string, where = "") {
   const rows = (
     await from.query<Record<string, unknown>>(`SELECT * FROM ${table} ${where}`)
   ).rows;
+  requireImportRows("qhp", rows);
   for (let at = 0; at < rows.length; at += 200)
     await pg.query(
       `INSERT INTO ${table} OVERRIDING SYSTEM VALUE

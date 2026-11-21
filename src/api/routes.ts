@@ -39,6 +39,10 @@ export function nativeRoutes(db: SqlSession, options: ApiOptions) {
     if (error instanceof v.InputError) {
       return c.json({ error: { code: error.code, field: error.field } }, 400);
     } else if (error instanceof ReadError) {
+      if (["not_loaded", "data_policy_unavailable"].includes(error.error.code))
+        c.header("Cache-Control", "no-store");
+      if (error.error.code === "data_policy_unavailable")
+        return c.json({ error: error.error }, 503);
       return c.json(
         { error: error.error },
         error.error.code === "unsupported_without_taxonomy" ? 422 : 404,

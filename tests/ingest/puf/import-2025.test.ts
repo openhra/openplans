@@ -1,3 +1,4 @@
+import { AnnualImportSkipped } from "../../../src/ingest/data-window.js";
 import { PGlite } from "@electric-sql/pglite";
 import { createHash } from "node:crypto";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -99,7 +100,7 @@ it("imports PY2025 without granting rating support and admits the CLI year", asy
 });
 
 it.each([2024, 2028])(
-  "negative control: refuses unreviewed year %s before opening a database",
+  "negative control: refuses excluded year %s before opening a database",
   async (year) => {
     let opened = false;
     expect(
@@ -115,7 +116,7 @@ it.each([2024, 2028])(
     expect(opened).toBe(false);
     await expect(
       importPufs(db, { year, state: "TX", files, dataDir: directory }),
-    ).rejects.toThrow("Invalid PUF import scope");
+    ).rejects.toThrow(AnnualImportSkipped);
   },
 );
 

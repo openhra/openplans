@@ -44,6 +44,7 @@ import {
   backfillRatePlanCounts,
 } from "../../dist/ingest/puf/import-repository.js";
 import { importDataDirectory } from "../../dist/ingest/puf/import-source.js";
+import { admitNextYear } from "./admission.mjs";
 import { cachedSbe } from "../../dist/ingest/sbe/source.js";
 import { importSbe } from "../../dist/ingest/sbe/import.js";
 import { ingestStateRates } from "../../dist/ingest/state/index.js";
@@ -541,6 +542,8 @@ async function main() {
               [county],
             )
           ).rows[0]?.zcta;
+          // The API serves next year only once admitted. Admit it here, as a release does after loading.
+          await admitNextYear(db, "individual", year);
         }
         const snapshots = (
           await db.query(

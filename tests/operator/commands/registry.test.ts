@@ -5,7 +5,7 @@ import {
   emptySeen,
   stagingRegistrar,
 } from "../../../src/plugins/registries.js";
-import { loadPlugins } from "../../../src/plugins/loader.js";
+import { loadPlugins } from "../../plugins/approval-helpers.js";
 import { loadConfig } from "../../../src/config/index.js";
 import { command, manifest, register } from "./fixture.js";
 
@@ -89,7 +89,9 @@ it("loads with no command effects during setup and leaves disabled admin absent"
       {},
       {
         version: 1,
-        plugins: [{ package: "@openplans/plugin-admin", enabled: false }],
+        plugins: {
+          entries: [{ package: "@openplans/plugin-admin", enabled: false }],
+        },
       },
     ),
     "api",
@@ -104,9 +106,11 @@ it("loads the same frozen command registration on both hosts without setup SQL",
     {},
     {
       version: 1,
-      plugins: [
-        { package: new URL("./plugin-fixture.ts", import.meta.url).pathname },
-      ],
+      plugins: {
+        entries: [
+          { package: new URL("./plugin-fixture.ts", import.meta.url).pathname },
+        ],
+      },
     },
   );
   for (const host of ["api", "worker"] as const) {

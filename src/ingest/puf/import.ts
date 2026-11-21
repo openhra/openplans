@@ -1,3 +1,5 @@
+import { requireImportYear, planAnnualWork } from "../data-window.js";
+import type { AnnualSkip } from "../data-window.js";
 import { createHash, randomUUID } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import { isAbsolute, join } from "node:path";
@@ -41,6 +43,8 @@ export interface PufImportOptions {
   manifestPath?: string | null;
   /** Stage protected supplemental catalogs without changing their serving pointer. */
   publish?: boolean;
+  /** A caller owning the surrounding transaction may keep its own audit report. */
+  writeReports?: boolean;
   /**
    * Markets this import serves in `puf_market_catalog` when it does not publish the
    * individual pointer, e.g. an SBE bundle that holds only SHOP plans. A publishing
@@ -52,6 +56,7 @@ export interface PufImportReport extends Reconciliation {
   import_id: string;
   state: string;
   year: number;
+  skipped?: AnnualSkip[];
   status: "ACTIVE" | "QUARANTINED";
   source?: StateCatalogSource;
   serving?: boolean;
@@ -65,6 +70,7 @@ export async function importPufs(
   db: Database,
   options: PufImportOptions,
 ): Promise<PufImportReport> {
+  requireImportYear("puf", options.year);
   const started = Date.now(),
     { year, state } = options;
   const dataDir = options.dataDir ?? importDataDirectory();
@@ -88,6 +94,8 @@ export async function importPufs(
   const files = IMPORT_KINDS.map((kind) =>
     acquired.files.find((file) => file.kind === kind)!,
   );
+  const window = planAnnualWork("puf", [year]).allowed_years;
+  const skippedYears = new Set<number>();
   const id = `puf-${year}-${state}-${randomUUID()}`;
   const stateSource = files[0]!.source;
   const sbe =
@@ -169,6 +177,16 @@ export async function importPufs(
           if (!headerValidated) {
             validateImportHeader(file.kind, row.values, year, !sbe);
             headerValidated = true;
+          }
+          const rowYear = Number(row.values.BusinessYear);
+          if (
+            Number.isInteger(rowYear) &&
+            rowYear >= 2006 &&
+            window &&
+            !window.includes(rowYear)
+          ) {
+            skippedYears.add(rowYear);
+            continue;
           }
           if (row.values.StateCode !== state) continue;
           count.input_rows++;
@@ -313,12 +331,14 @@ export async function importPufs(
     import_id: id,
     state,
     year,
+    skipped: planAnnualWork("puf", [...skippedYears]).skipped,
     status,
     manifest_path: acquired.manifestPath,
     wall_seconds: (Date.now() - started) / 1000,
     report_json: `${stem}.json`,
     report_md: `${stem}.md`,
   };
+  if (options.writeReports === false) return report;
   await mkdir(join(dataDir, "reports"), { recursive: true });
   await writeFile(report.report_json, `${JSON.stringify(report, null, 2)}\n`);
   await writeFile(

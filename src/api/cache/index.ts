@@ -1,3 +1,11 @@
+import {
+  dataPolicyActive,
+  policyForGeneration,
+  guardAnnualInput,
+  servingPolicy,
+  servingGeneration,
+  withDataPolicy,
+} from "../../services/data-window.js";
 import { catalogPolicyActive } from "../../services/catalog-policy.js";
 import { cmsFallbackUnavailable } from "../../config/cms-fallback.js";
 import { recordCache } from "../../telemetry/observer.js";
@@ -9,13 +17,16 @@ import { createHash } from "node:crypto";
 import type { MiddlewareHandler } from "hono";
 import type { SqlSession } from "../../db/database.js";
 import { compatKeyHeader, credentialMatches } from "../../compat/v1/auth.js";
-import { dataGeneration } from "./generation.js";
 import { MemoryCache } from "./store.js";
 import type { CacheStats, CacheStore } from "./store.js";
 import { MAX_ENTRY_BYTES } from "./resp.js";
 import type { PluginRegistries } from "../../plugins/registries.js";
 import { providerTables, selectCacheStore } from "../../plugins/providers.js";
-import { runWithScope, scopeStoreTtl } from "../../plugins/request-scope.js";
+import {
+  runWithScope,
+  scopeStoreTtl,
+  setScopeResponseGeneration,
+} from "../../plugins/request-scope.js";
 
 export type CacheOutcome = "hit" | "miss" | "bypass";
 export type ResponseCache = ReturnType<typeof createResponseCache>;
@@ -196,9 +207,27 @@ export function createResponseCache(
     await next();
   };
   // Design 5.10.5: every request runs in a scope, so a pass-through answer's level is known here.
-  const middleware: MiddlewareHandler = (c, next) =>
-    runWithScope(() => respond(c, next));
+  const middleware: MiddlewareHandler = (c, next) => {
+    const run = () => runWithScope(() => respond(c, next));
+    if (
+      c.req.method === "GET" &&
+      (c.req.path === "/readyz" || c.req.path === "/healthz")
+    )
+      return run();
+    return withDataPolicy(config.data, run);
+  };
   const respond: MiddlewareHandler = async (c, next) => {
+    const boundedYear = /\/(?:providers|drugs)(?:\/|$)|^\/v1\/medicare\//.test(
+      c.req.path,
+    );
+    if (boundedYear && Number(c.req.query("year")) > 2100)
+      return bypass(c, next);
+    if (c.req.path.startsWith("/v1/") || c.req.path.startsWith("/compat/v1/"))
+      await guardAnnualInput(
+        db,
+        c.req.query(),
+        c.req.path.startsWith("/v1/medicare/") ? "medicare" : "individual",
+      );
     if (config.catalogPolicy || catalogPolicyActive()) {
       c.header("Cache-Control", "no-store");
       return bypass(c, next);
@@ -281,16 +310,31 @@ export function createResponseCache(
       }
       if (hasCredentials(body)) return bypass(c, next);
     }
+    if (body && typeof body === "object" && !Array.isArray(body))
+      await guardAnnualInput(db, body as Record<string, unknown>);
+    if (
+      c.req.path.startsWith("/compat/v1/plans/") &&
+      c.req.method === "POST" &&
+      body &&
+      typeof body === "object" &&
+      !("enrollment_date" in body)
+    )
+      await guardAnnualInput(db, { year: 2026 });
     let key: string;
+    let generation: string;
     const cmsUnavailable = cmsFallbackUnavailable();
     try {
-      const generation = await dataGeneration(db);
+      generation = await servingGeneration(db);
+      const pendingPolicy = policyForGeneration(db, generation);
+      const policy =
+        pendingPolicy instanceof Promise ? await pendingPolicy : pendingPolicy;
       const request = canonical([
         c.req.method,
         c.req.path,
         [...url.searchParams],
         body,
         generation,
+        policy.generation,
         ...(cmsUnavailable ? ["cms_fallback_unavailable"] : []),
       ]);
       key = `openplans:response:v1:${createHash("sha256").update(request).digest("hex")}`;
@@ -323,6 +367,7 @@ export function createResponseCache(
     } catch {
       return bypass(c, next);
     }
+    setScopeResponseGeneration(generation);
     await next();
     // A `none` or `request` answer is never shared; `memory` shortens the TTL.
     const ttl = scopeStoreTtl(seconds);
@@ -401,6 +446,8 @@ export function createResponseCache(
     },
     load: () => Promise<T>,
   ): Promise<T> {
+    if (!dataPolicyActive())
+      return withDataPolicy(config.data, () => catalog(request, load));
     const report = (outcome: CacheOutcome) => {
       function counterForOutcome() {
         if (outcome === "hit") {
@@ -424,11 +471,19 @@ export function createResponseCache(
       report("bypass");
       return load();
     }
+    if (
+      request.query &&
+      typeof request.query === "object" &&
+      !Array.isArray(request.query)
+    )
+      await guardAnnualInput(db, request.query as Record<string, unknown>);
+    const policy = await servingPolicy(db);
     const cmsUnavailable = cmsFallbackUnavailable();
     const identity = canonical([
       request.namespace,
       request.version,
       request.generation,
+      policy.generation,
       request.query,
       ...(cmsUnavailable ? ["cms_fallback_unavailable"] : []),
     ]);
@@ -490,8 +545,19 @@ export function createResponseCache(
     },
     load: () => Promise<LowestCell>,
   ): Promise<LowestCell> {
+    if (!dataPolicyActive())
+      return withDataPolicy(config.data, () => lowest(request, load));
+    await guardAnnualInput(db, { year: request.input.year });
+    const policy = await servingPolicy(db);
     const key = `openplans:lowest:v1:${createHash("sha256")
-      .update(canonical([request.input, request.generation, request.manifest]))
+      .update(
+        canonical([
+          request.input,
+          request.generation,
+          request.manifest,
+          policy.generation,
+        ]),
+      )
       .digest("hex")}`;
     if (disabled || scopeStoreTtl(30) === null) return load();
     try {

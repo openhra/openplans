@@ -1,3 +1,4 @@
+import { dataPolicySchema } from "@openplans/plugin-sdk";
 import { z } from "zod";
 import { eventPayloadSchemas } from "@openplans/plugin-sdk";
 import type { PassthroughRow, SourceRow, StatusData } from "./read.js";
@@ -61,6 +62,7 @@ const statusCounts = z.strictObject(
 const cacheLevel = z.enum(["none", "request", "memory", "stored", "unknown"]);
 
 const publicData = z.strictObject({
+  policy: dataPolicySchema.nullable(),
   states: count.nullable(),
   years: z.array(z.number().int()).nullable(),
   status_counts: statusCounts.nullable(),
@@ -256,7 +258,7 @@ export function publicView(status: StatusData): PublicStatus {
     version: status.version ?? "unknown",
     api: "ok",
     db: status.db,
-    data: data(status),
+    data: { ...data(status), policy: status.dataPolicy ?? null },
     sources:
       status.sources?.map((source) => ({
         id: source.id,

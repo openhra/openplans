@@ -228,6 +228,20 @@ function isOperator(
 /** Where the page's header link points. */
 export const HOME_URL = "https://plans.openhra.com/";
 
+/** Reuse output only after a fresh read produces the same complete public view. */
+export function publicHtmlMemo(
+  render: typeof renderStatusHtml = renderStatusHtml,
+) {
+  let cached: { key: string; html: string } | undefined;
+  return (view: PublicStatus, places?: readonly string[] | null) => {
+    const key = JSON.stringify([view, places]);
+    if (cached?.key === key) return cached.html;
+    const html = render(view, places);
+    cached = { key, html };
+    return html;
+  };
+}
+
 /**
  * One page for either view. No scripts, no external files. `places` is the list of state
  * codes behind `data.states`; the operator view can work it out from its issuer rows.

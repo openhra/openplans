@@ -347,6 +347,7 @@ export async function lowestRenewalGroups(
   manifest: string,
   renewBeforeMs: number,
   limit: number,
+  allowedYears?: readonly number[],
 ) {
   const { rows } = await db.query<{ group_key: string; requests: string[] }>(
     `SELECT (b.request_json::jsonb->>'year') || ':' || (b.request_json::jsonb->>'county') AS group_key,
@@ -354,13 +355,21 @@ export async function lowestRenewalGroups(
      FROM handy_lowest_active a JOIN handy_lowest_build b USING(build_id)
      JOIN handy_lowest_evidence e USING(evidence_id)
      WHERE b.request_json::jsonb->>'metal'='silver' AND b.request_json::jsonb->>'tobacco'='false'
+       AND ($6::int[] IS NULL OR (b.request_json::jsonb->>'year')::int=ANY($6::int[]))
      GROUP BY group_key
      HAVING (b.request_json::jsonb->>'year') || ':' || (b.request_json::jsonb->>'county') > $1
        AND bool_or(least(b.expires_at,b.expired_at,a.expired_at,e.expired_at)<=now()+($3::double precision * interval '1 millisecond')
          OR b.input_manifest<>$2 OR b.algorithm<>$4 OR NOT b.complete
          OR b.expected_partitions<>b.written_partitions)
      ORDER BY group_key LIMIT $5`,
-    [after, manifest, renewBeforeMs, LOWEST_PUBLICATION_ALGORITHM, limit],
+    [
+      after,
+      manifest,
+      renewBeforeMs,
+      LOWEST_PUBLICATION_ALGORITHM,
+      limit,
+      allowedYears ?? null,
+    ],
   );
   return rows.map((row) => ({
     key: row.group_key,

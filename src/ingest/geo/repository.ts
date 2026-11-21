@@ -114,16 +114,20 @@ export interface ZipCounties {
   counties: CountyShare[];
   attribution?: typeof geonamesAttribution;
 }
-export function createGeoRepository(
-  db: SqlSession,
-  options: CmsLookupOptions = {},
-) {
-  return {
-    async zipToCounties(zip: string): Promise<ZipCounties> {
-      if (!/^\d{5}$/.test(zip))
-        throw new TypeError("ZIP must be a five-digit string");
-      const { rows } = await db.query<CountyShare>(
-        `SELECT DISTINCT z.county_fips, z.county_name,
+export interface GeoLookupOptions extends CmsLookupOptions {
+  /** The live generation checked for this request's response-cache key. */
+  generation?: string;
+}
+
+const pendingZcta = new WeakMap<
+  SqlSession,
+  Map<string, Promise<{ rows: CountyShare[] }>>
+>();
+
+function zctaCounties(db: SqlSession, zip: string, generation?: string) {
+  const read = () =>
+    db.query<CountyShare>(
+      `SELECT DISTINCT z.county_fips, z.county_name,
         z.arealand_zcta::text, z.areawater_zcta::text, z.arealand_county::text, z.areawater_county::text,
         z.arealand_part::text, z.areawater_part::text, z.snapshot_id, z.source_row,
         (z.arealand_part::numeric / NULLIF(z.arealand_zcta, 0))::text AS zcta_land_share,
@@ -133,8 +137,37 @@ export function createGeoRepository(
           ORDER BY state, imported_at DESC, plan_year DESC
         ) g ON g.relationship_snapshot_id = z.snapshot_id
         WHERE z.zcta = $1 ORDER BY z.county_fips`,
-        [zip],
-      );
+      [zip],
+    );
+  if (!generation) return read();
+  let pending = pendingZcta.get(db);
+  if (!pending)
+    pendingZcta.set(
+      db,
+      (pending = new Map<string, Promise<{ rows: CountyShare[] }>>()),
+    );
+  const key = JSON.stringify([generation, zip]);
+  const shared = pending.get(key);
+  if (shared) return shared;
+  const query = read();
+  pending.set(key, query);
+  const clear = () => {
+    pending.delete(key);
+    if (!pending.size) pendingZcta.delete(db);
+  };
+  void query.then(clear, clear);
+  return query;
+}
+
+export function createGeoRepository(
+  db: SqlSession,
+  options: GeoLookupOptions = {},
+) {
+  return {
+    async zipToCounties(zip: string): Promise<ZipCounties> {
+      if (!/^\d{5}$/.test(zip))
+        throw new TypeError("ZIP must be a five-digit string");
+      const { rows } = await zctaCounties(db, zip, options.generation);
       // This early return is the hard source boundary: no fallback cache read or live call for a ZCTA.
       if (rows.length)
         return {
@@ -184,7 +217,7 @@ export function createGeoRepository(
 export async function zipToCounties(
   db: SqlSession,
   zip: string,
-  options: CmsLookupOptions = {},
+  options: GeoLookupOptions = {},
 ): Promise<ZipCounties> {
   return createGeoRepository(db, options).zipToCounties(zip);
 }

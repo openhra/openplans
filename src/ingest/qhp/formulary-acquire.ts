@@ -1,3 +1,4 @@
+import { requireImportYear } from "../data-window.js";
 import type { SqlSession } from "../../db/database.js";
 import {
   cachedNames,
@@ -172,6 +173,7 @@ export async function acquireQhpChildren(
   kind: "formulary_urls" | "provider_urls",
   options: AcquisitionOptions = {},
 ) {
+  requireImportYear(`qhp-${kind}`, scope.year);
   const set = await sourceSet(db, scope);
   if (!set.children.some((c) => c.kind === kind)) return;
   const dataDir = options.fetchOptions?.dataDir ?? dataDirectory();

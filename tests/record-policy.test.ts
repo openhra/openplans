@@ -195,6 +195,7 @@ it("backfills an already-provenanced fallback and is idempotent", async () => {
   await rm(join(directory, "1004_partd_unit_cost_key.sql"));
   await rm(join(directory, "1005_partd_staged_generation.sql"));
   await rm(join(directory, "1007_provider_search_keys.sql"));
+  await rm(join(directory, "20261119194358_annual_data_admission.sql"));
   await rm(join(directory, "1008_provider_search_key_a_cell.sql"));
   await rm(join(directory, "1009_provider_search_key_b_cell.sql"));
   await rm(join(directory, "995_handy_lowest.sql"));

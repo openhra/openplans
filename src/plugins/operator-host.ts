@@ -12,7 +12,7 @@ import type {
 import { z } from "zod";
 import type { CoreConfig } from "../config/index.js";
 import { configurationSettings } from "../config/diagnostics.js";
-import { dataGeneration } from "../api/cache/generation.js";
+import { dataGeneration } from "../db/generation.js";
 import {
   currentSearchKeys,
   searchKeysCurrentSql,
@@ -102,7 +102,7 @@ export function createOperatorHost(
             approved: { state: "unverified", reason: "evidence_unavailable" },
           }),
         );
-        for (const entry of config.plugins) {
+        for (const entry of config.plugins.entries) {
           if (!entry.enabled)
             plugins.push({
               name: packageName.test(entry.package) ? entry.package : null,

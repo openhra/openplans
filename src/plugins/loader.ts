@@ -1,3 +1,5 @@
+import { verifyPlugins, matchesDeclaration } from "./lock.js";
+import type { InspectedPlugin } from "./lock.js";
 import { currentEnvironment } from "../config/index.js";
 import { createOperatorCommandClient } from "../operator/commands/service.js";
 import { tpaReceiptHost } from "./tpa-host.js";
@@ -116,6 +118,7 @@ interface Candidate {
   factory?: PluginFactory;
   /** The resolved module file, for the package hash. */
   file?: string;
+  verified?: InspectedPlugin;
 }
 
 export { currentRegistries };
@@ -311,11 +314,19 @@ export async function loadPlugins(
   try {
     const candidates = await checkPlugins(config, options, env);
     const roots = await Promise.all(
-      candidates.map((candidate) => modulePackageRoot(candidate.file)),
+      candidates.map(
+        (candidate) =>
+          candidate.verified?.root ?? modulePackageRoot(candidate.file),
+      ),
     );
     // Package hashes are file reads: they run while the plugins set up and are awaited before
     // the status view can read them. packageSha256 never rejects.
-    const hashing = Promise.all(roots.map(rootSha256));
+    const hashing = Promise.all(
+      candidates.map(
+        (candidate, index) =>
+          candidate.verified?.entry.legacySha256 ?? rootSha256(roots[index]),
+      ),
+    );
     for (const [index, candidate] of candidates.entries()) {
       const root = migrationsRoot(roots[index]);
       if (root)
@@ -528,10 +539,25 @@ async function checkPlugins(
   const prefixes = new Set<string>();
   let publishers: Map<string, PublisherPolicy> | undefined | null = null;
   const candidates: Candidate[] = [];
-  for (const entry of config.plugins) {
+  const verified = await verifyPlugins(
+    config,
+    base,
+    env,
+    options.writeLog ?? ((line) => process.stderr.write(`${line}\n`)),
+  );
+  for (const entry of config.plugins.entries) {
     if (!entry.enabled) continue;
-    const imported = await importPlugin(entry.package, base);
+    const checked = verified.find(
+      (item) => item.entry.package === entry.package,
+    );
+    const imported = await importPlugin(checked?.file ?? entry.package, base);
     const { manifest } = imported;
+    if (checked && !matchesDeclaration(checked.entry, manifest))
+      refuse(
+        checked.entry.name,
+        "plugin_approval_refused",
+        "runtime_manifest_mismatch",
+      );
     const name = manifest.name;
     if (names.has(name)) refuse(name, "plugin_name_duplicate");
     names.add(name);
@@ -554,6 +580,7 @@ async function checkPlugins(
     }
     candidates.push({
       ...imported,
+      verified: checked,
       options: validOptions(name, manifest, entry.options),
     });
   }

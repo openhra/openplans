@@ -1,3 +1,5 @@
+import { withDataPolicy } from "../../../src/services/data-window.js";
+import { syntheticZip } from "../../fixtures/fetch/generate.mjs";
 import { PGlite } from "@electric-sql/pglite";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createHash } from "node:crypto";
@@ -416,6 +418,83 @@ describe("PUF catalog import — real CMS TX 2026 cuts and labelled synthetic mu
       CoinsInnTier1: null,
       CopayOutofNet: { cents: 1234 },
     });
+  });
+
+  it("skips excluded rows in a shared archive and preserves every retained stored row digest", async () => {
+    const mixed = await Promise.all(
+      files.map(async (file) => {
+        const original = await readFile(file.path, "utf8");
+        const first = await readCsv(Readable.from([original])).next();
+        if (first.done) throw new Error("Synthetic archive needs a source row");
+        const quote = (value: string) => `"${value.replace(/"/g, '""')}"`;
+        const excluded = Object.entries(first.value.values)
+          .map(([key, value]) => quote(key === "BusinessYear" ? "2025" : value))
+          .join(",");
+        const body = original.replace(/\n?$/, "\n") + excluded + "\n";
+        const bytes = syntheticZip([{ name: `${file.kind}.csv`, body }]);
+        const path = join(directory, `synthetic-multi-year-${file.kind}.zip`);
+        await writeFile(path, bytes);
+        return {
+          ...file,
+          path,
+          format: "zip" as const,
+          bytes: bytes.length,
+          sha256: createHash("sha256").update(bytes).digest("hex"),
+        };
+      }),
+    );
+    const report = await withDataPolicy(
+      { historyYears: 3 },
+      () =>
+        importPufs(db, {
+          year: 2026,
+          state: "TX",
+          files: mixed,
+          dataDir: directory,
+        }),
+      new Date("2027-01-01Z"),
+    );
+    expect(report.status).toBe("ACTIVE");
+    expect(report.skipped).toEqual([
+      { dataset: "puf", year: 2025, reason: "outside_data_window" },
+    ]);
+    expect(report.files.map((file) => file.stored_rows)).toEqual(
+      baseline.files.map((file) => file.stored_rows),
+    );
+    for (const [table, kind] of [
+      ["plan_attribute", "plan-attributes"],
+      ["plan", "plan-attributes"],
+      ["plan_variant", "plan-attributes"],
+      ["rate", "rate"],
+      ["plan_benefit", "benefits-and-cost-sharing"],
+      ["network", "network"],
+      ["service_area_county", "service-area"],
+      ["business_rule", "business-rules"],
+    ]) {
+      // New import identities and lifecycle timestamps differ; source cells and normalized values must not.
+      const digests = [];
+      const stored = [];
+      for (const id of [baseline.import_id, report.import_id]) {
+        const { rows } = await db.query(
+          `SELECT to_jsonb(t)-ARRAY['snapshot_id','sourced_slug','created_at','updated_at'] AS row FROM ${table} t WHERE snapshot_id=$1 ORDER BY source_row`,
+          [`${id}:${kind}`],
+        );
+        stored.push(rows);
+        digests.push(
+          createHash("sha256").update(JSON.stringify(rows)).digest("hex"),
+        );
+      }
+      expect(stored[1], table).toEqual(stored[0]);
+      expect(digests[1], table).toBe(digests[0]);
+      expect(
+        (
+          await db.query(
+            `SELECT DISTINCT plan_year FROM ${table} WHERE snapshot_id=$1`,
+            [`${report.import_id}:${kind}`],
+          )
+        ).rows,
+      ).toEqual([{ plan_year: 2026 }]);
+    }
   });
 
   it("dispatches the import branch and rejects bad CLI flags before connecting", async () => {

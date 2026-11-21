@@ -13,7 +13,7 @@ import {
   createOperatorHost,
   setOperatorTelemetryReader,
 } from "../../../src/plugins/operator-host.js";
-import { loadPlugins } from "../../../src/plugins/loader.js";
+import { loadPlugins } from "../../plugins/approval-helpers.js";
 import {
   emptyRegistries,
   freezeRegistries,
@@ -187,7 +187,9 @@ it("keeps read errors safe and approval hashes unverified", async () => {
     {},
     {
       version: 1,
-      plugins: [{ package: `/private/${marker}/index.mjs`, enabled: false }],
+      plugins: {
+        entries: [{ package: `/private/${marker}/index.mjs`, enabled: false }],
+      },
     },
   );
   const diagnostics = createOperatorHost(
@@ -200,7 +202,7 @@ it("keeps read errors safe and approval hashes unverified", async () => {
           name: "@openplans/plugin-msot",
           enabled: true,
           version: null,
-          apiVersion: "0.1",
+          apiVersion: "0.2",
           sha256: null,
         },
       ],
@@ -319,7 +321,7 @@ it("grants diagnostics explicitly, refuses setup reads and resolves after all pa
       await writeFile(
         file,
         `export let context; export let duringSetup;
-        export default { manifest: { name: "@openplans/synthetic-diagnostics", version: "0.1.0", apiVersion: "0.1", kinds: [], capabilities: { operatorDiagnostics: ${granted} } },
+        export default { manifest: { name: "@openplans/synthetic-diagnostics", version: "0.1.0", apiVersion: "0.2", kinds: [], capabilities: { operatorDiagnostics: ${granted} } },
         async setup(ctx) { context = ctx; duringSetup = await ctx.operatorHost?.catalog({ db: ctx.db.reader, signal: new AbortController().signal }); } };`,
       );
       const module = (await import(pathToFileURL(file).href)) as {
@@ -333,7 +335,7 @@ it("grants diagnostics explicitly, refuses setup reads and resolves after all pa
         ];
         if (reverse) plugins.reverse();
         const loaded = await loadPlugins(
-          loadConfig({}, { version: 1, plugins }),
+          loadConfig({}, { version: 1, plugins: { entries: plugins } }),
           "api",
           {
             env: {},

@@ -1,3 +1,5 @@
+import { withDataPolicy } from "../services/data-window.js";
+import { loadConfig } from "../config/index.js";
 import { assertOutputCount, assertOutputFits } from "./bounded.js";
 import { assertCatalogToolAdmission } from "../plugins/catalog-policy.js";
 import { z } from "zod";
@@ -9,7 +11,7 @@ import type {
 } from "@modelcontextprotocol/server";
 import { cachedJsonSchema, cachedToolDefinition } from "./definition-cache.js";
 import { drugCostRequestSchema } from "../api/medicare-schemas.js";
-import { dataGeneration } from "../api/cache/generation.js";
+import { dataGeneration } from "../db/generation.js";
 import { restrictCacheLevel } from "../plugins/request-scope.js";
 import { estimateMedicareDrugCost } from "../services/medicare.js";
 import {
@@ -368,7 +370,7 @@ const notes = [
 ];
 
 /** One call. The schedule stays in this function; nothing is cached, stored or logged. */
-export async function callEstimateTool(
+async function callScopedEstimateTool(
   deps: McpDependencies,
   args: unknown,
   requestId: string | number = 0,
@@ -478,4 +480,15 @@ export function registerEstimateTool(
       ),
   );
   return listed;
+}
+
+export function callEstimateTool(
+  ...args: Parameters<typeof callScopedEstimateTool>
+) {
+  const deps = args[0];
+  return withDataPolicy(
+    deps.data ?? loadConfig().data,
+    () => callScopedEstimateTool(...args),
+    new Date((deps.now ?? Date.now)()),
+  );
 }

@@ -3,7 +3,7 @@ export default {
   manifest: {
     name: "@synthetic/route-writer-other",
     version: "0.0.1",
-    apiVersion: "0.1",
+    apiVersion: "0.2",
     kinds: ["routes"],
   },
   setup(ctx) {

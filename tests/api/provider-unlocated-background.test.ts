@@ -4,7 +4,7 @@ import {
   COUNT_SOURCES,
   countRevisions,
 } from "../../src/api/provider-unlocated.js";
-import { dataGeneration } from "../../src/api/cache/generation.js";
+import { dataGeneration } from "../../src/db/generation.js";
 import type { SqlSession } from "../../src/db/database.js";
 import { POOL_MAX } from "../../src/db/scope.js";
 import { setup } from "../ingest/qhp/provider-helpers.js";

@@ -8,7 +8,7 @@ import {
 } from "../../../src/plugins/registries.js";
 import { OperatorCommandRefused } from "../../../src/operator/commands/scope.js";
 import { createOperatorCommandClient } from "../../../src/operator/commands/service.js";
-import { loadPlugins } from "../../../src/plugins/loader.js";
+import { loadPlugins } from "../../plugins/approval-helpers.js";
 import { runPluginCommand } from "../../../src/plugins/worker.js";
 import { migratedTemplate } from "../../pglite.js";
 import {
@@ -205,9 +205,11 @@ it("runs a loaded worker adapter through the same registry as the API", async ()
     {},
     {
       version: 1,
-      plugins: [
-        { package: new URL("./plugin-fixture.ts", import.meta.url).pathname },
-      ],
+      plugins: {
+        entries: [
+          { package: new URL("./plugin-fixture.ts", import.meta.url).pathname },
+        ],
+      },
     },
   );
   const loaded = await loadPlugins(config, "worker", {

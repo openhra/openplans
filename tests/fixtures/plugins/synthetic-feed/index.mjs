@@ -18,6 +18,7 @@ let staged = [];
 
 export const source = {
   kind: "feed",
+  dataScope: { kind: "current" },
   id: "synthetic-feed",
   publisher: "Synthetic test publisher",
   hosts: [HOST],
@@ -141,7 +142,7 @@ export default {
   manifest: {
     name: "@synthetic/feed",
     version: "0.0.1",
-    apiVersion: "0.1",
+    apiVersion: "0.2",
     kinds: ["sources"],
     capabilities: { network: [HOST], writes: ["staging"] },
   },

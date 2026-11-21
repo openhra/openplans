@@ -1,3 +1,4 @@
+import { requireImportYear, planAnnualWork } from "../data-window.js";
 import { createHash, randomUUID } from "node:crypto";
 import { createReadStream } from "node:fs";
 import {
@@ -26,13 +27,23 @@ export async function pufStates(
   files: ImportFile[],
   year: number,
 ): Promise<string[]> {
+  requireImportYear("puf", year);
   const file = files.find((file) => file.kind === "plan-attributes");
   if (!file) throw new Error("Plan attributes required for state discovery");
   await verifyImportFile(file);
   const states = new Set<string>();
+  const window = planAnnualWork("puf", [year]).allowed_years;
   for await (const row of importRows(file)) {
     validateImportHeader(file.kind, row.values, year);
     const r = row.values;
+    const rowYear = Number(r.BusinessYear);
+    if (
+      Number.isInteger(rowYear) &&
+      rowYear >= 2006 &&
+      window &&
+      !window.includes(rowYear)
+    )
+      continue;
     if (
       r.MarketCoverage === "Individual" &&
       r.DentalOnlyPlan === "No" &&
@@ -55,10 +66,13 @@ export async function partitionPufs(
   year: number,
   dataDir: string,
 ) {
+  requireImportYear("puf", year);
+  const window = planAnnualWork("puf", [year]).allowed_years;
   const root = join(dataDir, "work");
   await mkdir(root, { recursive: true });
   const directory = await mkdtemp(join(root, `puf-${year}-`));
   const result = new Map(states.map((state) => [state, [] as ImportFile[]]));
+  const skippedYears = new Set<number>();
   try {
     for (const file of files) {
       await verifyImportFile(file);
@@ -73,6 +87,16 @@ export async function partitionPufs(
       for (const path of paths.values()) await writeFile(path, "");
       for await (const row of importRows(file)) {
         validateImportHeader(file.kind, row.values, year);
+        const rowYear = Number(row.values.BusinessYear);
+        if (
+          Number.isInteger(rowYear) &&
+          rowYear >= 2006 &&
+          window &&
+          !window.includes(rowYear)
+        ) {
+          skippedYears.add(rowYear);
+          continue;
+        }
         const state = row.values.StateCode!;
         if (!buffers.has(state)) continue;
         counts.set(state, counts.get(state)! + 1);
@@ -106,6 +130,7 @@ export async function partitionPufs(
     }
     return {
       states: result,
+      skipped: planAnnualWork("puf", [...skippedYears]).skipped,
       cleanup: () => rm(directory, { recursive: true, force: true }),
     };
   } catch (error) {
@@ -130,6 +155,7 @@ export async function importAllStates(
     onState?: (result: StateImportResult) => void | Promise<void>;
   },
 ) {
+  requireImportYear("puf", options.year);
   const dataDir = options.dataDir ?? importDataDirectory();
   const acquired = options.files
     ? { files: options.files, manifestPath: null }
@@ -177,6 +203,7 @@ export async function importAllStates(
           {
             year: options.year,
             manifest_path: acquired.manifestPath,
+            skipped: partitions.skipped,
             states,
             results,
           },
@@ -193,6 +220,7 @@ export async function importAllStates(
   return {
     year: options.year,
     passed: results.every((result) => result.status === "ACTIVE"),
+    skipped: partitions.skipped,
     results,
   };
 }

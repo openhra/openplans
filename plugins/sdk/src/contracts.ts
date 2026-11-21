@@ -1,3 +1,4 @@
+import type { DataPolicy } from "./data-policy.js";
 import type {
   OperatorCommandClient,
   OperatorCommandRegistry,
@@ -43,6 +44,7 @@ export interface PluginDatabase {
 
 /** Non-secret settings visible to plugins. */
 export interface CoreConfigView {
+  data?: { historyYears: 3 | "all" };
   db: { provider: string };
   listen: { port: number; host: string };
   cache: {
@@ -70,20 +72,25 @@ export interface CoreConfigView {
   trustProxy: string[];
   cmsFallback: { enabled: boolean; quotes: boolean };
   plugins: {
-    package: string;
-    enabled: boolean;
-    options?: unknown;
-    optionalSecrets: string[];
-    sources: Record<
-      string,
-      {
-        cacheLevel?: CacheLevel;
-        ttl?: string;
-        staleWindow?: string;
-        negativeTtl?: string;
-      }
-    >;
-  }[];
+    approvedList?: string;
+    lockfile?: string;
+    requireApproval: boolean;
+    entries: {
+      package: string;
+      enabled: boolean;
+      options?: unknown;
+      optionalSecrets: string[];
+      sources: Record<
+        string,
+        {
+          cacheLevel?: CacheLevel;
+          ttl?: string;
+          staleWindow?: string;
+          negativeTtl?: string;
+        }
+      >;
+    }[];
+  };
 }
 
 /** One loaded plugin as the host reports it. `sha256` is the package hash (`packageSha256`). */
@@ -117,6 +124,7 @@ export interface HostAvailabilityEntry {
  * `undefined` result means the host cannot tell, never zero.
  */
 export interface StatusHost {
+  dataPolicy?(db: SqlSession): Promise<DataPolicy>;
   /** The core application version. */
   version?(): string | undefined;
   /** Clients waiting for a database connection. */

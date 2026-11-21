@@ -1,0 +1,817 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "oneOf": [
+    {
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "type": "number",
+          "const": 1
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 101,
+          "pattern": "^@[a-z0-9][a-z0-9-]*\\/[a-z0-9][a-z0-9._-]*$"
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)(?:-(?:0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*))*)?(?:\\+[0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*)?$"
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 240
+        },
+        "licence": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "attribution": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048
+        },
+        "apiVersion": {
+          "type": "string",
+          "const": "0.2"
+        },
+        "kinds": {
+          "maxItems": 32,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "routes",
+              "mcpTools",
+              "catalogPolicies",
+              "cacheStores",
+              "dbProviders",
+              "blobStores",
+              "sources",
+              "workerCommands",
+              "operatorCommands",
+              "schedules",
+              "events"
+            ]
+          }
+        },
+        "capabilities": {
+          "type": "object",
+          "properties": {
+            "network": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "secrets": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "writes": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": ["staging", "cache", "blobs", "events"]
+              }
+            },
+            "operatorRoutes": {
+              "type": "boolean"
+            },
+            "hostStatus": {
+              "type": "boolean"
+            },
+            "operatorDiagnostics": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        },
+        "hostPeers": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string",
+            "pattern": "^(?:hono|zod|@openplans\\/plugin-sdk)$"
+          },
+          "additionalProperties": {
+            "type": "string",
+            "pattern": "^(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)(?:-(?:0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*))*)?(?:\\+[0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*)?$"
+          }
+        },
+        "bundledDependencies": {
+          "maxItems": 128,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 101
+              },
+              "version": {
+                "type": "string",
+                "pattern": "^(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)(?:-(?:0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*))*)?(?:\\+[0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*)?$"
+              },
+              "licence": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "file": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 240,
+                "pattern": "^(?!.*(?:^|\\/)[nN][oO][dD][eE]_[mM][oO][dD][uU][lL][eE][sS](?:\\/|$))(?!.*\\.[nN][oO][dD][eE]$)[A-Za-z0-9_@+-][A-Za-z0-9_@+.-]*(?:\\/[A-Za-z0-9_@+-][A-Za-z0-9_@+.-]*)*$"
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              }
+            },
+            "required": ["name", "version", "licence", "file", "sha256"],
+            "additionalProperties": false
+          }
+        },
+        "planYears": {
+          "maxItems": 0,
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 2000,
+            "maximum": 2200
+          }
+        },
+        "provenance": {
+          "type": "object",
+          "properties": {
+            "builtAt": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+            },
+            "builder": {
+              "type": "string",
+              "enum": ["local", "github-actions"]
+            },
+            "sourceCommit": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{40,64}$"
+            },
+            "attestation": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 240,
+                  "pattern": "^(?!.*(?:^|\\/)[nN][oO][dD][eE]_[mM][oO][dD][uU][lL][eE][sS](?:\\/|$))(?!.*\\.[nN][oO][dD][eE]$)[A-Za-z0-9_@+-][A-Za-z0-9_@+.-]*(?:\\/[A-Za-z0-9_@+-][A-Za-z0-9_@+.-]*)*$"
+                },
+                "sha256": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                }
+              },
+              "required": ["path", "sha256"],
+              "additionalProperties": false
+            }
+          },
+          "required": ["builtAt", "builder", "sourceCommit"],
+          "additionalProperties": false
+        },
+        "files": {
+          "maxItems": 5000,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 240,
+                "pattern": "^(?!.*(?:^|\\/)[nN][oO][dD][eE]_[mM][oO][dD][uU][lL][eE][sS](?:\\/|$))(?!.*\\.[nN][oO][dD][eE]$)[A-Za-z0-9_@+-][A-Za-z0-9_@+.-]*(?:\\/[A-Za-z0-9_@+-][A-Za-z0-9_@+.-]*)*$"
+              },
+              "bytes": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              }
+            },
+            "required": ["path", "bytes", "sha256"],
+            "additionalProperties": false
+          }
+        },
+        "entrypoint": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 240,
+          "pattern": "^(?!.*(?:^|\\/)[nN][oO][dD][eE]_[mM][oO][dD][uU][lL][eE][sS](?:\\/|$))(?!.*\\.[nN][oO][dD][eE]$)[A-Za-z0-9_@+-][A-Za-z0-9_@+.-]*(?:\\/[A-Za-z0-9_@+-][A-Za-z0-9_@+.-]*)*$"
+        },
+        "kind": {
+          "type": "string",
+          "const": "plugin"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "name",
+        "version",
+        "summary",
+        "licence",
+        "attribution",
+        "apiVersion",
+        "kinds",
+        "capabilities",
+        "hostPeers",
+        "bundledDependencies",
+        "planYears",
+        "provenance",
+        "entrypoint",
+        "kind"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "type": "number",
+          "const": 1
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 101,
+          "pattern": "^@[a-z0-9][a-z0-9-]*\\/[a-z0-9][a-z0-9._-]*$"
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)(?:-(?:0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*))*)?(?:\\+[0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*)?$"
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 240
+        },
+        "licence": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "attribution": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048
+        },
+        "apiVersion": {
+          "type": "string",
+          "const": "0.2"
+        },
+        "kinds": {
+          "type": "array",
+          "prefixItems": [
+            {
+              "type": "string",
+              "const": "routes"
+            }
+          ],
+          "items": false,
+          "minItems": 1,
+          "maxItems": 1
+        },
+        "capabilities": {
+          "type": "object",
+          "properties": {
+            "network": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "secrets": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "writes": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": ["staging", "cache", "blobs", "events"]
+              }
+            },
+            "operatorRoutes": {
+              "type": "boolean"
+            },
+            "hostStatus": {
+              "type": "boolean"
+            },
+            "operatorDiagnostics": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        },
+        "hostPeers": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string",
+            "pattern": "^(?:hono|zod|@openplans\\/plugin-sdk)$"
+          },
+          "additionalProperties": {
+            "type": "string",
+            "pattern": "^(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)(?:-(?:0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*))*)?(?:\\+[0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*)?$"
+          }
+        },
+        "bundledDependencies": {
+          "maxItems": 128,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 101
+              },
+              "version": {
+                "type": "string",
+                "pattern": "^(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)(?:-(?:0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*))*)?(?:\\+[0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*)?$"
+              },
+              "licence": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "file": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 240,
+                "pattern": "^(?!.*(?:^|\\/)[nN][oO][dD][eE]_[mM][oO][dD][uU][lL][eE][sS](?:\\/|$))(?!.*\\.[nN][oO][dD][eE]$)[A-Za-z0-9_@+-][A-Za-z0-9_@+.-]*(?:\\/[A-Za-z0-9_@+-][A-Za-z0-9_@+.-]*)*$"
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              }
+            },
+            "required": ["name", "version", "licence", "file", "sha256"],
+            "additionalProperties": false
+          }
+        },
+        "planYears": {
+          "maxItems": 0,
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 2000,
+            "maximum": 2200
+          }
+        },
+        "provenance": {
+          "type": "object",
+          "properties": {
+            "builtAt": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+            },
+            "builder": {
+              "type": "string",
+              "enum": ["local", "github-actions"]
+            },
+            "sourceCommit": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{40,64}$"
+            },
+            "attestation": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 240,
+                  "pattern": "^(?!.*(?:^|\\/)[nN][oO][dD][eE]_[mM][oO][dD][uU][lL][eE][sS](?:\\/|$))(?!.*\\.[nN][oO][dD][eE]$)[A-Za-z0-9_@+-][A-Za-z0-9_@+.-]*(?:\\/[A-Za-z0-9_@+-][A-Za-z0-9_@+.-]*)*$"
+                },
+                "sha256": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                }
+              },
+              "required": ["path", "sha256"],
+              "additionalProperties": false
+            }
+          },
+          "required": ["builtAt", "builder", "sourceCommit"],
+          "additionalProperties": false
+        },
+        "files": {
+          "maxItems": 5000,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 240,
+                "pattern": "^(?!.*(?:^|\\/)[nN][oO][dD][eE]_[mM][oO][dD][uU][lL][eE][sS](?:\\/|$))(?!.*\\.[nN][oO][dD][eE]$)[A-Za-z0-9_@+-][A-Za-z0-9_@+.-]*(?:\\/[A-Za-z0-9_@+-][A-Za-z0-9_@+.-]*)*$"
+              },
+              "bytes": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              }
+            },
+            "required": ["path", "bytes", "sha256"],
+            "additionalProperties": false
+          }
+        },
+        "entrypoint": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 240,
+          "pattern": "^(?!.*(?:^|\\/)[nN][oO][dD][eE]_[mM][oO][dD][uU][lL][eE][sS](?:\\/|$))(?!.*\\.[nN][oO][dD][eE]$)[A-Za-z0-9_@+-][A-Za-z0-9_@+.-]*(?:\\/[A-Za-z0-9_@+-][A-Za-z0-9_@+.-]*)*$"
+        },
+        "kind": {
+          "type": "string",
+          "const": "ui-addon"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "name",
+        "version",
+        "summary",
+        "licence",
+        "attribution",
+        "apiVersion",
+        "kinds",
+        "capabilities",
+        "hostPeers",
+        "bundledDependencies",
+        "planYears",
+        "provenance",
+        "entrypoint",
+        "kind"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "type": "number",
+          "const": 1
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 101,
+          "pattern": "^@[a-z0-9][a-z0-9-]*\\/[a-z0-9][a-z0-9._-]*$"
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)(?:-(?:0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*))*)?(?:\\+[0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*)?$"
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 240
+        },
+        "licence": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "attribution": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048
+        },
+        "apiVersion": {
+          "type": "string",
+          "const": "0.2"
+        },
+        "kinds": {
+          "maxItems": 0,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "routes",
+              "mcpTools",
+              "catalogPolicies",
+              "cacheStores",
+              "dbProviders",
+              "blobStores",
+              "sources",
+              "workerCommands",
+              "operatorCommands",
+              "schedules",
+              "events"
+            ]
+          }
+        },
+        "capabilities": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        },
+        "hostPeers": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        },
+        "bundledDependencies": {
+          "maxItems": 0,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 101
+              },
+              "version": {
+                "type": "string",
+                "pattern": "^(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)(?:-(?:0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*))*)?(?:\\+[0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*)?$"
+              },
+              "licence": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "file": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 240,
+                "pattern": "^(?!.*(?:^|\\/)[nN][oO][dD][eE]_[mM][oO][dD][uU][lL][eE][sS](?:\\/|$))(?!.*\\.[nN][oO][dD][eE]$)[A-Za-z0-9_@+-][A-Za-z0-9_@+.-]*(?:\\/[A-Za-z0-9_@+-][A-Za-z0-9_@+.-]*)*$"
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              }
+            },
+            "required": ["name", "version", "licence", "file", "sha256"],
+            "additionalProperties": false
+          }
+        },
+        "planYears": {
+          "maxItems": 100,
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 2000,
+            "maximum": 2200
+          }
+        },
+        "provenance": {
+          "type": "object",
+          "properties": {
+            "builtAt": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+            },
+            "builder": {
+              "type": "string",
+              "enum": ["local", "github-actions"]
+            },
+            "sourceCommit": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{40,64}$"
+            },
+            "attestation": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 240,
+                  "pattern": "^(?!.*(?:^|\\/)[nN][oO][dD][eE]_[mM][oO][dD][uU][lL][eE][sS](?:\\/|$))(?!.*\\.[nN][oO][dD][eE]$)[A-Za-z0-9_@+-][A-Za-z0-9_@+.-]*(?:\\/[A-Za-z0-9_@+-][A-Za-z0-9_@+.-]*)*$"
+                },
+                "sha256": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                }
+              },
+              "required": ["path", "sha256"],
+              "additionalProperties": false
+            }
+          },
+          "required": ["builtAt", "builder", "sourceCommit"],
+          "additionalProperties": false
+        },
+        "files": {
+          "maxItems": 5000,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 240,
+                "pattern": "^(?!.*(?:^|\\/)[nN][oO][dD][eE]_[mM][oO][dD][uU][lL][eE][sS](?:\\/|$))(?!.*\\.[nN][oO][dD][eE]$)[A-Za-z0-9_@+-][A-Za-z0-9_@+.-]*(?:\\/[A-Za-z0-9_@+-][A-Za-z0-9_@+.-]*)*$"
+              },
+              "bytes": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              }
+            },
+            "required": ["path", "bytes", "sha256"],
+            "additionalProperties": false
+          }
+        },
+        "kind": {
+          "type": "string",
+          "const": "data"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "format": {
+              "type": "string",
+              "const": "original-public-files"
+            },
+            "files": {
+              "minItems": 1,
+              "maxItems": 5000,
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 240,
+                    "pattern": "^(?!.*(?:^|\\/)[nN][oO][dD][eE]_[mM][oO][dD][uU][lL][eE][sS](?:\\/|$))(?!.*\\.[nN][oO][dD][eE]$)[A-Za-z0-9_@+-][A-Za-z0-9_@+.-]*(?:\\/[A-Za-z0-9_@+-][A-Za-z0-9_@+.-]*)*$"
+                  },
+                  "bytes": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "expandedBytes": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "sha256": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  },
+                  "origin": {
+                    "type": "object",
+                    "properties": {
+                      "url": {
+                        "type": "string",
+                        "maxLength": 2048,
+                        "pattern": "^https:\\/\\/[^/?#@]+(?:\\/[^?#]*)?$"
+                      },
+                      "sha256": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^[a-f0-9]{64}$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "retrievedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                      },
+                      "admission": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 240,
+                            "pattern": "^(?!.*(?:^|\\/)[nN][oO][dD][eE]_[mM][oO][dD][uU][lL][eE][sS](?:\\/|$))(?!.*\\.[nN][oO][dD][eE]$)[A-Za-z0-9_@+-][A-Za-z0-9_@+.-]*(?:\\/[A-Za-z0-9_@+-][A-Za-z0-9_@+.-]*)*$"
+                          },
+                          "sha256": {
+                            "type": "string",
+                            "pattern": "^[a-f0-9]{64}$"
+                          }
+                        },
+                        "required": ["path", "sha256"],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": ["url", "retrievedAt", "admission"],
+                    "additionalProperties": false
+                  },
+                  "redistribution": {
+                    "type": "object",
+                    "properties": {
+                      "status": {
+                        "type": "string",
+                        "const": "allowed"
+                      },
+                      "termsUrl": {
+                        "type": "string",
+                        "maxLength": 2048,
+                        "pattern": "^https:\\/\\/[^/?#@]+(?:\\/[^?#]*)?$"
+                      },
+                      "evidence": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 240,
+                            "pattern": "^(?!.*(?:^|\\/)[nN][oO][dD][eE]_[mM][oO][dD][uU][lL][eE][sS](?:\\/|$))(?!.*\\.[nN][oO][dD][eE]$)[A-Za-z0-9_@+-][A-Za-z0-9_@+.-]*(?:\\/[A-Za-z0-9_@+-][A-Za-z0-9_@+.-]*)*$"
+                          },
+                          "sha256": {
+                            "type": "string",
+                            "pattern": "^[a-f0-9]{64}$"
+                          }
+                        },
+                        "required": ["path", "sha256"],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": ["status", "termsUrl", "evidence"],
+                    "additionalProperties": false
+                  },
+                  "chunks": {
+                    "minItems": 1,
+                    "maxItems": 4096,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "sha256": {
+                          "type": "string",
+                          "pattern": "^[a-f0-9]{64}$"
+                        },
+                        "bytes": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 67108864
+                        }
+                      },
+                      "required": ["sha256", "bytes"],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": [
+                  "path",
+                  "bytes",
+                  "expandedBytes",
+                  "sha256",
+                  "origin",
+                  "redistribution",
+                  "chunks"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": ["format", "files"],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "name",
+        "version",
+        "summary",
+        "licence",
+        "attribution",
+        "apiVersion",
+        "kinds",
+        "capabilities",
+        "hostPeers",
+        "bundledDependencies",
+        "planYears",
+        "provenance",
+        "kind",
+        "data"
+      ],
+      "additionalProperties": false
+    }
+  ]
+}

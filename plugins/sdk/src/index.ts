@@ -4,7 +4,7 @@ import {
   applicationStateDeclarationAllowed,
 } from "./application-state.js";
 
-export const PLUGIN_API_VERSION = "0.1" as const;
+export const PLUGIN_API_VERSION = "0.2" as const;
 
 const numericVersion = "(?:0|[1-9][0-9]*)";
 const prereleaseIdentifier = "(?:0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*)";
@@ -94,3 +94,5 @@ export * from "./application-state.js";
 export * from "./census-rows.js";
 
 export * from "./operator-commands.js";
+
+export * from "./data-policy.js";

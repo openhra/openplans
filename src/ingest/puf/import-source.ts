@@ -1,3 +1,4 @@
+import { requireImportYear } from "../data-window.js";
 import { createHash } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { open, readFile } from "node:fs/promises";
@@ -99,6 +100,7 @@ export async function manifestArchive(
   year: number,
   kind: string,
 ): Promise<Omit<ImportFile, "kind">> {
+  requireImportYear("puf", year);
   const candidates = manifest.files.filter(
     (file) => file.year === year && file.kind === kind,
   );
@@ -145,6 +147,7 @@ export async function cachedImportFiles(
   dataDir: string,
   year: number,
 ): Promise<{ files: ImportFile[]; manifestPath: string }> {
+  requireImportYear("puf", year);
   const { manifest, manifestPath, directory } =
     await newestPufManifest(dataDir);
   const files: ImportFile[] = [];

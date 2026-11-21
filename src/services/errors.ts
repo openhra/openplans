@@ -6,6 +6,11 @@ export class ReadError extends Error {
       message?: string;
       plan_id?: string;
       year?: number;
+      required_year?: number;
+      domain?: "individual" | "medicare";
+      allowed_years?: readonly number[];
+      policy_generation?: string;
+      reason?: string;
     },
   ) {
     super(error.code);

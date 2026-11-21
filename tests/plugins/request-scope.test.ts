@@ -184,6 +184,7 @@ describe("scope establishment rules", () => {
       "src/plugins/events.ts",
       "src/plugins/request-scope.ts",
       "src/services/catalog-policy.ts",
+      "src/services/data-window.ts",
     ]);
   });
 });

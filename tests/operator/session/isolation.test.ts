@@ -99,7 +99,7 @@ it("rejects cookie/form policy opt-in outside the admin package and reserves cor
       {
         name: plugin,
         version: "0.0.1",
-        apiVersion: "0.1",
+        apiVersion: "0.2",
         kinds: ["routes"],
         capabilities: { operatorRoutes: true },
       },

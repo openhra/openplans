@@ -1,3 +1,4 @@
+import { requireImportYear } from "../data-window.js";
 import {
   cachedPayloadPath,
   readCachedText,
@@ -123,6 +124,7 @@ export async function cachedGeorgiaAccess(
   year: number,
   options: { recoverUnescapedQuotes?: boolean } = {},
 ): Promise<ImportFile[]> {
+  requireImportYear("sbe", year);
   const found = new Map<ImportKind, GeorgiaAccessFile[]>();
   for (const name of await sidecarNames(dataDir, GEORGIA_ACCESS_SOURCE, {
     missing: "throw",

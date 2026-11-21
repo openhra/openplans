@@ -1,3 +1,4 @@
+import { privateEnvironment } from "./approval-helpers.js";
 import { PGlite } from "@electric-sql/pglite";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
@@ -825,8 +826,10 @@ describe("ingest event source ids", () => {
 
   it("runWorker reports the resolved id in every event of a core run", async () => {
     const { events } = testEvents();
+    const invalid = join(baseDataDir, "synthetic-invalid-state.json");
+    await writeFile(invalid, JSON.stringify({ plan_year: 2026 }));
     await runWorker(
-      ["ingest", "state", "--state", "NY", "--file", "/synthetic/missing.json"],
+      ["ingest", "state", "--state", "NY", "--file", invalid],
       shared,
       output(),
       directory,
@@ -922,7 +925,7 @@ describe("plugin.loaded from the API host", () => {
   });
 
   it("loads nothing without configured plugins, and reports a configured one", async () => {
-    const none = await loadApiPlugins({ env: {} });
+    const none = await loadApiPlugins({ env: privateEnvironment() });
     expect(none.plugins).toEqual([]);
     expect(none.registries).toBeUndefined();
     const scratch = await mkdtemp(join(tmpdir(), "openplans-api-plugins-"));
@@ -932,13 +935,13 @@ describe("plugin.loaded from the API host", () => {
         file,
         `// Synthetic API plugin fixture.
 export default {
-  manifest: { name: "@synthetic/api-routes", version: "0.0.1", apiVersion: "0.1", kinds: ["routes"] },
+  manifest: { name: "@synthetic/api-routes", version: "0.0.1", apiVersion: "0.2", kinds: ["routes"] },
   setup() {},
 };
 `,
       );
       const loaded = await loadApiPlugins({
-        env: { OPENPLANS_PLUGINS: file },
+        env: privateEnvironment({ OPENPLANS_PLUGINS: file }),
         exit: (code) => {
           throw new Error(`exit ${code}`);
         },

@@ -136,13 +136,13 @@ above the confirmed income cliff is a resolved calculation; an unknown credit is
 Native reason codes reach medical and dental search as gap entries. The list lives in
 `src/api/reason-codes.ts`, and a table-driven test checks every entry against this route.
 
-| Native code                        | Gap entry                          | When                                                                    |
-| ---------------------------------- | ---------------------------------- | ----------------------------------------------------------------------- |
-| `location_requires_zip`            | `subsidy_location_requires_zip`    | Income was sent and the benchmark needs a ZIP                           |
-| `zip_limited_service_area`         | `zip_limited_service_area`         | County only, and some plans serve only part of the county               |
+| Native code                        | Gap entry                          | When                                                                        |
+| ---------------------------------- | ---------------------------------- | --------------------------------------------------------------------------- |
+| `location_requires_zip`            | `subsidy_location_requires_zip`    | Income was sent and the benchmark needs a ZIP                               |
+| `zip_limited_service_area`         | `zip_limited_service_area`         | County only, and some plans serve only part of the county                   |
 | `zip_not_in_loaded_geography`      | `zip_not_in_loaded_geography`      | The ZIP is not in the loaded geography (with `zip_not_in_loaded_zcta_data`) |
-| `state_catalog_not_loaded`         | `state_catalog_not_loaded`         | No active catalog for the county's state and year, including NY/VT     |
-| `template_saved_before_submission` | `template_saved_before_submission` | A refused New York rate template leaves that issuer's plans out         |
+| `state_catalog_not_loaded`         | `state_catalog_not_loaded`         | No active catalog for the county's state and year, including NY/VT          |
+| `template_saved_before_submission` | `template_saved_before_submission` | A refused New York rate template leaves that issuer's plans out             |
 
 The Medicare codes `pricing_not_loaded`, `dispensing_fees_not_loaded`, `dispensing_fee_unknown`
 and `maximum_fair_price_not_in_effect` have no gap entry, because this API has no Medicare
@@ -208,6 +208,15 @@ and allow these nulls and empty collections.
   null. These are implementation/native-view gaps, not claims that CMS lacks
   those fields.
 - Plan columns come from the selected variant's Plan Attributes PUF row.
+  - `estimated_actuarial_value` converts `AVCalculatorOutputNumber` from a fraction
+    to a percentage without rounding. A published 0.701239428 becomes 70.1239428.
+    `actuarial_value` continues to read the separate `IssuerActuarialValue` cell.
+    A blank, malformed or out-of-range calculator cell stays null.
+  - `catalog_metadata` retains the selected variant's published CMS attributes,
+    with snapshot and source-row provenance. Blank cells are null. An absent or
+    mismatched year, state or plan variant returns `unknown` with null attributes
+    and provenance. Medical and dental plans use the same evidence object and
+    annual serving window as native plan views.
   - `standardized_plan` reads `DesignType`. "Design 1" and the other numbered
     designs are standardized options. "Not Applicable" means the plan is not one.
   - `essential_health_benefits_percentage` reads `EHBPercentTotalPremium`. The

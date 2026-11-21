@@ -1,6 +1,7 @@
+import { withDataPolicy } from "../services/data-window.js";
 import { boundOutput, measuredToolResult, outputSizeError } from "./bounded.js";
 import { assertCatalogToolAdmission } from "../plugins/catalog-policy.js";
-import { dataGeneration } from "../api/cache/generation.js";
+import { dataGeneration } from "../db/generation.js";
 import { z } from "zod";
 import { cachedJsonSchema, cachedToolDefinition } from "./definition-cache.js";
 import type {
@@ -200,7 +201,7 @@ export function registerLowestTool(
   );
   return definition;
 }
-export async function callLowestTool(deps: McpDependencies, value: unknown) {
+async function callScopedLowestTool(deps: McpDependencies, value: unknown) {
   deps.onCache?.("bypass");
   try {
     assertCatalogToolAdmission(deps.catalogPolicy, "get_lowest_premiums");
@@ -355,7 +356,7 @@ const marketSummaryInputSchemaForMcp = marketSummaryInputSchema.extend({
     .optional(),
 });
 
-export async function callMarketSummaryTool(
+async function callScopedMarketSummaryTool(
   deps: McpDependencies,
   value: unknown,
 ) {
@@ -443,7 +444,7 @@ export function registerBenchmarkTool(
   );
   return definition;
 }
-export async function callBenchmarkTool(deps: McpDependencies, value: unknown) {
+async function callScopedBenchmarkTool(deps: McpDependencies, value: unknown) {
   deps.onCache?.("bypass");
   try {
     assertCatalogToolAdmission(deps.catalogPolicy, BENCHMARK_TOOL);
@@ -485,4 +486,27 @@ export async function callBenchmarkTool(deps: McpDependencies, value: unknown) {
       new Date((deps.now ?? Date.now)()).toISOString(),
     );
   }
+}
+
+export function callLowestTool(deps: McpDependencies, value: unknown) {
+  return withDataPolicy(
+    deps.data ?? loadConfig().data,
+    () => callScopedLowestTool(deps, value),
+    new Date((deps.now ?? Date.now)()),
+  );
+}
+export function callMarketSummaryTool(deps: McpDependencies, value: unknown) {
+  return withDataPolicy(
+    deps.data ?? loadConfig().data,
+    () => callScopedMarketSummaryTool(deps, value),
+    new Date((deps.now ?? Date.now)()),
+  );
+}
+
+export function callBenchmarkTool(deps: McpDependencies, value: unknown) {
+  return withDataPolicy(
+    deps.data ?? loadConfig().data,
+    () => callScopedBenchmarkTool(deps, value),
+    new Date((deps.now ?? Date.now)()),
+  );
 }

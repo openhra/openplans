@@ -1,11 +1,11 @@
 {
-  "GET lowest-premiums": "f1b5cdedf163984fb000143d44eaaa02802d07bf22d7f9681da70134be5ab60f",
-  "POST lowest-premiums": "ab4d442309eae55c55760763486e7125d14f49118e0cfce1e7345eaebffae839",
+  "GET lowest-premiums": "db7e09264dc86f07f97392460d0ab089d0e475f42b6632397bab473fdb484458",
+  "POST lowest-premiums": "c57226f34e607849907246af3cd50bcdf40474763cfe31b415c524955d4acdaa",
   "GET market-summary": "a5e6ffc64df5f5e9eefb08f30c1de650c20298dd831bb7c81b08ed6d4207e5e0",
-  "POST market-summary": "6db091fb1a0775e146d293d6d946951898f423beb9106eab4f3058525ff2827b",
-  "lowest": "ae19063c9566d2b8e2fa1ee7d5463d93c437c71aeb4c47897817eab513bb9c7a",
+  "POST market-summary": "12c05112dee164ba5aa5b26a1752c8e25a9e30004e403a2fedb66965806b93a7",
+  "lowest": "cc9bf6b9a3f152f0e3cfbc66f91a167ea377bf2e8cdcf5e3ee460b87c409069a",
   "summary": "51637fa53b053e70d9f31f4fbe40f84526516f685b23b28424a46893207c4b40",
-  "household-lowest": "1824c64369bdf9df36457aa4ee5fea91cc3ef976f4dbb08ba4c6579fe3d10941",
-  "household-summary": "08f4c6dc1372f95c82b892fea1eaa9425b79b616c11c107bb5bc65e9036f2e4a",
+  "household-lowest": "2ff4e8adc2350c14acf3168462c17d5cffc077df5c2b816af2d6637995ab6615",
+  "household-summary": "5cb25b14a4dcb8e7fef5e982eb57827dc399aedf6e182e58578514a2d6be9b08",
   "benchmark": "a3e4fbf17a16a08c90d728e6b5173f5dddffcd97277222ea0bd0025f1a5fa2b9"
 }

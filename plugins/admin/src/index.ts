@@ -55,7 +55,7 @@ export function createAdminPlugin(
     manifest: {
       name: PLUGIN_NAME,
       version: PLUGIN_VERSION,
-      apiVersion: "0.1",
+      apiVersion: "0.2",
       tablePrefix: "admin",
       applicationState,
       kinds: ["routes"],

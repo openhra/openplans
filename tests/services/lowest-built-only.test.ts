@@ -228,18 +228,18 @@ it("the default inventory contains county/year ages 0 through 64 only", async ()
   expect(count).toBeGreaterThan(121);
   expect(found).toEqual(new Set(["48201:0", "48201:64", "county"]));
   await expect(
-    prebuildLowestPremiums(h.db, { years: [2099], dryRun: true }),
+    prebuildLowestPremiums(h.db, { years: [2025], dryRun: true }),
   ).rejects.toThrow("no loaded catalog");
 });
 
 it("published unknown evidence stays unknown and an unknown unbuilt year stays a 404", async () => {
   const unknown = lowestInput({
     ...input,
-    year: 2099,
-    coverage_start: "2099-01-01",
+    year: 2025,
+    coverage_start: "2025-01-01",
   });
   const app = createApp(h.db, { lowestPremiums: true });
-  const response = await app.request(query(40).replace("2026", "2099"));
+  const response = await app.request(query(40).replace("2026", "2025"));
   expect(response.status).toBe(404);
   expect(await response.text()).not.toContain("not covered");
   await buildLowestPremiums(h.db, unknown);
@@ -636,7 +636,7 @@ it("shares parsed filed rows across ages while preserving independent age result
 
 it("keeps refusal location ages exact and the digest stable after a single-cell rebuild", async () => {
   const inventory = [0, 63].map((age) =>
-    lowestInput({ county: input.county, year: 2098, age }),
+    lowestInput({ county: input.county, year: 2025, age }),
   );
   const keys = inventory.map(handyKey);
   const clear = async () => {

@@ -1,3 +1,4 @@
+import { approvedTestEnvironment } from "../../../tests/plugins/approval-helpers.js";
 import { fileURLToPath } from "node:url";
 import { PGlite } from "@electric-sql/pglite";
 import { describe, expect, it } from "vitest";
@@ -158,7 +159,7 @@ describe("template plugin", () => {
     try {
       await migrate(target, core.directory);
       const plugins = await loadWorkerPlugins({
-        env: { OPENPLANS_PLUGINS: indexFile },
+        env: await approvedTestEnvironment({ OPENPLANS_PLUGINS: indexFile }),
         exit: (code) => {
           throw new Error(`exit ${code}`);
         },

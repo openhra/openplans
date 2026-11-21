@@ -1,3 +1,4 @@
+import { ReadError } from "../services/errors.js";
 import { createHash, timingSafeEqual } from "node:crypto";
 import { Hono } from "hono";
 import type { SqlSession } from "../db/database.js";
@@ -129,6 +130,14 @@ export function ichraBatchRoutes(
     } catch (error) {
       if (signal.aborted)
         return c.json({ error: { code: "REQUEST_DEADLINE" } }, 504);
+      if (
+        error instanceof ReadError &&
+        ["not_loaded", "data_policy_unavailable"].includes(error.error.code)
+      )
+        return c.json(
+          { error: error.error },
+          error.error.code === "not_loaded" ? 404 : 503,
+        );
       if (error instanceof CensusError)
         return c.json(
           { error: { code: error.code } },

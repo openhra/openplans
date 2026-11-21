@@ -1,3 +1,4 @@
+import { planAnnualWork } from "../../ingest/data-window.js";
 import { currentEnvironment } from "../../config/index.js";
 import { createHash } from "node:crypto";
 import { readFile, rm } from "node:fs/promises";
@@ -1069,6 +1070,8 @@ export function createPassThrough(deps: PassThroughDeps): PassThroughApi {
     const levelUsed = level(source);
     const pairs: Pair[] = [];
     const settled: Pair[] = [];
+    const rejected = new Map<number, T>();
+    const window = planAnnualWork(source.id, []).allowed_years;
     answers.forEach((answer, index) => {
       // An earlier source already served this answer.
       if (skip.has(index)) return;
@@ -1079,6 +1082,13 @@ export function createPassThrough(deps: PassThroughDeps): PassThroughApi {
         return;
       }
       if (!question) return;
+      if (window && !window.includes(question.year)) {
+        if (eligible(source, answer, question)) {
+          const reason = reasonOf(source, "passthrough_year_not_served");
+          if (reason !== null) rejected.set(index, { ...answer, reason });
+        }
+        return;
+      }
       const pair = { index, question, key: keyOf(question) };
       if (eligible(source, answer, question)) pairs.push(pair);
       else if (answer.status !== "unknown" && answer.status !== "conflicting")
@@ -1088,7 +1098,9 @@ export function createPassThrough(deps: PassThroughDeps): PassThroughApi {
     const writer = sourceWriter(scope.writer, source);
     if (levelUsed === "stored" && writer && settled.length)
       await shadow(writer, source, kind, answers, settled);
-    if (!pairs.length) return answers;
+    if (!pairs.length && !rejected.size) return answers;
+    const out = answers.map((answer, index) => rejected.get(index) ?? answer);
+    if (!pairs.length) return out;
 
     const results = new Map<string, Result>();
     const stale = new Map<string, Result>();
@@ -1297,7 +1309,6 @@ export function createPassThrough(deps: PassThroughDeps): PassThroughApi {
       negatives.length && source.confirmIdentities
         ? await source.confirmIdentities(scope.reader, kind, negatives)
         : new Set<string>();
-    const out = [...answers];
     const ttl =
       levelUsed === "memory" ? memoryTtl(source, "answer") : undefined;
     for (const pair of pairs) {
@@ -1416,13 +1427,15 @@ export class PassThroughPolicyRefusal extends Error {
 
 /** Every enabled plugin entry's `sources` settings by source id; a later entry wins. */
 export function operatorSourcePolicies(config: {
-  plugins: readonly {
-    enabled: boolean;
-    sources: Readonly<Record<string, OperatorSourcePolicy>>;
-  }[];
+  plugins: {
+    entries: readonly {
+      enabled: boolean;
+      sources: Readonly<Record<string, OperatorSourcePolicy>>;
+    }[];
+  };
 }): Record<string, OperatorSourcePolicy> {
   const out: Record<string, OperatorSourcePolicy> = {};
-  for (const entry of config.plugins)
+  for (const entry of config.plugins.entries)
     if (entry.enabled)
       for (const [id, policy] of Object.entries(entry.sources))
         out[id] = { ...out[id], ...policy };

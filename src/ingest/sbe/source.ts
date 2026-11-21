@@ -1,3 +1,4 @@
+import { requireImportYear } from "../data-window.js";
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import {
@@ -116,6 +117,7 @@ export async function acquireSbe(
   link: SbeLink,
   dataDir: string,
 ): Promise<ImportFile[]> {
+  requireImportYear("sbe", link.year);
   // Reuse the earlier Georgia acquisition under its original source identity.
   const source =
     link.state === "GA" && link.year === 2026
@@ -135,6 +137,7 @@ export async function cachedSbe(
   link: SbeLink,
   dataDir: string,
 ): Promise<ImportFile[]> {
+  requireImportYear("sbe", link.year);
   for (const source of ["cms-sbe-puf", "cms-sbe-ga-2026"]) {
     // Through the fetch cache's store: a source with nothing stored lists no sidecars.
     const matches: SnapshotMetadata[] = [];

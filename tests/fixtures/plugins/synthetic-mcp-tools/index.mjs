@@ -42,7 +42,7 @@ export default {
   manifest: {
     name: "@synthetic/mcp-tools",
     version: "0.0.1",
-    apiVersion: "0.1",
+    apiVersion: "0.2",
     kinds: ["mcpTools"],
     options: z
       .strictObject({

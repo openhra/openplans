@@ -399,15 +399,13 @@ console.log(JSON.stringify(ichraRequest(JSON.parse(readFileSync(0, "utf8"))).w2P
       rmSync(directory, { recursive: true, force: true });
     }
   });
-  it("a refusal carries a status and no verdicts", async () => {
+  it("an excluded year carries not_loaded and no verdicts", async () => {
     const { response, json } = await post(body({ plan_start: "2027-01-01" }));
-    expect(response.status).toBe(200);
+    expect(response.status).toBe(404);
     expect(json).toMatchObject({
-      status: "unknown",
-      reason: "catalog_not_loaded",
-      verdicts: [],
-      bindable_quote: false,
+      error: { code: "not_loaded", required_year: 2027 },
     });
+    expect(json).not.toHaveProperty("verdicts");
   });
 });
 

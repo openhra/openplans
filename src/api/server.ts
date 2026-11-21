@@ -11,6 +11,7 @@ import { emitApiPluginLoaded, loadApiPlugins } from "../plugins/api.js";
 import { openHostDatabase, startHostStorage } from "../plugins/host-storage.js";
 import { startTelemetry } from "../telemetry/index.js";
 import type { StatusHostParts } from "../plugins/status-host.js";
+import { servingPolicy, withDataPolicy } from "../services/data-window.js";
 
 let calculationWorker: CalculationWorker | undefined;
 try {
@@ -28,6 +29,11 @@ try {
   const db = openHostDatabase(config);
   // Pool waits for the status host view come from this database.
   statusHost.database = db;
+  // Failed warm-ups are evicted; data reads retain their normal validation and refusal.
+  if (config.db.provider === "pg")
+    await withDataPolicy(config.data, () => servingPolicy(db)).catch(
+      () => undefined,
+    );
   const telemetry = startTelemetry({
     plugins: plugins.plugins,
     openDatabase: () => openHostDatabase(config),

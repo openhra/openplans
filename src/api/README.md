@@ -25,6 +25,7 @@ GET  /v1/providers?zip=77030&radius_miles=5[&plan_id=76589TX0010015&year=2026&ta
 GET  /v1/providers/1000000000[?year=2026]
 GET  /v1/plans/76589TX0010015/providers/1000000000?year=2026
 POST /v1/provider-participation
+GET  /v1/data-policy
 GET  /v1/data-availability[?state=TX&year=2026]
 GET  /v1/cache-stats
 GET  /v1/medicare/plans?county_fips=48201&year=2026[&type=ma|ma_pd|pdp|snp|cost&snp_type=&page=]
@@ -63,6 +64,15 @@ retain base and variant IDs, issuer/network records, exchange flags and the
 source snapshot IDs. Detail retains each benefit's published variant ID and raw
 and parsed cost-sharing text. A base-ID request selects the standard on-exchange variant (`-01`) for cost sharing.
 It never substitutes another variant when that evidence is missing.
+
+Plan views and premium estimates include `catalog_metadata` for the selected variant.
+Its `attributes` object uses normalized CMS column names and published values for plan type,
+HSA eligibility, dates, document links, design, EHB premium share and actuarial values.
+Blank cells are null. `AVCalculatorOutputNumber` retains its published fraction, while
+`IssuerActuarialValue` retains its published percentage. `provenance` identifies the
+snapshot and source row. If the selected row is absent or its year, state or plan ID
+differs, the status is `unknown` and attributes and provenance are null. The metadata
+uses the plan's annual serving window.
 
 ZIPs use Census ZCTAs, not postal delivery boundaries. Unknown/PO-box ZIPs return
 unknown, no guessed county. A ZIP spanning counties requires an explicit county;

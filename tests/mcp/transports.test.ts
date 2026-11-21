@@ -1,3 +1,4 @@
+import { approvedTestEnvironment } from "../plugins/approval-helpers.js";
 import { mkdtemp, symlink, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -283,7 +284,9 @@ it("modern official stdio client reads resources through the executable symlink"
   const transport = new StdioClientTransport({
     command: process.execPath,
     args: [link],
-    env: { DATABASE_URL: "postgresql://synthetic@127.0.0.1:1/synthetic" },
+    env: await approvedTestEnvironment({
+      DATABASE_URL: "postgresql://synthetic@127.0.0.1:1/synthetic",
+    }),
     stderr: "pipe",
   });
   try {

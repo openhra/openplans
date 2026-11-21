@@ -52,7 +52,7 @@ import type { McpDependencies } from "./tools.js";
 import type { ToolName, ToolOutput } from "./schemas.js";
 import { entityId } from "../services/discovery.js";
 import { getDataStatus } from "../services/provenance.js";
-import { dataGeneration } from "../api/cache/generation.js";
+import { dataGeneration } from "../db/generation.js";
 import { projector } from "./projection.js";
 import { ToolError, cursorCodec } from "./cursor.js";
 import { registerEstimateTool } from "./medicare-estimate.js";

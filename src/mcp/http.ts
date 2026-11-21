@@ -1,3 +1,4 @@
+import type { CoreConfig } from "../config/index.js";
 import { currentEnvironment } from "../config/index.js";
 import { activeRecorder } from "../telemetry/observer.js";
 import { performance } from "node:perf_hooks";
@@ -53,6 +54,7 @@ export interface McpLog {
   cache: CacheOutcome;
 }
 export interface HttpOptions {
+  config?: CoreConfig;
   env?: McpEnvironment;
   now?: () => number;
   log?: (entry: McpLog) => void;
@@ -92,7 +94,8 @@ function failure(
 
 export function createMcpHttp(db: SqlSession, options: HttpOptions = {}) {
   const cache = sharedResponseCache(db);
-  const config = loadConfig(options.env ?? currentEnvironment());
+  const config =
+    options.config ?? loadConfig(options.env ?? currentEnvironment());
   if (config.mcp.enabled && config.lowestPremiums && config.public.quoting) {
     for (const definition of [
       lowestToolDefinition(config.lowestPremiumsScope),

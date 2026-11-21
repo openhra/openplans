@@ -1,3 +1,4 @@
+import { requireAnnualYear } from "./data-window.js";
 import { guardCatalogPlans, catalogPolicyActive } from "./catalog-policy.js";
 import type { SqlSession } from "../db/database.js";
 import { createRxnormRepository } from "../ingest/rxnorm/repository.js";
@@ -101,6 +102,7 @@ export async function checkDrugCoverage(
   year: unknown,
   cms?: CmsFallbackContext,
 ) {
+  await requireAnnualYear(db, drugYear(year));
   if (catalogPolicyActive())
     await guardCatalogPlans([v.planId(plan).full], drugYear(year));
   const answer = await drugCoverage(
@@ -118,6 +120,7 @@ export async function checkDrugCoverages(
 ) {
   const request = coverageRequest(body),
     results = [];
+  await requireAnnualYear(db, request.year);
   await guardCatalogPlans(request.plans, request.year);
   for (const plan of request.plans)
     for (const code of request.codes)

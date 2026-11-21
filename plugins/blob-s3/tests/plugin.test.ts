@@ -34,7 +34,7 @@ const baseConfig: CoreConfigView = {
   mcp: { enabled: false, allowedHosts: [], allowedOrigins: [] },
   trustProxy: [],
   cmsFallback: { enabled: false, quotes: false },
-  plugins: [],
+  plugins: { requireApproval: false, entries: [] },
 };
 
 let fake: FakeS3;

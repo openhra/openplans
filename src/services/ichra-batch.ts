@@ -1,6 +1,6 @@
 import type { SqlSession } from "../db/database.js";
 import { boundedDatabase } from "../db/bounded.js";
-import { dataGeneration } from "../api/cache/generation.js";
+import { dataGeneration } from "../db/generation.js";
 import { InputError, ichraRequest } from "../api/validation.js";
 import { ichraAffordability } from "./ichra.js";
 import type { IchraRequest } from "./ichra.js";

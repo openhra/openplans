@@ -10,7 +10,7 @@
   },
   "age": {
     "status": 200,
-    "body_sha256": "039a69b13ac7ef75f8a0e6994a22e9ee0b8a6b832ac38fefaf3897f7563ab72c",
+    "body_sha256": "3e8934c74f771ffe4f36d2f6d010d83a1f1b0fb072cb492829eb3b356c181366",
     "headers": {
       "content-type": "application/json",
       "cache-control": "no-store",
@@ -19,7 +19,7 @@
   },
   "household": {
     "status": 200,
-    "body_sha256": "f642c4d718079cccbbe839d923194b10888936d91f2e136497e48ab735d003fe",
+    "body_sha256": "cd80239aedcaa47ad27013d36e154f88417e541418598d200651f33b22f5c210",
     "headers": {
       "content-type": "application/json",
       "cache-control": "no-store",
@@ -28,7 +28,7 @@
   },
   "age_print": {
     "status": 200,
-    "body_sha256": "0302e2a5a7c43edac90046545ecd0d3aa8e959d5c52fb14883e11ac13c794988",
+    "body_sha256": "a6d588d1d7f7a9c715c667560cc493493e856fcebfb8fd52a211aa098e45cb79",
     "headers": {
       "content-type": "text/html; charset=UTF-8",
       "cache-control": "no-store",
@@ -37,7 +37,7 @@
   },
   "household_print": {
     "status": 200,
-    "body_sha256": "d680e9501dab7e719b209337bc1fc4fefe5f9bacbc98a9b542bf2d97ca129f34",
+    "body_sha256": "615144d4ea76e7542e3d9b8fc362c8b0627a4109ef0d4d09571b2ad8eab86e7b",
     "headers": {
       "content-type": "text/html; charset=UTF-8",
       "cache-control": "no-store",
@@ -46,7 +46,7 @@
   },
   "tools": {
     "status": 200,
-    "body_sha256": "ac0e13e8b6b0d0037f26e1652d61a3d0b1a2a8aef2c8e1267264c2070a840cfe",
+    "body_sha256": "8b4d8477656f0d9dda550d0e5bf5bb274bc61af0fa31f86687d7dc049bfc6fbf",
     "headers": {
       "content-type": "application/json",
       "cache-control": "no-store",
@@ -55,7 +55,7 @@
   },
   "age_mcp": {
     "status": 200,
-    "body_sha256": "695fd809379583068a4a5d9c69036d6dcacb539b8e764a8dc2d1b2277bbfb83e",
+    "body_sha256": "241b7e4b45c870481a6354df389121c7dc19b0d4095bd98cd386bad65f92283b",
     "headers": {
       "content-type": "application/json",
       "cache-control": "no-store",
@@ -64,7 +64,7 @@
   },
   "household_mcp": {
     "status": 200,
-    "body_sha256": "9a2828805bb6196ec3dc826d2d9ca08414f170c404be71b4ac07f43e584b6a18",
+    "body_sha256": "1d08617429d304ae64118dff1cffbe24abdd3bb74f04aa4ba133491da4eb602e",
     "headers": {
       "content-type": "application/json",
       "cache-control": "no-store",

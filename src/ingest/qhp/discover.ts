@@ -1,3 +1,4 @@
+import { requireImportYear } from "../data-window.js";
 import { createReadStream } from "node:fs";
 import { createHash, randomUUID } from "node:crypto";
 import { isAbsolute } from "node:path";
@@ -267,6 +268,7 @@ export async function discoverQhp(
   db: Database,
   options: DiscoverOptions,
 ): Promise<DiscoveryReport> {
+  requireImportYear("qhp-discover", options.year);
   if (
     !Number.isInteger(options.year) ||
     options.year < 2014 ||

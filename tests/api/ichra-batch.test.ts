@@ -1,4 +1,8 @@
 import {
+  servingPolicy,
+  withDataPolicy,
+} from "../../src/services/data-window.js";
+import {
   afterAll,
   afterEach,
   beforeAll,
@@ -60,11 +64,15 @@ afterEach(() => {
   useRecorder(undefined);
 });
 const appFor = (db = h.db, options = {}) =>
-  createApp(db, {
-    premiumToken: TOKEN,
-    tpa: { enabled: true, privateIngress: true },
-    ...options,
-  });
+  createApp(
+    db,
+    {
+      premiumToken: TOKEN,
+      tpa: { enabled: true, privateIngress: true },
+      ...options,
+    },
+    { config: loadConfig({}, { version: 1, data: { historyYears: "all" } }) },
+  );
 async function send(
   app: ReturnType<typeof createApp>,
   payload: unknown,
@@ -396,21 +404,28 @@ it("generation control retries the whole batch and refuses a second publication"
     },
     exec: async () => {},
   };
-  // Unconfirmed year needs no catalog; only the generation reads change.
-  await expect(
-    ichraAffordabilityBatch(
-      db,
-      censusRows(rows([employee({ plan_start: "2040-01-01" })])),
-      new AbortController().signal,
-    ),
-  ).rejects.toThrow("GENERATION_CHANGED");
-  expect(generation).toBe(4);
+  await withDataPolicy({ historyYears: 3 }, async () => {
+    await servingPolicy(db);
+    generation = 0;
+    // The unconfirmed year needs no catalog; count only the batch stability checks.
+    await expect(
+      ichraAffordabilityBatch(
+        db,
+        censusRows(rows([employee({ plan_start: "2025-01-01" })])),
+        new AbortController().signal,
+      ),
+    ).rejects.toThrow("GENERATION_CHANGED");
+    expect(generation).toBe(4);
+  });
 });
 
 it("snapshot control uses a single read-only repeatable-read session before reading data", async () => {
   const exec = vi.fn(async () => {});
-  const query = vi.fn(async () => ({
-    rows: [{ generation: "synthetic-generation" }],
+  const query = vi.fn(async (sql: string) => ({
+    rows:
+      sql.includes("FROM annual_data_admission") || sql.includes("AS domain")
+        ? []
+        : [{ generation: "synthetic-generation" }],
   }));
   const db: SqlSession = {
     query: vi.fn(),
@@ -420,7 +435,7 @@ it("snapshot control uses a single read-only repeatable-read session before read
   };
   await ichraAffordabilityBatch(
     db,
-    censusRows(rows([employee({ plan_start: "2040-01-01" })])),
+    censusRows(rows([employee({ plan_start: "2025-01-01" })])),
     new AbortController().signal,
   );
   expect(exec).toHaveBeenCalledExactlyOnceWith(

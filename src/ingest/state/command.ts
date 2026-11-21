@@ -1,3 +1,4 @@
+import { requireAnnualDocument, reportImportSkip } from "../data-window.js";
 import type { Database } from "../../db/database.js";
 import { migrate, migrationsDirectory } from "../../db/migrate.js";
 import { ingestStateRates } from "./index.js";
@@ -8,6 +9,12 @@ export async function runState(
   output: { out(message: string): void; error(message: string): void },
   directory = migrationsDirectory,
 ): Promise<number> {
+  const dryRun = args.includes("--dry-run");
+  if (args.filter((arg) => arg === "--dry-run").length > 1) {
+    output.error("Duplicate --dry-run");
+    return 1;
+  }
+  args = args.filter((arg) => arg !== "--dry-run");
   const usage =
     "Usage: worker ingest state --state NY|VT --file /absolute/path/to/prepared-2026.json";
   let state: "NY" | "VT" | undefined, file: string | undefined;
@@ -31,10 +38,21 @@ export async function runState(
   let db: Database | undefined,
     code = 0;
   try {
+    const year = await requireAnnualDocument(file, "state-rates");
+    if (dryRun) {
+      output.out(
+        JSON.stringify({
+          planned: [{ dataset: "state-rates", year }],
+          skipped: [],
+        }),
+      );
+      return 0;
+    }
     db = openDatabase();
     await migrate(db, directory);
     output.out(JSON.stringify(await ingestStateRates(db, file, state)));
-  } catch {
+  } catch (error) {
+    if (reportImportSkip(error, output)) return 0;
     output.error(
       "State rate staging failed; check source artifacts and database. Prior staged import preserved.",
     );

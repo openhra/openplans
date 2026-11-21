@@ -119,7 +119,8 @@ async function run(m: Modules): Promise<Observed> {
     {},
     {
       version: 1,
-      plugins: [{ package: "./synthetic-passthrough/index.mjs" }],
+      public: { quoting: false, household: false, compat: false },
+      plugins: { entries: [{ package: "./synthetic-passthrough/index.mjs" }] },
     },
   );
   const loaded = await m.plugins.loadPlugins(config, "api", {

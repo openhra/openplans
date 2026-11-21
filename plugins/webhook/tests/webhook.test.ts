@@ -28,7 +28,7 @@ import type {
 import { createEventBus } from "../../../src/plugins/events.js";
 import { pluginFetch } from "../../../src/plugins/fetch.js";
 import type { PluginFetchSettings } from "../../../src/plugins/fetch.js";
-import { loadPlugins } from "../../../src/plugins/loader.js";
+import { loadPlugins } from "../../../tests/plugins/approval-helpers.js";
 import {
   checkEventPayloads,
   loadForTest,
@@ -253,18 +253,23 @@ async function load(
     {},
     {
       version: 1,
-      plugins: [
-        {
-          package: options.packagePath ?? indexPath,
-          options: { events: options.events ?? ["readiness.failed"] },
-        },
-      ],
+      plugins: {
+        entries: [
+          {
+            package: options.packagePath ?? indexPath,
+            options: { events: options.events ?? ["readiness.failed"] },
+          },
+        ],
+      },
     },
   );
   const manifest = options.manifest ?? admitted;
   try {
     const loaded = await loadPlugins(config, "worker", {
-      env: options.env ?? { [URL_SECRET]: URL_VALUE, [HMAC_SECRET]: SECRET },
+      env: {
+        OPENPLANS_WEBHOOK_HOST: HOST,
+        ...(options.env ?? { [URL_SECRET]: URL_VALUE, [HMAC_SECRET]: SECRET }),
+      },
       manifestPaths: [manifest],
       fetchFor: (pluginManifest) =>
         pluginFetch(pluginManifest, fetchSettings(manifest)),

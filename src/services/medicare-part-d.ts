@@ -1,3 +1,5 @@
+import { requireAnnualYear } from "./data-window.js";
+import { ReadError } from "./errors.js";
 import type { SqlSession } from "../db/database.js";
 import type { PartDDrugName } from "../api/medicare-schemas.js";
 import { loadConfig } from "../config/index.js";
@@ -12,19 +14,37 @@ export function partDEnabled(): boolean {
 }
 
 export async function partDStatus(db: SqlSession, year: number) {
+  await requireAnnualYear(db, year, "medicare");
   if (!partDEnabled())
     return { status: "unknown", reason: "pending_terms_review" };
   const release = (
     await db
-      .query<{ snapshot_id: string; as_of: string; kind: string }>(
-        `SELECT r.snapshot_id, r.as_of::text AS as_of, r.kind FROM partd_release r JOIN snapshot s USING(snapshot_id)
+      .query<{
+        snapshot_id: string;
+        contract_year: number;
+        as_of: string;
+        kind: string;
+      }>(
+        `SELECT r.snapshot_id, r.contract_year, r.as_of::text AS as_of, r.kind FROM partd_release r JOIN snapshot s USING(snapshot_id)
          WHERE s.validation_state='ACTIVE' AND r.contract_year=$1 ORDER BY r.as_of DESC LIMIT 1`,
         [year],
       )
       .catch(() => ({
-        rows: [] as { snapshot_id: string; as_of: string; kind: string }[],
+        rows: [] as {
+          snapshot_id: string;
+          contract_year: number;
+          as_of: string;
+          kind: string;
+        }[],
       }))
   ).rows[0];
+  if (release && release.contract_year !== year)
+    throw new ReadError({
+      code: "not_loaded",
+      required_year: year,
+      domain: "medicare",
+      reason: "contract_year_mismatch",
+    });
   return release
     ? {
         status: "available",
@@ -39,6 +59,7 @@ export async function partDStatus(db: SqlSession, year: number) {
 
 interface PartDRelease extends Record<string, unknown> {
   snapshot_id: string;
+  contract_year: number;
   kind: string;
   as_of: string;
   tables: string[];
@@ -48,16 +69,24 @@ async function partDRelease(
   year: number,
   table: string,
 ): Promise<PartDRelease | null> {
-  return (
+  await requireAnnualYear(db, year, "medicare");
+  const release =
     (
       await db.query<PartDRelease>(
-        `SELECT r.snapshot_id,r.kind,r.as_of::text AS as_of,r.tables FROM partd_release r
+        `SELECT r.snapshot_id,r.contract_year,r.kind,r.as_of::text AS as_of,r.tables FROM partd_release r
          JOIN snapshot s USING(snapshot_id) WHERE s.validation_state='ACTIVE' AND r.contract_year=$1
          AND $2 = ANY(r.tables) ORDER BY r.as_of DESC LIMIT 1`,
         [year, table],
       )
-    ).rows[0] ?? null
-  );
+    ).rows[0] ?? null;
+  if (release && release.contract_year !== year)
+    throw new ReadError({
+      code: "not_loaded",
+      required_year: year,
+      domain: "medicare",
+      reason: "contract_year_mismatch",
+    });
+  return release;
 }
 
 const costTypes: Record<string, string> = {

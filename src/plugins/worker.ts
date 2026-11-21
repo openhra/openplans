@@ -1,3 +1,4 @@
+import { approvalRequired, warnUnconfiguredApproval } from "./lock.js";
 import { currentEnvironment } from "../config/index.js";
 import { createHash, randomUUID } from "node:crypto";
 import { dirname, isAbsolute, resolve } from "node:path";
@@ -108,8 +109,18 @@ export async function loadWorkerPlugins(
   } catch {
     return NO_PLUGINS;
   }
-  const enabled = config.plugins.filter((entry) => entry.enabled);
-  if (enabled.length === 0) return NO_PLUGINS;
+
+  if (
+    !config.plugins.entries.some((entry) => entry.enabled) &&
+    !approvalRequired(config) &&
+    !config.plugins.approvedList
+  ) {
+    warnUnconfiguredApproval(
+      options.writeLog ?? ((line) => process.stderr.write(`${line}\n`)),
+    );
+    return NO_PLUGINS;
+  }
+  const enabled = config.plugins.entries.filter((entry) => entry.enabled);
   const base =
     options.baseDirectory ??
     (env.OPENPLANS_CONFIG ? dirname(env.OPENPLANS_CONFIG) : process.cwd());

@@ -2,7 +2,7 @@
 
 `@openplans/plugin-sdk` exports plugin, context, registry and source contracts,
 plus `pluginManifestSchema` and the 14 schemas in `eventPayloadSchemas`.
-The experimental plugin API version is `PLUGIN_API_VERSION`, now `0.1`. See
+The experimental plugin API version is `PLUGIN_API_VERSION`, now `0.2`. See
 [Versions](#versions).
 
 To write a plugin, start from [`plugins/template`](../template/README.md) and the
@@ -119,7 +119,7 @@ cannot be read.
 `PLUGIN_API_VERSION` is the plugin API version. A manifest's `apiVersion` must equal it exactly.
 The loader refuses anything else with `plugin_api_version_mismatch`, and `pluginManifestSchema`
 rejects it too. While the API is `0.x`, a breaking change raises the minor version and is listed
-below. The package's major and minor numbers follow the API version, so `0.1.x` serves `0.1`.
+below. The package's major and minor numbers follow the API version, so `0.2.x` serves `0.2`.
 The [plugin guide](../../docs/plugins.md#versions) says what counts as breaking and how plugin
 versions relate to the package hash and the approved list.
 

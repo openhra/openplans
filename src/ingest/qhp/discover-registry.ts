@@ -1,3 +1,4 @@
+import { requireImportYear } from "../data-window.js";
 import { createHash, randomUUID } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { link, mkdir, open, rm } from "node:fs/promises";
@@ -45,6 +46,7 @@ export async function cachedRegistry(
   dataDir: string,
   year: number,
 ): Promise<RegistryInput> {
+  requireImportYear("qhp-registry", year);
   if (!isAbsolute(dataDir)) throw new Error("Absolute data directory required");
   // The manifest and the snapshot it names are read through the fetch cache's store.
   const source = "cms-exchange-puf";

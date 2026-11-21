@@ -1,3 +1,4 @@
+import { requireAnnualYear } from "../../services/data-window.js";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import type { SqlSession } from "../../db/database.js";
@@ -327,7 +328,10 @@ export function providerCompatRoutes(db: SqlSession, native: Hono) {
         params.set("plan_id", v.planId(body.plan_id).full);
         params.set("year", String(v.year(String(body.year ?? 2026))));
         if (body.year === undefined) reasons.add("plan_year_defaulted_to_2026");
-      } else if (body.year !== undefined) v.year(String(body.year));
+      } else if (body.year !== undefined) {
+        const year = v.year(String(body.year));
+        await requireAnnualYear(db, year);
+      }
       if (body.specialty !== undefined && body.taxonomy !== undefined)
         return v.fail("specialty");
       if (body.taxonomy !== undefined || body.specialty !== undefined) {

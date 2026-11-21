@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createApp } from "../../src/api/app.js";
+import { loadConfig } from "../../src/config/index.js";
 import type { Database, SqlSession } from "../../src/db/database.js";
 import { ingestRatingRules } from "../../src/ingest/rating-rules/index.js";
 import { cmsCountySnapshot } from "../../src/ingest/geo/cms.js";
@@ -58,7 +59,11 @@ describe("ZIP lookups in read-only request scopes", () => {
     await h.db.exec(
       "UPDATE cms_zip_budget SET next_request_at='epoch',blocked_until='epoch',daily_requests=0",
     );
-    const app = createApp(readOnly, { premiumToken: TOKEN });
+    const app = createApp(
+      readOnly,
+      { premiumToken: TOKEN },
+      { config: loadConfig({}, { version: 1, data: { historyYears: "all" } }) },
+    );
     for (const zip of UNLOADED_ZIPS) {
       for (const year of [2025, 2026, 2027]) {
         const response = await app.request(

@@ -667,6 +667,17 @@ export async function planCostSharing(
   const selectedAttributes = attributes.rows.find(
     (row) => row.variant_plan_id === selected,
   );
+  const published = selectedAttributes
+    ? publishedPlanColumns(selectedAttributes.raw)
+    : undefined;
+  const metadataAvailable = !!(
+    published &&
+    selected &&
+    published.PlanId === selected &&
+    published.StandardComponentId === detailPlan.base_plan_id &&
+    published.BusinessYear === String(detailPlan.plan_year) &&
+    published.StateCode === detailPlan.state
+  );
   const amounts = attributeCostSharing(selectedAttributes?.raw ?? {});
   // Orphan benefit rows never authorize substitution for missing variant attributes.
   const rows = attribute
@@ -689,6 +700,19 @@ export async function planCostSharing(
       : {}),
     variant_ids: variants.map((row) => row.variant_plan_id),
     variants,
+    catalog_metadata: {
+      status: metadataAvailable ? ("available" as const) : ("unknown" as const),
+      variant_plan_id: selected,
+      attributes: metadataAvailable
+        ? Object.fromEntries(
+            PLAN_COLUMN_KEYS.map((key) => [
+              key,
+              published?.[key]?.trim() ? published[key] : null,
+            ]),
+          )
+        : null,
+      provenance: metadataAvailable ? (attribute?.provenance ?? null) : null,
+    },
     csr_eligibility_status: "not_evaluated" as const,
     premium_basis: plan.state_catalog
       ? "state_filed_tier"

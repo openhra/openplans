@@ -1,3 +1,4 @@
+import { privateEnvironment } from "./approval-helpers.js";
 import { PGlite } from "@electric-sql/pglite";
 import { createHash } from "node:crypto";
 import {
@@ -646,6 +647,37 @@ describe("feed sources as worker commands", () => {
     commands: readonly PluginWorkerCommand[],
   ) => runWorker(args, keepOpen, options().output!, undefined, commands);
 
+  it("handles an annual feed's CLI dry-run before planning or staging", async () => {
+    const entries = await collected();
+    entries[0]!.spec = {
+      ...syntheticSource,
+      dataScope: { kind: "annual", domain: "individual", years: () => [2024] },
+    };
+    const commands = feedWorkerCommands(
+      entries,
+      new Set(["@synthetic/feed"]),
+      {} as never,
+      options(),
+    );
+    expect(
+      await worker(
+        ["ingest", "synthetic-feed", "--case", "happy", "--dry-run"],
+        commands,
+      ),
+    ).toBe(0);
+    expect(requests).toEqual([]);
+    expect(await snapshots()).toEqual([]);
+    expect(JSON.parse(out[0]!) as unknown).toMatchObject({
+      skipped: [
+        {
+          dataset: "synthetic-feed",
+          year: 2024,
+          reason: "outside_data_window",
+        },
+      ],
+    });
+  });
+
   it("runs `worker ingest <source>` through the worker dispatch", async () => {
     const commands = feedWorkerCommands(
       await collected(),
@@ -655,6 +687,7 @@ describe("feed sources as worker commands", () => {
     );
     expect(commands.map(({ spec }) => spec.argv)).toEqual([
       ["ingest", "synthetic-feed"],
+      ["ingest", "package", "synthetic-feed"],
     ]);
     expect(
       await worker(["ingest", "synthetic-feed", "--case", "happy"], commands),
@@ -700,6 +733,7 @@ describe("feed sources as worker commands", () => {
   it("registers feed sources from the plugin loader as worker commands", async () => {
     const loaded = await loadWorkerPlugins({
       env: {
+        ...privateEnvironment(),
         OPENPLANS_PLUGINS: fileURLToPath(new URL("index.mjs", fixture)),
         OPENPLANS_ACCESS_MANIFEST: manifestPath,
       },
@@ -719,6 +753,11 @@ describe("feed sources as worker commands", () => {
         {
           plugin: "@synthetic/feed",
           argv: ["ingest", "synthetic-feed"],
+          writer: true,
+        },
+        {
+          plugin: "@synthetic/feed",
+          argv: ["ingest", "package", "synthetic-feed"],
           writer: true,
         },
       ]);

@@ -115,7 +115,7 @@ describe("core schedules", () => {
       {
         name: "@synthetic/scheduler",
         version: "0.0.1",
-        apiVersion: "0.1",
+        apiVersion: "0.2",
         kinds: ["schedules"],
       },
       "worker",

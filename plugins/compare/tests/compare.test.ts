@@ -1,7 +1,8 @@
+import { callPluginTool } from "../../../src/plugins/mcp-tools.js";
 import { afterAll, afterEach, beforeAll, expect, it, vi } from "vitest";
 import { offerCohortInputSchema } from "@openplans/plugin-sdk";
 import { setup } from "../../../tests/compat/v1/helpers.js";
-import { loadPlugins } from "../../../src/plugins/loader.js";
+import { loadPlugins } from "../../../tests/plugins/approval-helpers.js";
 import { createCalculationHost } from "../../../src/plugins/calculation-host.js";
 import { loadConfig } from "../../../src/config/index.js";
 import { createApp } from "../../../src/api/app.js";
@@ -29,7 +30,7 @@ const config = (enabled = true, quoting = true, tpa = false) =>
       version: 1,
       public: { quoting },
       tpa: { enabled: tpa, privateIngress: tpa },
-      plugins: [{ package: packagePath, enabled }],
+      plugins: { entries: [{ package: packagePath, enabled }] },
     },
   );
 
@@ -39,9 +40,13 @@ beforeAll(async () => {
   vi.setSystemTime(new Date("2026-11-16T00:00:00Z"));
 });
 afterEach(async () => {
-  await loadPlugins(loadConfig({}, { version: 1, plugins: [] }), "api", {
-    env: {},
-  });
+  await loadPlugins(
+    loadConfig({}, { version: 1, plugins: { entries: [] } }),
+    "api",
+    {
+      env: {},
+    },
+  );
 });
 afterAll(async () => {
   vi.useRealTimers();
@@ -266,7 +271,7 @@ it("rejects future inputs and private fields, enforces work budget and cancellat
 it("escapes source markup and prints unknown amounts explicitly", async () => {
   const host = createCalculationHost(config());
   const cell = await host.enumerateHouseholdOffers(
-    offerCohortInputSchema.parse({ ...input, year: 2040 }),
+    offerCohortInputSchema.parse({ ...input, year: 2025 }),
     { db: h.db, signal: new AbortController().signal },
   );
   cell.evidence.unknown.push({ reason: "<script>synthetic</script>" });
@@ -328,4 +333,38 @@ it("kills disabled_quote_access mutant with the host authorization assertion", a
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
+});
+
+it("preserves excluded-year dependencies on REST, print and MCP", async () => {
+  const loaded = await loadPlugins(config(), "api", { env: {} });
+  const app = createApp(h.db, {}, { plugins: loaded.registries });
+  const args = { ...input, year: 2024 };
+  for (const response of [
+    await app.request(
+      "/compare/v1/market?zip=77002&county=48201&year=2024&age=40",
+    ),
+    await app.request("/compare/v1/print", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(args),
+    }),
+  ]) {
+    expect(response.status).toBe(404);
+    expect(await response.json()).toMatchObject({
+      error: { code: "not_loaded", required_year: 2024 },
+    });
+  }
+  const tool = loaded.registries.mcpTools.find(
+    ({ spec }) => spec.name === "compare_market_costs",
+  )!;
+  const result = await callPluginTool(
+    { db: h.db },
+    tool.spec,
+    args,
+    new AbortController().signal,
+  );
+  expect(result.structuredContent).toMatchObject({
+    data: null,
+    error: { code: "not_loaded", required_year: 2024 },
+  });
 });

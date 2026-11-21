@@ -1,3 +1,4 @@
+import { servingPolicy } from "./data-window.js";
 import {
   sbeAvailabilitySources,
   availabilityGeography,
@@ -93,11 +94,17 @@ export async function dataAvailability(
   db: SqlSession,
   scope?: { state: string; year: number; issuers?: ReadonlySet<string> },
 ): Promise<Record<string, unknown>[]> {
+  const policy = await servingPolicy(db);
+  const inWindow = (year: number) =>
+    policy.history_years === "all" ||
+    policy.domains.individual.allowed_years.includes(year);
   const inScope = (entry: Record<string, unknown>) =>
-    !scope ||
-    (entry.state === scope.state &&
-      entry.plan_year === scope.year &&
-      (!scope.issuers?.size || scope.issuers.has(entry.issuer_id as string)));
+    inWindow(Number(entry.plan_year)) &&
+    (!scope ||
+      (entry.state === scope.state &&
+        entry.plan_year === scope.year &&
+        (!scope.issuers?.size ||
+          scope.issuers.has(entry.issuer_id as string))));
   // Quote availability must not rate-check every catalog in a national import.
   const manifest = (await coverageManifest(db)).filter(inScope);
   const drugs = (await drugAvailability(db)).filter(inScope);
@@ -271,7 +278,9 @@ export async function dataAvailability(
         drug_status: "unknown",
         provider_coverage: provider,
       });
-  const scopes = (await activeStateScopes(db)).rows;
+  const scopes = (await activeStateScopes(db)).rows.filter((row) =>
+    inWindow(row.plan_year),
+  );
   for (const stateScope of scopes) {
     if (
       scope &&
@@ -325,6 +334,7 @@ export async function dataAvailability(
   }
   const catalogs = new Map<string, Promise<boolean>>();
   const loaded = (state: string, year: number) => {
+    if (!inWindow(year)) return Promise.resolve(false);
     const key = `${state}:${year}`;
     if (!catalogs.has(key))
       catalogs.set(

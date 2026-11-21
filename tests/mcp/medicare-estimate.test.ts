@@ -1,3 +1,4 @@
+import { approvedTestEnvironment } from "../plugins/approval-helpers.js";
 import { spawn } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { Readable } from "node:stream";
@@ -675,15 +676,15 @@ describe("estimate_medicare_drug_costs over the fixture Part D files", () => {
 });
 
 describe("stdio follows the personalized-tool rules", () => {
-  function stdioList(env: Record<string, string>) {
+  async function stdioList(env: Record<string, string>) {
+    const reviewed = await approvedTestEnvironment({
+      PATH: process.env.PATH,
+      DATABASE_URL: "postgresql://synthetic:synthetic@127.0.0.1:1/synthetic",
+      ...env,
+    });
     return new Promise<string>((resolve, reject) => {
       const child = spawn(process.execPath, ["dist/mcp/stdio.js"], {
-        env: {
-          PATH: process.env.PATH,
-          DATABASE_URL:
-            "postgresql://synthetic:synthetic@127.0.0.1:1/synthetic",
-          ...env,
-        },
+        env: reviewed,
         stdio: ["pipe", "pipe", "pipe"],
       });
       let output = "";

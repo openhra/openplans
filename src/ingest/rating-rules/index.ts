@@ -1,3 +1,4 @@
+import { requireImportYear, requireAnnualDocument } from "../data-window.js";
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
@@ -68,8 +69,10 @@ function parseFile(text: string): RulesFile {
 }
 
 export async function ingestRatingRules(db: Database, path = defaultRulesFile) {
+  await requireAnnualDocument(path, "rating-rules");
   const bytes = await readFile(path),
     document = parseFile(bytes.toString("utf8"));
+  requireImportYear("rating-rules", document.plan_year);
   const hash = createHash("sha256").update(bytes).digest("hex");
   const source = `openplans-rating-rules-${document.plan_year}`,
     snapshot = `${source}:${hash}`;

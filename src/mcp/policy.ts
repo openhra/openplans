@@ -1,3 +1,4 @@
+import { withDataPolicy } from "../services/data-window.js";
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import type { SqlSession } from "../db/database.js";
 import type { McpDependencies } from "./server.js";
@@ -49,6 +50,7 @@ export function configDependencies(
     ...(estimateGranted ? { medicareEstimateGrant: true } : {}),
     db,
     catalogPolicy: config.catalogPolicy,
+    data: config.data,
     cursorSecret: config.tokens.mcpCursorSecret?.reveal() || processSecret,
     principal: granted ? { id: "personalized" } : undefined,
     policy: { canEstimate: (principal) => principal?.id === "personalized" },
@@ -78,17 +80,22 @@ export async function withRequestDependencies<T>(
 ): Promise<T> {
   const deadline = AbortSignal.any([signal, AbortSignal.timeout(DEADLINE_MS)]);
   const invoke = (db: SqlSession) =>
-    run({
-      ...deps,
-      db: boundedDatabase(
-        {
-          query: db.query.bind(db),
-          exec: db.exec.bind(db),
-          background: deps.db.background ?? db.background ?? deps.db,
-        },
-        deadline,
-      ),
-    });
+    withDataPolicy(
+      deps.data ?? loadConfig().data,
+      () =>
+        run({
+          ...deps,
+          db: boundedDatabase(
+            {
+              query: db.query.bind(db),
+              exec: db.exec.bind(db),
+              background: deps.db.background ?? db.background ?? deps.db,
+            },
+            deadline,
+          ),
+        }),
+      new Date((deps.now ?? Date.now)()),
+    );
   return deps.db.withRequest
     ? deps.db.withRequest(deadline, invoke)
     : invoke(deps.db);

@@ -11,6 +11,7 @@ import { attributeCostSharing } from "../../../src/domain/csr/index.js";
 // Document URLs, DesignType, EHBPercentTotalPremium and the plan dates of each cited row.
 const designColumns: Record<string, Record<string, unknown>> = {
   "87226TX0100013": {
+    estimated_actuarial_value: null,
     benefits_summary_url:
       "https://api.centene.com/SBC/2026/87226TX0100013-01.pdf",
     plan_documents: [
@@ -26,6 +27,7 @@ const designColumns: Record<string, Record<string, unknown>> = {
     plan_calendar: null,
   },
   "11718TX0140016": {
+    estimated_actuarial_value: 61.40991017155499,
     benefits_summary_url:
       "https://www.communityhealthchoice.org/wp-content/uploads/2025/08/11718TX0140016-01-2026.pdf",
     plan_documents: [
@@ -43,6 +45,7 @@ const designColumns: Record<string, Record<string, unknown>> = {
     plan_calendar: "calendar_year",
   },
   "11177NY0220001": {
+    estimated_actuarial_value: 81.9768543,
     // The state file leaves both document URL cells blank.
     benefits_summary_url: null,
     plan_documents: [],
@@ -52,6 +55,7 @@ const designColumns: Record<string, Record<string, unknown>> = {
     plan_calendar: "calendar_year",
   },
   "13627VT0340003": {
+    estimated_actuarial_value: 80.7122454,
     // The state file leaves both document URL cells blank.
     benefits_summary_url: null,
     plan_documents: [],

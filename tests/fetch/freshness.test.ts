@@ -312,7 +312,7 @@ describe("publisher freshness check", () => {
       source,
       replaceSyntax(
         await readFile(source, "utf8"),
-        "result.names.filter((name) => servedName(target, name))",
+        "result.names.filter((name) => servedName(target, name, now))",
         "result.names",
       ),
       async (file) => {

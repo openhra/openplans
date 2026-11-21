@@ -1,3 +1,5 @@
+import { planAnnualWork } from "../ingest/data-window.js";
+import type { AnnualSkip } from "../ingest/data-window.js";
 import { databaseUrl } from "../config/access.js";
 import { ingestStateRates } from "../ingest/state/index.js";
 import { ingestSbeGeography } from "../ingest/sbe/geography.js";
@@ -112,6 +114,7 @@ export interface BootstrapStep {
   depends_on: string[];
   estimated_download_bytes: number | "unknown";
   skip_reason?: string;
+  annual_skip?: AnnualSkip;
   run(): Promise<StepOutcome>;
 }
 export interface StepResult extends StepOutcome {
@@ -238,7 +241,7 @@ export function parseBootstrapOptions(args: string[]): BootstrapOptions {
     years = (flags.get("--years") ?? "").split(",");
   if (
     states.some((state) => !Object.hasOwn(STATE_FIPS, state)) ||
-    years.some((year) => !/^(2026|2027)$/.test(year))
+    years.some((year) => !/^20\d{2}$/.test(year))
   )
     throw new Error(usage);
   return {
@@ -279,6 +282,7 @@ export async function executeBootstrap(
         id: step.id,
         status: "skipped",
         reason: step.skip_reason,
+        ...(step.annual_skip ? { evidence: step.annual_skip } : {}),
         elapsed_ms: 0,
       };
     else if (dryRun) result = { id: step.id, status: "planned", elapsed_ms: 0 };
@@ -329,6 +333,9 @@ export async function executeBootstrap(
   const summary = {
     command: "bootstrap",
     dry_run: dryRun,
+    skipped: steps.flatMap((step) =>
+      step.annual_skip ? [step.annual_skip] : [],
+    ),
     passed: !failed.length && !blocked.length,
     failed,
     blocked,
@@ -419,10 +426,26 @@ export async function bootstrapPlan(
   directory = migrationsDirectory,
   sbeScopes: readonly { state: string; year: number }[] = [],
 ): Promise<BootstrapStep[]> {
+  const work = planAnnualWork("bootstrap", options.years);
+  options = { ...options, years: work.years };
+  const skipped: BootstrapStep[] = work.skipped.map((skip) => ({
+    id: `skip-${skip.year}`,
+    depends_on: [],
+    estimated_download_bytes: 0,
+    skip_reason: skip.reason,
+    annual_skip: skip,
+    run: async () => ({ skipped: true, reason: skip.reason }),
+  }));
+  if (!options.years.length) return skipped;
   if (!isAbsolute(dataDir)) fail("absolute_data_directory_required");
   const profile = options.qhpProfile
     ? await readQhpProfile(options.qhpProfile)
     : undefined;
+  if (profile)
+    profile.scopes = profile.scopes.filter(
+      (scope) =>
+        work.allowed_years === null || work.allowed_years.includes(scope.year),
+    );
   if (
     profile &&
     (!options.providers ||
@@ -437,7 +460,7 @@ export async function bootstrapPlan(
   )
     fail("prepared_qhp_scope_mismatch");
   const preparedFetcher = profile ? preparedQhpFetcher(profile) : undefined;
-  const steps: BootstrapStep[] = [];
+  const steps: BootstrapStep[] = [...skipped];
   const add = (
     id: string,
     depends_on: string[],

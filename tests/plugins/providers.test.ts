@@ -7,7 +7,8 @@ import { RespCache } from "../../src/api/cache/resp.js";
 import { MemoryCache } from "../../src/api/cache/store.js";
 import { loadConfig } from "../../src/config/index.js";
 import type { SqlSession } from "../../src/db/database.js";
-import { currentRegistries, loadPlugins } from "../../src/plugins/index.js";
+import { currentRegistries } from "../../src/plugins/index.js";
+import { loadPlugins } from "./approval-helpers.js";
 import type { LoadedPlugins } from "../../src/plugins/index.js";
 import {
   CORE_PLUGIN_NAME,
@@ -34,7 +35,12 @@ const synthetic = () =>
   ).syntheticCacheStore!;
 
 const fakeDb = {
-  query: async () => ({ rows: [{ generation: "synthetic-generation" }] }),
+  query: async (sql: string) => ({
+    rows:
+      sql.includes("FROM annual_data_admission") || sql.includes("AS domain")
+        ? []
+        : [{ generation: "synthetic-generation" }],
+  }),
   exec: async () => {},
 } as unknown as SqlSession;
 
@@ -51,17 +57,26 @@ async function load(
     {},
     {
       version: 1,
+      public: { quoting: false, household: false, compat: false },
       ...settings,
-      plugins: plugins.map((name) => ({
-        package: `./synthetic-${name}/index.mjs`,
-      })),
+      plugins: {
+        entries: plugins.map((name) => ({
+          package: `./synthetic-${name}/index.mjs`,
+        })),
+      },
     },
   );
   const loaded: LoadedPlugins | undefined = await loader(config, "api", {
     env: {},
     baseDirectory: fixtures,
     manifestPaths: [shipped],
-    writeLog: (line) => lines.push(line),
+    writeLog: (line) => {
+      if (
+        (JSON.parse(line) as { code?: string }).code !==
+        "plugin_approval_unconfigured"
+      )
+        lines.push(line);
+    },
     exit: (code) => {
       exit = code;
       throw new Exit();

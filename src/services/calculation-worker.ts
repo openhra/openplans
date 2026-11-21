@@ -1,3 +1,4 @@
+import { withDataPolicy } from "./data-window.js";
 import { calculationError } from "./calculation-executor.js";
 import { parentPort } from "node:worker_threads";
 import type { CalculationScope } from "@openplans/plugin-sdk";
@@ -103,7 +104,11 @@ port.on("message", (message: WorkerRequest) => {
         ) => Promise<unknown>;
         if (typeof calculate !== "function")
           throw new Error("calculation_method_invalid");
-        const result = await calculate(message.input, scope, message.options);
+        const result = await withDataPolicy(
+          message.dataPolicy.config,
+          () => calculate(message.input, scope, message.options),
+          new Date(message.dataPolicy.time),
+        );
         port.postMessage({
           type: "result",
           id: message.id,

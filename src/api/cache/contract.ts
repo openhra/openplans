@@ -55,7 +55,12 @@ const validBytes = (store: CacheStore) => {
 
 /** Synthetic database: one fixed generation row, so the response cache can build keys. */
 const generationOnly = {
-  query: async () => ({ rows: [{ generation: "contract-generation" }] }),
+  query: async (sql: string) => ({
+    rows:
+      sql.includes("FROM annual_data_admission") || sql.includes("AS domain")
+        ? []
+        : [{ generation: "contract-generation" }],
+  }),
   exec: async () => {},
 } as unknown as SqlSession;
 

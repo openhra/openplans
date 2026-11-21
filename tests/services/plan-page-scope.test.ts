@@ -103,6 +103,7 @@ async function unscopedCatalog() {
 /**
  * The query budget per catalog page: one per distinct shared lookup plus a fixed number. The
  * page reads every plan's variants and benefits together, and the crosswalk check once.
+ * Two fixed reads validate the annual policy and its published-year inventory.
  */
 function requireBudget(
   seen: { total: number; shared: number },
@@ -111,7 +112,7 @@ function requireBudget(
   const sharedBudget = 1 + lookups.issuers + lookups.networks;
   if (seen.shared > sharedBudget)
     throw new Error(`shared lookups ${seen.shared} exceed ${sharedBudget}`);
-  if (seen.total > sharedBudget + 10)
+  if (seen.total > sharedBudget + 12)
     throw new Error(`queries ${seen.total} exceed the page budget`);
 }
 

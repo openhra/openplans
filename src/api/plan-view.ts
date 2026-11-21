@@ -11,6 +11,7 @@ export const PLAN_COLUMN_KEYS = [
   "IsReferralRequiredForSpecialist",
   "PlanVariantMarketingName",
   "IssuerActuarialValue",
+  "AVCalculatorOutputNumber",
   "DesignType",
   "EHBPercentTotalPremium",
   "URLForSummaryofBenefitsCoverage",

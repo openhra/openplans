@@ -13,6 +13,18 @@ import { relationships, ratingRows } from "../../../src/ingest/geo/parse.js";
 import { migrate } from "../../../src/db/migrate.js";
 import { coreMigrations, testDatabase } from "../../pglite.js";
 import { fixtureDirectory, fixtureFiles } from "./helpers.js";
+import type { SqlSession } from "../../../src/db/database.js";
+import { lookupZip } from "../../../src/services/catalog.js";
+import {
+  servingGeneration,
+  withDataPolicy,
+} from "../../../src/services/data-window.js";
+import { plantMutant } from "../../../src/plugins/testing/index.js";
+import * as repository from "../../../src/ingest/geo/repository.js";
+import {
+  runWithScope,
+  setScopeResponseGeneration,
+} from "../../../src/plugins/request-scope.js";
 
 const pg = new PGlite(),
   db = testDatabase(pg);
@@ -30,6 +42,144 @@ afterAll(async () => {
 });
 
 describe("real Census/CMS source cuts imported into PGlite", () => {
+  it("shares a pending ZCTA query while every request still checks generation", async () => {
+    let release!: () => void;
+    const wait = new Promise<void>((done) => {
+      release = done;
+    });
+    let armed!: () => void;
+    const started = new Promise<void>((done) => {
+      armed = done;
+    });
+    let requests = 0,
+      generations = 0,
+      reads = 0;
+    const reader: SqlSession = {
+      query: async (sql, values) => {
+        if (sql.includes("api_data_generation")) generations++;
+        if (sql.includes("SELECT DISTINCT z.county_fips")) {
+          reads++;
+          await wait;
+        }
+        return db.query(sql, values);
+      },
+      exec: db.exec,
+    };
+    const runs = Array.from({ length: 4 }, () =>
+      withDataPolicy({ historyYears: 3 }, () =>
+        runWithScope(async () => {
+          setScopeResponseGeneration(await servingGeneration(reader));
+          const result = lookupZip(reader, "75034");
+          if (++requests === 4) armed();
+          return result;
+        }),
+      ),
+    );
+    try {
+      await started;
+      expect(generations).toBe(4);
+      expect(reads).toBe(1);
+    } finally {
+      release();
+    }
+    const results = await Promise.all(runs);
+    expect(results[0]!.counties.map((row) => row.county_fips)).toEqual([
+      "48085",
+      "48121",
+    ]);
+    results[0]!.counties[0]!.county_name = "synthetic mutation";
+    expect(results[1]!.counties[0]!.county_name).not.toBe("synthetic mutation");
+    await withDataPolicy({ historyYears: 3 }, () =>
+      runWithScope(async () => {
+        setScopeResponseGeneration(await servingGeneration(reader));
+        await lookupZip(reader, "75034");
+      }),
+    );
+    expect(reads, "completed reads must not stay cached").toBe(2);
+  });
+  it("does not retain a failed shared query or merge fallback work", async () => {
+    let fail = true,
+      reads = 0,
+      fallbacks = 0;
+    const reader: SqlSession = {
+      query: async (sql, values) => {
+        if (sql.includes("SELECT DISTINCT z.county_fips")) {
+          reads++;
+          if (fail) throw new Error("synthetic query failure");
+        }
+        if (sql.includes("FROM zip_county_fallback")) fallbacks++;
+        return db.query(sql, values);
+      },
+      exec: db.exec,
+    };
+    const geo = repository.createGeoRepository(reader, {
+      generation: "synthetic-generation",
+      allowCmsLive: false,
+    });
+    const outcomes = await Promise.allSettled(
+      Array.from({ length: 4 }, () => geo.zipToCounties("75034")),
+    );
+    expect(outcomes.every((row) => row.status === "rejected")).toBe(true);
+    expect(reads).toBe(1);
+    fail = false;
+    expect((await geo.zipToCounties("75034")).status).toBe("available");
+    expect(reads).toBe(2);
+    const missing = await Promise.all(
+      Array.from({ length: 4 }, () => geo.zipToCounties("00000")),
+    );
+    expect(missing.every((row) => row.status === "unknown")).toBe(true);
+    expect(reads).toBe(3);
+    expect(
+      fallbacks,
+      "fallback admission and budgets belong to each request",
+    ).toBe(4);
+  });
+  it("negative control: separate generations cannot join the same pending read", async () => {
+    async function contract(
+      module: Pick<typeof repository, "createGeoRepository">,
+    ) {
+      let release!: () => void;
+      const wait = new Promise<void>((done) => {
+        release = done;
+      });
+      let reads = 0;
+      const reader: SqlSession = {
+        query: async (sql, values) => {
+          if (sql.includes("SELECT DISTINCT z.county_fips")) {
+            reads++;
+            await wait;
+          }
+          return db.query(sql, values);
+        },
+        exec: db.exec,
+      };
+      const runs = ["synthetic-before", "synthetic-after"].map((generation) =>
+        module
+          .createGeoRepository(reader, { generation })
+          .zipToCounties("75034"),
+      );
+      try {
+        expect(reads, "different generations must use separate reads").toBe(2);
+      } finally {
+        release();
+        await Promise.allSettled(runs);
+      }
+    }
+    await contract(repository);
+    const mutant = await plantMutant(
+      new URL("../../../src/ingest/geo/repository.ts", import.meta.url),
+      "JSON.stringify([generation, zip])",
+      "JSON.stringify([zip])",
+    );
+    try {
+      const module = (await import(mutant.path)) as typeof repository;
+      await expect(contract(module)).rejects.toThrow(
+        "different generations must use separate reads",
+      );
+    } finally {
+      await mutant.cleanup();
+    }
+  });
   it("retains every county for multi-county 75034, raw land measurements and exact shares", async () => {
     const result = await createGeoRepository(db).zipToCounties("75034");
     expect(result.status).toBe("available");

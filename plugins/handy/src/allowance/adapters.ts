@@ -53,7 +53,7 @@ const plugin: OpenPlansPlugin = {
   manifest: {
     name: "@openplans/plugin-handy",
     version: packageJson.version,
-    apiVersion: "0.1",
+    apiVersion: "0.2",
     kinds: ["routes", "mcpTools"],
     capabilities: { operatorRoutes: true },
     options: optionsSchema,

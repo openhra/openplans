@@ -31,6 +31,7 @@ import {
   dataDirectory,
 } from "../../dist/ingest/medicare/acquire.js";
 import { importMedicare } from "../../dist/ingest/medicare/command.js";
+import { admitNextYear } from "./admission.mjs";
 import { cachedSpuf, importSpuf } from "../../dist/ingest/medicare/spuf.js";
 import { createMcpHttp } from "../../dist/mcp/http.js";
 import { MAX_OUTPUT_BYTES } from "../../dist/mcp/tools.js";
@@ -91,6 +92,8 @@ const started = Date.now();
 await migrate(db, migrations);
 await importMedicare(db, { year }, dataDir);
 const imported = await importSpuf(db, spuf);
+// The API serves next year only once admitted. Admit it here, as a release does after loading.
+await admitNextYear(db, "medicare", year);
 const snapshot = imported.snapshot_id;
 
 // No console output may carry a schedule; the app logs nothing for this route.

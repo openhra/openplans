@@ -99,7 +99,7 @@ export default {
   manifest: {
     name: "@synthetic/route-writer",
     version: "0.0.1",
-    apiVersion: "0.1",
+    apiVersion: "0.2",
     kinds: ["sources", "routes"],
     capabilities: { network: [HOST] },
     options: z

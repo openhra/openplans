@@ -198,7 +198,7 @@ describe("native v1 catalog, geography and provenance", () => {
     expect((await search("county=36061&year=2026")).json.status).toBe(
       "unknown",
     );
-    expect((await search("zip=77002&year=2027")).json.status).toBe("unknown");
+    expect((await search("zip=77002&year=2025")).json.status).toBe("unknown");
   });
 
   it("D3: a synthetic statewide medical service area appears in every TX county", async () => {

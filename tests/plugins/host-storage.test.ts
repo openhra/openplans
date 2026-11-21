@@ -109,6 +109,9 @@ function start(
       entry === "worker" ? [file, "status"] : [file],
       {
         env: {
+          OPENPLANS_PUBLIC_QUOTING: "off",
+          OPENPLANS_PUBLIC_HOUSEHOLD: "off",
+          OPENPLANS_PUBLIC_COMPAT: "off",
           PATH: process.env.PATH,
           HOST: "127.0.0.1",
           PORT: String(port),
@@ -158,6 +161,7 @@ function start(
 
 /** A planted copy of a built entry point; its relative imports point at the originals. */
 async function mutant(path: string, edit: (source: string) => string) {
+  if (path === "worker/cli.js") path = "worker/runtime.js";
   const original = await readFile(dist(path), "utf8");
   const changed = edit(original);
   expect(changed).not.toBe(original);
@@ -178,7 +182,7 @@ const bypass = (source: string) =>
     .replaceAll("openHostDatabase(", "bypassOpen(");
 
 const synthetic = (settings: object) => ({
-  plugins: [{ package: fixture }],
+  plugins: { entries: [{ package: fixture }] },
   ...settings,
 });
 
@@ -252,13 +256,25 @@ describe("entry points select storage providers from config (design 5.7)", () =>
     "%s refuses an unknown %s without plugins: one line, exit 1",
     async (entry, reason, settings) => {
       const path = await configFile(`unknown-${entry}-${reason}`, {
-        plugins: [],
+        plugins: { entries: [] },
         ...settings,
       });
       const result = await run(entry, { OPENPLANS_CONFIG: path });
       expect(result.code).toBe(1);
       expect(result.stdout).toBe("");
-      expect(result.stderr).toBe(`${refusal(reason)}\n`);
+      expect(
+        result.stderr
+          .trim()
+          .split("\n")
+          .filter(
+            (line) =>
+              line !==
+              JSON.stringify({
+                plugin: "openplans",
+                code: "plugin_approval_unconfigured",
+              }),
+          ),
+      ).toEqual([refusal(reason)]);
     },
     30_000,
   );
@@ -270,7 +286,16 @@ describe("entry points select storage providers from config (design 5.7)", () =>
     );
     const result = await run("api", { OPENPLANS_CONFIG: path });
     expect(result.code).toBe(1);
-    expect(result.stderr).toBe(`${refusal("db.provider")}\n`);
+    expect(
+      result.stderr
+        .trim()
+        .split("\n")
+        .filter(
+          (line) =>
+            (JSON.parse(line) as { code?: string }).code !==
+            "plugin_approval_unconfigured",
+        ),
+    ).toEqual([refusal("db.provider")]);
   }, 30_000);
 
   it("negative control: a host check that accepts an unknown provider starts the API", async () => {
@@ -288,7 +313,7 @@ describe("entry points select storage providers from config (design 5.7)", () =>
       );
       try {
         const path = await configFile("unknown-accepted", {
-          plugins: [],
+          plugins: { entries: [] },
           db: { provider: "synthetic-missing" },
         });
         const result = await run("api", { OPENPLANS_CONFIG: path }, file.path);
@@ -305,7 +330,9 @@ describe("entry points select storage providers from config (design 5.7)", () =>
   it("without a config file, the API output is unchanged and pg stays selected", async () => {
     const result = await run("api", {});
     expect(result.stdout).toMatch(/^OpenPlans API listening on port \d+\n$/);
-    expect(result.stderr).toBe("");
+    expect(result.stderr).toBe(
+      `${JSON.stringify({ plugin: "openplans", code: "plugin_approval_unconfigured" })}\n`,
+    );
   }, 30_000);
 });
 

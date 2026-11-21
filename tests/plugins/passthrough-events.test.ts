@@ -1,3 +1,4 @@
+import { privateEnvironment } from "./approval-helpers.js";
 // Pass-through events from the CMS source through the outbox to the signed webhook. Synthetic
 // catalog, synthetic key, injected transport; nothing reaches the network.
 import { createHash } from "node:crypto";
@@ -466,12 +467,13 @@ describe("API host wiring", () => {
       path,
       JSON.stringify({
         version: 1,
-        plugins: [{ package: "./synthetic-alpha/index.mjs" }],
+        plugins: { entries: [{ package: "./synthetic-alpha/index.mjs" }] },
       }),
     );
     const load = (env: Record<string, string>, host?: "api" | "stdio") =>
       loadApiPlugins({
         env: {
+          ...privateEnvironment(),
           OPENPLANS_CONFIG: path,
           SYNTHETIC_ALPHA_SECRET: "synthetic",
           ...env,

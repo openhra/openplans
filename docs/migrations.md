@@ -204,3 +204,24 @@ Expand release: Index active publication pointers by build id so renewal checks 
 Compatibility: No response or source-data change.
 Forward fix: Add a repair index if lookup needs change.
 Lock budget: Two seconds to acquire the table lock; build the index before a large renewal.
+
+### 20261119194358_annual_data_admission.sql
+
+Stage: expand
+Expand release: next release
+Compatibility: adds an empty serving-admission ledger and its metadata rule. Existing annual
+catalogs and rates remain unchanged. New readers wait for migration readiness. The public
+instance uses the default window of prior/current years plus an admitted next year. This
+migration does not admit a year or remove data.
+Forward fix: add a repair migration and correct the admission manifest. Do not remove source rows.
+Lock budget: two seconds. Only the new ledger, its provenance rule and generation counter are written.
+
+### 20261120020048_restore_function_search_path.sql
+
+Stage: expand
+Expand release: v0.4.17. Apply the function fix before enabling backup restore verification.
+Compatibility: Existing images keep the same function names, arguments and results. Geocode
+checks and the provider expression index can resolve their functions with an empty search path.
+Forward fix: Add a repair migration for the function definitions and take a new verified backup.
+Lock budget: Two seconds to acquire locks. Only function definitions and settings change; no
+table scan or rewrite is needed.

@@ -1,3 +1,4 @@
+import { privateEnvironment } from "./plugins/approval-helpers.js";
 import { PGlite } from "@electric-sql/pglite";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -46,7 +47,7 @@ export default {
   manifest: ${JSON.stringify({
     name: `@synthetic/${name}`,
     version: "0.0.1",
-    apiVersion: "0.1",
+    apiVersion: "0.2",
     kinds: ["workerCommands", "events"],
     capabilities: { writes },
   })},
@@ -139,7 +140,7 @@ const silent = await plugin(
 
 const load = async (...files: string[]): Promise<WorkerPlugins> =>
   loadWorkerPlugins({
-    env: { OPENPLANS_PLUGINS: files.join(",") },
+    env: privateEnvironment({ OPENPLANS_PLUGINS: files.join(",") }),
     exit: (code) => {
       throw new Error(`exit ${code}`);
     },

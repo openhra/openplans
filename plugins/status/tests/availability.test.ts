@@ -1,3 +1,5 @@
+import { dataPolicySchema } from "@openplans/plugin-sdk";
+import { approvedTestConfig } from "../../../tests/plugins/approval-helpers.js";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -12,7 +14,7 @@ import { migrate } from "../../../src/db/migrate.js";
 import { ingestGeo } from "../../../src/ingest/geo/index.js";
 import { importPufs } from "../../../src/ingest/puf/import.js";
 import { ingestRatingRules } from "../../../src/ingest/rating-rules/index.js";
-import { loadPlugins } from "../../../src/plugins/index.js";
+import { loadPlugins } from "../../../tests/plugins/approval-helpers.js";
 import { plantMutant } from "../../../src/plugins/testing/index.js";
 import { fixtureFiles as geoFiles } from "../../../tests/ingest/geo/helpers.js";
 import { fixtureFiles } from "../../../tests/api/helpers.js";
@@ -92,9 +94,11 @@ async function api(file = indexFile, load = loadPlugins) {
   const lines: string[] = [];
   const config = loadConfig(
     { OPENPLANS_OPERATOR_TOKEN: OPERATOR },
-    { version: 1, plugins: [{ package: file }] },
+    { version: 1, plugins: { entries: [{ package: file }] } },
   );
-  const loaded = await load(config, "api", {
+  const reviewed =
+    load === loadPlugins ? config : await approvedTestConfig(config);
+  const loaded = await load(reviewed, "api", {
     env: {},
     statusHost: { database: db },
     manifestPaths: [shipped],
@@ -207,10 +211,20 @@ function disagreements(result: Awaited<ReturnType<typeof answers>>) {
         out.push(`${key} ${kind}: ${p[kind]} != ${a[kind]}`);
   }
   if (
-    JSON.stringify((result.publicBody as PublicStatus).data) !==
-    JSON.stringify(expectedPublic(result.apiRows))
+    JSON.stringify(
+      Object.fromEntries(
+        Object.entries((result.publicBody as PublicStatus).data).filter(
+          ([key]) => key !== "policy",
+        ),
+      ),
+    ) !== JSON.stringify(expectedPublic(result.apiRows))
   )
     out.push("public data summary");
+  if (
+    !dataPolicySchema.safeParse((result.publicBody as PublicStatus).data.policy)
+      .success
+  )
+    out.push("public data policy");
   return out;
 }
 
@@ -249,9 +263,9 @@ describe("status availability matches /v1/data-availability", () => {
     expect(result.fromApi.size).toBeGreaterThan(2);
     expect(result.fromPlugin.size).toBe(result.apiRows.length);
     expect(disagreements(result)).toEqual([]);
-    expect((result.publicBody as PublicStatus).data).toEqual(
-      expectedPublic(result.apiRows),
-    );
+    const { policy, ...summary } = (result.publicBody as PublicStatus).data;
+    expect(dataPolicySchema.safeParse(policy).success).toBe(true);
+    expect(summary).toEqual(expectedPublic(result.apiRows));
   });
 
   it("planted mutant: the plugin reading the stored table again fails the agreement", async () => {
@@ -355,10 +369,10 @@ describe("status availability memo follows the data generation", () => {
   it("planted mutant: a public view that keeps its first read diverges from the operator view", async () => {
     const index = await plantMutant(
       indexFile,
-      'handler: async (c) => c.json(publicView(await read(c.get("pluginDb"))))',
+      'handler: async (c) => c.json(publicView(await read(c.get("pluginDb"), "public")))',
       `handler: async (c) => {
           const kept = globalThis as { statusFirstRead?: ReturnType<typeof read> };
-          kept.statusFirstRead ??= read(c.get("pluginDb"));
+          kept.statusFirstRead ??= read(c.get("pluginDb"), "public");
           return c.json(publicView(await kept.statusFirstRead));
         }`,
     );

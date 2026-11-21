@@ -1,3 +1,5 @@
+import { ReadError } from "../services/errors.js";
+import { servingPolicy } from "../services/data-window.js";
 import { catalogPolicyAdmission } from "../plugins/catalog-policy.js";
 import { activeRecorder, httpObserver } from "../telemetry/observer.js";
 import type { Labels } from "../telemetry/aggregate.js";
@@ -164,6 +166,11 @@ export function createApp(
     return c.json({ status: "ready" }, 200, noStore);
   });
 
+  app.get("/v1/data-policy", async (c) => {
+    c.header("Cache-Control", "no-store");
+    return c.json(await servingPolicy(db));
+  });
+
   app.get("/v1/cache-stats", (c) => c.json(cache.stats()));
 
   app.get("/v1/data-availability", async (c) => {
@@ -190,7 +197,7 @@ export function createApp(
     }
   });
 
-  app.route("/", createMcpHttp(db));
+  app.route("/", createMcpHttp(db, { config: config() }));
   app.route(
     "/v1",
     nativeRoutes(db, { ...options, tpa: options.tpa ?? config().tpa }),
@@ -201,6 +208,13 @@ export function createApp(
   app.notFound((c) => c.json({ error: { code: "NOT_FOUND" } }, 404));
 
   app.onError((error, c) => {
+    if (error instanceof ReadError) {
+      c.header("Cache-Control", "no-store");
+      return c.json(
+        { error: error.error },
+        error.error.code === "not_loaded" ? 404 : 503,
+      );
+    }
     if (isQueryTimeout(error)) return queryTimeoutResponse(c);
     logInternalError(error);
     return c.json({ error: { code: "INTERNAL_ERROR" } }, 500);

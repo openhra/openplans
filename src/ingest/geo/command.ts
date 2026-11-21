@@ -1,3 +1,4 @@
+import { skipAnnualCommand } from "../data-window.js";
 import type { Database } from "../../db/database.js";
 import { migrate, migrationsDirectory } from "../../db/migrate.js";
 import { ingestGeoNames } from "./geonames.js";
@@ -69,6 +70,7 @@ export async function runGeo(
     output.error(usage);
     return 1;
   }
+  if (skipAnnualCommand("rating-areas", year, output)) return 0;
   let db: Database | undefined,
     code = 0;
   try {

@@ -30,7 +30,7 @@ export default {
   manifest: {
     name: "@synthetic/cache-store",
     version: "0.0.1",
-    apiVersion: "0.1",
+    apiVersion: "0.2",
     kinds: ["cacheStores"],
   },
   setup(ctx) {
