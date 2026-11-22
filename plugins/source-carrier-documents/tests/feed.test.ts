@@ -188,6 +188,7 @@ async function runFeed(
   db: Database,
   files: Record<string, Buffer | string>,
   years = "2026,2027",
+  manifestPath = manifest,
 ) {
   const { requests, transport } = serve(files);
   const out: string[] = [];
@@ -199,7 +200,7 @@ async function runFeed(
     {
       declaredHosts: [HOST],
       dataDir: await mkdtemp(join(scratch, "data-")),
-      manifestPaths: [manifest],
+      manifestPaths: [manifestPath],
       transport,
       lookup: async () => [{ address: "8.8.8.8", family: 4 }],
       sleep: async () => {},
@@ -914,6 +915,85 @@ describe.skipIf(!poppler)(
           }),
         ).toEqual({ status: "unknown", reason: UNKNOWN_REASON.noDocument });
       } finally {
+        await loaded.close();
+      }
+    });
+
+    it("records the operator's approval of a restricted host beside each document and in served evidence", async () => {
+      // The same synthetic publisher, now terms-restricted with an owner-env approval.
+      const owner = join(scratch, "owner-env.json");
+      const base = JSON.parse(await readFile(manifest, "utf8")) as {
+        publishers: Record<string, unknown>[];
+      };
+      const entry = base.publishers[0]!;
+      await writeFile(
+        owner,
+        JSON.stringify({
+          version: 1,
+          publishers: [
+            {
+              ...entry,
+              state: "terms-restricted",
+              approval: {
+                kind: "owner-env",
+                env: "OPENPLANS_SITE_APPROVE_SYNTHETIC_FEED",
+              },
+              terms: {
+                ...(entry.terms as Record<string, unknown>),
+                disposition: "restricted",
+              },
+            },
+          ],
+        }),
+      );
+      for (const name of [
+        "OPENPLANS_PUBLIC_QUOTING",
+        "OPENPLANS_PUBLIC_HOUSEHOLD",
+        "OPENPLANS_PUBLIC_COMPAT",
+      ])
+        vi.stubEnv(name, "off");
+      vi.stubEnv("OPENPLANS_SITE_APPROVE_SYNTHETIC_FEED", "");
+      const loaded = await freshDatabase();
+      try {
+        const db = loaded.db as Database;
+        const held = await runFeed(db, files(), "2026,2027", owner);
+        expect(held.code).not.toBe(0);
+        expect(held.requests).toEqual([]);
+        expect(await count(db, "plg_carrierdoc_document")).toBe(0);
+        vi.stubEnv("OPENPLANS_SITE_APPROVE_SYNTHETIC_FEED", "approved");
+        const run = await runFeed(db, files(), "2026,2027", owner);
+        expect(run.code, JSON.stringify(run.logs)).toBe(0);
+        const { rows: documents } = await db.query<{ approval_basis: string }>(
+          "SELECT approval_basis FROM plg_carrierdoc_document",
+        );
+        expect(documents).toEqual([
+          { approval_basis: "owner-env:SYNTHETIC_FEED" },
+          { approval_basis: "owner-env:SYNTHETIC_FEED" },
+        ]);
+        const answer = await formularyDocumentEvidence(db, {
+          planId: "10001TX0010006",
+          planYear: 2026,
+          drugName: "lisinopril tab 20 mg",
+        });
+        expect(answer.status).toBe("listed");
+        if (answer.status !== "listed") throw new Error("unreachable");
+        expect(answer.evidence[0]?.document).toMatchObject({
+          approval_basis: "owner-env:SYNTHETIC_FEED",
+        });
+        // A document from a host whose terms allow collection carries no approval field.
+        const plain = await runFeed(db, files());
+        expect(plain.code, JSON.stringify(plain.logs)).toBe(0);
+        const again = await formularyDocumentEvidence(db, {
+          planId: "10001TX0010006",
+          planYear: 2026,
+          drugName: "lisinopril tab 20 mg",
+        });
+        if (again.status !== "listed") throw new Error("unreachable");
+        expect(again.evidence[0]?.document).not.toHaveProperty(
+          "approval_basis",
+        );
+      } finally {
+        vi.unstubAllEnvs();
         await loaded.close();
       }
     });

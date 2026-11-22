@@ -334,7 +334,12 @@ async function assertNotQuarantined(
   if (
     !Array.isArray(receipt.hosts) ||
     !receipt.hosts.some(
-      (entry) => entry.host === host && entry.state === "allowed",
+      (entry) =>
+        entry.host === host &&
+        (entry.state === "allowed" ||
+          (entry.state === "terms-restricted" &&
+            typeof entry.approvalBasis === "string" &&
+            entry.approvalBasis.startsWith("owner-env:"))),
     )
   )
     throw denied();
@@ -515,7 +520,7 @@ async function requestChain(
     evidence.address = address.address;
     const headers: Record<string, string> = {
       "accept-encoding": "identity",
-      "user-agent": `openplans/0.4.18 (public health-plan source discovery; +${projectUrl(options)})`,
+      "user-agent": `openplans/0.4.19 (public health-plan source discovery; +${projectUrl(options)})`,
     };
     if (options.expectedContent === "json")
       headers.accept = "application/json, */*;q=0.1";

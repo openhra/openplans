@@ -261,7 +261,7 @@ describe("Synthetic issuer formulary and labelled mutants", () => {
     // Distinct query shards can have identical redacted public URLs. Identity is the URL hash.
     await h.db
       .query(`UPDATE qhp_child_url SET url='https://issuer.example/synthetic?shard=REDACTED'
-      WHERE kind='formulary_urls' AND qhp_index_id=(SELECT qhp_index_id FROM qhp_index ORDER BY discovered_at DESC LIMIT 1)`);
+      WHERE kind='formulary_urls' AND qhp_index_id=(SELECT qhp_index_id FROM qhp_index ORDER BY discovered_at DESC,qhp_index_id DESC LIMIT 1)`);
     const report = await importFormulary(h.db, scope);
     expect(report).toMatchObject({
       status: "ACTIVE",
@@ -292,7 +292,7 @@ describe("Synthetic issuer formulary and labelled mutants", () => {
     const children = (
       await h.db
         .query(`SELECT s.raw_path FROM snapshot s JOIN qhp_child_url c USING(snapshot_id)
-      JOIN qhp_index i USING(qhp_index_id) WHERE i.qhp_index_id=(SELECT qhp_index_id FROM qhp_index ORDER BY discovered_at DESC LIMIT 1)
+      JOIN qhp_index i USING(qhp_index_id) WHERE i.qhp_index_id=(SELECT qhp_index_id FROM qhp_index ORDER BY discovered_at DESC,qhp_index_id DESC LIMIT 1)
       AND c.kind='formulary_urls'`)
     ).rows;
     const path = String(children[0]!.raw_path);

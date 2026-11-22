@@ -131,6 +131,10 @@ export const coreConfigSchema = z
       egressCountry: text,
       egressFile: text,
       egressSha256: text,
+      // Per-site source approvals, environment only; src/fetch/approvals.ts resolves them.
+      siteApprovals: text,
+      siteApprovalsFile: text,
+      publicRestrictedSites: z.boolean().default(false),
     }),
     tpa: section({
       enabled: z.boolean().default(false),
@@ -379,6 +383,9 @@ export const environmentPaths = {
   OPENPLANS_EGRESS_COUNTRY: "access.egressCountry",
   OPENPLANS_EGRESS_FILE: "access.egressFile",
   OPENPLANS_EGRESS_SHA256: "access.egressSha256",
+  OPENPLANS_SITE_APPROVALS: "access.siteApprovals",
+  OPENPLANS_SITE_APPROVALS_FILE: "access.siteApprovalsFile",
+  OPENPLANS_PUBLIC_RESTRICTED_SITES: "access.publicRestrictedSites",
   OPENPLANS_TPA: "tpa.enabled",
   OPENPLANS_TPA_PRIVATE_INGRESS: "tpa.privateIngress",
   OPENPLANS_PLUGINS_APPROVED_LIST: "plugins.approvedList",
@@ -470,6 +477,9 @@ export const environmentOnlyPaths: ReadonlyMap<string, string> = new Map(
           "cmsFallback.apiKey",
           "access.egressFile",
           "access.egressSha256",
+          "access.siteApprovals",
+          "access.siteApprovalsFile",
+          "access.publicRestrictedSites",
         ].includes(path),
     )
     .map(([name, path]) => [path, name]),
@@ -525,6 +535,8 @@ function envValue(name: string, value: string): unknown {
   if (unlessOff.has(name)) return value !== "off";
   if (onlyOn.has(name)) return value === "on";
   if (name === "OPENPLANS_COMPAT_BENEFIT_TEXT") return value === "compact";
+  // Only the exact word allows restricted-site data on an anonymous-serving installation.
+  if (name === "OPENPLANS_PUBLIC_RESTRICTED_SITES") return value === "allow";
   if (name === "PORT" || name === "OPENPLANS_API_CACHE_MB")
     return Number(value);
   if (

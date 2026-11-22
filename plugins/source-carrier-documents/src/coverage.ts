@@ -5,7 +5,7 @@ import {
   SERVED_CONFIDENCE,
   UNKNOWN_REASON,
 } from "./constants.js";
-import { ACTIVE_LINKS, unattachedReason } from "./evidence.js";
+import { ACTIVE_LINKS, approvalField, unattachedReason } from "./evidence.js";
 import { IDENTITY_TABLE } from "./join.js";
 
 /** One document row behind a coverage answer, and how its printed name became the RxCUI. */
@@ -21,6 +21,8 @@ export interface FormularyCoverageEvidence extends Record<string, unknown> {
     line: number;
     raw_text: string;
     drug_name: string;
+    /** `owner-env:<SLUG>` when the operator approved the document's host by variable. */
+    approval_basis?: string;
   };
   identity: {
     source_id: string;
@@ -65,6 +67,7 @@ type CoveredRow = {
   line: number;
   url: string;
   document_sha256: string;
+  approval_basis: string | null;
   plan_year: number;
   rxcui: string;
   concept_name: string;
@@ -89,6 +92,7 @@ function rowEvidence(row: CoveredRow): FormularyCoverageEvidence {
       line: row.line,
       raw_text: row.raw_text,
       drug_name: row.drug_name,
+      ...approvalField(row.approval_basis),
     },
     identity: {
       source_id: row.identity_source,
@@ -137,7 +141,7 @@ export async function formularyDrugCoverage(
   const now = query.now ?? new Date();
   const { rows: matched } = await db.query<CoveredRow>(
     `SELECT l.snapshot_id, r.tier, r.tier_label, r.flags, r.ql_text, r.raw_text, r.drug_name, r.page, r.line,
-            d.url, d.document_sha256, d.plan_year,
+            d.url, d.document_sha256, d.plan_year, d.approval_basis,
             i.rxcui, i.concept_name, i.query, i.identity_source, i.evidence, i.joined_at,
             coalesce(i.confirmed_at, i.joined_at) AS confirmed_at,
             coalesce(i.confirmed_at, i.joined_at) > $5::timestamptz - make_interval(days => $6) AS fresh

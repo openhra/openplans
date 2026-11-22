@@ -1,4 +1,5 @@
 import type { SqlSession } from "../../db/database.js";
+import { QHP_INDEX_NEWEST_FIRST } from "../../db/qhp-index-order.js";
 
 export interface FormularyScope {
   issuer: string;
@@ -23,7 +24,7 @@ export async function sourceSet(db: SqlSession, scope: FormularyScope) {
     await db.query<{ discovery_id: string; status: string }>(
       `SELECT discovery_id,status FROM qhp_index
     WHERE issuer_id=$1 AND plan_year=$2 AND state=$3
-    ORDER BY discovered_at DESC,qhp_index_id DESC`,
+    ORDER BY ${QHP_INDEX_NEWEST_FIRST}`,
       [scope.issuer, scope.year, scope.state],
     )
   ).rows;

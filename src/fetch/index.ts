@@ -39,6 +39,28 @@ export {
   admissionManifestSchema,
   observedHostHolds,
 } from "./admission.js";
+export {
+  approvalBasisOf,
+  approvalEnvName,
+  loadSiteRegistry,
+  publicGuardRefusal,
+  publicServing,
+  reportSiteApprovals,
+  resolveSiteApprovals,
+  siteRegistrySchema,
+  SiteApprovalError,
+  startSiteApprovals,
+  PUBLIC_RESTRICTED_SITES,
+  SITE_APPROVAL_PREFIX,
+  SITE_APPROVAL_VALUE,
+  SITE_APPROVALS_FILE,
+  SITE_APPROVALS_LIST,
+} from "./approvals.js";
+export type {
+  SiteApprovalReport,
+  SiteApprovals,
+  SiteRegistry,
+} from "./approvals.js";
 export type {
   AdmissionManifest,
   AdmissionReceipt,

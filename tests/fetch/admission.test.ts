@@ -571,6 +571,25 @@ describe("publisher admission before acquisition and publication", () => {
     delete unreviewed.publishers[0]!.terms;
     expect(admissionManifestSchema.safeParse(unreviewed).success).toBe(false);
   });
+
+  it("accepts a manifest family and refuses draft entries", () => {
+    const family = structuredClone(manifest);
+    family.publishers[0]!.family = "mr";
+    expect(admissionManifestSchema.safeParse(family).success).toBe(true);
+    const unknownFamily = structuredClone(manifest) as unknown as {
+      publishers: { family: string }[];
+    };
+    unknownFamily.publishers[0]!.family = "research";
+    expect(admissionManifestSchema.safeParse(unknownFamily).success).toBe(
+      false,
+    );
+    // A draft entry written by the research tool is not a reviewed state: the file is refused.
+    const draft = structuredClone(manifest) as unknown as {
+      publishers: { state: string }[];
+    };
+    draft.publishers[0]!.state = "draft";
+    expect(admissionManifestSchema.safeParse(draft).success).toBe(false);
+  });
 });
 
 describe("robots path policy", () => {

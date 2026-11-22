@@ -42,7 +42,9 @@ example `robots-disallowed`), a missing or expired terms review, or a path outsi
 `admissionManifestSchema` validates version 1 manifests. Each publisher entry records
 `host`, `state`, observed HTTP evidence, product/state/year `scope`, `discoveryUrls`,
 `permittedPaths`, `delegates`, `attribution`, `updatePolicy`, `delayMs` and `jobCaps`.
-An API entry can also record `apiVersion`. The six access states are `allowed`,
+An API entry can also record `apiVersion`. An entry can name the manifest `family` it was
+reviewed for (`mr`, `fhir`, `tic`, `documents` or `state-exchanges`) when an operator keeps one
+manifest file per family; the session ignores it. The six access states are `allowed`,
 `robots-disallowed`, `terms-restricted`, `bot-protected`, `geo-restricted` and `unknown`.
 Every state except `allowed` holds collection. Unknown hosts also stay on hold.
 
@@ -70,6 +72,27 @@ response holds collection: 401, 403, 429, 451, 5xx, timeouts and any 404 reached
 redirect. A robots file served as HTML holds too, because it is not directives. If a file appears at
 the daily recheck, the session parses and obeys it. Receipts record the egress country and whether
 robots was absent.
+
+### Owner-approved restricted sites
+
+A `terms-restricted` entry can carry `approval: { kind: "owner-env", env:
+"OPENPLANS_SITE_APPROVE_<SLUG>" }`. The session admits the host only while that variable is
+exactly `approved`, or the slug is in `OPENPLANS_SITE_APPROVALS` or in the file named by
+`OPENPLANS_SITE_APPROVALS_FILE`. `resolveSiteApprovals` in `approvals.ts` reads the three
+forms, and `AdmissionOptions.siteApprovals` injects the set instead. The entry keeps
+`terms.disposition: "restricted"` with the pinned hash and its robots observation, so the
+daily rechecks apply as for an allowed host. The schema refuses an owner-env entry without
+them, on an `allowed` entry, or on a keyed API.
+
+Approval changes nothing about robots, held robots responses, challenge pages, pacing or caps.
+`authorize` still reads robots first and refuses a disallowed path, and `assertReady` checks
+again before publication. The receipt records the manifest state, `approvalBasis:
+"owner-env:<SLUG>"` and `approvalEnv`, never the value, and readmission accepts such a
+receipt. `publicGuardRefusal` refuses every approval while any `public.*` switch is on unless
+`OPENPLANS_PUBLIC_RESTRICTED_SITES=allow`. The API and worker apply it at start through
+`startSiteApprovals`, which also logs the resolved set by slug, and each session applies it
+again. `approval: { kind: "terms-allowed" }` is the declarative default for an `allowed`
+entry. `data/access/site-approvals.json` is the registry of slugs, issuers and hosts.
 
 ### Keyed APIs
 

@@ -4,6 +4,11 @@ import {
 } from "../services/calculation-executor.js";
 import { stopCmsZipPreparation } from "../ingest/geo/cms.js";
 import { EnvironmentOnlyKeyError, loadConfig } from "../config/index.js";
+import {
+  configuredManifestPaths,
+  SiteApprovalError,
+  startSiteApprovals,
+} from "../fetch/approvals.js";
 import { serve } from "@hono/node-server";
 import { createApp } from "./app.js";
 import { warmResponseBodyReads } from "./cache/index.js";
@@ -18,6 +23,8 @@ import { servingPolicy, withDataPolicy } from "../services/data-window.js";
 let calculationWorker: CalculationWorker | undefined;
 try {
   const config = loadConfig();
+  // Site approvals resolve before anything serves; the public guard stops the host here.
+  startSiteApprovals(config, configuredManifestPaths(config));
   if (config.db.provider === "pg" && config.public.quoting) {
     calculationWorker = new CalculationWorker();
     await calculationWorker.start();
@@ -99,6 +106,7 @@ try {
   await calculationWorker?.close();
   if (
     error instanceof EnvironmentOnlyKeyError ||
+    error instanceof SiteApprovalError ||
     (error instanceof Error &&
       error.message === "PORT must be an integer between 1 and 65535")
   ) {

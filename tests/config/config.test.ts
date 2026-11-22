@@ -60,6 +60,7 @@ const converted: Record<string, [string, unknown]> = {
   OPENPLANS_LOWEST_PREMIUMS: ["on", true],
   OPENPLANS_LOWEST_PREMIUMS_SCOPE: ["single_age_silver", "single_age_silver"],
   OPENPLANS_COMPAT_BENEFIT_TEXT: ["compact", true],
+  OPENPLANS_PUBLIC_RESTRICTED_SITES: ["allow", true],
   OPENPLANS_MCP_ALLOWED_HOSTS: [
     " a.example, b.example ,",
     ["a.example", "b.example"],

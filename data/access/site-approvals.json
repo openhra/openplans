@@ -1,0 +1,125 @@
+{
+  "version": 1,
+  "sites": [
+    {
+      "slug": "CENTENE_API",
+      "issuer": "Centene (Ambetter and its state brands)",
+      "hosts": ["api.centene.com"],
+      "turnsOn": "QHP machine-readable index and the plan, provider and drug files it lists"
+    },
+    {
+      "slug": "ELEVANCE_WWW22",
+      "issuer": "Elevance Health (Anthem Blue Cross and Blue Shield, Wellpoint)",
+      "hosts": ["www22.elevancehealth.com"],
+      "turnsOn": "QHP machine-readable index and the plan, provider and drug files it lists"
+    },
+    {
+      "slug": "HCSC_ACA_JSON",
+      "issuer": "Health Care Service Corporation (Blue Cross and Blue Shield of Illinois, Montana, New Mexico, Oklahoma and Texas)",
+      "hosts": [
+        "www.bcbsil.com",
+        "www.bcbsmt.com",
+        "www.bcbsnm.com",
+        "www.bcbsok.com",
+        "www.bcbstx.com"
+      ],
+      "turnsOn": "QHP machine-readable index and the plan, provider and drug files it lists, per state site"
+    },
+    {
+      "slug": "KAISER_HEALTHY",
+      "issuer": "Kaiser Permanente",
+      "hosts": ["healthy.kaiserpermanente.org"],
+      "turnsOn": "QHP machine-readable index and the plan, provider and drug files it lists"
+    },
+    {
+      "slug": "BCBSM_WWW",
+      "issuer": "Blue Cross Blue Shield of Michigan and Blue Care Network",
+      "hosts": ["www.bcbsm.com"],
+      "turnsOn": "QHP machine-readable index and the plan, provider and drug files it lists"
+    },
+    {
+      "slug": "PRIORITY_STYLELABS",
+      "issuer": "Priority Health",
+      "hosts": ["priorityhealth.stylelabs.cloud"],
+      "turnsOn": "QHP machine-readable index and the plan, provider and drug files it lists"
+    },
+    {
+      "slug": "MVP_WWW",
+      "issuer": "MVP Health Care",
+      "hosts": ["www.mvphealthcare.com"],
+      "turnsOn": "Plan document pages and the formulary and summary documents they link"
+    },
+    {
+      "slug": "MMIT_FORMULARY_NAVIGATOR",
+      "issuer": "MMIT FormularyNavigator, a formulary host several issuers link",
+      "hosts": ["fm.formularynavigator.com"],
+      "turnsOn": "Formulary pages and documents an issuer's own pages link"
+    },
+    {
+      "slug": "FLORIDA_BLUE_WWW",
+      "issuer": "Florida Blue",
+      "hosts": ["www.floridablue.com"],
+      "turnsOn": "QHP machine-readable index and the plan, provider and drug files it lists"
+    },
+    {
+      "slug": "AZBLUE_WWW",
+      "issuer": "Blue Cross Blue Shield of Arizona",
+      "hosts": ["www.azblue.com"],
+      "turnsOn": "QHP machine-readable index and the plan, provider and drug files it lists"
+    },
+    {
+      "slug": "BCBSSC_WWW",
+      "issuer": "BlueCross BlueShield of South Carolina",
+      "hosts": ["www.southcarolinablues.com"],
+      "turnsOn": "QHP machine-readable index and the plan, provider and drug files it lists"
+    },
+    {
+      "slug": "ARKANSAS_BLUE_SECURE",
+      "issuer": "Arkansas Blue Cross and Blue Shield",
+      "hosts": ["secure.arkansasbluecross.com"],
+      "turnsOn": "QHP machine-readable index and the plan, provider and drug files it lists"
+    },
+    {
+      "slug": "BCBSLA_LABLUE",
+      "issuer": "Blue Cross and Blue Shield of Louisiana",
+      "hosts": ["www.lablue.com"],
+      "turnsOn": "QHP machine-readable index and the plan, provider and drug files it lists"
+    },
+    {
+      "slug": "BCBST_WWW",
+      "issuer": "BlueCross BlueShield of Tennessee",
+      "hosts": ["www.bcbst.com"],
+      "turnsOn": "QHP machine-readable index and the plan, provider and drug files it lists"
+    },
+    {
+      "slug": "ANTIDOTE_API",
+      "issuer": "Antidote Health",
+      "hosts": ["api.antidotehealth.ai"],
+      "turnsOn": "QHP machine-readable index and the plan, provider and drug files it lists"
+    },
+    {
+      "slug": "HARBOR_ASSETS",
+      "issuer": "Harbor Health",
+      "hosts": ["assets.harborhealth.com"],
+      "turnsOn": "QHP machine-readable index and the plan, provider and drug files it lists"
+    },
+    {
+      "slug": "PEAK_WWW",
+      "issuer": "Peak Health",
+      "hosts": ["peakhealth.org"],
+      "turnsOn": "QHP machine-readable index and the plan, provider and drug files it lists"
+    },
+    {
+      "slug": "CHC_PROVIDER_DIRECTORY",
+      "issuer": "Community Health Choice",
+      "hosts": ["providerdirectory.communityhealthchoice.org"],
+      "turnsOn": "QHP machine-readable index and the plan, provider and drug files it lists"
+    },
+    {
+      "slug": "LACARE_WWW",
+      "issuer": "L.A. Care Health Plan",
+      "hosts": ["www.lacare.org"],
+      "turnsOn": "Plan document pages and the formulary and summary documents they link"
+    }
+  ]
+}

@@ -188,7 +188,7 @@ try {
   const discovery = (
     await pool.query(
       `SELECT issuer_id,status,registry_snapshot_id,registry_row,snapshot_id,http_status
-    FROM qhp_index WHERE state=$1 AND plan_year=$2 ORDER BY issuer_id,discovered_at`,
+    FROM qhp_index WHERE state=$1 AND plan_year=$2 ORDER BY issuer_id,discovered_at,qhp_index_id`,
       [state, year],
     )
   ).rows;

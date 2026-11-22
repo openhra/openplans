@@ -157,6 +157,10 @@ services:
       OPENPLANS_ACCESS_MANIFEST: ${OPENPLANS_ACCESS_MANIFEST:-}
       # Optional ISO country code recorded in admission receipts; it does not restrict collection.
       OPENPLANS_EGRESS_COUNTRY: ${OPENPLANS_EGRESS_COUNTRY:-}
+      # Per-site source approvals by slug (docs/self-host.md). Empty keeps every restricted site held.
+      OPENPLANS_SITE_APPROVALS: ${OPENPLANS_SITE_APPROVALS:-}
+      OPENPLANS_SITE_APPROVALS_FILE: ${OPENPLANS_SITE_APPROVALS_FILE:-}
+      OPENPLANS_PUBLIC_RESTRICTED_SITES: ${OPENPLANS_PUBLIC_RESTRICTED_SITES:-}
       # Comma-separated plugin packages, e.g. @openplans/plugin-status. Empty keeps the config file's list.
       OPENPLANS_PLUGINS: ${OPENPLANS_PLUGINS:-}
       OPENPLANS_PLUGINS_APPROVED_LIST: ${OPENPLANS_PLUGINS_APPROVED_LIST:-}
@@ -200,6 +204,9 @@ services:
       OPENPLANS_DATA_DIR: /data
       OPENPLANS_ACCESS_MANIFEST: ${OPENPLANS_ACCESS_MANIFEST:-}
       OPENPLANS_EGRESS_COUNTRY: ${OPENPLANS_EGRESS_COUNTRY:-}
+      OPENPLANS_SITE_APPROVALS: ${OPENPLANS_SITE_APPROVALS:-}
+      OPENPLANS_SITE_APPROVALS_FILE: ${OPENPLANS_SITE_APPROVALS_FILE:-}
+      OPENPLANS_PUBLIC_RESTRICTED_SITES: ${OPENPLANS_PUBLIC_RESTRICTED_SITES:-}
       # Comma-separated plugin packages, e.g. @openplans/plugin-status. Empty keeps the config file's list.
       OPENPLANS_PLUGINS: ${OPENPLANS_PLUGINS:-}
       OPENPLANS_PLUGINS_APPROVED_LIST: ${OPENPLANS_PLUGINS_APPROVED_LIST:-}

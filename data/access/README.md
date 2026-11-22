@@ -34,6 +34,14 @@ that was observed from. The rxnav.nlm.nih.gov terms page lives on www.lhncbc.nlm
 robots file allows it. Receipts record the collecting installation's `OPENPLANS_EGRESS_COUNTRY`, which does not
 restrict collection.
 
+## Site approvals
+
+`site-approvals.json` is the registry of per-site approval slugs: for each issuer, its hosts, the
+slug and what the approval turns on. No shipped manifest carries entries for those hosts yet; an
+operator manifest supplies them with the `approval: { kind: "owner-env", env }` field described
+in [the self-hosting guide](../../docs/self-host.md#sites-that-need-your-approval). The registry
+keeps the slugs stable. `check-publisher-review` does not read it.
+
 ## Review cadence
 
 The OpenPlans maintainers re-review every entry before each release. `node

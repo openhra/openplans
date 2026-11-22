@@ -199,6 +199,83 @@ Set `OPENPLANS_EGRESS_COUNTRY` (for example `US`) to record the country you coll
 from in every admission receipt. It is a record only. A host that answers robots.txt
 with a direct 404 or 410 has no robots rules wherever you collect from.
 
+### Sites that need your approval
+
+Some issuers publish their plan, provider and drug files on hosts whose robots rules allow
+reading them, but whose site terms restrict what you may do with them. OpenPlans never
+collects from such a host on its own. The code that reads it ships in the image, off. You
+turn each site on by name, and you take responsibility for that site's terms when you do.
+
+A manifest entry for such a host stays `terms-restricted` and carries an approval:
+
+~~~json
+"approval": { "kind": "owner-env", "env": "OPENPLANS_SITE_APPROVE_CENTENE_API" }
+~~~
+
+The entry still records the terms URL with its SHA-256 and the robots observation, so the
+daily terms and robots rechecks apply to it like any other host. Until the variable is set,
+collection from the host is refused with a message naming the variable to set.
+
+Three forms approve a site, and they resolve to the same set:
+
+| Form | Example | Use it for |
+| --- | --- | --- |
+| One variable per site | `OPENPLANS_SITE_APPROVE_CENTENE_API=approved` | `docker run -e`, systemd units |
+| A list | `OPENPLANS_SITE_APPROVALS=CENTENE_API,HCSC_ACA_JSON` | Compose `.env`, which cannot pass arbitrary names |
+| A mounted file | `OPENPLANS_SITE_APPROVALS_FILE=/data/work/access/site-approvals.txt`, one slug per line, `#` comments | Compose secrets and configs |
+
+Only the exact value `approved` counts for the per-site form. `1`, `true`, `yes` and `on`
+leave the site held, and the startup log says which variable to set. The API and worker log
+one `site_approvals` line at start. It lists the approved slugs, the held variables, each
+loaded manifest entry that carries an approval, and any approved slug that no loaded manifest
+names. The line never contains a value.
+
+Approval changes nothing about the technical controls. A robots `Disallow` on the path still
+refuses the request. A robots.txt that answers 401, 403, 429, 5xx or HTML still holds the
+host. A challenge or login page still stops the session. Pacing and the per-session caps
+still apply. No variable overrides any of these. Every receipt from an approved host records
+`approvalBasis: "owner-env:<SLUG>"` and the variable's name, and the snapshot keeps that
+receipt in its `access_policy` metadata, so you can trace a served answer to the approval
+that admitted its source.
+
+If your installation serves anonymous traffic (any of `OPENPLANS_PUBLIC_QUOTING`,
+`OPENPLANS_PUBLIC_HOUSEHOLD` or `OPENPLANS_PUBLIC_COMPAT` on, which is the default), it also
+needs `OPENPLANS_PUBLIC_RESTRICTED_SITES=allow` before any approval is used. Without it the
+API and worker refuse to start while an approval is set, so an installation does not serve
+restricted-site data to the public by accident.
+
+The slugs are fixed per host and listed in
+[`data/access/site-approvals.json`](../data/access/site-approvals.json), one row per issuer
+with its hosts, the slug and what the approval turns on. OpenPlans ships no manifest entries
+for these hosts yet. An entry needs the terms and robots hashes recorded with the product
+fetcher, and your own manifest supplies them (`OPENPLANS_ACCESS_MANIFEST`). The registry
+keeps the names stable, so an approval written today still names the same host later.
+
+| Slug | Issuer | Hosts |
+| --- | --- | --- |
+| `CENTENE_API` | Centene (Ambetter and its state brands) | api.centene.com |
+| `ELEVANCE_WWW22` | Elevance Health (Anthem Blue Cross and Blue Shield, Wellpoint) | www22.elevancehealth.com |
+| `HCSC_ACA_JSON` | Health Care Service Corporation (Blue Cross and Blue Shield of Illinois, Montana, New Mexico, Oklahoma and Texas) | www.bcbsil.com, www.bcbsmt.com, www.bcbsnm.com, www.bcbsok.com, www.bcbstx.com |
+| `KAISER_HEALTHY` | Kaiser Permanente | healthy.kaiserpermanente.org |
+| `BCBSM_WWW` | Blue Cross Blue Shield of Michigan and Blue Care Network | www.bcbsm.com |
+| `PRIORITY_STYLELABS` | Priority Health | priorityhealth.stylelabs.cloud |
+| `MVP_WWW` | MVP Health Care | www.mvphealthcare.com |
+| `MMIT_FORMULARY_NAVIGATOR` | MMIT FormularyNavigator, a formulary host several issuers link | fm.formularynavigator.com |
+| `FLORIDA_BLUE_WWW` | Florida Blue | www.floridablue.com |
+| `AZBLUE_WWW` | Blue Cross Blue Shield of Arizona | www.azblue.com |
+| `BCBSSC_WWW` | BlueCross BlueShield of South Carolina | www.southcarolinablues.com |
+| `ARKANSAS_BLUE_SECURE` | Arkansas Blue Cross and Blue Shield | secure.arkansasbluecross.com |
+| `BCBSLA_LABLUE` | Blue Cross and Blue Shield of Louisiana | www.lablue.com |
+| `BCBST_WWW` | BlueCross BlueShield of Tennessee | www.bcbst.com |
+| `ANTIDOTE_API` | Antidote Health | api.antidotehealth.ai |
+| `HARBOR_ASSETS` | Harbor Health | assets.harborhealth.com |
+| `PEAK_WWW` | Peak Health | peakhealth.org |
+| `CHC_PROVIDER_DIRECTORY` | Community Health Choice | providerdirectory.communityhealthchoice.org |
+| `LACARE_WWW` | L.A. Care Health Plan | www.lacare.org |
+
+Read each site's terms yourself before you approve it. An approval is your statement that
+your use of that site's files is within its terms, or covered by an arrangement of your own.
+
 ### Review cadence
 
 The OpenPlans maintainers re-review every shipped entry before each release.

@@ -27,7 +27,7 @@ import type { CoreConfig, Environment } from "../config/index.js";
 import type { PluginMigrationSource } from "../db/migrate.js";
 import type { PublisherPolicy } from "../fetch/admission.js";
 import { shippedManifestPaths } from "../fetch/shipped.js";
-import { hostRefusal, readPublishers } from "./hosts.js";
+import { hostApprovals, hostRefusal, readPublishers } from "./hosts.js";
 import { packageRoot, packageSha256 } from "./package-hash.js";
 import { createStatusHost } from "./status-host.js";
 import { createOperatorHost } from "./operator-host.js";
@@ -574,7 +574,12 @@ async function checkPlugins(
         publishers = await readPublishers(
           options.manifestPaths ?? defaultManifestPaths(config),
         );
-      const refusal = hostRefusal(host, publishers, now);
+      const refusal = hostRefusal(
+        host,
+        publishers,
+        now,
+        hostApprovals(env, config),
+      );
       if (refusal)
         refuse(name, "plugin_network_host_not_allowed", refusal.code);
     }

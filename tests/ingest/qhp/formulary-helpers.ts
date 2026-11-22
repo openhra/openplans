@@ -146,12 +146,15 @@ export async function setup() {
     return snapshot;
   }
   await child(await fixture("plans"), "plan_urls");
+  // Each replacement index is strictly newer than every earlier one, whatever the clock resolution.
   async function replace(drugs: unknown, text?: string) {
     const previous = indexId;
-    indexId = `index-${childNumber}`;
+    // Zero-padded so id order equals creation order (index-9 must sort before index-10).
+    indexId = `index-${String(childNumber).padStart(6, "0")}`;
     await db.query(
       `INSERT INTO qhp_index(qhp_index_id,discovery_id,issuer_id,plan_year,state,registry_snapshot_id,
-      registry_row,snapshot_id,status,discovered_at) VALUES ($1,$1,'00010',2026,'TX','registry',1,'index','ok',clock_timestamp())`,
+      registry_row,snapshot_id,status,discovered_at) VALUES ($1,$1,'00010',2026,'TX','registry',1,'index','ok',
+      GREATEST(clock_timestamp(), (SELECT max(discovered_at) FROM qhp_index) + interval '1 millisecond'))`,
       [indexId],
     );
     await db.query(

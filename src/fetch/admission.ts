@@ -1,8 +1,17 @@
-import { currentEnvironment } from "../config/index.js";
+import { currentEnvironment, loadConfig } from "../config/index.js";
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { isAbsolute } from "node:path";
 import { z } from "zod";
+import {
+  approvalBasisOf,
+  approvalEnvPattern,
+  publicGuardRefusal,
+  resolveSiteApprovals,
+  SITE_APPROVAL_VALUE,
+  SiteApprovalError,
+  slugOfApprovalEnv,
+} from "./approvals.js";
 import { assertEgressCurrent, egressFromEnvironment } from "./egress.js";
 import type { EgressBinding, EgressReceipt } from "./egress.js";
 import { FetchError } from "./errors.js";
@@ -78,9 +87,20 @@ export const accessState = z.enum([
   "unknown",
 ]);
 export type AccessState = z.infer<typeof accessState>;
+/** Manifest families an operator keeps in separate files; informational, one per entry. */
+export const manifestFamily = z.enum([
+  "mr",
+  "fhir",
+  "tic",
+  "documents",
+  "state-exchanges",
+]);
+export type ManifestFamily = z.infer<typeof manifestFamily>;
 const publisherSchema = z
   .object({
     host: z.string().regex(/^[a-z0-9.-]+$/),
+    /** Which manifest family the entry was reviewed for (`mr`, `fhir`, `tic`, `documents`, `state-exchanges`). */
+    family: manifestFamily.optional(),
     state: accessState,
     evidence: z
       .array(
@@ -135,6 +155,20 @@ const publisherSchema = z
      * does not count.
      */
     requiredEgressCountry: countryCode.optional(),
+    /**
+     * How collection from this host is approved. `terms-allowed` (the default) is the reviewed
+     * terms themselves. `owner-env` is a `terms-restricted` entry the operator turns on by setting
+     * the named `OPENPLANS_SITE_APPROVE_<SLUG>` variable to exactly `approved`, taking
+     * responsibility for the site's terms; until then the host is held. Robots and every other
+     * technical control still apply to an approved host.
+     */
+    approval: z
+      .object({
+        kind: z.enum(["terms-allowed", "owner-env"]),
+        env: z.string().regex(approvalEnvPattern).optional(),
+      })
+      .strict()
+      .optional(),
     terms: z
       .object({
         url: httpsUrl,
@@ -191,6 +225,31 @@ export const admissionManifestSchema = z
           message:
             "Allowed publishers require reviewed terms and robots evidence",
         });
+      const approval = publisher.approval;
+      if (approval?.kind === "owner-env") {
+        // The entry stays terms-restricted in the manifest; only the variable admits it, and the
+        // pinned terms hash and robots evidence are still required so the daily rechecks apply.
+        if (
+          !approval.env ||
+          publisher.state !== "terms-restricted" ||
+          publisher.terms?.disposition !== "restricted" ||
+          !robotsReviewed ||
+          keyed
+        )
+          context.addIssue({
+            code: "custom",
+            message:
+              "An owner-env approval needs its variable name, a terms-restricted state, the restricted terms with their hash and reviewed robots evidence",
+          });
+      } else if (
+        approval &&
+        (approval.env !== undefined || publisher.state !== "allowed")
+      )
+        context.addIssue({
+          code: "custom",
+          message:
+            "A terms-allowed approval names no variable and belongs to an allowed entry",
+        });
     }
   });
 export type AdmissionManifest = z.infer<typeof admissionManifestSchema>;
@@ -220,12 +279,21 @@ export interface AdmissionOptions {
    * read. The value is only ever added to a data request URL; it is never stored or reported.
    */
   apiKeys?: Readonly<Record<string, string>>;
+  /**
+   * Approved site slugs, instead of resolving `OPENPLANS_SITE_APPROVE_*`, `OPENPLANS_SITE_APPROVALS`
+   * and `OPENPLANS_SITE_APPROVALS_FILE` from the environment. The public guard still applies.
+   */
+  siteApprovals?: ReadonlySet<string>;
 }
 export interface AdmissionReceipt {
   manifestSha256: string;
   hosts: {
     host: string;
     state: AccessState;
+    /** Present when the operator approved a terms-restricted host: `owner-env:<SLUG>`. */
+    approvalBasis?: string;
+    /** The variable that carried that approval, never its value. */
+    approvalEnv?: string;
     termsSha256: string;
     /** Absent from receipts written before off-host terms were supported. */
     termsUrl?: string;
@@ -349,6 +417,10 @@ export class AdmissionSession {
   private hostCaps = new Map<string, PublisherPolicy["jobCaps"]>();
   private receipts = new Map<string, AdmissionReceipt["hosts"][number]>();
   private reviewedKeyed = new Map<string, PublisherPolicy>();
+  /** Owner approvals this session resolved at start, by slug; never the variables' values. */
+  readonly siteApprovals: ReadonlySet<string>;
+  /** The public guard's refusal, fixed at session start; any owner-env admission then fails. */
+  private readonly publicRefusal?: string;
   /** Set when an egress record was given; its country is then the session's egress country. */
   readonly egress?: EgressBinding;
   readonly egressCountry?: string;
@@ -372,6 +444,35 @@ export class AdmissionSession {
       throw new FetchError("invalid_options", "Invalid admission budget");
     this.egress = this.loadEgress(options);
     this.egressCountry = this.egress?.country ?? options.egressCountry;
+    try {
+      this.siteApprovals =
+        options.siteApprovals ?? resolveSiteApprovals().approved;
+      this.publicRefusal = publicGuardRefusal(loadConfig(), this.siteApprovals);
+    } catch (error) {
+      if (error instanceof SiteApprovalError)
+        throw new FetchError("invalid_options", error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * The owner approval that admits a terms-restricted entry, or the reason it stays held. Only
+   * the exact value approves; the public guard refuses every approval while anonymous serving is
+   * on without `OPENPLANS_PUBLIC_RESTRICTED_SITES=allow`.
+   */
+  private ownerApproval(
+    publisher: PublisherPolicy,
+  ): { slug: string; env: string } | { held: string } | undefined {
+    const approval = publisher.approval;
+    if (approval?.kind !== "owner-env" || !approval.env) return undefined;
+    const env = approval.env;
+    const slug = slugOfApprovalEnv(env);
+    if (!this.siteApprovals.has(slug))
+      return {
+        held: `Publisher host is held by its terms (${publisher.state}); set ${env}=${SITE_APPROVAL_VALUE} to collect from it under your own review of those terms`,
+      };
+    if (this.publicRefusal) return { held: this.publicRefusal };
+    return { slug, env };
   }
 
   /** A set but invalid, mismatched or stale record refuses the session before any request. */
@@ -526,15 +627,19 @@ export class AdmissionSession {
       return denied(
         "Publisher host is not in a reviewed access manifest; add an operator manifest entry to collect from it",
       );
-    if (publisher.state !== "allowed")
+    const approval = this.ownerApproval(publisher);
+    if (approval && "held" in approval) return denied(approval.held);
+    if (publisher.state !== "allowed" && !approval)
       return denied(
         `Publisher host is held by its reviewed manifest (${publisher.state})`,
       );
     this.assertEgress(publisher, denied);
     const terms = publisher.terms;
     const now = Date.now();
+    // An approved restricted entry keeps its pinned terms: the daily hash check still applies.
+    const disposition = approval ? "restricted" : "allowed";
     if (
-      terms?.disposition !== "allowed" ||
+      terms?.disposition !== disposition ||
       Date.parse(terms.reviewedAt) > now ||
       Date.parse(terms.expiresAt) <= now
     )
@@ -657,9 +762,17 @@ export class AdmissionSession {
           "admission_denied",
           "Publisher terms changed or are unavailable",
         );
+      const approval = this.ownerApproval(publisher);
+      if (approval && "held" in approval)
+        throw new FetchError("admission_denied", approval.held);
       const receipt: AdmissionReceipt["hosts"][number] = {
         host: publisher.host,
-        state: "allowed",
+        // An approved restricted host keeps its manifest state; the basis says why it was admitted.
+        state: approval ? publisher.state : "allowed",
+        ...(approval && {
+          approvalBasis: approvalBasisOf(approval.slug),
+          approvalEnv: approval.env,
+        }),
         termsSha256: terms.sha256,
         termsUrl: termsUrl.href,
         ...(termsHost && { termsRobots: termsHost.observation }),
