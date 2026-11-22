@@ -1,5 +1,10 @@
 import { EnvironmentOnlyKeyError, loadConfig } from "../config/index.js";
 import type { CoreConfig } from "../config/index.js";
+import {
+  configuredManifestPaths,
+  SiteApprovalError,
+  startSiteApprovals,
+} from "../fetch/approvals.js";
 import { openHostDatabase, startHostStorage } from "../plugins/host-storage.js";
 import {
   createCoreEvents,
@@ -28,7 +33,19 @@ try {
   }
   config = undefined;
 }
-if (config) startHostStorage(config);
+if (config) {
+  // Site approvals resolve before any command; a malformed form or the public guard stops here.
+  try {
+    startSiteApprovals(config, configuredManifestPaths(config));
+  } catch (error) {
+    if (error instanceof SiteApprovalError) {
+      console.error(error.message);
+      process.exit(1);
+    }
+    throw error;
+  }
+  startHostStorage(config);
+}
 // Core events need a configured database; without one, commands run as before and emit nothing.
 let events: CoreEvents | undefined;
 try {

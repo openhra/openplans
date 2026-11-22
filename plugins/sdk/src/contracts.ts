@@ -408,6 +408,10 @@ export interface SnapshotMetadata {
     hosts: {
       host: string;
       state: string;
+      /** `owner-env:<SLUG>` when the operator approved a terms-restricted host by variable. */
+      approvalBasis?: string;
+      /** The approving variable's name, never its value. */
+      approvalEnv?: string;
       termsSha256: string;
       robots: {
         url: string;

@@ -13,6 +13,12 @@ export function cmsFallbackEnabled(): boolean {
  * `OPENPLANS_SHIPPED_ACCESS=off` withdraws them, leaving only an operator manifest. The keyed
  * CMS Marketplace API entry is added only with `OPENPLANS_CMS_FALLBACK=on`.
  */
+/** The shipped registry of per-site approval slugs (data/access/site-approvals.json). */
+export const siteRegistryPath = (): string =>
+  fileURLToPath(
+    new URL("../../data/access/site-approvals.json", import.meta.url),
+  );
+
 export function shippedManifestPaths(): readonly string[] {
   const config = loadConfig();
   if (!config.access.shipped) return [];

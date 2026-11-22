@@ -5,6 +5,23 @@ Release notes for OpenPlans. Earlier releases are on the
 
 ## Unreleased
 
+## v0.4.19
+
+- Access manifests: a publisher entry can name the manifest `family` it was reviewed for (`mr`,
+  `fhir`, `tic`, `documents`, `state-exchanges`); the session ignores it.
+
+- Per-site source approvals. A publisher whose terms restrict reuse can ship in a manifest as
+  `terms-restricted` with `approval: { kind: "owner-env", env: "OPENPLANS_SITE_APPROVE_<SLUG>" }`.
+  It stays held until the operator sets that variable to exactly `approved`, or lists the slug in
+  `OPENPLANS_SITE_APPROVALS` or in the file named by `OPENPLANS_SITE_APPROVALS_FILE`. Robots
+  rules, held robots responses, challenge pages, pacing and caps still apply. Receipts record
+  `approvalBasis: "owner-env:<SLUG>"` and the variable name. An installation with any
+  `OPENPLANS_PUBLIC_*` switch on also needs `OPENPLANS_PUBLIC_RESTRICTED_SITES=allow`, or the API
+  and worker refuse to start while an approval is set. `data/access/site-approvals.json` lists the
+  slugs by issuer and host, and the startup log reports the resolved set by slug. The
+  carrier-documents feed stores the basis beside each document (`approval_basis`, migration 007)
+  and serves it in every formulary, coverage and SBC citation from an approved host.
+
 ## v0.4.18
 
 - Compatibility API: drug search accepts an RxCUI (`rxcui` or `rx_cui_id`) and returns that drug after the same RxNorm identity check as coverage requests. `drug_packages` entries in medical plan search also accept `rxcui`. Requests that send only package ids work as before.

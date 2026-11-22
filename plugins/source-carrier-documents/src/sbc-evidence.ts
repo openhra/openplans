@@ -4,12 +4,15 @@ import {
   SBC_UNKNOWN_REASON,
   SERVED_CONFIDENCE,
 } from "./constants.js";
+import { approvalField } from "./evidence.js";
 import { checkItem, pufCostSharing, pufHasCostSharing } from "./sbc-compare.js";
 
 /** Where an SBC prints an item: the PDF, its hash and coverage period, and the page. */
 export interface SbcCitation {
   url: string;
   sha256: string;
+  /** `owner-env:<SLUG>` when the operator approved the document's host by variable. */
+  approval_basis?: string;
   plan_year: number;
   coverage_period: { start: string; end: string };
   printed_plan_name: string | null;
@@ -115,10 +118,11 @@ export async function sbcCostSharingEvidence(
     coverage_start: string;
     coverage_end: string;
     printed_plan_name: string | null;
+    approval_basis: string | null;
   }>(
     `SELECT r.section, r.item, r.label, r.sub_label, r.network, r.confidence, r.page,
             d.url, d.document_sha256, d.plan_year, d.coverage_start::text, d.coverage_end::text,
-            d.printed_plan_name
+            d.printed_plan_name, d.approval_basis
      FROM plg_carrierdoc_sbc_row r JOIN plg_carrierdoc_sbc_document d USING (snapshot_id)
      WHERE r.snapshot_id = $1 AND r.label IS NOT NULL ORDER BY r.ordinal`,
     [snapshotId],
@@ -135,6 +139,7 @@ export async function sbcCostSharingEvidence(
     const evidence: SbcCitation = {
       url: row.url,
       sha256: row.document_sha256,
+      ...approvalField(row.approval_basis),
       plan_year: row.plan_year,
       coverage_period: { start: row.coverage_start, end: row.coverage_end },
       printed_plan_name: row.printed_plan_name,

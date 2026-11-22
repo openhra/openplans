@@ -7,6 +7,7 @@ import type { AcquisitionOptions } from "./formulary-acquire.js";
 import { importFormulary } from "./formulary.js";
 import { ingestProviders } from "./provider-acquire.js";
 import { sourceSet } from "./formulary-repository.js";
+import { QHP_INDEX_NEWEST_FIRST } from "../../db/qhp-index-order.js";
 export interface QhpBatchOptions extends AcquisitionOptions {
   year: number;
   state: string;
@@ -28,7 +29,7 @@ export async function ingestQhpBatch(
         await db.query<{ issuer_id: string; files: number }>(
           `WITH latest AS (
     SELECT DISTINCT ON (issuer_id) issuer_id,discovery_id FROM qhp_index WHERE plan_year=$1 AND state=$2
-    ORDER BY issuer_id,discovered_at DESC,qhp_index_id DESC)
+    ORDER BY issuer_id,${QHP_INDEX_NEWEST_FIRST})
     SELECT l.issuer_id,count(c.qhp_child_url_id)::int AS files FROM latest l
     JOIN qhp_index i ON i.issuer_id=l.issuer_id AND i.discovery_id=l.discovery_id
     LEFT JOIN qhp_child_url c USING(qhp_index_id) GROUP BY l.issuer_id ORDER BY files,l.issuer_id`,

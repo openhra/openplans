@@ -25,6 +25,7 @@ import {
 import { selectFormularyLinks } from "./discover.js";
 import type { FormularyLink } from "./discover.js";
 import type { ExtractedFormulary, FormularyExtractor } from "./extract.js";
+import { approvalBasisOf } from "./approval.js";
 import { formularyDrugCoverage } from "./coverage.js";
 import { matchCoverPlans, resolveSharedClaims } from "./match.js";
 import type { CatalogPlan, PlanLink } from "./match.js";
@@ -54,6 +55,8 @@ interface StagedDocument {
   snapshotId: string;
   link: FormularyLink;
   extracted: ExtractedFormulary;
+  /** From the fetch receipt: `owner-env:<SLUG>` for an operator-approved host, else null. */
+  approvalBasis: string | null;
 }
 
 interface CoverMatch {
@@ -234,7 +237,12 @@ export function createFormularySource(
           });
           continue;
         }
-        documents.push({ snapshotId: file.snapshotId, link, extracted });
+        documents.push({
+          snapshotId: file.snapshotId,
+          link,
+          extracted,
+          approvalBasis: approvalBasisOf(file),
+        });
       }
       const admittedYears = [
         ...new Set(documents.map((d) => d.extracted.cover.plan_year!)),
@@ -245,8 +253,12 @@ export function createFormularySource(
         run.issuers.map((issuer) => issuer.issuerId),
         admittedYears,
       );
-      for (const { link, extracted, snapshotId } of documents) {
-        await writeDocument(tx, { ...link, snapshotId }, extracted);
+      for (const { link, extracted, snapshotId, approvalBasis } of documents) {
+        await writeDocument(
+          tx,
+          { ...link, snapshotId, approvalBasis },
+          extracted,
+        );
         rows += extracted.rows.length;
       }
       staged = documents.map((document) => document.snapshotId);

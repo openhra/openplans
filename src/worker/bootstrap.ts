@@ -1,3 +1,4 @@
+import { QHP_INDEX_NEWEST_FIRST } from "../db/qhp-index-order.js";
 import { planAnnualWork } from "../ingest/data-window.js";
 import type { AnnualSkip } from "../ingest/data-window.js";
 import { databaseUrl } from "../config/access.js";
@@ -936,7 +937,7 @@ export async function bootstrapPlan(
               }>(
                 `SELECT i.registry_row,i.registry_snapshot_id,i.issuer_id,i.status,i.snapshot_id FROM qhp_index i
         WHERE i.state=$1 AND i.plan_year=$2 AND i.discovery_id=(SELECT discovery_id FROM qhp_index
-          WHERE state=$1 AND plan_year=$2 ORDER BY discovered_at DESC,qhp_index_id DESC LIMIT 1)`,
+          WHERE state=$1 AND plan_year=$2 ORDER BY ${QHP_INDEX_NEWEST_FIRST} LIMIT 1)`,
                 [state, year],
               )
             ).rows;
@@ -1001,7 +1002,7 @@ export async function bootstrapPlan(
                 await database().query<{ issuer_id: string; current: boolean }>(
                   `WITH latest AS (
           SELECT DISTINCT ON (issuer_id) issuer_id,discovery_id FROM qhp_index WHERE state=$1 AND plan_year=$2
-          ORDER BY issuer_id,discovered_at DESC,qhp_index_id DESC)
+          ORDER BY issuer_id,${QHP_INDEX_NEWEST_FIRST})
           SELECT l.issuer_id,(a.snapshot_id IS NOT NULL AND s.validation_state='ACTIVE' AND m.status='complete'
             AND f.discovery_id=l.discovery_id AND f.catalog_snapshot_id=pf.snapshot_id
             AND s.parser_version='${kind === "providers" ? "qhp-provider-v4" : "qhp-formulary-v3"}'

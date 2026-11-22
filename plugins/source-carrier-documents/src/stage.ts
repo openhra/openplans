@@ -64,7 +64,13 @@ export async function clearEarlier(
 
 export async function writeDocument(
   tx: SqlSession,
-  file: { snapshotId: string; url: string; urlYear: number; states: string[] },
+  file: {
+    snapshotId: string;
+    url: string;
+    urlYear: number;
+    states: string[];
+    approvalBasis: string | null;
+  },
   extracted: ExtractedFormulary,
 ): Promise<void> {
   const histogram: Record<string, number> = {};
@@ -76,8 +82,8 @@ export async function writeDocument(
   await tx.query(
     `INSERT INTO ${DOCUMENT_TABLE}(snapshot_id,document_sha256,url,url_year,plan_year,states,pages,
        legend_tiers,legend_flags,tier_histogram,confidence_counts,ql_flag_rows,ql_text_rows,cover_plan_names,
-       stated_tiers)
-     VALUES ($1,$2,$3,$4,$5,$6::text[],$7,$8::jsonb,$9::jsonb,$10::jsonb,$11::jsonb,$12,$13,$14::jsonb,$15::jsonb)`,
+       stated_tiers,approval_basis)
+     VALUES ($1,$2,$3,$4,$5,$6::text[],$7,$8::jsonb,$9::jsonb,$10::jsonb,$11::jsonb,$12,$13,$14::jsonb,$15::jsonb,$16)`,
     [
       file.snapshotId,
       extracted.sha256,
@@ -94,6 +100,7 @@ export async function writeDocument(
       extracted.rows.filter((row) => row.ql_text).length,
       JSON.stringify(extracted.cover.plan_names),
       JSON.stringify(extracted.legend.stated_tiers),
+      file.approvalBasis,
     ],
   );
   const admitted = admittedTiers({

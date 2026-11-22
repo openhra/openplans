@@ -1,4 +1,5 @@
 import type { SqlSession } from "../../db/database.js";
+import { QHP_INDEX_NEWEST_FIRST } from "../../db/qhp-index-order.js";
 
 export type ProviderSourceStatus =
   "complete" | "partial" | "failed" | "access_denied" | "unknown";
@@ -33,7 +34,7 @@ export async function providerAvailability(
     >(
       `WITH latest AS (
     SELECT DISTINCT ON (issuer_id,plan_year,state) issuer_id,plan_year,state,discovery_id
-    FROM qhp_index ORDER BY issuer_id,plan_year,state,discovered_at DESC,qhp_index_id DESC
+    FROM qhp_index ORDER BY issuer_id,plan_year,state,${QHP_INDEX_NEWEST_FIRST}
   ), discovery AS (
     SELECT l.issuer_id,l.plan_year,l.state,l.discovery_id,
       array_agg(DISTINCT i.status) AS index_statuses,

@@ -25,6 +25,8 @@ export interface FormularyDocumentText {
     plan_year: number;
     page: number;
     line: number;
+    /** `owner-env:<SLUG>` when the operator approved the document's host by variable. */
+    approval_basis?: string;
   };
   identity: "not_resolved";
 }
@@ -41,6 +43,7 @@ export type FormularyDocumentAnswer =
         plan_year: number;
         page: number;
         line: number;
+        approval_basis?: string;
       }[];
     };
 
@@ -57,7 +60,12 @@ type StagedRow = {
   url: string;
   document_sha256: string;
   plan_year: number;
+  approval_basis: string | null;
 };
+
+/** The approval field of a served citation, present only for an operator-approved host. */
+export const approvalField = (basis: string | null) =>
+  basis === null ? {} : { approval_basis: basis };
 
 export const ACTIVE_LINKS = `
   FROM plg_carrierdoc_plan_link l
@@ -100,6 +108,7 @@ function text(row: StagedRow): FormularyDocumentText {
       plan_year: row.plan_year,
       page: row.page,
       line: row.line,
+      ...approvalField(row.approval_basis),
     },
     identity: "not_resolved",
   };
@@ -119,7 +128,7 @@ export async function formularyDocumentEvidence(
   const basePlanId = query.planId.slice(0, 14);
   const { rows } = await db.query<StagedRow>(
     `SELECT r.drug_name, r.tier, r.tier_label, r.flags, r.ql_text, r.confidence, r.unknown_reason, r.page, r.line,
-            d.url, d.document_sha256, d.plan_year
+            d.url, d.document_sha256, d.plan_year, d.approval_basis
      ${ACTIVE_LINKS}
      JOIN plg_carrierdoc_document d ON d.snapshot_id = l.snapshot_id
      JOIN plg_carrierdoc_formulary_row r ON r.snapshot_id = l.snapshot_id AND r.name_key = $3
@@ -142,6 +151,7 @@ export async function formularyDocumentEvidence(
         plan_year: row.plan_year,
         page: row.page,
         line: row.line,
+        ...approvalField(row.approval_basis),
       })),
     };
   if (rows.length)

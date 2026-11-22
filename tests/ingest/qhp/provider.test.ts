@@ -230,7 +230,7 @@ describe("Synthetic issuer providers and labelled mutants", () => {
       // State selections and the cross-state association are labelled synthetic mutants.
       const index = (
         await h.db.query(
-          `SELECT qhp_index_id FROM qhp_index ORDER BY discovered_at DESC LIMIT 1`,
+          `SELECT qhp_index_id FROM qhp_index ORDER BY discovered_at DESC,qhp_index_id DESC LIMIT 1`,
         )
       ).rows[0]!;
       await h.db.query("UPDATE qhp_index SET state=$1 WHERE qhp_index_id=$2", [

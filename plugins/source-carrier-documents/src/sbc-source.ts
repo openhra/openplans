@@ -17,6 +17,7 @@ import {
   SBC_SOURCE_ID,
   SBC_USAGE,
 } from "./constants.js";
+import { approvalBasisOf } from "./approval.js";
 import { selectSbcLinks } from "./sbc-discover.js";
 import type { SbcLink } from "./sbc-discover.js";
 import type { ExtractedSbc, SbcExtractor } from "./sbc-extract.js";
@@ -79,6 +80,8 @@ interface Admitted {
   snapshotId: string;
   link: SbcLink;
   extracted: ExtractedSbc;
+  /** From the fetch receipt: `owner-env:<SLUG>` for an operator-approved host, else null. */
+  approvalBasis: string | null;
 }
 
 /**
@@ -209,7 +212,12 @@ export function createSbcSource(options: SbcSourceOptions): FeedSource {
           });
           continue;
         }
-        documents.push({ snapshotId: file.snapshotId, link, extracted });
+        documents.push({
+          snapshotId: file.snapshotId,
+          link,
+          extracted,
+          approvalBasis: approvalBasisOf(file),
+        });
       }
       const years = [
         ...new Set(
@@ -223,8 +231,12 @@ export function createSbcSource(options: SbcSourceOptions): FeedSource {
         years,
       );
       let rows = 0;
-      for (const { snapshotId, link, extracted } of documents) {
-        await writeSbcDocument(tx, { ...link, snapshotId }, extracted);
+      for (const { snapshotId, link, extracted, approvalBasis } of documents) {
+        await writeSbcDocument(
+          tx,
+          { ...link, snapshotId, approvalBasis },
+          extracted,
+        );
         rows += extracted.questions.length + extracted.chart.length;
       }
       staged = documents.map((d) => d.snapshotId);

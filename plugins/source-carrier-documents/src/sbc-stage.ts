@@ -102,7 +102,7 @@ export async function clearEarlierSbc(
 
 export async function writeSbcDocument(
   tx: SqlSession,
-  file: SbcLink & { snapshotId: string },
+  file: SbcLink & { snapshotId: string; approvalBasis: string | null },
   extracted: ExtractedSbc,
 ): Promise<void> {
   const period = extracted.coverage_period!;
@@ -112,8 +112,8 @@ export async function writeSbcDocument(
     confidence[item.confidence] = (confidence[item.confidence] ?? 0) + 1;
   await tx.query(
     `INSERT INTO ${SBC_DOCUMENT_TABLE}(snapshot_id,document_sha256,url,url_year,plan_year,coverage_start,
-       coverage_end,printed_plan_name,file_hios_ids,states,pages,confidence_counts,missing_services)
-     VALUES ($1,$2,$3,$4,$5,$6::date,$7::date,$8,$9::jsonb,$10::text[],$11,$12::jsonb,$13::jsonb)`,
+       coverage_end,printed_plan_name,file_hios_ids,states,pages,confidence_counts,missing_services,approval_basis)
+     VALUES ($1,$2,$3,$4,$5,$6::date,$7::date,$8,$9::jsonb,$10::text[],$11,$12::jsonb,$13::jsonb,$14)`,
     [
       file.snapshotId,
       extracted.sha256,
@@ -128,6 +128,7 @@ export async function writeSbcDocument(
       extracted.pages,
       JSON.stringify(confidence),
       JSON.stringify(extracted.missing_services),
+      file.approvalBasis,
     ],
   );
   const rows = [

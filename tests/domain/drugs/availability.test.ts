@@ -54,10 +54,10 @@ it("exposes partial and failed manifests, preserving actual validated shard coun
     complete_children: 1,
   });
   await h.db.query(
-    `UPDATE qhp_index SET status='connect_timeout' WHERE qhp_index_id=(SELECT qhp_index_id FROM qhp_index ORDER BY discovered_at DESC LIMIT 1)`,
+    `UPDATE qhp_index SET status='connect_timeout' WHERE qhp_index_id=(SELECT qhp_index_id FROM qhp_index ORDER BY discovered_at DESC,qhp_index_id DESC LIMIT 1)`,
   );
   await h.db.query(
-    `UPDATE qhp_child_url SET status='connect_timeout' WHERE qhp_index_id=(SELECT qhp_index_id FROM qhp_index ORDER BY discovered_at DESC LIMIT 1)`,
+    `UPDATE qhp_child_url SET status='connect_timeout' WHERE qhp_index_id=(SELECT qhp_index_id FROM qhp_index ORDER BY discovered_at DESC,qhp_index_id DESC LIMIT 1)`,
   );
   expect((await drugAvailability(h.db, scope))[0]?.status).toBe("failed");
   // Restore the cached plan child's synthetic acquisition status for the next discovery.
