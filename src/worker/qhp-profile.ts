@@ -64,10 +64,22 @@ export async function readQhpProfile(path: string): Promise<QhpProfile> {
   return profile;
 }
 
+/** The URL as the cache records it: publishers sometimes list a host in mixed case. */
+function recordedUrl(value: string): string | null {
+  try {
+    return new URL(value).href;
+  } catch {
+    return null;
+  }
+}
+
 /** Pins select existing bytes. Stored admission receipts still decide whether they may be read. */
 export function preparedQhpFetcher(profile: QhpProfile): typeof fetchToCache {
   return async (input, options) => {
-    const pin = profile.feed_raw.find((f) => f.url === String(input));
+    const wanted = recordedUrl(String(input));
+    const pin = profile.feed_raw.find(
+      (f) => wanted !== null && recordedUrl(f.url) === wanted,
+    );
     if (!pin)
       throw new FetchError(
         "cache_error",

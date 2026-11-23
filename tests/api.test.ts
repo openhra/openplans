@@ -6,6 +6,7 @@ import { createApp } from "../src/api/app.js";
 import { createDatabase } from "../src/db/database.js";
 import { migrate } from "../src/db/migrate.js";
 import { coreMigrations, testDatabase } from "./pglite.js";
+import { contract } from "./public-contract.js";
 
 describe("API", () => {
   const pg = new PGlite();
@@ -36,6 +37,12 @@ describe("API", () => {
       VALUES ('TX', 2026, 'individual_medical', 'synthetic-partial', 'partial', 'unknown');
     `);
     const response = await app.request("/v1/data-availability");
+    const rows = (await response.clone().json()) as Record<string, unknown>[];
+    // Every row carries the keys docs/public-contract.json promises.
+    for (const row of rows)
+      expect(Object.keys(row)).toEqual(
+        expect.arrayContaining(contract.availability.row_required),
+      );
     expect(await response.json()).toEqual([
       {
         state: "TX",

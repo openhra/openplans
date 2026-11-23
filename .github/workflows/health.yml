@@ -1,0 +1,21 @@
+name: OpenPlans public health
+
+# Checks the public service from outside its own network: readiness, status and the MCP endpoint.
+# No secrets are used. A failed run is reported by GitHub's own failed-workflow notice.
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  health:
+    name: OpenPlans / public health
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+      - name: Check the public service (two attempts, 60 s apart)
+        run: python3 scripts/public_health.py --attempts 2 --retry-wait 60

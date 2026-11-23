@@ -3,6 +3,14 @@ import { parse_hios } from "../hios/index.js";
 import { providerAvailability } from "./availability.js";
 import { classifyProviderEvidence } from "./index.js";
 import type { ProviderEvidence, ProviderParticipation } from "./index.js";
+import {
+  PLAN_LINK_COLUMNS,
+  PLAN_LINK_JOINS,
+  npiRegistryLink,
+  planLinkOuts,
+  withLinkOuts,
+} from "../link-outs.js";
+import type { PlanLinkCells } from "../link-outs.js";
 
 export function createProviderRepository(db: SqlSession) {
   return {
@@ -32,11 +40,31 @@ export async function providerIdentity(
     ).rows[0] ?? null
   );
 }
+/**
+ * One plan, identity and year. An `unknown` answer carries link-outs: the plan's published provider
+ * directory, read in the same statement as the plan, and the identity's NPI registry page.
+ */
 export async function providerParticipation(
   db: SqlSession,
   planId: string,
   identity: string,
   year: number,
+): Promise<ProviderParticipation> {
+  const read: { plan?: PlanLinkCells } = {};
+  const answer = await participationFromFiles(db, planId, identity, year, read);
+  return withLinkOuts(answer, [
+    ...planLinkOuts(read.plan, "provider"),
+    ...(typeof identity === "string" ? npiRegistryLink(identity) : []),
+  ]);
+}
+
+/** The answer from the issuer's machine-readable files; `read.plan` receives the plan row it read. */
+async function participationFromFiles(
+  db: SqlSession,
+  planId: string,
+  identity: string,
+  year: number,
+  read: { plan?: PlanLinkCells },
 ): Promise<ProviderParticipation> {
   const result: ProviderParticipation = {
     status: "unknown",
@@ -63,15 +91,19 @@ export async function providerParticipation(
   if (typeof identity !== "string" || !identity.length)
     return { ...result, reason: "invalid_identity" };
   const plan = (
-    await db.query<{ issuer_id: string; state: string; snapshot_id: string }>(
-      `SELECT p.issuer_id,p.state,p.snapshot_id
+    await db.query<
+      { issuer_id: string; state: string; snapshot_id: string } & PlanLinkCells
+    >(
+      `SELECT p.issuer_id,p.state,p.snapshot_id,${PLAN_LINK_COLUMNS}
     FROM puf_active_catalog a JOIN puf_import_file f ON f.import_id=a.import_id AND f.kind='plan-attributes'
     JOIN plan p ON p.snapshot_id=f.snapshot_id AND p.state=a.state AND p.plan_year=a.plan_year
+    ${PLAN_LINK_JOINS}
     WHERE p.base_plan_id=$1 AND a.plan_year=$2`,
       [hios.base, year],
     )
   ).rows[0];
   if (!plan) return { ...result, reason: "plan_not_in_catalog" };
+  read.plan = plan;
   if (
     hios.variant &&
     !(

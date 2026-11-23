@@ -1,6 +1,6 @@
 {
   "name": "openplans",
-  "version": "0.4.19",
+  "version": "0.4.20",
   "private": true,
   "type": "module",
   "engines": {
@@ -14,8 +14,8 @@
   "scripts": {
     "format": "prettier --ignore-path .prettierignore --write .",
     "format:check": "prettier --ignore-path .prettierignore --check .",
-    "lint": "eslint . --max-warnings 0 && node scripts/lint-baseline.mjs",
-    "check:lint-setup": "node scripts/lint-setup-selftest.mjs",
+    "lint": "node --max-old-space-size=4096 node_modules/eslint/bin/eslint.js . --max-warnings 0 && node --max-old-space-size=4096 scripts/lint-baseline.mjs",
+    "check:lint-setup": "node --max-old-space-size=4096 scripts/lint-setup-selftest.mjs",
     "build": "npm run build:plugins && tsc -p tsconfig.build.json",
     "build:sdk": "npm run build -w @openplans/plugin-sdk",
     "build:plugins": "npm run build:sdk && npm run build --workspaces --if-present",
@@ -33,7 +33,7 @@
     "mcp:manifest": "npm run build && node scripts/mcp-tools-manifest.mjs",
     "worker:puf:pglite": "node dist/ingest/puf/import-pglite.js",
     "fixtures:puf:import": "python3 tests/fixtures/puf/import/regenerate.py",
-    "lint:prune": "eslint . --max-warnings 0 --prune-suppressions && node scripts/lint-baseline.mjs --prune"
+    "lint:prune": "node --max-old-space-size=4096 node_modules/eslint/bin/eslint.js . --max-warnings 0 --prune-suppressions && node --max-old-space-size=4096 scripts/lint-baseline.mjs --prune"
   },
   "dependencies": {
     "@hono/node-server": "2.1.6",

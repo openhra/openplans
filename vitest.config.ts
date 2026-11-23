@@ -4,6 +4,12 @@ import { fileURLToPath } from "node:url";
 import { configDefaults, defineConfig, type Plugin } from "vitest/config";
 import TimedSequencer from "./scripts/test-sequencer.js";
 
+// A slower or busier host (the hosted macOS runner) sets GATE_LOAD_FACTOR, for example 2, to scale
+// every test and hook timeout. Unset means 1.
+const loadFactor = Number(process.env.GATE_LOAD_FACTOR || "1");
+if (!Number.isFinite(loadFactor) || loadFactor < 1 || loadFactor > 10)
+  throw new Error("GATE_LOAD_FACTOR must be a number from 1 to 10");
+
 // scripts/source-mutation.mjs rewrites a planted mutant's relative imports to file URLs. Vitest 5
 // maps a relative `.js` import to the `.ts` source beside it, but not a `.js` file URL.
 const fileUrlSources: Plugin = {
@@ -76,7 +82,7 @@ export default defineConfig({
         },
       },
     ],
-    testTimeout: 20_000,
-    hookTimeout: 30_000,
+    testTimeout: 20_000 * loadFactor,
+    hookTimeout: 30_000 * loadFactor,
   },
 });

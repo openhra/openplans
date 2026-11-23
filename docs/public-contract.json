@@ -1,0 +1,99 @@
+{
+  "schema_version": 1,
+  "about": "The public surface of a public OpenPlans instance in one file: the /status.json keys, the MCP tools an anonymous caller sees, the keys every /v1/data-availability row carries, the link-outs an unknown answer may carry, and the error shape. The tests and the deployment checks read this file. Changing it needs a note in changes/unreleased/ that names docs/public-contract.json.",
+  "status": {
+    "route": "/status.json",
+    "required": [
+      "api",
+      "cache",
+      "data",
+      "db",
+      "health_transitions",
+      "passthrough",
+      "plugins",
+      "sources",
+      "version",
+      "worker"
+    ],
+    "optional": {
+      "usage_report": {
+        "allowed": ["off"],
+        "since": "0.4.18",
+        "note": "The opt-in usage report stays off on a public instance. Older images do not serve the key."
+      }
+    }
+  },
+  "mcp": {
+    "public_plugins": ["@openplans/plugin-status"],
+    "anonymous_tools": [
+      "check_drug_coverage",
+      "check_ichra_affordability",
+      "check_provider_network",
+      "fetch",
+      "get_data_status",
+      "get_plan",
+      "get_status",
+      "list_carriers_networks",
+      "lookup_geography",
+      "quote_plans",
+      "quote_premiums",
+      "search",
+      "search_drugs",
+      "search_medicare_plans",
+      "search_plans",
+      "search_providers"
+    ]
+  },
+  "availability": {
+    "route": "/v1/data-availability",
+    "row_required": [
+      "catalog_status",
+      "drug_status",
+      "formulary_document_status",
+      "formulary_status",
+      "issuer_id",
+      "market",
+      "plan_year",
+      "premium_status",
+      "provider_status",
+      "snapshot_id",
+      "state"
+    ]
+  },
+  "answers": {
+    "links": {
+      "optional_on": [
+        "GET /v1/medicare/plans/{key}/drugs",
+        "GET /v1/plans/{id}/providers/{npi}",
+        "POST /v1/drug-coverage",
+        "POST /v1/provider-participation",
+        "cost_sharing in plan views",
+        "MCP check_drug_coverage, check_provider_network and quote cells",
+        "quote provider and drug cells"
+      ],
+      "only_when": "status (for cost_sharing, benefits_status) is unknown",
+      "item_required": ["kind", "rel", "snapshot_id", "source", "url"],
+      "kind": "link_out",
+      "rel": [
+        "formulary",
+        "medicare_plan_finder",
+        "npi_registry",
+        "plan_brochure",
+        "provider_directory",
+        "summary_of_benefits"
+      ],
+      "note": "Pages a person can open; OpenPlans never fetches them. REST items also carry source_row; MCP items carry https URLs only."
+    }
+  },
+  "errors": {
+    "rest": {
+      "envelope": "error",
+      "required": { "code": "string" },
+      "optional": { "field": "string" }
+    },
+    "jsonrpc": {
+      "envelope": "error",
+      "required": { "code": "integer", "message": "string" }
+    }
+  }
+}

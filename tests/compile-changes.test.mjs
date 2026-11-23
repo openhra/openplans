@@ -1,11 +1,15 @@
 import { execFileSync } from "node:child_process";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   compile,
+  CONTRACT,
+  CONTRACT_PIN,
+  contractChange,
   main,
   NOTES_DIR,
   NotesError,
@@ -225,5 +229,79 @@ describe("change notes", () => {
         encoding: "utf8",
       }),
     ).toBe("- Synthetic one.\n");
+  });
+
+  describe("public contract", () => {
+    const contract = '{"synthetic":"contract v1"}\n';
+    const sha = (text) => createHash("sha256").update(text).digest("hex");
+    async function withContract(notes, pin) {
+      const root = await synthetic(notes, `${header}\n${history}`);
+      await mkdir(join(root, "docs"));
+      await writeFile(join(root, CONTRACT), contract);
+      if (pin !== undefined) await writeFile(join(root, CONTRACT_PIN), pin);
+      return root;
+    }
+
+    it("fails --check when the contract changed and no note names it", async () => {
+      const root = await withContract({
+        "other.md": "- Synthetic unrelated.\n",
+      });
+      await expect(main(["--check"], root)).rejects.toThrow(
+        `${CONTRACT} changed since the last release`,
+      );
+      // The released sha256 of another contract: still a change.
+      await writeFile(join(root, CONTRACT_PIN), `${sha("older")}\n`);
+      await expect(main(["--check"], root)).rejects.toThrow(NotesError);
+    });
+
+    it("passes with a note that names the file, or when the contract is the released one", async () => {
+      const named = await withContract({
+        "surface.md": `- \`${CONTRACT}\` gains a synthetic key.\n`,
+      });
+      expect(await contractChange(named, await readNotes(named))).toEqual({
+        sha256: sha(contract),
+        released: null,
+        changed: true,
+        notes: ["surface.md"],
+      });
+      expect(await main(["--check"], named)).toBe(0);
+      const same = await withContract({}, `${sha(contract)}\n`);
+      expect((await contractChange(same, [])).changed).toBe(false);
+      expect(await main(["--check"], same)).toBe(0);
+      const malformed = await withContract({}, "not a sha\n");
+      await expect(main(["--check"], malformed)).rejects.toThrow(
+        "must hold one sha256",
+      );
+    });
+
+    it("--release records the released contract, and a later change needs a new note", async () => {
+      const root = await withContract({
+        "surface.md": `- \`${CONTRACT}\` lists the synthetic surface.\n`,
+      });
+      execFileSync(
+        process.execPath,
+        [script, "--root", root, "--release", "v0.1.2"],
+        {
+          cwd: root,
+          encoding: "utf8",
+        },
+      );
+      expect(await readFile(join(root, CONTRACT_PIN), "utf8")).toBe(
+        `${sha(contract)}\n`,
+      );
+      expect(await main(["--check"], root)).toBe(0);
+      await writeFile(join(root, CONTRACT), '{"synthetic":"contract v2"}\n');
+      await expect(main(["--check"], root)).rejects.toThrow(
+        `add a note in ${NOTES_DIR}/ that names ${CONTRACT}`,
+      );
+    });
+
+    it("skips the check in an exported tree, which has no changes folder", async () => {
+      const root = await mkdtemp(join(tmpdir(), "openplans-exported-"));
+      roots.push(root);
+      await mkdir(join(root, "docs"));
+      await writeFile(join(root, CONTRACT), contract);
+      expect(await contractChange(root, [])).toBeNull();
+    });
   });
 });

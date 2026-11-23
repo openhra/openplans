@@ -62,6 +62,13 @@ describe("prepared QHP profile", () => {
         outcome: "reused",
         path: cached.path,
       });
+      // An index may list the pinned URL with its host in mixed case; the cache records it lower-case.
+      expect(
+        await fetcher("https://Prepared.EXAMPLE/index.json", options),
+      ).toMatchObject({ outcome: "reused", path: cached.path });
+      await expect(
+        fetcher("https://prepared.example/INDEX.json", options),
+      ).rejects.toMatchObject({ code: "cache_error" });
       await expect(
         fetcher("https://prepared.example/unlisted.json", options),
       ).rejects.toMatchObject({ code: "cache_error" });

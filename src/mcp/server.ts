@@ -64,7 +64,8 @@ export const instructions =
   "Every answer carries provenance and an evidence status. Unknown means missing or incomplete evidence, never not covered or not in network. " +
   "quote_plans quotes plans by age and ZIP without income or subsidies. quote_premiums adds income and subsidy estimates; an operator may require a token for it. " +
   "Quotes are not bindable and never determine CSR eligibility. " +
-  "Follow next_cursor with the same filters; restart after CURSOR_EXPIRED. Results describe the current local data generation, not a live publisher check.";
+  "Follow next_cursor with the same filters; restart after CURSOR_EXPIRED. Results describe the current local data generation, not a live publisher check. " +
+  "Setup and tool docs: https://github.com/openhra/openplans#mcp";
 
 const mutable = { ttlMs: 0, cacheScope: "private" as const };
 const definition = { ttlMs: 300_000, cacheScope: "public" as const };

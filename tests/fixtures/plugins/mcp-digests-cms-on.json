@@ -1,7 +1,7 @@
 {
   "initialize-anonymous": {
     "status": 200,
-    "body_sha256": "d2d0b29879e7d35127cc0ae0fa12b2dbb5fc484fb3ea6dbb086e20eff5b81bb8",
+    "body_sha256": "3a6e4786dfbe92fe91377b1ffbcd88c8fd905f80ae7f572d1b58638e6d1060ee",
     "headers": {
       "content-type": "text/event-stream",
       "cache-control": "no-store",
@@ -12,7 +12,7 @@
   },
   "tools-list-anonymous": {
     "status": 200,
-    "body_sha256": "184964faff73fd2f1cdeced27032b90260b1d7488dc59ee249a23323243e0fcc",
+    "body_sha256": "32211f480b2bcffd8e8c066865bd8ae0e7f6e2604f2f6987bb33632b03cc99bb",
     "headers": {
       "content-type": "application/json",
       "cache-control": "no-store",
@@ -23,7 +23,7 @@
   },
   "initialize-granted": {
     "status": 200,
-    "body_sha256": "d2d0b29879e7d35127cc0ae0fa12b2dbb5fc484fb3ea6dbb086e20eff5b81bb8",
+    "body_sha256": "3a6e4786dfbe92fe91377b1ffbcd88c8fd905f80ae7f572d1b58638e6d1060ee",
     "headers": {
       "content-type": "text/event-stream",
       "cache-control": "no-store",
@@ -34,7 +34,7 @@
   },
   "tools-list-granted": {
     "status": 200,
-    "body_sha256": "57b15d2ae9c42bc255daa90e83aa75b18ecb7ec6d3857a6c6f05aa0e4957c03d",
+    "body_sha256": "5a01ed7389fa4e3f1abb8594243ba9e54a32f8682d672350c668ec3af7f3bfcb",
     "headers": {
       "content-type": "application/json",
       "cache-control": "no-store",
@@ -67,7 +67,7 @@
   },
   "call-check_provider_network": {
     "status": 200,
-    "body_sha256": "cebc9054f7983b9e7b440490c26a84f972dc9e9c51e30fc66814ad9f9fe58d0d",
+    "body_sha256": "86c6832182be129098b1568c08c906a5cd4ffea4323447def20773a177c7bc16",
     "headers": {
       "content-type": "application/json",
       "cache-control": "no-store",
@@ -232,7 +232,7 @@
   },
   "call-check_provider_network-anonymous": {
     "status": 200,
-    "body_sha256": "cebc9054f7983b9e7b440490c26a84f972dc9e9c51e30fc66814ad9f9fe58d0d",
+    "body_sha256": "86c6832182be129098b1568c08c906a5cd4ffea4323447def20773a177c7bc16",
     "headers": {
       "content-type": "application/json",
       "cache-control": "no-store",

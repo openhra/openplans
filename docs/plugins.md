@@ -12,7 +12,7 @@ system rights as the core. The core limits what a plugin can register, read and 
 not a sandbox. Install only packages you have reviewed, and record the reviewed version and
 package hash (see [Status page](#status-page)).
 
-The plugin API is experimental. Its version is `0.1`, and the loader refuses a plugin that
+The plugin API is experimental. Its version is `0.2`, and the loader refuses a plugin that
 declares any other version. See [Versions](#versions).
 
 ## Market Source of Truth

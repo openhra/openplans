@@ -75,6 +75,10 @@
           }
         },
         {
+          "name": "Check runner limits",
+          "run": "node .github/runner-limits.mjs check linux"
+        },
+        {
           "name": "Install Poppler",
           "run": "sudo apt-get update\nsudo apt-get install --yes --no-install-recommends poppler-utils\npdftotext -v"
         },
@@ -132,6 +136,10 @@
           "with": {
             "node-version-file": ".node-version"
           }
+        },
+        {
+          "name": "Check runner limits",
+          "run": "node .github/runner-limits.mjs check macos"
         },
         {
           "name": "Install Poppler",

@@ -105,6 +105,33 @@ node scripts/test-timings.mjs scripts/test-timings.json /tmp/tests-{1,2,3}.json
 
 Commit the resulting timing file. It stores durations under relative test paths.
 
+## Hosted runner limits
+
+A hosted runner has less memory than most development machines, and Node sizes its default
+heap from physical memory: on the 14 GB macOS runner the limit is about 2 GB, on a 16 GB or
+larger machine about 4 GB. A check can pass locally and run out of heap on the runner.
+`.github/runner-limits.json` records each runner's image, CPU count, memory, Node's default
+old-space limit (`node_heap_limit_mb`) and the pinned Node version. To run every step under
+those limits:
+
+```sh
+scripts/ci.sh --hosted macos   # or --hosted linux
+```
+
+With `--hosted`, `scripts/ci.sh` adds `--max-old-space-size=<node_heap_limit_mb>` to
+`NODE_OPTIONS` for every step and sets the test worker count the runner's CPUs give. A script
+that passes its own `--max-old-space-size` keeps it, as it does on the runner. The script exits
+with status 2 before any step when `node --version` is not the version in `.node-version`,
+because another Node version sizes its heap differently. When a step fails with Node's
+out-of-memory message, the script prints `node heap exhausted (cap N MB)`.
+
+The Linux and macOS jobs start with a `Check runner limits` step. It prints the runner's
+`os.cpus().length`, `os.totalmem()`, V8 `heap_size_limit` and `node --version`, and fails
+when they differ from the file: CPU count and Node version must match exactly, memory within
+10%, and the default heap limit must equal the limit under
+`--max-old-space-size=<node_heap_limit_mb>`. When GitHub changes a runner, that step fails
+and the file needs the new values.
+
 The final job rejects missing, canceled and failed prerequisites, and skipped ones unless
 a passing run of the same commit exists (see above). Required jobs have no path filters,
 and the same-commit decision is their only condition. Contract tests check the workflow's

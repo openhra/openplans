@@ -1,5 +1,6 @@
 import { currentEnvironment, loadConfig } from "../config/index.js";
 import { createHash } from "node:crypto";
+import { termsHashModes, visibleTextSha256 } from "./visible-text.js";
 import { readFile } from "node:fs/promises";
 import { isAbsolute } from "node:path";
 import { z } from "zod";
@@ -174,6 +175,11 @@ const publisherSchema = z
         url: httpsUrl,
         disposition: z.enum(["allowed", "restricted", "unknown"]),
         sha256,
+        /**
+         * What `sha256` pins. `raw` (the default) is the document's bytes. `visible-text` is the
+         * hash of its normalised visible text, for pages whose bytes change on every request.
+         */
+        hashMode: z.enum(termsHashModes).optional(),
         reviewedAt: z.iso.datetime(),
         expiresAt: z.iso.datetime(),
         /** Who reviewed the terms; shipped manifests name the OpenPlans maintainers. */
@@ -757,7 +763,11 @@ export class AdmissionSession {
         termsUrl,
         Math.max(publisher.delayMs, robots.delayMs, termsRobots.delayMs),
       );
-      if (currentTerms.status !== 200 || currentTerms.sha256 !== terms.sha256)
+      const currentTermsSha256 =
+        terms.hashMode === "visible-text"
+          ? visibleTextSha256(currentTerms.text)
+          : currentTerms.sha256;
+      if (currentTerms.status !== 200 || currentTermsSha256 !== terms.sha256)
         throw new FetchError(
           "admission_denied",
           "Publisher terms changed or are unavailable",

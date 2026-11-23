@@ -98,8 +98,39 @@ function requireComplete(cell: OfferCohort) {
   expect(cell.statistics?.median).toBeDefined();
 }
 
-it("rates every eligible real TX Silver offer at boundary ages and equals the existing minimum", async () => {
-  for (const age of [0, 14, 15, 20, 21, 40, 64, 120]) {
+// The location, Silver plans and their attributes do not depend on age; read them once for all
+// boundary ages. One test per age keeps each well under half the test timeout on a loaded host.
+let silver:
+  | Promise<{
+      location: Awaited<ReturnType<typeof resolveLocation>>;
+      plans: {
+        plan: Awaited<ReturnType<typeof countyPlans>>[number];
+        attributes: Awaited<ReturnType<typeof exchangeAttributeRows>>["rows"];
+      }[];
+    }>
+  | undefined;
+function silverPlans() {
+  silver ??= (async () => {
+    const location = await resolveLocation(h.db, input);
+    const plans = (
+      await countyPlans(h.db, input.county, input.year, input.zip)
+    ).filter((p) => p.on_exchange && p.metal.toLowerCase() === "silver");
+    const withAttributes = [];
+    for (const plan of plans)
+      withAttributes.push({
+        plan,
+        attributes: (
+          await exchangeAttributeRows(h.db, plan.snapshot_id, plan.base_plan_id)
+        ).rows,
+      });
+    return { location, plans: withAttributes };
+  })();
+  return silver;
+}
+
+it.each([0, 14, 15, 20, 21, 40, 64, 120])(
+  "rates every eligible real TX Silver offer at boundary age %i and equals the existing minimum",
+  async (age) => {
     const { first, rows } = await allEvidence(h.db, age);
     requireComplete(first);
     expect(
@@ -109,15 +140,9 @@ it("rates every eligible real TX Silver offer at boundary ages and equals the ex
         members: [{ age, relationship: "subscriber" }],
       }),
     ).toEqual(first);
-    const location = await resolveLocation(h.db, input);
-    const plans = (
-      await countyPlans(h.db, input.county, input.year, input.zip)
-    ).filter((p) => p.on_exchange && p.metal.toLowerCase() === "silver");
+    const { location, plans } = await silverPlans();
     const expected: { plan_id: string; monthly_cents: number }[] = [];
-    for (const plan of plans) {
-      const attributes = (
-        await exchangeAttributeRows(h.db, plan.snapshot_id, plan.base_plan_id)
-      ).rows;
+    for (const { plan, attributes } of plans) {
       if (familyOffer(attributes, age >= 21, age < 21) === false) continue;
       const request = premiumRequest({
         ...input,
@@ -164,8 +189,8 @@ it("rates every eligible real TX Silver offer at boundary ages and equals the ex
     expect(
       first.statistics!.mean!.numerator / first.statistics!.mean!.denominator,
     ).toBe(sorted.reduce((a, b) => a + b, 0) / sorted.length);
-  }
-});
+  },
+);
 
 it("counts ineligible and all unrated candidates and refuses an incomplete headline", async () => {
   const { rows } = await allEvidence(h.db, 40);

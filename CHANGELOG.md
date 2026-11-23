@@ -5,6 +5,33 @@ Release notes for OpenPlans. Earlier releases are on the
 
 ## Unreleased
 
+## v0.4.20
+
+This release also contains the changes listed under v0.4.19 below.
+
+- `docs/public-contract.json` describes the public API in one file: the `/status.json` keys and the values they may take, the 16 MCP tools an anonymous caller sees, the keys every `/v1/data-availability` row carries, and the error shape. The tests read it, and changing it needs a release note that names the file.
+
+- CI checks that docs still match the code: release versions, the plugin API version,
+  default-off and no-key claims, and MCP tool counts. The plugin guide now says API `0.2`.
+- The README has an MCP section with the public endpoint and client configs for HTTP and
+  stdio. The server instructions link to it. A stdio startup failure now names the check that
+  failed: config, database or transport.
+
+- `npm run lint` no longer runs out of memory on runners with a small default Node heap. The
+  lint scripts now give Node a fixed 4096 MB heap on every platform.
+
+- Prepared provider feeds now match a pinned file when the issuer's index writes its host in mixed case, such as `cms.Example.com`. Before, the loader reported the file as not cached and the issuer stayed `unknown`.
+
+- `scripts/ci.sh --hosted macos` (or `linux`) runs every step under the hosted runner's heap cap and worker count from `.github/runner-limits.json`, and CI checks that file against each runner.
+
+- `unknown` provider, drug, benefits and Medicare Part D drug answers can carry `links`: the
+  plan's published provider directory, formulary, summary of benefits or brochure from the loaded
+  plan files (CMS PUFs and state-based exchange bundles), the NPI Registry page for an NPI, or the
+  Medicare Plan Finder page for a Part D plan. Each is labelled `kind: "link_out"` with the
+  snapshot and row that published it. OpenPlans never fetches these pages and serves no URL from
+  a snapshot that is not ACTIVE. Answers with any other status carry no `links`, and the
+  compatibility API is unchanged. `docs/public-contract.json` describes `links` under `answers`.
+
 ## v0.4.19
 
 - Access manifests: a publisher entry can name the manifest `family` it was reviewed for (`mr`,

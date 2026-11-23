@@ -13,6 +13,13 @@ import { drugAvailability } from "./availability.js";
 import { withDocumentCoverage } from "./documents.js";
 import { classifyDrugEvidence } from "./index.js";
 import type { DrugCoverage, DrugEvidence } from "./index.js";
+import {
+  PLAN_LINK_COLUMNS,
+  PLAN_LINK_JOINS,
+  planLinkOuts,
+  withLinkOuts,
+} from "../link-outs.js";
+import type { PlanLinkCells } from "../link-outs.js";
 
 /**
  * The request-time identity stage: the pass-through API and the inbound request's scope. It is
@@ -127,7 +134,8 @@ export function createDrugRepository(db: SqlSession) {
  * One plan, RxCUI and year. The issuer's machine-readable files answer first; an `unknown` they
  * leave for a missing or incomplete source set may then be answered from issuer-published
  * documents (`withDocumentCoverage`). The request's pass-through sources run after this, on what
- * is still `unknown`.
+ * is still `unknown`. An answer still `unknown` carries the plan's published formulary page as a
+ * link-out, read in the same statement as the plan.
  */
 export async function drugCoverage(
   db: SqlSession,
@@ -136,10 +144,15 @@ export async function drugCoverage(
   year: number,
   identity?: DrugIdentityStage,
 ): Promise<DrugCoverage> {
-  return withDocumentCoverage(
-    db,
-    await issuerFileCoverage(db, planId, rxcui, year, identity),
-    identity?.scope.writer,
+  const read: { plan?: PlanLinkCells } = {};
+  // The floor runs after the document step: an answer it fills leaves without links.
+  return withLinkOuts(
+    await withDocumentCoverage(
+      db,
+      await issuerFileCoverage(db, planId, rxcui, year, identity, read),
+      identity?.scope.writer,
+    ),
+    planLinkOuts(read.plan, "drug"),
   );
 }
 
@@ -149,7 +162,8 @@ async function issuerFileCoverage(
   planId: string,
   rxcui: string,
   year: number,
-  identity?: DrugIdentityStage,
+  identity: DrugIdentityStage | undefined,
+  read: { plan?: PlanLinkCells },
 ): Promise<DrugCoverage> {
   const result: DrugCoverage = {
     status: "unknown",
@@ -193,15 +207,19 @@ async function issuerFileCoverage(
   } else if (!concepts.some((c) => c.suppress === "N"))
     return { ...result, reason: "rxcui_suppressed" };
   const plan = (
-    await db.query<{ issuer_id: string; state: string; snapshot_id: string }>(
-      `SELECT p.issuer_id,p.state,p.snapshot_id
+    await db.query<
+      { issuer_id: string; state: string; snapshot_id: string } & PlanLinkCells
+    >(
+      `SELECT p.issuer_id,p.state,p.snapshot_id,${PLAN_LINK_COLUMNS}
     FROM puf_active_catalog a JOIN puf_import_file f ON f.import_id=a.import_id AND f.kind='plan-attributes'
     JOIN plan p ON p.snapshot_id=f.snapshot_id AND p.state=a.state AND p.plan_year=a.plan_year
+    ${PLAN_LINK_JOINS}
     WHERE p.base_plan_id=$1 AND a.plan_year=$2`,
       [hios.base, year],
     )
   ).rows[0];
   if (!plan) return { ...result, reason: "plan_not_in_catalog" };
+  read.plan = plan;
   if (
     hios.variant &&
     !(

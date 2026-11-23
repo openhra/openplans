@@ -510,7 +510,12 @@ describe("configuration rejection controls", () => {
     [
       "dist/mcp/stdio.js",
       { DATABASE_URL: "" },
-      "MCP startup failed; check DATABASE_URL",
+      "MCP startup failed at the database check; DATABASE_URL is not set",
+    ],
+    [
+      "dist/mcp/stdio.js",
+      { OPENPLANS_CONFIG: "relative-config.json" },
+      "MCP startup failed at the config check; check OPENPLANS_CONFIG and the OPENPLANS_* variables",
     ],
   ] as const)(
     "preserves %s startup diagnostics %j",
