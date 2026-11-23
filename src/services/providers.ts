@@ -17,6 +17,7 @@ import type { ProviderSearch } from "../api/provider-repository.js";
 import { findPlan, variantExists } from "../api/repository.js";
 import * as v from "../api/validation.js";
 import { ReadError } from "./errors.js";
+import { linkOutFloor, withLinkOuts } from "../domain/link-outs.js";
 import { STATE_FIPS } from "../ingest/geo/states.js";
 
 export function npi(value: unknown): string {
@@ -251,8 +252,11 @@ export async function checkProviderNetwork(
     npi(code),
     providerYear(year),
   );
+  // A pass-through source may answer what the files left unknown; the floor then drops the links.
   return cms
-    ? (await consultPassThrough(passThrough, "provider", [answer], cms))[0]!
+    ? withLinkOuts(
+        (await consultPassThrough(passThrough, "provider", [answer], cms))[0]!,
+      )
     : answer;
 }
 
@@ -295,7 +299,9 @@ export async function checkProviderNetworks(
       results.push(await providerParticipation(db, plan, code, year));
   return {
     results: cms
-      ? await consultPassThrough(passThrough, "provider", results, cms)
+      ? linkOutFloor(
+          await consultPassThrough(passThrough, "provider", results, cms),
+        )
       : results,
   };
 }

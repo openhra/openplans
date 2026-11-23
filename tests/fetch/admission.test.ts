@@ -18,6 +18,7 @@ import type {
   Transport,
 } from "../../src/fetch/index.js";
 import { parseRobots } from "../../src/fetch/robots.js";
+import { visibleTextSha256 } from "../../src/fetch/visible-text.js";
 
 vi.mock("../../src/fetch/limiter.js", () => ({
   leaseHost: async () => async () => {},
@@ -173,6 +174,50 @@ describe("publisher admission before acquisition and publication", () => {
     expect(first.metadata.access_policy).toEqual(first.admission);
     expect(second.outcome).toBe("reused");
     expect(await readFile(first.path, "utf8")).toBe(dataBody);
+  });
+
+  describe("terms hash mode", () => {
+    const page = (stamp: string, sentence: string) =>
+      `<html><head><script>var built="${stamp}";</script></head><body><!-- ${stamp} --><p>${sentence}</p></body></html>`;
+    const sentence = "Synthetic publisher permits automated feed collection.";
+    beforeEach(async () => {
+      manifest.publishers[0]!.terms!.sha256 = visibleTextSha256(
+        page("2026-11-21T10:00:00Z", sentence),
+      );
+      manifest.publishers[0]!.terms!.hashMode = "visible-text";
+      await saveManifest();
+    });
+
+    it("admits a terms page whose bytes changed but whose visible text did not", async () => {
+      termsBody = page("2026-11-22T09:30:12Z", sentence);
+      const result = await run();
+      expect(result.admission?.hosts[0]).toMatchObject({
+        host: "publisher.test",
+        termsSha256: manifest.publishers[0]!.terms!.sha256,
+      });
+      expect(paths()).toContain("/feed/index.json");
+    });
+
+    it("stops when a sentence of the visible text changed", async () => {
+      termsBody = page(
+        "2026-11-21T10:00:00Z",
+        "Synthetic publisher forbids automated feed collection.",
+      );
+      await expect(run()).rejects.toMatchObject({ code: "admission_denied" });
+      expect(paths()).toEqual(["/robots.txt", "/terms"]);
+      expect(await dataEntries()).toEqual([]);
+    });
+
+    it("keeps the raw-bytes pin as the default", async () => {
+      delete manifest.publishers[0]!.terms!.hashMode;
+      manifest.publishers[0]!.terms!.sha256 = digest(
+        page("2026-11-21T10:00:00Z", sentence),
+      );
+      await saveManifest();
+      termsBody = page("2026-11-22T09:30:12Z", sentence);
+      await expect(run()).rejects.toMatchObject({ code: "admission_denied" });
+      expect(await dataEntries()).toEqual([]);
+    });
   });
 
   describe.each(fetchPaths)("%s admission controls", (_path, fetch) => {

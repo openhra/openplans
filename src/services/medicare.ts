@@ -13,6 +13,7 @@ import { countyMap } from "../ingest/medicare/county-codes.js";
 import * as v from "../api/validation.js";
 import { ReadError } from "./errors.js";
 import { partDDrug, partDPharmacies, partDStatus } from "./medicare-part-d.js";
+import { medicarePlanFinderLink, withLinkOuts } from "../domain/link-outs.js";
 import {
   drugCostCapability,
   drugCostDeps,
@@ -815,12 +816,16 @@ export async function getMedicareDrug(
   if (typeof params.rxcui !== "string" || !/^\d{1,20}$/.test(params.rxcui))
     return v.fail("rxcui");
   await planRow(db, key, year);
-  return {
-    plan_key: formatPlanKey(key),
-    contract_year: year,
-    rxcui: params.rxcui,
-    ...(await partDDrug(db, key, year, params.rxcui)),
-  };
+  // An unknown answer links to the plan's Medicare Plan Finder page, built from the key just read.
+  return withLinkOuts(
+    {
+      plan_key: formatPlanKey(key),
+      contract_year: year,
+      rxcui: params.rxcui,
+      ...(await partDDrug(db, key, year, params.rxcui)),
+    },
+    medicarePlanFinderLink(key, year),
+  );
 }
 
 export async function getMedicarePharmacies(

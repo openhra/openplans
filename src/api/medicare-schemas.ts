@@ -25,12 +25,23 @@ const channel = z.strictObject({
   maximum: z.string().nullable(),
 });
 
+/** The Plan Finder page for an unknown answer; never fetched. Only the unknown branch has it. */
+const planFinderLink = z.strictObject({
+  kind: z.literal("link_out"),
+  rel: z.literal("medicare_plan_finder"),
+  url: z.string().startsWith("https://www.medicare.gov/"),
+  source: z.literal("medicare_plan_finder"),
+  snapshot_id: z.null(),
+  source_row: z.null(),
+});
+
 export const medicareDrugResponseSchema = z.union([
   z.strictObject({
     ...envelope,
     status: z.literal("unknown"),
     reason: z.string(),
     as_of: z.string().optional(),
+    links: z.array(planFinderLink).min(1).optional(),
   }),
   z.strictObject({
     ...envelope,

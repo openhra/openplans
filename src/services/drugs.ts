@@ -7,6 +7,7 @@ import type { DrugIdentityStage } from "../domain/drugs/repository.js";
 import { drugConcept, normalizeNdc } from "../domain/drugs/concepts.js";
 import * as v from "../api/validation.js";
 import { ReadError } from "./errors.js";
+import { linkOutFloor, withLinkOuts } from "../domain/link-outs.js";
 import { passThrough } from "../plugins/sources/passthrough.js";
 import { consultPassThrough } from "./upstream-disclosure.js";
 import { suggestDrugNames } from "./drug-name-search.js";
@@ -153,8 +154,11 @@ export async function checkDrugCoverage(
     drugYear(year),
     identityStage(cms),
   );
+  // A pass-through source may answer what the files left unknown; the floor then drops the links.
   return cms
-    ? (await consultPassThrough(passThrough, "drug", [answer], cms))[0]!
+    ? withLinkOuts(
+        (await consultPassThrough(passThrough, "drug", [answer], cms))[0]!,
+      )
     : answer;
 }
 export async function checkDrugCoverages(
@@ -173,7 +177,9 @@ export async function checkDrugCoverages(
       );
   return {
     results: cms
-      ? await consultPassThrough(passThrough, "drug", results, cms)
+      ? linkOutFloor(
+          await consultPassThrough(passThrough, "drug", results, cms),
+        )
       : results,
   };
 }

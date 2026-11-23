@@ -3,6 +3,7 @@ import type {
   PassThroughEvidence,
 } from "@openplans/plugin-sdk";
 import type { CmsApiEvidence } from "../../ingest/cms-api/fallback.js";
+import type { LinkOut } from "../link-outs.js";
 export type DrugStatus =
   | "listed_covered"
   | "explicitly_not_covered"
@@ -66,6 +67,8 @@ export interface DrugCoverage {
   rxnorm_identity?: PassThroughEvidence;
   /** Present only when an issuer-published document answered (`listed_covered`). */
   formulary_document?: FormularyDocumentCoverage;
+  /** Present only on an `unknown` answer: pages to open, never fetched (see domain/link-outs). */
+  links?: LinkOut[];
 }
 /** Compare published facts, retaining every source rather than choosing a shard by order. */
 export function classifyDrugEvidence(

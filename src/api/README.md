@@ -584,6 +584,31 @@ With `off` the server asks no pass-through source and skips their stored answers
 source could have answered stays `unknown` with reason `passthrough_declined`. `on` or no value
 keeps the default. Any other value returns 400 `INVALID_INPUT` with `field: "passthrough"`.
 
+## Links on unknown answers
+
+When the loaded files cannot answer a coverage question, the `unknown` answer can carry `links`,
+pages a person can open to check for themselves. OpenPlans never fetches them and draws no
+conclusion from them. An answer with any other status never carries `links`. That includes an
+answer a later source filled in, such as the CMS fallback or an issuer document.
+
+Each link has `kind: "link_out"`, a `rel`, the `url`, its `source`, and the `snapshot_id` and
+`source_row` of the catalog row that published it. Both are null for a page built from an
+identifier.
+
+| Answer                                                | `rel`                                  | Comes from                                                                  |
+| ----------------------------------------------------- | -------------------------------------- | --------------------------------------------------------------------------- |
+| Provider participation                                | `provider_directory`                   | the plan network's `NetworkURL` (Network PUF)                               |
+| Provider participation                                | `npi_registry`                         | the NPI Registry page for the requested NPI                                 |
+| Drug coverage                                         | `formulary`                            | the plan's `FormularyURL` (Plan Attributes PUF)                             |
+| Plan `cost_sharing` with `benefits_status: "unknown"` | `summary_of_benefits`, `plan_brochure` | the selected variant's `URLForSummaryofBenefitsCoverage` and `PlanBrochure` |
+| Medicare Part D drug                                  | `medicare_plan_finder`                 | the Medicare Plan Finder page for the contract, plan and segment            |
+
+State-based exchange bundles fill the same columns, and OpenPlans reads them the same way. It
+serves only http and https URLs without credentials; MCP tools show https links only. The plan
+read brings the URLs along in the same statement, so a link adds no query. OpenPlans never
+serves a URL from a snapshot that is not ACTIVE, such as a quarantined one. Compatibility API
+responses do not change.
+
 ## Error answers
 
 REST errors use `{"error":{"code":"..."}}`, including compatibility, plugin and admin JSON errors.

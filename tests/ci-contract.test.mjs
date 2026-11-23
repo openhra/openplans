@@ -24,6 +24,9 @@ const {
 } = checkRequiredModule;
 
 const root = fileURLToPath(new URL("..", import.meta.url));
+const runnerLimits = JSON.parse(
+  await readFile(join(root, ".github/runner-limits.json"), "utf8"),
+);
 const dockerIgnorePattern = (pattern) =>
   new RegExp(
     `^${pattern
@@ -194,9 +197,18 @@ function commandContract(value) {
     // Poppler's pdftotext runs the carrier-document PDF tests. The job declares it required, so
     // those tests fail instead of skipping when the install step goes missing.
     expect(value.jobs[id].env).toEqual({ OPENPLANS_REQUIRE_POPPLER: "1" });
-    expect(steps).toHaveLength(7);
-    expect(steps[2].name).toBe("Install Poppler");
-    expect(steps[2].run).toBe(
+    expect(steps).toHaveLength(8);
+    // Right after setup-node, before anything else: the runner must still match
+    // runner-limits.json, the file `scripts/ci.sh --hosted` reproduces locally.
+    expect(steps[2]).toEqual({
+      name: "Check runner limits",
+      run: `node .github/runner-limits.mjs check ${id === "linux" ? "linux" : "macos"}`,
+    });
+    expect(runnerLimits[id === "linux" ? "linux" : "macos"].image).toBe(
+      value.jobs[id]["runs-on"],
+    );
+    expect(steps[3].name).toBe("Install Poppler");
+    expect(steps[3].run).toBe(
       id === "linux"
         ? "sudo apt-get update\nsudo apt-get install --yes --no-install-recommends poppler-utils\npdftotext -v"
         : "brew install poppler\npdftotext -v",
@@ -205,12 +217,13 @@ function commandContract(value) {
     expect(steps[1].with).toEqual({ "node-version-file": ".node-version" });
     expect(steps.filter((step) => step.run).map((step) => step.run)).toEqual([
       steps[2].run,
+      steps[3].run,
       installNpm,
       verifyVersions,
       "npm ci --no-audit --no-fund",
       "scripts/ci.sh",
     ]);
-    expect(steps[6].env).toEqual(
+    expect(steps[7].env).toEqual(
       id === "linux"
         ? { npm_config_offline: "true" }
         : {
@@ -581,19 +594,19 @@ it.each([
   [
     "skipped project command",
     (copy) => {
-      copy.jobs["macos-shard"].steps[6].if = "${{ false }}";
+      copy.jobs["macos-shard"].steps[7].if = "${{ false }}";
     },
   ],
   [
     "macOS shards that skip the project checks",
     (copy) => {
-      delete copy.jobs["macos-shard"].steps[6].env.OPENPLANS_CI_SHARD;
+      delete copy.jobs["macos-shard"].steps[7].env.OPENPLANS_CI_SHARD;
     },
   ],
   [
     "a fixed shard count that can drift from the matrix",
     (copy) => {
-      copy.jobs["macos-shard"].steps[6].env.OPENPLANS_CI_SHARD =
+      copy.jobs["macos-shard"].steps[7].env.OPENPLANS_CI_SHARD =
         "${{ matrix.shard }}/3";
     },
   ],
@@ -905,12 +918,14 @@ it("passes the shard to vitest and keeps the static checks in shard 1", async ()
     );
   // Every shard builds, once, before the static block that reads the build: the build sits
   // outside that block, and no later step rebuilds the plugins.
-  expect(ci.match(/^\s*npm run build\b.*$/gm)).toEqual(["npm run build"]);
-  expect(ci.indexOf("\nnpm run build\n")).toBeGreaterThan(-1);
-  expect(ci.indexOf("\nnpm run build\n")).toBeLessThan(
+  expect(ci.match(/^\s*(?:step )?npm run build\b.*$/gm)).toEqual([
+    "step npm run build",
+  ]);
+  expect(ci.indexOf("\nstep npm run build\n")).toBeGreaterThan(-1);
+  expect(ci.indexOf("\nstep npm run build\n")).toBeLessThan(
     ci.indexOf('if [ "$static" = true ]; then'),
   );
-  expect(ci).toContain("  npm run typecheck --ignore-scripts\n");
+  expect(ci).toContain("  step npm run typecheck --ignore-scripts\n");
 });
 
 it.each([
@@ -1248,3 +1263,20 @@ it.each(sameCommitMutants)(
     }
   },
 );
+
+it("gives every lint entry point an explicit 4096 MB heap", async () => {
+  // Type-aware lint peaks near 2.4 GB of JS heap. Runner defaults differ (about 2 GB in a 4 GB
+  // container), so the scripts set the heap on the node command line, which works on every OS
+  // and takes precedence over NODE_OPTIONS.
+  const { scripts } = JSON.parse(
+    await readFile(join(root, "package.json"), "utf8"),
+  );
+  const heap = "node --max-old-space-size=4096 ";
+  for (const name of ["lint", "lint:prune", "check:lint-setup"]) {
+    const commands = scripts[name].split("&&").map((part) => part.trim());
+    for (const command of commands) expect(command.startsWith(heap)).toBe(true);
+  }
+  expect(scripts.lint).toContain(`${heap}node_modules/eslint/bin/eslint.js .`);
+  expect(scripts.lint).toContain(`${heap}scripts/lint-baseline.mjs`);
+  expect(JSON.stringify(scripts)).not.toMatch(/(^|[" &])eslint /);
+});

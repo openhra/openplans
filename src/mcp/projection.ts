@@ -312,6 +312,29 @@ export async function projector(db: SqlSession, native: unknown) {
       },
     };
   }
+  /**
+   * An unknown answer's link-outs: pages to open, never fetched and never evidence. Only https
+   * pages are projected, as for every MCP URL; any other answer carries none.
+   */
+  function linkOuts(r: Row) {
+    if (r.status !== "unknown") return {};
+    const links = rows(r.links).flatMap((l) => {
+      const href = url(l.url);
+      return href && l.kind === "link_out"
+        ? [
+            {
+              kind: "link_out" as const,
+              rel: String(l.rel),
+              url: href,
+              source: String(l.source),
+              snapshot_id:
+                typeof l.snapshot_id === "string" ? l.snapshot_id : null,
+            },
+          ]
+        : [];
+    });
+    return links.length ? { links } : {};
+  }
   /** An unknown coverage or participation answer keeps its native reason among its gaps. */
   function coverageEvidence(value: unknown) {
     const r = row(value);
@@ -342,6 +365,7 @@ export async function projector(db: SqlSession, native: unknown) {
       source_completeness: completeness ?? "unknown",
       ...cmsApi(r),
       ...rxnormIdentity(r),
+      ...linkOuts(r),
       evidence: [
         ...rows(r.evidence).map((e) => ({
           status: e.evidence_status,
@@ -387,6 +411,7 @@ export async function projector(db: SqlSession, native: unknown) {
       address_participation: "not_evaluated",
       source_completeness: completeness ?? "unknown",
       ...cmsApi(r),
+      ...linkOuts(r),
       evidence: rows(r.evidence).map((e) => ({
         status: e.evidence_status,
         record_id: e.record_id,

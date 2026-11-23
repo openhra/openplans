@@ -445,6 +445,32 @@ const rxnormIdentitySchema = z
     terms_url: label,
   })
   .optional();
+/** A page to open for an unknown answer; never fetched and never evidence. */
+const linkOutsSchema = z
+  .array(
+    z.strictObject({
+      kind: z.literal("link_out"),
+      rel: z.enum([
+        "provider_directory",
+        "formulary",
+        "summary_of_benefits",
+        "plan_brochure",
+        "npi_registry",
+        "medicare_plan_finder",
+      ]),
+      url: publicUrl,
+      source: z.enum([
+        "plan_attributes",
+        "network",
+        "npi_registry",
+        "medicare_plan_finder",
+      ]),
+      snapshot_id: z.string().min(1).max(1024).nullable(),
+    }),
+  )
+  .min(1)
+  .max(10)
+  .optional();
 export const drugCoverageSchema = z.strictObject({
   kind: z.literal("drug_coverage"),
   plan_id: hios,
@@ -460,6 +486,7 @@ export const drugCoverageSchema = z.strictObject({
   source_completeness: sourceCompleteness,
   cms_api: cmsApiSchema,
   rxnorm_identity: rxnormIdentitySchema,
+  links: linkOutsSchema,
   evidence: z.array(drugEvidenceSchema).max(100),
   ...evidenceFields,
 });
@@ -480,6 +507,7 @@ export const participationSchema = z.strictObject({
   address_participation: z.literal("not_evaluated"),
   source_completeness: sourceCompleteness,
   cms_api: cmsApiSchema,
+  links: linkOutsSchema,
   evidence: z.array(participationEvidence).max(100),
   ...evidenceFields,
 });
@@ -1357,6 +1385,9 @@ export function assertHonest<T extends ToolName>(
       record.source_completeness !== "complete"
     )
       reject("not_listed requires complete source set");
+    // A link-out is never an answer: only an unknown record may carry one.
+    if (record.links !== undefined && record.status !== "unknown")
+      reject("link-out on an answered record");
     if (
       record.status === "explicitly_not_covered" ||
       record.status === "explicitly_not_participating" ||

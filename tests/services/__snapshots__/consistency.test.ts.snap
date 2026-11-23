@@ -131,7 +131,7 @@ exports[`retains pre-extraction native and compatibility status, headers and exa
     "url": "/v1/providers/1234567890",
   },
   {
-    "body": "{"status":"unknown","reason":"source_set_not_available","requested_plan_id":"87226TX0100013","base_hios_id":"87226TX0100013","identity":"1234567890","plan_year":2026,"participation_scope":"provider_record","snapshot_id":null,"manifest_snapshot_id":null,"evidence":[],"warnings":[]}",
+    "body": "{"status":"unknown","reason":"source_set_not_available","requested_plan_id":"87226TX0100013","base_hios_id":"87226TX0100013","identity":"1234567890","plan_year":2026,"participation_scope":"provider_record","snapshot_id":null,"manifest_snapshot_id":null,"evidence":[],"warnings":[],"links":[{"kind":"link_out","rel":"provider_directory","url":"https://www.ambetterhealth.com/en/tx/findadoc","source":"network","snapshot_id":"puf-2026-TX-fixture-import:network","source_row":6},{"kind":"link_out","rel":"npi_registry","url":"https://npiregistry.cms.hhs.gov/provider-view/1234567890","source":"npi_registry","snapshot_id":null,"source_row":null}]}",
     "cache_control": null,
     "content_type": "application/json",
     "gaps": null,
@@ -139,7 +139,7 @@ exports[`retains pre-extraction native and compatibility status, headers and exa
     "url": "/v1/plans/87226TX0100013/providers/1234567890?year=2026",
   },
   {
-    "body": "{"results":[{"status":"unknown","reason":"source_set_not_available","requested_plan_id":"87226TX0100013","base_hios_id":"87226TX0100013","identity":"1234567890","plan_year":2026,"participation_scope":"provider_record","snapshot_id":null,"manifest_snapshot_id":null,"evidence":[],"warnings":[]}]}",
+    "body": "{"results":[{"status":"unknown","reason":"source_set_not_available","requested_plan_id":"87226TX0100013","base_hios_id":"87226TX0100013","identity":"1234567890","plan_year":2026,"participation_scope":"provider_record","snapshot_id":null,"manifest_snapshot_id":null,"evidence":[],"warnings":[],"links":[{"kind":"link_out","rel":"provider_directory","url":"https://www.ambetterhealth.com/en/tx/findadoc","source":"network","snapshot_id":"puf-2026-TX-fixture-import:network","source_row":6},{"kind":"link_out","rel":"npi_registry","url":"https://npiregistry.cms.hhs.gov/provider-view/1234567890","source":"npi_registry","snapshot_id":null,"source_row":null}]}]}",
     "cache_control": null,
     "content_type": "application/json",
     "gaps": null,

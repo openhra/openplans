@@ -40,6 +40,7 @@ import {
   publishedPlanColumns,
 } from "./plan-view.js";
 import type { PublishedPlanAttributes } from "./plan-view.js";
+import { benefitLinkOuts, planLinkOuts } from "../domain/link-outs.js";
 
 // Stable Census identifiers, independent of state rating policy.
 const STATE_FIPS = Object.fromEntries(
@@ -498,6 +499,7 @@ export interface PlanVariantRow extends Record<string, unknown> {
   source_row: number;
   raw: Record<string, string>;
   published_attributes: PublishedPlanAttributes;
+  snapshot_state?: string;
 }
 export interface PlanBenefitRow extends Record<string, unknown> {
   published_plan_id: string;
@@ -512,7 +514,9 @@ type VariantKey = Pick<
   Plan,
   "snapshot_id" | "base_plan_id" | "plan_year" | "state"
 >;
+// snapshot_state lets a benefit link-out refuse a URL from a snapshot that is no longer ACTIVE.
 const PLAN_VARIANT_COLUMNS = `variant_plan_id,csr_variation_type,variant_name,exchange_status,source_row,raw,
+        (SELECT validation_state FROM snapshot vs WHERE vs.snapshot_id=plan_variant.snapshot_id) AS snapshot_state,
         jsonb_strip_nulls(jsonb_build_object(${PLAN_COLUMN_KEYS.map(
           (key) => `'${key}',raw->'${key}'`,
         ).join(",")})) AS published_attributes`;
@@ -679,6 +683,18 @@ export async function planCostSharing(
     published.StateCode === detailPlan.state
   );
   const amounts = attributeCostSharing(selectedAttributes?.raw ?? {});
+  // The selected variant's own summary of benefits and brochure, for a benefits answer left unknown.
+  const benefitLinks =
+    !supplement && selectedAttributes?.snapshot_state === "ACTIVE"
+      ? planLinkOuts(
+          {
+            snapshot_id: detailPlan.snapshot_id,
+            link_attributes: selectedAttributes.raw,
+            link_attribute_row: selectedAttributes.source_row,
+          },
+          "benefits",
+        )
+      : [];
   // Orphan benefit rows never authorize substitution for missing variant attributes.
   const rows = attribute
     ? benefits.rows.filter((row) => row.published_plan_id === selected)
@@ -745,6 +761,8 @@ export async function planCostSharing(
         ? ("available" as const)
         : ("unknown" as const),
       benefits: rows,
+      // `links` here belong to `benefits_status`, never to the cost-sharing amounts above.
+      ...benefitLinkOuts(rows.length ? "available" : "unknown", benefitLinks),
     },
   };
 }

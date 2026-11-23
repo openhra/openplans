@@ -208,6 +208,17 @@ describe("Part D drug names (synthetic RxNorm and formulary mappings)", () => {
       rxcui: code,
       status: "unknown",
       reason: "pending_terms_review",
+      // The unknown answer links to the plan's Plan Finder page; no drug name is added.
+      links: [
+        {
+          kind: "link_out",
+          rel: "medicare_plan_finder",
+          url: "https://www.medicare.gov/plan-compare/#/plan-details/2026-H0028-042-0?year=2026&lang=en",
+          source: "medicare_plan_finder",
+          snapshot_id: null,
+          source_row: null,
+        },
+      ],
     });
   });
 

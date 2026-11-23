@@ -15,12 +15,20 @@
  * `- ` bullets with two-space continuation lines, or a short paragraph such as an upgrade
  * instruction. No headings, no blank lines, one final newline. Notes compile in filename
  * order, separated by one blank line. `--root DIR` first points at another checkout.
+ *
+ * docs/public-contract.json is the public surface (status keys, anonymous MCP tools, availability
+ * keys, error shape). `--check` fails when it differs from the copy recorded at the last release
+ * (its sha256 in changes/public-contract.sha256) and no note names docs/public-contract.json.
+ * `--release` records the current sha256. An exported tree has no changes/ folder and skips this.
  */
-import { readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const NOTES_DIR = "changes/unreleased";
+export const CONTRACT = "docs/public-contract.json";
+export const CONTRACT_PIN = "changes/public-contract.sha256";
 const NOTE_NAME = /^[a-z0-9][a-z0-9-]*\.md$/;
 const VERSION = /^v\d+\.\d+\.\d+$/;
 const HEADER = "# Changelog\n";
@@ -82,6 +90,48 @@ export async function readNotes(root) {
     });
   }
   return notes;
+}
+
+const missing = (error) => error.code === "ENOENT";
+
+/**
+ * The public contract against its released sha256: null in an exported tree (no changes/ folder) or
+ * without a contract; otherwise {sha256, released, changed, notes}. A changed contract needs a note
+ * that names docs/public-contract.json.
+ */
+export async function contractChange(root, notes) {
+  try {
+    if (!(await stat(join(root, "changes"))).isDirectory()) return null;
+  } catch (error) {
+    if (missing(error)) return null;
+    throw error;
+  }
+  let bytes;
+  try {
+    bytes = await readFile(join(root, CONTRACT));
+  } catch (error) {
+    if (missing(error)) return null;
+    throw error;
+  }
+  const sha256 = createHash("sha256").update(bytes).digest("hex");
+  let released = null;
+  try {
+    released = (await readFile(join(root, CONTRACT_PIN), "utf8")).trim();
+  } catch (error) {
+    if (!missing(error)) throw error;
+  }
+  if (released !== null && !/^[a-f0-9]{64}$/.test(released))
+    throw new NotesError(`${CONTRACT_PIN} must hold one sha256`);
+  const named = notes
+    .filter((note) => note.text.includes(CONTRACT))
+    .map((note) => note.name);
+  const changed = released !== sha256;
+  if (changed && !named.length)
+    throw new NotesError(
+      `${CONTRACT} changed since the last release (sha256 ${sha256.slice(0, 12)}); ` +
+        `add a note in ${NOTES_DIR}/ that names ${CONTRACT} and says what changed`,
+    );
+  return { sha256, released, changed, notes: named };
 }
 
 /** The Unreleased body: notes separated by one blank line, in filename order. */
@@ -147,13 +197,19 @@ export async function main(
   const notes = await readNotes(root);
   const changelog = await readFile(changelogPath, "utf8");
   const { body } = splitChangelog(changelog);
+  const contract = await contractChange(root, notes);
   if (mode === "--check") {
     if (version !== undefined)
       throw new NotesError("--check takes no argument");
     const legacy = body.trim()
       ? " plus bullets still under Unreleased (move them to notes)"
       : "";
-    console.log(`change notes: PASS ${notes.length} note(s)${legacy}`);
+    const surface = contract?.changed
+      ? `; ${CONTRACT} changed, named in ${contract.notes.join(", ")}`
+      : "";
+    console.log(
+      `change notes: PASS ${notes.length} note(s)${legacy}${surface}`,
+    );
     return 0;
   }
   if (mode === "--print") {
@@ -170,6 +226,8 @@ export async function main(
   );
   await writeFile(changelogPath, text);
   for (const note of notes) await rm(join(root, NOTES_DIR, note.name));
+  if (contract)
+    await writeFile(join(root, CONTRACT_PIN), `${contract.sha256}\n`);
   process.stdout.write(section);
   console.log(
     `\nchange notes: ${notes.length} note(s) compiled into ${version} and removed`,

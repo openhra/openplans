@@ -12,15 +12,65 @@ A fresh database is empty. Load public-source snapshots before searching.
 
 Every result keeps its source evidence. Missing evidence stays `unknown`, not
 "not covered". Optional [compatibility API routes](#optional-compatibility-api)
-support existing quoting integrations. The optional CMS Marketplace API fallback can resolve
-ZIP counties and fill
-unknown drug or provider coverage. Coverage calls are off by default. See the
-[fallback guide](../src/ingest/cms-api/README.md) before enabling them.
+support existing quoting integrations. The optional CMS Marketplace API fallback is off by
+default. With your own key in `CMS_API_KEY` it resolves ZIP counties.
+`OPENPLANS_CMS_FALLBACK=on` lets it answer drug and provider coverage that loaded files leave
+`unknown`, and `OPENPLANS_CMS_FALLBACK_QUOTES=on` extends that to quotes. Read the
+[fallback guide](../src/ingest/cms-api/README.md) before you turn it on.
 
 > **Public quoting is on by default.** Every install answers anonymous quotes
 > by age and ZIP at `POST /v1/quotes` and through the MCP tool `quote_plans`.
 > They take no income or subsidy inputs. Set `OPENPLANS_PUBLIC_QUOTING=off` to
 > turn both off. See the [quoting guide](quoting.md).
+
+## MCP
+
+The public instance serves MCP over Streamable HTTP at `https://openplans.openhra.com/mcp`.
+It needs no account or token. Anonymous callers see the 15 core tools plus `get_status` from
+the status plugin, 16 in all. Call `get_data_status` first. It lists the states, years
+and sources that are loaded, and the gaps.
+
+Add it to an MCP client that takes an `mcpServers` file:
+
+```json
+{
+  "mcpServers": {
+    "openplans": {
+      "type": "http",
+      "url": "https://openplans.openhra.com/mcp"
+    }
+  }
+}
+```
+
+Your own install serves the same route at `http://127.0.0.1:3000/mcp`. For a stdio client, run
+`npm ci && npm run build` once, then point the client at the built server:
+
+```json
+{
+  "mcpServers": {
+    "openplans": {
+      "command": "node",
+      "args": ["/absolute/path/to/openplans/dist/mcp/stdio.js"],
+      "env": {
+        "DATABASE_URL": "postgresql://openplans:replace_this_placeholder@127.0.0.1:5432/openplans"
+      }
+    }
+  }
+}
+```
+
+Stdio needs `DATABASE_URL`. It does not touch the database at startup, so a wrong password
+or a missing migration shows up on the first tool call, not as a startup error.
+
+The household tools `quote_premiums` and `check_ichra_affordability` are open by default. An
+operator can close them. Over HTTP, set `OPENPLANS_MCP_TOKEN`; callers then send it as
+`Authorization: Bearer <token>`. Over stdio, `OPENPLANS_MCP_ALLOW_PERSONALIZED=1` grants them
+and `0` withholds them. A caller without the grant does not see the two tools in `tools/list`.
+They are hidden, not listed as locked. The operator chose to keep household quoting private,
+and the server never offers a tool the caller cannot run. The
+[MCP endpoint guide](self-host.md#mcp-endpoint) covers limits, logs and cursors, and the
+[configuration reference](configuration.md#mcp-tools) lists every tool.
 
 ## Run with Docker
 
@@ -48,7 +98,7 @@ For a small first run use `--states DE --years 2026`. Check the instance with
 worker exits. The same bootstrap command resumes interrupted imports and skips
 current ACTIVE snapshots. Its last JSON line lists completed, skipped, failed
 and dependency-blocked steps. A failure returns exit 1; independent work
-continues. Downloads use public sources; no CMS API key is needed.
+continues. Downloads use public sources and need no CMS API key.
 
 Downloads come only from hosts that a reviewed access manifest clears. OpenPlans
 ships reviewed manifests for the federal hosts a new install needs, so a first
@@ -226,7 +276,7 @@ derived data and fixture cuts.
 | [CMS NPPES V2 dissemination files](https://download.cms.gov/nppes/NPI_Files.html) | Published provider identities, taxonomies and addresses | Attribute CMS/NPPES and release date; retain the release README and dissemination guidance. An NPI does not validate licensure or credentials. See the [import guide](../src/ingest/nppes/README.md). |
 | [NLM RxNorm Current Prescribable Content](https://www.nlm.nih.gov/research/umls/rxnorm/docs/rxnormfiles.html) | Drug names, RxCUIs, relationships and NDC mappings | The public subset needs no UMLS license. This importer retains RXNORM-source content; it does not import the licensed full release. Follow [NLM's terms and requested acknowledgement](https://www.nlm.nih.gov/research/umls/rxnorm/docs/termsofservice.html). |
 | Issuer QHP machine-readable indexes and child files | Formulary and provider participation evidence | Attribute each issuer and snapshot URL. Follow that publisher's terms and access restrictions; no blanket redistribution permission is assumed. Blocked or incomplete downloads remain explicit gaps. |
-| [CMS Marketplace API](https://developer.cms.gov/marketplace-api/) (optional) | ZIP-county lookup and opt-in coverage fallback | Separate CMS access approval and key terms apply. CMS describes live application access, not bulk extraction; keys expire every 60 days. No key is required for current offline CI or PUF ingestion. |
+| [CMS Marketplace API](https://developer.cms.gov/marketplace-api/) (optional) | ZIP-county lookup and opt-in coverage fallback | Separate CMS access approval and key terms apply. CMS describes live application access, not bulk extraction; keys expire every 60 days. Imports and CI need no key. |
 
 RxNorm data courtesy of the U.S. National Library of Medicine (NLM). NLM is not
 responsible for this product and does not endorse it. The linked terms give

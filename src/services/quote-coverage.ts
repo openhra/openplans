@@ -11,6 +11,7 @@ import { consultPassThrough } from "./upstream-disclosure.js";
 import { identityStage } from "./drugs.js";
 import type { CmsFallbackContext } from "../ingest/cms-api/fallback.js";
 import { loadConfig } from "../config/index.js";
+import { linkOutFloor } from "../domain/link-outs.js";
 
 export function quoteFallbackEnabled(): boolean {
   const { cmsFallback } = loadConfig();
@@ -91,11 +92,16 @@ export async function applyQuoteFallback<T extends QuoteCoverage>(
   }
   let providerIndex = 0,
     drugIndex = 0;
+  // Answers a pass-through source filled leave without the links their unknown carried.
   return quotes.map((quote) => ({
     ...quote,
-    providers: providers
-      .slice(providerIndex, (providerIndex += quote.providers.length))
-      .map(label),
-    drugs: drugs.slice(drugIndex, (drugIndex += quote.drugs.length)).map(label),
+    providers: linkOutFloor(
+      providers
+        .slice(providerIndex, (providerIndex += quote.providers.length))
+        .map(label),
+    ),
+    drugs: linkOutFloor(
+      drugs.slice(drugIndex, (drugIndex += quote.drugs.length)).map(label),
+    ),
   }));
 }

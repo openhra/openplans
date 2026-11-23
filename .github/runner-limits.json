@@ -1,0 +1,16 @@
+{
+  "linux": {
+    "image": "ubuntu-24.04",
+    "cpus": 4,
+    "mem_mb": 16384,
+    "node_heap_limit_mb": 4096,
+    "node_version": "22.23.5"
+  },
+  "macos": {
+    "image": "macos-15-intel",
+    "cpus": 4,
+    "mem_mb": 14336,
+    "node_heap_limit_mb": 2048,
+    "node_version": "22.23.5"
+  }
+}

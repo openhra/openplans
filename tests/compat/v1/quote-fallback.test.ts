@@ -414,7 +414,8 @@ it("leaves native and compatibility response bytes unchanged with the quote swit
   await native();
   sent = [];
   const expected = {
-    native: "18a476348c5ed39cd2034f700b9a9a637f39301cbd1b05e72405eb1a9e60bf14",
+    // Native unknown cells carry link-outs; compatibility bytes stay as recorded.
+    native: "55f07997b28f5a8dfbc8680b629d01340e1f9f8b0ff5a35ada798031ec9a698d",
     compat: "cd4a4d0b97f7d92dbb6f4f3b5932dbe172a4ec8d3154daad980dc0c53349d3c3",
   };
   for (const value of [undefined, "off"]) {

@@ -24,10 +24,51 @@ function configStdioGranted(config: CoreConfig): boolean {
   if (allow === "0") return false;
   return configHouseholdOpen(config);
 }
+/**
+ * Stdio starts without a database round trip, so discovery works while the database is down.
+ * Startup can still fail at two checks: reading the configuration, and opening the database
+ * client from `DATABASE_URL` and `db.provider`. A third, the stdio transport, rarely fails.
+ * The failure line names the check.
+ */
+const STARTUP_FAILURES = {
+  config:
+    "MCP startup failed at the config check; check OPENPLANS_CONFIG and the OPENPLANS_* variables",
+  database:
+    "MCP startup failed at the database check; check DATABASE_URL and db.provider",
+  missingUrl:
+    "MCP startup failed at the database check; DATABASE_URL is not set",
+} as const;
+export class StdioStartupError extends Error {
+  constructor(
+    readonly check: "config" | "database",
+    cause: unknown,
+    missingUrl = false,
+  ) {
+    super(STARTUP_FAILURES[missingUrl ? "missingUrl" : check], { cause });
+  }
+}
+function startupStep<T>(
+  check: StdioStartupError["check"],
+  run: () => T,
+  missingUrl = false,
+): T {
+  try {
+    return run();
+  } catch (error) {
+    if (error instanceof EnvironmentOnlyKeyError) throw error;
+    throw new StdioStartupError(check, error, missingUrl);
+  }
+}
 export function startStdio() {
-  const config = loadConfig();
-  startHostStorage(config);
-  const db = openHostDatabase(config);
+  const config = startupStep("config", () => loadConfig());
+  const db = startupStep(
+    "database",
+    () => {
+      startHostStorage(config);
+      return openHostDatabase(config);
+    },
+    !config.db.connectionString && config.db.provider === "pg",
+  );
   const transport = new StdioServerTransport(process.stdin, process.stdout, {
     maxBufferSize: limits.input_bytes,
   });
@@ -87,9 +128,10 @@ if (
   } catch (error) {
     await plugins.teardown();
     console.error(
-      error instanceof EnvironmentOnlyKeyError
+      error instanceof EnvironmentOnlyKeyError ||
+        error instanceof StdioStartupError
         ? error.message
-        : "MCP startup failed; check DATABASE_URL",
+        : "MCP startup failed at the transport check",
     );
     process.exitCode = 1;
   }

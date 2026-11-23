@@ -661,7 +661,7 @@
   },
   "provider-plan": {
     "status": 200,
-    "body_sha256": "84ea6f11573ab377f2346a1c6dab5ae4694c4ab8a2a7165899ee7a31b54e0721",
+    "body_sha256": "b11a88db47ef2f538f97d5c82c8834784c7d166670ee02e40f6bc0b38e549a6c",
     "headers": {
       "content-type": "application/json",
       "cache-control": null,
@@ -672,7 +672,7 @@
   },
   "provider-participation": {
     "status": 200,
-    "body_sha256": "6094d2abbb89fc77af6be7456d453872d1a0182cee62405e5a8d09f40c4a83ad",
+    "body_sha256": "73aef7c508ba18eb09b22a8d66e50adb2dc19c7736289c6844f33bef610f185b",
     "headers": {
       "content-type": "application/json",
       "cache-control": null,
@@ -1552,7 +1552,7 @@
   },
   "provider-plan-with-api-token": {
     "status": 200,
-    "body_sha256": "84ea6f11573ab377f2346a1c6dab5ae4694c4ab8a2a7165899ee7a31b54e0721",
+    "body_sha256": "b11a88db47ef2f538f97d5c82c8834784c7d166670ee02e40f6bc0b38e549a6c",
     "headers": {
       "content-type": "application/json",
       "cache-control": null,
@@ -1563,7 +1563,7 @@
   },
   "provider-participation-with-api-token": {
     "status": 200,
-    "body_sha256": "6094d2abbb89fc77af6be7456d453872d1a0182cee62405e5a8d09f40c4a83ad",
+    "body_sha256": "73aef7c508ba18eb09b22a8d66e50adb2dc19c7736289c6844f33bef610f185b",
     "headers": {
       "content-type": "application/json",
       "cache-control": null,
