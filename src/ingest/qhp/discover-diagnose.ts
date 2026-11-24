@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 /** Read-only HTTPS diagnostics. Only redacted evidence is saved; root HTML stays in memory. */
+import { userAgent } from "../../fetch/user-agent.js";
 import type { IncomingMessage } from "node:http";
 import type { TLSSocket } from "node:tls";
 import { mkdir, writeFile } from "node:fs/promises";
@@ -88,7 +89,7 @@ async function probe(input: string, root: boolean): Promise<Probe> {
         headers: {
           "accept-encoding": "identity",
           accept: root ? "text/html" : "application/json, */*;q=0.1",
-          "user-agent": `openplans/0.4.14 (public health-plan source discovery; +${project.href})`,
+          "user-agent": userAgent(project.href),
         },
       });
       const socket = (response.body as IncomingMessage).socket as TLSSocket;

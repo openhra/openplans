@@ -158,6 +158,37 @@ function docFiles(appRoot) {
   return files.filter((file) => existsSync(join(appRoot, file)));
 }
 
+const IDENTITY_LITERAL = /openplans\/\d+\.\d+\.\d+/g;
+const IDENTITY_DIRS = ["src", "tests", "scripts", "plugins"];
+const IDENTITY_SKIP = new Set(["node_modules", "dist", "coverage", ".git"]);
+const IDENTITY_EXT = /\.(?:[cm]?[jt]sx?|py|json|md|sh|ya?ml)$/;
+/** Literals of the form openplans/MAJOR.MINOR.PATCH in sources. package.json, the lockfile and the changelog sit outside these folders. */
+export function identityLiterals(appRoot) {
+  const hits = [];
+  const walk = (dir) => {
+    for (const entry of readdirSync(join(appRoot, dir), {
+      withFileTypes: true,
+    })) {
+      if (IDENTITY_SKIP.has(entry.name)) continue;
+      const rel = `${dir}/${entry.name}`;
+      if (entry.isDirectory()) walk(rel);
+      else if (
+        IDENTITY_EXT.test(entry.name) &&
+        entry.name !== "package-lock.json"
+      ) {
+        const lines = read(join(appRoot, rel)).split("\n");
+        lines.forEach((text, index) => {
+          for (const match of text.matchAll(IDENTITY_LITERAL))
+            hits.push({ file: rel, line: index + 1, text: match[0] });
+        });
+      }
+    }
+  };
+  for (const dir of IDENTITY_DIRS)
+    if (existsSync(join(appRoot, dir))) walk(dir);
+  return hits;
+}
+
 function* matches(pattern, text) {
   pattern.lastIndex = 0;
   for (const match of text.matchAll(pattern)) yield match;
@@ -199,6 +230,12 @@ export function checkCurrency({ appRoot, repoRoot, configDefaults, today }) {
   const allowedText = [...allowed].join(" or ");
   const files = docFiles(appRoot);
   const texts = new Map(files.map((file) => [file, read(join(appRoot, file))]));
+
+  // The outbound identity carries the package.json version; no source file spells it out.
+  for (const hit of identityLiterals(appRoot))
+    errors.push(
+      `${hit.file}:${hit.line}: version literal "${hit.text}"; build the identity from package.json (src/fetch/user-agent.ts)`,
+    );
 
   // Release versions.
   const scanVersions = (label, raw) => {

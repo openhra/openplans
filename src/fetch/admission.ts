@@ -17,7 +17,7 @@ import { assertEgressCurrent, egressFromEnvironment } from "./egress.js";
 import type { EgressBinding, EgressReceipt } from "./egress.js";
 import { FetchError } from "./errors.js";
 import { checkedUrl } from "./policy.js";
-import { parseRobots } from "./robots.js";
+import { parseRobots, sameOrganisation } from "./robots.js";
 import type { RobotsPolicy } from "./robots.js";
 
 const dailyRecheckMs = 24 * 60 * 60 * 1000;
@@ -41,6 +41,21 @@ const robotsObservation = z
      * included, with 401. Only valid with status 401 on an `accessMode: "api-key"` entry.
      */
     notApplicable: z.string().min(1).optional(),
+    /**
+     * An HTML single-page-app shell answered 200 at `/robots.txt`. It holds no rules (RFC 9309), and it
+     * counts as no robots only because the same host answered a random path (`probePath`) with a real
+     * 404/410 (`probeStatus`), or the shell was byte-equal to the host's index document (`basis`).
+     * The robots `sha256` is the shell's hash; `probeSha256` is the probe body's.
+     */
+    shell: z
+      .object({
+        probePath: z.string().regex(/^\/[a-f0-9]{32}$/),
+        probeStatus: z.number().int().min(100).max(599),
+        probeSha256: sha256.nullable(),
+        basis: z.enum(["real-404", "index-equal"]),
+      })
+      .strict()
+      .optional(),
   })
   .strict()
   .superRefine((robots, context) => {
@@ -58,6 +73,12 @@ const robotsObservation = z
       context.addIssue({
         code: "custom",
         message: "Robots hash must be null exactly when the file is absent",
+      });
+    if (robots.shell && (robots.status !== 200 || !robots.country))
+      context.addIssue({
+        code: "custom",
+        message:
+          "An HTML shell robots observation is a 200 with the egress country it was seen from",
       });
     if (absent && !robots.country)
       context.addIssue({
@@ -126,6 +147,14 @@ const publisherSchema = z
     apiVersion: z.string().min(1).optional(),
     permittedPaths: z.array(z.string().startsWith("/")).min(1),
     delegates: z.array(z.string().regex(/^[a-z0-9.-]+$/)),
+    /**
+     * Hosts of the same organisation that this host's `/robots.txt` may redirect to, beyond hosts that
+     * share its registrable domain. The rules found there apply to this host, the initial authority.
+     */
+    robotsAliasOf: z
+      .array(z.string().regex(/^[a-z0-9.-]+$/))
+      .max(8)
+      .optional(),
     attribution: z.string().min(1),
     updatePolicy: z.string().min(1),
     /**
@@ -261,6 +290,12 @@ export const admissionManifestSchema = z
 export type AdmissionManifest = z.infer<typeof admissionManifestSchema>;
 export type PublisherPolicy = AdmissionManifest["publishers"][number];
 
+export interface ShellProbe {
+  probePath: string;
+  probeStatus: number;
+  probeSha256: string | null;
+  basis: "real-404" | "index-equal";
+}
 export interface PolicyDocument {
   status: number;
   sha256: string | null;
@@ -269,6 +304,10 @@ export interface PolicyDocument {
   absent?: boolean;
   /** True only for a direct 401 at /robots.txt. Holds unless the entry is a reviewed keyed API. */
   unauthorized?: boolean;
+  /** Hosts followed from `/robots.txt` to this answer, redacted; empty when it answered directly. */
+  redirectChain?: string[];
+  /** An HTML shell treated as no robots, with the probe that justified it. */
+  shell?: ShellProbe;
   /** The original 401 failure, rethrown when the entry is not a reviewed keyed API. */
   failure?: FetchError;
   contentType?: string | null;
@@ -318,6 +357,10 @@ export interface AdmissionReceipt {
       status: number;
       sha256: string | null;
       absent?: boolean;
+      /** Redirect hops from the initial authority's `/robots.txt` to the answer; absent for a direct answer. */
+      redirectChain?: string[];
+      /** The HTML shell probe, when the shell was read as no robots. */
+      shell?: ShellProbe;
       /** True when a keyed API answered robots with the reviewed 401. */
       notApplicable?: boolean;
       checkedAt: string;
@@ -333,10 +376,16 @@ interface TermsRobotsObservation {
   status: number;
   sha256: string | null;
   absent: boolean;
+  shell?: ShellProbe;
+}
+export interface PolicyScope {
+  /** Redirects of `/robots.txt` may leave the host only for hosts this accepts. */
+  redirectAllowed?: (host: string) => boolean;
 }
 export type PolicyReader = (
   url: URL,
   delayMs: number,
+  scope?: PolicyScope,
 ) => Promise<PolicyDocument>;
 
 function assertNotHtml(document: PolicyDocument): void {
@@ -735,6 +784,20 @@ export class AdmissionSession {
     return Math.max(publisher.delayMs, review.robots.delayMs);
   }
 
+  /** A robots redirect may follow the registrable domain or a host the manifest names (RFC 9309 2.3.1.2). */
+  private robotsScope(publisher: PublisherPolicy): PolicyScope {
+    return {
+      redirectAllowed: (host) => {
+        if (!sameOrganisation(publisher.host, host, publisher.robotsAliasOf))
+          return false;
+        // The read counts against the publisher's job caps; the host gains no data clearance.
+        if (!this.hostCaps.has(host))
+          this.hostCaps.set(host, publisher.jobCaps);
+        return true;
+      },
+    };
+  }
+
   private async review(
     publisher: PublisherPolicy,
     readPolicy: PolicyReader,
@@ -743,7 +806,11 @@ export class AdmissionSession {
       const robotsUrl = checkedUrl(`https://${publisher.host}/robots.txt`, [
         publisher.host,
       ]);
-      const document = await readPolicy(robotsUrl, publisher.delayMs);
+      const document = await readPolicy(
+        robotsUrl,
+        publisher.delayMs,
+        this.robotsScope(publisher),
+      );
       const checkedAt = Date.now();
       this.assertRobotsDocument(publisher, document);
       const robots = parseRobots(document.text);
@@ -797,6 +864,10 @@ export class AdmissionSession {
           status: document.status,
           sha256: document.sha256,
           absent: document.absent === true,
+          ...(document.redirectChain?.length && {
+            redirectChain: document.redirectChain,
+          }),
+          ...(document.shell && { shell: document.shell }),
           ...(document.unauthorized && { notApplicable: true }),
           checkedAt: new Date(checkedAt).toISOString(),
         },
@@ -828,7 +899,11 @@ export class AdmissionSession {
     const robotsUrl = checkedUrl(`https://${termsUrl.hostname}/robots.txt`, [
       termsUrl.hostname,
     ]);
-    const document = await readPolicy(robotsUrl, publisher.delayMs);
+    const document = await readPolicy(
+      robotsUrl,
+      publisher.delayMs,
+      this.robotsScope(publisher),
+    );
     if (!document.absent) assertNotHtml(document);
     return {
       robots: parseRobots(document.text),
@@ -837,6 +912,7 @@ export class AdmissionSession {
         status: document.status,
         sha256: document.sha256,
         absent: document.absent === true,
+        ...(document.shell && { shell: document.shell }),
       },
     };
   }
@@ -871,6 +947,15 @@ export class AdmissionSession {
     }
     if (!document.absent) return assertNotHtml(document);
     const reviewed = publisher.robots;
+    if (document.shell) {
+      // A shell is absence only when the reviewed manifest recorded that same reading.
+      if (reviewed?.status !== 200 || !reviewed.shell)
+        throw new FetchError(
+          "admission_denied",
+          "Robots HTML shell was not recorded by the reviewed manifest",
+        );
+      return;
+    }
     if (!reviewed || !absentRobotsStatuses.includes(reviewed.status))
       throw new FetchError(
         "admission_denied",

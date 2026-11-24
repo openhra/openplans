@@ -118,8 +118,8 @@
     {
       "path": "CHANGELOG.md",
       "mode": "100644",
-      "size": 85023,
-      "sha256": "f36152f2309c591a63927da1f04bbff57dddcdd3c2febbd8a3eff42f335af722"
+      "size": 85968,
+      "sha256": "274871da8bfb195090a0fb6a86f60a395630ca8619a7cacc97e0b4bb77a483f9"
     },
     {
       "path": "CLAUDE.md",
@@ -400,8 +400,8 @@
     {
       "path": "docs/configuration.md",
       "mode": "100644",
-      "size": 63074,
-      "sha256": "b474f2d9600748d150adb540cfb807dc9d4d67bc5667c90500b95aec61a6ae2a"
+      "size": 63318,
+      "sha256": "45283e3d50b0f8f8131e2415ac5c75a294598eb029fd5bb6d81b723769c3b68e"
     },
     {
       "path": "docs/development-tools.md",
@@ -502,8 +502,8 @@
     {
       "path": "docs/usage.md",
       "mode": "100644",
-      "size": 25490,
-      "sha256": "d5d4a475d5d92f4e9e9d993838e05b659cfd1c2266b007e1c4ee7de4b73f8acb"
+      "size": 25900,
+      "sha256": "ada9130359955571d0ab33757f951a7c389a7fab4da6fda421f5a8d261381647"
     },
     {
       "path": "eslint-baseline.json",
@@ -1007,13 +1007,13 @@
       "path": "package-lock.json",
       "mode": "100644",
       "size": 111955,
-      "sha256": "0292f4cd427f59fb47205f3edf9e557b3d1542f8bec1f94071e9bd2bf1135acc"
+      "sha256": "ba08c092572e07dcca77d9b1980b0ec0aa20231807c7bf6317ee79fa03f4fd73"
     },
     {
       "path": "package.json",
       "mode": "100644",
       "size": 2820,
-      "sha256": "6d99ce86c3e401deee8950f8aee27497c7c82c2023a580543d3cd5a656e77b3e"
+      "sha256": "103afd57aab14a97bdf6e00a500276f5e7cbf515efd6e0ae72e0e7b53729a68d"
     },
     {
       "path": "plugins.lock.json",
@@ -2302,8 +2302,8 @@
     {
       "path": "scripts/check-currency.mjs",
       "mode": "100644",
-      "size": 14812,
-      "sha256": "e85a12e6778afe0e32bd8cffcad26bd6af365470fbbecf215e66a4cfb622daff"
+      "size": 16299,
+      "sha256": "c42574da09c47347a69f23e31cacea76761779360ff187a5f46901213bbf7f90"
     },
     {
       "path": "scripts/check-extraction.mjs",
@@ -3118,8 +3118,8 @@
     {
       "path": "src/config/index.ts",
       "mode": "100644",
-      "size": 24344,
-      "sha256": "8a8e7fb058835683909df519c42619152b4a707e6180e620bbe00e64a598de65"
+      "size": 24478,
+      "sha256": "b6207641247faa79dcba8571674afe4586055c06f9be7f35066cba2f164c2ca7"
     },
     {
       "path": "src/config/registry.ts",
@@ -3574,14 +3574,14 @@
     {
       "path": "src/fetch/README.md",
       "mode": "100644",
-      "size": 28904,
-      "sha256": "1f464bff50774fa28405fa47efcd5326f82972302026dadb73bd0556553b1886"
+      "size": 29711,
+      "sha256": "188eb103592e08f4eb8fa33078be5a72d17a82c08563abe483aad0369a7aa1e1"
     },
     {
       "path": "src/fetch/admission.ts",
       "mode": "100644",
-      "size": 32140,
-      "sha256": "f154266cf00af43ac991b730fe82178c0b7aa43e0856a31e21fd8a0d26853e36"
+      "size": 35471,
+      "sha256": "eff01151fb5fd02128623f57f55837acd3e0f3e62882dca83f1ab91a393e3c52"
     },
     {
       "path": "src/fetch/approvals.ts",
@@ -3616,8 +3616,8 @@
     {
       "path": "src/fetch/cache.ts",
       "mode": "100644",
-      "size": 44097,
-      "sha256": "febc0e2ab63063e94d14adc9412b483ec4a6beea52ef4b5e84e7ed65e75a2b37"
+      "size": 44091,
+      "sha256": "002b13a636de302e1c05c334a3dd63d0ba5837dff643fcfba7b61f006ede5073"
     },
     {
       "path": "src/fetch/egress.ts",
@@ -3664,8 +3664,8 @@
     {
       "path": "src/fetch/robots.ts",
       "mode": "100644",
-      "size": 6013,
-      "sha256": "9aa87a7e4c452d7b2e1dd72fd1360dbdb6b15d0162dd05c0667fbd5290acecf6"
+      "size": 7872,
+      "sha256": "5e6a767408d69df93700281261e8e303c9f4453ec36dcfa8775835d0ba125c3c"
     },
     {
       "path": "src/fetch/shipped.ts",
@@ -3682,14 +3682,20 @@
     {
       "path": "src/fetch/transient.ts",
       "mode": "100644",
-      "size": 26153,
-      "sha256": "172c8a2d8c415765c443def8ccfe2b9a0abefcd2b5403309c84a159f7eff64ed"
+      "size": 28864,
+      "sha256": "582d90cfd1672a86246c737abecd691fde405be95af1117ec065daa22619f7d3"
     },
     {
       "path": "src/fetch/transport.ts",
       "mode": "100644",
       "size": 3402,
       "sha256": "b548b059cb0e9879ba0c6a7ac7a1af2efc8d922ff4dcd29fe3d5d426ddf185bc"
+    },
+    {
+      "path": "src/fetch/user-agent.ts",
+      "mode": "100644",
+      "size": 295,
+      "sha256": "fa629f30c161bdf55ad743ce0eddebea3ded4962ba8204896c7f92f1cc2ad9d8"
     },
     {
       "path": "src/fetch/visible-text.ts",
@@ -4282,8 +4288,8 @@
     {
       "path": "src/ingest/qhp/discover-diagnose.ts",
       "mode": "100644",
-      "size": 7724,
-      "sha256": "b5513c6530e225efaec2bd13adb015d7a4df32f26b30c7c82bfa1c177d32d01b"
+      "size": 7728,
+      "sha256": "939ad4d50a1f3be43aa0aabb615161bee597a630a19314f28fbf9f8006104259"
     },
     {
       "path": "src/ingest/qhp/discover-pglite.ts",
@@ -4624,8 +4630,8 @@
     {
       "path": "src/ingest/state/reflective.py",
       "mode": "100644",
-      "size": 11147,
-      "sha256": "e8245b559718ff26e0bd4e7773596edce6a5cd27453d3089183bff435f4c5ab5"
+      "size": 11252,
+      "sha256": "3c7d5f4f5290e31a86b044293b90e9571aa3061ff0b67f6ca010e2ea921dc481"
     },
     {
       "path": "src/ingest/state/reflective.ts",
@@ -4744,8 +4750,8 @@
     {
       "path": "src/mcp/stdio.ts",
       "mode": "100644",
-      "size": 4670,
-      "sha256": "27b6ffdb53b42a0df77a1f3c15c08cadf041b1dcb6d0817e256e2ce1ed3ac7f5"
+      "size": 6733,
+      "sha256": "d845fcd469ba5c3cd2250a87cb2c7f88c17c114e65fdb40b86820ac205aba028"
     },
     {
       "path": "src/mcp/tools.ts",
@@ -6004,8 +6010,8 @@
     {
       "path": "tests/check-currency.test.mjs",
       "mode": "100644",
-      "size": 12657,
-      "sha256": "865aa659946146a6234abf5e8adfe35e45642438a3d89f319616138cb025185f"
+      "size": 13268,
+      "sha256": "b52f6c1ad9313e5d4971b3d27ec561bda974b03aeed8f2adacccae713f9b66df"
     },
     {
       "path": "tests/ci-contract.test.mjs",
@@ -6298,8 +6304,8 @@
     {
       "path": "tests/compat/v1/quote-fallback.test.ts",
       "mode": "100644",
-      "size": 33361,
-      "sha256": "6f6107cce885927b8204f7996f3debc732357c627e6eb47b125f1e8068052685"
+      "size": 33703,
+      "sha256": "53358fa01bbe78d6c3cb0d26694f8150bfd3ebb41b638a41b62f12b1b26c34c9"
     },
     {
       "path": "tests/compat/v1/refresh.test.ts",
@@ -6764,6 +6770,12 @@
       "sha256": "9ce893b46ce35732a1ef2b2d1392c7dd8e4d0f846ac38c9b9effa5e8e7edde61"
     },
     {
+      "path": "tests/fetch/robots-shell-redirect.test.ts",
+      "mode": "100644",
+      "size": 16606,
+      "sha256": "3fa44c41f58b4d7076b76636a818f46dee9762ce5f9dc25b272da6bfafb396df"
+    },
+    {
       "path": "tests/fetch/shipped-manifest.test.ts",
       "mode": "100644",
       "size": 24124,
@@ -6786,6 +6798,12 @@
       "mode": "100644",
       "size": 7609,
       "sha256": "829fbb71907d1460e7a89ab6fa46d60da3aea1d3ba3abf6007078489a806a260"
+    },
+    {
+      "path": "tests/fetch/user-agent.test.ts",
+      "mode": "100644",
+      "size": 559,
+      "sha256": "01a9298bdc311658eb6339f13b1de10252ac659b0653cd44716abb75ecbde249"
     },
     {
       "path": "tests/fetch/visible-text.test.ts",
@@ -8596,8 +8614,8 @@
     {
       "path": "tests/ingest/geo/fallback.test.ts",
       "mode": "100644",
-      "size": 17928,
-      "sha256": "54df5ee9edab68ecdec9ae8ddcd752e7657a3ef305366145f557a7183a7b39d4"
+      "size": 18058,
+      "sha256": "9a4d74f29a6618c1e2f44c6b6537bc78197451f7fd3535b08ff9b2e3d9020444"
     },
     {
       "path": "tests/ingest/geo/geo.test.ts",
@@ -8878,8 +8896,8 @@
     {
       "path": "tests/ingest/qhp/discover.test.ts",
       "mode": "100644",
-      "size": 23779,
-      "sha256": "2972055b620f26c140244311976da17d3c2a1d6870b975baa4062694ebdfef1e"
+      "size": 23985,
+      "sha256": "ae7b5eeff35d0c76d2aaf218a34edaa6338d55a5a78d270e84b74478f0d4e4f6"
     },
     {
       "path": "tests/ingest/qhp/enrichment.test.ts",
@@ -9146,6 +9164,12 @@
       "sha256": "b988bcf9b3d13797a1045964f4ec44230d381c65c250a0bcb7081a2d15b34f1a"
     },
     {
+      "path": "tests/mcp/stdio-probe.test.ts",
+      "mode": "100644",
+      "size": 3824,
+      "sha256": "ee1e242ad72596d01e635a96ee60b4a382b752df6d155efe902db9d1ec08a4e9"
+    },
+    {
       "path": "tests/mcp/tools-list.test.ts",
       "mode": "100644",
       "size": 12088,
@@ -9400,8 +9424,8 @@
     {
       "path": "tests/plugins/api-startup.test.ts",
       "mode": "100644",
-      "size": 19355,
-      "sha256": "ecf7c4a0d8b15fed4e3aa94f202870f7f5d036372562aacf629369d458149eb1"
+      "size": 19391,
+      "sha256": "d751a1dd689832172bb31974b8b9d249ca3d218b701e6bd8542ee36478f04b7a"
     },
     {
       "path": "tests/plugins/approval-helpers.ts",

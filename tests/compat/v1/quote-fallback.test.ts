@@ -25,6 +25,7 @@ import {
 import type { quotePlans } from "../../../src/services/quotes.js";
 import type { CmsApiEvidence } from "../../../src/ingest/cms-api/fallback.js";
 import { createApp } from "../../../src/api/app.js";
+import { cmsZipPreparationSettled } from "../../../src/ingest/geo/cms.js";
 import * as coverageService from "../../../src/services/quote-coverage.js";
 import {
   cmsFallbackContext,
@@ -121,6 +122,9 @@ beforeAll(async () => {
 afterAll(async () => h?.close());
 beforeEach(async () => {
   directory = await mkdtemp(join(tmpdir(), "openplans-quote-fallback-"));
+  // createApp starts the ZIP fallback's publisher-policy read, which stores through the configured
+  // data directory. Point it at the temp directory, never at a shell's real cache.
+  vi.stubEnv("OPENPLANS_DATA_DIR", directory);
   vi.stubEnv("OPENPLANS_CMS_FALLBACK", "on");
   vi.stubEnv("OPENPLANS_CMS_FALLBACK_QUOTES", "on");
   vi.stubEnv("CMS_API_KEY", "synthetic-quote-cms-key");
@@ -165,6 +169,7 @@ beforeEach(async () => {
 });
 afterEach(async () => {
   vi.restoreAllMocks();
+  await cmsZipPreparationSettled();
   vi.unstubAllEnvs();
   await rm(directory, { recursive: true, force: true });
 });

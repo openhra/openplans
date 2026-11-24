@@ -1,4 +1,5 @@
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
+import { userAgent } from "./user-agent.js";
 import type { IncomingHttpHeaders } from "node:http";
 import { isAbsolute } from "node:path";
 import { StringDecoder } from "node:string_decoder";
@@ -11,7 +12,12 @@ import {
   absentRobotsStatuses,
   assertObservedHostAllowed,
 } from "./admission.js";
-import type { AdmissionReceipt, PolicyDocument } from "./admission.js";
+import type {
+  AdmissionReceipt,
+  PolicyDocument,
+  PolicyScope,
+  ShellProbe,
+} from "./admission.js";
 import type { FetchOptions } from "./cache.js";
 import { FetchError } from "./errors.js";
 import type { FetchEvidence } from "./errors.js";
@@ -22,6 +28,7 @@ import {
   resolvePublic,
   systemLookup,
 } from "./policy.js";
+import { shellBasis } from "./robots.js";
 import { shippedManifestPaths } from "./shipped.js";
 import { httpsTransport } from "./transport.js";
 import type { FetchResponse } from "./transport.js";
@@ -472,15 +479,81 @@ export async function fetchTransient(
     }
   }
 
-  async function readPolicy(url: URL, delay: number): Promise<PolicyDocument> {
+  /** True when a robots answer is an HTML document (a single-page-app shell) rather than directives. */
+  function htmlDocument(contentType: string | null, body: Buffer): boolean {
+    return (
+      /(?:text\/html|application\/xhtml\+xml)/i.test(contentType ?? "") ||
+      body
+        .toString("utf8")
+        .replace(/^\uFEFF/, "")
+        .trimStart()
+        .startsWith("<")
+    );
+  }
+
+  /**
+   * RFC 9309: an HTML shell has no valid rules. It reads as no robots only when the same host answers
+   * a random path with a real 404/410, or the shell is byte-equal to the index document. A 401, 403,
+   * 5xx or any other answer leaves the shell held.
+   */
+  async function probeShell(
+    robots: URL,
+    shell: { sha256: string },
+    delay: number,
+  ): Promise<ShellProbe | undefined> {
+    const probePath = `/${randomBytes(16).toString("hex")}`;
+    let probeStatus: number;
+    let probeSha256: string | null = null;
     try {
-      const result = await request(url, true, delay);
-      return {
+      const probe = await request(
+        new URL(probePath, robots),
+        true,
+        delay,
+        undefined,
+        true,
+      );
+      probeStatus = probe.status;
+      probeSha256 = probe.sha256;
+    } catch {
+      return undefined;
+    }
+    let indexSha256: string | undefined;
+    if (probeStatus === 200) {
+      try {
+        indexSha256 = (await request(new URL("/", robots), true, delay)).sha256;
+      } catch {
+        return undefined;
+      }
+    }
+    const basis = shellBasis(probeStatus, shell.sha256, indexSha256);
+    return basis && { probePath, probeStatus, probeSha256, basis };
+  }
+
+  async function readPolicy(
+    url: URL,
+    delay: number,
+    scope?: PolicyScope,
+  ): Promise<PolicyDocument> {
+    try {
+      const result = await request(url, true, delay, scope);
+      const document: PolicyDocument = {
         status: result.status,
         sha256: result.sha256,
         text: result.body.toString("utf8"),
         contentType: result.headers["content-type"] ?? null,
+        ...(result.redirectChain.length > 0 && {
+          redirectChain: result.redirectChain,
+        }),
       };
+      if (
+        url.pathname === "/robots.txt" &&
+        result.redirectChain.length === 0 &&
+        htmlDocument(document.contentType ?? null, result.body)
+      ) {
+        const shell = await probeShell(url, result, delay);
+        if (shell) return { ...document, text: "", absent: true, shell };
+      }
+      return document;
     } catch (error) {
       if (
         url.pathname === "/robots.txt" &&
@@ -512,8 +585,15 @@ export async function fetchTransient(
     start: URL,
     policy = false,
     probeDelay = 5000,
+    scope?: PolicyScope,
+    probe = false,
   ): Promise<Omit<TransientFetchResult, "admission">> {
-    const hosts = policy ? [start.hostname] : options.allowHosts;
+    const hostsFor = (target: URL): readonly string[] => {
+      if (!policy) return options.allowHosts;
+      const leaves = scope?.redirectAllowed?.(target.hostname.toLowerCase());
+      return leaves ? [start.hostname, target.hostname] : [start.hostname];
+    };
+    let hosts: readonly string[] = hostsFor(start);
     const cap = policy ? 512 * 1024 : limit;
     for (
       let attempt = 0;
@@ -539,6 +619,7 @@ export async function fetchTransient(
           evidence.final_url = provenanceUrl(url);
           evidence.response_headers = {};
           delete evidence.address;
+          hosts = hostsFor(url);
           url = checkedUrl(url, hosts);
           assertObservedHostAllowed(url);
           let delay = probeDelay;
@@ -577,7 +658,7 @@ export async function fetchTransient(
           admission!.reserveRequest(url);
           const headers: Record<string, string> = {
             "accept-encoding": "identity",
-            "user-agent": `openplans/0.4.20 (public health-plan source discovery; +${projectUrl(options)})`,
+            "user-agent": userAgent(projectUrl(options)),
           };
           if (!policy && options.expectedContent === "json")
             headers.accept = "application/json, */*;q=0.1";
@@ -662,7 +743,13 @@ export async function fetchTransient(
         }
         const absent =
           !policy && options.absentStatuses?.includes(response.status) === true;
-        if ((response.status < 200 || response.status >= 300) && !absent) {
+        // A shell probe reads the 404 it asked for: its body hash goes into the receipt.
+        const probed = probe && absentRobotsStatuses.includes(response.status);
+        if (
+          (response.status < 200 || response.status >= 300) &&
+          !absent &&
+          !probed
+        ) {
           if (transientStatuses.has(response.status))
             await readBody(response, url, cap, cap, true);
           throw new FetchError(

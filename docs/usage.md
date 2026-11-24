@@ -60,8 +60,13 @@ Your own install serves the same route at `http://127.0.0.1:3000/mcp`. For a std
 }
 ```
 
-Stdio needs `DATABASE_URL`. It does not touch the database at startup, so a wrong password
-or a missing migration shows up on the first tool call, not as a startup error.
+Stdio needs `DATABASE_URL`. Discovery does not wait for the database: `tools/list` answers while
+it is down. After the transport starts, a probe runs in the background with a 2-second limit. If
+it fails, one line goes to stderr and names the step: `MCP startup: database probe failed at the
+connection step; check DATABASE_URL`, `... at the authentication step; check the password in
+DATABASE_URL`, or `... at the schema step; run \`worker migrate\``. A healthy database prints
+nothing, and the line never includes the URL. Set `OPENPLANS_MCP_STDIO_PROBE=0` to turn the probe
+off.
 
 The household tools `quote_premiums` and `check_ichra_affordability` are open by default. An
 operator can close them. Over HTTP, set `OPENPLANS_MCP_TOKEN`; callers then send it as

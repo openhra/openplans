@@ -132,6 +132,18 @@ describe("check-currency", () => {
     ]);
   });
 
+  it("flags a planted identity literal with path and line, and passes the package version source", async () => {
+    // Built at run time so this test file holds no literal of its own.
+    const literal = ["openplans", "0.4.20"].join("/");
+    const result = await check({
+      "app/src/fetch/planted.ts": `const a = 1;\nconst ua = \`${literal} (x)\`;\n`,
+      "app/tests/ok.ts": "const ua = `openplans/${version} (x)`;\n",
+    });
+    expect(result.errors).toEqual([
+      `src/fetch/planted.ts:2: version literal "${literal}"; build the identity from package.json (src/fetch/user-agent.ts)`,
+    ]);
+  });
+
   it("fails a planted old version string", async () => {
     const { errors } = await check(
       edit("app/README.md", "OpenPlans 1.2.3", "OpenPlans 1.2.2"),

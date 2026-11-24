@@ -162,6 +162,8 @@ export const coreConfigSchema = z
       allowedOrigins: z.array(z.string()).optional(),
       // Other values have always inherited the household policy.
       allowPersonalized: text,
+      // Stdio only: `0` turns off the startup database probe.
+      stdioProbe: text,
     }),
     telemetry: section({ enabled: z.boolean().default(false) }),
     // Off unless the exact value `on` (or `true` in the file) says otherwise.
@@ -404,6 +406,7 @@ export const environmentPaths = {
   OPENPLANS_MCP_ALLOWED_HOSTS: "mcp.allowedHosts",
   OPENPLANS_MCP_ALLOWED_ORIGINS: "mcp.allowedOrigins",
   OPENPLANS_MCP_ALLOW_PERSONALIZED: "mcp.allowPersonalized",
+  OPENPLANS_MCP_STDIO_PROBE: "mcp.stdioProbe",
   OPENPLANS_TRUST_PROXY: "trustProxy",
   OPENPLANS_CMS_FALLBACK: "cmsFallback.enabled",
   OPENPLANS_CMS_FALLBACK_QUOTES: "cmsFallback.quotes",
