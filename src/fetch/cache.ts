@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { userAgent } from "./user-agent.js";
 import { createReadStream } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
 import { isAbsolute, join } from "node:path";
@@ -520,7 +521,7 @@ async function requestChain(
     evidence.address = address.address;
     const headers: Record<string, string> = {
       "accept-encoding": "identity",
-      "user-agent": `openplans/0.4.20 (public health-plan source discovery; +${projectUrl(options)})`,
+      "user-agent": userAgent(projectUrl(options)),
     };
     if (options.expectedContent === "json")
       headers.accept = "application/json, */*;q=0.1";

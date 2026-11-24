@@ -15,6 +15,7 @@ import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import type { SqlSession } from "../../../src/db/database.js";
+import { applicationVersion } from "../../../src/mcp/version.js";
 import type { Transport } from "../../../src/fetch/index.js";
 import type { GeoFile } from "../../../src/ingest/geo/sources.js";
 import { migrate } from "../../../src/db/migrate.js";
@@ -173,7 +174,9 @@ describe("ZIP fallback source order and provenance", () => {
       expect(url.pathname).toBe("/api/v1/counties/by/zip/77001");
       expect(url.searchParams.get("year")).toBe("2026");
       expect(url.searchParams.get("apikey")).toBe(KEY);
-      expect(context.headers["user-agent"]).toMatch(/^openplans\/0\.4\.20 /);
+      expect(context.headers["user-agent"]).toMatch(
+        new RegExp(`^openplans/${applicationVersion.replaceAll(".", "\\.")} `),
+      );
       return response(200, body);
     });
     const guarded: SqlSession = {

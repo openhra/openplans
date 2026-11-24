@@ -5,6 +5,15 @@ Release notes for OpenPlans. Earlier releases are on the
 
 ## Unreleased
 
+## v0.4.21
+
+- A `/robots.txt` that redirects to another host of the same organisation is now followed, up to five hops. The target is a host on the same registrable domain or one named in the new `robotsAliasOf` manifest field. Receipts record the redirect chain.
+- A single-page-app HTML shell at `/robots.txt` is read as no robots file when the same host returns a real 404 for a random path, or when the shell equals the index page. Receipts record the probe. A 401, 403 or 5xx still holds the host.
+- The research fetch helper reads a redirect that ends in 404 as held rather than as no robots file.
+
+- The fetch client now sends the package version in its user agent, so every release identifies itself correctly without a manual edit.
+- MCP over stdio checks the database in the background after startup and prints one stderr line naming the failed step (connection, authentication or schema). `OPENPLANS_MCP_STDIO_PROBE=0` turns it off.
+
 ## v0.4.20
 
 This release also contains the changes listed under v0.4.19 below.

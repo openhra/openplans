@@ -8,6 +8,7 @@ import {
   StdioServerTransport,
 } from "@modelcontextprotocol/server/stdio";
 import { openHostDatabase, startHostStorage } from "../plugins/host-storage.js";
+import type { Database } from "../db/database.js";
 import { buildServer } from "./server.js";
 import { loadApiPlugins } from "../plugins/api.js";
 import { configDependencies, configHouseholdOpen } from "./policy.js";
@@ -59,6 +60,52 @@ function startupStep<T>(
     throw new StdioStartupError(check, error, missingUrl);
   }
 }
+const PROBE_FAILURES = {
+  connection:
+    "MCP startup: database probe failed at the connection step; check DATABASE_URL",
+  authentication:
+    "MCP startup: database probe failed at the authentication step; check the password in DATABASE_URL",
+  schema:
+    "MCP startup: database probe failed at the schema step; run `worker migrate`",
+} as const;
+export const STDIO_PROBE_TIMEOUT_MS = 2_000;
+/** Which step failed, from the SQLSTATE the server sent; anything else counts as the connection. */
+function probeStep(error: unknown): keyof typeof PROBE_FAILURES {
+  const code = (error as { code?: unknown } | null)?.code;
+  if (code === "28P01" || code === "28000") return "authentication";
+  if (code === "42P01") return "schema";
+  return "connection";
+}
+/**
+ * One check after the transport is up: connect, `select 1`, read the migrations table. It is never
+ * awaited by discovery. A failure writes one stderr line naming the step and never the URL; success
+ * writes nothing. `OPENPLANS_MCP_STDIO_PROBE=0` turns it off.
+ */
+export function probeDatabase(
+  db: Pick<Database, "query">,
+  report: (line: string) => void,
+  timeoutMs = STDIO_PROBE_TIMEOUT_MS,
+): Promise<void> {
+  let timer: NodeJS.Timeout | undefined;
+  const checks = (async () => {
+    await db.query("select 1");
+    await db.query("select 1 from public.schema_migrations limit 1");
+  })().catch((error: unknown) => {
+    throw Object.assign(new Error("probe"), { step: probeStep(error) });
+  });
+  const limit = new Promise<never>((_, reject) => {
+    timer = setTimeout(
+      () => reject(Object.assign(new Error("probe"), { step: "connection" })),
+      timeoutMs,
+    );
+    timer.unref();
+  });
+  return Promise.race([checks, limit])
+    .catch((error: { step?: keyof typeof PROBE_FAILURES }) => {
+      report(PROBE_FAILURES[error.step ?? "connection"]);
+    })
+    .finally(() => clearTimeout(timer));
+}
 export function startStdio() {
   const config = startupStep("config", () => loadConfig());
   const db = startupStep(
@@ -94,6 +141,10 @@ export function startStdio() {
     },
   );
   let closing = false;
+  if (config.mcp.stdioProbe !== "0")
+    void probeDatabase(db, (line) => {
+      if (!closing) console.error(line);
+    });
   const close = async () => {
     if (closing) return;
     closing = true;

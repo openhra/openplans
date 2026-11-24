@@ -199,6 +199,7 @@ async function stdioCall(
   const startupEnv = {
     ...baseEnv,
     OPENPLANS_MCP_ALLOW_PERSONALIZED: "0",
+    OPENPLANS_MCP_STDIO_PROBE: "0",
     ...env,
   };
   const reviewed = env.OPENPLANS_PLUGINS?.includes("does-not-exist")

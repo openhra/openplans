@@ -14,6 +14,58 @@ export interface RobotsPolicy {
   delayMs: number;
 }
 
+const twoPartSuffixes = new Set([
+  "co.uk",
+  "org.uk",
+  "com.au",
+  "org.au",
+  "co.nz",
+  "com.br",
+]);
+
+/** Registrable domain of a host name: the last two labels, three under a known two-part suffix. */
+export function registrableDomain(host: string): string {
+  const labels = host.toLowerCase().replace(/\.$/, "").split(".");
+  if (labels.length <= 2) return labels.join(".");
+  const count = twoPartSuffixes.has(labels.slice(-2).join(".")) ? 3 : 2;
+  return labels.slice(-count).join(".");
+}
+
+/**
+ * Whether a robots redirect from `from` to `to` stays inside one organisation (RFC 9309 2.3.1.2 follows
+ * redirects; this narrows them): the same host, the same registrable domain, or a host the reviewed
+ * manifest names in `robotsAliasOf`. Anything else is another organisation's answer and holds the host.
+ */
+export function sameOrganisation(
+  from: string,
+  to: string,
+  aliases: readonly string[] = [],
+): boolean {
+  const a = from.toLowerCase();
+  const b = to.toLowerCase();
+  return (
+    a === b ||
+    registrableDomain(a) === registrableDomain(b) ||
+    aliases.some((alias) => alias.toLowerCase() === b)
+  );
+}
+
+/**
+ * Why an HTML answer at `/robots.txt` counts as no robots file. A real 404/410 for a random path on the
+ * same host proves the host answers unknown paths honestly; failing that, the shell must be byte-equal
+ * to the host's index document (`indexSha256`, read only when the probe answered 200). Every other
+ * probe answer (401, 403, 5xx, a different soft-200 page) leaves the shell held.
+ */
+export function shellBasis(
+  probeStatus: number,
+  robotsSha256: string,
+  indexSha256?: string | null,
+): "real-404" | "index-equal" | undefined {
+  if (probeStatus === 404 || probeStatus === 410) return "real-404";
+  if (probeStatus === 200 && indexSha256 === robotsSha256) return "index-equal";
+  return undefined;
+}
+
 function normalizedPath(value: string): string {
   return value
     .replace(/[\u0080-\u{10ffff}]/gu, (character) =>

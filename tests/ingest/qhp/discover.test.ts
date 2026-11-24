@@ -34,9 +34,16 @@ import type { RegistryInput } from "../../../src/ingest/qhp/discover-registry.js
 import type { Transport } from "../../../src/fetch/index.js";
 import { FetchError, fetchToCache } from "../../../src/fetch/index.js";
 import { httpsTransport } from "../../../src/fetch/transport.js";
+import { readFileSync } from "node:fs";
 import { runWorker } from "../../../src/worker/commands.js";
 import { workbook } from "../../fixtures/qhp/generate.mjs";
 import { syntheticZip } from "../../fixtures/fetch/generate.mjs";
+
+const packageVersion = (
+  JSON.parse(
+    readFileSync(new URL("../../../package.json", import.meta.url), "utf8"),
+  ) as { version: string }
+).version;
 
 let directory: string, db: Database;
 // Every test gets its own copy of one migrated database.
@@ -382,7 +389,7 @@ describe("registry-first QHP discovery", () => {
         identities.every(
           (value) =>
             value ===
-            "openplans/0.4.20 (public health-plan source discovery; +https://project.example/openplans)",
+            `openplans/${packageVersion} (public health-plan source discovery; +https://project.example/openplans)`,
         ),
       ).toBe(true);
       expect(

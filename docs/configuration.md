@@ -298,6 +298,7 @@ whenever both switches are on. See [Medicare](medicare.md).
 | `OPENPLANS_MCP`                    | On unless `off`, which removes HTTP `/mcp`.                                                                                                         |
 | `OPENPLANS_MCP_TOKEN`              | Unset. If set, HTTP household tools require this bearer token. Over HTTP the Medicare drug-cost estimate tool needs it.                             |
 | `OPENPLANS_MCP_ALLOW_PERSONALIZED` | Stdio only. `1` grants household tools; `0` withholds them. Unset inherits anonymous household access and withholds tools when an MCP token is set. |
+| `OPENPLANS_MCP_STDIO_PROBE`        | Stdio only. `0` turns off the background database probe that prints one stderr line when the connection, password or schema check fails.            |
 | `OPENPLANS_MCP_CURSOR_SECRET`      | Random per process. Set a shared private value across replicas for stable cursors.                                                                  |
 | `OPENPLANS_MCP_ALLOWED_HOSTS`      | Loopback names `127.0.0.1`, `localhost`, `[::1]`, with and without `:PORT`. Exact comma-separated authorities.                                      |
 | `OPENPLANS_MCP_ALLOWED_ORIGINS`    | `http://localhost:PORT`, `http://127.0.0.1:PORT`, `http://[::1]:PORT`. Exact comma-separated origins.                                               |
@@ -305,7 +306,7 @@ whenever both switches are on. See [Medicare](medicare.md).
 
 In the config file `trustProxy` takes the same peers as a JSON array, such as `["10.0.0.2"]`.
 The MCP settings are `mcp.enabled` (`true` or `false`), `mcp.allowedHosts` and
-`mcp.allowedOrigins` (JSON arrays) and `mcp.allowPersonalized` (`"1"` or `"0"`). Each variable
+`mcp.allowedOrigins` (JSON arrays) and `mcp.allowPersonalized` (`"1"` or `"0"`) and `mcp.stdioProbe` (`"0"` turns the stdio probe off). Each variable
 wins over its file key.
 
 ## Downloads and geocoding

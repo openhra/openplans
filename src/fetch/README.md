@@ -69,9 +69,20 @@ session's egress country (`egressCountry`, else `OPENPLANS_EGRESS_COUNTRY`, else
 receipt, or `null` when unset. It does not restrict collection, because self-hosters collect
 from many countries. Terms still need review. Every other unsuccessful robots
 response holds collection: 401, 403, 429, 451, 5xx, timeouts and any 404 reached through a
-redirect. A robots file served as HTML holds too, because it is not directives. If a file appears at
-the daily recheck, the session parses and obeys it. Receipts record the egress country and whether
-robots was absent.
+redirect. If a file appears at the daily recheck, the session parses and obeys it. Receipts record the
+egress country and whether robots was absent.
+
+A `/robots.txt` that redirects is followed for up to five hops when each target is on the same
+registrable domain or is named in the entry's `robotsAliasOf` list. Another organisation's host,
+a sixth hop, and a redirect that ends in 404 all hold. The rules found there apply to the entry's own
+host, and the receipt's `robots.redirectChain` lists the hops.
+
+A robots file served as an HTML page holds, because it is not directives, with one exception: a
+single-page-app shell counts as no robots file when the same host answers a random 32-hex path
+with a real 404 or 410, or when the shell is byte-equal to the host's index page. The manifest then
+records `robots.shell` (the probe path, its status and body hash, and the basis) beside the shell's
+own hash and status 200, and the receipt repeats it. A 401, 403 or 5xx anywhere in that check keeps
+the host held.
 
 ### Owner-approved restricted sites
 
@@ -209,7 +220,7 @@ response stays refused. `onRequest` is called before each data request, not befo
 Defaults: three attempts, five redirect hops, 10-second DNS/connect timeout, 30-second response/read inactivity timeout, 1 GiB transfer limit and 60-second maximum retry delay. Transient connection failures, truncation, 408/429 and 500/502/503/504 may retry with jitter. Retry-After accepts seconds and HTTP dates; a value beyond the delay budget stops retries rather than retrying too soon. 401/403 and policy/content/cache rejections never retry. Requests still ask for identity encoding. If the publisher sends HTTP `Content-Encoding: gzip`, `deflate` (zlib-wrapped) or `br`, a streaming decoder enforces `maxDecompressedBytes` on actual emitted bytes before writing them. This cap defaults to `maxBytes`, so existing callers also bound decoded output. `maxBytes` independently bounds transfer bytes, and Content-Length is checked against that transfer count. Unsupported or stacked encodings fail with `unsupported_encoding`; invalid/incomplete compressed streams fail with `truncated`. Crossing either byte cap fails with `too_large`, destroys the streams and removes the staging directory and `payload.part` without publishing a snapshot. Stream backpressure bounds decoder buffering. The fetcher never writes the first chunk that crosses the cap.
 
 JSON requests send `Accept: application/json, */*;q=0.1` (some publishers answer 406 to a strict JSON-only Accept, e.g. issuer 66252 serves its index as text/plain). The client identifies itself as
-`openplans/0.4.9 (public health-plan source discovery; +<project URL>)`. Configure the public
+`openplans/<package version> (public health-plan source discovery; +<project URL>)`. Configure the public
 contact page with `OPENPLANS_PROJECT_URL` (or `FetchOptions.projectUrl`); the default is
 `https://plans.openhra.com/`, which contains the captcha-protected contact form. A self-hoster may point it at their own contact page. Credentials, contact-email literals, query
 values and fragments are rejected in this identity URL. It does not identify itself as a browser.
