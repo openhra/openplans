@@ -104,7 +104,10 @@ async function expectUnready({ app }: Fixture) {
   expect(await ready.json()).toEqual({
     status: "not_ready",
     reason: "schema_not_ready",
-    error: { code: "schema_not_ready" },
+    error: {
+      code: "schema_not_ready",
+      request_id: expect.any(String) as unknown,
+    },
     pending: live.pending,
   });
   for (const [path, init] of DATA_ROUTES) {
@@ -127,11 +130,11 @@ async function expectUnready({ app }: Fixture) {
 async function expectReady({ app }: Fixture) {
   const health = await app.request("/healthz");
   expect(health.status).toBe(200);
-  // Unchanged from before readiness existed.
-  expect(await health.json()).toEqual({ status: "ok", db: "ok" });
+  // The same ok and db members as before readiness existed; release facts come beside them.
+  expect(await health.json()).toMatchObject({ status: "ok", db: "ok" });
   const ready = await app.request("/readyz");
   expect(ready.status).toBe(200);
-  expect(await ready.json()).toEqual({ status: "ready" });
+  expect(await ready.json()).toMatchObject({ status: "ready" });
   const availability = await app.request("/v1/data-availability");
   expect(availability.status).toBe(200);
   expect(await availability.json()).toEqual([]);
@@ -235,8 +238,8 @@ describe("API schema readiness", () => {
 
       const ready = await fetch(`${url}/readyz`);
       expect(ready.status).toBe(200);
-      expect(await ready.json()).toEqual({ status: "ready" });
-      expect(await (await fetch(`${url}/healthz`)).json()).toEqual({
+      expect(await ready.json()).toMatchObject({ status: "ready" });
+      expect(await (await fetch(`${url}/healthz`)).json()).toMatchObject({
         status: "ok",
         db: "ok",
       });
@@ -306,7 +309,11 @@ describe("API schema readiness", () => {
         await migrate(db, core.directory, await loadPluginMigrations(sources)),
       ).toEqual(["plugin:synthetic/001_one.sql"]);
       clock += gateModule.SCHEMA_RECHECK_MS;
-      expect(await gate.status()).toEqual({ state: "ready", pending: 0 });
+      expect(await gate.status()).toEqual({
+        state: "ready",
+        pending: 0,
+        applied: expect.any(Number) as unknown,
+      });
     } finally {
       await pg.close();
       await core.cleanup();

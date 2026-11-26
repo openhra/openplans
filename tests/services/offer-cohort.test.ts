@@ -609,7 +609,7 @@ it("bounds the complete four-member tool frame through the shared output helper 
     synthetic: "x".repeat(65536),
   });
   expect(() => assertOutputFits(oversized, { measure: framedBytes })).toThrow(
-    "RESULT_TOO_LARGE",
+    "result_too_large",
   );
 });
 

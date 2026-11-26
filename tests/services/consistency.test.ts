@@ -110,6 +110,7 @@ it("retains pre-extraction native and compatibility status, headers and exact JS
         authorization: "Bearer synthetic-consistency-token",
         "x-api-key": "synthetic-consistency-token",
         "content-type": "application/json",
+        "x-request-id": "synthetic-request-id",
       },
       ...(body ? { body: JSON.stringify(body) } : {}),
     });
@@ -261,7 +262,7 @@ it("shares location ambiguity, variant errors and plan detail outside HTTP", asy
   });
   await expect(
     getPlan(db, "87226TX0100013-99", { year: "2026" }),
-  ).rejects.toMatchObject({ error: { code: "PLAN_NOT_FOUND" } });
+  ).rejects.toMatchObject({ error: { code: "plan_not_found" } });
   const response = await createApp(db, {}).request(
     "/v1/plans/87226TX0100013?year=2026",
   );

@@ -248,6 +248,7 @@ export const CORE_WORKER_ARGV: readonly (readonly string[])[] = Object.freeze(
     ["build", "lowest-premiums"],
     ["migrate"],
     ["compact"],
+    ["doctor"],
     ["status"],
     ["record-policy"],
     ["usage-report"],

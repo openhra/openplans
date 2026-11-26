@@ -138,10 +138,10 @@ describe("plugin tool calls", () => {
   });
 
   it.each([
-    ["not_covered", "INTERNAL_HONESTY_CHECK"],
-    ["nested_denial", "INTERNAL_HONESTY_CHECK"],
-    ["invalid", "INTERNAL_HONESTY_CHECK"],
-    ["oversized", "RESULT_TOO_LARGE"],
+    ["not_covered", "internal_honesty_check"],
+    ["nested_denial", "internal_honesty_check"],
+    ["invalid", "internal_honesty_check"],
+    ["oversized", "result_too_large"],
   ])("refuses a %s answer with %s", async (kind, code) => {
     const { result } = await answer(kind);
     expect(result!.isError).toBe(true);
@@ -167,7 +167,7 @@ describe("plugin tool calls", () => {
     );
     expect(direct.structuredContent).toMatchObject({
       status: "error",
-      error: { code: "INVALID_INPUT" },
+      error: { code: "invalid_input" },
     });
   });
 
@@ -222,7 +222,7 @@ describe("assertPluginHonest", () => {
         data: { status: "unknown", evidence_refs: ["absent"], gaps: [] },
       },
     ])
-      expect(() => assertPluginHonest(bad)).toThrow(/INTERNAL_HONESTY_CHECK/);
+      expect(() => assertPluginHonest(bad)).toThrow(/internal_honesty_check/);
   });
 });
 

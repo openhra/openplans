@@ -1,3 +1,4 @@
+import { apiError } from "../../api/errors.js";
 import {
   requireAnnualYear,
   servingPolicy,
@@ -280,16 +281,7 @@ export function providerCompatRoutes(db: SqlSession, native: Hono) {
     bodyLimit({
       maxSize: 65_536,
       onError: (c) =>
-        c.json(
-          {
-            error: {
-              code: "REQUEST_TOO_LARGE",
-              field: "body",
-              message: "Request too large",
-            },
-          },
-          400,
-        ),
+        c.json(apiError("request_too_large", "body", "Request too large"), 400),
     }),
     async (c) => {
       let body: Record<string, unknown>;
@@ -297,13 +289,7 @@ export function providerCompatRoutes(db: SqlSession, native: Hono) {
         body = await c.req.json();
       } catch {
         return c.json(
-          {
-            error: {
-              code: "INVALID_JSON",
-              field: "body",
-              message: "Invalid JSON body",
-            },
-          },
+          apiError("invalid_json", "body", "Invalid JSON body"),
           400,
         );
       }
@@ -311,13 +297,7 @@ export function providerCompatRoutes(db: SqlSession, native: Hono) {
         return v.fail("body");
       if (!body.zip_code)
         return c.json(
-          {
-            error: {
-              code: "INVALID_INPUT",
-              field: "zip_code",
-              message: "zip_code required",
-            },
-          },
+          apiError("invalid_input", "zip_code", "zip_code required"),
           400,
         );
       const zip = v.zip(body.zip_code),
@@ -479,7 +459,7 @@ export function providerCompatRoutes(db: SqlSession, native: Hono) {
         if (result.reason === "zip_centroid_unavailable") originMissing = true;
         if (
           result.providers.some((r: ProviderRecord) =>
-            r.warnings?.includes("UNRESOLVED_NETWORK_TIER"),
+            r.warnings?.includes("unresolved_network_tier"),
           )
         )
           reasons.add("provider_unresolved_network_tier");

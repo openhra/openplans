@@ -216,7 +216,7 @@ async function rateCandidate(
     );
     if (rated.estimate.status === "unsupported_rating_method")
       return { status: "unsupported_rating_method", reason };
-    if (reason === "UNRESOLVED_RATING_AREA" && !question.location.zip)
+    if (reason === "unresolved_rating_area" && !question.location.zip)
       return {
         status: "location_requires_zip",
         reason: "rating_area_needs_zip",
@@ -383,7 +383,7 @@ async function lcspEvidence(
     const subCounty = offered.some(
       (p) =>
         (p.premium_availability as { reason?: string } | undefined)?.reason ===
-        "UNRESOLVED_RATING_AREA",
+        "unresolved_rating_area",
     );
     if (zipLimited || subCounty)
       return refuse(

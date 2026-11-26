@@ -1,3 +1,4 @@
+import { apiError } from "../api/errors.js";
 import { createOperatorCommandClient } from "../operator/commands/service.js";
 import { timingSafeEqual } from "node:crypto";
 import { ADMIN_CSP, adminHeaders } from "../operator/csrf.js";
@@ -166,7 +167,7 @@ export function pluginRoutes(
             if (refusal) return refusal;
           } else {
             noStore(c);
-            return c.json({ error: { code: "UNAUTHORIZED" } }, 401);
+            return c.json(apiError("unauthorized"), 401);
           }
         }
       }
@@ -184,7 +185,7 @@ export function pluginRoutes(
       JSON.stringify({ event: "plugin_response_rejected", path, reason }),
     );
     noStore(c);
-    return c.json({ error: { code: "plugin_response_rejected" } }, 500);
+    return c.json(apiError("plugin_response_rejected"), 500);
   }
 
   function handler(spec: RouteSpec) {
@@ -196,7 +197,7 @@ export function pluginRoutes(
         AbortSignal.timeout(deadlineMs);
       const signal = AbortSignal.any([deadline, c.req.raw.signal]);
       if (signal.aborted)
-        return c.json({ error: { code: "plugin_deadline_exceeded" } }, 503);
+        return c.json(apiError("plugin_deadline_exceeded"), 503);
       c.set("pluginSignal", signal);
       const reader = boundedDatabase(options.db, signal, { readOnly: true });
       c.set("pluginDb", reader);
@@ -251,7 +252,7 @@ export function pluginRoutes(
       } catch (error) {
         if (!signal.aborted) throw error;
         noStore(c);
-        return c.json({ error: { code: "plugin_deadline_exceeded" } }, 503);
+        return c.json(apiError("plugin_deadline_exceeded"), 503);
       }
       if (
         spec.exposure === "public" &&
@@ -310,10 +311,7 @@ export function pluginRoutes(
             maxSize: PLUGIN_REQUEST_MAX_BYTES,
             onError: (c) => {
               noStore(c);
-              return c.json(
-                { error: { code: "REQUEST_TOO_LARGE", field: "body" } },
-                400,
-              );
+              return c.json(apiError("request_too_large", "body"), 400);
             },
           }),
           async (c, next) => {

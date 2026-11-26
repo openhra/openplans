@@ -255,7 +255,10 @@ describe("Part D drug-cost estimates over HTTP", () => {
     const closed = await post(open, schedule());
     expect(closed.status).toBe(503);
     expect(await closed.json()).toEqual({
-      error: { code: "AUTH_NOT_CONFIGURED" },
+      error: {
+        code: "auth_not_configured",
+        request_id: expect.any(String) as unknown,
+      },
     });
   });
 
@@ -415,11 +418,19 @@ describe("Part D drug-cost estimates over HTTP", () => {
     );
     expect(asserted.status).toBe(400);
     expect(await asserted.json()).toEqual({
-      error: { code: "UNSUPPORTED_FIELD", field: "body.fills.0" },
+      error: {
+        code: "unsupported_field",
+        field: "body.fills.0",
+        request_id: expect.any(String) as unknown,
+      },
     });
     const typed = await post(app, schedule({ benefit_type: "DS" }));
     expect(await typed.json()).toEqual({
-      error: { code: "UNSUPPORTED_FIELD", field: "body" },
+      error: {
+        code: "unsupported_field",
+        field: "body",
+        request_id: expect.any(String) as unknown,
+      },
     });
   });
 
@@ -451,7 +462,11 @@ describe("Part D drug-cost estimates over HTTP", () => {
     );
     expect(order.status).toBe(400);
     expect(await order.json()).toEqual({
-      error: { code: "INVALID_SCHEDULE", field: "body.fills" },
+      error: {
+        code: "invalid_schedule",
+        field: "body.fills",
+        request_id: expect.any(String) as unknown,
+      },
     });
     const tooMany = await post(
       app,
@@ -475,7 +490,7 @@ describe("Part D drug-cost estimates over HTTP", () => {
     expect(
       (await (missing.json() as Promise<{ error: { code: string } }>)).error
         .code,
-    ).toBe("PLAN_NOT_FOUND");
+    ).toBe("plan_not_found");
     const year = await app.request(
       `/v1/medicare/plans/${PLAN}/drug-cost-estimates`,
       {

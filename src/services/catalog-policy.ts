@@ -86,7 +86,7 @@ export function withCatalogPolicy<T>(
       inherited.transport !== transport ||
       JSON.stringify(inherited.selection) !== JSON.stringify(selection)
     )
-      return refuse("MSOT_CONTEXT_MISMATCH");
+      return refuse("msot_context_mismatch");
     return run();
   }
   const request: PolicyRequest = {
@@ -116,7 +116,7 @@ export function parsePolicySelection(
       params.market_segment !== "on_exchange" &&
       params.market_segment !== "off_exchange"
     )
-      return refuse("MSOT_INVALID_FILTER");
+      return refuse("msot_invalid_filter");
     segment = params.market_segment;
   }
   for (const [key, raw] of Object.entries(params)) {
@@ -126,20 +126,20 @@ export function parsePolicySelection(
       operator = "eq";
     } else if (key.startsWith("msot.field.")) {
       const match = /^msot\.field\.([a-z_]+)\.(eq|state)$/.exec(key);
-      if (!match) return refuse("MSOT_INVALID_FILTER");
+      if (!match) return refuse("msot_invalid_filter");
       field = match[1]!;
       operator = match[2]!;
     } else continue;
     if (!["marketable", "custom_payment_allowed"].includes(field))
-      return refuse("MSOT_INVALID_FILTER");
-    if (aliases.has(field)) return refuse("MSOT_CONFLICTING_FILTER");
+      return refuse("msot_invalid_filter");
+    if (aliases.has(field)) return refuse("msot_conflicting_filter");
     aliases.add(field);
     if (operator === "state") {
-      if (raw !== "unknown") return refuse("MSOT_INVALID_FILTER");
+      if (raw !== "unknown") return refuse("msot_invalid_filter");
       filters.push({ field: field as FieldName, operator, value: "unknown" });
     } else {
       if (![true, false, "true", "false"].includes(raw as boolean | string))
-        return refuse("MSOT_INVALID_FILTER");
+        return refuse("msot_invalid_filter");
       filters.push({
         field: field as FieldName,
         operator: "eq",
@@ -147,7 +147,7 @@ export function parsePolicySelection(
       });
     }
   }
-  if (filters.length && !segment) return refuse("MARKET_SEGMENT_REQUIRED");
+  if (filters.length && !segment) return refuse("market_segment_required");
   return { market_segment: segment, filters };
 }
 
@@ -162,7 +162,7 @@ function checkContext(request: PolicyRequest, result: CatalogPolicyResolution) {
       definition.visibility.audience !== "answer" ||
       !definition.visibility[request.transport]
     )
-      return refuse("MSOT_INVALID_FILTER");
+      return refuse("msot_invalid_filter");
   }
   if (
     context.source_id !== request.catalogPolicy.source ||
@@ -170,7 +170,7 @@ function checkContext(request: PolicyRequest, result: CatalogPolicyResolution) {
     (typeof request.catalogPolicy.version === "number" &&
       context.version !== request.catalogPolicy.version)
   )
-    return refuse("MSOT_CONTEXT_MISMATCH");
+    return refuse("msot_context_mismatch");
   if (request.pinned) {
     const previous = request.pinned;
     if (
@@ -188,7 +188,7 @@ function checkContext(request: PolicyRequest, result: CatalogPolicyResolution) {
           context[key as keyof typeof context],
       )
     )
-      return refuse("MSOT_CONTEXT_CHANGED");
+      return refuse("msot_context_changed");
     const provenance = new Map(previous.provenance.map((p) => [p.id, p]));
     for (const entry of context.provenance)
       provenance.set(entry.id, structuredClone(entry));
@@ -200,7 +200,7 @@ async function resolutions(ids: readonly string[], year: number) {
   const request = requests.getStore();
   if (!request) return undefined;
   request.scope.signal.throwIfAborted();
-  if (ids.length > 10000) return refuse("MSOT_CANDIDATE_LIMIT");
+  if (ids.length > 10000) return refuse("msot_candidate_limit");
   const memoize = scopeCacheLevel() !== "none";
   if (!memoize) {
     request.answers.clear();
@@ -248,7 +248,7 @@ async function resolutions(ids: readonly string[], year: number) {
       result.plans.length !== planIds.length ||
       result.plans.some((p, i) => p.id !== planIds[i])
     )
-      return refuse("MSOT_CONTEXT_MISMATCH");
+      return refuse("msot_context_mismatch");
     for (const plan of result.plans) {
       const identity = JSON.stringify([year, plan.id]);
       const copy = structuredClone(plan);
@@ -273,7 +273,7 @@ function channel(
     (c) => c?.applicability !== "inapplicable",
   );
   if (!request.selection.market_segment && segments.length !== 1)
-    return refuse("MARKET_SEGMENT_REQUIRED");
+    return refuse("market_segment_required");
   return request.selection.market_segment
     ? plan.msot.by_market_segment[request.selection.market_segment]
     : segments[0];
@@ -336,14 +336,14 @@ export async function guardCatalogPlans(ids: readonly string[], year: number) {
       const value = result?.fields.marketable;
       if (result?.applicability !== "applicable" || value?.state !== "known")
         throw new ReadError({
-          code: "MARKETABILITY_UNKNOWN",
+          code: "marketability_unknown",
           plan_id: id,
           year,
         });
       if (value?.value !== true)
-        throw new ReadError({ code: "PLAN_NOT_MARKETABLE", plan_id: id, year });
+        throw new ReadError({ code: "plan_not_marketable", plan_id: id, year });
     }
-    if (!selected(plan, request)) refuse("MSOT_FILTER_MISMATCH");
+    if (!selected(plan, request)) refuse("msot_filter_mismatch");
   }
 }
 
@@ -384,5 +384,5 @@ export async function annotateCatalogPlan<T extends object>(
 
 /** No serving activation is exposed until every transport and nested-read adapter is verified. */
 export function requireCatalogServingReady(): never {
-  return refuse("MSOT_SERVING_DISABLED");
+  return refuse("msot_serving_disabled");
 }

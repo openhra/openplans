@@ -48,13 +48,18 @@ it("structures and redacts unexpected top-level failures", async () => {
   });
   const response = await app.request("/synthetic-failure");
   expect(response.status).toBe(500);
-  expect(await response.json()).toEqual({ error: { code: "INTERNAL_ERROR" } });
+  expect(await response.json()).toEqual({
+    error: {
+      code: "internal_error",
+      request_id: expect.any(String) as unknown,
+    },
+  });
 });
 
 it("maps REST service errors into structured MCP tool errors", () => {
   for (const error of [
-    new InputError("year", "INVALID_YEAR"),
-    new ReadError({ code: "PLAN_NOT_FOUND", field: "plan_id" }),
+    new InputError("year", "invalid_year"),
+    new ReadError({ code: "plan_not_found", field: "plan_id" }),
   ]) {
     const result = errorResult(
       "get_data_status",
@@ -77,7 +82,7 @@ it("rejects a planted string error in a disposable app source", async () => {
     source,
     replaceSyntax(
       original,
-      '{ error: { code: "data_availability_unavailable" } }',
+      'apiError("data_availability_unavailable")',
       '{ error: "data_availability_unavailable" }',
     ),
     async (temporary) => {

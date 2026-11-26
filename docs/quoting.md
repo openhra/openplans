@@ -13,7 +13,7 @@ belong to the marketplace or the issuer.
 > **Public quoting is on for every install unless you turn it off.** A server
 > started without `OPENPLANS_PUBLIC_QUOTING` answers anonymous `POST /v1/quotes`
 > requests. Set `OPENPLANS_PUBLIC_QUOTING=off` to disable it; the route then
-> returns 503 `QUOTING_DISABLED`. Any value other than `on`, `off` or empty
+> returns 503 `quoting_disabled`. Any value other than `on`, `off` or empty
 > stops the API at startup.
 
 ## Public quotes: `POST /v1/quotes`
@@ -74,7 +74,7 @@ A request may check at most 100 plan and provider-or-drug pairs.
     }
   ],
   "tobacco_rating": "requested_flags",
-  "subsidy": { "status": "not_evaluated", "reason": "PUBLIC_QUOTE_TIER" },
+  "subsidy": { "status": "not_evaluated", "reason": "public_quote_tier" },
   "csr_eligibility_status": "not_evaluated",
   "data_availability": {
     "catalog": "available",
@@ -131,17 +131,17 @@ refused key; values are never echoed.
 
 | HTTP | Code                                                                                                                                                         | When                                                                              |
 | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------- |
-| 400  | `INVALID_JSON`, `REQUEST_TOO_LARGE`                                                                                                                          | Body is not JSON or exceeds 64 KiB                                                |
-| 400  | `UNKNOWN_FIELD`                                                                                                                                              | Any key outside the allow-list, such as `name`, `email` or `members.0.first_name` |
-| 400  | `INCOME_NOT_ACCEPTED`                                                                                                                                        | `household_income_annual`, `household_size` or `tax_filing`                       |
-| 400  | `DOB_NOT_ACCEPTED`                                                                                                                                           | A member `dob`                                                                    |
-| 400  | `TOO_MANY_MEMBERS`, `TOO_MANY_PLANS`, `TOO_MANY_PROVIDERS`, `TOO_MANY_DRUGS`, `TOO_MANY_PAIRS`                                                               | A cap above                                                                       |
-| 400  | `INVALID_INPUT`, `YEAR_REQUIRED`, `LOCATION_REQUIRED`, `DUPLICATE_PLAN_ID`, `DUPLICATE_NPI`, `DUPLICATE_RXCUI`, `CONFLICTING_VARIANT`, `ZIP_COUNTY_MISMATCH` | Malformed or conflicting values                                                   |
-| 404  | `PLAN_NOT_FOUND`                                                                                                                                             | A requested plan or variant is not in the active catalog                          |
-| 429  | `RATE_LIMITED`                                                                                                                                               | Limit reached; `Retry-After` gives seconds                                        |
-| 503  | `QUOTING_DISABLED`                                                                                                                                           | `OPENPLANS_PUBLIC_QUOTING=off`                                                    |
+| 400  | `invalid_json`, `request_too_large`                                                                                                                          | Body is not JSON or exceeds 64 KiB                                                |
+| 400  | `unknown_field`                                                                                                                                              | Any key outside the allow-list, such as `name`, `email` or `members.0.first_name` |
+| 400  | `income_not_accepted`                                                                                                                                        | `household_income_annual`, `household_size` or `tax_filing`                       |
+| 400  | `dob_not_accepted`                                                                                                                                           | A member `dob`                                                                    |
+| 400  | `too_many_members`, `too_many_plans`, `too_many_providers`, `too_many_drugs`, `too_many_pairs`                                                               | A cap above                                                                       |
+| 400  | `invalid_input`, `year_required`, `location_required`, `duplicate_plan_id`, `duplicate_npi`, `duplicate_rxcui`, `conflicting_variant`, `zip_county_mismatch` | Malformed or conflicting values                                                   |
+| 404  | `plan_not_found`                                                                                                                                             | A requested plan or variant is not in the active catalog                          |
+| 429  | `rate_limited`                                                                                                                                               | Limit reached; `Retry-After` gives seconds                                        |
+| 503  | `quoting_disabled`                                                                                                                                           | `OPENPLANS_PUBLIC_QUOTING=off`                                                    |
 | 503  | `schema_not_ready`                                                                                                                                           | A database migration is still pending; `Retry-After` gives seconds                |
-| 504  | `REQUEST_DEADLINE`                                                                                                                                           | The quote took longer than 15 seconds                                             |
+| 504  | `request_deadline`                                                                                                                                           | The quote took longer than 15 seconds                                             |
 | 504  | `query_timeout`                                                                                                                                              | One database read ran past its 5-second limit; retry                              |
 
 ### Limits and privacy
@@ -166,7 +166,7 @@ curl -s http://127.0.0.1:3000/v1/quotes \
 ```
 
 With the cached Texas 2026 catalog loaded, `quotes[0].total_cents` is 52928.
-Adding `"household_income_annual": 40000` returns 400 `INCOME_NOT_ACCEPTED`.
+Adding `"household_income_annual": 40000` returns 400 `income_not_accepted`.
 
 ## MCP tools
 
@@ -175,11 +175,11 @@ The MCP endpoint offers the same two tiers.
 - `quote_plans` is public. It takes `year`, `location` (`zip` and/or `county`),
   `members` (age, optional relationship and tobacco), optional `plan_refs`,
   `coverage`, `metal`, `csr_variant`, `npis` and `rxcuis`, with the caps above.
-  Household, income and date-of-birth keys fail with `INVALID_INPUT`. Each quote
+  Household, income and date-of-birth keys fail with `invalid_input`. Each quote
   carries the estimate fields plus `providers` and `drugs` in the same form as
   `check_provider_network` and `check_drug_coverage`. A catalog quote pages with
   `next_cursor`. With `OPENPLANS_PUBLIC_QUOTING=off` the tool is not listed and a
-  call returns `QUOTING_DISABLED`.
+  call returns `quoting_disabled`.
 - `quote_premiums` is the household quote and answers under `quotes`. It is open
   by default. A set `OPENPLANS_MCP_TOKEN` restricts it to Bearer callers over HTTP,
   `OPENPLANS_MCP_ALLOW_PERSONALIZED=0` withholds it over stdio, and
@@ -213,8 +213,8 @@ income, household size and tax filing for subsidy estimates. It answers
 requests per minute, 2 at a time, shared with `/v1/benchmark` and
 `/v1/ichra/affordability`. Responses are never cached, and income, ages and ZIP codes
 never reach a log. If you set `OPENPLANS_API_TOKEN`, a missing or wrong bearer token
-returns 401 `UNAUTHORIZED`. With no token, `OPENPLANS_PUBLIC_HOUSEHOLD=off` returns 503
-`AUTH_NOT_CONFIGURED`. Subsidy figures are checked against source for Texas 2026 so far.
+returns 401 `unauthorized`. With no token, `OPENPLANS_PUBLIC_HOUSEHOLD=off` returns 503
+`auth_not_configured`. Subsidy figures are checked against source for Texas 2026 so far.
 
 ```sh
 curl -s http://127.0.0.1:3000/v1/premium-quotes \

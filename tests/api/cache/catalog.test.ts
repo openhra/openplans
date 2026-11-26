@@ -103,9 +103,9 @@ describe("shared public DTO boundary", () => {
     const h = harness();
     await h.read();
     const denied = await h.read({ authorized: () => false }, async () => ({
-      public_label: "AUTH_REQUIRED",
+      public_label: "auth_required",
     }));
-    expect(denied.public_label).toBe("AUTH_REQUIRED");
+    expect(denied.public_label).toBe("auth_required");
     expect(h.reads()).toBe(1);
     for (const query of [
       { household: { income_annual: 41000 } },
@@ -218,9 +218,9 @@ it.each([
             await h.read();
             const denied = await h.read(
               { authorized: () => false },
-              async () => ({ public_label: "AUTH_REQUIRED" }),
+              async () => ({ public_label: "auth_required" }),
             );
-            expect(denied.public_label).toBe("AUTH_REQUIRED");
+            expect(denied.public_label).toBe("auth_required");
             expect(h.reads()).toBe(1);
           } else {
             await h.cache.catalog(request, async () =>

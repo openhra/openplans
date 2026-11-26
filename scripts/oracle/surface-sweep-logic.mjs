@@ -1,7 +1,7 @@
 /**
  * The pass rule for `surface-sweep.mjs`, kept free of I/O so tests/oracle/surface-sweep.test.mjs
  * can check it on synthetic responses. A response fails when it is a 5xx, when it carries the MCP
- * code INTERNAL_HONESTY_CHECK or the MCP catch-all DATA_UNAVAILABLE, or when it answers with
+ * code internal_honesty_check or the MCP catch-all data_unavailable, or when it answers with
  * nothing and says nothing about why.
  */
 
@@ -17,7 +17,7 @@ const REASON_KEYS = new Set([
   "gaps",
 ]);
 /** Gaps about provenance only, which never say why an answer is missing. */
-const GENERIC_GAPS = new Set(["SOURCE_METADATA_UNAVAILABLE"]);
+const GENERIC_GAPS = new Set(["source_metadata_unavailable"]);
 
 /**
  * Status values that say only that there is or is not an answer. Any other status names its own
@@ -79,10 +79,10 @@ export function reasonsIn(value, gaps = "") {
   return [...found].sort();
 }
 
-/** Whether the value names INTERNAL_HONESTY_CHECK anywhere, as a code or inside a message. */
+/** Whether the value names internal_honesty_check anywhere, as a code or inside a message. */
 export function namesHonestyCheck(value) {
   if (typeof value === "string")
-    return value.includes("INTERNAL_HONESTY_CHECK");
+    return value.includes("internal_honesty_check");
   if (Array.isArray(value)) return value.some(namesHonestyCheck);
   if (value && typeof value === "object")
     return Object.values(value).some(namesHonestyCheck);
@@ -102,8 +102,8 @@ export function checkResponse({ status, body, gaps, items, records }) {
     failures.push("record_unknown_without_reason");
   if (typeof status === "number" && status >= 500) failures.push("http_5xx");
   if (namesHonestyCheck(body)) failures.push("internal_honesty_check");
-  // The MCP tools answer any unexpected error, such as a read timeout, with DATA_UNAVAILABLE.
-  if (body?.status === "error" && body?.error?.code === "DATA_UNAVAILABLE")
+  // The MCP tools answer any unexpected error, such as a read timeout, with data_unavailable.
+  if (body?.status === "error" && body?.error?.code === "data_unavailable")
     failures.push("mcp_internal_error");
   if (
     Array.isArray(items) &&

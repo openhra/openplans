@@ -322,8 +322,8 @@ describe("MCP error responses carry the request id", () => {
 const mutants: [string, string, string][] = [
   [
     "failure ignores the id",
-    '{ jsonrpc: "2.0", id, error: { code, message } }',
-    '{ jsonrpc: "2.0", id: null, error: { code, message } }',
+    '{ jsonrpc: "2.0", id, error: { code, message, ...(data ? { data } : {}) } }',
+    '{ jsonrpc: "2.0", id: null, error: { code, message, ...(data ? { data } : {}) } }',
   ],
   ["the id is never read", "id = requestId(parsed);", "id = null;"],
 ];

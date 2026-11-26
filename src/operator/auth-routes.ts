@@ -1,3 +1,4 @@
+import { apiError } from "../api/errors.js";
 import type { Context, Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { timeout } from "hono/timeout";
@@ -80,8 +81,7 @@ export function createAdminAuth(options: AuthOptions) {
     };
   }
   const id = (c: Context) => readCookie(c.req.header("cookie"), SESSION_COOKIE);
-  const failure = (c: Context) =>
-    c.json({ error: { code: "UNAUTHORIZED" } }, 401);
+  const failure = (c: Context) => c.json(apiError("unauthorized"), 401);
   function cookie(c: Context, name: string, value: string, age: number) {
     c.header("Set-Cookie", adminCookie(name, value, age), { append: true });
   }
@@ -113,7 +113,7 @@ export function createAdminAuth(options: AuthOptions) {
       if (!origin || !session) return failure(c);
       const form = await readAdminForm(c, signals.get(c));
       if (signals.get(c)?.aborted)
-        return c.json({ error: { code: "admin_unavailable" } }, 503);
+        return c.json(apiError("admin_unavailable"), 503);
       if (
         !form ||
         !validCsrf(c, origin, form.get("csrf") ?? undefined, session.csrfToken)
@@ -129,7 +129,7 @@ export function createAdminAuth(options: AuthOptions) {
         try {
           await next();
         } catch {
-          c.res = c.json({ error: { code: "admin_unavailable" } }, 503);
+          c.res = c.json(apiError("admin_unavailable"), 503);
         }
         adminHeaders(c);
       };
@@ -165,14 +165,13 @@ export function createAdminAuth(options: AuthOptions) {
           path,
           bodyLimit({
             maxSize: 65_536,
-            onError: (c) => c.json({ error: { code: "invalid_form" } }, 400),
+            onError: (c) => c.json(apiError("invalid_form"), 400),
           }),
         );
       }
       app.get("/admin/login", (c) => {
         const nonce = store.nonce();
-        if (!nonce)
-          return c.json({ error: { code: "admin_unavailable" } }, 503);
+        if (!nonce) return c.json(apiError("admin_unavailable"), 503);
         cookie(c, LOGIN_COOKIE, nonce, NONCE_MS / 1000);
         return c.html(page("Sign in", "/admin/login", nonce));
       });
@@ -196,10 +195,10 @@ export function createAdminAuth(options: AuthOptions) {
             !sourceLimiter.take(source, 10).allowed ||
             !globalLimiter.take("all", 120).allowed
           )
-            return c.json({ error: { code: "RATE_LIMITED" } }, 429);
+            return c.json(apiError("rate_limited"), 429);
           const form = await readAdminForm(c, signals.get(c));
           if (signals.get(c)?.aborted)
-            return c.json({ error: { code: "admin_unavailable" } }, 503);
+            return c.json(apiError("admin_unavailable"), 503);
           const fields =
             path === "/admin/logout" ? ["csrf"] : ["csrf", "credential"];
           if (
@@ -236,8 +235,7 @@ export function createAdminAuth(options: AuthOptions) {
             path === "/admin/login"
               ? store.issue(previous)
               : store.renew(previous);
-          if (!next)
-            return c.json({ error: { code: "admin_unavailable" } }, 503);
+          if (!next) return c.json(apiError("admin_unavailable"), 503);
           cookie(c, SESSION_COOKIE, next, ABSOLUTE_MS / 1000);
           return c.redirect("/admin", 303);
         });

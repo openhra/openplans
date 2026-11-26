@@ -53,6 +53,8 @@ import {
 } from "../db/maintenance-locks.js";
 import { statfs } from "node:fs/promises";
 import { runPufAcquire } from "../ingest/puf/acquire.js";
+import { dataDirectory } from "../config/access.js";
+import { runDoctor } from "./doctor.js";
 import { runRatingRules } from "../ingest/rating-rules/command.js";
 
 import type { ScheduleSpec } from "@openplans/plugin-sdk";
@@ -83,7 +85,7 @@ import { runBackupRestored } from "./backup-restored.js";
 import { databaseUrl } from "../config/access.js";
 
 const usage =
-  "Usage: worker plugin pack <dir> --out <dir> | plugin install [--data] <dir|file.tgz|name@version --registry URL [--pin-sha256 HEX]> | plugin search <q> [--registry URL] | plugin list [--json] | plugin update <name> [--to VERSION] [--registry URL] | plugin remove <name> | plugin bundle <name>@<version> --out DIR [--registry URL] | plugin lock | plugin verify [--json|--local <dir|file.tgz>] | migrate [--check|--size-evidence] | status | compact [--dry-run] | data-admission --manifest FILE | record-policy list|set|expire | usage-report show|send --dry-run|reset | backup-args [--tar|--manifest] | backup-restored --manifest FILE | backfill row-provenance [--table NAME] [--blocks N] | backfill rate-plan-count | backfill geocode-archive [--batch-rows N] [--pause-ms N] | backfill provider-search (--disk PATH | --free-gb N) | ingest puf|qhp|nppes|rxnorm|taxonomy|geo|medicare|package";
+  "Usage: worker plugin pack <dir> --out <dir> | plugin install [--data] <dir|file.tgz|name@version --registry URL [--pin-sha256 HEX]> | plugin search <q> [--registry URL] | plugin list [--json] | plugin update <name> [--to VERSION] [--registry URL] | plugin remove <name> | plugin bundle <name>@<version> --out DIR [--registry URL] | plugin lock | plugin verify [--json|--local <dir|file.tgz>] | prebuild lowest-premiums | build lowest-premiums --year YYYY --age N | doctor | migrate [--check|--size-evidence] | status | compact [--dry-run] | data-admission --manifest FILE | record-policy list|set|expire | usage-report show|send --dry-run|reset | backup-args [--tar|--manifest] | backup-restored --manifest FILE | backfill row-provenance [--table NAME] [--blocks N] | backfill rate-plan-count | backfill geocode-archive [--batch-rows N] [--pause-ms N] | backfill provider-search (--disk PATH | --free-gb N) | bootstrap --states TX,FL --years 2026,2027 | ingest package puf | ingest sbe acquire|import | ingest state | ingest qhp providers | ingest qhp formulary | ingest qhp discover | ingest geocode | ingest nppes | ingest rxnorm | ingest taxonomy | ingest rating-rules | ingest puf import | ingest puf lineage | ingest puf acquire | ingest geo | ingest medicare acquire|import | deliver-events | schedule run [--loop] | emit TYPE --payload JSON | --help";
 
 const GEOCODE_ARCHIVE_USAGE =
   "Usage: worker backfill geocode-archive [--batch-rows N] [--pause-ms N]";
@@ -138,6 +140,23 @@ export interface CoreWorkerCommand {
   /** The source id that `ingest.*` events report for this command. */
   readonly source?: IngestSource;
   readonly run: (args: string[], io: CoreIo) => Promise<number>;
+}
+
+/** Settings the doctor reports on, as the configuration resolves them (env first, then the file). */
+function doctorSettings(): Record<string, string | undefined> {
+  try {
+    const config = loadConfig();
+    return {
+      DATABASE_URL: config.db.connectionString?.reveal(),
+      OPENPLANS_DATA_DIR: dataDirectory(),
+      CMS_API_KEY: config.cmsFallback.apiKey?.reveal(),
+      OPENPLANS_GEOCODER_URL: config.geocoder.url?.reveal(),
+      OPENPLANS_OPEN_GEOCODER_URL: config.geocoder.openUrl,
+      OPENPLANS_PLUGINS: config.plugins.entries.length ? "set" : undefined,
+    };
+  } catch {
+    return {};
+  }
 }
 
 const notImplemented =
@@ -226,6 +245,17 @@ export const coreWorkerCommands: readonly CoreWorkerCommand[] = Object.freeze(
         usage: "Usage: worker compact [--dry-run]",
         queryTimeoutMs: 3_600_000,
         run: (args, { open, output }) => runCompact(args, () => open(), output),
+      },
+      {
+        argv: ["doctor"],
+        usage: "Usage: worker doctor",
+        run: (args, { openDatabase, output, directory }) =>
+          runDoctor(args, {
+            openDatabase: () => openDatabase(),
+            output,
+            directory,
+            settings: doctorSettings(),
+          }),
       },
       {
         argv: ["status"],
@@ -525,6 +555,10 @@ export async function runWorker(
   pluginCommands: readonly PluginWorkerCommand[] = [],
   host: WorkerHost = {},
 ): Promise<number> {
+  if (args.length === 1 && ["--help", "-h", "help"].includes(args[0]!)) {
+    output.out(usage);
+    return 0;
+  }
   if (args[0] === "ingest" || args[0] === "bootstrap") {
     const unguarded = openDatabase;
     openDatabase = (...connection) =>

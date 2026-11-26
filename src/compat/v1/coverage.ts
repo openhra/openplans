@@ -47,7 +47,7 @@ export async function compatQuoteCoverage(
     plans.length * (npis.length + packages.length) >
     v.PUBLIC_QUOTE_LIMITS.pairs
   )
-    return v.fail("providers", "TOO_MANY_PAIRS");
+    return v.fail("providers", "too_many_pairs");
   const rxcuis = [
     ...new Set(packages.flatMap((p) => (p.rxcui ? [p.rxcui] : []))),
   ];

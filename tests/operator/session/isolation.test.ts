@@ -64,7 +64,11 @@ it("never accepts admin cookies for operator status, another plugin, protected A
   ]) {
     const init = {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      // A fixed id keeps the error bodies, which carry it, comparable.
+      headers: {
+        "content-type": "application/json",
+        "x-request-id": "synthetic-request-id",
+      },
       body: "{}",
     };
     const plain = await request(app, path, init);

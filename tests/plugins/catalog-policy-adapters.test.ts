@@ -75,7 +75,7 @@ it("keeps an excluded cheap plan in SLCSP, benchmark and ICHRA calculations", as
   expect(publicIchra.lcsp?.plan_ids).toContain(cheap);
   await excluding(async () => {
     await expect(guardCatalogPlans([cheap], 2026)).rejects.toThrow(
-      "PLAN_NOT_MARKETABLE",
+      "plan_not_marketable",
     );
     const calculated = await benchmarkSilver(fixture.db, benchmarkParams);
     expect(calculated, "public_benchmark_universe").toEqual(publicBenchmark);
@@ -129,7 +129,7 @@ it("guards native/compat details, premiums, quotes and plan-linked provider/drug
       async () => {
         const response = await app.request(path, init);
         expect(await response.json(), `offering_guard:${path}`).toMatchObject({
-          error: { code: "PLAN_NOT_MARKETABLE" },
+          error: { code: "plan_not_marketable" },
         });
       },
       path.startsWith("/compat/") ? "compat" : "rest",
@@ -152,7 +152,7 @@ it("guards MCP get/fetch/coverage calls before projection or public evidence loo
         `mcp_offering_guard:${name}`,
       ).toMatchObject({
         status: "error",
-        error: { code: "PLAN_NOT_MARKETABLE" },
+        error: { code: "plan_not_marketable" },
       });
     }, "mcp");
 });
@@ -171,7 +171,7 @@ it("negative control rejects a bypassed native detail guard", async () => {
       expect(() =>
         expect(result, "detail_guard_required").toHaveProperty(
           "error.code",
-          "PLAN_NOT_MARKETABLE",
+          "plan_not_marketable",
         ),
       ).toThrow("detail_guard_required");
     });
@@ -248,7 +248,7 @@ it("negative control detects a typed MCP fetch bypass", async () => {
       });
       expect(() =>
         expect(result.structuredContent, "fetch_guard_required").toMatchObject({
-          error: { code: "PLAN_NOT_MARKETABLE" },
+          error: { code: "plan_not_marketable" },
         }),
       ).toThrow("fetch_guard_required");
     }, "mcp");
@@ -277,7 +277,7 @@ it("negative control detects a plan-linked drug coverage bypass", async () => {
       expect(() =>
         expect(result, "coverage_guard_required").toHaveProperty(
           "error.code",
-          "PLAN_NOT_MARKETABLE",
+          "plan_not_marketable",
         ),
       ).toThrow("coverage_guard_required");
     });

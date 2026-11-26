@@ -208,7 +208,7 @@ it("response byte cap refuses a complete answer instead of truncating rows", asy
         module.censusRows(batchInput()),
         signal(),
       ),
-    ).rejects.toThrow("BATCH_RESPONSE_TOO_LARGE");
+    ).rejects.toThrow("batch_response_too_large");
   } finally {
     await mutant.cleanup();
   }

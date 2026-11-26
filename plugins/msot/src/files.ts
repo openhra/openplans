@@ -28,7 +28,7 @@ const MAX_FILE_BYTES = 8 * 1024 * 1024;
 export async function readInput(path: string) {
   const handle = await open(path, "r");
   try {
-    if (!(await handle.stat()).isFile()) throw new Error("MSOT_INVALID_FILE");
+    if (!(await handle.stat()).isFile()) throw new Error("msot_invalid_file");
     const buffer = Buffer.alloc(MAX_FILE_BYTES + 1);
     let offset = 0;
     while (offset < buffer.length) {
@@ -41,7 +41,7 @@ export async function readInput(path: string) {
       if (!bytesRead) break;
       offset += bytesRead;
     }
-    if (offset > MAX_FILE_BYTES) throw new Error("MSOT_FILE_TOO_LARGE");
+    if (offset > MAX_FILE_BYTES) throw new Error("msot_file_too_large");
     return new TextDecoder("utf-8", { fatal: true }).decode(
       buffer.subarray(0, offset),
     );
@@ -74,7 +74,7 @@ export async function parseFiles(
     Buffer.byteLength(json) > MAX_FILE_BYTES ||
     (csv !== undefined && Buffer.byteLength(csv) > MAX_FILE_BYTES)
   )
-    throw new Error("MSOT_FILE_TOO_LARGE");
+    throw new Error("msot_file_too_large");
   const source = sourceSchema.parse(JSON.parse(json));
   const artifacts: Artifact[] = [
     { format: "json", sha256: inputHash(json), text: json },
@@ -112,12 +112,12 @@ export async function parseFiles(
           new Set(record.fields).size !== columns.length ||
           columns.some((c) => !record.fields.includes(c))
         )
-          throw new Error("MSOT_CSV_COLUMNS");
+          throw new Error("msot_csv_columns");
         header = record.fields;
         continue;
       }
       if (record.fields.length !== header.length)
-        throw new Error("MSOT_CSV_COLUMNS");
+        throw new Error("msot_csv_columns");
       const cells = Object.fromEntries(
         header.map((key, i) => [key, record.fields[i]!]),
       );
@@ -126,7 +126,7 @@ export async function parseFiles(
         (state === "known" && ["true", "false"].includes(cells.value!)) ||
         (state === "unknown" && cells.value === "")
       ))
-        throw new Error("MSOT_CSV_BOOLEAN_REQUIRED");
+        throw new Error("msot_csv_boolean_required");
       const rule = {
         id: cells.id,
         field: cells.field,
@@ -150,13 +150,13 @@ export async function parseFiles(
         input_hash: artifact.sha256,
         row_ref: `line:${record.rowNumber}`,
       };
-      if (source.rules.length > 10000) throw new Error("MSOT_RULE_LIMIT");
+      if (source.rules.length > 10000) throw new Error("msot_rule_limit");
     }
-    if (!header) throw new Error("MSOT_CSV_COLUMNS");
+    if (!header) throw new Error("msot_csv_columns");
   }
   // Shell accounts assert an actor; uploaded cells cannot establish another person's identity.
   if ([...source.fields, ...source.rules].some((r) => r.set_by !== actor))
-    throw new Error("MSOT_ACTOR_MISMATCH");
+    throw new Error("msot_actor_mismatch");
   const compiled = compileSource(source, reader);
   return { source: compiled.source, hash: compiled.hash, artifacts, rowRefs };
 }

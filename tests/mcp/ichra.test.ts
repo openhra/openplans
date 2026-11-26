@@ -83,7 +83,7 @@ describe("MCP check_ichra_affordability", () => {
       "check_ichra_affordability",
       input,
     )) as ToolResult;
-    expect(result.structuredContent.error.code).toBe("AUTH_REQUIRED");
+    expect(result.structuredContent.error.code).toBe("auth_required");
     expect(result.structuredContent.data).toBeNull();
     const anonymous = await connect({ db: h.db });
     try {
@@ -174,7 +174,7 @@ describe("MCP check_ichra_affordability", () => {
       safe_harbors: { location: true },
     })) as ToolResult;
     expect(result.structuredContent.error.code).toBe(
-      "SAFE_HARBOR_INPUT_MISSING",
+      "safe_harbor_input_missing",
     );
   });
   it("takes the partial-year, lowest-rate and salary-reduction fields like the route", async () => {
@@ -241,9 +241,9 @@ describe("MCP check_ichra_affordability", () => {
     const cases: [unknown, string | null][] = [
       [
         w2({ w2_months_offered: 7, w2_months_employed: 6 }),
-        "W2_MONTHS_OFFERED_EXCEED_EMPLOYED",
+        "w2_months_offered_exceed_employed",
       ],
-      [w2({ w2_months_offered: 6 }), "W2_MONTHS_INCOMPLETE"],
+      [w2({ w2_months_offered: 6 }), "w2_months_incomplete"],
       [w2({ w2_months_offered: 0, w2_months_employed: 6 }), null],
       [w2({ w2_months_offered: 6, w2_months_employed: 13 }), null],
       [

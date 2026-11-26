@@ -1038,6 +1038,7 @@ const payloadSchemas = {
       ),
   }),
   get_data_status: z.strictObject({
+    release: text,
     data_policy: dataPolicySchema,
     datasets: z.array(datasetSchema).max(25),
     personalized_access: z.enum([
@@ -1107,9 +1108,9 @@ export function parseToolInput<T extends ToolName>(
   if (typeof input.query === "string" && !input.query.trim()) v.fail("query");
   if (tool === "search_drugs") {
     if ((input.query === undefined) === (input.ndc === undefined))
-      v.fail("query", "QUERY_OR_NDC_REQUIRED");
+      v.fail("query", "query_or_ndc_required");
     if (typeof input.ndc === "string" && !normalizeNdc(input.ndc))
-      v.fail("ndc", "INVALID_NDC");
+      v.fail("ndc", "invalid_ndc");
   }
   if (tool === "search_providers") {
     if (
@@ -1117,16 +1118,16 @@ export function parseToolInput<T extends ToolName>(
         (field) => input[field] !== undefined,
       )
     )
-      v.fail("query", "FILTER_REQUIRED");
+      v.fail("query", "filter_required");
     for (const field of ["name", "specialty"])
       if (typeof input[field] === "string" && !(input[field] as string).trim())
         v.fail(field);
     if (input.plan_id !== undefined && input.year === undefined)
-      v.fail("year", "YEAR_REQUIRED");
+      v.fail("year", "year_required");
     if (input.radius_miles !== undefined && input.zip === undefined)
-      v.fail("zip", "LOCATION_REQUIRED");
+      v.fail("zip", "location_required");
     if (input.taxonomy !== undefined && input.specialty !== undefined)
-      v.fail("taxonomy", "TAXONOMY_OR_SPECIALTY_REQUIRED");
+      v.fail("taxonomy", "taxonomy_or_specialty_required");
     // Exact NPI uses detail, including its year. Reject intersections until the indexed repository supports them.
     if (
       input.npi !== undefined &&
@@ -1140,13 +1141,13 @@ export function parseToolInput<T extends ToolName>(
         "radius_miles",
       ].some((field) => input[field] !== undefined)
     ) {
-      v.fail("npi", "UNSUPPORTED_NPI_FILTER_COMBINATION");
+      v.fail("npi", "unsupported_npi_filter_combination");
     }
   }
   for (const field of ["plan_ids", "plan_refs", "rxcuis", "npis"]) {
     const values = input[field];
     if (Array.isArray(values) && new Set(values).size !== values.length)
-      v.fail(field, "DUPLICATE_IDENTIFIER");
+      v.fail(field, "duplicate_identifier");
   }
   if (tool === "quote_plans") v.publicQuoteRequest(quoteBody(input, 1));
   if (tool === "check_ichra_affordability") v.ichraRequest(input);
@@ -1289,9 +1290,9 @@ export const PERSONALIZED_TOOLS: ReadonlySet<ToolName> = new Set([
 ]);
 
 export class HonestyError extends Error {
-  readonly code = "INTERNAL_HONESTY_CHECK";
+  readonly code = "internal_honesty_check";
   constructor(reason: string) {
-    super(`INTERNAL_HONESTY_CHECK: ${reason}`);
+    super(`internal_honesty_check: ${reason}`);
   }
 }
 export interface HonestyContext {

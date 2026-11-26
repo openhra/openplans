@@ -302,7 +302,7 @@ same block when the source confirmed their RxCUI. Anything else
 returns empty with the reason in the gaps header (`rxcui_not_in_rxnorm`,
 `rxcui_suppressed` or `rxnorm_terminology_unavailable`). An RxCUI is never
 assumed to be a drug. `passthrough=off` keeps the check local. Two names with
-different values return 400 `CONFLICTING_RXCUI`.
+different values return 400 `conflicting_rxcui`.
 
 An empty catalog import does not include terminology. Load RxNorm into the same
 database as the API using the [terminology bootstrap steps](../../ingest/rxnorm/README.md#bootstrap-a-shopping-database).

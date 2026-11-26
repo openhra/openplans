@@ -1,3 +1,4 @@
+import { apiError } from "./errors.js";
 import type { MiddlewareHandler } from "hono";
 import type { SqlSession } from "../db/database.js";
 import {
@@ -31,6 +32,8 @@ export interface SchemaStatus {
   readonly state: "ready" | "pending" | "unknown";
   /** Unapplied core and plugin files; 0 unless `pending`. */
   readonly pending: number;
+  /** Migration files the journal lists; present when `ready`. */
+  readonly applied?: number;
 }
 
 export interface SchemaGate {
@@ -72,8 +75,11 @@ export function schemaGate(
       loadPluginMigrations(options.plugins ?? []),
     ]).then(([core, plugins]) => [...core, ...plugins]);
     try {
-      const pending = (await unappliedOf(db, await files)).length;
-      return { state: pending === 0 ? "ready" : "pending", pending };
+      const all = await files;
+      const pending = (await unappliedOf(db, all)).length;
+      return pending === 0
+        ? { state: "ready", pending, applied: all.length }
+        : { state: "pending", pending };
     } catch {
       return UNKNOWN;
     }
@@ -112,7 +118,7 @@ export function schemaGate(
         },
         { status: 503, headers },
       );
-    return c.json({ error: { code: SCHEMA_NOT_READY } }, 503, headers);
+    return c.json(apiError(SCHEMA_NOT_READY), 503, headers);
   };
   return { status, middleware };
 }

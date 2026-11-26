@@ -49,6 +49,7 @@ it.each(["native", "compat", "root"])(
     expect(log).toHaveBeenCalledTimes(1);
     expect(JSON.parse(log.mock.calls[0]![0] as string)).toEqual({
       event: "api_internal_error",
+      request_id: expect.stringMatching(/^[0-9a-f]{16}$/) as unknown,
       error_class: "TypeError",
       stack_hash: createHash("sha256").update(error.stack!).digest("hex"),
     });

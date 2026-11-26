@@ -129,7 +129,7 @@ it("manifest requires rating geography as well as supported policy and rates", a
     const entries = (await response.json()) as ManifestEntry[];
     expect(entries.find((e) => e.issuer_id === "87226")).toMatchObject({
       premium_status: "unknown",
-      premium_reason: "UNRESOLVED_RATING_AREA",
+      premium_reason: "unresolved_rating_area",
       rating_area_geography: null,
     });
   });
@@ -205,7 +205,7 @@ it("uses ZIP3 for Alaska; county-only and missing ZIP3 evidence stay unknown wit
       );
       expect(result).toMatchObject({
         status: "unknown",
-        reason: "UNRESOLVED_RATING_AREA",
+        reason: "unresolved_rating_area",
       });
       expect(result).not.toHaveProperty("total_cents");
       const p = (
@@ -213,7 +213,7 @@ it("uses ZIP3 for Alaska; county-only and missing ZIP3 evidence stay unknown wit
       ).find((p) => p.base_plan_id === syntheticAkPlan);
       expect(p!.premium_availability).toEqual({
         status: "unknown",
-        reason: "UNRESOLVED_RATING_AREA",
+        reason: "unresolved_rating_area",
       });
     }
   });
@@ -228,7 +228,7 @@ it("negative control: a synthetic ZIP3 mapped to two areas is ambiguous, never p
     const result = await quote(tx, "02020", syntheticAkPlan, "99501");
     expect(result).toMatchObject({
       status: "ambiguous",
-      reason: "UNRESOLVED_RATING_AREA",
+      reason: "unresolved_rating_area",
       members: [],
       rate_rows_used: [],
     });
@@ -238,7 +238,7 @@ it("negative control: a synthetic ZIP3 mapped to two areas is ambiguous, never p
     );
     expect(p!.premium_availability).toEqual({
       status: "ambiguous",
-      reason: "UNRESOLVED_RATING_AREA",
+      reason: "unresolved_rating_area",
     });
   });
 });

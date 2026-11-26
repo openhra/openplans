@@ -116,7 +116,7 @@ from logs (spec section 14).
 Public quotes (`POST /v1/quotes`) need no token. They accept ages and a ZIP or
 county, an optional tobacco flag, up to 10 plans, 5 NPIs and 5 RxCUIs, and refuse
 income, dates of birth and any unlisted key. **They are on by default**; set
-OPENPLANS_PUBLIC_QUOTING=off to return 503 `QUOTING_DISABLED`. Each source may send
+OPENPLANS_PUBLIC_QUOTING=off to return 503 `quoting_disabled`. Each source may send
 30 per minute with 2 in flight (OPENPLANS_TRUST_PROXY names proxies whose last
 X-Forwarded-For hop is used). The [quoting guide](../../docs/quoting.md) has the
 contract and error codes.
@@ -455,7 +455,7 @@ and their plan associations. Optional year filters issuer evidence; identity has
 (the NPI here is a **synthetic example**), with up to 50 plans, 100 NPIs and 1,000 pairs, no duplicates.
 No source creates `not_listed` until its complete current source set is ACTIVE. A denied source
 returns unknown; a failed refresh preserves previously validated positive evidence and flags
-`SOURCE_INCOMPLETE`. `/v1/data-availability` adds `provider_coverage` per issuer/year with
+`source_incomplete`. `/v1/data-availability` adds `provider_coverage` per issuer/year with
 completeness, reason, discovery, active/latest snapshots and expected/completed shard counts.
 
 Offline tests include distance-unit, address-scope and filter-after-page mutants, plus grouped
@@ -486,7 +486,7 @@ or an alias: `off_exchange` → `00`, `standard` → `01`, `zero` → `02`,
 For example, `GET /v1/plans/11718TX0140019?year=2026&csr_variant=csr94`
 or add `"csr_variant": "06"` to a premium request. A suffixed HIOS request
 already selects that exact variant. A conflicting `csr_variant` returns 400
-`CONFLICTING_VARIANT`. The literal `03` means limited cost sharing, not CSR 94.
+`conflicting_variant`. The literal `03` means limited cost sharing, not CSR 94.
 
 Without an explicit selection, `cost_sharing.selected_variant_id` is the base ID
 plus `-01`, labelled `standard_on_exchange_default`. `variant_ids` and `variants`
@@ -582,7 +582,7 @@ Send `passthrough=off` to keep a request local. It works in three places:
 
 With `off` the server asks no pass-through source and skips their stored answers. A question a
 source could have answered stays `unknown` with reason `passthrough_declined`. `on` or no value
-keeps the default. Any other value returns 400 `INVALID_INPUT` with `field: "passthrough"`.
+keeps the default. Any other value returns 400 `invalid_input` with `field: "passthrough"`.
 
 ## Links on unknown answers
 
@@ -611,28 +611,41 @@ responses do not change.
 
 ## Error answers
 
-REST errors use `{"error":{"code":"..."}}`, including compatibility, plugin and admin JSON errors.
+REST errors use `{"error":{"code":"...","field":"...","hint":"..."}}`, including compatibility, plugin and admin JSON errors. `field` and `hint` are optional, codes are lower snake case, and `src/api/errors.ts` builds every body. Every `unknown` status carries a reason from the `reasons` list in `docs/public-contract.json`.
 The nonempty `code` is required. Optional `field` names the refused input and never echoes its value.
 Some errors include a fixed `message` or domain details.
 The [quoting guide](../../docs/quoting.md#errors) lists the quote codes in full.
-Unknown routes return 404 with `NOT_FOUND`.
+Unknown routes return 404 with `not_found`.
 Health and readiness failures include the same error object alongside their status fields.
 MCP tool errors carry this object inside their result envelope, with nullable `field` and
 `retryable`. JSON-RPC protocol errors retain numeric codes and a required message.
 
 | HTTP | Codes                                                                                                                                                                                                                                                                                                                | When                                                                                               |
 | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| 400  | `INVALID_INPUT`, `INVALID_JSON`, `REQUEST_TOO_LARGE`, `UNKNOWN_FIELD`, `YEAR_REQUIRED`, `INVALID_YEAR`, `LOCATION_REQUIRED`, `ZIP_OR_COUNTY_REQUIRED`, `AGE_OR_DOB_REQUIRED`, `UNSUPPORTED_MARKET`, `QUERY_OR_NDC_REQUIRED`, `INVALID_NDC`, `TAXONOMY_OR_SPECIALTY_REQUIRED`, `INVALID_PLAN_KEY`, `INVALID_SCHEDULE` | An input is missing, malformed or not allowed; the quote caps and duplicates add their own codes   |
-| 401  | `UNAUTHORIZED`                                                                                                                                                                                                                                                                                                       | A token is configured and the bearer token is missing or wrong                                     |
-| 404  | `PLAN_NOT_FOUND`, `DRUG_NOT_FOUND`, `PROVIDER_NOT_FOUND`, `CATALOG_NOT_LOADED`                                                                                                                                                                                                                                       | The plan, drug or provider isn't in the active data, or no Medicare catalog is loaded for the year |
+| 400  | `invalid_input`, `invalid_json`, `request_too_large`, `unknown_field`, `year_required`, `invalid_year`, `location_required`, `zip_or_county_required`, `age_or_dob_required`, `unsupported_market`, `query_or_ndc_required`, `invalid_ndc`, `taxonomy_or_specialty_required`, `invalid_plan_key`, `invalid_schedule` | An input is missing, malformed or not allowed; the quote caps and duplicates add their own codes   |
+| 401  | `unauthorized`                                                                                                                                                                                                                                                                                                       | A token is configured and the bearer token is missing or wrong                                     |
+| 404  | `plan_not_found`, `drug_not_found`, `provider_not_found`, `catalog_not_loaded`                                                                                                                                                                                                                                       | The plan, drug or provider isn't in the active data, or no Medicare catalog is loaded for the year |
 | 422  | `unsupported_without_taxonomy`                                                                                                                                                                                                                                                                                       | A specialty name search before NUCC taxonomy is imported                                           |
-| 429  | `RATE_LIMITED`                                                                                                                                                                                                                                                                                                       | A per-source limit; `Retry-After` gives seconds                                                    |
-| 500  | `INTERNAL_ERROR`                                                                                                                                                                                                                                                                                                     | An unexpected failure; the log keeps only an error class and a stack hash                          |
-| 503  | `schema_not_ready`, `AUTH_NOT_CONFIGURED`, `QUOTING_DISABLED`                                                                                                                                                                                                                                                        | A migration is pending, a closed household route has no token, or public quoting is off            |
-| 504  | `query_timeout`, `REQUEST_DEADLINE`                                                                                                                                                                                                                                                                                  | One database read passed 5 seconds, or a quote, benchmark or ICHRA check passed 15                 |
+| 429  | `rate_limited`                                                                                                                                                                                                                                                                                                       | A per-source limit; `Retry-After` gives seconds                                                    |
+| 500  | `internal_error`                                                                                                                                                                                                                                                                                                     | An unexpected failure; the log keeps only an error class and a stack hash                          |
+| 503  | `schema_not_ready`, `auth_not_configured`, `quoting_disabled`                                                                                                                                                                                                                                                        | A migration is pending, a closed household route has no token, or public quoting is off            |
+| 504  | `query_timeout`, `request_deadline`                                                                                                                                                                                                                                                                                  | One database read passed 5 seconds, or a quote, benchmark or ICHRA check passed 15                 |
 
 `GET /v1/data-availability` answers 503 `{"error":{"code":"data_availability_unavailable"}}` when the
 database read fails, so a failure never looks like an empty list.
+
+### Request ids and reporting a problem
+
+Every API and MCP HTTP response carries an `x-request-id` header. A request that sends its own
+`x-request-id` of 1 to 128 visible ASCII characters gets that value back; a missing, longer or
+unprintable value is replaced with a generated 16 hex digit id. Every REST error body repeats
+the value as `error.request_id`, and the internal error log line and the MCP request log line
+carry it as `request_id`. JSON-RPC protocol errors carry the header only. Rate-limited answers
+(429) keep their `Retry-After` header.
+
+When you report a problem, send the `x-request-id` of the failing response, the route and the
+time. The contact section of <https://www.openhra.com/> says where to send it. Leave out API
+tokens, personal details and request bodies.
 
 ## Optional individual offer distribution
 
@@ -694,7 +707,7 @@ MCP `get_lowest_premiums` and `get_market_summary` also accept members, with the
 Household evidence pages contain two detail rows plus the selected minimum/maximum evidence. Follow `next_evidence_page` to inspect the remaining rows. Member `rate_row_refs` index the complete `rating.rate_rows_used` table within that evidence record.
 Supply either a single age or members. Household tie pages contain 50 IDs; candidate evidence uses
 `evidence_page` with 10 rows per page plus the selected extremes. Evidence references resolve within each page.
-An oversized MCP result returns `RESULT_TOO_LARGE` rather than dropping required evidence.
+An oversized MCP result returns `result_too_large` rather than dropping required evidence.
 
 MCP `get_benchmark` takes `year`, `location: {zip, county}` and 1 to 100 integer `ages`.
 It follows household access rules and the same feature switch. Its result preserves the existing

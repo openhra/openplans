@@ -41,7 +41,7 @@ export async function allowanceScenario(
   const profiles = Array.isArray(raw.profiles) ? raw.profiles : [];
   const generation = raw.data_generation;
   if (typeof generation !== "string" || !generation)
-    throw new Error("DATA_CHANGED");
+    throw new Error("data_changed");
   const expected = [
     "employee_only",
     "employee_spouse",
@@ -59,10 +59,10 @@ export async function allowanceScenario(
     const benchmark = benchmarks.find(
       (entry) => entry.profile_id === profile.id,
     );
-    if (!benchmark) throw new Error("BENCHMARK_MISSING");
+    if (!benchmark) throw new Error("benchmark_missing");
     const silver = object(benchmark.result);
     scope.signal.throwIfAborted();
-    if (silver.data_generation !== generation) throw new Error("DATA_CHANGED");
+    if (silver.data_generation !== generation) throw new Error("data_changed");
   }
   const targetKnown =
     completeProfiles &&

@@ -205,7 +205,7 @@ it("keeps per-plan unsupported and unknown SADP reasons; negative control cannot
       `dental_premiums_unsupported_by_native_rating:${dental}`,
     );
     expect(result.gaps).toContain(
-      "premium_reason:DENTAL_AGE_DETERMINATION_UNPROVED",
+      "premium_reason:dental_age_determination_unproved",
     );
   });
   await rollback(async (tx) => {

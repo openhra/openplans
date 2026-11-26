@@ -21,7 +21,7 @@ export const MAX_ALLOWANCE_BYTES = 64 * 1024;
 export function allowanceJson(value: unknown) {
   const text = JSON.stringify(value);
   if (Buffer.byteLength(text) > MAX_ALLOWANCE_BYTES)
-    throw new Error("RESULT_TOO_LARGE");
+    throw new Error("result_too_large");
   return text;
 }
 
@@ -45,7 +45,7 @@ function point(value: unknown) {
 /** Absolute evidence indices stay valid across every page in one pinned manifest. */
 export function distributionPage(raw: Row, page: number) {
   if (!Number.isSafeInteger(page) || page < 1 || page > 100_000)
-    throw new Error("INVALID_EVIDENCE_PAGE");
+    throw new Error("invalid_evidence_page");
   const provenance = object(raw.provenance);
   const evidence: unknown[] = Array.isArray(provenance.evidence)
     ? provenance.evidence
@@ -64,7 +64,7 @@ export function distributionPage(raw: Row, page: number) {
         typeof id === "string" &&
         (typeof snapshots.get(id) !== "string" || !snapshots.get(id))
       )
-        throw new Error("EVIDENCE_SNAPSHOT_MISSING");
+        throw new Error("evidence_snapshot_missing");
     }
   }
   const requireRef = (ref: unknown) => {
@@ -74,7 +74,7 @@ export function distributionPage(raw: Row, page: number) {
       Number(ref) >= evidence.length ||
       evidence[Number(ref)] === undefined
     )
-      throw new Error("EVIDENCE_REFERENCE_MISSING");
+      throw new Error("evidence_reference_missing");
   };
   const validatePoint = (value: unknown) => {
     const point = object(value);
@@ -84,7 +84,7 @@ export function distributionPage(raw: Row, page: number) {
       typeof point.monthly_cents === "number" &&
       (!Array.isArray(refs) || !refs.length)
     )
-      throw new Error("EVIDENCE_REFERENCE_MISSING");
+      throw new Error("evidence_reference_missing");
     if (Array.isArray(refs)) refs.forEach(requireRef);
     if (
       raw.evidence_format === "source-references-v1" &&
@@ -93,7 +93,7 @@ export function distributionPage(raw: Row, page: number) {
       object(object(evidence[Number(refs[0])]).catalog).plan_id !==
         point.plan_id
     )
-      throw new Error("EVIDENCE_PLAN_MISMATCH");
+      throw new Error("evidence_plan_mismatch");
   };
   const start = (page - 1) * EVIDENCE_PAGE_SIZE;
   const shown = (value: unknown) =>

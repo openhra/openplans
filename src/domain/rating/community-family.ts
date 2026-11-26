@@ -83,10 +83,10 @@ export function communityFamilyPremium(
     rule.age_factor !== "none" ||
     rule.tobacco_factor !== "none"
   ) {
-    return unsupported("NO_APPLICABLE_COMMUNITY_RULE");
+    return unsupported("no_applicable_community_rule");
   }
   if (rate.childOnly)
-    return unsupported("CHILD_ONLY_POLICY_REQUIRES_SEPARATE_ADAPTER");
+    return unsupported("child_only_policy_requires_separate_adapter");
   const ids = new Set<string>();
   const aged = members.map((member) => {
     if (
@@ -111,16 +111,16 @@ export function communityFamilyPremium(
       (m) => !["subscriber", "spouse", "child"].includes(m.relationship),
     )
   )
-    return unsupported("UNSUPPORTED_HOUSEHOLD_RELATIONSHIPS");
+    return unsupported("unsupported_household_relationships");
   if (aged.some((m) => m.relationship !== "child" && m.age < 18))
-    return unsupported("CHILD_ONLY_OR_MINOR_SUBSCRIBER_REQUIRES_EVIDENCE");
+    return unsupported("child_only_or_minor_subscriber_requires_evidence");
   if (
     aged.some(
       (m) =>
         m.relationship === "child" && m.age >= rule.dependent_age_exclusive,
     )
   ) {
-    return unsupported("DEPENDENT_EXTENSION_REQUIRES_EVIDENCE");
+    return unsupported("dependent_extension_requires_evidence");
   }
   const adults = aged.filter((m) => m.relationship !== "child").length;
   const children = aged.length - adults;

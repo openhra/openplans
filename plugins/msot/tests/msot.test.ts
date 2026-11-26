@@ -147,7 +147,7 @@ it("rejects invalid scopes, types, duplicate rules and equal-rank time overlaps"
       { ...source, rules: [rule, { ...rule, id: "overlap" }] },
       reader,
     ),
-  ).toThrow("MSOT_EQUAL_RANK_OVERLAP");
+  ).toThrow("msot_equal_rank_overlap");
   expect(() =>
     compileSource(
       {
@@ -163,10 +163,10 @@ it("rejects invalid scopes, types, duplicate rules and equal-rank time overlaps"
       },
       reader,
     ),
-  ).toThrow("MSOT_EQUAL_RANK_OVERLAP");
+  ).toThrow("msot_equal_rank_overlap");
   expect(() =>
     compileSource({ ...source, rules: [rule, rule] }, reader),
-  ).toThrow("MSOT_DUPLICATE_RULE");
+  ).toThrow("msot_duplicate_rule");
 });
 it("pins immutable content, normalizes wildcards, separates channels and respects dates", async () => {
   const raw = structuredClone(source);

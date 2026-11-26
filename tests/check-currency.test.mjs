@@ -144,6 +144,19 @@ describe("check-currency", () => {
     ]);
   });
 
+  it("flags a planted regex-escaped identity literal with path and line", async () => {
+    // Built at run time so this test file holds no literal of its own.
+    const escaped = ["openplans", String.raw`0\.4\.20`].join("\\/");
+    const result = await check({
+      "app/tests/ingest/planted.test.ts": `const a = 1;\nexpect(ua).toMatch(/^${escaped} /);\n`,
+      "app/tests/ok.test.ts":
+        "expect(ua).toMatch(new RegExp(`^openplans/${version} `));\n",
+    });
+    expect(result.errors).toEqual([
+      `tests/ingest/planted.test.ts:2: version literal "${escaped}"; build the identity from package.json (src/fetch/user-agent.ts)`,
+    ]);
+  });
+
   it("fails a planted old version string", async () => {
     const { errors } = await check(
       edit("app/README.md", "OpenPlans 1.2.3", "OpenPlans 1.2.2"),

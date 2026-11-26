@@ -77,7 +77,10 @@ async function app(db: SqlSession = fixture.db) {
 async function printed(server: ReturnType<typeof createApp>, input: unknown) {
   return server.request("/compare/v1/print", {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: {
+      "content-type": "application/json",
+      "x-request-id": "synthetic-request-id",
+    },
     body: JSON.stringify(input),
   });
 }
@@ -247,7 +250,7 @@ it("admits browser age and household forms and preserves the canonical print ans
   }
   expect(() =>
     marketForm({ ...householdForm, year: ["2026", "2027"] }),
-  ).toThrow("INVALID_INPUT");
+  ).toThrow("invalid_input");
   expect(() => marketForm({ ...householdForm, age: "40" })).toThrow();
 });
 
@@ -381,12 +384,16 @@ it("kills a planted TPA bypass with the exact public route inventory", async () 
 });
 
 it("matches separate recorded public-on HTTP and MCP bytes", async () => {
+  const fixedId = { "x-request-id": "synthetic-request-id" };
   const server = await app();
   const mcp = createMcpHttp(fixture.db, { env: {}, log: () => {} });
   const responses = {
-    visitor: await server.request("/compare/v1"),
-    age: await server.request(marketPath(ageInput)),
-    household: await server.request(marketPath(householdInput)),
+    // A fixed id keeps error bodies, which carry it, byte-stable.
+    visitor: await server.request("/compare/v1", { headers: fixedId }),
+    age: await server.request(marketPath(ageInput), { headers: fixedId }),
+    household: await server.request(marketPath(householdInput), {
+      headers: fixedId,
+    }),
     age_print: await printed(server, ageInput),
     household_print: await printed(server, householdInput),
     tools: await mcp.fetch(post("tools/list")),
@@ -521,9 +528,9 @@ it("explains refused private and group form inputs without echoing them", async 
     expect(html).toContain(
       "This public form refuses private employer and group inputs.",
     );
-    expect(html).toContain("<code>INVALID_INPUT</code>");
+    expect(html).toContain("<code>invalid_input</code>");
     expect(html).not.toContain("synthetic-private-value");
     const api = await server.request(marketPath({ ...ageInput, ...extra }));
-    expect(await api.json()).toEqual({ error: { code: "INVALID_INPUT" } });
+    expect(await api.json()).toEqual({ error: { code: "invalid_input" } });
   }
 });

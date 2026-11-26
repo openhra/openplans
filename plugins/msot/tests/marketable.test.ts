@@ -66,13 +66,13 @@ it("rejects a known marketable default, hidden filtering and same-field ties", (
       },
       reader,
     ),
-  ).toThrow("MSOT_EQUAL_RANK_OVERLAP");
+  ).toThrow("msot_equal_rank_overlap");
   expect(() =>
     compileSource(
       { ...source, fields: [definition], rules: source.rules },
       reader,
     ),
-  ).toThrow("MSOT_FIELD_UNDEFINED");
+  ).toThrow("msot_field_undefined");
 });
 it("retains hashes for payment-only sources and supplies an unknown built-in decision", async () => {
   const compiled = compileSource(source, reader);

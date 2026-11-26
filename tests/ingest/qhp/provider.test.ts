@@ -1042,8 +1042,8 @@ describe("Synthetic issuer providers and labelled mutants", () => {
     expect(await providerParticipation(h.db, plan, npi, 2026)).toMatchObject({
       status: "listed_participating",
       warnings: expect.arrayContaining([
-        "UNRESOLVED_NETWORK_TIER",
-        "SOURCE_INCOMPLETE",
+        "unresolved_network_tier",
+        "source_incomplete",
       ]) as unknown,
     });
     expect(
@@ -1132,7 +1132,7 @@ describe("Synthetic per-record rejection of values that are not NPIs", () => {
     });
     const listed = await providerParticipation(h.db, plan, synthetic(7), 2026);
     expect(listed).toMatchObject({ status: "listed_participating" });
-    expect(listed.warnings).toContain("SOURCE_INCOMPLETE");
+    expect(listed.warnings).toContain("source_incomplete");
     // Neither the rejected value nor an unlisted provider becomes negative evidence.
     for (const absent of ["1999988881", `${r.snapshot_id}:100`])
       expect(

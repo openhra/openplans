@@ -80,7 +80,7 @@ export const canonicalReader: CanonicalReader = Object.freeze<CanonicalReader>({
             (authored.state === undefined || authored.state === r.state),
         )
       )
-        throw new Error("MSOT_SCOPE_IDENTITY_UNKNOWN");
+        throw new Error("msot_scope_identity_unknown");
     }
     scope.signal.throwIfAborted();
   },
@@ -102,7 +102,7 @@ export const canonicalReader: CanonicalReader = Object.freeze<CanonicalReader>({
         ids.map((id, index) => ({ ...id, plan: found[index] })),
       );
       const plans = found.map((plan, index): CanonicalPlan => {
-        if (!plan || !exists[index]) throw new Error("MSOT_PLAN_NOT_FOUND");
+        if (!plan || !exists[index]) throw new Error("msot_plan_not_found");
         const stateChannels =
           !plan.state_catalog || Boolean(plan.exchange_provenance);
         return Object.freeze({
@@ -128,6 +128,6 @@ export const canonicalReader: CanonicalReader = Object.freeze<CanonicalReader>({
           plans: Object.freeze(plans),
         });
     }
-    throw new Error("MSOT_CATALOG_CHANGED");
+    throw new Error("msot_catalog_changed");
   },
 });

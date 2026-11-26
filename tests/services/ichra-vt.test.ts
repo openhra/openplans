@@ -203,7 +203,7 @@ it("uses literal CMS metals for all 26 filed plans and selects the lowest single
 });
 
 // Found by scripts/oracle/surface-sweep.mjs: the MCP output check required HIOS plan IDs and an
-// age, so every Vermont county answered INTERNAL_HONESTY_CHECK.
+// age, so every Vermont county answered internal_honesty_check.
 it("MCP check_ichra_affordability returns the Vermont LCSP by plan key, with no age", async () => {
   const out = (
     await callTool(

@@ -1921,7 +1921,7 @@ describe("bounded get_status", () => {
     ]) {
       const result = await callStatus(sample(), args);
       expect(result.isError).toBe(true);
-      expect(result.structuredContent.error?.code).toBe("INVALID_INPUT");
+      expect(result.structuredContent.error?.code).toBe("invalid_input");
     }
   });
 
@@ -2012,7 +2012,7 @@ describe("bounded get_status", () => {
         {},
         AbortSignal.timeout(5000),
       );
-      expect(result.structuredContent.error?.code).toBe("RESULT_TOO_LARGE");
+      expect(result.structuredContent.error?.code).toBe("result_too_large");
     } finally {
       await mutant.cleanup();
     }

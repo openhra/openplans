@@ -53,7 +53,7 @@ async function requestedPlans(
     const plan = found[index];
     if (!plan || !exists[index])
       throw new ReadError({
-        code: "PLAN_NOT_FOUND",
+        code: "plan_not_found",
         plan_id: id.full,
         year: request.premium.year,
       });
@@ -220,7 +220,7 @@ export async function quotePlans(
       tobacco: member.tobaccoUse,
     })),
     tobacco_rating: "requested_flags",
-    subsidy: { status: "not_evaluated", reason: "PUBLIC_QUOTE_TIER" },
+    subsidy: { status: "not_evaluated", reason: "public_quote_tier" },
     csr_eligibility_status: "not_evaluated",
     data_availability: await quoteDataAvailability(
       db,

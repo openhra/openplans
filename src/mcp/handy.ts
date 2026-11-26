@@ -209,20 +209,20 @@ async function callScopedLowestTool(deps: McpDependencies, value: unknown) {
       !(deps.lowestPremiums ?? loadConfig().lowestPremiums) ||
       !mayQuotePublic(deps)
     )
-      throw new ToolError("QUOTING_DISABLED");
+      throw new ToolError("quoting_disabled");
     const parsed = mcpLowestInput.safeParse(value);
-    if (!parsed.success) throw new ToolError("INVALID_INPUT");
+    if (!parsed.success) throw new ToolError("invalid_input");
     if (
       !admitsHandyScope(
         deps.lowestPremiumsScope ?? loadConfig().lowestPremiumsScope,
         parsed.data,
       )
     )
-      throw new ToolError("INVALID_INPUT");
+      throw new ToolError("invalid_input");
     if (parsed.data.members !== undefined) {
-      if (!mayEstimate(deps)) throw new ToolError("UNAUTHORIZED");
+      if (!mayEstimate(deps)) throw new ToolError("unauthorized");
       if (parsed.data.age !== undefined || parsed.data.tobacco !== undefined)
-        throw new ToolError("INVALID_INPUT");
+        throw new ToolError("invalid_input");
       const { cursor, ...fields } = parsed.data;
       const generation = await dataGeneration(deps.db);
       const binding = {
@@ -238,7 +238,7 @@ async function callScopedLowestTool(deps: McpDependencies, value: unknown) {
         page: cursor ? offset / 50 + 1 : fields.page,
       });
       if (native.data_generation !== generation)
-        throw new ToolError("DATA_CHANGED");
+        throw new ToolError("data_changed");
       const result = {
         ...native,
         next_cursor:
@@ -251,7 +251,7 @@ async function callScopedLowestTool(deps: McpDependencies, value: unknown) {
       };
       return pricingToolResult(result);
     }
-    if (parsed.data.age === undefined) throw new ToolError("INVALID_INPUT");
+    if (parsed.data.age === undefined) throw new ToolError("invalid_input");
     const { cursor, evidence_page, ...fields } = parsed.data;
     const input = lowestInput(fields),
       generation = await dataGeneration(deps.db);
@@ -273,7 +273,7 @@ async function callScopedLowestTool(deps: McpDependencies, value: unknown) {
       { builtOnly: true, evidencePage: evidence_page ?? 1 },
     );
     if (native.data_generation !== generation)
-      throw new ToolError("DATA_CHANGED");
+      throw new ToolError("data_changed");
     const result = {
       ...native,
       next_cursor: native.next_page ? codec.issue(binding, page * 50) : null,
@@ -289,7 +289,7 @@ async function callScopedLowestTool(deps: McpDependencies, value: unknown) {
   } catch (error) {
     return errorResult(
       "fetch",
-      error instanceof HandyDataChanged ? new ToolError("DATA_CHANGED") : error,
+      error instanceof HandyDataChanged ? new ToolError("data_changed") : error,
       "unknown",
       new Date((deps.now ?? Date.now)()).toISOString(),
     );
@@ -367,9 +367,9 @@ async function callScopedMarketSummaryTool(
       !(deps.lowestPremiums ?? loadConfig().lowestPremiums) ||
       !mayQuotePublic(deps)
     )
-      throw new ToolError("QUOTING_DISABLED");
+      throw new ToolError("quoting_disabled");
     const parsed = marketSummaryInputSchemaForMcp.safeParse(value);
-    if (!parsed.success) throw new ToolError("INVALID_INPUT");
+    if (!parsed.success) throw new ToolError("invalid_input");
     if (
       !admitsHandyScope(
         deps.lowestPremiumsScope ?? loadConfig().lowestPremiumsScope,
@@ -377,17 +377,17 @@ async function callScopedMarketSummaryTool(
         true,
       )
     )
-      throw new ToolError("INVALID_INPUT");
+      throw new ToolError("invalid_input");
     if (parsed.data.members !== undefined) {
-      if (!mayEstimate(deps)) throw new ToolError("UNAUTHORIZED");
+      if (!mayEstimate(deps)) throw new ToolError("unauthorized");
       if (parsed.data.age !== undefined || parsed.data.tobacco !== undefined)
-        throw new ToolError("INVALID_INPUT");
+        throw new ToolError("invalid_input");
       return pricingToolResult(
         await householdHandy(deps.db, parsed.data, true),
       );
     }
     if (parsed.data.evidence_page !== undefined)
-      throw new ToolError("INVALID_INPUT");
+      throw new ToolError("invalid_input");
     const fields = { ...parsed.data };
     delete fields.evidence_page;
     const result = await getMarketSummary(deps.db, marketSummaryInput(fields));
@@ -452,10 +452,10 @@ async function callScopedBenchmarkTool(deps: McpDependencies, value: unknown) {
       !(deps.lowestPremiums ?? loadConfig().lowestPremiums) ||
       (deps.lowestPremiumsScope ?? loadConfig().lowestPremiumsScope) !== "full"
     )
-      throw new ToolError("QUOTING_DISABLED");
-    if (!mayEstimate(deps)) throw new ToolError("UNAUTHORIZED");
+      throw new ToolError("quoting_disabled");
+    if (!mayEstimate(deps)) throw new ToolError("unauthorized");
     const parsed = benchmarkInputSchema.safeParse(value);
-    if (!parsed.success) throw new ToolError("INVALID_INPUT");
+    if (!parsed.success) throw new ToolError("invalid_input");
     const input = parsed.data;
     for (let attempt = 0; attempt < 2; attempt++) {
       const generation = await dataGeneration(deps.db);
@@ -477,11 +477,11 @@ async function callScopedBenchmarkTool(deps: McpDependencies, value: unknown) {
         },
       });
     }
-    throw new HandyDataChanged("DATA_CHANGED");
+    throw new HandyDataChanged("data_changed");
   } catch (error) {
     return errorResult(
       "fetch",
-      error instanceof HandyDataChanged ? new ToolError("DATA_CHANGED") : error,
+      error instanceof HandyDataChanged ? new ToolError("data_changed") : error,
       "unknown",
       new Date((deps.now ?? Date.now)()).toISOString(),
     );

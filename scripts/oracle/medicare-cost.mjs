@@ -401,7 +401,7 @@ for (const [index, plan] of plans.entries()) {
         // The tool sends the answer twice (structured and as text) plus its envelope, and refuses,
         // never truncates, a result over its output limit. The refusal is expected only for an
         // answer within 16 KiB of half that limit.
-        if (output.error?.code === "RESULT_TOO_LARGE" && nearLimit)
+        if (output.error?.code === "result_too_large" && nearLimit)
           summary.mcp_result_too_large.push({ plan: key, opening, bytes });
         else if (output.error)
           problems.push(

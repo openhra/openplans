@@ -210,7 +210,10 @@ describe("plugin route wrapper", () => {
     const response = await api.request("/synthetic/leak");
     expect(response.status).toBe(500);
     expect(await response.json()).toEqual({
-      error: { code: "plugin_response_rejected" },
+      error: {
+        code: "plugin_response_rejected",
+        request_id: expect.any(String) as unknown,
+      },
     });
     expect(response.headers.get("x-cache")).toBe("bypass");
     expect(log.mock.calls).toEqual([
@@ -333,8 +336,8 @@ describe("core responses with plugins loaded", () => {
     const loaded = await app(OPERATOR);
     for (const path of ["/healthz", "/v1/cache-stats", "/synthetic/none"]) {
       const [a, b] = await Promise.all([
-        plain.request(path),
-        loaded.request(path),
+        plain.request(path, { headers: { "x-request-id": "same-id" } }),
+        loaded.request(path, { headers: { "x-request-id": "same-id" } }),
       ]);
       expect(b.status).toBe(a.status);
       expect([...b.headers]).toEqual([...a.headers]);
@@ -507,7 +510,7 @@ describe("reserved status paths and body caps", () => {
     const small = await post(1024, true);
     expect(small.status).toBe(200);
     expect(await small.json()).toEqual({ bytes: 1024 });
-    const tooLarge = { error: { code: "REQUEST_TOO_LARGE", field: "body" } };
+    const tooLarge = { error: { code: "request_too_large", field: "body" } };
     const declared = await post(
       routesModule.PLUGIN_REQUEST_MAX_BYTES + 1,
       true,

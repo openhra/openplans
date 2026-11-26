@@ -244,7 +244,7 @@ it("refuses an oversized single-age MCP summary without emitting partial evidenc
         input,
       );
       expect("isError" in answer && answer.isError).toBe(true);
-      expect(JSON.stringify(answer)).toContain("RESULT_TOO_LARGE");
+      expect(JSON.stringify(answer)).toContain("result_too_large");
       throw rollback;
     }),
   ).rejects.toBe(rollback);

@@ -164,7 +164,7 @@ guess and never zero.
   alternative) comes from its PBP filing. Its deductible, tier cost sharing, insulin rows and
   selected-drug flags come from the Part D files. The standard deductible and the out-of-pocket
   threshold come from the CMS rate announcement. The request has no field for a benefit type or drug class.
-  Sending one gives `400 UNSUPPORTED_FIELD`.
+  Sending one gives `400 unsupported_field`.
 - A drug is a selected drug when the formulary flag and the CMS selected-drug NDC list for the
   year agree. If they disagree, the program stays unknown.
 - For each fill the answer gives the listing and its conditions, the filed cost sharing for the
@@ -315,10 +315,10 @@ A fill schedule is personal, so access needs a Bearer token on both transports. 
 access never opens it.
 
 - HTTP: `Authorization: Bearer <OPENPLANS_API_TOKEN>`. With no API token configured the route
-  answers `503 AUTH_NOT_CONFIGURED`. A missing or wrong token gets `401`.
+  answers `503 auth_not_configured`. A missing or wrong token gets `401`.
 - MCP over HTTP: `Authorization: Bearer <OPENPLANS_MCP_TOKEN>`. The tool is listed only when both
   switches are on and the caller holds that token. With no MCP token configured a call gets
-  `503 AUTH_NOT_CONFIGURED`. A missing or wrong token gets `401` with a Bearer challenge.
+  `503 auth_not_configured`. A missing or wrong token gets `401` with a Bearer challenge.
 - MCP over stdio follows the local personalized-tool rule: `OPENPLANS_MCP_ALLOW_PERSONALIZED=1`
   grants the tool and `0` withholds it. Left unset, it is granted only while household tools are
   open, meaning no MCP token is set and `OPENPLANS_PUBLIC_HOUSEHOLD` is on.
@@ -441,7 +441,7 @@ The drug-cost estimator has three checks.
   catastrophic phase, where it is $0. About one plan in a hundred also goes through the MCP tool,
   whose answer must equal the HTTP body. Every answer large enough to come near the tool's output
   limit also goes through the tool. The tool sends each answer twice, as data and as text, and refuses one over
-  its 128 KiB limit with `RESULT_TOO_LARGE` rather than cut it. The check counts those refusals
+  its 128 KiB limit with `result_too_large` rather than cut it. The check counts those refusals
   and fails on any other error. Nine planted mutants on real answers must each be caught. Three of
   them target grouped county rows: a row dropped from a group, a group without its shared values
   and an MCP answer that no longer matches the HTTP body. The counts of calculated and unknown results, by reason, go to

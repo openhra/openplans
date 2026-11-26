@@ -40,13 +40,13 @@ function coverageRequest(value: unknown) {
   )
     return v.fail("rxcuis");
   if (body.plan_ids.length * body.rxcuis.length > 1000)
-    return v.fail("body", "TOO_MANY_PAIRS");
+    return v.fail("body", "too_many_pairs");
   const plans = body.plan_ids.map((id) => v.planId(id).full),
     codes = body.rxcuis.map(rxcui);
   if (new Set(plans).size !== plans.length)
-    return v.fail("plan_ids", "DUPLICATE_PLAN_ID");
+    return v.fail("plan_ids", "duplicate_plan_id");
   if (new Set(codes).size !== codes.length)
-    return v.fail("rxcuis", "DUPLICATE_RXCUI");
+    return v.fail("rxcuis", "duplicate_rxcui");
   if (typeof body.year !== "number" || !Number.isInteger(body.year))
     return v.fail("year");
   return { plans, codes, year: drugYear(String(body.year)) };
@@ -65,10 +65,10 @@ export async function searchDrugs(
   const q = params.q,
     ndc = params.ndc;
   if ((q === undefined) === (ndc === undefined))
-    return v.fail("q", "QUERY_OR_NDC_REQUIRED");
+    return v.fail("q", "query_or_ndc_required");
   if (ndc !== undefined) {
     const normalized = normalizeNdc(ndc);
-    if (!normalized) return v.fail("ndc", "INVALID_NDC");
+    if (!normalized) return v.fail("ndc", "invalid_ndc");
     return {
       ndc: normalized,
       rxcuis: await rx.rxcuisForNdc(normalized),
@@ -110,7 +110,7 @@ async function terminology(rx: ReturnType<typeof createRxnormRepository>) {
 }
 export async function getDrug(db: SqlSession, value: unknown) {
   const concept = await drugConcept(db, rxcui(value));
-  if (!concept) throw new ReadError({ code: "DRUG_NOT_FOUND" });
+  if (!concept) throw new ReadError({ code: "drug_not_found" });
   return concept;
 }
 /**

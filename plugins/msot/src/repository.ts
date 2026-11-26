@@ -29,7 +29,7 @@ export class Repository {
           ),
       )
     )
-      throw new Error("MSOT_APPLICATION_STATE_REQUIRED");
+      throw new Error("msot_application_state_required");
   }
   async head(sourceId: string, lock = false) {
     const { rows } = await this.db.query<{
@@ -58,7 +58,7 @@ export class Repository {
       [sourceId, version],
     );
     const row = rows[0];
-    if (!row) throw new Error("MSOT_VERSION_UNAVAILABLE");
+    if (!row) throw new Error("msot_version_unavailable");
     const fields = await this.db.query<{ definition: unknown }>(
       "SELECT definition FROM plg_msot_field_definition WHERE source_id=$1 AND version=$2 ORDER BY name",
       [sourceId, version],
@@ -85,7 +85,7 @@ export class Repository {
       "SELECT document,version_hash,artifacts,row_refs,actor FROM plg_msot_draft WHERE draft_id=$1",
       [id],
     );
-    if (!rows[0]) throw new Error("MSOT_DRAFT_UNAVAILABLE");
+    if (!rows[0]) throw new Error("msot_draft_unavailable");
     return {
       source: rows[0].document,
       hash: rows[0].version_hash,
@@ -116,7 +116,7 @@ export class Repository {
   async inspection(sourceId: string, version?: number) {
     const head = await this.head(sourceId);
     const selected = version ?? head.active_version;
-    if (selected === null) throw new Error("MSOT_VERSION_UNAVAILABLE");
+    if (selected === null) throw new Error("msot_version_unavailable");
     const stored = await this.version(sourceId, selected, true);
     const lineage = (
       await this.db.query(
@@ -216,7 +216,7 @@ export class Repository {
       [previewId],
     );
     const receipt = rows[0];
-    if (!receipt) throw new Error("MSOT_PREVIEW_REQUIRED");
+    if (!receipt) throw new Error("msot_preview_required");
     return receipt;
   }
   async latestVersion(sourceId: string) {

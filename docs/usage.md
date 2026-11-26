@@ -160,6 +160,8 @@ optionally select separate local API/worker and database image tags (defaults
 `worker status` prints the stored coverage manifest. `/v1/data-availability`
 adds current source completeness, rating and ICHRA readiness. Run
 `docker compose run --rm --no-deps worker migrate` before starting the API.
+`docker compose run --rm --no-deps worker doctor` checks the database, migrations, data
+directory, free disk and raw cache, and names the command to run for each failure.
 The API never migrates at startup. Until migrations finish, `/readyz` and the data
 routes answer 503 `schema_not_ready`, while `/healthz` stays 200 and reports
 `"schema":"not_ready"`. See [migration checks](migrations.md).
@@ -168,7 +170,7 @@ Household quotes at `POST /v1/premium-quotes`, the benchmark and ICHRA checks
 are open by default, with the same per-source limits as public quotes. Set
 `OPENPLANS_API_TOKEN` in `.env` to require `Authorization: Bearer <token>`; a missing or
 wrong token then returns 401. With no token, `OPENPLANS_PUBLIC_HOUSEHOLD=off` closes
-them with 503 (`AUTH_NOT_CONFIGURED`). Premium responses use `Cache-Control: no-store`,
+them with 503 (`auth_not_configured`). Premium responses use `Cache-Control: no-store`,
 and the API never logs income, ages or ZIP codes. The DB image installs PostGIS on native
 arm64 or amd64 PostgreSQL 16; no emulation override is required.
 

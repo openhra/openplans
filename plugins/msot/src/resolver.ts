@@ -41,22 +41,22 @@ export function compileSource(raw: unknown, reader: CanonicalReader) {
   const source: Source = sourceSchema.parse(raw);
   const definitions = new Map(source.fields.map((f) => [f.name, f]));
   if (definitions.size !== source.fields.length)
-    throw new Error("MSOT_DUPLICATE_DEFINITION");
+    throw new Error("msot_duplicate_definition");
   const ids = new Set<string>();
   let comparisons = 0;
   for (const rule of source.rules) {
-    if (!definitions.has(rule.field)) throw new Error("MSOT_FIELD_UNDEFINED");
+    if (!definitions.has(rule.field)) throw new Error("msot_field_undefined");
     for (const dimension of dimensions)
       if (rule.scope[dimension] === "*") delete rule.scope[dimension];
-    if (ids.has(rule.id)) throw new Error("MSOT_DUPLICATE_RULE");
+    if (ids.has(rule.id)) throw new Error("msot_duplicate_rule");
     ids.add(rule.id);
     if (rule.valid_until !== null && rule.valid_until <= rule.valid_from)
-      throw new Error("MSOT_INVALID_WINDOW");
+      throw new Error("msot_invalid_window");
   }
   for (let i = 0; i < source.rules.length; i++) {
     const a = source.rules[i]!;
     for (let j = i + 1; j < source.rules.length; j++) {
-      if (++comparisons > 100000) throw new Error("MSOT_VALIDATION_BUDGET");
+      if (++comparisons > 100000) throw new Error("msot_validation_budget");
       const b = source.rules[j]!;
       if (a.field !== b.field || rank(a.scope) !== rank(b.scope)) continue;
       const overlap = dimensions.every(
@@ -70,7 +70,7 @@ export function compileSource(raw: unknown, reader: CanonicalReader) {
         (a.valid_until === null || b.valid_from < a.valid_until) &&
         (b.valid_until === null || a.valid_from < b.valid_until)
       )
-        throw new Error("MSOT_EQUAL_RANK_OVERLAP");
+        throw new Error("msot_equal_rank_overlap");
     }
   }
   source.rules.sort((a, b) => a.id.localeCompare(b.id));
@@ -144,9 +144,9 @@ export function compileSource(raw: unknown, reader: CanonicalReader) {
     ): Promise<Resolution> {
       const input = resolveInput.parse(rawInput);
       if (input.source_id !== source.source_id)
-        throw new Error("MSOT_SOURCE_NOT_READABLE");
+        throw new Error("msot_source_not_readable");
       if (input.version !== undefined && input.version !== source.version)
-        throw new Error("MSOT_VERSION_UNAVAILABLE");
+        throw new Error("msot_version_unavailable");
       const date = input.as_of ?? new Date().toISOString().slice(0, 10);
       const batch = await reader.plans(
         { plan_ids: input.plan_ids, year: input.year },
@@ -180,7 +180,7 @@ export function compileSource(raw: unknown, reader: CanonicalReader) {
           !source.product_families.includes(plan.product_family) ||
           !source.business_markets.some((m) => m === plan.business_market)
         )
-          throw new Error("MSOT_SCOPE_UNSUPPORTED");
+          throw new Error("msot_scope_unsupported");
         let segments: string[] = input.market_segment
           ? [input.market_segment]
           : ["on_exchange", "off_exchange"].filter(

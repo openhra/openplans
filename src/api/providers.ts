@@ -1,3 +1,4 @@
+import { apiError } from "./errors.js";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import type { SqlSession } from "../db/database.js";
@@ -40,15 +41,14 @@ export function providerRoutes(db: SqlSession) {
     "/provider-participation",
     bodyLimit({
       maxSize: 65_536,
-      onError: (c) =>
-        c.json({ error: { code: "REQUEST_TOO_LARGE", field: "body" } }, 400),
+      onError: (c) => c.json(apiError("request_too_large", "body"), 400),
     }),
     async (c) => {
       let value: unknown;
       try {
         value = await c.req.json();
       } catch {
-        return v.fail("body", "INVALID_JSON");
+        return v.fail("body", "invalid_json");
       }
       declineFromBody(value);
       return c.json(

@@ -1,3 +1,4 @@
+import { apiError, apiErrorFrom } from "./errors.js";
 import { lowestQuery, marketSummaryQuery, admitsHandyScope } from "./handy.js";
 import {
   householdHandy,
@@ -35,23 +36,23 @@ export function nativeRoutes(db: SqlSession, options: ApiOptions) {
   const app = new Hono();
   app.onError((error, c) => {
     if (error instanceof HandyDataChanged)
-      return c.json({ error: { code: "DATA_CHANGED" } }, 503);
+      return c.json(apiError("data_changed"), 503);
     if (error instanceof v.InputError) {
-      return c.json({ error: { code: error.code, field: error.field } }, 400);
+      return c.json(apiError(error.code, error.field), 400);
     } else if (error instanceof ReadError) {
       if (["not_loaded", "data_policy_unavailable"].includes(error.error.code))
         c.header("Cache-Control", "no-store");
       if (error.error.code === "data_policy_unavailable")
-        return c.json({ error: error.error }, 503);
+        return c.json(apiErrorFrom(error.error), 503);
       return c.json(
-        { error: error.error },
+        apiErrorFrom(error.error),
         error.error.code === "unsupported_without_taxonomy" ? 422 : 404,
       );
     } else if (isQueryTimeout(error)) {
       return queryTimeoutResponse(c);
     } else {
       logInternalError(error);
-      return c.json({ error: { code: "INTERNAL_ERROR" } }, 500);
+      return c.json(apiError("internal_error"), 500);
     }
   });
 
@@ -79,8 +80,7 @@ export function nativeRoutes(db: SqlSession, options: ApiOptions) {
           db.withRequest ? await db.withRequest(deadline, run) : await run(db),
         );
       } catch (error) {
-        if (deadline.aborted)
-          return c.json({ error: { code: "REQUEST_DEADLINE" } }, 504);
+        if (deadline.aborted) return c.json(apiError("request_deadline"), 504);
         throw error;
       }
     });
@@ -99,8 +99,7 @@ export function nativeRoutes(db: SqlSession, options: ApiOptions) {
           db.withRequest ? await db.withRequest(deadline, run) : await run(db),
         );
       } catch (error) {
-        if (deadline.aborted)
-          return c.json({ error: { code: "REQUEST_DEADLINE" } }, 504);
+        if (deadline.aborted) return c.json(apiError("request_deadline"), 504);
         throw error;
       }
     });
@@ -120,11 +119,11 @@ export function nativeRoutes(db: SqlSession, options: ApiOptions) {
           );
           deadline.throwIfAborted();
           if (Buffer.byteLength(JSON.stringify(result)) > 2 * 1024 * 1024)
-            return c.json({ error: { code: "RESULT_TOO_LARGE" } }, 422);
+            return c.json(apiError("result_too_large"), 422);
           return c.json(result);
         } catch (error) {
           if (deadline.aborted)
-            return c.json({ error: { code: "REQUEST_DEADLINE" } }, 504);
+            return c.json(apiError("request_deadline"), 504);
           throw error;
         }
       });
@@ -158,8 +157,7 @@ export function nativeRoutes(db: SqlSession, options: ApiOptions) {
         await benchmarkSilver(boundedDatabase(db, deadline), c.req.query()),
       );
     } catch (error) {
-      if (deadline.aborted)
-        return c.json({ error: { code: "REQUEST_DEADLINE" } }, 504);
+      if (deadline.aborted) return c.json(apiError("request_deadline"), 504);
       throw error;
     }
   });

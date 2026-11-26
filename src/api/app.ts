@@ -1,3 +1,6 @@
+import { apiError, apiErrorFrom } from "./errors.js";
+import { releaseFactsReader } from "./release-facts.js";
+import { requestIdMiddleware } from "./request-id.js";
 import { ReadError } from "../services/errors.js";
 import { servingPolicy } from "../services/data-window.js";
 import { catalogPolicyAdmission } from "../plugins/catalog-policy.js";
@@ -8,7 +11,6 @@ import { isQueryTimeout } from "../services/errors.js";
 import { createMcpHttp } from "../mcp/http.js";
 import { Hono } from "hono";
 import type { MiddlewareHandler } from "hono";
-import { checkDatabase } from "../db/availability.js";
 import type { SqlSession } from "../db/database.js";
 import { nativeRoutes } from "./routes.js";
 import type { ApiOptions } from "./routes.js";
@@ -26,7 +28,7 @@ import { ADMIN_PLUGIN } from "../plugins/registries.js";
 import { pluginRoutes } from "../plugins/routes.js";
 import { prepareCmsZipFallback } from "../ingest/geo/cms.js";
 import { SCHEMA_NOT_READY } from "./schema-gate.js";
-import type { SchemaGate } from "./schema-gate.js";
+import type { SchemaGate, SchemaStatus } from "./schema-gate.js";
 
 export function createApp(
   db: SqlSession,
@@ -37,6 +39,8 @@ export function createApp(
   operatorCommands?: { writable: () => boolean },
 ) {
   const app = new Hono();
+  // First, so every later middleware, handler and error answer runs with the id in scope.
+  app.use("*", requestIdMiddleware);
   const telemetry = activeRecorder();
   const operations = new Map<string, Labels>();
   if (telemetry) {
@@ -105,8 +109,9 @@ export function createApp(
 
   // Liveness: the process and its database connection. A pending schema is reported, not failed,
   // so Compose can start the worker that migrates.
+  const readiness = releaseFactsReader(db);
   app.get("/healthz", async (c) => {
-    const healthy = await checkDatabase(db);
+    const { up: healthy, generation } = await readiness.probe();
     const schemaStatus = healthy ? await schema?.status() : undefined;
     if (schemaStatus?.state === "pending")
       return c.json(
@@ -121,9 +126,16 @@ export function createApp(
       );
     return c.json(
       {
-        status: "ok",
+        status: healthy ? "ok" : "down",
         db: healthy ? "ok" : "down",
-        ...(healthy ? {} : { error: { code: "db_down" } }),
+        ...(healthy
+          ? await readiness.facts(
+              generation,
+              schemaStatus?.state === "ready"
+                ? schemaStatus.applied
+                : undefined,
+            )
+          : apiError("db_down")),
       },
       healthy ? 200 : 503,
     );
@@ -134,13 +146,14 @@ export function createApp(
   // Only database and schema availability can leave the API unready.
   app.get("/readyz", async (c) => {
     const noStore = { "Cache-Control": "no-store" };
-    if (!(await checkDatabase(db)))
+    const { up, generation } = await readiness.probe();
+    if (!up)
       return c.json(
-        { status: "not_ready", reason: "db_down", error: { code: "db_down" } },
+        { status: "not_ready", reason: "db_down", ...apiError("db_down") },
         503,
         noStore,
       );
-    const schemaStatus = (await schema?.status()) ?? {
+    const schemaStatus: SchemaStatus = (await schema?.status()) ?? {
       state: "ready",
       pending: 0,
     };
@@ -149,7 +162,7 @@ export function createApp(
         {
           status: "not_ready",
           reason: SCHEMA_NOT_READY,
-          error: { code: SCHEMA_NOT_READY },
+          ...apiError(SCHEMA_NOT_READY),
           pending: schemaStatus.pending,
         },
         503,
@@ -160,12 +173,19 @@ export function createApp(
         {
           status: "not_ready",
           reason: "schema_unknown",
-          error: { code: "schema_unknown" },
+          ...apiError("schema_unknown"),
         },
         503,
         noStore,
       );
-    return c.json({ status: "ready" }, 200, noStore);
+    return c.json(
+      {
+        status: "ready",
+        ...(await readiness.facts(generation, schemaStatus.applied)),
+      },
+      200,
+      noStore,
+    );
   });
 
   app.get("/v1/data-policy", async (c) => {
@@ -194,8 +214,8 @@ export function createApp(
       );
     } catch (error) {
       if (error instanceof InputError)
-        return c.json({ error: { code: error.code, field: error.field } }, 400);
-      return c.json({ error: { code: "data_availability_unavailable" } }, 503);
+        return c.json(apiError(error.code, error.field), 400);
+      return c.json(apiError("data_availability_unavailable"), 503);
     }
   });
 
@@ -207,19 +227,19 @@ export function createApp(
   app.route("/", compatRoutes(db, options));
   plugins?.mount(app);
 
-  app.notFound((c) => c.json({ error: { code: "NOT_FOUND" } }, 404));
+  app.notFound((c) => c.json(apiError("not_found"), 404));
 
   app.onError((error, c) => {
     if (error instanceof ReadError) {
       c.header("Cache-Control", "no-store");
       return c.json(
-        { error: error.error },
+        apiErrorFrom(error.error),
         error.error.code === "not_loaded" ? 404 : 503,
       );
     }
     if (isQueryTimeout(error)) return queryTimeoutResponse(c);
     logInternalError(error);
-    return c.json({ error: { code: "INTERNAL_ERROR" } }, 500);
+    return c.json(apiError("internal_error"), 500);
   });
   if (telemetry) {
     for (const route of app.routes) {

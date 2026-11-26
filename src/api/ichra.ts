@@ -1,3 +1,4 @@
+import { apiError } from "./errors.js";
 import { Hono } from "hono";
 import type { Context, MiddlewareHandler } from "hono";
 import { bodyLimit } from "hono/body-limit";
@@ -11,14 +12,13 @@ import * as v from "./validation.js";
 const MAX_BODY_BYTES = 65_536;
 const limit = bodyLimit({
   maxSize: MAX_BODY_BYTES,
-  onError: (c) =>
-    c.json({ error: { code: "REQUEST_TOO_LARGE", field: "body" } }, 400),
+  onError: (c) => c.json(apiError("request_too_large", "body"), 400),
 });
 async function jsonBody(c: Context): Promise<unknown> {
   try {
     return await c.req.json();
   } catch {
-    return v.fail("body", "INVALID_JSON");
+    return v.fail("body", "invalid_json");
   }
 }
 
@@ -41,8 +41,7 @@ export function ichraRoutes(
         await ichraAffordability(boundedDatabase(db, deadline), request),
       );
     } catch (error) {
-      if (deadline.aborted)
-        return c.json({ error: { code: "REQUEST_DEADLINE" } }, 504);
+      if (deadline.aborted) return c.json(apiError("request_deadline"), 504);
       throw error;
     }
   });

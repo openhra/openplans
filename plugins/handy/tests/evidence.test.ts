@@ -262,25 +262,25 @@ it("refuses a dropped evidence record or source pin and an unbounded evidence mu
   const missing = structuredClone(raw);
   missing.provenance.evidence.pop();
   expect(() => distributionPage(missing, 1)).toThrow(
-    "EVIDENCE_REFERENCE_MISSING",
+    "evidence_reference_missing",
   );
   const noPin = structuredClone(raw);
   noPin.provenance.snapshots.pop();
-  expect(() => distributionPage(noPin, 1)).toThrow("EVIDENCE_SNAPSHOT_MISSING");
+  expect(() => distributionPage(noPin, 1)).toThrow("evidence_snapshot_missing");
   const noPointRef = structuredClone(raw);
   noPointRef.profiles[0]!.lowest_silver.evidence_refs = [];
   expect(() => distributionPage(noPointRef, 1)).toThrow(
-    "EVIDENCE_REFERENCE_MISSING",
+    "evidence_reference_missing",
   );
   const noDigest = structuredClone(raw);
   noDigest.provenance.snapshots[0]!.sha256 = "";
   expect(() => distributionPage(noDigest, 1)).toThrow(
-    "EVIDENCE_SNAPSHOT_MISSING",
+    "evidence_snapshot_missing",
   );
   expect(() =>
     allowanceJson({ ...distributionPage(raw, 1), provenance: raw.provenance }),
-  ).toThrow("RESULT_TOO_LARGE");
-  expect(() => distributionPage(raw, 0)).toThrow("INVALID_EVIDENCE_PAGE");
+  ).toThrow("result_too_large");
+  expect(() => distributionPage(raw, 0)).toThrow("invalid_evidence_page");
 });
 
 it("keeps REST, manifest and complete MCP frames bounded, with generation-pinned next links", async () => {

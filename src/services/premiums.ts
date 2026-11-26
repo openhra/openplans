@@ -149,13 +149,13 @@ export async function ratePremium(
   ) {
     return failure(
       "unsupported_rating_method",
-      "STATE_RATING_METHOD_UNSUPPORTED",
+      "state_rating_method_unsupported",
     );
   }
   if (location.status !== "available" || !location.county)
     return failure(
       location.status === "ambiguous" ? "ambiguous" : "unknown",
-      "UNRESOLVED_LOCATION_SCOPE",
+      "unresolved_location_scope",
     );
   const catalog = await reads.countyPlans(
     location.county,
@@ -164,9 +164,9 @@ export async function ratePremium(
     plan.dental_only ? "dental" : "medical",
   );
   const offering = catalog.find((p) => p.base_plan_id === plan.base_plan_id);
-  if (!offering) return failure("missing", "PLAN_NOT_OFFERED_IN_LOCATION");
+  if (!offering) return failure("missing", "plan_not_offered_in_location");
   if (offering.snapshot_id !== plan.snapshot_id)
-    return failure("unknown", "CATALOG_CHANGED_RETRY");
+    return failure("unknown", "catalog_changed_retry");
   const resolution = await ratingAreaForLocation(
     reads.db,
     plan.state,
@@ -175,7 +175,7 @@ export async function ratePremium(
     location.zip,
   );
   if (resolution.status !== "available")
-    return failure(resolution.status, "UNRESOLVED_RATING_AREA");
+    return failure(resolution.status, "unresolved_rating_area");
   const area = resolution.areas[0]!;
   await reads.rateRows(files.rate, plan.base_plan_id, area.rating_area_id);
   const household = {
@@ -212,7 +212,7 @@ export async function ratePremium(
     ) {
       return failure(
         "unknown",
-        "DENTAL_CHILD_ONLY_OFFERING_MISSING_OR_CONFLICTING",
+        "dental_child_only_offering_missing_or_conflicting",
       );
     }
     const ages = request.members.map(
@@ -224,7 +224,7 @@ export async function ratePremium(
     ) {
       return failure(
         "unsupported_rating_method",
-        "DENTAL_HOUSEHOLD_OFFERING_UNSUPPORTED",
+        "dental_household_offering_unsupported",
       );
     }
   }
@@ -255,7 +255,7 @@ export async function ratePremium(
       result.status,
       plan.dental_only
         ? result.issues[0]!.reason
-        : "FILED_RATING_METHOD_UNSUPPORTED",
+        : "filed_rating_method_unsupported",
     );
   const fraction = agreed("EHBPediatricDentalApportionmentQuantity");
   const hasPediatric = request.members.some(
@@ -283,11 +283,11 @@ export async function ratePremium(
   }
   function pediatricAdjustmentReason() {
     if (result.status !== "rated") {
-      return "PREMIUM_NOT_RATED";
+      return "premium_not_rated";
     } else if (pediatricGross === null) {
-      return "FAMILY_TIER_PEDIATRIC_ALLOCATION_UNPROVED";
+      return "family_tier_pediatric_allocation_unproved";
     } else {
-      return "EHB_FRACTION_MISSING_OR_CONFLICTING";
+      return "ehb_fraction_missing_or_conflicting";
     }
   }
   return {
@@ -388,21 +388,21 @@ async function statePremium(
     estimate: { ...trace, status, reason },
   });
   if (!plan.state_catalog)
-    return failure("unsupported_rating_method", "NO_APPLICABLE_COMMUNITY_RULE");
+    return failure("unsupported_rating_method", "no_applicable_community_rule");
   if (plan.market !== "Individual" || plan.dental_only)
     return failure(
       "unsupported_rating_method",
-      "STATE_RATING_METHOD_UNSUPPORTED",
+      "state_rating_method_unsupported",
     );
   if (location.status !== "available" || !location.county)
     return failure(
       location.status === "ambiguous" ? "ambiguous" : "unknown",
-      "UNRESOLVED_LOCATION_SCOPE",
+      "unresolved_location_scope",
     );
   if (countyState(location.county) !== plan.state)
-    return failure("missing", "PLAN_NOT_OFFERED_IN_LOCATION");
+    return failure("missing", "plan_not_offered_in_location");
   const area = stateRatingArea(plan.state, request.year, location.county);
-  if (!area) return failure("unknown", "UNRESOLVED_RATING_AREA");
+  if (!area) return failure("unknown", "unresolved_rating_area");
   const rows = await stateCatalog(
     db,
     request.year,
@@ -414,12 +414,12 @@ async function statePremium(
     return failure(
       rows.length ? "ambiguous" : "missing",
       rows.length
-        ? "CONFLICTING_FILED_TIER_ROWS"
-        : "PLAN_NOT_FILED_IN_RATING_AREA",
+        ? "conflicting_filed_tier_rows"
+        : "plan_not_filed_in_rating_area",
     );
   const row = rows[0]!;
   if (row.import_id !== plan.snapshot_id)
-    return failure("unknown", "CATALOG_CHANGED_RETRY");
+    return failure("unknown", "catalog_changed_retry");
   const rule = catalogRule(row);
   const result = communityFamilyPremium(
     rule,

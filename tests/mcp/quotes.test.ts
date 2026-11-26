@@ -121,7 +121,7 @@ describe("MCP quote_plans public tier", () => {
     }
   });
 
-  it("refuses income, dates of birth and names with INVALID_INPUT", async () => {
+  it("refuses income, dates of birth and names with invalid_input", async () => {
     const h = await connect({ db: fixture.db });
     try {
       for (const input of [
@@ -131,7 +131,7 @@ describe("MCP quote_plans public tier", () => {
       ]) {
         const result = await callTool({ db: fixture.db }, "quote_plans", input);
         expect(result.isError).toBe(true);
-        expect(result.structuredContent.error?.code).toBe("INVALID_INPUT");
+        expect(result.structuredContent.error?.code).toBe("invalid_input");
       }
     } finally {
       await h.close();
@@ -185,7 +185,7 @@ describe("MCP tool listing and grants (negative control 7)", () => {
       expect(closed).toHaveLength(12);
       expect(closed).not.toContain("quote_plans");
       const disabled = await off.call("quote_plans", publicInput, true);
-      expect(disabled.error?.code).toBe("QUOTING_DISABLED");
+      expect(disabled.error?.code).toBe("quoting_disabled");
       expect((await off.call("get_data_status", {})).data?.public_quoting).toBe(
         "disabled",
       );
@@ -317,6 +317,6 @@ describe("MCP tool listing and grants (negative control 7)", () => {
     const refused = await off.fetch(
       post("tools/call", { name: "quote_plans", arguments: publicInput }),
     );
-    expect(await refused.text()).toContain("QUOTING_DISABLED");
+    expect(await refused.text()).toContain("quoting_disabled");
   });
 });

@@ -129,26 +129,26 @@ describe("POST /v1/ichra/affordability", () => {
       "bad plan start",
       body({ plan_start: "2026-02-30" }),
       "plan_start",
-      "INVALID_DATE",
+      "invalid_date",
     ],
     [
       "birth after plan start",
       body({ employee: { date_of_birth: "2027-01-01" } }),
       "employee.date_of_birth",
-      "INVALID_DATE",
+      "invalid_date",
     ],
-    ["unknown top-level field", body({ ssn: "x" }), "ssn", "UNKNOWN_FIELD"],
+    ["unknown top-level field", body({ ssn: "x" }), "ssn", "unknown_field"],
     [
       "unknown income field",
       body({ income: [{ measure: "household", annual_cents: 1, bonus: 2 }] }),
       "income.0.bonus",
-      "UNKNOWN_FIELD",
+      "unknown_field",
     ],
     [
       "location safe harbor without a worksite",
       body({ safe_harbors: { location: true } }),
       "safe_harbors.location",
-      "SAFE_HARBOR_INPUT_MISSING",
+      "safe_harbor_input_missing",
     ],
     [
       "duplicate measure",
@@ -156,58 +156,58 @@ describe("POST /v1/ichra/affordability", () => {
         income: [{ measure: "fpl" }, { measure: "fpl" }],
       }),
       "income",
-      "DUPLICATE_MEASURE",
+      "duplicate_measure",
     ],
     [
       "fractional cents",
       body({ hra: { self_only_annual_cents: 1.5 } }),
       "hra.self_only_annual_cents",
-      "INVALID_INPUT",
+      "invalid_input",
     ],
-    ["no income", body({ income: [] }), "income", "INVALID_INPUT"],
+    ["no income", body({ income: [] }), "income", "invalid_input"],
     ...(
       [
         [
           "zero months offered",
           { w2_months_offered: 0, w2_months_employed: 6 },
           "w2_months_offered",
-          "INVALID_INPUT",
+          "invalid_input",
         ],
         [
           "13 months employed",
           { w2_months_offered: 6, w2_months_employed: 13 },
           "w2_months_employed",
-          "INVALID_INPUT",
+          "invalid_input",
         ],
         [
           "a fractional month count",
           { w2_months_offered: 5.5, w2_months_employed: 6 },
           "w2_months_offered",
-          "INVALID_INPUT",
+          "invalid_input",
         ],
         [
           "a month count sent as text",
           { w2_months_offered: "6", w2_months_employed: 6 },
           "w2_months_offered",
-          "INVALID_INPUT",
+          "invalid_input",
         ],
         [
           "more months offered than employed",
           { w2_months_offered: 7, w2_months_employed: 6 },
           "w2_months_offered",
-          "W2_MONTHS_OFFERED_EXCEED_EMPLOYED",
+          "w2_months_offered_exceed_employed",
         ],
         [
           "months offered without months employed",
           { w2_months_offered: 6 },
           "w2_months_employed",
-          "W2_MONTHS_INCOMPLETE",
+          "w2_months_incomplete",
         ],
         [
           "months employed without months offered",
           { w2_months_employed: 6 },
           "w2_months_offered",
-          "W2_MONTHS_INCOMPLETE",
+          "w2_months_incomplete",
         ],
       ] as const
     ).map(
@@ -229,7 +229,7 @@ describe("POST /v1/ichra/affordability", () => {
         ],
       }),
       "income.0.w2_months_offered",
-      "UNKNOWN_FIELD",
+      "unknown_field",
     ],
     [
       "a lowest hourly rate of zero",
@@ -243,7 +243,7 @@ describe("POST /v1/ichra/affordability", () => {
         ],
       }),
       "income.0.lowest_hourly_cents",
-      "INVALID_INPUT",
+      "invalid_input",
     ],
     [
       "a negative lowest hourly rate",
@@ -257,7 +257,7 @@ describe("POST /v1/ichra/affordability", () => {
         ],
       }),
       "income.0.lowest_hourly_cents",
-      "INVALID_INPUT",
+      "invalid_input",
     ],
     [
       "a salary reduction flag that is not a boolean",
@@ -271,34 +271,44 @@ describe("POST /v1/ichra/affordability", () => {
         ],
       }),
       "income.0.salary_reduced",
-      "INVALID_INPUT",
+      "invalid_input",
     ],
     [
       "bad basis",
       body({ lcsp_premium_basis: "net" }),
       "lcsp_premium_basis",
-      "INVALID_INPUT",
+      "invalid_input",
     ],
   ])(
     "400 for %s, naming the field and never echoing values",
     async (_name, payload, field, code) => {
       const { response, json } = await post(payload);
       expect(response.status).toBe(400);
-      expect(json).toEqual({ error: { code, field } });
+      expect(json).toEqual({
+        error: { code, field, request_id: expect.any(String) as unknown },
+      });
       expect(JSON.stringify(json)).not.toContain("4118000");
     },
   );
   it("400 for malformed JSON and for bodies over 64 KiB", async () => {
     const malformed = await post("{");
     expect(malformed.json).toEqual({
-      error: { code: "INVALID_JSON", field: "body" },
+      error: {
+        code: "invalid_json",
+        field: "body",
+        request_id: expect.any(String) as unknown,
+      },
     });
     const large = await post(
       body({ residence: { zip: "77002", county: "x".repeat(70_000) } }),
     );
     expect(large.response.status).toBe(400);
     expect(large.json).toEqual({
-      error: { code: "REQUEST_TOO_LARGE", field: "body" },
+      error: {
+        code: "request_too_large",
+        field: "body",
+        request_id: expect.any(String) as unknown,
+      },
     });
   });
   it("takes the partial-year, lowest-rate and salary-reduction fields", async () => {

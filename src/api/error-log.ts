@@ -1,5 +1,7 @@
+import { apiError } from "./errors.js";
 import { createHash } from "node:crypto";
 import type { Context } from "hono";
+import { currentRequestId } from "./request-id.js";
 import { QUERY_TIMEOUT } from "../services/errors.js";
 
 /** Logs a class and fingerprint only. Messages, stacks and request values stay private. */
@@ -10,6 +12,7 @@ export function logInternalError(error: unknown): void {
   console.error(
     JSON.stringify({
       event: "api_internal_error",
+      request_id: currentRequestId() ?? null,
       error_class: /^[A-Za-z][A-Za-z0-9_]{0,63}$/.test(errorClass)
         ? errorClass
         : "Error",
@@ -20,4 +23,4 @@ export function logInternalError(error: unknown): void {
 
 /** A read past the database time limit is a gateway timeout the client may retry, never a 500. */
 export const queryTimeoutResponse = (c: Context) =>
-  c.json({ error: { code: QUERY_TIMEOUT } }, 504);
+  c.json(apiError(QUERY_TIMEOUT), 504);

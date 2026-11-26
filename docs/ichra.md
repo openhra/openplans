@@ -115,7 +115,7 @@ A calendar-year 2026 plan looks back to January 2025, so it needs the PY2025 cat
 and Vermont are not in the PY2025 Exchange PUF and stay unsupported for 2025, so their look-back
 stays `unknown`. A past year's geography uses the CMS rating-area table only if that page was
 last modified before the year began. South Dakota's page changed in 2026, so its 2025 rating
-areas are unknown. A look-back there answers `incomplete_lcsp` with an `UNRESOLVED_RATING_AREA`
+areas are unknown. A look-back there answers `incomplete_lcsp` with an `unresolved_rating_area`
 reason. Without a ZIP it answers `location_requires_zip` with `rating_area_needs_zip`.
 
 ## Premium basis
@@ -228,11 +228,11 @@ A single verdict can also be `unknown`. It still lists the rules it falls under,
 A verdict is `ambiguous_lcsp` when plans tied at the lowest age band have different prices at the
 employee's age and the verdicts differ.
 
-Errors: 400 `{"error":{"code":...,"field":...}}` with `INVALID_DATE`, `INVALID_INPUT`,
-`UNKNOWN_FIELD`, `DUPLICATE_MEASURE`, `LOCATION_REQUIRED`, `SAFE_HARBOR_INPUT_MISSING`,
-`W2_MONTHS_INCOMPLETE` (one month count without the other), `W2_MONTHS_OFFERED_EXCEED_EMPLOYED`,
-`INVALID_JSON` or `REQUEST_TOO_LARGE`; 401 `UNAUTHORIZED`; 503 `AUTH_NOT_CONFIGURED`; 504
-`REQUEST_DEADLINE`. Errors name the field and never echo its value.
+Errors: 400 `{"error":{"code":...,"field":...}}` with `invalid_date`, `invalid_input`,
+`unknown_field`, `duplicate_measure`, `location_required`, `safe_harbor_input_missing`,
+`w2_months_incomplete` (one month count without the other), `w2_months_offered_exceed_employed`,
+`invalid_json` or `request_too_large`; 401 `unauthorized`; 503 `auth_not_configured`; 504
+`request_deadline`. Errors name the field and never echo its value.
 
 ## MCP
 

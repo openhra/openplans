@@ -38,6 +38,14 @@ export interface CmsLookupOptions {
 const SESSION_MAX_AGE_MS = 12 * 60 * 60 * 1000;
 let held: { session: AdmissionSession; created: number } | undefined;
 
+let warmFetchOptions: CmsLookupOptions["fetchOptions"];
+/** Test seam: policy preparation uses this injected transport and so makes no real read. */
+export function setCmsZipWarmFetchOptions(
+  options: CmsLookupOptions["fetchOptions"],
+): void {
+  warmFetchOptions = options;
+}
+
 function zipAdmission(options: CmsLookupOptions): AdmissionSession | undefined {
   // Injected transports can run offline without publisher policy fixtures.
   if (options.fetchOptions?.transport) return undefined;
@@ -67,7 +75,7 @@ function zipAdmission(options: CmsLookupOptions): AdmissionSession | undefined {
 /** Prepare policy without spending a ZIP lookup or changing its cache. */
 export async function warmCmsZipLookup(): Promise<void> {
   if (!cmsApiKeyConfigured()) return;
-  const admission = zipAdmission({});
+  const admission = zipAdmission({ fetchOptions: warmFetchOptions });
   if (!admission) return;
   await prepareFetch(base, {
     admission,

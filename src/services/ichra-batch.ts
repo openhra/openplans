@@ -38,7 +38,7 @@ export function censusRows(value: unknown): CensusRow[] {
   try {
     return sharedCensusRows(value);
   } catch {
-    throw new CensusError("INVALID_BATCH");
+    throw new CensusError("invalid_batch");
   }
 }
 
@@ -49,7 +49,7 @@ function employeeRow(value: unknown, ordinal: number): IchraRequest {
       (key) => !["row", "input", "class_ref"].includes(key),
     )
   )
-    throw new InputError("row", "UNKNOWN_FIELD");
+    throw new InputError("row", "unknown_field");
   if (
     value.class_ref !== undefined &&
     (typeof value.class_ref !== "string" ||
@@ -63,7 +63,7 @@ function invalid(error: InputError) {
   // Unknown keys themselves can contain personal data, including dots or line breaks.
   return {
     code: error.code,
-    field: error.code === "UNKNOWN_FIELD" ? "input" : error.field,
+    field: error.code === "unknown_field" ? "input" : error.field,
   };
 }
 
@@ -101,7 +101,7 @@ export async function ichraAffordabilityBatch(
   signal: AbortSignal,
 ) {
   if (rows.length < 1 || rows.length > MAX_CENSUS_ROWS)
-    throw new CensusError("INVALID_BATCH");
+    throw new CensusError("invalid_batch");
   const read = async (session: SqlSession) => {
     const bounded = boundedDatabase(session, signal);
     const generation = await dataGeneration(bounded);
@@ -127,7 +127,7 @@ export async function ichraAffordabilityBatch(
       retention: "request_memory_only" as const,
     };
     if (Buffer.byteLength(JSON.stringify(response)) > MAX_CENSUS_RESPONSE_BYTES)
-      throw new CensusError("BATCH_RESPONSE_TOO_LARGE");
+      throw new CensusError("batch_response_too_large");
     return response;
   };
   if (db.withRequest) {
@@ -148,5 +148,5 @@ export async function ichraAffordabilityBatch(
     )
       return result;
   }
-  throw new CensusError("GENERATION_CHANGED");
+  throw new CensusError("generation_changed");
 }

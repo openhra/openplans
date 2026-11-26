@@ -1,3 +1,4 @@
+import { apiError, apiErrorFrom } from "../../api/errors.js";
 import { requireAnnualYear } from "../../services/data-window.js";
 import {
   selectCatalogPlans,
@@ -170,25 +171,23 @@ export function compatRoutes(db: SqlSession, options: ApiOptions = {}) {
     anonymous = anonymousAdmission(options);
   app.onError((error, c) => {
     if (error instanceof v.InputError)
-      return c.json({ error: { code: error.code, field: error.field } }, 400);
+      return c.json(apiError(error.code, error.field), 400);
     if (error instanceof ProviderLocationLimitError)
       return c.json(
-        {
-          error: { code: "provider_search_too_broad", message: error.message },
-        },
+        apiError("provider_search_too_broad", undefined, error.message),
         422,
       );
     if (error instanceof ReadError) {
       if (error.error.code === "data_policy_unavailable")
-        return c.json({ error: error.error }, 503);
+        return c.json(apiErrorFrom(error.error), 503);
       return c.json(
-        { error: error.error },
+        apiErrorFrom(error.error),
         error.error.code === "not_loaded" ? 404 : 403,
       );
     }
     if (isQueryTimeout(error)) return queryTimeoutResponse(c);
     logInternalError(error);
-    return c.json({ error: { code: "INTERNAL_ERROR" } }, 500);
+    return c.json(apiError("internal_error"), 500);
   });
 
   app.use("*", async (c: Context<BlankEnv, string>, next) => {
@@ -205,13 +204,13 @@ export function compatRoutes(db: SqlSession, options: ApiOptions = {}) {
     if (!token)
       return publicCompatEnabled(options)
         ? anonymous(c, next)
-        : c.json({ error: { code: "AUTH_NOT_CONFIGURED" } }, 503);
+        : c.json(apiError("auth_not_configured"), 503);
     const primaryMatches = credentialMatches(c.req.header("X-Api-Key"), token);
     const extraMatches = extraHeader
       ? credentialMatches(c.req.header(extraHeader), token)
       : false;
     if (!primaryMatches && !extraMatches)
-      return c.json({ error: { code: "UNAUTHORIZED" } }, 401);
+      return c.json(apiError("unauthorized"), 401);
     await next();
   });
   app.route("/", providerCompatRoutes(db, native));
@@ -220,13 +219,11 @@ export function compatRoutes(db: SqlSession, options: ApiOptions = {}) {
     const prefix = c.req.query("zip_prefix");
     if (!prefix || !/^\d{3,5}$/.test(prefix))
       return c.json(
-        {
-          error: {
-            code: "INVALID_INPUT",
-            field: "zip_prefix",
-            message: "zip_prefix required (3-5 digit string)",
-          },
-        },
+        apiError(
+          "invalid_input",
+          "zip_prefix",
+          "zip_prefix required (3-5 digit string)",
+        ),
         400,
       );
     if (prefix.length === 5)
@@ -328,13 +325,7 @@ export function compatRoutes(db: SqlSession, options: ApiOptions = {}) {
         maxSize: 65_536,
         onError: (c) =>
           c.json(
-            {
-              error: {
-                code: "REQUEST_TOO_LARGE",
-                field: "body",
-                message: "Request too large",
-              },
-            },
+            apiError("request_too_large", "body", "Request too large"),
             400,
           ),
       }),
@@ -344,13 +335,7 @@ export function compatRoutes(db: SqlSession, options: ApiOptions = {}) {
           json = await c.req.json();
         } catch {
           return c.json(
-            {
-              error: {
-                code: "INVALID_JSON",
-                field: "body",
-                message: "Invalid JSON body",
-              },
-            },
+            apiError("invalid_json", "body", "Invalid JSON body"),
             400,
           );
         }
@@ -376,13 +361,11 @@ export function compatRoutes(db: SqlSession, options: ApiOptions = {}) {
           !body.applicants.length
         ) {
           return c.json(
-            {
-              error: {
-                code: "INVALID_INPUT",
-                field: "body",
-                message: "fips_code and applicants[] required",
-              },
-            },
+            apiError(
+              "invalid_input",
+              "body",
+              "fips_code and applicants[] required",
+            ),
             400,
           );
         }
@@ -791,10 +774,7 @@ export function compatRoutes(db: SqlSession, options: ApiOptions = {}) {
         ? c.json({
             plan: record.dental ? record.mapped : planResponse(record.mapped),
           })
-        : c.json(
-            { error: { code: "PLAN_NOT_FOUND", message: "Plan not found" } },
-            404,
-          );
+        : c.json(apiError("plan_not_found", undefined, "Plan not found"), 404);
     });
 
   app.get("/drugs", async (c) => {
@@ -806,13 +786,11 @@ export function compatRoutes(db: SqlSession, options: ApiOptions = {}) {
       (!term || term.trim().length < 2 || term.length > 200)
     )
       return c.json(
-        {
-          error: {
-            code: "INVALID_INPUT",
-            field: "search_term",
-            message: "search_term or rxcui required (search_term 2-200 chars)",
-          },
-        },
+        apiError(
+          "invalid_input",
+          "search_term",
+          "search_term or rxcui required (search_term 2-200 chars)",
+        ),
         400,
       );
     const { start, size } = pagination(query, 25),
@@ -1005,7 +983,7 @@ export function compatRoutes(db: SqlSession, options: ApiOptions = {}) {
         `unsupported_route:${path.split("/")[0] === "plans" ? path.split("/")[1] : path.split("/")[0]}`,
       ]);
       return c.json(
-        { error: { code: "NOT_IMPLEMENTED", message: "Not implemented" } },
+        apiError("not_implemented", undefined, "Not implemented"),
         501,
       );
     });

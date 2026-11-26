@@ -64,7 +64,7 @@ export const instructions =
   "Every answer carries provenance and an evidence status. Unknown means missing or incomplete evidence, never not covered or not in network. " +
   "quote_plans quotes plans by age and ZIP without income or subsidies. quote_premiums adds income and subsidy estimates; an operator may require a token for it. " +
   "Quotes are not bindable and never determine CSR eligibility. " +
-  "Follow next_cursor with the same filters; restart after CURSOR_EXPIRED. Results describe the current local data generation, not a live publisher check. " +
+  "Follow next_cursor with the same filters; restart after cursor_expired. Results describe the current local data generation, not a live publisher check. " +
   "Setup and tool docs: https://github.com/openhra/openplans#mcp";
 
 const mutable = { ttlMs: 0, cacheScope: "private" as const };
@@ -97,7 +97,7 @@ export function buildServer(deps: McpDependencies): McpServer {
   const definitions: Tool[] = [];
   for (const tool of toolNames) {
     // Denied personalized tools are never registered. A disabled public quote tool stays
-    // callable so that it answers QUOTING_DISABLED, but it is not listed.
+    // callable so that it answers quoting_disabled, but it is not listed.
     if (PERSONALIZED_TOOLS.has(tool) && !mayCall(deps, tool)) continue;
     const [title, description] = toolDescriptions[tool];
     if (mayCall(deps, tool)) definitions.push(coreToolDefinition(tool));
@@ -172,7 +172,7 @@ export function buildServer(deps: McpDependencies): McpServer {
     try {
       const offset = codec.read(request.params?.cursor, binding),
         tools = definitions.slice(offset, offset + TOOL_LIST_PAGE_SIZE);
-      if (offset > definitions.length) throw new ToolError("INVALID_CURSOR");
+      if (offset > definitions.length) throw new ToolError("invalid_cursor");
       if (offset === definitions.length) return { tools: [] };
       const result: { tools: Tool[]; nextCursor?: string } = { tools };
       return boundOutput(result, {
@@ -192,7 +192,7 @@ export function buildServer(deps: McpDependencies): McpServer {
     } catch (error) {
       throw new ProtocolError(
         ProtocolErrorCode.InvalidParams,
-        error instanceof ToolError ? error.code : "INVALID_CURSOR",
+        error instanceof ToolError ? error.code : "invalid_cursor",
       );
     }
   });
@@ -282,7 +282,7 @@ export function buildServer(deps: McpDependencies): McpServer {
           records = ids.slice(0, 25).map(p.snapshot);
         const generation = await dataGeneration(db);
         if (generation !== native.data_generation)
-          throw new ToolError("DATA_CHANGED");
+          throw new ToolError("data_changed");
         const output = {
           schema_version: "1" as const,
           status: "ok" as const,

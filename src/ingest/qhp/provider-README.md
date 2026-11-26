@@ -113,7 +113,7 @@ rejected record's plans and addresses, so a structural defect in it quarantines 
 more than 1% of a child's records are rejected, the parser quarantines the whole child with
 `rejected_records_over_limit`. A child with rejected records is `partial` with reason
 `source_records_rejected`. If every other child is complete, the set publishes its positive
-evidence and stays `partial`. Lookups then carry `SOURCE_INCOMPLETE`, and an unlisted provider
+evidence and stays `partial`. Lookups then carry `source_incomplete`, and an unlisted provider
 stays `unknown`, never `not_listed`.
 Other-issuer TX associations are omitted with counted `plan_outside_issuer_scope` issues;
 national/shared files remain supported without cross-issuer edges. An `onShard` callback gives

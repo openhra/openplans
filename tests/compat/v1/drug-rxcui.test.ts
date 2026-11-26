@@ -324,7 +324,7 @@ it("keeps search_term searches unchanged and rejects bad RxCUIs", async () => {
   const conflict = await get("rxcui=1&rx_cui_id=2");
   expect(conflict.status).toBe(400);
   expect(conflict.body.error).toMatchObject({
-    code: "CONFLICTING_RXCUI",
+    code: "conflicting_rxcui",
     field: "rx_cui_id",
   });
 });

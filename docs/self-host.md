@@ -389,6 +389,29 @@ refreshes preserve previous positives and leave absence unknown. Fix an import
 failure's source/cache/connectivity cause, then repeat bootstrap. Do not alter
 ACTIVE pointers or raw payloads. Corrupted cache hashes fail closed.
 
+## Check an install
+
+`worker doctor` checks a Compose install and prints one line per check:
+
+~~~sh
+docker compose run --rm --no-deps worker doctor
+~~~
+
+It checks that the database answers, that every migration file is applied and none is unknown to
+the image (a database written by a newer release fails with the `OPENPLANS_IMAGE` to set), that
+plan data is loaded, that `raw/`, `reports/` and `work/` exist under `OPENPLANS_DATA_DIR` and
+`reports/` and `work/` are writable, that at least 2 GiB is free there, and that the raw cache is
+not empty. Each failing line names the command to run next. The command exits 1 when any check
+fails and ends with the first failing line; it exits 0 when all pass. A final line says whether
+`DATABASE_URL`, `CMS_API_KEY`, the geocoder URLs, the plugin list and the config file are set. It
+never prints a setting's value, a path or a connection error that could hold a credential.
+
+A bind mount source that does not exist stops Compose with a mount error, because the worker
+service sets `create_host_path: false`. Create the three directories first:
+`mkdir -p "$OPENPLANS_DATA_DIR"/{raw,reports,work}`.
+
+`worker --help` lists every command and exits 0.
+
 ## Back up and restore
 
 The DB lives in Compose's pgdata named volume. A normal down preserves it;
@@ -499,6 +522,33 @@ Inspect availability and repeat a known raw-row premium check before use.
 These are documented operator procedures. The recorded bootstrap run validates
 bootstrap, not a disaster-recovery drill.
 
+## Which version am I running
+
+`GET /readyz` answers with the running build and its data when the API is ready:
+
+~~~json
+{
+  "status": "ready",
+  "release": "0.4.22",
+  "generation": "<32 hex digits>",
+  "pricing": "<64 hex digits>",
+  "plan_years": [2026, 2027],
+  "schema": 120
+}
+~~~
+
+`release` is the package version, read once when the process starts. `generation` is the data
+generation id and `pricing` the hash of the pricing sources and settings; both stay the same
+until data or settings change, so two slots with equal values serve the same data. `plan_years`
+is the window the instance serves. `schema` counts the migration files the database has applied;
+it is `null` when the process runs no migration check. `generation` and `pricing` are `null`
+when they cannot be read. `/healthz` carries the same members when it reports healthy and no
+migration is pending. A 503 answer carries none of them. The MCP tool `get_data_status` adds
+`release` to its data. No path, host name or secret is in any of these answers.
+
+Every response also carries an `x-request-id` header. Quote it when you report a problem; see
+the [API guide](../src/api/README.md#request-ids-and-reporting-a-problem).
+
 ## Memory budgets and runtime caching
 
 `OPENPLANS_DB_MEMORY` is a Postgres memory **budget**, default `1g`, accepting
@@ -578,7 +628,7 @@ validity before a lookup. Quoting tools (`quote_plans`, `quote_premiums` and
 `check_ichra_affordability`) bypass cache reads and writes.
 Credentials, household fields, errors and signed cursors never enter MCP entries.
 The server signs a new cursor and computes the access label for each caller.
-Old-generation cursors return `CURSOR_EXPIRED`; restart the search.
+Old-generation cursors return `cursor_expired`; restart the search.
 
 See the [cache contract](../src/api/cache/README.md) for eligible endpoints,
 credentials, invalidation, metrics, bounds, and operator inspection commands.
@@ -618,7 +668,7 @@ Every tool needs no credential by default, `quote_premiums` and
 > ZIP: `POST /v1/quotes` and the MCP tool `quote_plans`. They refuse income, household
 > size, tax filing, dates of birth and names, and never estimate a subsidy. Set
 > `OPENPLANS_PUBLIC_QUOTING=off` to disable both; the route then returns 503
-> `QUOTING_DISABLED` and the tool is no longer listed. Public quotes allow 30 requests
+> `quoting_disabled` and the tool is no longer listed. Public quotes allow 30 requests
 > per minute per source with 2 in flight, and at most 10 members, 10 plans, 5 NPIs and
 > 5 RxCUIs. See the [quoting guide](quoting.md).
 

@@ -245,7 +245,7 @@ async function callScopedPluginTool(
   try {
     assertCatalogToolAdmission(deps.catalogPolicy, spec.name);
     const input = spec.inputSchema.safeParse(args);
-    if (!input.success) throw new ToolError("INVALID_INPUT");
+    if (!input.success) throw new ToolError("invalid_input");
     const answer = await spec.handler(input.data, {
       db: deps.db as Parameters<typeof spec.handler>[1]["db"],
       signal,

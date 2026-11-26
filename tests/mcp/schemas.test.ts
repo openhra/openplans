@@ -74,6 +74,7 @@ const payloads: Record<ToolName, unknown> = {
   check_provider_network: { results: [] },
   lookup_geography: { zip: "77001", resolution: "unknown", counties: [] },
   get_data_status: {
+    release: "0.0.0",
     data_policy: resolveAnnualPolicy(
       3,
       [],

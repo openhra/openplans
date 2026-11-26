@@ -255,7 +255,7 @@ it("rollback appends history, preserves newer versions and retirement refuses re
       meta("revive"),
       events(),
     ),
-  ).rejects.toThrow("MSOT_VERSION_UNAVAILABLE");
+  ).rejects.toThrow("msot_version_unavailable");
   expect(await count("plg_msot_activation")).toBe(4);
 });
 
@@ -300,7 +300,7 @@ describe("publication rejection controls", () => {
       "blank,00123,DC,off_exchange,custom_payment_allowed,known,,2026-11-15,,pending\n";
     await expect(
       parseFiles(json, "operator-demo", "2026-11-16T00:00:00Z", reader, csv),
-    ).rejects.toThrow("MSOT_CSV_BOOLEAN_REQUIRED");
+    ).rejects.toThrow("msot_csv_boolean_required");
     await expect(
       parseFiles(
         JSON.stringify(source),
@@ -308,7 +308,7 @@ describe("publication rejection controls", () => {
         "2026-11-16T00:00:00Z",
         reader,
       ),
-    ).rejects.toThrow("MSOT_ACTOR_MISMATCH");
+    ).rejects.toThrow("msot_actor_mismatch");
   });
   it("refuses an equal-rank time overlap before any draft is imported", async () => {
     const invalid = {
@@ -322,7 +322,7 @@ describe("publication rejection controls", () => {
         "2026-11-16T00:00:00Z",
         reader,
       ),
-    ).rejects.toThrow("MSOT_EQUAL_RANK_OVERLAP");
+    ).rejects.toThrow("msot_equal_rank_overlap");
     expect(await count("plg_msot_draft")).toBe(0);
   });
   it("refuses stale public generation, changed input hash and an expected-version conflict", async () => {
@@ -356,7 +356,7 @@ describe("publication rejection controls", () => {
         events(),
         signal,
       ),
-    ).rejects.toThrow("MSOT_PREVIEW_STALE");
+    ).rejects.toThrow("msot_preview_stale");
     generation = "synthetic-g1";
     await expect(
       changing.publish(
@@ -367,7 +367,7 @@ describe("publication rejection controls", () => {
         events(),
         signal,
       ),
-    ).rejects.toThrow("MSOT_EXPECTED_VERSION_CONFLICT");
+    ).rejects.toThrow("msot_expected_version_conflict");
     await db.query(
       "UPDATE plg_msot_draft SET version_hash=$1 WHERE draft_id=$2",
       ["f".repeat(64), imported.draft_id],
@@ -381,7 +381,7 @@ describe("publication rejection controls", () => {
         events(),
         signal,
       ),
-    ).rejects.toThrow("MSOT_INPUT_CHANGED");
+    ).rejects.toThrow("msot_input_changed");
     expect(await count("plg_msot_version")).toBe(0);
     expect(await count("plugin_event_outbox")).toBe(0);
   });
@@ -404,7 +404,7 @@ describe("publication rejection controls", () => {
         meta("racing"),
         events(),
       ),
-    ).rejects.toThrow("MSOT_EXPECTED_VERSION_CONFLICT");
+    ).rejects.toThrow("msot_expected_version_conflict");
     expect(await count("plg_msot_activation")).toBe(1);
   });
   it.each(["outbox", "audit"])(
@@ -499,7 +499,7 @@ it("installs app-state provenance and generation triggers; missing declaration f
     );
     await expect(
       service.import(missing, await candidate(), meta("missing-provenance")),
-    ).rejects.toThrow("MSOT_APPLICATION_STATE_REQUIRED");
+    ).rejects.toThrow("msot_application_state_required");
     expect(
       await schemaViolations(missing),
       "missing_app_state_provenance",
@@ -820,7 +820,7 @@ it("pins production public facts across receipt writes and resolves only an acti
     );
     const provider = loaded.registries.catalogPolicies.msot!.spec;
     await expect(provider.resolve(request, context)).rejects.toThrow(
-      "MSOT_VERSION_UNAVAILABLE",
+      "msot_version_unavailable",
     );
     await current.activate(
       fixture.db,
@@ -848,7 +848,7 @@ it("pins production public facts across receipt writes and resolves only an acti
     );
     await expect(
       current.preview(invalidCandidate, request, context),
-    ).rejects.toThrow("MSOT_SCOPE_IDENTITY_UNKNOWN");
+    ).rejects.toThrow("msot_scope_identity_unknown");
     const second = await current.import(
       fixture.db,
       await parseFiles(
@@ -879,7 +879,7 @@ it("pins production public facts across receipt writes and resolves only an acti
         bus,
         signal,
       ),
-    ).rejects.toThrow("MSOT_PREVIEW_STALE");
+    ).rejects.toThrow("msot_preview_stale");
   } finally {
     await fixture.close();
   }
