@@ -59,7 +59,7 @@ export function cursorCodec(
       if (token === undefined) return 0;
       try {
         if (token.length > 2048 || !/^[\w-]+\.[\w-]+$/.test(token))
-          throw new ToolError("INVALID_CURSOR");
+          throw new ToolError("invalid_cursor");
         const [payload, signature] = token.split(".") as [string, string];
         const actual = Buffer.from(signature, "base64url"),
           expected = mac(payload);
@@ -68,7 +68,7 @@ export function cursorCodec(
           !timingSafeEqual(actual, expected) ||
           actual.toString("base64url") !== signature
         )
-          throw new ToolError("INVALID_CURSOR");
+          throw new ToolError("invalid_cursor");
         const row = JSON.parse(
           Buffer.from(payload, "base64url").toString(),
         ) as Record<string, unknown>;
@@ -81,13 +81,13 @@ export function cursorCodec(
           Number(row.offset) < 0 ||
           typeof row.expires !== "number"
         )
-          throw new ToolError("INVALID_CURSOR");
+          throw new ToolError("invalid_cursor");
         if (row.generation !== binding.generation || row.expires <= now())
-          throw new ToolError("CURSOR_EXPIRED");
+          throw new ToolError("cursor_expired");
         return Number(row.offset);
       } catch (error) {
         if (error instanceof ToolError) throw error;
-        throw new ToolError("INVALID_CURSOR");
+        throw new ToolError("invalid_cursor");
       }
     },
   };

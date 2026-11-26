@@ -35,7 +35,7 @@ export function registerInspection(
               .strictObject({ source: sourceSchema, input: resolveInput })
               .parse(await c.req.json());
             if (!readableSources.includes(body.source.source_id))
-              throw new Error("MSOT_SOURCE_NOT_READABLE");
+              throw new Error("msot_source_not_readable");
             const compiled = compileSource(body.source, reader);
             return c.json(
               await service.preview(
@@ -52,7 +52,7 @@ export function registerInspection(
           }
           const query = selector.parse(c.req.query());
           if (!readableSources.includes(query.source_id))
-            throw new Error("MSOT_SOURCE_NOT_READABLE");
+            throw new Error("msot_source_not_readable");
           if (operation === "versions")
             return c.json(await repo.versions(query.source_id));
           if (operation === "audit")
@@ -65,7 +65,7 @@ export function registerInspection(
                 code:
                   error instanceof Error && /^MSOT_[A-Z_]+$/.test(error.message)
                     ? error.message
-                    : "MSOT_INVALID_INPUT",
+                    : "msot_invalid_input",
               },
             },
             400,

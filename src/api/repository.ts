@@ -222,7 +222,12 @@ export async function resolveLocation(
     };
   const result = await locationZipCounties(db, input.zip, options);
   if (result.status === "unknown")
-    return { ...input, status: "unknown" as const, counties: result.counties };
+    return {
+      ...input,
+      status: "unknown" as const,
+      reason: "zip_not_in_loaded_geography",
+      counties: result.counties,
+    };
   // A multi-county Vermont ZCTA has the same statewide medical service area.
   if (
     !input.county &&
@@ -241,7 +246,7 @@ export async function resolveLocation(
     input.county &&
     !result.counties.some((c) => c.county_fips === input.county)
   )
-    fail("county", "ZIP_COUNTY_MISMATCH");
+    fail("county", "zip_county_mismatch");
   if (!input.county && result.counties.length !== 1)
     return {
       ...input,
@@ -293,7 +298,7 @@ export async function countyPlans(
   if (!supported) {
     premiumAvailability = {
       status: "unsupported_rating_method",
-      reason: "STATE_RATING_METHOD_UNSUPPORTED",
+      reason: "state_rating_method_unsupported",
     };
   } else if (area) {
     premiumAvailability = {
@@ -307,7 +312,7 @@ export async function countyPlans(
   } else {
     premiumAvailability = {
       status: resolution.status,
-      reason: "UNRESOLVED_RATING_AREA",
+      reason: "unresolved_rating_area",
     };
   }
   return plans.map((plan) => ({
@@ -394,7 +399,7 @@ async function stateCountyPlans(
       ...plan,
       premium_availability: {
         status: premiumStatus(),
-        ...(!supported ? { reason: "NO_APPLICABLE_COMMUNITY_RULE" } : {}),
+        ...(!supported ? { reason: "no_applicable_community_rule" } : {}),
         rating_area_id: area.rating_area_id,
         rating_area_provenance: area,
         quote_method: "state_filed_tier",
@@ -661,6 +666,11 @@ export async function planCostSharing(
           )
             ? "available"
             : "unknown",
+          ...(benefits.rows.some(
+            (b) => b.published_plan_id === row.variant_plan_id,
+          )
+            ? {}
+            : { benefits_reason: "benefits_not_published" }),
           benefits: benefits.rows.filter(
             (b) => b.published_plan_id === row.variant_plan_id,
           ),
@@ -718,6 +728,7 @@ export async function planCostSharing(
     variants,
     catalog_metadata: {
       status: metadataAvailable ? ("available" as const) : ("unknown" as const),
+      ...(metadataAvailable ? {} : { reason: "plan_metadata_not_published" }),
       variant_plan_id: selected,
       attributes: metadataAvailable
         ? Object.fromEntries(
@@ -739,6 +750,7 @@ export async function planCostSharing(
       : "Rate PUF premiums are filed at base plan level; CSR selection does not change the gross premium.",
     cost_sharing: {
       status: attribute ? ("available" as const) : ("unknown" as const),
+      ...(attribute ? {} : { reason: "cost_sharing_not_published" }),
       selected_variant_id: selected,
       ...(supplement && selectedAttributes
         ? {
@@ -760,6 +772,7 @@ export async function planCostSharing(
       benefits_status: rows.length
         ? ("available" as const)
         : ("unknown" as const),
+      ...(rows.length ? {} : { benefits_reason: "benefits_not_published" }),
       benefits: rows,
       // `links` here belong to `benefits_status`, never to the cost-sharing amounts above.
       ...benefitLinkOuts(rows.length ? "available" : "unknown", benefitLinks),
@@ -821,7 +834,11 @@ export async function planView(
       plan_name: plan.plan_name,
       metal: plan.metal,
       issuer: { issuer_id: plan.issuer_id, marketing_names: [] },
-      network: { status: "unknown", records: [] },
+      network: {
+        status: "unknown",
+        reason: "network_not_published",
+        records: [],
+      },
       on_exchange: plan.state === "NY" ? "unknown" : plan.on_exchange,
       off_exchange: plan.exchange_provenance ? plan.off_exchange : "unknown",
       enrollment_eligibility: "unknown",
@@ -862,10 +879,15 @@ export async function planView(
     market: plan.market.toLowerCase(),
     plan_name: plan.plan_name,
     metal: plan.metal,
-    issuer: issuer.rows[0] ?? { issuer_id: plan.issuer_id, status: "unknown" },
+    issuer: issuer.rows[0] ?? {
+      issuer_id: plan.issuer_id,
+      status: "unknown",
+      reason: "issuer_not_loaded",
+    },
     network: {
       network_id: plan.network_id,
       status: networks.rows.length ? "available" : "unknown",
+      ...(networks.rows.length ? {} : { reason: "network_not_published" }),
       records: networks.rows,
     },
     lineage: ancestry,

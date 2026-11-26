@@ -35,7 +35,7 @@ export async function discoverPlans(
   let page = 1;
   do {
     const result = await searchPlans(db, { ...params, page: String(page) });
-    if (result.total > 1000) throw new ReadError({ code: "SEARCH_TOO_BROAD" });
+    if (result.total > 1000) throw new ReadError({ code: "search_too_broad" });
     rows.push(...result.plans);
     if (!result.next_page) break;
     page = result.next_page;
@@ -60,7 +60,7 @@ export async function discoverDrugs(
     candidates: DrugConcept[] = [];
   if (input.ndc !== undefined) {
     const ndc = normalizeNdc(input.ndc);
-    if (!ndc) throw new ReadError({ code: "INVALID_NDC", field: "ndc" });
+    if (!ndc) throw new ReadError({ code: "invalid_ndc", field: "ndc" });
     for (const id of await rx.rxcuisForNdc(ndc)) {
       const concept = (await rx.conceptByRxcui(id)).find(
         (c) => c.suppress === "N",
@@ -90,7 +90,7 @@ export async function discoverDrugs(
         more: candidates.length > offset + limit,
       };
   }
-  throw new ReadError({ code: "SEARCH_TOO_BROAD" });
+  throw new ReadError({ code: "search_too_broad" });
 }
 
 export type EntityId = { kind: string; parts: string[] };
@@ -159,6 +159,6 @@ export function parseEntityId(id: string): EntityId {
     if (!valid) throw 0;
     return { kind, parts };
   } catch {
-    throw new ReadError({ code: "INVALID_FETCH_ID", field: "id" });
+    throw new ReadError({ code: "invalid_fetch_id", field: "id" });
   }
 }

@@ -251,15 +251,15 @@ it("unsupported relationships and dependent extensions keep their reasons, witho
   for (const [members, reason] of [
     [
       [subscriber, { ...children[0]!, age: 26 }],
-      "DEPENDENT_EXTENSION_REQUIRES_EVIDENCE",
+      "dependent_extension_requires_evidence",
     ],
     [
       [{ ...subscriber, age: 16 }],
-      "CHILD_ONLY_OR_MINOR_SUBSCRIBER_REQUIRES_EVIDENCE",
+      "child_only_or_minor_subscriber_requires_evidence",
     ],
     [
       [subscriber, { ...spouse, relationship: "other" }],
-      "UNSUPPORTED_HOUSEHOLD_RELATIONSHIPS",
+      "unsupported_household_relationships",
     ],
   ] as const) {
     const q = await ny(db, body("10001", [...members]));
@@ -449,7 +449,7 @@ it("negative controls: a per-age state authorization and a missing rule never yi
       const q = await ny(tx);
       expect(q).toMatchObject({
         status: "unsupported_rating_method",
-        reason: "NO_APPLICABLE_COMMUNITY_RULE",
+        reason: "no_applicable_community_rule",
       });
       expect(q).not.toHaveProperty("total_cents");
     });
@@ -472,7 +472,7 @@ it("conflicting state rows, changed active imports and wrong-state locations nev
       FROM state_community_rate WHERE plan_key='11177NY0220001'`);
     expect(await ny(tx)).toMatchObject({
       status: "ambiguous",
-      reason: "CONFLICTING_FILED_TIER_ROWS",
+      reason: "conflicting_filed_tier_rows",
     });
   });
   const stale = {
@@ -488,10 +488,10 @@ it("conflicting state rows, changed active imports and wrong-state locations nev
       request,
       await resolveLocation(db, request.location),
     ),
-  ).toMatchObject({ status: "unknown", reason: "CATALOG_CHANGED_RETRY" });
+  ).toMatchObject({ status: "unknown", reason: "catalog_changed_retry" });
   expect(await ny(db, body("05401"))).toMatchObject({
     status: "missing",
-    reason: "PLAN_NOT_OFFERED_IN_LOCATION",
+    reason: "plan_not_offered_in_location",
   });
 });
 

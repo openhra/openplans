@@ -67,13 +67,13 @@ function flags(args: string[], permitted: string[]) {
       value === undefined ||
       result[name] !== undefined
     )
-      throw new Error("MSOT_INVALID_ARGUMENTS");
+      throw new Error("msot_invalid_arguments");
     result[name] = value;
   }
   return result;
 }
 const positive = (value: string) => {
-  if (!/^[1-9][0-9]*$/.test(value)) throw new Error("MSOT_INVALID_ARGUMENTS");
+  if (!/^[1-9][0-9]*$/.test(value)) throw new Error("msot_invalid_arguments");
   return z.number().int().positive().parse(Number(value));
 };
 export function registerWorker(ctx: PluginContext, reader: CanonicalReader) {
@@ -88,7 +88,7 @@ export function registerWorker(ctx: PluginContext, reader: CanonicalReader) {
           const options = flags(args, allowed[command]);
           const required = (key: string) => {
             const value = options[key];
-            if (!value) throw new Error("MSOT_INVALID_ARGUMENTS");
+            if (!value) throw new Error("msot_invalid_arguments");
             return value;
           };
           const repo = new Repository(run.db.reader);
@@ -107,7 +107,7 @@ export function registerWorker(ctx: PluginContext, reader: CanonicalReader) {
               idempotency_key: options["idempotency-key"] ?? randomUUID(),
             };
             const writer = run.db.writer;
-            if (!writer) throw new Error("MSOT_WORKER_WRITER_REQUIRED");
+            if (!writer) throw new Error("msot_worker_writer_required");
             run.signal.throwIfAborted();
             if (command === "validate" || command === "import") {
               let candidate;
@@ -148,7 +148,7 @@ export function registerWorker(ctx: PluginContext, reader: CanonicalReader) {
               const expectedVersion = required("expected-version");
               const activation = required("expected-activation");
               if (!/^(0|[1-9][0-9]*)$/.test(activation))
-                throw new Error("MSOT_INVALID_ARGUMENTS");
+                throw new Error("msot_invalid_arguments");
               const expected: Expectation = {
                 version:
                   expectedVersion === "none" ? null : positive(expectedVersion),
@@ -165,7 +165,7 @@ export function registerWorker(ctx: PluginContext, reader: CanonicalReader) {
                 );
               else {
                 if (options.rollback && options.rollback !== "true")
-                  throw new Error("MSOT_INVALID_ARGUMENTS");
+                  throw new Error("msot_invalid_arguments");
                 let operation: "activate" | "rollback" | "retire" = "activate";
                 if (command === "retire") operation = "retire";
                 else if (options.rollback) operation = "rollback";
@@ -187,7 +187,7 @@ export function registerWorker(ctx: PluginContext, reader: CanonicalReader) {
           const code =
             error instanceof Error && /^MSOT_[A-Z_]+$/.test(error.message)
               ? error.message
-              : "MSOT_COMMAND_REFUSED";
+              : "msot_command_refused";
           run.log({ event: "msot_command_refused", code, operation: command });
           return 1;
         }

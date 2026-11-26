@@ -8,7 +8,7 @@ import type { HouseholdMember } from "../domain/rating/types.js";
 export class InputError extends Error {
   constructor(
     readonly field: string,
-    readonly code = "INVALID_INPUT",
+    readonly code = "invalid_input",
   ) {
     super(code);
   }
@@ -22,7 +22,7 @@ export function year(value: unknown): number {
     !/^\d{4}$/.test(value) ||
     Number(value) < 2014
   )
-    return fail("year", "YEAR_REQUIRED");
+    return fail("year", "year_required");
   return Number(value);
 }
 export function zip(value: unknown): string {
@@ -56,7 +56,7 @@ export function planId(value: unknown) {
   }
 }
 export function market(value: unknown = "individual"): "Individual" {
-  if (value !== "individual") return fail("market", "UNSUPPORTED_MARKET");
+  if (value !== "individual") return fail("market", "unsupported_market");
   return "Individual";
 }
 export function page(value: unknown = "1"): number {
@@ -90,7 +90,7 @@ export interface LocationInput {
 }
 export function location(value: Record<string, unknown>): LocationInput {
   if (value.zip === undefined && value.county === undefined)
-    return fail("location", "LOCATION_REQUIRED");
+    return fail("location", "location_required");
   return {
     ...(value.zip === undefined ? {} : { zip: zip(value.zip) }),
     ...(value.county === undefined ? {} : { county: county(value.county) }),
@@ -116,7 +116,7 @@ export function checkVariant(
   try {
     return selectedVariant(base, suffix, requested);
   } catch {
-    return fail("csr_variant", "CONFLICTING_VARIANT");
+    return fail("csr_variant", "conflicting_variant");
   }
 }
 export function premiumRequest(value: unknown) {
@@ -141,7 +141,7 @@ export function premiumRequest(value: unknown) {
   });
   const ids = [...hiosIds.map(planId), ...named];
   if (new Set(ids.map((id) => id.full)).size !== ids.length)
-    return fail("plan_ids", "DUPLICATE_PLAN_ID");
+    return fail("plan_ids", "duplicate_plan_id");
   const csr = csrVariant(body.csr_variant);
   for (const id of ids) checkVariant(id.base, csr, id.variant);
   const coverage = body.coverage_start;
@@ -163,7 +163,7 @@ export function premiumRequest(value: unknown) {
     const m = record(value, `members.${index}`),
       field = `members.${index}`;
     if ((m.age === undefined) === (m.dob === undefined))
-      return fail(`${field}.age`, "AGE_OR_DOB_REQUIRED");
+      return fail(`${field}.age`, "age_or_dob_required");
     if (typeof m.tobacco !== "boolean") return fail(`${field}.tobacco`);
     if (
       !["subscriber", "spouse", "child", "other"].includes(
@@ -348,10 +348,10 @@ function refuseFields(
   const keys = Object.keys(value),
     field = (key: string) => `${prefix}${key}`.slice(0, MAX_FIELD_ECHO);
   const income = keys.find((key) => INCOME_FIELDS.has(key));
-  if (income !== undefined) fail(field(income), "INCOME_NOT_ACCEPTED");
-  if (keys.includes("dob")) fail(field("dob"), "DOB_NOT_ACCEPTED");
+  if (income !== undefined) fail(field(income), "income_not_accepted");
+  if (keys.includes("dob")) fail(field("dob"), "dob_not_accepted");
   const unknown = keys.find((key) => !allowed.has(key));
-  if (unknown !== undefined) fail(field(unknown), "UNKNOWN_FIELD");
+  if (unknown !== undefined) fail(field(unknown), "unknown_field");
 }
 function boundedList(
   value: unknown,
@@ -374,7 +374,7 @@ function defaultRelationship(index: number, age: number) {
   return age < 21 ? "child" : "other";
 }
 function quoteYear(value: unknown): number {
-  if (value === undefined) return fail("year", "YEAR_REQUIRED");
+  if (value === undefined) return fail("year", "year_required");
   if (
     typeof value !== "number" ||
     !Number.isInteger(value) ||
@@ -418,14 +418,14 @@ export function publicQuoteRequest(value: unknown) {
   if (!Array.isArray(body.members) || body.members.length < 1)
     return fail("members");
   if (body.members.length > PUBLIC_QUOTE_LIMITS.members)
-    return fail("members", "TOO_MANY_MEMBERS");
+    return fail("members", "too_many_members");
   const members = body.members.map(quoteMember);
   const planYear = quoteYear(body.year);
   const refs = boundedList(
     body.plan_ids,
     "plan_ids",
     PUBLIC_QUOTE_LIMITS.plans,
-    "TOO_MANY_PLANS",
+    "too_many_plans",
   );
   if (body.plan_ids !== undefined && refs.length === 0) return fail("plan_ids");
   const npis = distinct(
@@ -433,20 +433,20 @@ export function publicQuoteRequest(value: unknown) {
       body.npis,
       "npis",
       PUBLIC_QUOTE_LIMITS.providers,
-      "TOO_MANY_PROVIDERS",
+      "too_many_providers",
     ).map(npi),
     "npis",
-    "DUPLICATE_NPI",
+    "duplicate_npi",
   );
   const rxcuis = distinct(
     boundedList(
       body.rxcuis,
       "rxcuis",
       PUBLIC_QUOTE_LIMITS.drugs,
-      "TOO_MANY_DRUGS",
+      "too_many_drugs",
     ).map(rxcui),
     "rxcuis",
-    "DUPLICATE_RXCUI",
+    "duplicate_rxcui",
   );
   const coverage = body.coverage ?? "medical";
   if (coverage !== "medical" && coverage !== "dental") return fail("coverage");
@@ -454,7 +454,7 @@ export function publicQuoteRequest(value: unknown) {
   if (refs.length && page !== 1) return fail("page");
   const planCount = refs.length || PUBLIC_QUOTE_LIMITS.plans;
   if (planCount * (npis.length + rxcuis.length) > PUBLIC_QUOTE_LIMITS.pairs)
-    return fail("body", "TOO_MANY_PAIRS");
+    return fail("body", "too_many_pairs");
   const isKey = (ref: unknown) =>
     typeof ref === "string" && STATE_PLAN_KEY.test(ref);
   const premium = premiumRequest({
@@ -524,7 +524,7 @@ function onlyFields(
 ) {
   const unknown = Object.keys(value).find((key) => !allowed.has(key));
   if (unknown !== undefined)
-    fail(`${prefix}${unknown}`.slice(0, MAX_FIELD_ECHO), "UNKNOWN_FIELD");
+    fail(`${prefix}${unknown}`.slice(0, MAX_FIELD_ECHO), "unknown_field");
 }
 function isoDate(value: unknown, field: string): string {
   try {
@@ -535,7 +535,7 @@ function isoDate(value: unknown, field: string): string {
   } catch {
     /* Reported below. */
   }
-  return fail(field, "INVALID_DATE");
+  return fail(field, "invalid_date");
 }
 function cents(value: unknown, field: string): number {
   if (
@@ -555,7 +555,7 @@ function ichraLocation(
   const body = record(value, field);
   onlyFields(body, allowed, `${field}.`);
   if (body.zip === undefined && body.county === undefined)
-    return fail(field, "LOCATION_REQUIRED");
+    return fail(field, "location_required");
   return {
     ...(body.zip === undefined ? {} : { zip: zip(body.zip) }),
     ...(body.county === undefined ? {} : { county: county(body.county) }),
@@ -619,15 +619,15 @@ function w2Months(item: Record<string, unknown>, field: string) {
     employed = item.w2_months_employed;
   if (offered === undefined && employed === undefined) return null;
   if (offered === undefined)
-    return fail(`${field}.w2_months_offered`, "W2_MONTHS_INCOMPLETE");
+    return fail(`${field}.w2_months_offered`, "w2_months_incomplete");
   if (employed === undefined)
-    return fail(`${field}.w2_months_employed`, "W2_MONTHS_INCOMPLETE");
+    return fail(`${field}.w2_months_employed`, "w2_months_incomplete");
   const monthsOffered = monthCount(offered, `${field}.w2_months_offered`),
     monthsEmployed = monthCount(employed, `${field}.w2_months_employed`);
   if (monthsOffered > monthsEmployed)
     return fail(
       `${field}.w2_months_offered`,
-      "W2_MONTHS_OFFERED_EXCEED_EMPLOYED",
+      "w2_months_offered_exceed_employed",
     );
   return { monthsOffered, monthsEmployed };
 }
@@ -643,7 +643,7 @@ export function ichraRequest(value: unknown) {
   onlyFields(body, ICHRA_FIELDS.body, "");
   const planStart = isoDate(body.plan_start, "plan_start");
   if (dateParts(planStart).year < 2014)
-    return fail("plan_start", "INVALID_DATE");
+    return fail("plan_start", "invalid_date");
   const months = body.months_available ?? 12;
   if (
     typeof months !== "number" ||
@@ -656,7 +656,7 @@ export function ichraRequest(value: unknown) {
   onlyFields(employee, ICHRA_FIELDS.employee, "employee.");
   const dateOfBirth = isoDate(employee.date_of_birth, "employee.date_of_birth");
   if (dateOfBirth > planStart)
-    return fail("employee.date_of_birth", "INVALID_DATE");
+    return fail("employee.date_of_birth", "invalid_date");
   const eligibleFrom =
     employee.eligible_from === undefined || employee.eligible_from === null
       ? null
@@ -701,7 +701,7 @@ export function ichraRequest(value: unknown) {
   distinct(
     income.map((i) => i.measure),
     "income",
-    "DUPLICATE_MEASURE",
+    "duplicate_measure",
   );
   const harbors =
     body.safe_harbors === undefined
@@ -713,7 +713,7 @@ export function ichraRequest(value: unknown) {
     lookBack: flag(harbors.look_back, "safe_harbors.look_back"),
   };
   if (safeHarbors.location && !worksite)
-    return fail("safe_harbors.location", "SAFE_HARBOR_INPUT_MISSING");
+    return fail("safe_harbors.location", "safe_harbor_input_missing");
   const basis = body.lcsp_premium_basis ?? null;
   if (basis !== null && basis !== "gross" && basis !== "ehb_portion")
     return fail("lcsp_premium_basis");

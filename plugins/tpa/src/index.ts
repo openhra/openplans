@@ -20,7 +20,7 @@ const plugin: OpenPlansPlugin = {
   setup(ctx) {
     if (!ctx.config.tpa?.enabled || !ctx.config.tpa.privateIngress) return;
     const host = ctx.tpaReceiptHost;
-    if (!host) throw new Error("TPA_RECEIPT_HOST_REQUIRED");
+    if (!host) throw new Error("tpa_receipt_host_required");
     let used = 0;
     let until = 0;
     ctx.routes.add({
@@ -35,7 +35,7 @@ const plugin: OpenPlansPlugin = {
           await c.req.json().catch(() => undefined),
         );
         if (!input.success)
-          return c.json({ error: { code: "INVALID_RECEIPT_REQUEST" } }, 400);
+          return c.json({ error: { code: "invalid_receipt_request" } }, 400);
         const now = Date.now();
         if (now >= until) {
           used = 0;
@@ -46,7 +46,7 @@ const plugin: OpenPlansPlugin = {
             "Retry-After",
             String(Math.max(1, Math.ceil((until - now) / 1000))),
           );
-          return c.json({ error: { code: "RATE_LIMITED" } }, 429);
+          return c.json({ error: { code: "rate_limited" } }, 429);
         }
         used += input.data.batch_request.rows.length;
         try {
@@ -67,7 +67,7 @@ const plugin: OpenPlansPlugin = {
         } catch (error) {
           const missing = dataNotLoaded(error);
           if (missing) return c.json({ error: missing }, 404);
-          return c.json({ error: { code: "RECEIPT_PREPARATION_FAILED" } }, 503);
+          return c.json({ error: { code: "receipt_preparation_failed" } }, 503);
         }
       },
     });

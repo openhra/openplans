@@ -528,10 +528,10 @@ describe("plan-average prices once loaded", () => {
       return () => assertEstimateHonest(copy, copy.data as DrugCostEstimate);
     };
     expect(tampered((gross) => (gross.cents = LOWEST))).toThrow(
-      /INTERNAL_HONESTY_CHECK/,
+      /internal_honesty_check/,
     );
     expect(tampered((gross) => (gross.status = "value"))).toThrow(
-      /INTERNAL_HONESTY_CHECK/,
+      /internal_honesty_check/,
     );
     expect(
       tampered((gross) => {
@@ -541,12 +541,12 @@ describe("plan-average prices once loaded", () => {
         delete gross.minimum_cents;
         delete gross.maximum_cents;
       }),
-    ).toThrow(/INTERNAL_HONESTY_CHECK/);
+    ).toThrow(/internal_honesty_check/);
     expect(
       tampered((gross) => {
         delete gross.maximum_cents;
       }),
-    ).toThrow(/INTERNAL_HONESTY_CHECK/);
+    ).toThrow(/internal_honesty_check/);
   });
 
   describe("planted mutants", () => {

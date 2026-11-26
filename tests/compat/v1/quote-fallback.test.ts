@@ -25,7 +25,10 @@ import {
 import type { quotePlans } from "../../../src/services/quotes.js";
 import type { CmsApiEvidence } from "../../../src/ingest/cms-api/fallback.js";
 import { createApp } from "../../../src/api/app.js";
-import { cmsZipPreparationSettled } from "../../../src/ingest/geo/cms.js";
+import {
+  cmsZipPreparationSettled,
+  setCmsZipWarmFetchOptions,
+} from "../../../src/ingest/geo/cms.js";
 import * as coverageService from "../../../src/services/quote-coverage.js";
 import {
   cmsFallbackContext,
@@ -39,6 +42,10 @@ import type { Transport } from "../../../src/fetch/index.js";
 import { BASE, headers, searchBody, setup } from "./helpers.js";
 import { assertShape } from "./shape.js";
 import { quoteBody } from "../../api/quote-fixture.js";
+import {
+  configurePassThrough,
+  passThroughHostSettings,
+} from "../../../src/plugins/sources/passthrough.js";
 import { importMutant, withMutantFile } from "../../mutant-file.js";
 
 vi.mock("node:crypto", async (importOriginal) => {
@@ -73,6 +80,7 @@ let h: Awaited<ReturnType<typeof setup>>;
 let directory: string;
 let manifestPath: string;
 let sent: URL[];
+let restorePassThrough: ReturnType<typeof passThroughHostSettings>;
 let responseCoverage: string;
 let rx: string;
 const plan = "87226TX0100013";
@@ -141,6 +149,23 @@ beforeEach(async () => {
     .digest("hex");
   manifestPath = join(directory, "access.json");
   await writeFile(manifestPath, JSON.stringify(manifest));
+  // The publisher-policy read behind createApp uses this transport, never the network.
+  restorePassThrough = passThroughHostSettings();
+  configurePassThrough({
+    ...restorePassThrough,
+    fetchOptions: {
+      transport: async () => {
+        throw new Error(
+          "offline fixture: the pass-through source is not reachable",
+        );
+      },
+      dataDir: directory,
+    },
+  });
+  setCmsZipWarmFetchOptions({
+    transport,
+    lookup: async () => [{ address: "8.8.8.8", family: 4 }],
+  });
   sent = [];
   responseCoverage = "Covered";
   resetCmsClientCounts();
@@ -170,6 +195,8 @@ beforeEach(async () => {
 afterEach(async () => {
   vi.restoreAllMocks();
   await cmsZipPreparationSettled();
+  setCmsZipWarmFetchOptions(undefined);
+  configurePassThrough(restorePassThrough);
   vi.unstubAllEnvs();
   await rm(directory, { recursive: true, force: true });
 });
@@ -410,7 +437,7 @@ it("reads rxcui as well as rx_cui_id in drug_packages; package ids alone stay lo
   });
   expect(conflict.status).toBe(400);
   expect(await conflict.json()).toMatchObject({
-    error: { code: "CONFLICTING_RXCUI", field: "drug_packages.rx_cui_id" },
+    error: { code: "conflicting_rxcui", field: "drug_packages.rx_cui_id" },
   });
 });
 
@@ -419,9 +446,9 @@ it("leaves native and compatibility response bytes unchanged with the quote swit
   await native();
   sent = [];
   const expected = {
-    // Native unknown cells carry link-outs; compatibility bytes stay as recorded.
-    native: "55f07997b28f5a8dfbc8680b629d01340e1f9f8b0ff5a35ada798031ec9a698d",
-    compat: "cd4a4d0b97f7d92dbb6f4f3b5932dbe172a4ec8d3154daad980dc0c53349d3c3",
+    // Native unknown cells carry link-outs and reasons; compatibility unknown cells carry reasons.
+    native: "ed4fd6e9af157e1a1a9d0df79085ecaf58f9208c083b1c6af504138396f404a6",
+    compat: "7cd2532e4f8044430d3175a00c539b6f6bddc241a7a607afab757d10656f1868",
   };
   for (const value of [undefined, "off"]) {
     vi.stubEnv("OPENPLANS_CMS_FALLBACK_QUOTES", value);
@@ -687,7 +714,10 @@ it("returns the request deadline after a fallback write is cancelled", async () 
   expect(writes).toBe(1);
   expect(response.status).toBe(504);
   expect(await response.json()).toEqual({
-    error: { code: "REQUEST_DEADLINE" },
+    error: {
+      code: "request_deadline",
+      request_id: expect.any(String) as unknown,
+    },
   });
 });
 

@@ -175,7 +175,7 @@ describe("MCP uses the existing public DTO cache", () => {
           cursor: first.page!.next_cursor,
         })
       ).structuredContent.error?.code,
-    ).toBe("INVALID_CURSOR");
+    ).toBe("invalid_cursor");
     const authorized = await callTool(a, "get_data_status", {
       state: "TX",
       year: 2026,
@@ -228,7 +228,7 @@ describe("MCP uses the existing public DTO cache", () => {
       cursor: old.page!.next_cursor,
     });
     expect(expired.structuredContent.error).toMatchObject({
-      code: "CURSOR_EXPIRED",
+      code: "cursor_expired",
       retryable: true,
     });
     expect(reads).toHaveLength(3);
@@ -263,7 +263,7 @@ describe("MCP uses the existing public DTO cache", () => {
     expect(
       (await callTool(deps(), "quote_premiums", household)).structuredContent
         .error?.code,
-    ).toBe("AUTH_REQUIRED");
+    ).toBe("auth_required");
     expect(
       (
         await callTool(deps(), "search_plans", {

@@ -154,7 +154,7 @@ describe("/v1/medicare (CY2026 fixtures cut from real CMS files)", () => {
   it("validates input", async () => {
     expect(
       (await get<ErrorBody>("/v1/medicare/plans?year=2026")).body.error.code,
-    ).toBe("ZIP_OR_COUNTY_REQUIRED");
+    ).toBe("zip_or_county_required");
     expect(
       (await get("/v1/medicare/plans?county_fips=48201&year=2026&type=gold"))
         .status,
@@ -162,11 +162,11 @@ describe("/v1/medicare (CY2026 fixtures cut from real CMS files)", () => {
     expect(
       (await get<ErrorBody>("/v1/medicare/plans/H28-042-0?year=2026")).body
         .error.code,
-    ).toBe("INVALID_PLAN_KEY");
+    ).toBe("invalid_plan_key");
     expect(
       (await get<ErrorBody>("/v1/medicare/plans/H0028-999-0?year=2026")).body
         .error.code,
-    ).toBe("PLAN_NOT_FOUND");
+    ).toBe("plan_not_found");
     expect(
       (
         await get(

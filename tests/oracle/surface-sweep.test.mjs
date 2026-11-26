@@ -23,8 +23,8 @@ describe("surface sweep pass rule", () => {
       { issues: ["state_catalog_not_loaded"], plans: [] },
       { data: { location_issues: ["zip_limited_service_area"], plans: [] } },
       { status: "unknown", reason: "zip_not_in_loaded_geography" },
-      { error: { code: "INVALID_INPUT", field: "zip" } },
-      { status: "error", data: null, error: { code: "NOT_FOUND" } },
+      { error: { code: "invalid_input", field: "zip" } },
+      { status: "error", data: null, error: { code: "not_found" } },
     ])
       expect(checkResponse({ status: 200, body, items: [] })).toEqual([]);
     expect(
@@ -41,7 +41,7 @@ describe("surface sweep pass rule", () => {
     expect(
       checkResponse({
         status: 500,
-        body: { error: { code: "INTERNAL_ERROR" } },
+        body: { error: { code: "internal_error" } },
       }),
     ).toEqual(["http_5xx"]);
     // The old NY plan-key bug: MCP search_plans answered every loaded NY county like this.
@@ -51,7 +51,7 @@ describe("surface sweep pass rule", () => {
         body: {
           status: "error",
           data: null,
-          error: { code: "INTERNAL_HONESTY_CHECK", field: null },
+          error: { code: "internal_honesty_check", field: null },
         },
         items: [],
       }),
@@ -59,7 +59,7 @@ describe("surface sweep pass rule", () => {
     expect(
       checkResponse({
         status: 200,
-        body: { thrown: "INTERNAL_HONESTY_CHECK: plan_ref is not a plan key" },
+        body: { thrown: "internal_honesty_check: plan_ref is not a plan key" },
       }),
     ).toEqual(["internal_honesty_check"]);
     for (const body of [
@@ -98,7 +98,7 @@ describe("surface sweep pass rule", () => {
         body: {
           status: "error",
           data: null,
-          error: { code: "DATA_UNAVAILABLE", field: null, retryable: false },
+          error: { code: "data_unavailable", field: null, retryable: false },
         },
         items: [],
       }),
@@ -123,7 +123,7 @@ describe("surface sweep pass rule", () => {
     const dropped = {
       kind: "drug_coverage",
       status: "unknown",
-      gaps: ["SOURCE_METADATA_UNAVAILABLE"],
+      gaps: ["source_metadata_unavailable"],
     };
     const kept = { ...dropped, gaps: ["source_set_not_available"] };
     const listed = { kind: "participation", status: "listed_participating" };
@@ -151,9 +151,9 @@ describe("surface sweep pass rule", () => {
   });
 
   it("counts a gap as a reason, never the generic metadata gap", () => {
-    expect(reasonsIn({ gaps: ["SOURCE_METADATA_UNAVAILABLE"] })).toEqual([]);
+    expect(reasonsIn({ gaps: ["source_metadata_unavailable"] })).toEqual([]);
     expect(
-      reasonsIn({ gaps: ["SOURCE_METADATA_UNAVAILABLE", "not_run_budget"] }),
+      reasonsIn({ gaps: ["source_metadata_unavailable", "not_run_budget"] }),
     ).toEqual(["not_run_budget"]);
   });
 

@@ -23,7 +23,7 @@ export function createCalculationHost(
     scope: CalculationScope,
     calculate: (db: SqlSession, consumeOffer: () => void) => Promise<T>,
   ): Promise<T> {
-    if (!config.public.quoting) throw new Error("QUOTING_DISABLED");
+    if (!config.public.quoting) throw new Error("quoting_disabled");
     scope.signal.throwIfAborted();
     restrictCacheLevel("request");
     const budget = scope.budget ?? { remainingOffers: MAX_CALCULATION_OFFERS };

@@ -9,19 +9,19 @@
  * tools. Requests run in process against createApp and callTool; nothing is fetched.
  *
  * The pass rule is checkResponse in surface-sweep-logic.mjs: never a 5xx, never
- * INTERNAL_HONESTY_CHECK, never an empty answer without a reason code. Every failure is kept with
+ * internal_honesty_check, never an empty answer without a reason code. Every failure is kept with
  * its inputs in reports/surface-sweep.json under the data directory, grouped by class.
  *
  * Planted mutant: when a New York catalog is loaded, the sweep runs search_plans for New York
  * counties through a copy of the MCP tools whose projection reads a HIOS-shaped plan_key as a
- * state plan key (the old behavior), and fails unless that copy produces INTERNAL_HONESTY_CHECK.
+ * state plan key (the old behavior), and fails unless that copy produces internal_honesty_check.
  *
  * Loaded data beside the catalog: provider search per ZIP; provider detail, participation, drug
  * search and coverage for samples of each loaded state and year; the Medicare plan routes and the
  * Part D drug list for the plan keys the searches return. Part D serving is on and the drug-cost
  * estimator is off; its routes must refuse. A second planted mutant reports unknown
  * participation as not_listed, and check_provider_network through it must produce
- * INTERNAL_HONESTY_CHECK. scripts/oracle/README.md lists the rules.
+ * internal_honesty_check. scripts/oracle/README.md lists the rules.
  *
  * Each location also asks for ICHRA affordability under the look-back safe harbor, which prices
  * the employer's LCSP from January of the year before the plan year; that answer needs the prior
@@ -1052,7 +1052,7 @@ async function mutantTools(control) {
 
 /**
  * Runs MCP calls through a mutant copy of the tools; the mutant is caught when the calls produce
- * INTERNAL_HONESTY_CHECK. The calls do not count as sweep requests or failures.
+ * internal_honesty_check. The calls do not count as sweep requests or failures.
  */
 async function caughtBy(control, calls) {
   const mutant = await mutantTools(control);
@@ -1107,7 +1107,7 @@ async function plantedMutant(work) {
 /**
  * Provider-route mutant: a projection that reports an unknown participation answer as
  * `not_listed`, claiming the plan's directory was read in full. check_provider_network for the
- * first sampled identities of each loaded state must fail with INTERNAL_HONESTY_CHECK.
+ * first sampled identities of each loaded state must fail with internal_honesty_check.
  */
 async function plantedProviderMutant(work) {
   const calls = [];

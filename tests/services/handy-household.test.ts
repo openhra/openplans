@@ -523,7 +523,7 @@ it("retries the whole four-profile result on publication, then refuses repeated 
           ...enabled,
           fourProfiles: true,
         }),
-      ).rejects.toThrow("DATA_CHANGED");
+      ).rejects.toThrow("data_changed");
       expect(changed).toBe(2);
     } else {
       const result = await householdDistributions(publishing, preset, {

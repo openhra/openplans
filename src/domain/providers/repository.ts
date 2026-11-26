@@ -126,7 +126,7 @@ async function participationFromFiles(
       ...result,
       reason: "source_access_denied",
       manifest_snapshot_id: availability.snapshot_id,
-      warnings: ["SOURCE_ACCESS_DENIED"],
+      warnings: ["source_access_denied"],
     };
   const rows = (
     await db.query<
@@ -182,9 +182,9 @@ async function participationFromFiles(
   );
   const warnings = [
     ...(evidence.some((e) => e.tier_status === "unresolved")
-      ? ["UNRESOLVED_NETWORK_TIER"]
+      ? ["unresolved_network_tier"]
       : []),
-    ...(availability?.status !== "complete" ? ["SOURCE_INCOMPLETE"] : []),
+    ...(availability?.status !== "complete" ? ["source_incomplete"] : []),
   ];
   function participationReason() {
     if (status === "unknown") {

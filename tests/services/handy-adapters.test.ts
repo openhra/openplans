@@ -506,7 +506,7 @@ it("benchmark retries a publication and refuses repeated generation changes", as
       if (always)
         expect(result.structuredContent).toHaveProperty(
           "error.code",
-          "DATA_CHANGED",
+          "data_changed",
         );
       else {
         expect(result.structuredContent).toHaveProperty("slcsp_monthly_cents");

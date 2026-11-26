@@ -108,7 +108,12 @@ describe("household routes are open by default", () => {
         authorization: "Bearer wrong",
       });
       expect(wrong.status, path).toBe(401);
-      expect(await wrong.json()).toEqual({ error: { code: "UNAUTHORIZED" } });
+      expect(await wrong.json()).toEqual({
+        error: {
+          code: "unauthorized",
+          request_id: expect.any(String) as unknown,
+        },
+      });
       expect(wrong.headers.get("cache-control"), path).toBe("no-store");
       const authorized = await send(token, path, payload, {
         authorization: "Bearer synthetic-open-token",
@@ -118,7 +123,10 @@ describe("household routes are open by default", () => {
         const response = await send(closed, path, payload);
         expect(response.status, path).toBe(503);
         expect(await response.json()).toEqual({
-          error: { code: "AUTH_NOT_CONFIGURED" },
+          error: {
+            code: "auth_not_configured",
+            request_id: expect.any(String) as unknown,
+          },
         });
       }
     }
@@ -385,6 +393,7 @@ describe("no household request values in any log line", () => {
       if (entry.event !== "api_internal_error") return line;
       expect(entry).toEqual({
         event: "api_internal_error",
+        request_id: expect.stringMatching(/^[0-9a-f]{16}$/) as unknown,
         error_class: "Error",
         stack_hash: expect.stringMatching(/^[a-f0-9]{64}$/) as unknown,
       });

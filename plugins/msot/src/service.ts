@@ -34,7 +34,7 @@ function verify(candidate: Candidate, reader: CanonicalReader) {
     compiled.hash !== candidate.hash ||
     candidate.artifacts.some((a) => inputHash(a.text) !== a.sha256)
   )
-    throw new Error("MSOT_INPUT_CHANGED");
+    throw new Error("msot_input_changed");
   if (candidate.artifacts.length) {
     const refs = [
       ...candidate.source.fields.map((f) => `definition:${f.name}`),
@@ -50,7 +50,7 @@ function verify(candidate: Candidate, reader: CanonicalReader) {
           ),
       )
     )
-      throw new Error("MSOT_INPUT_PROVENANCE_REQUIRED");
+      throw new Error("msot_input_provenance_required");
   }
   return compiled;
 }
@@ -63,7 +63,7 @@ function expectHead(
     head.active_version !== expected.version ||
     head.activation_sequence !== expected.activation
   )
-    throw new Error("MSOT_EXPECTED_VERSION_CONFLICT");
+    throw new Error("msot_expected_version_conflict");
 }
 function transitions(before: Resolution | null, after: Resolution) {
   const groups = new Map<
@@ -147,7 +147,7 @@ export class VersionService {
     const code =
       error instanceof Error && /^MSOT_[A-Z_]+$/.test(error.message)
         ? error.message
-        : "MSOT_WRITE_FAILED";
+        : "msot_write_failed";
     // Rejections survive the failed transaction; an unavailable database cannot record them.
     await db
       .transaction(async (tx) => {
@@ -204,7 +204,7 @@ export class VersionService {
     const repo = new Repository(scope.db);
     const head = await repo.head(candidate.source.source_id);
     if (!this.reader.validateScopes)
-      throw new Error("MSOT_SCOPE_VALIDATION_REQUIRED");
+      throw new Error("msot_scope_validation_required");
     await this.reader.validateScopes(
       {
         year: input.year,
@@ -221,13 +221,13 @@ export class VersionService {
         head.active_version,
       );
       if (compileSource(stored.source, this.reader).hash !== stored.hash)
-        throw new Error("MSOT_INPUT_CHANGED");
+        throw new Error("msot_input_changed");
       before = await compileSource(stored.source, this.reader).resolve(
         input,
         scope,
       );
       if (before.msot.catalog_generation !== after.msot.catalog_generation)
-        throw new Error("MSOT_CATALOG_CHANGED");
+        throw new Error("msot_catalog_changed");
     }
     return {
       candidate_hash: candidate.hash,
@@ -256,9 +256,9 @@ export class VersionService {
             (r) => r.set_by !== meta.actor,
           )
         )
-          throw new Error("MSOT_ACTOR_MISMATCH");
+          throw new Error("msot_actor_mismatch");
         if (!candidate.artifacts.length)
-          throw new Error("MSOT_INPUT_PROVENANCE_REQUIRED");
+          throw new Error("msot_input_provenance_required");
         await new Repository(tx).insertDraft(
           draftId,
           candidate,
@@ -347,9 +347,9 @@ export class VersionService {
           head.activation_sequence !== receipt.expected_activation ||
           candidate.hash !== receipt.version_hash
         )
-          throw new Error("MSOT_PREVIEW_STALE");
+          throw new Error("msot_preview_stale");
         if (!this.reader.validateScopes)
-          throw new Error("MSOT_SCOPE_VALIDATION_REQUIRED");
+          throw new Error("msot_scope_validation_required");
         await this.reader.validateScopes(
           {
             year: receipt.input.year,
@@ -363,11 +363,11 @@ export class VersionService {
           signal,
         });
         if (resolved.msot.catalog_generation !== receipt.catalog_generation)
-          throw new Error("MSOT_PREVIEW_STALE");
+          throw new Error("msot_preview_stale");
         const { source, hash } = candidate;
         const latest = await repo.latestVersion(source.source_id);
         if (source.version !== latest + 1)
-          throw new Error("MSOT_VERSION_SEQUENCE_CONFLICT");
+          throw new Error("msot_version_sequence_conflict");
         await repo.insertVersion(candidate, meta.actor, now());
         signal.throwIfAborted();
         const final = await this.reader.plans(
@@ -378,7 +378,7 @@ export class VersionService {
           },
         );
         if (final.catalog_generation !== receipt.catalog_generation)
-          throw new Error("MSOT_PREVIEW_STALE");
+          throw new Error("msot_preview_stale");
         await repo.recordAudit(
           source.source_id,
           "publish",
@@ -433,9 +433,9 @@ export class VersionService {
         expectHead(head, expected);
         const stored = await repo.version(sourceId, version);
         if (compileSource(stored.source, this.reader).hash !== stored.hash)
-          throw new Error("MSOT_INPUT_CHANGED");
+          throw new Error("msot_input_changed");
         if (operation === "retire" && head.active_version !== version)
-          throw new Error("MSOT_ACTIVE_VERSION_REQUIRED");
+          throw new Error("msot_active_version_required");
         const previous =
           head.active_version === null
             ? null

@@ -93,7 +93,7 @@ export async function projector(db: SqlSession, native: unknown) {
     }
     return {
       evidence_refs: refs,
-      gaps: refs.length ? [] : ["SOURCE_METADATA_UNAVAILABLE"],
+      gaps: refs.length ? [] : ["source_metadata_unavailable"],
     };
   }
   function plan(value: unknown) {
@@ -447,7 +447,7 @@ export async function projector(db: SqlSession, native: unknown) {
   }
   function snapshot(id: string) {
     const s = metadata.get(id);
-    if (!s) throw new ToolError("SNAPSHOT_NOT_FOUND");
+    if (!s) throw new ToolError("snapshot_not_found");
     return {
       kind: "snapshot",
       ...s,

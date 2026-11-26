@@ -172,7 +172,7 @@ it("registers nothing when disabled or public quote access is off; direct host c
       offerCohortInputSchema.parse(input),
       { db: h.db, signal: new AbortController().signal },
     ),
-  ).rejects.toThrow("QUOTING_DISABLED");
+  ).rejects.toThrow("quoting_disabled");
 });
 
 it("keeps the private renewal route absent in public mode and operator protected when enabled", async () => {
@@ -311,7 +311,7 @@ it("kills disabled_quote_access mutant with the host authorization assertion", a
     const source = await readFile(original, "utf8");
     const mutant = replaceSyntax(
       source,
-      'if (!config.public.quoting) throw new Error("QUOTING_DISABLED");',
+      'if (!config.public.quoting) throw new Error("quoting_disabled");',
       "void config;",
     );
     const path = join(directory, "host.mjs");
@@ -328,7 +328,7 @@ it("kills disabled_quote_access mutant with the host authorization assertion", a
         signal: new AbortController().signal,
       });
     await expect(
-      expect(result).rejects.toThrow("QUOTING_DISABLED"),
+      expect(result).rejects.toThrow("quoting_disabled"),
     ).rejects.toThrow();
   } finally {
     await rm(directory, { recursive: true, force: true });

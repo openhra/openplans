@@ -7,9 +7,9 @@ export interface CensusRow<T = unknown> {
 }
 
 export class CensusRowsError extends Error {
-  readonly code = "INVALID_BATCH";
+  readonly code = "invalid_batch";
   constructor() {
-    super("INVALID_BATCH");
+    super("invalid_batch");
   }
 }
 

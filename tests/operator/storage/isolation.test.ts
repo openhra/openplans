@@ -110,7 +110,7 @@ it("keeps drafts, receipts, refusals and cleanup outside generation and warmed H
       ...meta("refusal"),
       actor: "synthetic-wrong-actor",
     }),
-  ).rejects.toThrow("MSOT_ACTOR_MISMATCH");
+  ).rejects.toThrow("msot_actor_mismatch");
   await generationUnchanged(before);
   await db.exec(
     "UPDATE plg_msot_draft SET actor=actor; UPDATE plg_msot_preview SET input=input; DELETE FROM plg_msot_preview; DELETE FROM plg_msot_draft; TRUNCATE plg_msot_audit",

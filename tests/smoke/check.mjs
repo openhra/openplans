@@ -137,7 +137,7 @@ switch (mode) {
     const body = await response.json();
     assert.equal(response.status, 404, JSON.stringify(body));
     assert.ok(
-      !["AUTH_NOT_CONFIGURED", "UNAUTHORIZED"].includes(body.error?.code),
+      !["auth_not_configured", "unauthorized"].includes(body.error?.code),
       "anonymous household request was refused",
     );
     assert.equal(response.headers.get("cache-control"), "no-store");
@@ -149,7 +149,7 @@ switch (mode) {
   case "unconfigured-token": {
     const response = await premium({});
     assert.equal(response.status, 503);
-    assert.equal((await response.json()).error.code, "AUTH_NOT_CONFIGURED");
+    assert.equal((await response.json()).error.code, "auth_not_configured");
     assert.equal(response.headers.get("cache-control"), "no-store");
     console.log(
       "negative control: household quotes off and no token refused (503)",
@@ -234,7 +234,7 @@ switch (mode) {
     assert.equal(geocode.reused, geocode.selected);
     const missing = await premium({});
     assert.equal(missing.status, 401);
-    assert.equal((await missing.json()).error.code, "UNAUTHORIZED");
+    assert.equal((await missing.json()).error.code, "unauthorized");
     const wrong = await premium({
       authorization: "Bearer deliberately-wrong-smoke-token",
     });

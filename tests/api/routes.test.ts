@@ -234,7 +234,7 @@ describe("native v1 catalog, geography and provenance", () => {
         .quotes[0];
       expect(premium).toMatchObject({
         status: "missing",
-        reason: "PLAN_NOT_OFFERED_IN_LOCATION",
+        reason: "plan_not_offered_in_location",
       });
       expect(premium).not.toHaveProperty("total_cents");
     });
@@ -283,6 +283,7 @@ describe("native v1 catalog, geography and provenance", () => {
     ).toHaveLength(4);
     expect(await (await app.request("/v1/carriers?state=NY")).json()).toEqual({
       status: "unknown",
+      reason: "catalog_not_loaded",
       carriers: [],
     });
     const manifest = (await (
@@ -541,7 +542,12 @@ describe("native v1 household gross premiums", () => {
       body: JSON.stringify(body()),
     });
     expect(response.status).toBe(401);
-    expect(await response.json()).toEqual({ error: { code: "UNAUTHORIZED" } });
+    expect(await response.json()).toEqual({
+      error: {
+        code: "unauthorized",
+        request_id: expect.any(String) as unknown,
+      },
+    });
     expect(
       (
         await createApp(db, { publicHousehold: false }).request(
@@ -626,7 +632,7 @@ describe("native v1 household gross premiums", () => {
     });
     expect(malformed.status).toBe(400);
     expect(await malformed.json()).toMatchObject({
-      error: { code: "INVALID_JSON" },
+      error: { code: "invalid_json" },
     });
   });
 });

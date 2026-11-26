@@ -188,11 +188,11 @@ it("missing membership/rule evidence and out-of-area plans never produce a price
     await tx.query("DELETE FROM business_rule WHERE base_plan_id=$1", [plan]);
     expect(await quote(tx)).toMatchObject({
       status: "unsupported_rating_method",
-      reason: "DENTAL_AGE_DETERMINATION_UNPROVED",
+      reason: "dental_age_determination_unproved",
     });
     expect(await quote(tx, [member(35)], plan, "36061")).toMatchObject({
       status: "missing",
-      reason: "PLAN_NOT_OFFERED_IN_LOCATION",
+      reason: "plan_not_offered_in_location",
     });
   }));
 it("negative control: NY/VT SADPs reject even a federal PUF catalog mislabelled as that state", async () => {

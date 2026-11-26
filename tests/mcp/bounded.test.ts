@@ -76,10 +76,10 @@ it("measures UTF-8 JSON bytes, escaping and the framing reserve at the inclusive
   expect(fitsOutput(value, { maxBytes: bytes })).toBe(true);
   expect(fitsOutput(value, { maxBytes: bytes - 1 })).toBe(false);
   expect(() => assertOutputFits("x".repeat(DEFAULT_OUTPUT_BYTES))).toThrow(
-    "RESULT_TOO_LARGE",
+    "result_too_large",
   );
   expect(() => assertOutputCount(100, 100)).not.toThrow();
-  expect(() => assertOutputCount(101, 100)).toThrow("RESULT_TOO_LARGE");
+  expect(() => assertOutputCount(101, 100)).toThrow("result_too_large");
 });
 
 it("pages complete rows in order, counts omissions and measures the updated cursor", () => {
@@ -129,13 +129,13 @@ it("leaves fitting answers byte-identical and refuses irreducible calculations a
   expect(JSON.stringify(output)).toBe(before);
   const calculation = { evidence: ["x".repeat(DEFAULT_OUTPUT_BYTES)] };
   expect(() => boundOutput(calculation, { groups: [] })).toThrow(
-    "RESULT_TOO_LARGE",
+    "result_too_large",
   );
   expect(() =>
     boundOutput(calculation, {
       groups: [{ rows: calculation.evidence, minimum: 1 }],
     }),
-  ).toThrow("RESULT_TOO_LARGE");
+  ).toThrow("result_too_large");
   expect(calculation.evidence).toHaveLength(1);
 });
 
@@ -156,7 +156,7 @@ it("negative control: a disabled byte check admits a planted oversize answer", a
     );
     const oversize = { synthetic: "x".repeat(DEFAULT_OUTPUT_BYTES) };
     const check = (assertFits: typeof assertOutputFits) =>
-      expect(() => assertFits(oversize)).toThrow("RESULT_TOO_LARGE");
+      expect(() => assertFits(oversize)).toThrow("result_too_large");
     check(assertOutputFits);
     expect(() => check(changed.assertOutputFits)).toThrow();
   } finally {

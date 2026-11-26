@@ -158,11 +158,12 @@ function docFiles(appRoot) {
   return files.filter((file) => existsSync(join(appRoot, file)));
 }
 
-const IDENTITY_LITERAL = /openplans\/\d+\.\d+\.\d+/g;
+/** Plain and regex-escaped spellings (a test that matches the agent with a RegExp escapes the slash and the dots). */
+const IDENTITY_LITERAL = /openplans\\*\/\d+\\*\.\d+\\*\.\d+/g;
 const IDENTITY_DIRS = ["src", "tests", "scripts", "plugins"];
 const IDENTITY_SKIP = new Set(["node_modules", "dist", "coverage", ".git"]);
 const IDENTITY_EXT = /\.(?:[cm]?[jt]sx?|py|json|md|sh|ya?ml)$/;
-/** Literals of the form openplans/MAJOR.MINOR.PATCH in sources. package.json, the lockfile and the changelog sit outside these folders. */
+/** Literals of the form openplans/MAJOR.MINOR.PATCH in sources, also with the slash and dots backslash-escaped. package.json, the lockfile and the changelog sit outside these folders. */
 export function identityLiterals(appRoot) {
   const hits = [];
   const walk = (dir) => {

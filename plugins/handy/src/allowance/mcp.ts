@@ -95,6 +95,6 @@ export function allowanceMcpAnswer(
     Buffer.byteLength(text) > 24 * 1024 ||
     Buffer.byteLength(framed) > 60 * 1024
   )
-    throw new Error("RESULT_TOO_LARGE");
+    throw new Error("result_too_large");
   return result;
 }

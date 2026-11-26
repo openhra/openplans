@@ -5,7 +5,7 @@ import { marketQuery } from "./input.js";
 export function marketForm(body: Record<string, unknown>) {
   const query = Object.fromEntries(
     Object.entries(body).map(([key, value]) => {
-      if (typeof value !== "string") throw new Error("INVALID_INPUT");
+      if (typeof value !== "string") throw new Error("invalid_input");
       return [key, value] as const;
     }),
   );
@@ -17,11 +17,11 @@ export function marketForm(body: Record<string, unknown>) {
     delete query[`relationship_${row}`];
     if (age === undefined && relationship === undefined) continue;
     if (age === "") continue;
-    if (!age || !/^\d+$/.test(age)) throw new Error("INVALID_INPUT");
+    if (!age || !/^\d+$/.test(age)) throw new Error("invalid_input");
     members.push({ age: Number(age), relationship });
   }
   if (members.length) {
-    if (query.members !== undefined) throw new Error("INVALID_INPUT");
+    if (query.members !== undefined) throw new Error("invalid_input");
     query.members = JSON.stringify(members);
   }
   for (const field of ["zip", "county"])
@@ -53,7 +53,7 @@ body{font:1rem/1.5 system-ui,sans-serif;max-width:50rem;margin:auto;padding:1rem
 }
 
 function errorMessage(code: string): string {
-  if (code === "INVALID_INPUT")
+  if (code === "invalid_input")
     return "Check the year, ZIP, county and ages. This public form refuses private employer and group inputs. Use only the fields shown on the form.";
   if (code === "generation_changed")
     return "The source data has changed. Restart the comparison to use current prices and sources together.";

@@ -66,10 +66,10 @@ export function dentalFamilyColumn(
     spouses.length > 1 ||
     aged.some((m) => m.member.relationship === "other")
   ) {
-    return { reason: "FAMILY_OPTION_MEMBERSHIP_NOT_DEFINED_FOR_HOUSEHOLD" };
+    return { reason: "family_option_membership_not_defined_for_household" };
   }
   if (subscribers[0]!.age < 18 || spouses.some((m) => m.age < 18))
-    return { reason: "FAMILY_OPTION_MINOR_SUBSCRIBER_MEMBERSHIP_UNPROVED" };
+    return { reason: "family_option_minor_subscriber_membership_unproved" };
   const dependents = aged.filter(
     (m) => m.member.relationship === "child",
   ).length;
@@ -133,11 +133,11 @@ export function dentalPremium(
       market,
     )
   ) {
-    return failure("unsupported_rating_method", "NO_APPLICABLE_DENTAL_RULE");
+    return failure("unsupported_rating_method", "no_applicable_dental_rule");
   }
   if (applicable.some((row) => row.stateCode !== state))
-    return failure("unsupported_rating_method", "DENTAL_STATE_SCOPE_MISMATCH");
-  if (!applicable.length) return failure("missing", "DENTAL_RATE_MISSING");
+    return failure("unsupported_rating_method", "dental_state_scope_mismatch");
+  if (!applicable.length) return failure("missing", "dental_rate_missing");
   // The importer preserves plan-level rules. Missing/conflicting evidence never inherits medical policy.
   const agreed = (field: string) => {
     const values = new Set(rules.map((r) => r.raw[field]));
@@ -146,7 +146,7 @@ export function dentalPremium(
   if (agreed("AgeDeterminationRule") !== "Age on effective date")
     return failure(
       "unsupported_rating_method",
-      "DENTAL_AGE_DETERMINATION_UNPROVED",
+      "dental_age_determination_unproved",
     );
   const children = aged.filter((m) => m.member.relationship === "child");
   if (children.length) {
@@ -158,7 +158,7 @@ export function dentalPremium(
     ) {
       return failure(
         "unsupported_rating_method",
-        "DENTAL_DEPENDENT_AGE_MEMBERSHIP_UNPROVED",
+        "dental_dependent_age_membership_unproved",
       );
     }
   }
@@ -181,7 +181,7 @@ export function dentalPremium(
     ) {
       return failure(
         "unsupported_rating_method",
-        "DENTAL_RELATIONSHIP_OR_COHABITATION_UNPROVED",
+        "dental_relationship_or_cohabitation_unproved",
       );
     }
   }
@@ -192,7 +192,7 @@ export function dentalPremium(
     if (family.length !== applicable.length)
       return failure(
         "unsupported_rating_method",
-        "MIXED_DENTAL_RATING_METHODS",
+        "mixed_dental_rating_methods",
       );
     // Family columns are contract totals; IndividualTobaccoRate is defined only for age rows.
     // Published NH Family Option rows leave Tobacco blank. That is not a missing age-row price.
@@ -205,14 +205,14 @@ export function dentalPremium(
     ) {
       return failure(
         "unsupported_rating_method",
-        "FAMILY_OPTION_TOBACCO_MEMBERSHIP_UNPROVED",
+        "family_option_tobacco_membership_unproved",
       );
     }
     const mapping = dentalFamilyColumn(household);
     if ("reason" in mapping)
       return failure("unsupported_rating_method", mapping.reason);
     if (family.length !== 1)
-      return failure("ambiguous", "MULTIPLE_DENTAL_FAMILY_ROWS");
+      return failure("ambiguous", "multiple_dental_family_rows");
     const row = family[0]!;
     const price =
       mapping.column === "IndividualRate"
@@ -236,7 +236,7 @@ export function dentalPremium(
   if (!capText || !/^[123]$/.test(capText))
     return failure(
       "unsupported_rating_method",
-      "DENTAL_CHILD_RATING_LIMIT_UNPROVED",
+      "dental_child_rating_limit_unproved",
     );
   return householdPremium(
     rows,

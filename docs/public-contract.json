@@ -85,11 +85,62 @@
       "note": "Pages a person can open; OpenPlans never fetches them. REST items also carry source_row; MCP items carry https URLs only."
     }
   },
+  "reasons": {
+    "rule": "Every unknown status says why: a reason beside it, drawn from this list. Lower snake case.",
+    "codes": [
+      "benefits_not_published",
+      "catalog_not_loaded",
+      "cost_sharing_not_published",
+      "county_scoped_zip3_cross_county_prefixes_ambiguous",
+      "dispensing_fee_unknown",
+      "dispensing_fees_not_loaded",
+      "issuer_not_loaded",
+      "location_requires_zip",
+      "maximum_fair_price_not_in_effect",
+      "network_not_published",
+      "parameters_unconfirmed",
+      "plan_metadata_not_published",
+      "premium_not_available",
+      "pricing_not_loaded",
+      "rating_method_unsupported",
+      "sbe_no_index_registry",
+      "source_set_not_available",
+      "state_catalog_not_loaded",
+      "state_or_filed_rating_method_unsupported",
+      "template_saved_before_submission",
+      "unresolved_rating_area",
+      "zip_limited_service_area",
+      "zip_not_in_loaded_geography"
+    ]
+  },
+  "readiness": {
+    "routes": ["/healthz", "/readyz"],
+    "ready_fields": {
+      "release": "string",
+      "generation": "string|null",
+      "pricing": "string|null",
+      "plan_years": "integer[]",
+      "schema": "integer|null"
+    },
+    "mcp_tool": "get_data_status",
+    "mcp_field": "release",
+    "note": "A ready /readyz answer, and a /healthz answer that is healthy and not waiting for migrations, carry these fields. A 503 answer never does. release is the package version read once at startup; generation and pricing are the ids a release check compares across slots, null when unreadable; plan_years is the served window; schema counts applied migration files, null when the process runs no migration check."
+  },
+  "request_id": {
+    "header": "x-request-id",
+    "error_member": "request_id",
+    "max_length": 128,
+    "accepted_pattern": "^[\\x21-\\x7e]{1,128}$",
+    "generated_pattern": "^[0-9a-f]{16}$",
+    "note": "Every API and MCP HTTP response carries the header. A client-sent value of 1 to 128 visible ASCII characters is echoed; anything else is replaced with a generated 16 hex digit id. Every REST error body carries the same value as error.request_id."
+  },
   "errors": {
     "rest": {
       "envelope": "error",
       "required": { "code": "string" },
-      "optional": { "field": "string" }
+      "optional": { "field": "string", "hint": "string" },
+      "code_pattern": "^[a-z][a-z0-9]*(_[a-z0-9]+)*$",
+      "note": "Every REST route family answers with this one body, the compatibility routes included. Codes are lower snake case. A route may add typed members such as plan_id or year beside these. error.request_id repeats the x-request-id response header (see request_id)."
     },
     "jsonrpc": {
       "envelope": "error",

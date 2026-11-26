@@ -1,3 +1,6 @@
+import { apiError } from "../api/errors.js";
+import { currentRequestId } from "../api/request-id.js";
+import type { ApiErrorBody } from "../api/errors.js";
 import type { CoreConfig } from "../config/index.js";
 import { currentEnvironment } from "../config/index.js";
 import { activeRecorder } from "../telemetry/observer.js";
@@ -52,6 +55,8 @@ export interface McpLog {
   timing_ms: number;
   bytes: number;
   cache: CacheOutcome;
+  /** The `x-request-id` of this request; null when served outside the REST app. */
+  request_id: string | null;
 }
 export interface HttpOptions {
   config?: CoreConfig;
@@ -85,9 +90,14 @@ function failure(
   message: string,
   headers?: HeadersInit,
   id: RequestId | null = null,
+  data?: ApiErrorBody["error"],
 ) {
   return Response.json(
-    { jsonrpc: "2.0", id, error: { code, message } },
+    {
+      jsonrpc: "2.0",
+      id,
+      error: { code, message, ...(data ? { data } : {}) },
+    },
     { status, headers },
   );
 }
@@ -213,6 +223,7 @@ export function createMcpHttp(db: SqlSession, options: HttpOptions = {}) {
         timing_ms: Math.max(0, now() - started),
         bytes,
         cache: cacheOutcome,
+        request_id: currentRequestId() ?? null,
       });
     };
     let rejectAbort: (reason: Error) => void;
@@ -244,9 +255,18 @@ export function createMcpHttp(db: SqlSession, options: HttpOptions = {}) {
       );
       if (!admission.allowed) {
         status = 429;
-        return failure(status, -32000, "Rate limit exceeded", {
-          "Retry-After": String(admission.retryAfterSeconds),
-        });
+        return failure(
+          status,
+          -32000,
+          "Rate limit exceeded",
+          { "Retry-After": String(admission.retryAfterSeconds) },
+          null,
+          apiError(
+            "rate_limited",
+            undefined,
+            "Retry after the Retry-After header's seconds.",
+          ).error,
+        );
       }
       if (
         c.req.header("content-type")?.split(";")[0]?.trim().toLowerCase() !==
@@ -396,7 +416,7 @@ export function createMcpHttp(db: SqlSession, options: HttpOptions = {}) {
         // Like the HTTP estimate route: no token configured means no grant can be verified.
         if (!config.tokens.mcp) {
           status = 503;
-          return failure(status, -32000, "AUTH_NOT_CONFIGURED", undefined, id);
+          return failure(status, -32000, "auth_not_configured", undefined, id);
         }
         status = 401;
         return failure(

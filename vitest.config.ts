@@ -52,7 +52,11 @@ export const isolatedOracles = [
 export default defineConfig({
   plugins: [fileUrlSources],
   test: {
-    setupFiles: ["tests/postgres.setup.ts", "tests/response-columns.setup.ts"],
+    setupFiles: [
+      "tests/postgres.setup.ts",
+      "tests/response-columns.setup.ts",
+      "tests/no-network.setup.ts",
+    ],
     pool: "forks",
     maxWorkers: testWorkers(),
     // Vitest 5 clears mock calls before every test by default; keep them as earlier versions did.

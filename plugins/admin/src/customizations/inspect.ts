@@ -53,11 +53,11 @@ async function boundedText(c: Context<PluginRouteEnv>): Promise<string | null> {
 
 async function boundedJson(c: Context<PluginRouteEnv>) {
   const body = await boundedText(c);
-  if (body === null) return { error: "INSPECT_BODY_TOO_LARGE" as const };
+  if (body === null) return { error: "inspect_body_too_large" as const };
   try {
     return JSON.parse(body) as unknown;
   } catch {
-    return { error: "INSPECT_INVALID_JSON" as const };
+    return { error: "inspect_invalid_json" as const };
   }
 }
 
@@ -89,7 +89,7 @@ export const registerInspect: AdminPageRegistrar = (dependencies) => {
       if (isForm) {
         const raw = await boundedText(c);
         if (raw === null)
-          return c.json({ error: { code: "INSPECT_BODY_TOO_LARGE" } }, 413);
+          return c.json({ error: { code: "inspect_body_too_large" } }, 413);
         const form = new URLSearchParams(raw);
         body = {
           field: "custom_payment_allowed",
@@ -107,11 +107,11 @@ export const registerInspect: AdminPageRegistrar = (dependencies) => {
       if (body && typeof body === "object" && "error" in body)
         return c.json(
           { error: { code: body.error } },
-          body.error === "INSPECT_BODY_TOO_LARGE" ? 413 : 400,
+          body.error === "inspect_body_too_large" ? 413 : 400,
         );
       const input = inspectInputSchema.safeParse(body);
       if (!input.success)
-        return c.json({ error: { code: "INSPECT_INVALID_INPUT" } }, 400);
+        return c.json({ error: { code: "inspect_invalid_input" } }, 400);
       try {
         const observation = await inspectAnnotation(
           dependencies.operator.msot,

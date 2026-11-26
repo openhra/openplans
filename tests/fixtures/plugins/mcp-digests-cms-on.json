@@ -1,7 +1,7 @@
 {
   "initialize-anonymous": {
     "status": 200,
-    "body_sha256": "3a6e4786dfbe92fe91377b1ffbcd88c8fd905f80ae7f572d1b58638e6d1060ee",
+    "body_sha256": "e231682da91f6b5bd211baa8e070f60dd44b24198b555cf60dd760b1b8100c77",
     "headers": {
       "content-type": "text/event-stream",
       "cache-control": "no-store",
@@ -12,7 +12,7 @@
   },
   "tools-list-anonymous": {
     "status": 200,
-    "body_sha256": "32211f480b2bcffd8e8c066865bd8ae0e7f6e2604f2f6987bb33632b03cc99bb",
+    "body_sha256": "051f116380940c810a46886c6add69d4325550f3d46d5d597c8acbaa2c25b9ec",
     "headers": {
       "content-type": "application/json",
       "cache-control": "no-store",
@@ -23,7 +23,7 @@
   },
   "initialize-granted": {
     "status": 200,
-    "body_sha256": "3a6e4786dfbe92fe91377b1ffbcd88c8fd905f80ae7f572d1b58638e6d1060ee",
+    "body_sha256": "e231682da91f6b5bd211baa8e070f60dd44b24198b555cf60dd760b1b8100c77",
     "headers": {
       "content-type": "text/event-stream",
       "cache-control": "no-store",
@@ -34,7 +34,7 @@
   },
   "tools-list-granted": {
     "status": 200,
-    "body_sha256": "5a01ed7389fa4e3f1abb8594243ba9e54a32f8682d672350c668ec3af7f3bfcb",
+    "body_sha256": "9b53382c96877419f44db2951b147f9faab3e802ebde5f1574bb33d46680df94",
     "headers": {
       "content-type": "application/json",
       "cache-control": "no-store",
@@ -45,7 +45,7 @@
   },
   "call-check_drug_coverage": {
     "status": 200,
-    "body_sha256": "463e00676d576912cb51b2d144950ba54b72464effdec551fdb0aaba8e3f6f10",
+    "body_sha256": "f5182a191120438c8ebbb756c6d7abcfcde3622504e6f0b95eff1a498f50d1fd",
     "headers": {
       "content-type": "application/json",
       "cache-control": "no-store",
@@ -89,7 +89,7 @@
   },
   "call-get_data_status": {
     "status": 200,
-    "body_sha256": "c42d8eea0d709bd7640edf942bce2523e7775282d18276880bfeb373047345fe",
+    "body_sha256": "e2f55d695a60cbb6b8e98feb328d9c7394d2b5c62a8a53dc46107db872a87f48",
     "headers": {
       "content-type": "application/json",
       "cache-control": "no-store",
@@ -221,7 +221,7 @@
   },
   "call-check_drug_coverage-anonymous": {
     "status": 200,
-    "body_sha256": "463e00676d576912cb51b2d144950ba54b72464effdec551fdb0aaba8e3f6f10",
+    "body_sha256": "f5182a191120438c8ebbb756c6d7abcfcde3622504e6f0b95eff1a498f50d1fd",
     "headers": {
       "content-type": "application/json",
       "cache-control": "no-store",
@@ -254,7 +254,7 @@
   },
   "call-get_data_status-anonymous": {
     "status": 200,
-    "body_sha256": "aeac088e076ff8173be8c0dee713fcf82eb4eb8aa0c600b50cee38966d451589",
+    "body_sha256": "cff5c6b15afcc63eb1d7b9b5ea13aea9c9bcd74bc517b9021ebd907e66be3f52",
     "headers": {
       "content-type": "application/json",
       "cache-control": "no-store",

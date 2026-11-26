@@ -27,7 +27,7 @@ The amount is a gross on-exchange individual medical premium. It excludes subsid
 
 `POST /v1/lowest-premiums` and `POST /v1/market-summary` accept one to ten explicit members under the existing household admission policy. Each member needs age, relationship and tobacco. These requests rate the whole household, including filed family tiers where supported. They do not sum each member's cheapest plan. Household results remain uncached. Their evidence pages contain two detail rows plus the selected minimum and maximum evidence. Follow `next_evidence_page` for the rest. In household rating evidence, each member's `rate_row_refs` indexes that rating's complete `rate_rows_used` array. Shared rows keep their source snapshots and row numbers.
 
-MCP adds `get_lowest_premiums`, `get_market_summary` and `get_benchmark`. The first two follow public quoting; member inputs and the benchmark also require household access. Results must fit the 128 KiB transport budget. An oversized household, benchmark or summary result refuses with `RESULT_TOO_LARGE`. Single-age minimums mark omitted detail rows and provide evidence pagination.
+MCP adds `get_lowest_premiums`, `get_market_summary` and `get_benchmark`. The first two follow public quoting; member inputs and the benchmark also require household access. Results must fit the 128 KiB transport budget. An oversized household, benchmark or summary result refuses with `result_too_large`. Single-age minimums mark omitted detail rows and provide evidence pagination.
 
 ## Source scope
 

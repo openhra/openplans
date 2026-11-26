@@ -49,12 +49,12 @@ export const providerNetwork = {
 
 export function medicareYear(value: unknown): number {
   const parsed = v.year(value);
-  if (parsed < 2006 || parsed > 2100) return v.fail("year", "INVALID_YEAR");
+  if (parsed < 2006 || parsed > 2100) return v.fail("year", "invalid_year");
   return parsed;
 }
 export function planKey(value: unknown): PlanKey {
   const key = parsePlanKey(value);
-  if (!key) return v.fail("plan_key", "INVALID_PLAN_KEY");
+  if (!key) return v.fail("plan_key", "invalid_plan_key");
   return key;
 }
 
@@ -257,7 +257,7 @@ async function resolveCounty(db: SqlSession, params: Record<string, string>) {
       counties: [] as unknown[],
     };
   }
-  if (params.zip === undefined) return v.fail("zip", "ZIP_OR_COUNTY_REQUIRED");
+  if (params.zip === undefined) return v.fail("zip", "zip_or_county_required");
   const located = await zipToCounties(db, v.zip(params.zip));
   const counties = located.counties.map((county) => ({
     county_fips: county.county_fips,
@@ -433,7 +433,7 @@ async function partialCounties(
 
 async function planRow(db: SqlSession, key: PlanKey, year: number) {
   const landscape = await activeRelease(db, "landscape", year);
-  if (!landscape) throw new ReadError({ code: "CATALOG_NOT_LOADED", year });
+  if (!landscape) throw new ReadError({ code: "catalog_not_loaded", year });
   const pbp = await activeRelease(db, "pbp", year);
   const row = (
     await db.query<PlanRow>(
@@ -453,7 +453,7 @@ async function planRow(db: SqlSession, key: PlanKey, year: number) {
   ).rows[0];
   if (!row)
     throw new ReadError({
-      code: "PLAN_NOT_FOUND",
+      code: "plan_not_found",
       plan_id: formatPlanKey(key),
       year,
     });

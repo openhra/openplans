@@ -48,7 +48,7 @@ it("negative controls: rejects fake counties and a real county outside a single-
     { zip: "77002", county: "12069" },
   ]) {
     await expect(resolveLocation(h.db, input)).rejects.toMatchObject({
-      code: "ZIP_COUNTY_MISMATCH",
+      code: "zip_county_mismatch",
       field: "county",
     });
   }
@@ -81,7 +81,7 @@ it("negative control: a removed intersection cannot be accepted from the other c
         );
         await expect(
           resolveLocation(tx, { zip: "34787", county: "12069" }),
-        ).rejects.toMatchObject({ code: "ZIP_COUNTY_MISMATCH" });
+        ).rejects.toMatchObject({ code: "zip_county_mismatch" });
         throw marker;
       }),
     ).rejects.toBe(marker);
@@ -114,7 +114,7 @@ it("does not require a raw-cache mount or invent an intersection when the snapsh
     });
     await expect(
       resolveLocation(h.db, { zip: "34787", county: "12069" }),
-    ).rejects.toMatchObject({ code: "ZIP_COUNTY_MISMATCH" });
+    ).rejects.toMatchObject({ code: "zip_county_mismatch" });
   } finally {
     await rename(h.path + ".held", h.path);
   }

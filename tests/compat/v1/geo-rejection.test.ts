@@ -71,7 +71,11 @@ it("negative controls: invalid county and single-county ZIP mismatch remain HTTP
     const response = await search(zip!, county!);
     expect(response.status).toBe(400);
     expect(await response.json()).toEqual({
-      error: { code: "ZIP_COUNTY_MISMATCH", field: "county" },
+      error: {
+        code: "zip_county_mismatch",
+        field: "county",
+        request_id: expect.any(String) as unknown,
+      },
     });
   }
 });

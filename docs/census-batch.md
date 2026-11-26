@@ -65,7 +65,7 @@ optional source.
 
 Postgres uses one read-only repeatable-read session for the whole batch.
 Providers without request transactions compare the public generation before and
-after all reads, retry the entire batch once and refuse `GENERATION_CHANGED` if
+after all reads, retry the entire batch once and refuse `generation_changed` if
 it changes again. Fatal reads and the 15-second deadline return a batch error,
 without a partial result. Results over 1 MiB are refused; split the batch.
 Requests are capped at 64 KiB. The installation admits at most 30 employee rows

@@ -95,6 +95,7 @@ export async function searchPlans(
     const options = { csrVariant };
     return withCatalogPolicyContext({
       status: active.rows.length ? "available" : "unknown",
+      ...(active.rows.length ? {} : { reason: "catalog_not_loaded" }),
       year,
       market: market.toLowerCase(),
       location,
@@ -141,7 +142,7 @@ export async function getPlan(
     !plan ||
     (id.variant !== null && !(await variantExists(db, plan, id.full)))
   )
-    throw new ReadError({ code: "PLAN_NOT_FOUND", plan_id: id.full, year });
+    throw new ReadError({ code: "plan_not_found", plan_id: id.full, year });
   await guardCatalogPlans([id.full], year);
   const csrVariant = v.csrVariant(params.csr_variant);
   v.checkVariant(id.base, csrVariant, id.variant);
@@ -182,7 +183,7 @@ export async function estimatePremiums(db: SqlSession, body: unknown) {
     const plan = found[index];
     if (!plan || !exists[index])
       throw new ReadError({
-        code: "PLAN_NOT_FOUND",
+        code: "plan_not_found",
         plan_id: id.full,
         year: request.year,
       });
@@ -227,7 +228,7 @@ export async function listCarriersNetworks(
   params: Record<string, string>,
 ) {
   if (catalogPolicyActive())
-    throw new ReadError({ code: "MSOT_OPERATION_UNSUPPORTED" });
+    throw new ReadError({ code: "msot_operation_unsupported" });
   const state = v.state(params.state),
     year = params.year === undefined ? null : v.year(params.year);
   if (year !== null) await requireAnnualYear(db, year);
@@ -236,5 +237,9 @@ export async function listCarriersNetworks(
     await directoryRows(db, kind, state, year),
     (row) => Number(row.plan_year),
   );
-  return { status: rows.length ? "available" : "unknown", [kind]: rows };
+  return {
+    status: rows.length ? "available" : "unknown",
+    ...(rows.length ? {} : { reason: "catalog_not_loaded" }),
+    [kind]: rows,
+  } as { status: string; reason?: string } & Record<typeof kind, typeof rows>;
 }

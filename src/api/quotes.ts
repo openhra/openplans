@@ -1,3 +1,4 @@
+import { apiError } from "./errors.js";
 import { timingSafeEqual } from "node:crypto";
 import { Hono } from "hono";
 import type { Context, MiddlewareHandler } from "hono";
@@ -70,7 +71,7 @@ export function anonymousAdmission(options: QuoteOptions): MiddlewareHandler {
 
 function quotingDisabled(c: Context) {
   c.header("Cache-Control", "no-store");
-  return c.json({ error: { code: "QUOTING_DISABLED" } }, 503);
+  return c.json(apiError("quoting_disabled"), 503);
 }
 /** Runs before the response cache, so cached answers count against the same limits. */
 export function publicQuoteAdmission(
@@ -85,14 +86,13 @@ export function publicQuoteAdmission(
 
 export const jsonBodyLimit = bodyLimit({
   maxSize: MAX_BODY_BYTES,
-  onError: (c) =>
-    c.json({ error: { code: "REQUEST_TOO_LARGE", field: "body" } }, 400),
+  onError: (c) => c.json(apiError("request_too_large", "body"), 400),
 });
 export async function jsonBody(c: Context): Promise<unknown> {
   try {
     return await c.req.json();
   } catch {
-    return v.fail("body", "INVALID_JSON");
+    return v.fail("body", "invalid_json");
   }
 }
 function authorized(header: string | undefined, token: string): boolean {
@@ -113,9 +113,9 @@ export function personalizedOnly(options: QuoteOptions): MiddlewareHandler {
     c.header("Cache-Control", "no-store");
     if (admission) return admission(c, next);
     if (!options.premiumToken)
-      return c.json({ error: { code: "AUTH_NOT_CONFIGURED" } }, 503);
+      return c.json(apiError("auth_not_configured"), 503);
     if (!authorized(c.req.header("authorization"), options.premiumToken))
-      return c.json({ error: { code: "UNAUTHORIZED" } }, 401);
+      return c.json(apiError("unauthorized"), 401);
     await next();
   };
 }
@@ -156,8 +156,7 @@ export function quoteRoutes(
       deadline.throwIfAborted();
       return c.json(result);
     } catch (error) {
-      if (deadline.aborted)
-        return c.json({ error: { code: "REQUEST_DEADLINE" } }, 504);
+      if (deadline.aborted) return c.json(apiError("request_deadline"), 504);
       throw error;
     }
   });
@@ -175,8 +174,7 @@ export function quoteRoutes(
       );
       return c.json({ quotes: estimates });
     } catch (error) {
-      if (deadline.aborted)
-        return c.json({ error: { code: "REQUEST_DEADLINE" } }, 504);
+      if (deadline.aborted) return c.json(apiError("request_deadline"), 504);
       throw error;
     }
   });

@@ -125,7 +125,7 @@ describe("in-process MCP public catalog and estimates", () => {
       year: 2026,
       section: "documents",
     });
-    expect(docs.notes).toContain("DOCUMENT_EVIDENCE_UNAVAILABLE");
+    expect(docs.notes).toContain("document_evidence_unavailable");
     expect(docs.data?.records).toEqual([]);
     const geography = await h.call("lookup_geography", { zip: "75034" });
     expect(geography.status).toBe("ambiguous");
@@ -159,7 +159,7 @@ describe("in-process MCP public catalog and estimates", () => {
     expect(fetched.data?.records[0]).toEqual(detail.data?.plan);
     const noScope = await h.call("search", { query: "health", entity: "plan" });
     expect(noScope.data?.scope_gaps).toContain(
-      "PLAN_SEARCH_REQUIRES_YEAR_AND_LOCATION",
+      "plan_search_requires_year_and_location",
     );
     for (const id of [
       "https://example.com/",
@@ -169,7 +169,7 @@ describe("in-process MCP public catalog and estimates", () => {
       "plan:2026:..%2Fsecret",
     ]) {
       expect((await h.call("fetch", { id }, true)).error?.code).toBe(
-        "INVALID_FETCH_ID",
+        "invalid_fetch_id",
       );
     }
   });
@@ -259,7 +259,7 @@ describe("in-process MCP public catalog and estimates", () => {
           true,
         )
       ).error?.code,
-    ).toBe("INVALID_CURSOR");
+    ).toBe("invalid_cursor");
     expect(
       (
         await h.call(
@@ -273,7 +273,7 @@ describe("in-process MCP public catalog and estimates", () => {
           true,
         )
       ).error?.code,
-    ).toBe("INVALID_CURSOR");
+    ).toBe("invalid_cursor");
     const other = await connect({ db });
     try {
       expect(
@@ -289,7 +289,7 @@ describe("in-process MCP public catalog and estimates", () => {
             true,
           )
         ).error?.code,
-      ).toBe("INVALID_CURSOR");
+      ).toBe("invalid_cursor");
     } finally {
       await other.close();
     }
@@ -309,7 +309,7 @@ describe("in-process MCP public catalog and estimates", () => {
           true,
         )
       ).error?.code,
-    ).toBe("CURSOR_EXPIRED");
+    ).toBe("cursor_expired");
     let time = 1000;
     const codec = cursorCodec("synthetic-cursor-key", () => time),
       binding = {
@@ -320,9 +320,9 @@ describe("in-process MCP public catalog and estimates", () => {
       };
     const old = codec.issue(binding, 7);
     time += 900_001;
-    expect(() => codec.read(old, binding)).toThrow("CURSOR_EXPIRED");
+    expect(() => codec.read(old, binding)).toThrow("cursor_expired");
     const mutant = cursorCodec("different-synthetic-key");
-    expect(() => mutant.read(old, binding)).toThrow("INVALID_CURSOR");
+    expect(() => mutant.read(old, binding)).toThrow("invalid_cursor");
   });
   it("omits estimates anonymously and rechecks a policy revoked after registration", async () => {
     let allowed = true;
@@ -358,7 +358,7 @@ describe("in-process MCP public catalog and estimates", () => {
             true,
           )
         ).error?.code,
-      ).toBe("AUTH_REQUIRED");
+      ).toBe("auth_required");
     } finally {
       await restricted.close();
       await anonymous.close();
@@ -447,7 +447,7 @@ describe("in-process MCP public catalog and estimates", () => {
           year: 2026,
           section: "benefits",
         });
-        expect(result.structuredContent.error?.code).toBe("RESULT_TOO_LARGE");
+        expect(result.structuredContent.error?.code).toBe("result_too_large");
         expect(result.isError).toBe(true);
         throw sentinel;
       }),

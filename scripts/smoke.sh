@@ -329,10 +329,10 @@ try {
     await db.query("INSERT INTO rating_area_zip VALUES ('AK','995','Rating Area 2',2026,$1,999999)",[original.snapshot_id]);
     const ambiguous=await quote(loc);
     for (const e of ambiguous) {
-      assert.equal(e.status,'ambiguous'); assert.equal(e.reason,'UNRESOLVED_RATING_AREA'); assert.ok(!('total_cents' in e));
+      assert.equal(e.status,'ambiguous'); assert.equal(e.reason,'unresolved_rating_area'); assert.ok(!('total_cents' in e));
     }
     const plans=await get('/v1/plans?zip=99501&year=2026');
-    for (const p of plans.plans) assert.deepEqual(p.premium_availability,{status:'ambiguous',reason:'UNRESOLVED_RATING_AREA'});
+    for (const p of plans.plans) assert.deepEqual(p.premium_availability,{status:'ambiguous',reason:'unresolved_rating_area'});
     results.synthetic_ambiguous_zip3={rejected:true,estimates:ambiguous};
     console.log('negative control: synthetic ZIP3 995 -> two areas is ambiguous; no premiums');
   } finally {

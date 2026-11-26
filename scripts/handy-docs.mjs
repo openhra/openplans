@@ -54,7 +54,7 @@ MCP \`get_lowest_premiums\` and \`get_market_summary\` also accept members, with
 Household evidence pages contain two detail rows plus the selected minimum/maximum evidence. Follow \`next_evidence_page\` to inspect the remaining rows. Member \`rate_row_refs\` index the complete \`rating.rate_rows_used\` table within that evidence record.
 Supply either a single age or members. Household tie pages contain 50 IDs; candidate evidence uses
 \`evidence_page\` with 10 rows per page plus the selected extremes. Evidence references resolve within each page.
-An oversized MCP result returns \`RESULT_TOO_LARGE\` rather than dropping required evidence.
+An oversized MCP result returns \`result_too_large\` rather than dropping required evidence.
 
 MCP \`get_benchmark\` takes \`year\`, \`location: {zip, county}\` and 1 to 100 integer \`ages\`.
 It follows household access rules and the same feature switch. Its result preserves the existing

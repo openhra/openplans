@@ -38,6 +38,13 @@ vi.mock("node:crypto", async (importOriginal) => {
   };
 });
 
+// The package version reaches the bodies (release facts, MCP identity) and the pricing source
+// hash. Pin it to a fixed value here, the one place these digests are produced, so a release
+// bump re-records nothing. Every other byte stays in the digest.
+vi.mock("../../src/mcp/version.js", () => ({
+  applicationVersion: "0.0.0-digest-fixture",
+}));
+
 type HttpEntry = {
   id: string;
   method: string;
@@ -144,6 +151,8 @@ interface RpcBody {
 }
 function request(entry: HttpEntry): RequestInit {
   const headers = new Headers(entry.headers);
+  // A fixed id keeps error bodies, which carry it, byte-stable.
+  headers.set("x-request-id", "synthetic-request-id");
   if (entry.auth)
     headers.set(
       "authorization",
@@ -385,7 +394,9 @@ it("covers every mounted route and MCP tool with unique, traceable requests", as
         expect(denied.status).toBe(404);
         expect(denied.headers.get("cache-control")).toBe("no-store");
         expect(denied.headers.get("x-cache")).toBe("bypass");
-        expect(await denied.json()).toEqual({ error: { code: "NOT_FOUND" } });
+        expect(await denied.json()).toEqual({
+          error: { code: "not_found", request_id: "synthetic-request-id" },
+        });
       }
       continue;
     }

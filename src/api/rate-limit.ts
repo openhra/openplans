@@ -1,3 +1,4 @@
+import { apiError } from "./errors.js";
 import { getConnInfo } from "@hono/node-server/conninfo";
 import type { Context, MiddlewareHandler } from "hono";
 
@@ -77,7 +78,7 @@ export interface SourceAdmissionOptions {
 function rateLimited(c: Context, retryAfterSeconds: number) {
   c.header("Cache-Control", "no-store");
   c.header("Retry-After", String(retryAfterSeconds));
-  return c.json({ error: { code: "RATE_LIMITED" } }, 429);
+  return c.json(apiError("rate_limited"), 429);
 }
 
 /** Per-source window plus per-source and total concurrency for one route. */

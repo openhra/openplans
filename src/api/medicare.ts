@@ -1,3 +1,4 @@
+import { apiError } from "./errors.js";
 import { Hono } from "hono";
 import type { MiddlewareHandler } from "hono";
 import { bodyLimit } from "hono/body-limit";
@@ -24,20 +25,20 @@ import * as v from "./validation.js";
 /**
  * The personalized-estimate grant for HTTP is the operator's API Bearer token. Unlike the household
  * routes this never opens to anonymous callers. With no token configured the route answers
- * AUTH_NOT_CONFIGURED. Responses are never stored by HTTP caches.
+ * auth_not_configured. Responses are never stored by HTTP caches.
  */
 export function estimateGrant(options: QuoteOptions): MiddlewareHandler {
   return async (c, next) => {
     c.header("Cache-Control", "no-store");
     if (!options.premiumToken)
-      return c.json({ error: { code: "AUTH_NOT_CONFIGURED" } }, 503);
+      return c.json(apiError("auth_not_configured"), 503);
     if (
       !credentialMatches(
         c.req.header("authorization"),
         `Bearer ${options.premiumToken}`,
       )
     )
-      return c.json({ error: { code: "UNAUTHORIZED" } }, 401);
+      return c.json(apiError("unauthorized"), 401);
     await next();
   };
 }
@@ -56,8 +57,7 @@ export const medicareRouteDeps: MedicareRouteDeps = {
 
 const estimateBodyLimit = bodyLimit({
   maxSize: 65_536,
-  onError: (c) =>
-    c.json({ error: { code: "REQUEST_TOO_LARGE", field: "body" } }, 400),
+  onError: (c) => c.json(apiError("request_too_large", "body"), 400),
 });
 
 /**
@@ -110,7 +110,7 @@ export function medicareRoutes(
     try {
       body = await c.req.json();
     } catch {
-      return v.fail("body", "INVALID_JSON");
+      return v.fail("body", "invalid_json");
     }
     return c.json(
       await estimateMedicareDrugCost(

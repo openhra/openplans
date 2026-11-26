@@ -57,10 +57,10 @@ export async function findProviders(
     await guardCatalogPlans([id.full], q.year);
     const plan = await findPlan(db, id.base, q.year);
     if (!plan || (id.variant && !(await variantExists(db, plan, id.full))))
-      throw new ReadError({ code: "PLAN_NOT_FOUND" });
+      throw new ReadError({ code: "plan_not_found" });
   } else if (params.year !== undefined) providerYear(params.year);
   if (params.taxonomy !== undefined && params.specialty !== undefined)
-    return v.fail("taxonomy", "TAXONOMY_OR_SPECIALTY_REQUIRED");
+    return v.fail("taxonomy", "taxonomy_or_specialty_required");
   for (const field of ["taxonomy", "specialty", "name"] as const) {
     if (params[field] !== undefined) {
       if (!params[field]!.trim() || params[field]!.length > 200)
@@ -121,7 +121,7 @@ export async function findProviders(
   }
   if (params.radius_miles !== undefined) {
     q.radius = number(params.radius_miles, "radius_miles", 0, 500);
-    if (!q.origin) return v.fail("location", "LOCATION_REQUIRED");
+    if (!q.origin) return v.fail("location", "location_required");
   }
   const coverage = q.plan
     ? ((
@@ -163,7 +163,7 @@ export async function findProviders(
     !(await registryLoaded(db, params.zip));
   return {
     warnings:
-      q.plan && coverage?.status !== "complete" ? ["SOURCE_INCOMPLETE"] : [],
+      q.plan && coverage?.status !== "complete" ? ["source_incomplete"] : [],
     status: unloaded ? "unknown" : providerSearchStatus(),
     ...(unloaded ? { reason: "provider_registry_not_loaded" } : {}),
     requested_plan_id: params.plan_id ?? null,
@@ -218,7 +218,7 @@ export async function getProvider(
       npi(value),
       year === undefined ? undefined : providerYear(year),
     );
-    if (!result) throw new ReadError({ code: "PROVIDER_NOT_FOUND" });
+    if (!result) throw new ReadError({ code: "provider_not_found" });
     return {
       ...result,
       issuer_records: await annualRows(db, result.issuer_records, (row) =>
@@ -281,13 +281,13 @@ export async function checkProviderNetworks(
   )
     return v.fail("npis");
   if (body.plan_ids.length * body.npis.length > 1000)
-    return v.fail("body", "TOO_MANY_PAIRS");
+    return v.fail("body", "too_many_pairs");
   const plans = body.plan_ids.map((id) => v.planId(id).full),
     npis = body.npis.map(npi);
   if (new Set(plans).size !== plans.length)
-    return v.fail("plan_ids", "DUPLICATE_PLAN_ID");
+    return v.fail("plan_ids", "duplicate_plan_id");
   if (new Set(npis).size !== npis.length)
-    return v.fail("npis", "DUPLICATE_NPI");
+    return v.fail("npis", "duplicate_npi");
   if (typeof body.year !== "number" || !Number.isInteger(body.year))
     return v.fail("year");
   const year = providerYear(String(body.year)),

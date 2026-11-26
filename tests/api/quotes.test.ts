@@ -90,7 +90,7 @@ describe("POST /v1/quotes public tier", () => {
         { member_id: "0", age: 35, relationship: "subscriber", tobacco: false },
       ],
       tobacco_rating: "requested_flags",
-      subsidy: { status: "not_evaluated", reason: "PUBLIC_QUOTE_TIER" },
+      subsidy: { status: "not_evaluated", reason: "public_quote_tier" },
       csr_eligibility_status: "not_evaluated",
       data_availability: {
         catalog: "available",
@@ -169,42 +169,53 @@ describe("POST /v1/quotes public tier", () => {
     });
     const missing = await quote(quoteBody({ plan_ids: ["99999TX0100001"] }));
     expect(missing.response.status).toBe(404);
-    expect(missing.json).toMatchObject({ error: { code: "PLAN_NOT_FOUND" } });
+    expect(missing.json).toMatchObject({ error: { code: "plan_not_found" } });
   });
 
   it("refuses income, dates of birth, names and oversized households with named fields", async () => {
     for (const [extra, code, field] of [
       [
         { household_income_annual: 40000 },
-        "INCOME_NOT_ACCEPTED",
+        "income_not_accepted",
         "household_income_annual",
       ],
       [
         { members: [{ age: 35, dob: "1990-01-02" }] },
-        "DOB_NOT_ACCEPTED",
+        "dob_not_accepted",
         "members.0.dob",
       ],
-      [{ name: "x" }, "UNKNOWN_FIELD", "name"],
+      [{ name: "x" }, "unknown_field", "name"],
       [
         { members: Array.from({ length: 11 }, () => ({ age: 30 })) },
-        "TOO_MANY_MEMBERS",
+        "too_many_members",
         "members",
       ],
     ] as const) {
       const { response, json } = await quote(quoteBody(extra));
       expect(response.status).toBe(400);
-      expect(json).toEqual({ error: { code, field } });
+      expect(json).toEqual({
+        error: { code, field, request_id: expect.any(String) as unknown },
+      });
       expect(response.headers.get("cache-control")).toBe("no-store");
     }
     expect((await quote("{not json")).json).toEqual({
-      error: { code: "INVALID_JSON", field: "body" },
+      error: {
+        code: "invalid_json",
+        field: "body",
+        request_id: expect.any(String) as unknown,
+      },
     });
   });
 
-  it("returns 503 QUOTING_DISABLED when the tier is off by option or by OPENPLANS_PUBLIC_QUOTING=off", async () => {
+  it("returns 503 quoting_disabled when the tier is off by option or by OPENPLANS_PUBLIC_QUOTING=off", async () => {
     const off = await quote(quoteBody(), { publicQuoting: false });
     expect(off.response.status).toBe(503);
-    expect(off.json).toEqual({ error: { code: "QUOTING_DISABLED" } });
+    expect(off.json).toEqual({
+      error: {
+        code: "quoting_disabled",
+        request_id: expect.any(String) as unknown,
+      },
+    });
     vi.stubEnv("OPENPLANS_PUBLIC_QUOTING", "off");
     expect(
       (await postJson(createApp(fixture.db, {}), "/v1/quotes", quoteBody()))
@@ -311,7 +322,7 @@ describe("personalized premium quotes; the old premium-estimates name is gone (n
     });
     expect(currentJson).not.toHaveProperty("estimates");
   });
-  it("keeps 503 AUTH_NOT_CONFIGURED when switched off and 401 UNAUTHORIZED with a token", async () => {
+  it("keeps 503 auth_not_configured when switched off and 401 unauthorized with a token", async () => {
     const path = "/v1/premium-quotes";
     const unconfigured = await postJson(
       createApp(fixture.db, { publicHousehold: false }),
@@ -321,18 +332,28 @@ describe("personalized premium quotes; the old premium-estimates name is gone (n
     );
     expect(unconfigured.status).toBe(503);
     expect(await unconfigured.json()).toEqual({
-      error: { code: "AUTH_NOT_CONFIGURED" },
+      error: {
+        code: "auth_not_configured",
+        request_id: expect.any(String) as unknown,
+      },
     });
     const wrong = await postJson(app(), path, premiumBody, {
       authorization: "Bearer wrong",
     });
     expect(wrong.status).toBe(401);
-    expect(await wrong.json()).toEqual({ error: { code: "UNAUTHORIZED" } });
+    expect(await wrong.json()).toEqual({
+      error: {
+        code: "unauthorized",
+        request_id: expect.any(String) as unknown,
+      },
+    });
     // The public body has no personalized meaning on this route.
     expect((await postJson(app(), path, quoteBody())).status).toBe(401);
   });
 
   /** The removed name must answer exactly like a route that never existed. */
+  // The mounted sub-app has no request-id middleware; compare the bodies without that member.
+  const bare = (text: string) => text.replace(/,"request_id":"[^"]*"/, "");
   async function expectRemoved(routes: typeof QuoteRoutes) {
     const mounted = new Hono();
     mounted.route(
@@ -361,7 +382,7 @@ describe("personalized premium quotes; the old premium-estimates name is gone (n
           auth,
         );
         expect(removed.status).toBe(404);
-        expect(await removed.text()).toBe(await never.text());
+        expect(bare(await removed.text())).toBe(bare(await never.text()));
         for (const header of ["deprecation", "sunset", "link"])
           expect(removed.headers.get(header)).toBeNull();
       }
@@ -374,7 +395,7 @@ describe("personalized premium quotes; the old premium-estimates name is gone (n
     );
     expect(removed.status).toBe(unknown.status);
     expect(removed.status).toBe(404);
-    expect(await removed.text()).toBe(await unknown.text());
+    expect(bare(await removed.text())).toBe(bare(await unknown.text()));
     for (const header of ["deprecation", "sunset", "link"])
       expect(removed.headers.get(header)).toBeNull();
   }
@@ -424,7 +445,7 @@ describe("public quote rate limit (negative control 5)", () => {
       expect((await send("198.51.100.1")).status).toBe(200);
     const refused = await send("198.51.100.1");
     expect(refused.status).toBe(429);
-    expect(await refused.json()).toEqual({ error: { code: "RATE_LIMITED" } });
+    expect(await refused.json()).toEqual({ error: { code: "rate_limited" } });
     expect(refused.headers.get("retry-after")).toMatch(/^\d+$/);
     expect(Number(refused.headers.get("retry-after"))).toBe(60);
     expect((await send("198.51.100.2")).status).toBe(200);
@@ -544,6 +565,7 @@ describe("no request values in any log line (negative control 4)", () => {
     >;
     expect(entry).toEqual({
       event: "api_internal_error",
+      request_id: expect.stringMatching(/^[0-9a-f]{16}$/) as unknown,
       error_class: "Error",
       stack_hash: expect.stringMatching(/^[a-f0-9]{64}$/) as unknown,
     });
@@ -557,7 +579,7 @@ describe("no request values in any log line (negative control 4)", () => {
     const leaky = new Hono();
     leaky.onError((error, c) => {
       console.error(error);
-      return c.json({ error: { code: "INTERNAL_ERROR" } }, 500);
+      return c.json({ error: { code: "internal_error" } }, 500);
     });
     leaky.post("/v1/quotes", () => {
       throw new Error("synthetic failure 77002 age 43");

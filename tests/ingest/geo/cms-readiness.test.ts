@@ -478,7 +478,7 @@ async function expectReady(app: ReturnType<typeof appModule.createApp>) {
   );
   expect(response.status).toBe(200);
   expect(response.headers.get("Cache-Control")).toBe("no-store");
-  expect(await response.text()).toBe('{"status":"ready"}');
+  expect(await response.json()).toMatchObject({ status: "ready" });
 }
 
 async function expectAvailabilityDigest(

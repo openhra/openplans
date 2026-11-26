@@ -238,7 +238,7 @@ describe("bounded current-process telemetry", () => {
     const publicApp = createApp(db);
     const result = await publicApp.request("/healthz");
     expect(result.status).toBe(200);
-    expect(await result.json()).toEqual({ status: "ok", db: "ok" });
+    expect(await result.json()).toMatchObject({ status: "ok", db: "ok" });
   });
   it("records one MCP tool separate from its HTTP envelope, and preserves MCP bytes", async () => {
     vi.stubEnv("OPENPLANS_MCP", "1");

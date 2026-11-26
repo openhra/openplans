@@ -495,7 +495,7 @@ describe("annual-window planted source mutants", () => {
       const original = new URL("../../src/api/app.ts", import.meta.url);
       const source = replaceSyntax(
         await readFile(original, "utf8"),
-        "{ error: error.error },",
+        "apiErrorFrom(error.error),",
         `{ error: { ...error.error, code: c.req.path.startsWith(${JSON.stringify(surface === "REST" ? "/v1/" : "/compat/")}) && error.error.code === "not_loaded" ? "not_covered" : error.error.code } },`,
       );
       await withMutantFile(original, source, async (file) => {

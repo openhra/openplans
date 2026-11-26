@@ -8,7 +8,9 @@ Compose reads `.env` for interpolation and forwards only variables listed under
 that service's `environment`. Adding a variable to `.env` alone does not pass it
 into the container. Use `docker compose run --rm -e NAME=value worker ...` for a
 one-off worker option. For an API option absent from `compose.yml`, add it to the
-API service in a local Compose override and recreate the service.
+API service in a local Compose override and recreate the service. The worker and scheduler
+forward `CMS_API_KEY`, the `OPENPLANS_GEOCODER_*` settings and `OPENPLANS_OPEN_GEOCODER_URL`;
+a test keeps every `.env.example` key either forwarded or marked as host-only.
 
 [.env.example](../.env.example) lists placeholders, including native developer
 options. Keep credentials in local environment files. See [self-hosting](self-host.md)
@@ -211,7 +213,7 @@ operator must pass its explicit command-line opt-in.
 The Medicare drug-cost estimate is stricter than the household routes and never opens to
 anonymous callers. `POST /v1/medicare/plans/{plan_key}/drug-cost-estimates` needs
 `Authorization: Bearer` with `OPENPLANS_API_TOKEN`. While that token is unset the route answers
-`503 AUTH_NOT_CONFIGURED`. Answers carry `Cache-Control: no-store`, the response cache never keeps
+`503 auth_not_configured`. Answers carry `Cache-Control: no-store`, the response cache never keeps
 them and the fill schedule is not logged.
 
 ### NY rate source override

@@ -15,8 +15,23 @@ export interface PublicContract {
       envelope: string;
       required: Record<string, string>;
       optional?: Record<string, string>;
+      code_pattern?: string;
     }
   >;
+  reasons: { codes: string[] };
+  readiness: {
+    routes: string[];
+    ready_fields: Record<string, string>;
+    mcp_tool: string;
+    mcp_field: string;
+  };
+  request_id: {
+    header: string;
+    error_member: string;
+    max_length: number;
+    accepted_pattern: string;
+    generated_pattern: string;
+  };
 }
 
 export const contract = JSON.parse(

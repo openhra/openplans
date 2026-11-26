@@ -73,10 +73,10 @@ it("selects before counts and limits and guards direct/nested reads with distinc
         "filter_before_limit",
       ).toEqual(["plan-demo-a"]);
       await expect(guardCatalogPlans(["plan-demo-c"], 2026)).rejects.toThrow(
-        "PLAN_NOT_MARKETABLE",
+        "plan_not_marketable",
       );
       await expect(guardCatalogPlans(["plan-demo-b"], 2026)).rejects.toThrow(
-        "MARKETABILITY_UNKNOWN",
+        "marketability_unknown",
       );
       const annotated = await annotateCatalogPlan(
         { id: "plan-demo-a" },
@@ -144,7 +144,7 @@ it("does not equate false and unknown and rejects non-filterable or transport-hi
       }),
       () => selectCatalogPlans(plans, 2026, (p) => p.id),
     ),
-  ).rejects.toThrow("MSOT_INVALID_FILTER");
+  ).rejects.toThrow("msot_invalid_filter");
 });
 it("pins source, date, version and generation across nested reads and isolates sources", async () => {
   const original = provider();
@@ -162,7 +162,7 @@ it("pins source, date, version and generation across nested reads and isolates s
     async () => {
       await guardCatalogPlans([plans[0]!.id], 2026);
       await expect(guardCatalogPlans([plans[2]!.id], 2026)).rejects.toThrow(
-        "MSOT_CONTEXT_CHANGED",
+        "msot_context_changed",
       );
     },
     policy,
@@ -222,7 +222,7 @@ it("refuses configured missing providers, unauthorized public mode, and serving 
     { config: loadConfig({}, { version: 1, catalogPolicy: policy }) },
   );
   expect(await (await missing.request(path)).json()).toMatchObject({
-    error: { code: "MSOT_PROVIDER_UNAVAILABLE" },
+    error: { code: "msot_provider_unavailable" },
   });
   const app = createApp(
     scope.db,
@@ -236,14 +236,14 @@ it("refuses configured missing providers, unauthorized public mode, and serving 
     await (
       await app.request(path, { headers: { "X-OpenPlans-MSoT": "public" } })
     ).json(),
-  ).toMatchObject({ error: { code: "MSOT_PUBLIC_READ_FORBIDDEN" } });
+  ).toMatchObject({ error: { code: "msot_public_read_forbidden" } });
   expect(await (await app.request(path)).json()).toMatchObject({
-    error: { code: "MSOT_SERVING_DISABLED" },
+    error: { code: "msot_serving_disabled" },
   });
   expect(await (await app.request("/v1/medicare/plans")).json()).toMatchObject({
-    error: { code: "MSOT_OPERATION_UNSUPPORTED" },
+    error: { code: "msot_operation_unsupported" },
   });
-  expect(() => requireCatalogServingReady()).toThrow("MSOT_SERVING_DISABLED");
+  expect(() => requireCatalogServingReady()).toThrow("msot_serving_disabled");
 });
 it("requires explicit public permission before dispatch and keeps unknown operations closed", async () => {
   const db: SqlSession = {
@@ -278,7 +278,7 @@ it("requires explicit public permission before dispatch and keeps unknown operat
     headers: { "X-OpenPlans-MSoT": "public" },
   });
   expect((await publicResponse.json()) as unknown).not.toMatchObject({
-    error: { code: "MSOT_PUBLIC_READ_FORBIDDEN" },
+    error: { code: "msot_public_read_forbidden" },
   });
   expect(publicResponse.status).toBe(400);
   expect(publicResponse.headers.get("X-OpenPlans-MSoT")).toBeNull();
@@ -402,7 +402,7 @@ it("negative control refuses a source A cached answer delivered under source B",
       poisoned,
     ),
     "source_cache_isolation",
-  ).rejects.toThrow("MSOT_CONTEXT_MISMATCH");
+  ).rejects.toThrow("msot_context_mismatch");
 });
 
 it("negative control rejects an unauthorized public-read bypass", async () => {

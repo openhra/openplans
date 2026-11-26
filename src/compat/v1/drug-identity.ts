@@ -31,7 +31,7 @@ export function optionalRxcui(
     if (typeof text !== "string" || !RXCUI_PATTERN.test(text))
       return v.fail(`${prefix}${field}`);
     if (found !== undefined && found !== text)
-      return v.fail(`${prefix}${field}`, "CONFLICTING_RXCUI");
+      return v.fail(`${prefix}${field}`, "conflicting_rxcui");
     found = text;
   }
   return found;

@@ -421,6 +421,7 @@ describe("the API server loads configured plugins at startup", () => {
         "timing_ms",
         "bytes",
         "cache",
+        "request_id",
       ]);
   });
 

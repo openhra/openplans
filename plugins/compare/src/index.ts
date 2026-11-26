@@ -30,7 +30,7 @@ const plugin: OpenPlansPlugin = {
       handler: async (c) => {
         c.header("Cache-Control", "no-store");
         if (Object.keys(c.req.query()).length)
-          return c.json({ error: { code: "INVALID_INPUT" } }, 400);
+          return c.json({ error: { code: "invalid_input" } }, 400);
         return c.html((await compareAnswers()).visitorPage());
       },
     });
@@ -67,20 +67,20 @@ const plugin: OpenPlansPlugin = {
             if (
               error instanceof z.ZodError ||
               error instanceof SyntaxError ||
-              (error instanceof Error && error.message === "INVALID_INPUT")
+              (error instanceof Error && error.message === "invalid_input")
             )
               return mode === "print"
                 ? c.html(
-                    (await compareAnswers()).visitorError("INVALID_INPUT"),
+                    (await compareAnswers()).visitorError("invalid_input"),
                     400,
                   )
-                : c.json({ error: { code: "INVALID_INPUT" } }, 400);
+                : c.json({ error: { code: "invalid_input" } }, 400);
             const code =
               error instanceof Error &&
               [
                 "generation_changed",
                 "work_budget_exceeded",
-                "QUOTING_DISABLED",
+                "quoting_disabled",
               ].includes(error.message)
                 ? error.message
                 : "comparison_unavailable";
@@ -119,9 +119,9 @@ const plugin: OpenPlansPlugin = {
                 error instanceof z.ZodError ||
                 error instanceof SyntaxError ||
                 (error instanceof Error &&
-                  ["INVALID_INPUT", "INVALID_BATCH"].includes(error.message))
+                  ["invalid_input", "invalid_batch"].includes(error.message))
               )
-                return c.json({ error: { code: "INVALID_INPUT" } }, 400);
+                return c.json({ error: { code: "invalid_input" } }, 400);
               return c.json({ error: { code: "comparison_unavailable" } }, 503);
             }
           },

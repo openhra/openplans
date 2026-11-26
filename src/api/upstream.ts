@@ -1,3 +1,4 @@
+import { apiError } from "./errors.js";
 import type { MiddlewareHandler } from "hono";
 import {
   PASSTHROUGH_FIELD,
@@ -18,10 +19,7 @@ export const upstreamDisclosure: MiddlewareHandler = async (c, next) => {
   try {
     declined = passThroughDeclined(c.req.query(PASSTHROUGH_FIELD));
   } catch {
-    return c.json(
-      { error: { code: "INVALID_INPUT", field: PASSTHROUGH_FIELD } },
-      400,
-    );
+    return c.json(apiError("invalid_input", PASSTHROUGH_FIELD), 400);
   }
   await withUpstreamDisclosure(async () => {
     await next();

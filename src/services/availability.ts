@@ -93,6 +93,8 @@ async function ichraAvailability(
 export async function dataAvailability(
   db: SqlSession,
   scope?: { state: string; year: number; issuers?: ReadonlySet<string> },
+  /** `reasons: false` leaves out the `<x>_reason` members a caller that drops them never reads. */
+  options: { reasons?: boolean } = {},
 ): Promise<Record<string, unknown>[]> {
   const policy = await servingPolicy(db);
   const inWindow = (year: number) =>
@@ -182,7 +184,7 @@ export async function dataAvailability(
         ? { county_areas: geo.county_areas, zip3_areas: geo.zip3_areas }
         : null,
       ...(result.premium_status === "unknown" && !hasGeography
-        ? { premium_reason: "UNRESOLVED_RATING_AREA" }
+        ? { premium_reason: "unresolved_rating_area" }
         : {}),
       rating_rule_snapshot_id: rule?.snapshot_id ?? null,
     };
@@ -371,11 +373,11 @@ export async function dataAvailability(
         ? {
             premium_status: "partial",
             premium_reason:
-              "COUNTY_SCOPED_ZIP3_CROSS_COUNTY_PREFIXES_AMBIGUOUS",
+              "county_scoped_zip3_cross_county_prefixes_ambiguous",
           }
         : {}),
       ...(entry.premium_status === "unsupported"
-        ? { premium_reason: "STATE_OR_FILED_RATING_METHOD_UNSUPPORTED" }
+        ? { premium_reason: "state_or_filed_rating_method_unsupported" }
         : {}),
     };
   });
@@ -392,10 +394,45 @@ export async function dataAvailability(
     return readiness.get(key)!;
   };
   const result = [];
-  for (const entry of withSources)
-    result.push({
+  for (const entry of withSources) {
+    const row = {
       ...entry,
       ...(await ichraAvailability(entry, loaded, filed)),
-    });
+    };
+    result.push(options.reasons === false ? row : withUnknownReasons(row));
+  }
   return result;
+}
+
+/** The reason an `unknown` row status gets when no earlier step named one. */
+const DEFAULT_UNKNOWN_REASON: Readonly<Record<string, string>> = {
+  catalog: "catalog_not_loaded",
+  premium: "premium_not_available",
+  ichra: "catalog_not_loaded",
+  ichra_lookback: "catalog_not_loaded",
+};
+
+/**
+ * Every `<x>_status: "unknown"` carries `<x>_reason`, or an `<x>_coverage` object that names
+ * its own reason. Nothing is ever unknown without saying why.
+ */
+export function withUnknownReasons<T extends Record<string, unknown>>(
+  row: T,
+): T {
+  // Most rows name every reason already: scan without copying and copy only when one is added.
+  let out: Record<string, unknown> | undefined;
+  for (const key in row) {
+    if (row[key] !== "unknown" || !key.endsWith("_status")) continue;
+    const stem = key.slice(0, -"_status".length);
+    const coverage = row[`${stem}_coverage`];
+    const named =
+      typeof row[`${stem}_reason`] === "string" ||
+      (coverage !== null &&
+        typeof coverage === "object" &&
+        typeof (coverage as { reason?: unknown }).reason === "string");
+    if (!named)
+      (out ??= { ...row })[`${stem}_reason`] =
+        DEFAULT_UNKNOWN_REASON[stem] ?? "source_set_not_available";
+  }
+  return (out ?? row) as T;
 }

@@ -935,7 +935,7 @@ async function readProvidersFrom(
     participation_scope: issuer ? "provider_record" : null,
     warnings:
       issuer && provider.evidence.some((e) => e.tier_status === "unresolved")
-        ? ["UNRESOLVED_NETWORK_TIER"]
+        ? ["unresolved_network_tier"]
         : [],
     specialties: issuer
       ? providerSpecialties({
@@ -1143,9 +1143,9 @@ export async function providerDetail(
             ),
       participation_scope: "provider_record",
       warnings: [
-        ...(source?.status !== "complete" ? ["SOURCE_INCOMPLETE"] : []),
+        ...(source?.status !== "complete" ? ["source_incomplete"] : []),
         ...(pair.evidence.some((e) => e.tier_status === "unresolved")
-          ? ["UNRESOLVED_NETWORK_TIER"]
+          ? ["unresolved_network_tier"]
           : []),
       ],
     };

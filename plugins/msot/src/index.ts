@@ -37,11 +37,11 @@ const plugin: OpenPlansPlugin = {
   setup(ctx) {
     const { source, readableSources } = optionsSchema.parse(ctx.options);
     if (!ctx.canonicalReader && !source && readableSources.length === 0) return;
-    if (!ctx.canonicalReader) throw new Error("MSOT_HOST_CONTRACT_REQUIRED");
+    if (!ctx.canonicalReader) throw new Error("msot_host_contract_required");
     registerWorker(ctx, ctx.canonicalReader);
     registerInspection(ctx, ctx.canonicalReader, readableSources);
     if (!source && !readableSources.length) return;
-    if (!ctx.catalogPolicies) throw new Error("MSOT_HOST_CONTRACT_REQUIRED");
+    if (!ctx.catalogPolicies) throw new Error("msot_host_contract_required");
     const reader = ctx.canonicalReader;
     const inline = source ? compileSource(source, reader) : undefined;
     const provider =
@@ -53,18 +53,18 @@ const plugin: OpenPlansPlugin = {
               if (inline?.source.source_id === input.source_id)
                 return inline.resolve(input, scope);
               if (!readableSources.includes(input.source_id))
-                throw new Error("MSOT_SOURCE_NOT_READABLE");
+                throw new Error("msot_source_not_readable");
               const repo = new Repository(scope.db);
               const head = await repo.head(input.source_id);
               if (head.active_version === null)
-                throw new Error("MSOT_VERSION_UNAVAILABLE");
+                throw new Error("msot_version_unavailable");
               const stored = await repo.version(
                 input.source_id,
                 input.version ?? head.active_version,
               );
               const compiled = compileSource(stored.source, reader);
               if (compiled.hash !== stored.hash)
-                throw new Error("MSOT_INPUT_CHANGED");
+                throw new Error("msot_input_changed");
               return compiled.resolve(input, scope);
             },
           };
@@ -79,7 +79,7 @@ const plugin: OpenPlansPlugin = {
           await c.req.json().catch(() => undefined),
         );
         if (!input.success)
-          return c.json({ error: { code: "MSOT_INVALID_INPUT" } }, 400);
+          return c.json({ error: { code: "msot_invalid_input" } }, 400);
         c.header("Cache-Control", "no-store");
         try {
           return c.json(
@@ -92,7 +92,7 @@ const plugin: OpenPlansPlugin = {
           const code =
             error instanceof Error && /^MSOT_[A-Z_]+$/.test(error.message)
               ? error.message
-              : "MSOT_RESOLVE_FAILED";
+              : "msot_resolve_failed";
           return c.json({ error: { code } }, 400);
         }
       },

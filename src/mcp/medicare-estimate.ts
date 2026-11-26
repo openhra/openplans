@@ -385,15 +385,15 @@ async function callScopedEstimateTool(
       deps.catalogPolicy,
       "estimate_medicare_drug_cost",
     );
-    if (!hooks.granted(deps)) throw new ToolError("AUTH_REQUIRED");
+    if (!hooks.granted(deps)) throw new ToolError("auth_required");
     const parsed = estimateInputSchema.safeParse(args);
     // Keys outside the schema, such as an asserted benefit type or drug class, are refused.
     if (!parsed.success) {
       const issue = parsed.error.issues[0]!;
       throw new ToolError(
         issue.code === "unrecognized_keys"
-          ? "UNSUPPORTED_FIELD"
-          : "INVALID_INPUT",
+          ? "unsupported_field"
+          : "invalid_input",
         issue.path.length
           ? issue.path.map(String).join(".").slice(0, 80)
           : null,
@@ -409,7 +409,7 @@ async function callScopedEstimateTool(
       hooks.service,
     );
     if ((await dataGeneration(deps.db)) !== generation)
-      throw new ToolError("DATA_CHANGED");
+      throw new ToolError("data_changed");
     const sources = await provenance(deps, answer);
     const output = {
       schema_version: "1" as const,

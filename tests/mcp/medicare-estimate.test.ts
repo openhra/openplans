@@ -446,7 +446,7 @@ describe("estimate_medicare_drug_costs over the fixture Part D files", () => {
     expect(
       ((await notConfigured.json()) as { error: { message: string } }).error
         .message,
-    ).toBe("AUTH_NOT_CONFIGURED");
+    ).toBe("auth_not_configured");
 
     const app = mcpApp({ OPENPLANS_MCP_TOKEN: MCP_TOKEN });
     for (const extra of [
@@ -467,7 +467,7 @@ describe("estimate_medicare_drug_costs over the fixture Part D files", () => {
       { ...grantedDeps(unusedDb), medicareEstimateGrant: false },
       args(),
     );
-    expect(direct.structuredContent.error?.code).toBe("AUTH_REQUIRED");
+    expect(direct.structuredContent.error?.code).toBe("auth_required");
   });
 
   it("with the switches off the name is unknown and answers as before", async () => {
@@ -551,7 +551,7 @@ describe("estimate_medicare_drug_costs over the fixture Part D files", () => {
     for (const input of asserted) {
       const result = await callEstimateTool(deps, input);
       expect(result.structuredContent.status).toBe("error");
-      expect(result.structuredContent.error?.code).toBe("UNSUPPORTED_FIELD");
+      expect(result.structuredContent.error?.code).toBe("unsupported_field");
       expect(JSON.stringify(result)).not.toMatch(/"(ds|yes|selected)"/);
     }
     // Over the transport the SDK schema or the tool refuses it; no estimate comes back.
@@ -642,9 +642,9 @@ describe("estimate_medicare_drug_costs over the fixture Part D files", () => {
       tamper((c) => {
         c.data!.plan_figures.standard_deductible.cents! += 1;
       }),
-    ).toThrow(/INTERNAL_HONESTY_CHECK/);
+    ).toThrow(/internal_honesty_check/);
     // A cited snapshot missing from provenance.
-    expect(tamper((c) => c.provenance.pop())).toThrow(/INTERNAL_HONESTY_CHECK/);
+    expect(tamper((c) => c.provenance.pop())).toThrow(/internal_honesty_check/);
     // An unknown relabelled as a coverage denial, even if the service said it.
     const denied = structuredClone(canonical);
     denied!.fills[0]!.figures.patient_pay.reason = "not_covered";
@@ -652,7 +652,7 @@ describe("estimate_medicare_drug_costs over the fixture Part D files", () => {
       tamper((c) => {
         c.data!.fills[0]!.figures.patient_pay.reason = "not_covered";
       }, denied),
-    ).toThrow(/INTERNAL_HONESTY_CHECK/);
+    ).toThrow(/internal_honesty_check/);
     // A value figure without evidence.
     const bare = structuredClone(canonical);
     bare!.plan_figures.standard_deductible.evidence_refs = [];
@@ -660,7 +660,7 @@ describe("estimate_medicare_drug_costs over the fixture Part D files", () => {
       tamper((c) => {
         c.data!.plan_figures.standard_deductible.evidence_refs = [];
       }, bare),
-    ).toThrow(/INTERNAL_HONESTY_CHECK/);
+    ).toThrow(/internal_honesty_check/);
     // A grouped county row lost from its group.
     expect(
       tamper((c) => {
@@ -669,9 +669,9 @@ describe("estimate_medicare_drug_costs over the fixture Part D files", () => {
         );
         group!.source_rows!.pop();
       }),
-    ).toThrow(/INTERNAL_HONESTY_CHECK/);
+    ).toThrow(/internal_honesty_check/);
     // Envelope status must follow the answer: partial or unknown is never ok.
-    expect(tamper((c) => (c.status = "ok"))).toThrow(/INTERNAL_HONESTY_CHECK/);
+    expect(tamper((c) => (c.status = "ok"))).toThrow(/internal_honesty_check/);
   });
 });
 

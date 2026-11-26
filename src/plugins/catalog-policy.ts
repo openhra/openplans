@@ -1,3 +1,4 @@
+import { apiErrorFrom } from "../api/errors.js";
 import type { MiddlewareHandler } from "hono";
 import type { CoreConfig } from "../config/index.js";
 import { currentRegistries } from "./registries.js";
@@ -99,25 +100,25 @@ export function catalogPolicyAdmission(
     if (basis === "public") return next();
     try {
       const provider = registries?.catalogPolicies?.[catalogPolicy.provider];
-      if (!provider) throw new ReadError({ code: "MSOT_PROVIDER_UNAVAILABLE" });
+      if (!provider) throw new ReadError({ code: "msot_provider_unavailable" });
       const selector = c.req.header("X-OpenPlans-MSoT");
       if (selector === "public") {
         if (!catalogPolicy.allowPublicRead)
-          throw new ReadError({ code: "MSOT_PUBLIC_READ_FORBIDDEN" });
+          throw new ReadError({ code: "msot_public_read_forbidden" });
         // Explicit public reads never apply policy and cannot select a policy version/date.
         if (
           c.req.header("X-OpenPlans-MSoT-Version") ||
           c.req.header("X-OpenPlans-MSoT-Date")
         )
-          throw new ReadError({ code: "MSOT_SELECTOR_CONFLICT" });
+          throw new ReadError({ code: "msot_selector_conflict" });
         return next();
       }
       if (basis === "unsupported")
-        throw new ReadError({ code: "MSOT_OPERATION_UNSUPPORTED" });
+        throw new ReadError({ code: "msot_operation_unsupported" });
       requireCatalogServingReady();
     } catch (error) {
       if (error instanceof ReadError)
-        return c.json({ error: error.error }, 403);
+        return c.json(apiErrorFrom(error.error), 403);
       throw error;
     }
   };
@@ -130,8 +131,8 @@ export function assertCatalogToolAdmission(
   if (!config) return;
   if (classifyCatalogTool(name) === "public") return;
   if (!currentRegistries()?.catalogPolicies[config.provider])
-    throw new ReadError({ code: "MSOT_PROVIDER_UNAVAILABLE" });
+    throw new ReadError({ code: "msot_provider_unavailable" });
   if (classifyCatalogTool(name) === "unsupported")
-    throw new ReadError({ code: "MSOT_OPERATION_UNSUPPORTED" });
+    throw new ReadError({ code: "msot_operation_unsupported" });
   requireCatalogServingReady();
 }

@@ -152,15 +152,15 @@ location goes to `/v1/plans`, `/v1/quotes`, `/v1/premium-quotes`, `/v1/benchmark
 `/v1/ichra/affordability`, the compatibility plan search and the MCP tools that take a location.
 Each state and year also goes to `/v1/data-availability`, `get_data_status`,
 `list_carriers_networks` and the drug and provider coverage tools. Requests run in process and
-nothing is fetched. A response fails when it is a 5xx, when it carries `INTERNAL_HONESTY_CHECK`
-or the MCP catch-all `DATA_UNAVAILABLE` (the tools' form of an internal error),
+nothing is fetched. A response fails when it is a 5xx, when it carries `internal_honesty_check`
+or the MCP catch-all `data_unavailable` (the tools' form of an internal error),
 or when its list or answer is empty and it names no reason code (`issues`, `location_issues`, a
 `reason`, an error code or an `x-openplans-gaps` entry). The rule lives in
 `surface-sweep-logic.mjs`. `reports/surface-sweep.json` keeps every failure with its inputs,
 grouped by class, and the outcomes seen on each surface. When a New York catalog is loaded, the
 sweep also runs `search_plans` for New York counties through a copy of the MCP tools whose
 projection reads a HIOS-shaped `plan_key` as a state plan key (control `mcpPlanKey` in
-`source-controls.mjs`). That copy must produce `INTERNAL_HONESTY_CHECK`, or the sweep fails.
+`source-controls.mjs`). That copy must produce `internal_honesty_check`, or the sweep fails.
 
 The sweep also covers what loads beside the catalog. Every ZIP goes to the native, MCP and
 compatibility provider searches. Each loaded state and year samples NPPES identities, issuer
@@ -176,7 +176,7 @@ answer, such as coverage and participation results, each need their own reason w
 empty provider or drug search is a whole answer when it says its source is loaded (provider
 status `available`, MCP status `ok`, `terminology_status: "available"`). A second control,
 `mcpParticipation`, reports an unknown participation answer as `not_listed`, and
-`check_provider_network` through that copy must produce `INTERNAL_HONESTY_CHECK`.
+`check_provider_network` through that copy must produce `internal_honesty_check`.
 Each location also asks `/v1/ichra/affordability` and `check_ichra_affordability` under the
 look-back safe harbor (`safe_harbors.look_back`), which prices the employer's LCSP from January of
 the year before the plan year. With that catalog loaded the answer is `calculated`. Without it the

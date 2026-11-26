@@ -1,3 +1,4 @@
+import { assertErrorShape } from "../error-shape.js";
 import { describe, expect, it, vi } from "vitest";
 import { setImmediate } from "node:timers/promises";
 import { createMcpHttp } from "../../src/mcp/http.js";
@@ -199,6 +200,14 @@ describe("MCP boundary security", () => {
       );
       expect(response.status).toBe(429);
       expect(Number(response.headers.get("retry-after"))).toBeGreaterThan(0);
+      // The JSON-RPC envelope stays; error.data carries the house code and hint.
+      const body = (await response.json()) as {
+        jsonrpc: string;
+        error: { code: number; data: { code: string; hint: string } };
+      };
+      assertErrorShape(body);
+      expect(body.error.data.code).toBe("rate_limited");
+      expect(typeof body.error.data.hint).toBe("string");
     },
   );
   it("ignores spoofed forwarding from untrusted peers; trusted peer uses last hop", async () => {
@@ -257,6 +266,7 @@ describe("MCP boundary security", () => {
     expect(Object.keys(logs[0] as object).sort()).toEqual([
       "bytes",
       "cache",
+      "request_id",
       "status",
       "timing_ms",
       "tool",
@@ -286,7 +296,7 @@ describe("MCP boundary security", () => {
         ...binding,
         scope: "personalized",
       }),
-    ).toThrow("INVALID_CURSOR");
+    ).toThrow("invalid_cursor");
   });
 });
 

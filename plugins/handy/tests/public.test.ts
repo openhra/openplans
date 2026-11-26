@@ -253,13 +253,13 @@ describe("public stipend preparation", () => {
       Object.assign(raw.benchmarks[0]!.result, { data_generation });
       await expect(
         allowanceScenario(hostFor(raw), scope(), input),
-      ).rejects.toThrow("DATA_CHANGED");
+      ).rejects.toThrow("data_changed");
     }
     const raw = structuredClone(distribution);
     raw.benchmarks.pop();
     await expect(
       allowanceScenario(hostFor(raw), scope(), input),
-    ).rejects.toThrow("BENCHMARK_MISSING");
+    ).rejects.toThrow("benchmark_missing");
   });
 
   it.each([
@@ -318,7 +318,7 @@ describe("public stipend preparation", () => {
       `/handy/allowance/manifest?${query}&data_generation=synthetic-generation-b`,
     );
     expect(stale.status).toBe(409);
-    expect(await stale.json()).toEqual({ error: { code: "DATA_CHANGED" } });
+    expect(await stale.json()).toEqual({ error: { code: "data_changed" } });
   });
 
   it("explains stale print requests and restarts without the old generation or evidence page", async () => {
@@ -327,7 +327,7 @@ describe("public stipend preparation", () => {
       {
         ...hostFor(),
         householdDistributions: async () => {
-          throw new Error("DATA_CHANGED");
+          throw new Error("data_changed");
         },
       },
     ]) {
@@ -340,7 +340,7 @@ describe("public stipend preparation", () => {
       const html = await response.text();
       expect(html).toContain("The source data has changed.");
       expect(html).toContain("Restart the sheet");
-      expect(html).toContain("<code>DATA_CHANGED</code>");
+      expect(html).toContain("<code>data_changed</code>");
       expect(html).toContain("paper=A4");
       expect(html).not.toContain("data_generation=");
       expect(html).not.toContain("evidence_page=");
@@ -421,7 +421,7 @@ describe("public stipend preparation", () => {
     );
     const answer = await allowanceScenario(hostFor(), scope(), input);
     answer.location = { zip: "x".repeat(25000) };
-    expect(() => allowanceMcpAnswer(answer, input)).toThrow("RESULT_TOO_LARGE");
+    expect(() => allowanceMcpAnswer(answer, input)).toThrow("result_too_large");
   });
 
   it("enforces the shared MCP anonymous rate limit on the public preset", async () => {
@@ -609,7 +609,7 @@ describe("stipend core calculation integration", () => {
           ...scope,
           db: { query: changingQuery, exec: fixture.db.exec },
         }),
-      ).rejects.toThrow("DATA_CHANGED");
+      ).rejects.toThrow("data_changed");
       if (process.env.STIPEND_ARTIFACT_DIR) {
         const directory = process.env.STIPEND_ARTIFACT_DIR;
         await mkdir(directory, { recursive: true });
@@ -633,7 +633,7 @@ describe("stipend core calculation integration", () => {
       });
       await expect(
         off.householdDistributions!(inputWithMembers(), scope),
-      ).rejects.toThrow("QUOTING_DISABLED");
+      ).rejects.toThrow("quoting_disabled");
       const controller = new AbortController();
       controller.abort();
       await expect(

@@ -162,7 +162,12 @@ describe("private census access", () => {
       rows(Array.from({ length: 26 }, () => employee())),
     );
     expect(response.status).toBe(400);
-    expect(await response.json()).toEqual({ error: { code: "INVALID_BATCH" } });
+    expect(await response.json()).toEqual({
+      error: {
+        code: "invalid_batch",
+        request_id: expect.any(String) as unknown,
+      },
+    });
     expect(query).not.toHaveBeenCalled();
   });
   it("refuses malformed, empty, oversized and extra-field envelopes without echoing input", async () => {
@@ -239,7 +244,7 @@ describe("canonical row answers", () => {
       invalid: 3,
     });
     for (const row of batch.rows.slice(0, 3)) {
-      expect(row.error).toEqual({ code: "UNKNOWN_FIELD", field: "input" });
+      expect(row.error).toEqual({ code: "unknown_field", field: "input" });
       noValues(JSON.stringify(row));
     }
   });
@@ -425,7 +430,7 @@ it("generation control retries the whole batch and refuses a second publication"
         censusRows(rows([employee({ plan_start: "2025-01-01" })])),
         new AbortController().signal,
       ),
-    ).rejects.toThrow("GENERATION_CHANGED");
+    ).rejects.toThrow("generation_changed");
     expect(generation).toBe(4);
   });
 });
@@ -495,7 +500,10 @@ it("deadline control returns no partial census and stops later row reads", async
   const response = await send(app, rows([employee(), employee()]));
   expect(response.status).toBe(504);
   expect(await response.json()).toEqual({
-    error: { code: "REQUEST_DEADLINE" },
+    error: {
+      code: "request_deadline",
+      request_id: expect.any(String) as unknown,
+    },
   });
   expect(query).toHaveBeenCalledTimes(1);
   expect(response.headers.get("cache-control")).toBe("no-store");
@@ -600,7 +608,10 @@ it("body byte cap counts streamed bytes even when a declared length is smaller",
   });
   expect(response.status).toBe(400);
   expect(await response.json()).toEqual({
-    error: { code: "REQUEST_TOO_LARGE" },
+    error: {
+      code: "request_too_large",
+      request_id: expect.any(String) as unknown,
+    },
   });
 });
 

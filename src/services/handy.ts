@@ -231,7 +231,7 @@ export async function enumerateLowest(
         .some(
           (p) =>
             (p.premium_availability as { reason?: string } | undefined)
-              ?.reason === "UNRESOLVED_RATING_AREA",
+              ?.reason === "unresolved_rating_area",
         )
     )
       return refuse("location_requires_zip", "sub_county_rating_area");
@@ -569,7 +569,7 @@ export async function lowestPremiums(
         data_generation: generation,
       };
     }
-    throw new HandyDataChanged("DATA_CHANGED");
+    throw new HandyDataChanged("data_changed");
   });
 }
 
@@ -1174,7 +1174,7 @@ async function enumerateHouseholds(
     for (const plan of all.filter((p) => !p.dental_only && p.on_exchange)) {
       if (
         (plan.premium_availability as { reason?: string } | undefined)
-          ?.reason === "UNRESOLVED_RATING_AREA"
+          ?.reason === "unresolved_rating_area"
       ) {
         const metal = plan.metal?.toLowerCase();
         block(
@@ -1425,7 +1425,7 @@ export async function householdDistributions(
       options.expectedGeneration &&
       options.expectedGeneration !== `${generation}:${manifest}`
     )
-      throw new HandyDataChanged("DATA_CHANGED");
+      throw new HandyDataChanged("data_changed");
     const { result, reads, premiums } = await enumerateHouseholds(
       db,
       input,
@@ -1493,7 +1493,7 @@ export async function householdDistributions(
       continue;
     return { ...result, data_generation: generation };
   }
-  throw new HandyDataChanged("DATA_CHANGED");
+  throw new HandyDataChanged("data_changed");
 }
 
 export type HouseholdDistributionResult = Awaited<
@@ -1808,5 +1808,5 @@ export async function householdHandy(
         minimum && minimum.tied_plan_count > page * 50 ? page + 1 : null,
     };
   }
-  throw new HandyDataChanged("DATA_CHANGED");
+  throw new HandyDataChanged("data_changed");
 }

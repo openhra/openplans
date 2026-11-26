@@ -427,8 +427,7 @@ describe.skipIf(!serverUrl)(
           expect(await response.json()).toEqual({
             error: {
               code: "provider_search_too_broad",
-              message:
-                "Use a smaller radius or add a more specific search term.",
+              hint: "Use a smaller radius or add a more specific search term.",
             },
           });
         }

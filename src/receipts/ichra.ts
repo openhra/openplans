@@ -104,7 +104,7 @@ export async function receiptDependencies(
       : row;
   });
   if (generation !== (await dataGeneration(db)))
-    throw new CensusError("GENERATION_CHANGED");
+    throw new CensusError("generation_changed");
   return {
     generation,
     snapshots,
@@ -127,7 +127,7 @@ export async function prepareIchraReceipt(
       dependencies.generation !== answer.provenance.generation ||
       dependencies.generation !== (await dataGeneration(bounded))
     )
-      throw new CensusError("GENERATION_CHANGED");
+      throw new CensusError("generation_changed");
     signal.throwIfAborted();
     return serializeEvidence(input, answer, dependencies, includeInput);
   };

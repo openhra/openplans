@@ -1,3 +1,4 @@
+import { apiError, apiErrorFrom } from "./errors.js";
 import { ReadError } from "../services/errors.js";
 import { createHash, timingSafeEqual } from "node:crypto";
 import { Hono } from "hono";
@@ -26,7 +27,7 @@ async function censusBody(
   signal: AbortSignal,
 ): Promise<unknown> {
   const reader = request.body?.getReader();
-  if (!reader) throw new CensusError("INVALID_JSON");
+  if (!reader) throw new CensusError("invalid_json");
   const chunks: Uint8Array[] = [];
   let size = 0;
   const cancel = () => {
@@ -41,7 +42,7 @@ async function censusBody(
       size += part.value.byteLength;
       if (size > MAX_BODY_BYTES) {
         cancel();
-        throw new CensusError("REQUEST_TOO_LARGE");
+        throw new CensusError("request_too_large");
       }
       chunks.push(part.value);
     }
@@ -49,7 +50,7 @@ async function censusBody(
     try {
       return JSON.parse(Buffer.concat(chunks).toString()) as unknown;
     } catch {
-      throw new CensusError("INVALID_JSON");
+      throw new CensusError("invalid_json");
     }
   } finally {
     signal.removeEventListener("abort", cancel);
@@ -71,7 +72,7 @@ export function ichraBatchRoutes(
     c.header("Cache-Control", "no-store");
     if (!tpa.enabled) return c.notFound();
     if (!tpa.privateIngress || !options.premiumToken)
-      return c.json({ error: { code: "TPA_ACCESS_NOT_CONFIGURED" } }, 503);
+      return c.json(apiError("tpa_access_not_configured"), 503);
     const hash = (value: string) => createHash("sha256").update(value).digest();
     if (
       !timingSafeEqual(
@@ -79,10 +80,10 @@ export function ichraBatchRoutes(
         hash(`Bearer ${options.premiumToken}`),
       )
     )
-      return c.json({ error: { code: "UNAUTHORIZED" } }, 401);
+      return c.json(apiError("unauthorized"), 401);
     if (activeOperator >= 2 || activeProcess >= 4) {
       c.header("Retry-After", "1");
-      return c.json({ error: { code: "RATE_LIMITED" } }, 429);
+      return c.json(apiError("rate_limited"), 429);
     }
     activeOperator++;
     activeProcess++;
@@ -114,7 +115,7 @@ export function ichraBatchRoutes(
             "Retry-After",
             String(Math.max(1, Math.ceil((until - time) / 1000))),
           );
-          return c.json({ error: { code: "RATE_LIMITED" } }, 429);
+          return c.json(apiError("rate_limited"), 429);
         }
         used += rows.length;
         return c.json(await ichraAffordabilityBatch(db, rows, signal));
@@ -122,29 +123,28 @@ export function ichraBatchRoutes(
       return await Promise.race([
         work(),
         new Promise<never>((_resolve, reject) => {
-          aborted = () => reject(new CensusError("REQUEST_DEADLINE"));
+          aborted = () => reject(new CensusError("request_deadline"));
           signal.addEventListener("abort", aborted, { once: true });
           if (signal.aborted) aborted();
         }),
       ]);
     } catch (error) {
-      if (signal.aborted)
-        return c.json({ error: { code: "REQUEST_DEADLINE" } }, 504);
+      if (signal.aborted) return c.json(apiError("request_deadline"), 504);
       if (
         error instanceof ReadError &&
         ["not_loaded", "data_policy_unavailable"].includes(error.error.code)
       )
         return c.json(
-          { error: error.error },
+          apiErrorFrom(error.error),
           error.error.code === "not_loaded" ? 404 : 503,
         );
       if (error instanceof CensusError)
         return c.json(
-          { error: { code: error.code } },
-          error.code === "GENERATION_CHANGED" ? 503 : 400,
+          apiError(error.code),
+          error.code === "generation_changed" ? 503 : 400,
         );
       // Do not fingerprint exceptions: messages and stacks may contain sensitive inputs.
-      return c.json({ error: { code: "BATCH_READ_FAILED" } }, 503);
+      return c.json(apiError("batch_read_failed"), 503);
     } finally {
       if (aborted) signal.removeEventListener("abort", aborted);
     }

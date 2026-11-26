@@ -6,6 +6,7 @@ import { createApp } from "../src/api/app.js";
 import { createDatabase } from "../src/db/database.js";
 import { migrate } from "../src/db/migrate.js";
 import { coreMigrations, testDatabase } from "./pglite.js";
+import { unknownsWithoutReason } from "./error-shape.js";
 import { contract } from "./public-contract.js";
 
 describe("API", () => {
@@ -25,7 +26,7 @@ describe("API", () => {
   it("returns an empty manifest before ingestion and imported values after, without turning missing evidence into coverage", async () => {
     const health = await app.request("/healthz");
     expect(health.status).toBe(200);
-    expect(await health.json()).toEqual({ status: "ok", db: "ok" });
+    expect(await health.json()).toMatchObject({ status: "ok", db: "ok" });
     const empty = await app.request("/v1/data-availability");
     expect(empty.status).toBe(200);
     expect(await empty.json()).toEqual([]);
@@ -39,6 +40,7 @@ describe("API", () => {
     const response = await app.request("/v1/data-availability");
     const rows = (await response.clone().json()) as Record<string, unknown>[];
     // Every row carries the keys docs/public-contract.json promises.
+    expect(unknownsWithoutReason(rows)).toEqual([]);
     for (const row of rows)
       expect(Object.keys(row)).toEqual(
         expect.arrayContaining(contract.availability.row_required),
@@ -51,9 +53,13 @@ describe("API", () => {
         issuer_id: null,
         catalog_status: "partial",
         premium_status: "unknown",
+        premium_reason: "premium_not_available",
         provider_status: "unknown",
+        provider_reason: "source_set_not_available",
         formulary_status: "unknown",
+        formulary_reason: "source_set_not_available",
         formulary_document_status: "unknown",
+        formulary_document_reason: "source_set_not_available",
         snapshot_id: "synthetic-partial",
         drug_status: "unknown",
         drug_coverage: {
@@ -64,6 +70,7 @@ describe("API", () => {
         ichra_status: "unknown",
         ichra_reason: "premium_not_available",
         ichra_lookback_status: "unknown",
+        ichra_lookback_reason: "catalog_not_loaded",
         ichra_rules: {
           affordability: "final",
           employer_safe_harbors: "proposed_reliance_permitted",
@@ -82,9 +89,9 @@ describe("API", () => {
       const response = await unavailableApp.request("/healthz");
       expect(response.status).toBe(503);
       expect(await response.json()).toEqual({
-        status: "ok",
+        status: "down",
         db: "down",
-        error: { code: "db_down" },
+        error: { code: "db_down", request_id: expect.any(String) as unknown },
       });
       const availability = await unavailableApp.request(
         "/v1/data-availability",
@@ -92,7 +99,10 @@ describe("API", () => {
       expect(availability.status).toBe(503);
       const body = await availability.text();
       expect(JSON.parse(body)).toEqual({
-        error: { code: "data_availability_unavailable" },
+        error: {
+          code: "data_availability_unavailable",
+          request_id: expect.any(String) as unknown,
+        },
       });
       expect(body).not.toContain(socket);
     } finally {

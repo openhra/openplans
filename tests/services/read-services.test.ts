@@ -62,7 +62,7 @@ describe("provider read use cases preserve native preconditions without HTTP", (
   it("fails invalid plans and missing taxonomy before searching or resolving a missing ZIP", async () => {
     await expect(
       findProviders(h.db, { plan_id: "99999TX0100001", year: "2026" }),
-    ).rejects.toMatchObject({ error: { code: "PLAN_NOT_FOUND" } });
+    ).rejects.toMatchObject({ error: { code: "plan_not_found" } });
     await expect(
       findProviders(h.db, { specialty: "Family", zip: "00000" }),
     ).rejects.toMatchObject({

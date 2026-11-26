@@ -37,7 +37,7 @@ export function fitsOutput<T>(
 }
 
 export function outputSizeError(): ToolError {
-  return new ToolError("RESULT_TOO_LARGE");
+  return new ToolError("result_too_large");
 }
 
 export function assertOutputCount(count: number, maximum: number): void {

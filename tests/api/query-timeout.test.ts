@@ -97,9 +97,9 @@ describe("query timeouts", () => {
     const broken = failing(() => new Error("synthetic failure"));
     const native = await nativeAnswer(nativeRoutes, broken);
     expect(native.status).toBe(500);
-    expect(await native.json()).toEqual({ error: { code: "INTERNAL_ERROR" } });
+    expect(await native.json()).toEqual({ error: { code: "internal_error" } });
     expect((await mcpAnswer(callTool, broken)).error.code).toBe(
-      "DATA_UNAVAILABLE",
+      "data_unavailable",
     );
   });
 
@@ -155,7 +155,7 @@ describe("query timeouts", () => {
     await withMutantFile(src("mcp/tools.ts"), source, async (file) => {
       const mutant = await importMutant<{ callTool: Tool }>(file, "callTool");
       const output = await mcpAnswer(mutant.callTool, failing(clientTimeout));
-      expect(output.error.code).toBe("DATA_UNAVAILABLE");
+      expect(output.error.code).toBe("data_unavailable");
       expect(() => expectMcpTimeout(output)).toThrow();
     });
   });

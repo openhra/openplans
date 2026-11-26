@@ -80,7 +80,7 @@ it("retries changed public generations and refuses continuing churn", async () =
   const churn = database(["g1", "g2", "g3", "g4"]);
   await expect(
     canonicalReader.plans(request, { db: churn.db, signal }),
-  ).rejects.toThrow("MSOT_CATALOG_CHANGED");
+  ).rejects.toThrow("msot_catalog_changed");
   await expect(
     canonicalReader.plans(
       { ...request, plan_ids: Array(101).fill(id) as string[] },

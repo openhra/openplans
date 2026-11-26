@@ -69,17 +69,19 @@ const text = (value: unknown) =>
 export async function hostAvailability(
   db: SqlSession,
 ): Promise<HostAvailabilityEntry[]> {
-  return (await dataAvailability(db)).map((row) => ({
-    state: String(row.state),
-    year: Number(row.plan_year),
-    market: text(row.market),
-    issuer_id: text(row.issuer_id),
-    catalog: String(row.catalog_status),
-    premium: String(row.premium_status),
-    provider: String(row.provider_status),
-    formulary: String(row.formulary_status),
-    snapshot_id: text(row.snapshot_id),
-  }));
+  return (await dataAvailability(db, undefined, { reasons: false })).map(
+    (row) => ({
+      state: String(row.state),
+      year: Number(row.plan_year),
+      market: text(row.market),
+      issuer_id: text(row.issuer_id),
+      catalog: String(row.catalog_status),
+      premium: String(row.premium_status),
+      provider: String(row.provider_status),
+      formulary: String(row.formulary_status),
+      snapshot_id: text(row.snapshot_id),
+    }),
+  );
 }
 
 type AvailabilityRead = (db: SqlSession) => Promise<HostAvailabilityEntry[]>;

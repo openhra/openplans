@@ -354,7 +354,7 @@ it("rejects a synthetic stored federal age-rating authorization for VT at the HT
     ]);
     expect(result).toMatchObject({
       status: "unsupported_rating_method",
-      reason: "NO_APPLICABLE_COMMUNITY_RULE",
+      reason: "no_applicable_community_rule",
     });
     expect(result).not.toHaveProperty("total_cents");
     expect(() =>

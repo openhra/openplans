@@ -276,7 +276,7 @@ async function planAnswer(
     list: "records",
     ...page,
     notes:
-      input.section === "documents" ? ["DOCUMENT_EVIDENCE_UNAVAILABLE"] : [],
+      input.section === "documents" ? ["document_evidence_unavailable"] : [],
   };
 }
 
@@ -361,12 +361,12 @@ async function searchAnswer(
       } catch (error) {
         if (
           !(error instanceof ReadError) ||
-          error.error.code !== "PLAN_NOT_FOUND"
+          error.error.code !== "plan_not_found"
         )
           throw error;
       }
     } else if (!input.year || !input.location)
-      gaps.push("PLAN_SEARCH_REQUIRES_YEAR_AND_LOCATION");
+      gaps.push("plan_search_requires_year_and_location");
     else {
       const found = await discoverPlans(
         db,
@@ -390,7 +390,7 @@ async function searchAnswer(
           detail.identity ? [detail.identity] : detail.issuer_records,
         );
       } catch (e) {
-        if (!(e instanceof ReadError) || e.error.code !== "PROVIDER_NOT_FOUND")
+        if (!(e instanceof ReadError) || e.error.code !== "provider_not_found")
           throw e;
       }
     } else if (input.query.trim().length >= 3 && !/^\d+$/.test(input.query)) {
@@ -402,9 +402,9 @@ async function searchAnswer(
         providerRecords.push(...rows(found.providers));
         if (!found.next_page) break;
         if (page === 20)
-          gaps.push("PROVIDER_RESULTS_REQUIRE_SEARCH_PROVIDERS_FOR_MORE");
+          gaps.push("provider_results_require_search_providers_for_more");
       }
-    } else gaps.push("PROVIDER_SEARCH_REQUIRES_LITERAL_NAME_OR_NPI");
+    } else gaps.push("provider_search_requires_literal_name_or_npi");
     providerRecords = providerRecords.filter((r) => typeof r.npi === "string");
   }
   let drugRecords: Row[] = [];
@@ -415,20 +415,20 @@ async function searchAnswer(
           (await drugs.getDrug(db, input.query)).concepts,
         ).slice(0, 1);
       } catch (e) {
-        if (!(e instanceof ReadError) || e.error.code !== "DRUG_NOT_FOUND")
+        if (!(e instanceof ReadError) || e.error.code !== "drug_not_found")
           throw e;
       }
     } else {
       const found = await discoverDrugs(db, { query: input.query }, 0, 1000);
       drugRecords = found.items;
-      if (found.more) gaps.push("DRUG_RESULTS_REQUIRE_SEARCH_DRUGS_FOR_MORE");
+      if (found.more) gaps.push("drug_results_require_search_drugs_for_more");
     }
   }
   let counties: Row[] = [];
   if (requested("geography")) {
     if (/^\d{5}$/.test(input.query))
       counties = (await catalog.lookupZip(db, input.query)).counties;
-    else gaps.push("GEOGRAPHY_SEARCH_REQUIRES_ZIP");
+    else gaps.push("geography_search_requires_zip");
   }
   const directories: { kind: "carriers" | "networks"; rows: Row[] }[] = [];
   for (const [entity, kind] of [
@@ -570,7 +570,7 @@ async function fetchAnswer(
     !["plan", "provider", "drug"].includes(kind) &&
     !["summary", "provenance"].includes(input.section)
   )
-    throw new ToolError("UNSUPPORTED_SECTION", "section");
+    throw new ToolError("unsupported_section", "section");
   let records: Row[] = [],
     title = input.id,
     p: Awaited<ReturnType<typeof projector>>,
@@ -578,7 +578,7 @@ async function fetchAnswer(
     more: boolean;
   if (kind === "plan") {
     if (["addresses", "associations"].includes(input.section))
-      throw new ToolError("UNSUPPORTED_SECTION", "section");
+      throw new ToolError("unsupported_section", "section");
     const answer = await planAnswer(
       db,
       {
@@ -620,7 +620,7 @@ async function fetchAnswer(
       }));
     else if (input.section === "provenance")
       records = [...p.metadata.keys()].map(p.snapshot);
-    else throw new ToolError("UNSUPPORTED_SECTION", "section");
+    else throw new ToolError("unsupported_section", "section");
     title = String(rows(native.concepts)[0]?.name ?? input.id);
     const page = slice(records, offset, input.limit);
     ({ items: records, total, more } = page);
@@ -636,7 +636,7 @@ async function fetchAnswer(
             (r) => r.snapshot_id === parts[2] && r.record_id === parts[3],
           )
         : rows(native.identity ? [native.identity] : native.issuer_records);
-    if (!selected.length) throw new ToolError("PROVIDER_NOT_FOUND");
+    if (!selected.length) throw new ToolError("provider_not_found");
     p = await projector(db, selected);
     title = String(
       p.provider(selected[0], parts.length === 1).name ?? input.id,
@@ -662,11 +662,11 @@ async function fetchAnswer(
       );
     else if (input.section === "provenance")
       records = [...p.metadata.keys()].map(p.snapshot);
-    else throw new ToolError("UNSUPPORTED_SECTION", "section");
+    else throw new ToolError("unsupported_section", "section");
     ({ items: records, total, more } = slice(records, offset, input.limit));
   } else if (kind === "snapshot") {
     const native = await getSnapshot(db, parts[0]);
-    if (!native) throw new ToolError("SNAPSHOT_NOT_FOUND");
+    if (!native) throw new ToolError("snapshot_not_found");
     p = await projector(db, native);
     records = [p.snapshot(parts[0]!)];
     title = native.publisher;
@@ -674,7 +674,7 @@ async function fetchAnswer(
   } else if (kind === "geography") {
     const native = await catalog.lookupZip(db, parts[0]),
       found = native.counties.filter((c) => c.county_fips === parts[1]);
-    if (!found.length) throw new ToolError("GEOGRAPHY_NOT_FOUND");
+    if (!found.length) throw new ToolError("geography_not_found");
     p = await projector(db, found);
     records = found.map(p.geography);
     title = String(found[0]!.county_name);
@@ -689,7 +689,7 @@ async function fetchAnswer(
     records = rows(native[dirKind])
       .map((r) => p.directory(r, dirKind))
       .filter((r) => r.id === input.id);
-    if (!records.length) throw new ToolError("ENTITY_NOT_FOUND");
+    if (!records.length) throw new ToolError("entity_not_found");
     title = String(records[0]!.name ?? input.id);
     ({ items: records, total, more } = slice(records, offset, input.limit));
   } else {
@@ -706,7 +706,7 @@ async function fetchAnswer(
     );
     p = found.p;
     records = found.records;
-    if (!records.length) throw new ToolError("ENTITY_NOT_FOUND");
+    if (!records.length) throw new ToolError("entity_not_found");
     total = found.total;
     more = found.more;
   }
@@ -940,7 +940,7 @@ async function dispatch(
       };
     }
     case "quote_premiums": {
-      if (!mayEstimate(deps)) throw new ToolError("AUTH_REQUIRED");
+      if (!mayEstimate(deps)) throw new ToolError("auth_required");
       const input = parseToolInput(tool, value),
         tax = input.household;
       const native = await catalog.estimatePremiums(db, {
@@ -970,7 +970,7 @@ async function dispatch(
     case "quote_plans":
       return quoteAnswer(db, parseToolInput(tool, value), offset);
     case "check_ichra_affordability":
-      if (!mayEstimate(deps)) throw new ToolError("AUTH_REQUIRED");
+      if (!mayEstimate(deps)) throw new ToolError("auth_required");
       return ichraAnswer(db, parseToolInput(tool, value));
     case "search_providers": {
       const input = parseToolInput(tool, value);
@@ -1203,6 +1203,7 @@ async function dispatch(
         found = await datasets(db, input, offset);
       return {
         data: {
+          release: applicationVersion,
           data_policy: found.native.data_policy,
           datasets: found.records,
           personalized_access: mayEstimate(deps)
@@ -1303,13 +1304,13 @@ export function errorResult(
   } else if (error instanceof ReadError) {
     code = error.error.code;
   } else if (error instanceof ZodError) {
-    code = "INVALID_INPUT";
+    code = "invalid_input";
   } else if (error instanceof HonestyError) {
     code = error.code;
   } else if (isQueryTimeout(error)) {
     code = QUERY_TIMEOUT;
   } else {
-    code = "DATA_UNAVAILABLE";
+    code = "data_unavailable";
   }
   let field;
   if (error instanceof ToolError) {
@@ -1348,10 +1349,10 @@ export function errorResult(
           }
         : {}),
       retryable: [
-        "DATA_UNAVAILABLE",
+        "data_unavailable",
         QUERY_TIMEOUT,
-        "CURSOR_EXPIRED",
-        "DATA_CHANGED",
+        "cursor_expired",
+        "data_changed",
       ].includes(code),
     },
   };
@@ -1372,9 +1373,9 @@ async function callScopedTool(
   try {
     assertCatalogToolAdmission(deps.catalogPolicy, tool);
     if (PERSONALIZED_TOOLS.has(tool) && !mayEstimate(deps))
-      throw new ToolError("AUTH_REQUIRED");
+      throw new ToolError("auth_required");
     if (tool === "quote_plans" && !mayQuotePublic(deps))
-      throw new ToolError("QUOTING_DISABLED");
+      throw new ToolError("quoting_disabled");
     const input = parseToolInput(tool, value),
       { cursor, ...filters } = input as Row;
     const declined =
@@ -1410,7 +1411,7 @@ async function callScopedTool(
     const build = async (): Promise<CatalogResult> => {
       const answer = await dispatch(deps, tool, input, offset);
       if ((await dataGeneration(deps.db)) !== generation)
-        throw new ToolError("DATA_CHANGED");
+        throw new ToolError("data_changed");
       const data = answer.data,
         list = answer.list ? (data[answer.list] as unknown[]) : undefined;
       if (tool === "get_data_status") {
@@ -1515,7 +1516,7 @@ async function callScopedTool(
     const output = dto.output;
     // Recheck publication even on a hit; never return a page straddling two generations.
     if ((await dataGeneration(deps.db)) !== generation)
-      throw new ToolError("DATA_CHANGED");
+      throw new ToolError("data_changed");
     row(output.freshness).checked_at = checkedAt;
     if (tool === "get_data_status") {
       row(output.data).personalized_access = mayEstimate(deps)

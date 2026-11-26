@@ -99,7 +99,7 @@ export function parseDrugCostRequest(body: unknown): DrugCostRequest {
   const field = ["body", ...issue.path.map(String)].join(".");
   return v.fail(
     field,
-    issue.code === "unrecognized_keys" ? "UNSUPPORTED_FIELD" : "INVALID_INPUT",
+    issue.code === "unrecognized_keys" ? "unsupported_field" : "invalid_input",
   );
 }
 
@@ -887,7 +887,7 @@ export async function drugCostEstimate(
     prices,
   });
   if (result.status === "invalid")
-    return v.fail("body.fills", "INVALID_SCHEDULE");
+    return v.fail("body.fills", "invalid_schedule");
   if (!("fills" in result))
     return closed(head, result.status, result.reason, bundle.release.as_of);
   const { answer, cited } = project(head, input, bundle, result, deps);
